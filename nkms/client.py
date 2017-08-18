@@ -12,7 +12,7 @@ class Client(object):
         """
         pass
 
-    def encrypt(self, data, path=None):
+    def encrypt(self, data, path=None, algorithm=None):
         """
         Encrypts data in a form ready to ship to the storage layer.
 
@@ -21,6 +21,8 @@ class Client(object):
             sub-paths). If None, encrypted with just our pubkey.
             If contains only 1 element or is a string, this is just used as a
             unique identifier w/o granular encryption.
+        :param dict algorithm: Algorithm parameters (name, curve, re-encryption
+            type, m/n etc). None if default
 
         :return: Encrypted data
         :rtype: bytes
