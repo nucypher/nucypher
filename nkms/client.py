@@ -66,3 +66,52 @@ class Client(object):
         :param tuple(str) path: Path which we share. If None - revoke everything
         """
         pass
+
+    def encrypt_bulk(self, data, key, algorithm=None):
+        """
+        Encrypt bulk of the data with a symmetric cipher
+
+        :param bytes data: Data to encrypt
+        :param bytes key: Symmetric key
+        :param str algorithm: Algorithm to use or None for default
+
+        :return: Encrypted data
+        :rtype: bytes
+        """
+        pass
+
+    def decrypt_bulk(self, edata, key, algorithm=None):
+        """
+        Decrypt bulk of the data with a symmetric cipher
+
+        :param bytes edata: Data to decrypt
+        :param bytes key: Symmetric key
+        :param str algorithm: Algorithm to use or None for default
+
+        :return: Plaintext data
+        :rtype: bytes
+        """
+        pass
+
+    def encrypt_key(self, key, path=None, algorithm=None):
+        """
+        Encrypt (symmetric) key material with our public key
+
+        :param bytes key: Symmetric key to encrypt
+        :param tuple(str) path: Path to the data (to be able to share
+            sub-paths). If None, encrypted with just our pubkey.
+            If contains only 1 element or is a string, this is just used as a
+            unique identifier w/o granular encryption.
+        :param dict algorithm: Algorithm parameters (name, curve, re-encryption
+            type, m/n etc). None if default
+
+        :return: Encrypted key
+        :rtype: bytes
+        """
+        pass
+
+    def decrypt_key(self, key, path=None, owner=None):
+        """
+        Decrypt (symmetric) key material. Params similar to decrypt()
+        """
+        pass
