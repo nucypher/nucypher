@@ -75,6 +75,7 @@ config)
 API
 =====
 First, we create a Python API. This API should allow to:
+
 * generate a new random symmetric key (this is usually implicit)
 * encrypt (off-chain, but store meta-information with files)
 * grant and revoke access (on chain)
@@ -92,15 +93,18 @@ Encryption
 We should be able to have algorithms pluggable, so we will note which algo
 did we use for pubkey encryption / reencryption in a rekey meta-information.
 The choices are:
+
 * Normal BBS98 (1-of-n) (debug only);
 * Normal ECIES (1-of-n);
 * AFGH (n-of-n) (debug only);
 * Split-key ECIES (m-of-n, production ready).
+
 As soon as split-key ECIES is available, we immediately switch to it.
 The curve should also be specified. Makes sense to use secp256k1 as it was
 well tested with Bitcoin.
 
 We also store which block cipher we used. The choices are:
+
 * AES256-GCM (lisodium-based library for zerodb is the fastest?)
 * Other AES modes (maybe not vulnerable to reusing the IV)
 * Salsa20 from libsodium
