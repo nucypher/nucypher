@@ -2,13 +2,15 @@ from distutils.core import setup
 
 INSTALL_REQUIRES = [
         'kademlia>=1.0',
-        'rpcudp>=3.0']
+        'rpcudp>=3.0',
+        'ZODB>=5.0']
 
 TESTS_REQUIRE = [
     'pytest',
     'coverage',
     'pytest-cov',
     'pdbpp',
+    'ipython'
 ]
 
 # should add --process-dependency-links to pip
