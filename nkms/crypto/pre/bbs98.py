@@ -36,4 +36,10 @@ class PRE(BasePRE):
         return msgpack.dumps([2, epriv, remsg])  # type 2 emsg
 
     def decrypt(self, priv, emsg, padding=True):
-        pass
+        # This is non-optimal b/c of double-deserialization
+        # but this cipher is for development/tests, not production
+        # so be it
+        emsg_l = msgpack.unpack(emsg)
+        if emsg_l[0] == 2:
+            _, priv, emsg = emsg_l
+        return super(PRE, self).decrypt(priv, emsg, padding=padding)

@@ -26,6 +26,7 @@ def symmetric_from_algorithm(algorithm):
 def pre_from_algorithm(algorithm):
     kw = {k: v for k, v in algorithm['pre'].items()
           if k != 'cipher' and v is not None}
-    module = importlib('nkms.crypto.block.' + algorithm['pre']['cipher'])
+    module = importlib.import_module(
+            'nkms.crypto.block.' + algorithm['pre']['cipher'])
     # TODO need to cache this
     return module.PRE(**kw)
