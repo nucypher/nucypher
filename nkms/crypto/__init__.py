@@ -17,7 +17,8 @@ default_algorithm = dict(
 
 
 def symmetric_from_algorithm(algorithm):
-    module = importlib('nkms.crypto.block.' + algorithm['symmetric']['cipher'])
+    module = importlib.import_module(
+            'nkms.crypto.block.' + algorithm['symmetric']['cipher'])
     # TODO need to cache this
     return module.Cipher
 

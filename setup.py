@@ -1,4 +1,4 @@
-from distutils.core import setup, find_packages
+from setuptools import setup, find_packages
 
 INSTALL_REQUIRES = [
         'kademlia>=1.0',
