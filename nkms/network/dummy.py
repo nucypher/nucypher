@@ -16,7 +16,7 @@ class Client(object):
     """
 
     def __init__(self, **kw):
-        pass
+        self._storage = {}  # This will actually be remote!
 
     def store_rekeys(self, k, rekeys, algorithm):
         """
@@ -34,5 +34,11 @@ class Client(object):
         """
         :param bytes k: Address of the rekey derived from the path/pubkey
         :param bytes ekey: Encrypted symmetric key to reencrypt
+        """
+        pass
+
+    def close(self):
+        """
+        Disconnect from the network. In the dummy class - nothing here
         """
         pass
