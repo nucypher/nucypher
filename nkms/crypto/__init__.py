@@ -10,7 +10,7 @@ default_algorithm = dict(
         symmetric=dict(
             cipher='nacl'),
         pre=dict(
-            cipher='bbs98',
+            cipher='bbs98',     # BBS98 is only temporary here, for development
             curve=714,          # secp256k1 in OpenSSL
             g=b'1:' + _bitcoin_genesis,
             m=None, n=None))

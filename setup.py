@@ -1,4 +1,4 @@
-from distutils.core import setup
+from distutils.core import setup, find_packages
 
 INSTALL_REQUIRES = [
         'kademlia>=1.0',
@@ -27,4 +27,4 @@ setup(name='nkms',
       install_requires=INSTALL_REQUIRES,
       dependency_links=LINKS,
       extras_require={'testing': TESTS_REQUIRE},
-      packages=['nkms'])
+      packages=find_packages())
