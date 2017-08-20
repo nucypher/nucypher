@@ -1,3 +1,6 @@
+from nkms import crypto
+
+
 class Client(object):
     """
     This is a dummy client which doesn't connect anywhere and just does
@@ -25,17 +28,25 @@ class Client(object):
             a tuple or a list of length > 1 - m-of-n reencryption is used.
         :param dict algorithm: Parameters of the re-encryption algo
         """
-        pass
+        if type(rekeys) in (list, tuple):
+            if len(rekeys) > 1:
+                raise NotImplementedError(
+                        'm-of-n reencryption not yet available')
+            rekeys = rekeys[0]
+        self._storage[k] = {'rk': rekeys, 'algorithm': algorithm}
 
     def remove_rekeys(self, k):
-        pass
+        del self._storage[k]
 
     def reencrypt(self, k, ekey):
         """
         :param bytes k: Address of the rekey derived from the path/pubkey
         :param bytes ekey: Encrypted symmetric key to reencrypt
         """
-        pass
+        rekey = self._storage[k]['rk']
+        algorithm = self._storage[k]['algorithm']
+        pre = crypto.pre_from_algorithm(algorithm)
+        return pre.reencrypt(rekey, ekey)
 
     def close(self):
         """
