@@ -108,3 +108,25 @@ We also store which block cipher we used. The choices are:
 * AES256-GCM (lisodium-based library for zerodb is the fastest?)
 * Other AES modes (maybe not vulnerable to reusing the IV)
 * Salsa20 from libsodium
+
+Consumers of the data identify it by owner's public key and the path. It is
+important that someone else doesn't submit reencryption keys for the same
+path. So, at first, we should add digital signatures for hash(path + policy)
+(using pycrypto library?). Then this signature and associated data will be
+recorded on the blockchain so that it is publicly verifyable. The miners
+have to accept only paths with valid signatures.
+Public key should be used as a part of rekey address.
+The scheme wouldn't work with anonimity on, so it will have to be redesigned
+to be anonymous in later versions of the protocol.
+
+Mapping in the rekey store:
+
+    * pubkey -> hash(path) -> rekey
+
+The pubkey here is *not* the encryption key, it's a separate signing key.
+
+Algorithms/libraries to use:
+
+    * ECDSA (pycryptodome / pycrypto), secp256k1 curve
+    * sha3 module for hash functions (let's be future-proof!)
+      (included in standard hashlib with python3.6+)
