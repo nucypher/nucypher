@@ -121,7 +121,7 @@ to be anonymous in later versions of the protocol.
 
 Mapping in the rekey store:
 
-    * pubkey -> hash(path) -> rekey
+    * pubkey -> hash(path) -> (rekey, algorithm)
 
 The pubkey here is *not* the encryption key, it's a separate signing key.
 

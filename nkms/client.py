@@ -1,8 +1,12 @@
+from nkms.network import dummy
+
+
 class Client(object):
     """
     Client which will be used by Python developers to interact with the
     decentralized KMS. For now, this is just the skeleton.
     """
+    network_client_factory = dummy.Client
 
     def __init__(self, conf=None):
         """
@@ -10,7 +14,7 @@ class Client(object):
             not given, a default one in the home directory is used
             or created
         """
-        pass
+        self._nclient = Client.network_client_factory()
 
     def encrypt(self, data, path=None, algorithm=None):
         """

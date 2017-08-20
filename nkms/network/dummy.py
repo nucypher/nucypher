@@ -1,4 +1,7 @@
+from collections import defaultdict
 from nkms import crypto
+
+_storage = defaultdict(dict)
 
 
 class Client(object):
@@ -19,32 +22,37 @@ class Client(object):
     """
 
     def __init__(self, **kw):
-        self._storage = {}  # This will actually be remote!
+        pass
 
-    def store_rekeys(self, k, rekeys, algorithm):
+    def store_rekeys(self, pub, k, rekeys, algorithm):
         """
+        :param bytes pub: Public (signing) key
         :param bytes k: ID for the rekeys (or key in a key-value store sense)
         :param tuple rekeys: Rekeys to store. If bytes, it's just one rekey. If
             a tuple or a list of length > 1 - m-of-n reencryption is used.
         :param dict algorithm: Parameters of the re-encryption algo
+        :param bytes sig: Digital signature of hash(k, metainfo)
         """
         if type(rekeys) in (list, tuple):
             if len(rekeys) > 1:
                 raise NotImplementedError(
                         'm-of-n reencryption not yet available')
             rekeys = rekeys[0]
-        self._storage[k] = {'rk': rekeys, 'algorithm': algorithm}
+        # Should specify and check signature also
+        _storage[pub][k] = {'rk': rekeys, 'algorithm': algorithm}
 
-    def remove_rekeys(self, k):
-        del self._storage[k]
+    def remove_rekeys(self, pub, k):
+        # Should specify and check signature also
+        del _storage[pub][k]
 
-    def reencrypt(self, k, ekey):
+    def reencrypt(self, pub, k, ekey):
         """
+        :param bytes pub: Public (signing) key
         :param bytes k: Address of the rekey derived from the path/pubkey
         :param bytes ekey: Encrypted symmetric key to reencrypt
         """
-        rekey = self._storage[k]['rk']
-        algorithm = self._storage[k]['algorithm']
+        rekey = _storage[pub][k]['rk']
+        algorithm = _storage[pub][k]['algorithm']
         pre = crypto.pre_from_algorithm(algorithm)
         return pre.reencrypt(rekey, ekey)
 
