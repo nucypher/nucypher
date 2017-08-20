@@ -1,16 +1,20 @@
 import importlib
 from nacl.utils import random  # noqa
 
-# Random 'g' parameter, perhaps, should be selected
-# using some public value (such as hashMerkleRoot of Bitcoin genesis block)
-# but since bbs98 is for tests anyway, having any random is good enough here
+# 'Random' parameter g here is derived from Bitcoin's hashMerkleRoot of
+# its genesis block:
+# bbs98.ec.serialize(
+#    bbs98.ec.hashEC(
+#       pre.ecgroup,
+#       base64.decodebytes(b'4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b')
+#       bbs98.ec.G)) = b'1:A78WgHh03I38RcZO/FQe9SbmPVzQg+oehzR8QsGXOeqz'
 default_algorithm = dict(
         symmetric=dict(
             cipher='nacl'),
         pre=dict(
             cipher='bbs98',     # BBS98 is only temporary here, for development
             curve=714,          # secp256k1 in OpenSSL
-            g=b'1:Axyxmlw2HrO+VcCXwxDQ02qqgexsKOZ6gDC6wy7zJB0X',
+            g=b'1:A78WgHh03I38RcZO/FQe9SbmPVzQg+oehzR8QsGXOeqz',
             m=None, n=None))
 
 
