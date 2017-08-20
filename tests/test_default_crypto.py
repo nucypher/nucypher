@@ -22,7 +22,9 @@ def test_pre():
     pk_a = pre.priv2pub(sk_a)
     pk_b = pre.priv2pub(sk_b)
     msg = b'Hello world'
-    rk_ab = pre.rekey(sk_a, pk_b)
+    assert pre.decrypt(sk_b, pre.encrypt(pk_b, b'x' * 32)) == b'x' * 32
+    rk_ab = pre.rekey(sk_a, pk_b, sk_b)
+    print(rk_ab)
 
     emsg_a = pre.encrypt(pk_a, msg)
     emsg_b = pre.reencrypt(rk_ab, emsg_a)

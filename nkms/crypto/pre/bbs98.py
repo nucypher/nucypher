@@ -24,9 +24,10 @@ class PRE(BasePRE):
             priv = convert_priv(priv)
         return super(PRE, self).priv2pub(priv)
 
-    def rekey(self, priv1, pub2):
+    def rekey(self, priv1, pub2, sk2=None):
         priv_to = crypto.random(self.KEY_SIZE)
-        rk = self.rekey(convert_priv(priv1), convert_priv(priv_to), dtype=bytes)
+        rk = super(PRE, self).rekey(
+                convert_priv(priv1), convert_priv(priv_to), dtype=bytes)
         epriv_to = self.encrypt(pub2, priv_to)
         return msgpack.dumps([rk, epriv_to])
 
@@ -39,7 +40,10 @@ class PRE(BasePRE):
         # This is non-optimal b/c of double-deserialization
         # but this cipher is for development/tests, not production
         # so be it
-        emsg_l = msgpack.unpack(emsg)
+        emsg_l = msgpack.loads(emsg)
         if emsg_l[0] == 2:
-            _, priv, emsg = emsg_l
-        return super(PRE, self).decrypt(priv, emsg, padding=padding)
+            _, epriv_to, emsg = emsg_l
+            priv_to = self.decrypt(priv, epriv_to)
+            priv = priv_to
+        return super(PRE, self).decrypt(
+                convert_priv(priv), emsg, padding=padding)

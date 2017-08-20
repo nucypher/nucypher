@@ -1,18 +1,16 @@
-import base64
 import importlib
 from nacl.utils import random  # noqa
 
-# hashMerkleRoot for Bitcoin genesis block
-_bitcoin_genesis = base64.encodebytes(bytes.fromhex(
-    '4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b')).strip()
-
+# Random 'g' parameter, perhaps, should be selected
+# using some public value (such as hashMerkleRoot of Bitcoin genesis block)
+# but since bbs98 is for tests anyway, having any random is good enough here
 default_algorithm = dict(
         symmetric=dict(
             cipher='nacl'),
         pre=dict(
             cipher='bbs98',     # BBS98 is only temporary here, for development
             curve=714,          # secp256k1 in OpenSSL
-            g=b'1:' + _bitcoin_genesis,
+            g=b'1:Axyxmlw2HrO+VcCXwxDQ02qqgexsKOZ6gDC6wy7zJB0X',
             m=None, n=None))
 
 
@@ -27,6 +25,6 @@ def pre_from_algorithm(algorithm):
     kw = {k: v for k, v in algorithm['pre'].items()
           if k != 'cipher' and v is not None}
     module = importlib.import_module(
-            'nkms.crypto.block.' + algorithm['pre']['cipher'])
+            'nkms.crypto.pre.' + algorithm['pre']['cipher'])
     # TODO need to cache this
     return module.PRE(**kw)
