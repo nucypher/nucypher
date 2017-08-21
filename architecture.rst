@@ -130,3 +130,49 @@ Algorithms/libraries to use:
     * ECDSA (pycryptodome / pycrypto), secp256k1 curve
     * sha3 module for hash functions (let's be future-proof!)
       (included in standard hashlib with python3.6+)
+
+
+Non-anonymous protocol
+============================
+
+Owner of the data has signing keypair sk_o/pk_o and encrypting keypair ske_o/pke_o.
+ske_o = hash(sk_o)
+
+The path can be a string or a tuple (where a string is equivalent to a tuple with length one).
+An example of a tuple-path::
+
+    path = ('/home', 'ubuntu', 'secret.txt')
+
+When a path contains many elements in the tuple, one can share not only one file, but also whole directories.
+If the PRE algorithm is not multihop+unidirectional (there is only one like that), the encryption keys for
+files/directories are::
+
+    key[i] = hmac(ske_o, '/'.join(path[:i]))
+
+so, key[0] is the (private) key for whole /home, key[1] for /home/ubuntu etc.
+When a file (or object) with `path` is encrypted, the owner generates a symmetric key for it,
+encrypts it with every of key[i] and attaches to the file (or returns just keys if asked for).
+When attached to the file, the encrypted symmetric keys are stored together with hashes of
+paths and subpaths so that we can verify that this file is encrypted for the users of this path.
+
+When a file or a directory is shared with someone with a key pair (sk_b/pk_b), the re-encryption
+key is created for a path shared::
+
+    rk = rekey(key[i], pk_b)
+
+where key[i] is calculated in-place from the path, and rk might mean also all re-encryption shares
+rather than just one rekey.
+
+After the calculation, the rk is stored with the KMS network. It will be stored in the following
+(hierarchical) persistent mapping::
+
+    pk_o -> hash(pk_b, '/'.join(path[:i])) -> (rk, policy, algorithm, sign(hash + rk + policy + algorithm, pk_o))
+
+The policy is signed by the owner's public key in order to protect from submitting by someone else.
+In order to protect from submitting after being revoked, the signature can be saved on blockchain
+when the policy is submitted and when revoked so that no one can use a replay attack to submit it
+again (needs to be rethoght for anonymous protocol).
+
+All the interactions are encrypted with each node's public key + symmetric key, so that nobody
+except that node can see the rekey. It's usually one-time interaction over rpcudp, so public key
+encryption would work faster than TLS would work.
