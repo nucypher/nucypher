@@ -166,7 +166,7 @@ rather than just one rekey.
 After the calculation, the rk is stored with the KMS network. It will be stored in the following
 (hierarchical) persistent mapping::
 
-    pk_o -> hash(pk_b, '/'.join(path[:i])) -> (rk, policy, algorithm, sign(hash + rk + policy + algorithm, pk_o))
+    pk_o -> hmac(pk_b, '/'.join(path[:i])) -> (rk, policy, algorithm, sign(hash + rk + policy + algorithm, pk_o))
 
 The policy is signed by the owner's public key in order to protect from submitting by someone else.
 In order to protect from submitting after being revoked, the signature can be saved on blockchain
@@ -176,3 +176,32 @@ again (needs to be rethoght for anonymous protocol).
 All the interactions are encrypted with each node's public key + symmetric key, so that nobody
 except that node can see the rekey. It's usually one-time interaction over rpcudp, so public key
 encryption would work faster than TLS would work.
+
+When a client requests to re-encrypt data, the request is initiated by a command like::
+
+    data = client.decrypt(encrypted_data, pk_o, '/path/to/file/or/directory/where/it/is')
+
+What happens under the hood is the following is sent to the miner node in a request encrypted
+with miner's public key (on the client side)::
+
+    # Path is transformed into a series of hashes
+    path_split = path.split('/')
+    path_pieces = ['/'.join(path_split[:i]) for i in len(path_split)]
+    path_hashes = [hmac(pk_b, piece) for piece in path_pieces]
+
+    # Multiple pieces are when m-of-n split-key reencryption is used
+    # if not, there is only one piece
+    edata_pieces = low_level_client.reencrypt(encrypted_data, pk_o, path_hashes)
+    data = decrypt_m_of_n(edata_pieces, sk_b)
+
+When the server gets a request with all the path_hashes, it looks for a reencryption key
+corresponding to at least one of them, and uses the last one of what it found to reencrypt
+the data::
+
+    def request_handler(encrypted_data, pk_o, path_hashes):
+        for p in path_hashes[::-1]:
+            if p in storage[pk_o]:
+                rk = storage[pk_o][p]
+                return reencrypt(encrypted_data, rk)
+
+        raise KeyNotFound
