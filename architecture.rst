@@ -17,7 +17,7 @@ Depencencies / technologies
 Decentralized network
 ========================
 
-Kademlia by default (see kademlia.network.server) saves data in multiple nodes,
+`Kademlia <https://github.com/bmuller/kademlia>`_ by default (see kademlia.network.server) saves data in multiple nodes,
 and also clients are servers there.
 
 We need to split up client and server (that is, get and set methods of the
