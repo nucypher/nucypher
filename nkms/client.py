@@ -28,7 +28,7 @@ class Client(object):
         """
         self._nclient = Client.network_client_factory()
 
-    def encrypt_key(self, key, pub=None, path=None, algorithm=None):
+    def encrypt_key(self, key, pubkey=None, path=None, algorithm=None):
         """
         Encrypt (symmetric) key material with our public key or the public key
         "pub" if given.
@@ -44,7 +44,7 @@ class Client(object):
         encrypt the same symmetric key "key".
 
         :param bytes key: Symmetric key to encrypt
-        :param bytes pub: Public key to encrypt for
+        :param bytes pubkey: Public key to encrypt for
         :param tuple(str) path: Path to the data (to be able to share
             sub-paths). If None, encrypted with just our pubkey.
             If contains only 1 element or is a string, this is just used as a
@@ -57,7 +57,7 @@ class Client(object):
         """
         pass
 
-    def decrypt_key(self, key, pub=None, path=None, owner=None):
+    def decrypt_key(self, key, pubkey=None, path=None, owner=None):
         """
         Decrypt (symmetric) key material. Params similar to decrypt()
         """
@@ -116,11 +116,32 @@ class Client(object):
         """
         pass
 
-    # XXX instead of encrypt/decrypt:
-    # open() with different modes, operating with paths and file descriptors,
-    # storage backends (ipfs, s3, file)
-    # remove() method which doesn't touch encryption but removes policies and
-    # file
+    def open(self, pubkey=None, path=None, mode='r', fd=None, algorithm=None):
+        """
+        The main interface through which Python API will work.
+
+        One way is to open an encrypted file via the descriptor fd. Will
+        internally use methods decrypt_key and decrypt_bulk.
+
+        The other way is opening the actual file through backends and using the
+        KMS to decrypt data (or create new keys). The path schema examples:
+
+        s3://my_bucket/path/to/secret.txt
+        ipfs://0x1242542346/path/file.txt
+        file://home/ubuntu/my/secret/file.txt
+
+        The mode will be in agreement to the granted permissions.
+
+        If pubkey is not set, we're working on our own files.
+        """
+        pass
+
+    def remove(self, pubkey=None, path=None):
+        """
+        Remove the file and all the rekeys associated with it. Similar to revoke
+        but removing the actual files if the path is given with a schema.
+        """
+        pass
 
     def encrypt(self, data, path=None, algorithm=None):
         """
@@ -137,6 +158,7 @@ class Client(object):
         :return: Encrypted data
         :rtype: bytes
         """
+        # Not needed if open() is there?
         pass
 
     def decrypt(self, edata, path=None, owner=None):
@@ -153,4 +175,5 @@ class Client(object):
         :return: Unencrypted data
         :rtype: bytes
         """
+        # Not needed if open() is there?
         pass
