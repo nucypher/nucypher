@@ -17,17 +17,22 @@ def test_symmetric():
 
 def test_pre():
     pre = pre_from_algorithm(default_algorithm)
-    sk_a = b'a' * 32
-    sk_b = b'b' * 32
-    pk_a = pre.priv2pub(sk_a)
-    pk_b = pre.priv2pub(sk_b)
-    msg = b'Hello world'
-    assert pre.decrypt(sk_b, pre.encrypt(pk_b, b'x' * 32)) == b'x' * 32
-    rk_ab = pre.rekey(sk_a, pk_b, sk_b)
 
-    emsg_a = pre.encrypt(pk_a, msg)
-    emsg_b = pre.reencrypt(rk_ab, emsg_a)
+    sk_alice = b'a' * 32
+    sk_bob = b'b' * 32
 
-    assert pre.decrypt(sk_a, emsg_a) == msg
-    assert pre.decrypt(sk_b, emsg_a) != msg
-    assert pre.decrypt(sk_b, emsg_b) == msg
+    pk_alice = pre.priv2pub(sk_alice)
+    pk_bob = pre.priv2pub(sk_bob)
+
+    cleartext = b'Hello world'
+
+    cyphertext_for_alice = pre.encrypt(pk_alice, cleartext)
+    assert pre.decrypt(sk_alice, cyphertext_for_alice) == cleartext  # Alice can read her message.
+    assert pre.decrypt(sk_bob, cyphertext_for_alice) != cleartext  # But Bob can't!
+
+    # Now we make a re-encryption key from Alice to Bob
+    rk_alice_bob = pre.rekey(sk_alice, pk_bob, sk_bob)
+    # Use the key on Alice's cyphertext...
+    cyphertext_for_bob = pre.reencrypt(rk_alice_bob, cyphertext_for_alice)
+    # ...and sure enough, Bob can read it!
+    assert pre.decrypt(sk_bob, cyphertext_for_bob) == cleartext
