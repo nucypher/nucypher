@@ -29,16 +29,16 @@ n re-encryption keys and store each with one node in the network.
 
 By default, Kademlia stores data *copied* to *several* closest nodes. Instead,
 we want find n closest and responding nodes and store rekeys with them, w/o
-duplicating. The methods get() and set() in `kademlia.network.Server` are to
+duplicating. The methods get() and set() in ``kademlia.network.Server`` are to
 be used only as documentation. We will have to write our own ClientServer class.
 
-The protocol (`kademlia.protocol.KademliaProtocol`) is also to be re-written for
+The protocol (``kademlia.protocol.KademliaProtocol``) is also to be re-written for
 reencryption rather than returning data.
 When connections are established with nodes, they should tell their pubkeys
 (or rather the pubkeys should be used as public nodeids).
 
-New methods should include: `store_rekey` (with policy), `reencrypt`,
-`remove_rekey`.
+New methods should include: ``store_rekey`` (with policy), ``reencrypt``,
+``remove_rekey``.
 
 Nodes should be able to have information on how long they can store
 re-encryption keys for (this information will come from metadata written
@@ -150,7 +150,7 @@ files/directories are::
     key[i] = hmac(ske_o, '/'.join(path[:i]))
 
 so, key[0] is the (private) key for whole /home, key[1] for /home/ubuntu etc.
-When a file (or object) with `path` is encrypted, the owner generates a symmetric key for it,
+When a file (or object) with ``path`` is encrypted, the owner generates a symmetric key for it,
 encrypts it with every of key[i] and attaches to the file (or returns just keys if asked for).
 When attached to the file, the encrypted symmetric keys are stored together with hashes of
 paths and subpaths so that we can verify that this file is encrypted for the users of this path.
