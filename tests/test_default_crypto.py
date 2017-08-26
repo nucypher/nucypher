@@ -31,7 +31,7 @@ def test_pre():
     assert pre.decrypt(sk_bob, cyphertext_for_alice) != cleartext  # But Bob can't!
 
     # Now we make a re-encryption key from Alice to Bob
-    rk_alice_bob = pre.rekey(sk_alice, pk_bob, sk_bob)
+    rk_alice_bob = pre.rekey(sk_alice, pk_bob)
     # Use the key on Alice's cyphertext...
     cyphertext_for_bob = pre.reencrypt(rk_alice_bob, cyphertext_for_alice)
     # ...and sure enough, Bob can read it!

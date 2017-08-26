@@ -24,7 +24,7 @@ class PRE(BasePRE):
             priv = convert_priv(priv)
         return super(PRE, self).priv2pub(priv)
 
-    def rekey(self, priv1, pub2, sk2=None):
+    def rekey(self, priv1, pub2):
         priv_to = crypto.random(self.KEY_SIZE)
         rk = super(PRE, self).rekey(
                 convert_priv(priv1), convert_priv(priv_to), dtype=bytes)
