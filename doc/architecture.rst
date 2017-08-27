@@ -5,11 +5,11 @@ Depencencies / technologies
 =============================
 
 * Python 3.5+
-* asyncio
 * rpcudp - python3.5 branch
 * kademlia - python3.5 branch
-* ZODB for persistence
-* keas.kmi as an example how to have persistent encrypted objects
+* lmdb for persistence
+* Rekeys and metadata represented as Python dicts, msgpacked and encrypted,
+  stored in lmdb
 * C bindings to OpenSSL for encryption (?)
 * PyCryptodome / PyCrypto for symmetric block ciphers
 * buildout for building (more convenient when using custom git dependencies?)
@@ -63,14 +63,9 @@ split-key reencryption properties (e.g. that < m random nodes will be corrupt).
 Persistence layer
 ====================
 
-The persistence layer to be used is ZODB. We can also take encrypted objects
-feature from keas.kmi.
-Current ZODB uses asyncio also, so we need to use common event loop for both
-ZODB and kademlia.
-ZODB can just use FileStorage rather than ZEO when working in a single-process
-regime, and we can use ZEO + clients for multiple CPU cores. But for simplicity,
-we can start with just FileStorage (which, although, can be described in a zcml
-config)
+The persistence layer to be used is lmdb. Rekeys and metadata can be represented
+as Python dictionaries. And when persisted - serialized via msgpack and stored in
+lmdb (in an encrypted form).
 
 API
 =====
