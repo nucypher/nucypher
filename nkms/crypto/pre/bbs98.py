@@ -14,6 +14,9 @@ class PRE(BasePRE):
     """
     KEY_SIZE = 32
 
+    def gen_priv(self, dtype='ec'):
+        return super(PRE, self).gen_priv(dtype)
+
     def priv2pub(self, priv):
         """
         Private key isa pure 32-bytes random number
