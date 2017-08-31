@@ -65,13 +65,27 @@ class Client(object):
         :return: Encrypted key(s)
         :rtype: bytes
         """
-        pass
+        # TODO Encryption by path
+        if not pubkey:
+            pubkey = self._pub_key
 
-    def decrypt_key(self, key, pubkey=None, path=None, owner=None):
+        # Encrypt symmetric key
+        enc_key = self._pre.encrypt(pubkey, key)
+        return enc_key
+
+    def decrypt_key(self, enc_key, priv_key=None, path=None, owner=None):
         """
         Decrypt (symmetric) key material. Params similar to decrypt()
+
+        :param bytes enc_key: Encrypted symmetric key to decrypt
         """
-        pass
+        # TODO Decryption by path
+        if not priv_key:
+            priv_key = self._priv_key
+
+        # Decrypt symmetric key
+        key = self._pre.decrypt(priv_key, enc_key)
+        return key
 
     def grant(self, pubkey, path=None, policy=None):
         """
