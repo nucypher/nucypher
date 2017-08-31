@@ -31,6 +31,13 @@ class Client(object):
         """
         self._nclient = Client.network_client_factory()
 
+        self._pre = pre_from_algorithm(default_algorithm)
+
+        # TODO: Check for existing keypair before generation
+        # TODO: Save newly generated keypair
+        self._priv_key = self._pre.gen_priv(dtype='bytes')
+        self._pub_key = self._pre.priv2pub(self._priv_key)
+
     def encrypt_key(self, key, pubkey=None, path=None, algorithm=None):
         """
         Encrypt (symmetric) key material with our public key or the public key
