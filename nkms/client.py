@@ -99,6 +99,9 @@ class Client(object):
             to 'read' the key, 'remove' the rekey and 'grant' permissions to
             others. When policy is not set, it's only 'read'
         """
+        # TODO Handle path
+        # Create reencryption key
+        reenc_key = self._pre.rekey(self._priv_key, pubkey)
         pass
 
     def revoke(self, pubkey, path=None):
