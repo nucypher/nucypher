@@ -128,7 +128,16 @@ class Client(object):
         :return: Encrypted data
         :rtype: bytes
         """
-        pass
+        # TODO Handle algorithm
+        cipher = self._block(key)
+
+        # Generate a random 24 byte nonce and encrypt
+        nonce = random(cipher.NONCE_SIZE)
+        enc_data = cipher.encrypt(data, nonce=nonce)
+
+        # Append nonce in front of encrypted data
+        ciphertext = nonce + enc_data
+        return ciphertext
 
     def decrypt_bulk(self, edata, key, algorithm=None):
         """
@@ -141,7 +150,15 @@ class Client(object):
         :return: Plaintext data
         :rtype: bytes
         """
-        pass
+        # TODO Handle algorithm
+        cipher = self._block(key)
+
+        # First 24 bytes of the ciphertext should be the nonce
+        ciphertext = edata[cipher.NONCE_SIZE:]
+        nonce = edata[:cipher.NONCE_SIZE]
+
+        plaintext = cipher.decrypt(ciphertext, nonce=nonce)
+        return plaintext
 
     def open(self, pubkey=None, path=None, mode='r', fd=None, algorithm=None):
         """
