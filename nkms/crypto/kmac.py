@@ -1,4 +1,11 @@
+import sys
 import hashlib
+
+if sys.version_info < (3, 6):
+    import sha3
+
+
+
 
 
 class KMAC_256(object):
