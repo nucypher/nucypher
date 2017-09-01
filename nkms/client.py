@@ -1,6 +1,6 @@
 from nkms.network import dummy
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
-    symmetric_from_algorithm)
+    symmetric_from_algorithm, kmac)
 from nacl.utils import random
 
 
@@ -30,13 +30,24 @@ class Client(object):
             or created
         """
         self._nclient = Client.network_client_factory()
-
         self._pre = pre_from_algorithm(default_algorithm)
 
         # TODO: Check for existing keypair before generation
         # TODO: Save newly generated keypair
         self._priv_key = self._pre.gen_priv(dtype='bytes')
         self._pub_key = self._pre.priv2pub(self._priv_key)
+
+    def _derive_path_key(self, path):
+        """
+        Derives a public key for the specific path.
+
+        :param str path: Path to generate key for.
+
+        :return: Derived key
+        :rtype: bytes
+        """
+        priv = kmac.KMAC_256().digest(self._priv_key, path.encode())
+        return self._pre.priv2pub(priv)
 
     def encrypt_key(self, key, pubkey=None, path=None, algorithm=None):
         """
@@ -65,13 +76,19 @@ class Client(object):
         :return: Encrypted key(s)
         :rtype: bytes
         """
-        # TODO Encryption by path
         if not pubkey:
             pubkey = self._pub_key
 
-        # Encrypt symmetric key
-        enc_key = self._pre.encrypt(pubkey, key)
-        return enc_key
+        if len(path) > 1 and not type(path) is str:
+            enc_keys = []
+            for subpath in path:
+                path_pubkey = self._derive_path_key(subpath)
+                enc_keys.append(self.encrypt_key(key, pubkey=path_pubkey))
+            return enc_keys
+        elif len(path) == 1 or type(path) is str:
+            return self.encrypt_key(key, pubkey=self._derive_path_key(path))
+        elif not path:
+            return self._pre.encrypt(pubkey, key)
 
     def decrypt_key(self, enc_key, pubkey=None, path=None, owner=None):
         """
