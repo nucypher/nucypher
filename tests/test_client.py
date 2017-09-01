@@ -8,8 +8,9 @@ from nkms.crypto import (default_algorithm, pre_from_algorithm,
 class TestClient(unittest.TestCase):
     def setUp(self):
         self.pre = pre_from_algorithm(default_algorithm)
+        self.symm = symmetric_from_algorithm(default_algorithm)
         self.priv_key = self.pre.gen_priv(dtype='bytes')
-        self.pub_key = self.pre.priv2pub(self._priv_key)
+        self.pub_key = self.pre.priv2pub(self.priv_key)
 
         self.client = Client()
 
@@ -35,7 +36,7 @@ class TestClient(unittest.TestCase):
         key = random(32)
         path = 'foobar'
 
-        enc_key = self.client.encrypt_key(key, path)
+        enc_key = self.client.encrypt_key(key, path=path)
         self.assertNotEqual(key, enc_key)
 
     def test_encrypt_key_no_path(self):
@@ -43,18 +44,18 @@ class TestClient(unittest.TestCase):
 
         # Use client's pubkey (implict)
         enc_key_1 = self.client.encrypt_key(key)
-        self.assertNotEqual(key, enc_key)
+        self.assertNotEqual(key, enc_key_1)
 
         # Use provided pubkey (explicit)
-        enc_ke_2 = self.client.encrypt_key(key, pubkey=pubkey)
-        self.assertNotEqual(key, enc_key)
+        enc_key_2 = self.client.encrypt_key(key, pubkey=self.pub_key)
+        self.assertNotEqual(key, enc_key_2)
         self.assertNotEqual(enc_key_1, enc_key_2)
 
     def test_decrypt_key_with_path(self):
         key = random(32)
         path = ('/', '/foo', '/foo/bar')
 
-        enc_keys = self.client.encrypt_key(key, path)
+        enc_keys = self.client.encrypt_key(key, path=path)
         self.assertEqual(len(path), len(enc_keys))
         self.assertTrue(key not in enc_keys)
 
@@ -90,4 +91,4 @@ class TestClient(unittest.TestCase):
         self.assertTrue(len(enc_data) > nonce_size_bytes)
 
         dec_data = self.client.decrypt_bulk(enc_data, key)
-        self.assertEqual(test_data, plaintext)
+        self.assertEqual(test_data, dec_data)
