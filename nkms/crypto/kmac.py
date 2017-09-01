@@ -9,6 +9,7 @@ class KMAC_256(object):
         self.BLOCK_SIZE_BYTES = 136
 
     def _bytepad(self, x, w):
+        # padded_x = w || x || {\x00...}
         padded_x = (w).to_bytes(2, byteorder='big') + x
         while len(padded_x) % w != 0:
             padded_x += b'\x00'
