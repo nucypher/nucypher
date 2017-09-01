@@ -28,7 +28,7 @@ class KMAC_256(object):
         kmac = hashlib.shake_256()
         new_X = (self._bytepad(key, self.BLOCK_SIZE_BYTES)
                  + message
-                 + (self.LENGTH_BYTES).to_bytes(2, byteorder='big'))
+                 + (self.LENGTH_BYTES*8).to_bytes(2, byteorder='big'))
 
         kmac.update(new_X)
         return kmac.digest(self.LENGTH_BYTES)
