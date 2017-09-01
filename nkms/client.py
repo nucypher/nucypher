@@ -85,7 +85,7 @@ class Client(object):
                 path_pubkey = self._derive_path_key(subpath)
                 enc_keys.append(self.encrypt_key(key, pubkey=path_pubkey))
             return enc_keys
-        elif len(path) == 1 or type(path) is str:
+        elif type(path) is str:
             return self.encrypt_key(key, pubkey=self._derive_path_key(path))
         elif not path:
             return self._pre.encrypt(pubkey, key)
