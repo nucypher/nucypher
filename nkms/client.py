@@ -96,11 +96,16 @@ class Client(object):
         Decrypt (symmetric) key material. Params similar to decrypt()
 
         :param bytes enc_key: Encrypted symmetric key to decrypt
+        :param str path: Path of encrypted file
+
+        :return: Decrypted key
+        :rtype: bytes
         """
-        # TODO Decryption by path
-        # Decrypt symmetric key
-        key = self._pre.decrypt(self._priv_key, enc_key)
-        return key
+        if path:
+            priv_key = self._derive_path_key(path, is_pub=False)
+        else:
+            priv_key = self._priv_key
+        return self._pre.decrypt(priv_key, enc_key)
 
     def grant(self, pubkey, path=None, policy=None):
         """
