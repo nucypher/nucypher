@@ -15,8 +15,13 @@ class TestClient(unittest.TestCase):
 
     def test_derive_path_key(self):
         path = '/foo/bar'
-        derived_path_key = self.client._derive_path_key(path)
-        self.assertEqual(bytes, type(derived_path_key))
+        pub_path_key = self.client._derive_path_key(path, is_pub=True)
+        self.assertEqual(bytes, type(pub_path_key))
+
+        priv_path_key = self.client._derive_path_key(path, is_pub=False)
+        self.assertEqual(bytes, type(priv_path_key))
+
+        self.assertNotEqual(pub_path_key, priv_path_key)
 
     def test_encrypt_key_with_path_tuple(self):
         key = random(32)

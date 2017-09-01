@@ -37,17 +37,18 @@ class Client(object):
         self._priv_key = self._pre.gen_priv(dtype='bytes')
         self._pub_key = self._pre.priv2pub(self._priv_key)
 
-    def _derive_path_key(self, path):
+    def _derive_path_key(self, path, is_pub=True):
         """
         Derives a public key for the specific path.
 
         :param str path: Path to generate key for.
+        :param bool is_pub: Is the derived key a public key?
 
         :return: Derived key
         :rtype: bytes
         """
         priv = kmac.KMAC_256().digest(self._priv_key, path.encode())
-        return self._pre.priv2pub(priv)
+        return self._pre.priv2pub(priv) if is_pub else priv
 
     def encrypt_key(self, key, pubkey=None, path=None, algorithm=None):
         """
