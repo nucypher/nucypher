@@ -1,12 +1,11 @@
-from nkms.network.server import NuCypherDHTServer
+from kademlia.network import Server
 import asyncio
 
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.set_debug(True)
-    loop.set_debug(True)
-    server = NuCypherDHTServer()
+    server = Server()
     server.listen(8468)
 
     try:

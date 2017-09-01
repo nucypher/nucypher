@@ -1,5 +1,7 @@
 from kademlia.network import Server
+from nkms.network.protocols import NuCypherSeedOnlyProtocol
 
 
-class NuCypherDHTServer(Server):
-    pass
+class NuCypherSeedOnlyDHTServer(Server):
+
+    protocol_class = NuCypherSeedOnlyProtocol
