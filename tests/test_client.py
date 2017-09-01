@@ -28,7 +28,7 @@ class TestClient(unittest.TestCase):
         path = ('/', '/foo', '/foo/bar')
 
         enc_keys = self.client.encrypt_key(key, path=path)
-        self.assertEqual(3, len(enc_keys))
+        self.assertEqual(len(path), len(enc_keys))
         self.assertTrue(key not in enc_keys)
 
     def test_encrypt_key_with_path_string(self):
@@ -49,6 +49,28 @@ class TestClient(unittest.TestCase):
         enc_ke_2 = self.client.encrypt_key(key, pubkey=pubkey)
         self.assertNotEqual(key, enc_key)
         self.assertNotEqual(enc_key_1, enc_key_2)
+
+    def test_decrypt_key_with_path(self):
+        key = random(32)
+        path = ('/', '/foo', '/foo/bar')
+
+        enc_keys = self.client.encrypt_key(key, path)
+        self.assertEqual(len(path), len(enc_keys))
+        self.assertTrue(key not in enc_keys)
+
+        # Check each path key works for decryption
+        for idx, enc_key in enumerate(enc_keys):
+            dec_key = self.client.decrypt_key(enc_key, path=path[idx])
+            self.assertEqual(key, dec_key)
+
+    def test_decrypt_key_no_path(self):
+        key = random(32)
+
+        enc_key = self.client.encrypt_key(key)
+        self.assertNotEqual(key, enc_key)
+
+        dec_key = self.client.decrypt_key(enc_key)
+        self.assertEqual(key, dec_key)
 
     def test_encrypt_bulk(self):
         test_data = b'hello world!'
