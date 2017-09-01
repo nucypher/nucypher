@@ -44,3 +44,23 @@ class TestClient(unittest.TestCase):
         enc_ke_2 = self.client.encrypt_key(key, pubkey=pubkey)
         self.assertNotEqual(key, enc_key)
         self.assertNotEqual(enc_key_1, enc_key_2)
+
+    def test_encrypt_bulk(self):
+        test_data = b'hello world!'
+        key = random(32)
+
+        enc_data = self.client.encrypt_bulk(test_data, key)
+        self.assertNotEqual(test_data, enc_data)
+
+    def test_decrypt_bulk(self):
+        test_data = b'hello world!'
+        nonce_size_bytes = 24
+        key = random(32)
+
+        enc_data = self.client.encrypt_bulk(test_data, key)
+        self.assertNotEqual(test_data, enc_data)
+        # Test that the ciphertext is >24 bytes for nonce
+        self.assertTrue(len(enc_data) > nonce_size_bytes)
+
+        dec_data = self.client.decrypt_bulk(enc_data, key)
+        self.assertEqual(test_data, plaintext)
