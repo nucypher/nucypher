@@ -42,7 +42,7 @@ class Client(object):
         """
         Derives a public key for the specific path.
 
-        :param str path: Path to generate key for.
+        :param bytes path: Path to generate key for.
         :param bool is_pub: Is the derived key a public key?
 
         :return: Derived key
@@ -50,6 +50,24 @@ class Client(object):
         """
         priv = kmac.KMAC_256().digest(self._priv_key, path.encode())
         return self._pre.priv2pub(priv) if is_pub else priv
+
+    def _split_path(path):
+        """
+        Splits the file path provided and provides subpaths to each directory.
+
+        :param bytes path: Path to file
+        
+        :return: Subpath(s) from path
+        :rtype: list of bytes
+        """
+        dirs = path.split(b'/')
+        subpaths = []
+        path = b'/'
+        for subdir in dirs:
+            path += subdir
+            subpaths.append(path)
+        subpaths[-1].rstrip(b'/')
+        return subpaths
 
     def encrypt_key(self, key, pubkey=None, path=None, algorithm=None):
         """
