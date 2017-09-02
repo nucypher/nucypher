@@ -5,7 +5,9 @@ INSTALL_REQUIRES = [
         'rpcudp>=3.0',
         'ZODB>=5.0',
         'pynacl',
-        'npre']
+        'npre',
+        'pysha3==1.0.2',
+]
 
 TESTS_REQUIRE = [
     'pytest',
