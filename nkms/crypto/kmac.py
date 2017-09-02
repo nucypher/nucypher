@@ -5,9 +5,6 @@ if sys.version_info < (3, 6):
     import sha3
 
 
-
-
-
 class KMAC_256(object):
     # TODO If performance is needed, this could be optimized a bit...
     # TODO Would be preferable to follow NIST and use cSHAKE.
