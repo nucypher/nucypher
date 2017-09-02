@@ -61,13 +61,7 @@ class Client(object):
         :rtype: list of bytes
         """
         dirs = path.split(b'/')
-        subpaths = []
-        path = b'/'
-        for subdir in dirs:
-            path += subdir
-            subpaths.append(path)
-        subpaths[-1].rstrip(b'/')
-        return subpaths
+        return [b'/'.join(dirs[:i + 1]) for i in range(len(dirs))]
 
     def encrypt_key(self, key, pubkey=None, path=None, algorithm=None):
         """
