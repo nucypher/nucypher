@@ -1,4 +1,7 @@
 from nkms.network import dummy
+from nkms.crypto import (default_algorithm, pre_from_algorithm,
+    symmetric_from_algorithm, kmac)
+from nacl.utils import random
 
 
 class Client(object):
@@ -27,6 +30,38 @@ class Client(object):
             or created
         """
         self._nclient = Client.network_client_factory()
+        self._pre = pre_from_algorithm(default_algorithm)
+        self._symm = symmetric_from_algorithm(default_algorithm)
+
+        # TODO: Check for existing keypair before generation
+        # TODO: Save newly generated keypair
+        self._priv_key = self._pre.gen_priv(dtype='bytes')
+        self._pub_key = self._pre.priv2pub(self._priv_key)
+
+    def _derive_path_key(self, path, is_pub=True):
+        """
+        Derives a public key for the specific path.
+
+        :param bytes path: Path to generate key for.
+        :param bool is_pub: Is the derived key a public key?
+
+        :return: Derived key
+        :rtype: bytes
+        """
+        priv = kmac.KMAC_256().digest(self._priv_key, path.encode())
+        return self._pre.priv2pub(priv) if is_pub else priv
+
+    def _split_path(path):
+        """
+        Splits the file path provided and provides subpaths to each directory.
+
+        :param bytes path: Path to file
+        
+        :return: Subpath(s) from path
+        :rtype: list of bytes
+        """
+        dirs = path.split(b'/')
+        return [b'/'.join(dirs[:i + 1]) for i in range(len(dirs))]
 
     def encrypt_key(self, key, pubkey=None, path=None, algorithm=None):
         """
@@ -55,13 +90,35 @@ class Client(object):
         :return: Encrypted key(s)
         :rtype: bytes
         """
-        pass
+        if not pubkey:
+            pubkey = self._pub_key
 
-    def decrypt_key(self, key, pubkey=None, path=None, owner=None):
+        if type(path) is tuple and len(path) > 1:
+            enc_keys = []
+            for subpath in path:
+                path_pubkey = self._derive_path_key(subpath)
+                enc_keys.append(self.encrypt_key(key, pubkey=path_pubkey))
+            return enc_keys
+        elif type(path) is str:
+            return self.encrypt_key(key, pubkey=self._derive_path_key(path))
+        elif not path:
+            return self._pre.encrypt(pubkey, key)
+
+    def decrypt_key(self, enc_key, pubkey=None, path=None, owner=None):
         """
         Decrypt (symmetric) key material. Params similar to decrypt()
+
+        :param bytes enc_key: Encrypted symmetric key to decrypt
+        :param str path: Path of encrypted file
+
+        :return: Decrypted key
+        :rtype: bytes
         """
-        pass
+        if path:
+            priv_key = self._derive_path_key(path, is_pub=False)
+        else:
+            priv_key = self._priv_key
+        return self._pre.decrypt(priv_key, enc_key)
 
     def grant(self, pubkey, path=None, policy=None):
         """
@@ -75,6 +132,9 @@ class Client(object):
             to 'read' the key, 'remove' the rekey and 'grant' permissions to
             others. When policy is not set, it's only 'read'
         """
+        # TODO Handle path
+        # Create reencryption key
+        reenc_key = self._pre.rekey(self._priv_key, pubkey)
         pass
 
     def revoke(self, pubkey, path=None):
@@ -101,7 +161,10 @@ class Client(object):
         :return: Encrypted data
         :rtype: bytes
         """
-        pass
+        # TODO Handle algorithm
+        # Nonce is generated implicitly within cipher.encrypt as random data
+        cipher = self._symm(key)
+        return cipher.encrypt(data)
 
     def decrypt_bulk(self, edata, key, algorithm=None):
         """
@@ -114,7 +177,9 @@ class Client(object):
         :return: Plaintext data
         :rtype: bytes
         """
-        pass
+        # TODO Handle algorithm
+        cipher = self._symm(key)
+        return cipher.decrypt(edata)
 
     def open(self, pubkey=None, path=None, mode='r', fd=None, algorithm=None):
         """
