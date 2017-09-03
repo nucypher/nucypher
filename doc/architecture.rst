@@ -116,7 +116,7 @@ to be anonymous in later versions of the protocol.
 
 Mapping in the rekey store:
 
-    * pubkey -> hash(path) -> (rekey, algorithm)
+    * hash(path) -> (rekey, policy, algorithm, signature, pubkey)
 
 The pubkey here is *not* the encryption key, it's a separate signing key.
 
@@ -136,15 +136,15 @@ ske_o = hash(sk_o)
 The path can be a string or a tuple (where a string is equivalent to a tuple with length one).
 An example of a tuple-path::
 
-    path = ('/home', 'ubuntu', 'secret.txt')
+    path = ('', 'home', 'ubuntu', 'secret.txt')
 
 When a path contains many elements in the tuple, one can share not only one file, but also whole directories.
 If the PRE algorithm is not multihop+unidirectional (there is only one like that), the encryption keys for
 files/directories are::
 
-    key[i] = hmac(ske_o, '/'.join(path[:i]))
+    key[i] = hmac(ske_o, '/'.join(path[:i + 1]))
 
-so, key[0] is the (private) key for whole /home, key[1] for /home/ubuntu etc.
+so, key[0] is the (private) key for whole ``/``, key[1] for ``/home`` etc.
 When a file (or object) with ``path`` is encrypted, the owner generates a symmetric key for it,
 encrypts it with every of key[i] and attaches to the file (or returns just keys if asked for).
 When attached to the file, the encrypted symmetric keys are stored together with hashes of
@@ -159,9 +159,9 @@ where key[i] is calculated in-place from the path, and rk might mean also all re
 rather than just one rekey.
 
 After the calculation, the rk is stored with the KMS network. It will be stored in the following
-(hierarchical) persistent mapping::
+persistent mapping::
 
-    pk_o -> hmac(pk_b, '/'.join(path[:i])) -> (rk, policy, algorithm, sign(hash + rk + policy + algorithm, pk_o))
+    hmac(pk_b, '/'.join(path[:i])) -> (rk, policy, algorithm, sign(hash + rk + policy + algorithm, pk_o))
 
 The policy is signed by the owner's public key in order to protect from submitting by someone else.
 In order to protect from submitting after being revoked, the signature can be saved on blockchain
@@ -181,7 +181,7 @@ with miner's public key (on the client side)::
 
     # Path is transformed into a series of hashes
     path_split = path.split('/')
-    path_pieces = ['/'.join(path_split[:i]) for i in len(path_split)]
+    path_pieces = ['/'.join(path_split[:i + 1]) for i in len(path_split)]
     path_hashes = [hmac(pk_b, piece) for piece in path_pieces]
 
     # Multiple pieces are when m-of-n split-key reencryption is used
@@ -193,10 +193,10 @@ When the server gets a request with all the path_hashes, it looks for a reencryp
 corresponding to at least one of them, and uses the last one of what it found to reencrypt
 the data::
 
-    def request_handler(encrypted_data, pk_o, path_hashes):
+    def request_handler(encrypted_data, path_hashes):
         for p in path_hashes[::-1]:
-            if p in storage[pk_o]:
-                rk = storage[pk_o][p]
+            if p in storage:
+                rk = storage[p]
                 return reencrypt(encrypted_data, rk)
 
         raise KeyNotFound
