@@ -161,7 +161,7 @@ rather than just one rekey.
 After the calculation, the rk is stored with the KMS network. It will be stored in the following
 persistent mapping::
 
-    hmac(pk_b, '/'.join(path[:i])) -> (rk, policy, algorithm, sign(hash + rk + policy + algorithm, pk_o))
+    hmac(pk_o + pk_b, '/'.join(path[:i])) -> (rk, policy, algorithm, sign(hash + rk + policy + algorithm, pk_o))
 
 The policy is signed by the owner's public key in order to protect from submitting by someone else.
 In order to protect from submitting after being revoked, the signature can be saved on blockchain
@@ -182,7 +182,7 @@ with miner's public key (on the client side)::
     # Path is transformed into a series of hashes
     path_split = path.split('/')
     path_pieces = ['/'.join(path_split[:i + 1]) for i in len(path_split)]
-    path_hashes = [hmac(pk_b, piece) for piece in path_pieces]
+    path_hashes = [hmac(pk_o + pk_b, piece) for piece in path_pieces]
 
     # Multiple pieces are when m-of-n split-key reencryption is used
     # if not, there is only one piece
