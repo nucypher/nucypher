@@ -51,12 +51,12 @@ class Client(object):
         priv = kmac.KMAC_256().digest(self._priv_key, path.encode())
         return self._pre.priv2pub(priv) if is_pub else priv
 
-    def _split_path(path):
+    def _split_path(self, path):
         """
         Splits the file path provided and provides subpaths to each directory.
 
         :param bytes path: Path to file
-        
+
         :return: Subpath(s) from path
         :rtype: list of bytes
         """

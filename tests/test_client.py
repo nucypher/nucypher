@@ -24,6 +24,16 @@ class TestClient(unittest.TestCase):
 
         self.assertNotEqual(pub_path_key, priv_path_key)
 
+    def test_split_path(self):
+        path = b'/foo/bar/test.jpg'
+        subdirs = self.client._split_path(path)
+
+        self.assertEqual(4, len(subdirs))
+        self.assertEqual(subdirs[0], b'')
+        self.assertEqual(subdirs[1], b'/foo')
+        self.assertEqual(subdirs[2], b'/foo/bar')
+        self.assertEqual(subdirs[3], b'/foo/bar/test.jpg')
+
     def test_encrypt_key_with_path_tuple(self):
         key = random(32)
         path = ('/', '/foo', '/foo/bar')
