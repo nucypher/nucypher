@@ -1,5 +1,6 @@
 import appdirs
 import lmdb
+import msgpack
 import os.path
 
 CONFIG_APPNAME = 'nucypher-kms'
@@ -19,7 +20,7 @@ class DB(object):
 
     def __setitem__(self, key, value):
         with self.db.begin(write=True) as tx:
-            tx.put(key, value)
+            tx.put(key, msgpack.dumps(value))
 
     def __getitem__(self, key):
         with self.db.begin(write=False) as tx:
@@ -27,7 +28,7 @@ class DB(object):
             if result is None:
                 raise KeyError(key)
             else:
-                return result
+                return msgpack.loads(result)
 
     def __delitem__(self, key):
         with self.db.begin(write=True) as tx:

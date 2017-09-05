@@ -25,6 +25,6 @@ def test_db():
 
 def test_store_dict():
     db = DB()
-    db[b'x'] = {'a': 1, 'b': 2}
-    assert db[b'x']['a'] == 1
+    db[b'x'] = {b'a': 1, b'b': 2}
+    assert db[b'x'][b'a'] == 1
     db.close()
