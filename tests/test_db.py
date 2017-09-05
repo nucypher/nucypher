@@ -1,5 +1,4 @@
 from nkms.db import DB
-import shutil
 import pytest
 
 
@@ -19,7 +18,6 @@ def test_db():
     with pytest.raises(KeyError):
         db[b'x']
     assert b'x' not in db
+    db.close()
 
     assert db.path == db2.path
-
-    shutil.rmtree(db.path)
