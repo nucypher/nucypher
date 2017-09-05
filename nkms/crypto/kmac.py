@@ -25,7 +25,7 @@ class KMAC_256(object):
 
         :param bytes key: Key to use in KMAC construction.
         :param bytes message: Message to concat with the key during hashing.
-        
+
         :return: Hashed KMAC digest
         :rtype: bytes
         """

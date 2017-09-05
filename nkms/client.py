@@ -48,7 +48,7 @@ class Client(object):
         :return: Derived key
         :rtype: bytes
         """
-        priv = kmac.KMAC_256().digest(self._priv_key, path.encode())
+        priv = kmac.KMAC_256().digest(self._priv_key, path)
         return self._pre.priv2pub(priv) if is_pub else priv
 
     def _split_path(self, path):
@@ -80,27 +80,24 @@ class Client(object):
 
         :param bytes key: Symmetric key to encrypt
         :param bytes pubkey: Public key to encrypt for
-        :param tuple(str) path: Path to the data (to be able to share
+        :param bytes path: Path to the data (to be able to share
             sub-paths). If None, encrypted with just our pubkey.
-            If contains only 1 element or is a string, this is just used as a
-            unique identifier w/o granular encryption.
         :param dict algorithm: Algorithm parameters (name, curve, re-encryption
             type, m/n etc). None if default
 
-        :return: Encrypted key(s)
+        :return: List of encrypted key(s)
         :rtype: bytes
         """
         if not pubkey:
             pubkey = self._pub_key
 
-        if type(path) is tuple and len(path) > 1:
+        if path:
             enc_keys = []
-            for subpath in path:
+            subpaths = self._split_path(path)
+            for subpath in subpaths:
                 path_pubkey = self._derive_path_key(subpath)
                 enc_keys.append(self.encrypt_key(key, pubkey=path_pubkey))
             return enc_keys
-        elif type(path) is str:
-            return self.encrypt_key(key, pubkey=self._derive_path_key(path))
         elif not path:
             return self._pre.encrypt(pubkey, key)
 
@@ -109,7 +106,7 @@ class Client(object):
         Decrypt (symmetric) key material. Params similar to decrypt()
 
         :param bytes enc_key: Encrypted symmetric key to decrypt
-        :param str path: Path of encrypted file
+        :param bytes path: Path of encrypted file
 
         :return: Decrypted key
         :rtype: bytes
@@ -126,7 +123,7 @@ class Client(object):
         re-encryption key and submitting it to the network.
 
         :param bytes pubkey: Public key of who we share the data with
-        :param tuple(str) path: Path which we share. If None - share everything
+        :param bytes path: Path which we share. If None - share everything
         :param dict policy: Policy for sharing. For now, can have start_time and
             stop_time (in Python datetime or unix time (int)). Also permissions
             to 'read' the key, 'remove' the rekey and 'grant' permissions to
