@@ -1,10 +1,6 @@
-import nkms.db
 from nkms.db import DB
 import shutil
 import pytest
-
-# Monkey-patching for tests so that we don't overwrite the default db
-nkms.db.DB_NAME = 'debug-rekeys-db'
 
 
 def test_db():
