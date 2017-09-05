@@ -21,3 +21,10 @@ def test_db():
     db.close()
 
     assert db.path == db2.path
+
+
+def test_store_dict():
+    db = DB()
+    db[b'x'] = {'a': 1, 'b': 2}
+    assert db[b'x']['a'] == 1
+    db.close()
