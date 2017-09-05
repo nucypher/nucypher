@@ -23,7 +23,20 @@ class DB(object):
 
     def __getitem__(self, key):
         with self.db.begin(write=False) as tx:
-            return tx.get(key)
+            result = tx.get(key)
+            if result is None:
+                raise KeyError(key)
+            else:
+                return result
+
+    def __delitem__(self, key):
+        with self.db.begin(write=True) as tx:
+            tx.pop(key)
+
+    def __contains__(self, key):
+        with self.db.begin(write=False) as tx:
+            cursor = tx.cursor()
+            return cursor.set_key(key)
 
     def close(self):
         self.db.close()
