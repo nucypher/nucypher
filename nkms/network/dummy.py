@@ -39,11 +39,11 @@ class Client(object):
                         'm-of-n reencryption not yet available')
             rekeys = rekeys[0]
         # Should specify and check signature also
-        _storage[pub][k] = {'rk': rekeys, 'algorithm': algorithm}
+        _storage[k] = {'rk': rekeys, 'algorithm': algorithm}
 
     def remove_rekeys(self, pub, k):
         # Should specify and check signature also
-        del _storage[pub][k]
+        del _storage[k]
 
     def reencrypt(self, pub, k, ekey):
         """
@@ -51,8 +51,8 @@ class Client(object):
         :param bytes k: Address of the rekey derived from the path/pubkey
         :param bytes ekey: Encrypted symmetric key to reencrypt
         """
-        rekey = _storage[pub][k]['rk']
-        algorithm = _storage[pub][k]['algorithm']
+        rekey = _storage[k]['rk']
+        algorithm = _storage[k]['algorithm']
         pre = crypto.pre_from_algorithm(algorithm)
         return pre.reencrypt(rekey, ekey)
 
