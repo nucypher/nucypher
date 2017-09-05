@@ -2,7 +2,7 @@ import unittest
 from nacl.utils import random
 from nkms.client import Client
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
-    symmetric_from_algorithm, kmac)
+                         symmetric_from_algorithm)
 
 
 class TestClient(unittest.TestCase):
