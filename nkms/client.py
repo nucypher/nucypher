@@ -1,7 +1,9 @@
 from nkms.network import dummy
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
-    symmetric_from_algorithm, kmac)
+                         symmetric_from_algorithm)
 from nacl.utils import random
+
+import sha3
 
 
 class Client(object):
@@ -48,7 +50,7 @@ class Client(object):
         :return: Derived key
         :rtype: bytes
         """
-        priv = kmac.KMAC_256().digest(self._priv_key, path)
+        priv = sha3.keccak_256(self._priv_key + path).digest()
         return self._pre.priv2pub(priv) if is_pub else priv
 
     def _split_path(self, path):
