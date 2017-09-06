@@ -115,7 +115,7 @@ class Client(object):
         :return: Decrypted key
         :rtype: bytes
         """
-        if path:
+        if path is not None:
             priv_key = self._derive_path_key(path, is_pub=False)
         else:
             priv_key = self._priv_key
