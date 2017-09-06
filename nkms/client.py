@@ -1,8 +1,6 @@
 from nkms.network import dummy
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
                          symmetric_from_algorithm)
-from nacl.utils import random
-
 import sha3
 
 
@@ -50,8 +48,8 @@ class Client(object):
         :return: Derived key
         :rtype: bytes
         """
-        priv = sha3.keccak_256(self._priv_key + path).digest()
-        return self._pre.priv2pub(priv) if is_pub else priv
+        key = sha3.keccak_256(self._priv_key + path).digest()
+        return self._pre.priv2pub(key) if is_pub else key
 
     def _split_path(self, path):
         """
@@ -62,6 +60,10 @@ class Client(object):
         :return: Subpath(s) from path
         :rtype: list of bytes
         """
+        # Hacky workaround: b'/'.split(b'/') == [b'', b'']
+        if path == b'/':
+            return [b'']
+
         dirs = path.split(b'/')
         return [b'/'.join(dirs[:i + 1]) for i in range(len(dirs))]
 
