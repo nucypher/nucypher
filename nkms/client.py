@@ -95,7 +95,7 @@ class Client(object):
         if not pubkey:
             pubkey = self._pub_key
 
-        if path:
+        if path is not None:
             enc_keys = []
             subpaths = self._split_path(path)
             for subpath in subpaths:
