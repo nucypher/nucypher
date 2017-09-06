@@ -2,7 +2,7 @@ import unittest
 from nacl.utils import random
 from nkms.client import Client
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
-    symmetric_from_algorithm, kmac)
+                         symmetric_from_algorithm)
 
 
 class TestClient(unittest.TestCase):
@@ -15,7 +15,7 @@ class TestClient(unittest.TestCase):
         self.client = Client()
 
     def test_derive_path_key(self):
-        path = '/foo/bar'
+        path = b'/foo/bar'
         pub_path_key = self.client._derive_path_key(path, is_pub=True)
         self.assertEqual(bytes, type(pub_path_key))
 
@@ -24,17 +24,27 @@ class TestClient(unittest.TestCase):
 
         self.assertNotEqual(pub_path_key, priv_path_key)
 
+    def test_split_path_with_path(self):
+        path = b'/foo/bar/test.jpg'
+        subdirs = self.client._split_path(path)
+
+        self.assertEqual(4, len(subdirs))
+        self.assertEqual(subdirs[0], b'')
+        self.assertEqual(subdirs[1], b'/foo')
+        self.assertEqual(subdirs[2], b'/foo/bar')
+        self.assertEqual(subdirs[3], b'/foo/bar/test.jpg')
+
     def test_encrypt_key_with_path_tuple(self):
         key = random(32)
-        path = ('/', '/foo', '/foo/bar')
+        path = b'/foo/bar'
 
         enc_keys = self.client.encrypt_key(key, path=path)
-        self.assertEqual(len(path), len(enc_keys))
+        self.assertEqual(3, len(enc_keys))
         self.assertTrue(key not in enc_keys)
 
     def test_encrypt_key_with_path_string(self):
         key = random(32)
-        path = 'foobar'
+        path = b'foobar'
 
         enc_key = self.client.encrypt_key(key, path=path)
         self.assertNotEqual(key, enc_key)
@@ -53,15 +63,18 @@ class TestClient(unittest.TestCase):
 
     def test_decrypt_key_with_path(self):
         key = random(32)
-        path = ('/', '/foo', '/foo/bar')
+        path = b'/foo/bar'
 
         enc_keys = self.client.encrypt_key(key, path=path)
-        self.assertEqual(len(path), len(enc_keys))
+        self.assertEqual(3, len(enc_keys))
         self.assertTrue(key not in enc_keys)
+
+        subpaths = self.client._split_path(path)
+        self.assertEqual(3, len(subpaths))
 
         # Check each path key works for decryption
         for idx, enc_key in enumerate(enc_keys):
-            dec_key = self.client.decrypt_key(enc_key, path=path[idx])
+            dec_key = self.client.decrypt_key(enc_key, path=subpaths[idx])
             self.assertEqual(key, dec_key)
 
     def test_decrypt_key_no_path(self):
