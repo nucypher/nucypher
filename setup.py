@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 INSTALL_REQUIRES = [
         'kademlia>=1.0',
         'rpcudp>=3.0',
-        'ZODB>=5.0',
+        'lmdb',
         'pynacl',
         'npre',
         'pysha3==1.0.2',

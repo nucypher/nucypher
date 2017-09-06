@@ -1,7 +1,5 @@
-from collections import defaultdict
+from nkms.db import DB
 from nkms import crypto
-
-_storage = defaultdict(dict)
 
 
 class Client(object):
@@ -22,7 +20,9 @@ class Client(object):
     """
 
     def __init__(self, **kw):
-        pass
+        # Dummy client stores in lmdb
+        # in the actual network it should be done on the server
+        self._storage = DB()
 
     def store_rekeys(self, pub, k, rekeys, algorithm):
         """
@@ -39,11 +39,11 @@ class Client(object):
                         'm-of-n reencryption not yet available')
             rekeys = rekeys[0]
         # Should specify and check signature also
-        _storage[pub][k] = {'rk': rekeys, 'algorithm': algorithm}
+        self._storage[k] = {b'rk': rekeys, b'algorithm': algorithm}
 
     def remove_rekeys(self, pub, k):
         # Should specify and check signature also
-        del _storage[pub][k]
+        del self._storage[k]
 
     def reencrypt(self, pub, k, ekey):
         """
@@ -51,8 +51,8 @@ class Client(object):
         :param bytes k: Address of the rekey derived from the path/pubkey
         :param bytes ekey: Encrypted symmetric key to reencrypt
         """
-        rekey = _storage[pub][k]['rk']
-        algorithm = _storage[pub][k]['algorithm']
+        rekey = self._storage[k][b'rk']
+        algorithm = self._storage[k][b'algorithm']
         pre = crypto.pre_from_algorithm(algorithm)
         return pre.reencrypt(rekey, ekey)
 
