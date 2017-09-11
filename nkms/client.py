@@ -80,10 +80,11 @@ class Client(object):
         :return: Complete header for the encrypted file msgpack encoded.
         :rtype: bytes
         """
-        vers_bytes = version.to_bytes(4, byteorder='big')
-        num_keys_bytes = len(enc_keys).to_bytes(4, byteorder='big')
-        keys = b''.join(enc_keys)
-        return msgpack.dumps(vers_bytes + num_keys_bytes + keys)
+        if version < 1000:
+            vers_bytes = version.to_bytes(4, byteorder='big')
+            num_keys_bytes = len(enc_keys).to_bytes(4, byteorder='big')
+            keys = b''.join(enc_keys)
+            return msgpack.dumps(vers_bytes + num_keys_bytes + keys)
 
     def _read_header(self, header):
         """
