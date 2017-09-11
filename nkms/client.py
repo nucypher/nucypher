@@ -1,7 +1,9 @@
 from nkms.network import dummy
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
                          symmetric_from_algorithm)
+from io import BytesIO
 import sha3
+import msgpack
 
 
 class Client(object):
@@ -21,6 +23,7 @@ class Client(object):
     functions (such as decryption using this key or interaction with different
     storage backends).
     """
+    KEY_LENGTH = 148
     network_client_factory = dummy.Client
 
     def __init__(self, conf=None):
@@ -66,6 +69,42 @@ class Client(object):
 
         dirs = path.split(b'/')
         return [b'/'.join(dirs[:i + 1]) for i in range(len(dirs))]
+
+    def _build_header(self, enc_keys, version=100):
+        """
+        Creates a NuCypher header for the encrypted file.
+
+        :param enc_keys: List of encrypted keys in bytes
+        :param version: Version number of Cryptographic API (default: 0.1.0.0)
+
+        :return: Complete header for the encrypted file msgpack encoded.
+        :rtype: bytes
+        """
+        vers_bytes = version.to_bytes(4, byteorder='big')
+        num_keys_bytes = len(enc_keys).to_bytes(4, byteorder='big')
+        keys = b''.join(enc_keys)
+        return msgpack.dumps(vers_bytes + num_keys_bytes + keys)
+
+    def _read_header(self, header):
+        """
+        Reads a NuCypher header.
+
+        :param header: Msgpack encoded header to read
+
+        :return: Version number, and list of encrypted keys
+        :rtype: Tuple of an int and a list e.g: (100, [...])
+        """
+        header = BytesIO(msgpack.loads(header))
+        vers_bytes = header.read(4)
+        version = int.from_bytes(vers_bytes, byteorder='big')
+
+        # Handle pre-alpha versions
+        if version < 1000:
+            num_keys_bytes = header.read(4)
+            num_keys = int.from_bytes(num_keys_bytes, byteorder='big')
+
+            enc_keys = [header.read(Client.KEY_LENGTH) for _ in range(num_keys)]
+        return (version, enc_keys)
 
     def encrypt_key(self, key, pubkey=None, path=None, algorithm=None):
         """
