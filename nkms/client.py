@@ -77,14 +77,15 @@ class Client(object):
         :param enc_keys: List of encrypted keys in bytes
         :param version: Version number of Cryptographic API (default: 0.1.0.0)
 
-        :return: Complete header for the encrypted file msgpack encoded.
-        :rtype: bytes
+        :return: Complete header msgpack encoded and length of raw header
+        :rtype: Tuple of the header and the header length e.g: (<header>, 1200)
         """
         if version < 1000:
             vers_bytes = version.to_bytes(4, byteorder='big')
             num_keys_bytes = len(enc_keys).to_bytes(4, byteorder='big')
             keys = b''.join(enc_keys)
-            return msgpack.dumps(vers_bytes + num_keys_bytes + keys)
+            header = vers_bytes + num_keys_bytes + keys
+        return (msgpack.dumps(header), len(header))
 
     def _read_header(self, header):
         """
@@ -103,7 +104,6 @@ class Client(object):
         if version < 1000:
             num_keys_bytes = header.read(4)
             num_keys = int.from_bytes(num_keys_bytes, byteorder='big')
-
             enc_keys = [header.read(Client.KEY_LENGTH) for _ in range(num_keys)]
         return (version, enc_keys)
 
