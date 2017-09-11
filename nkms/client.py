@@ -1,9 +1,10 @@
+import sha3
+import msgpack
+from nacl import utils
 from nkms.network import dummy
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
                          symmetric_from_algorithm)
 from io import BytesIO
-import sha3
-import msgpack
 
 
 class Client(object):
@@ -287,8 +288,24 @@ class Client(object):
         :return: Encrypted data
         :rtype: bytes
         """
-        # Not needed if open() is there?
-        pass
+        # Generate a secure key and encrypt the data
+        data_key = utils.random(32)
+        ciphertext = msgpack.dumps(self.encrypt_bulk(data, data_key))
+
+        # Derive keys and encrypt them
+        # TODO: https://github.com/nucypher/nucypher-kms/issues/33
+        if path not None:
+            enc_keys = self.encrypt_key(data_key, path=path)
+        else:
+            enc_keys = [self.encrypt_key(data_key, path=path)]
+
+        # Build the header
+        header, header_length = self._build_header(enc_keys)
+
+        # Format for storage
+        header_length_bytes = header_length.to_bytes(4, byteorder='big')
+        storage_data = header_length_bytes + header + ciphertext
+        return storage_data
 
     def decrypt(self, edata, path=None, owner=None):
         """
