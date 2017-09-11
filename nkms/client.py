@@ -244,27 +244,10 @@ class Client(object):
         file_path = fd or path
         try:
             with open(file_path, mode=mode) as f:
-                enc_file = BytesIO(f.read())
+                enc_data = f.read()
         except Exception as E:
             raise E
-
-        header_length_bytes = enc_file.read(4)
-        header_length = int.from_bytes(header_length_bytes, byteorder='big')
-
-        header = enc_file.read(header_length)
-        ciphertext = enc_file.read()
-
-        version, enc_keys = self._read_header(header)
-        if version < 1000:
-            valid_key = None
-            for enc_key in enc_keys:
-                dec_key = self.decrypt_key(enc_key, path=path)
-                if dec_key != b'':
-                    valid_key = dec_key
-                    break
-
-            plaintext = self.decrypt_bulk(ciphertext, valid_key)
-        return plaintext
+        return self.decrypt(enc_data, path=path)
 
     def remove(self, pubkey=None, path=None):
         """
@@ -294,7 +277,7 @@ class Client(object):
 
         # Derive keys and encrypt them
         # TODO: https://github.com/nucypher/nucypher-kms/issues/33
-        if path not None:
+        if path is not None:
             enc_keys = self.encrypt_key(data_key, path=path)
         else:
             enc_keys = [self.encrypt_key(data_key, path=path)]
@@ -321,5 +304,20 @@ class Client(object):
         :return: Unencrypted data
         :rtype: bytes
         """
-        # Not needed if open() is there?
-        pass
+        enc_file = BytesIO(edata)
+
+        header_length = int.from_bytes(enc_file.read(4), byteorder='big')
+        header = enc_file.read(header_length)
+        version, enc_keys = self._read_header(header)
+
+        ciphertext = msgpack.loads(enc_file.read())
+
+        if version < 1000:
+            valid_key = None
+            for enc_key in enc_keys:
+                dec_key = self.decrypt_key(enc_key, path=path)
+                if dec_key != b'':
+                    valid_key = dec_key
+                    break
+            plaintext = self.decrypt_bulk(ciphertext, valid_key)
+        return plaintext
