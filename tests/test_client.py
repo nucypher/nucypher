@@ -38,10 +38,11 @@ class TestClient(unittest.TestCase):
     def test_build_header_prealpha(self):
         enc_keys = [random(148), random(148), random(148)]
         version = 100
-        header = self.client._build_header(enc_keys, version=version)
+        header, length = self.client._build_header(enc_keys, version=version)
 
         try:
-            msgpack.loads(header)
+            raw_header = msgpack.loads(header)
+            self.assertEqual(len(raw_header), length)
         except Exception as E:
             self.fail("Failed to unpack header:\n{}".format(E))
 
@@ -54,10 +55,11 @@ class TestClient(unittest.TestCase):
     def test_read_header_prealpha(self):
         enc_keys = [random(148), random(148), random(148)]
         version = 100
-        header = self.client._build_header(enc_keys, version=version)
+        header, length = self.client._build_header(enc_keys, version=version)
 
         try:
-            msgpack.loads(header)
+            raw_header = msgpack.loads(header)
+            self.assertEqual(len(raw_header), length)
         except Exception as E:
             self.fail("Failed to unpack header: {}".format(E))
 
