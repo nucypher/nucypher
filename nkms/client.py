@@ -222,7 +222,7 @@ class Client(object):
         cipher = self._symm(key)
         return cipher.decrypt(edata)
 
-    def open(self, pubkey=None, path=None, mode='r', fd=None, algorithm=None):
+    def open(self, pubkey=None, path=None, mode='rb', fd=None, algorithm=None):
         """
         The main interface through which Python API will work.
 
