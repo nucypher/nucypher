@@ -40,9 +40,9 @@ class TestClient(unittest.TestCase):
         version = 100
         header, length = self.client._build_header(enc_keys, version=version)
 
+        self.assertEqual(len(header), length)
         try:
-            raw_header = msgpack.loads(header)
-            self.assertEqual(len(raw_header), length)
+            msgpack.loads(header)
         except Exception as E:
             self.fail("Failed to unpack header:\n{}".format(E))
 
@@ -57,9 +57,9 @@ class TestClient(unittest.TestCase):
         version = 100
         header, length = self.client._build_header(enc_keys, version=version)
 
+        self.assertEqual(len(header), length)
         try:
-            raw_header = msgpack.loads(header)
-            self.assertEqual(len(raw_header), length)
+            msgpack.loads(header)
         except Exception as E:
             self.fail("Failed to unpack header: {}".format(E))
 

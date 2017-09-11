@@ -84,8 +84,8 @@ class Client(object):
             vers_bytes = version.to_bytes(4, byteorder='big')
             num_keys_bytes = len(enc_keys).to_bytes(4, byteorder='big')
             keys = b''.join(enc_keys)
-            header = vers_bytes + num_keys_bytes + keys
-        return (msgpack.dumps(header), len(header))
+            header = msgpack.dumps(vers_bytes + num_keys_bytes + keys)
+        return (header, len(header))
 
     def _read_header(self, header):
         """
