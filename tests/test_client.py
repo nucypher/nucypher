@@ -43,8 +43,9 @@ class TestClient(unittest.TestCase):
         try:
             msgpack.loads(header)
         except Exception as E:
-            self.fail("Failed to unpack header: {}".format(E))
+            self.fail("Failed to unpack header:\n{}".format(E))
 
+        self.assertIn((3).to_bytes(4, byteorder='big'), header)
         for key in enc_keys:
             self.assertIn(key, header)
 
