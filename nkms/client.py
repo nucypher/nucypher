@@ -240,7 +240,30 @@ class Client(object):
 
         If pubkey is not set, we're working on our own files.
         """
-        pass
+        file_path = fd or path
+        try:
+            with open(file_path, mode=mode) as f:
+                enc_file = BytesIO(f.read())
+        except Exception as E:
+            raise E
+
+        header_length_bytes = enc_file.read(4)
+        header_length = int.from_bytes(header_length_bytes, byteorder='big')
+
+        header = enc_file.read(header_length)
+        ciphertext = enc_file.read()
+
+        version, enc_keys = self._read_header(header)
+
+        valid_key = None
+        for enc_key in enc_keys:
+            dec_key = self.decrypt_key(enc_key, path=path)
+            if dec_key != b'':
+                valid_key = dec_key
+                break
+
+        plaintext = self.decrypt_bulk(ciphertext, valid_key)
+        return plaintext
 
     def remove(self, pubkey=None, path=None):
         """
