@@ -254,15 +254,15 @@ class Client(object):
         ciphertext = enc_file.read()
 
         version, enc_keys = self._read_header(header)
+        if version < 1000:
+            valid_key = None
+            for enc_key in enc_keys:
+                dec_key = self.decrypt_key(enc_key, path=path)
+                if dec_key != b'':
+                    valid_key = dec_key
+                    break
 
-        valid_key = None
-        for enc_key in enc_keys:
-            dec_key = self.decrypt_key(enc_key, path=path)
-            if dec_key != b'':
-                valid_key = dec_key
-                break
-
-        plaintext = self.decrypt_bulk(ciphertext, valid_key)
+            plaintext = self.decrypt_bulk(ciphertext, valid_key)
         return plaintext
 
     def remove(self, pubkey=None, path=None):
