@@ -1,7 +1,8 @@
 import asyncio
 
 from kademlia.network import Server
-from nkms.network.server import NuCypherSeedOnlyDHTServer
+from nkms.network.server import NuCypherSeedOnlyDHTServer, NuCypherDHTServer
+
 
 # Kademlia emits a bunch of useful logging info; uncomment below to see it.
 # import logging
@@ -18,7 +19,7 @@ def test_seed_only_node():
 
     # First, let's set up two servers:
     # A full node...
-    full_server = Server()
+    full_server = NuCypherDHTServer()
     full_server.listen(8468)
     loop.run_until_complete(full_server.bootstrap([("127.0.0.1", 8468)]))
 
