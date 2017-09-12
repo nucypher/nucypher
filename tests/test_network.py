@@ -3,6 +3,10 @@ import asyncio
 from kademlia.network import Server
 from nkms.network.server import NuCypherSeedOnlyDHTServer
 
+# Kademlia emits a bunch of useful logging info; uncomment below to see it.
+# import logging
+# logging.basicConfig(level=logging.DEBUG)
+
 
 def test_seed_only_node():
     """
@@ -39,8 +43,8 @@ def test_seed_only_node():
     assert len(seed_only_server_stored_items) == 0
 
     # If the full server tries to store something...
-    key_that_is_not_stored = "european_swallow"
-    value_that_is_not_stored = "grip_it_by_the_husk"
+    key_that_is_not_stored = b"european_swallow"
+    value_that_is_not_stored = b"grip_it_by_the_husk"
     setter = full_server.set(key_that_is_not_stored, value_that_is_not_stored)
     loop.run_until_complete(setter)
 
