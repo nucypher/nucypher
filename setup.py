@@ -14,7 +14,8 @@ TESTS_REQUIRE = [
     'coverage',
     'pytest-cov',
     'pdbpp',
-    'ipython'
+    'ipython',
+    'appdirs'
 ]
 
 # should add --process-dependency-links to pip
