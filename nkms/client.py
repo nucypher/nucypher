@@ -316,7 +316,7 @@ class Client(object):
             valid_key = None
             for enc_key in enc_keys:
                 dec_key = self.decrypt_key(enc_key, path=path)
-                if dec_key != b'':
+                if len(dec_key) == 32:
                     valid_key = dec_key
                     break
             plaintext = self.decrypt_bulk(ciphertext, valid_key)
