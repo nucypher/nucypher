@@ -1,40 +1,48 @@
 import asyncio
 
-from kademlia.network import Server
+import pytest
+
 from nkms.network.server import NuCypherSeedOnlyDHTServer, NuCypherDHTServer
 
 
 # Kademlia emits a bunch of useful logging info; uncomment below to see it.
-# import logging
-# logging.basicConfig(level=logging.DEBUG)
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 
-def test_seed_only_node():
+def test_seed_only_node_does_not_store_anything():
     """
     Shows that when we set up two nodes, a "full" node and a "seed-only" node,
     that the "seed-only" node can set key-value pairs that the "full" node will store,
     but not vice-versa.
     """
-    loop = asyncio.get_event_loop()
 
     # First, let's set up two servers:
     # A full node...
+    event_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(event_loop)
+
     full_server = NuCypherDHTServer()
     full_server.listen(8468)
-    loop.run_until_complete(full_server.bootstrap([("127.0.0.1", 8468)]))
+    event_loop.run_until_complete(full_server.bootstrap([("127.0.0.1", 8468)]))
 
     # ...and a seed-only node.
     seed_only_server = NuCypherSeedOnlyDHTServer()
     seed_only_server.listen(8471)
-    loop.run_until_complete(seed_only_server.bootstrap([("127.0.0.1", 8468)]))
+    event_loop.run_until_complete(seed_only_server.bootstrap([("127.0.0.1", 8468)]))
 
-    # The seed-only node is able to set a key and retrieve it again.
+    # The seed-only node is able to set a key...
     key_to_store = "llamas"
     value_to_store = "tons_of_things_keyed_llamas"
     setter = seed_only_server.set(key_to_store, value_to_store)
-    loop.run_until_complete(setter)
+    event_loop.run_until_complete(setter)
 
-    # Now, the item is stored on the full server.
+    # ...and retrieve it again.
+    getter = seed_only_server.get(key_to_store)
+    value = event_loop.run_until_complete(getter)
+    assert value == value_to_store
+
+    # The item is stored on the full server.
     full_server_stored_items = list(full_server.storage.items())
     assert len(full_server_stored_items) == 1
     assert full_server_stored_items[0][1] == value_to_store
@@ -47,7 +55,7 @@ def test_seed_only_node():
     key_that_is_not_stored = b"european_swallow"
     value_that_is_not_stored = b"grip_it_by_the_husk"
     setter = full_server.set(key_that_is_not_stored, value_that_is_not_stored)
-    loop.run_until_complete(setter)
+    event_loop.run_until_complete(setter)
 
     # ...it is *not* stored on the seed-only server.
     assert len(list(seed_only_server.storage.items())) == 0
@@ -55,4 +63,67 @@ def test_seed_only_node():
     # annnnd stop.
     seed_only_server.stop()
     full_server.stop()
-    loop.close()
+    event_loop.close()
+
+
+def test_full_node_does_not_try_to_store_on_seed_only_node():
+    """
+    A full node is able to determine that a seed-only node does not have the capability
+    to store.  It doesn't waste its time trying.
+    """
+    event_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(event_loop)
+
+    full_server = NuCypherDHTServer()
+    full_server.listen(8468)
+    event_loop.run_until_complete(full_server.bootstrap([("127.0.0.1", 8468)]))
+
+    seed_only_server = NuCypherSeedOnlyDHTServer()
+    seed_only_server.listen(8471)
+    event_loop.run_until_complete(seed_only_server.bootstrap([("127.0.0.1", 8468)]))
+
+    key_that_is_not_stored = b"european_swallow"
+    value_that_is_not_stored = b"grip_it_by_the_husk"
+    setter = full_server.set(key_that_is_not_stored, value_that_is_not_stored)
+
+    # Here's the interesting part.
+    result = event_loop.run_until_complete(setter)
+    assert not result
+    assert full_server.digests_set == 0
+
+    # annnnd stop.
+    seed_only_server.stop()
+    full_server.stop()
+    event_loop.close()
+
+
+def test_seed_only_node_knows_it_can_store_on_full_node():
+    """
+    On the other hand, a seed-only node knows that it can store on a full node.
+    """
+
+    event_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(event_loop)
+
+    full_server = NuCypherDHTServer()
+    full_server.listen(8468)
+    event_loop.run_until_complete(full_server.bootstrap([("127.0.0.1", 8468)]))
+
+    seed_only_server = NuCypherSeedOnlyDHTServer()
+    seed_only_server.listen(8471)
+    event_loop.run_until_complete(seed_only_server.bootstrap([("127.0.0.1", 8468)]))
+
+    # The seed-only will try to store a value.
+    key_to_store = "llamas"
+    value_to_store = "tons_of_things_keyed_llamas"
+    setter = seed_only_server.set(key_to_store, value_to_store)
+
+    # But watch - unlike before, this node knows it can set values.
+    result = event_loop.run_until_complete(setter)
+    assert result
+    assert seed_only_server.digests_set == 1
+
+    # annnnd stop.
+    seed_only_server.stop()
+    full_server.stop()
+    event_loop.close()

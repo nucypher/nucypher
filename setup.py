@@ -7,6 +7,7 @@ INSTALL_REQUIRES = [
         'pynacl',
         'npre',
         'pysha3==1.0.2',
+        'bidict',
 ]
 
 TESTS_REQUIRE = [
@@ -20,7 +21,7 @@ TESTS_REQUIRE = [
 
 # should add --process-dependency-links to pip
 LINKS = [
-        'https://github.com/bmuller/kademlia/archive/python3.5.tar.gz#egg=kademlia-1.0',
+        'https://github.com/bmuller/kademlia/archive/kms-dependency.tar.gz#egg=kademlia-1.0',
         'https://github.com/bmuller/rpcudp/archive/python3.5.tar.gz#egg=rpcudp-3.0.0',
         'https://github.com/nucypher/nucypher-pre-python/archive/master.tar.gz#egg=npre-0.1']
 

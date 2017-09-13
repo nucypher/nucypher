@@ -1,33 +1,40 @@
+import asyncio
+
 from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
+from kademlia.utils import digest
+from nkms.network.constants import NODE_HAS_NO_STORAGE
+from nkms.network.node import NuCypherNode
 from nkms.network.routing import NuCypherRoutingTable
 
 
 class NuCypherHashProtocol(KademliaProtocol):
-
     def __init__(self, sourceNode, storage, ksize, *args, **kwargs):
-        super().__init__(sourceNode, storage, ksize, *args, **kwargs):
+        super().__init__(sourceNode, storage, ksize, *args, **kwargs)
         self.router = NuCypherRoutingTable(self, ksize, sourceNode)
 
-    def rpc_ping(self, sender, nodeid, node_properties={}):
-        source = Node(nodeid, sender[0], sender[1])
-        self.welcomeIfNewNode(source, node_properties)
+    def check_node_for_storage(self, node):
+        try:
+            return node.can_store()
+        except AttributeError:
+            return True
+
+    def rpc_ping(self, sender, nodeid, node_capabilities=[]):
+        source = NuCypherNode(nodeid, sender[0], sender[1], capabilities_as_strings=node_capabilities)
+        self.welcomeIfNewNode(source)
         return self.sourceNode.id
 
-    def welcomeIfNewNode(self, node, node_properties):
-        if not self.router.isNewNode(node):
-            return
+    async def callStore(self, nodeToAsk, key, value):
+        # nodeToAsk = NuCypherNode
+        if self.check_node_for_storage(nodeToAsk):
+            address = (nodeToAsk.ip, nodeToAsk.port)
+            store_future = self.store(address, self.sourceNode.id, key, value)
+            result = await store_future
+            success, data = self.handleCallResponse(result, nodeToAsk)
+            return success, data
+        else:
+            return NODE_HAS_NO_STORAGE, False
 
-        self.log.info("never seen %s before, adding to router and setting nearby " % node)
-        for key, value in self.storage.items():
-            keynode = Node(digest(key))
-            neighbors = self.router.findNeighbors(keynode)
-            if len(neighbors) > 0:
-                newNodeClose = node.distanceTo(keynode) < neighbors[-1].distanceTo(keynode)
-                thisNodeClosest = self.sourceNode.distanceTo(keynode) < neighbors[0].distanceTo(keynode)
-            if len(neighbors) == 0 or (newNodeClose and thisNodeClosest):
-                asyncio.ensure_future(self.callStore(node, key, value))
-        self.router.addContact(node, seed_only=node_properties.get("seed_only", False))
 
 
 class NuCypherSeedOnlyProtocol(NuCypherHashProtocol):
