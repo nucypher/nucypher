@@ -68,17 +68,18 @@ class EncryptedFile(object):
         """
         Reads the header from the self.file_obj.
         """
-        # Read last four bytes (header length) of file.
-        self.file_obj.seek(-4, os.SEEK_END)
-
-        # The first four bytes of the file are the header length
-        self.header_length = int.from_bytes(
-                                 self.file_obj.read(4), byteorder='big')
-        # Seek to the beginning of the header and read it
-        self.file_obj.seek(-(self.header_length + 4), os.SEEK_END)
         try:
+            # Read last four bytes (header length) of file.
+            self.file_obj.seek(-4, os.SEEK_END)
+
+            # The first four bytes of the file are the header length
+            self.header_length = int.from_bytes(
+                                     self.file_obj.read(4), byteorder='big')
+            # Seek to the beginning of the header and read it
+            self.file_obj.seek(-(self.header_length + 4), os.SEEK_END)
             self.header = msgpack.loads(self.file_obj.read(self.header_length))
         except ValueError as e:
+            self.file_obj.seek(0)
             raise e
         else:
             # Seek to the end of the ciphertext
