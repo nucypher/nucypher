@@ -12,7 +12,7 @@ class EncryptedFile(object):
         self.cipher = cipher(key)
 
     def _build_header(self, version=100, nonce=None, keys=None,
-                      chunk_size=1000000, num_chunks=None):
+                      chunk_size=1000000, num_chunks=0, msg_len=0)
         """
         Builds a header and returns the msgpack encoded form of it.
 
@@ -20,7 +20,8 @@ class EncryptedFile(object):
         :param bytes nonce: Nonce to write to header, default is random(20)
         :param list keys: Keys to write to header
         :param int chunk_size: Size of each chunk in bytes, default is 1MB
-        :param int num_chunks: Number of chunks in ciphertext
+        :param int num_chunks: Number of chunks in ciphertext, default is 0
+        :param int msg_len: Length of the encrypted ciphertext in total
 
         :return: (header_length, encoded_header)
         :rtype: Tuple(int, bytes)
@@ -34,9 +35,31 @@ class EncryptedFile(object):
             'keys': keys,
             'chunk_size': chunk_size,
             'num_chunks': num_chunks,
+            'msg_len': msg_len,
         }
 
-        encoded_header = msgpack.dumps(self.header)
+        try:
+            encoded_header = msgpack.dumps(self.header)
+        except ValueError as e:
+            raise e
+        self.header_length = len(encoded_header)
+        return (self.header_length, encoded_header)
+
+    def _update_header(self, header):
+        """
+        Updates the self.header with the key/values in header, then updates
+        the header length.
+
+        :param dict header: Dict to update self.header with
+
+        :return: (header_length, encoded_header)
+        :rtype: Tuple(int, bytes)
+        """
+        self.header.update(header)
+        try:
+            encoded_header = msgpack.dumps(self.header)
+        except ValueError as e:
+            raise e
         self.header_length = len(encoded_header)
         return (self.header_length, encoded_header)
 
