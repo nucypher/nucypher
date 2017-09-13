@@ -156,3 +156,11 @@ class EncryptedFile(object):
     #    :param bytes data: Data to encrypt and write
     #    
     #    :return: Number of chunks written
+
+    def close(self):
+        """
+        Writes the header to the file_obj and closes it. Called after the user
+        is finished writing data to the file_obj.
+        """
+        header, header_length = self._encode_header()
+        self.file_obj.write(header + header_length)
