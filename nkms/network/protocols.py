@@ -28,13 +28,13 @@ class NuCypherHashProtocol(KademliaProtocol):
         # nodeToAsk = NuCypherNode
         if self.check_node_for_storage(nodeToAsk):
             address = (nodeToAsk.ip, nodeToAsk.port)
+            # TODO: encrypt `value` with public key of nodeToAsk
             store_future = self.store(address, self.sourceNode.id, key, value)
             result = await store_future
             success, data = self.handleCallResponse(result, nodeToAsk)
             return success, data
         else:
             return NODE_HAS_NO_STORAGE, False
-
 
 
 class NuCypherSeedOnlyProtocol(NuCypherHashProtocol):

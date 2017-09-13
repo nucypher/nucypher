@@ -28,11 +28,13 @@ class NuCypherDHTServer(Server):
         Announce node including capabilities
         """
         result = await self.protocol.ping(addr, self.node.id, self.serialize_capabilities())
-        return Node(result[1], addr[0], addr[1]) if result[0] else None
+        return NuCypherNode(result[1], addr[0], addr[1]) if result[0] else None
 
     async def set_digest(self, dkey, value):
         """
         Set the given SHA1 digest key (bytes) to the given value in the network.
+
+        Returns True if a digest was in fact set.
         """
         node = self.node_class(dkey)
 
@@ -51,6 +53,7 @@ class NuCypherDHTServer(Server):
         ds = []
         for n in nodes:
             if self.node.id == n.id:
+                # TOOD: Consider whether to store stuff locally.  We don't really know yet.  Probably at least some things.
                 ds.append(False)
             else:
                 disposition, value_was_set = await self.protocol.callStore(n, dkey, value)
