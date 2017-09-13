@@ -54,6 +54,18 @@ class EncryptedFile(object):
         self.header_length = len(encoded_header)
         return (self.header_length, encoded_header)
 
+    def _encode_header(self):
+        """
+        Returns a msgpack encoded header and the length of it in bytes ready to
+        be written to the file_obj.
+
+        :return: (encoded_header, header_length_bytes)
+        :rtype: Tuple(bytes, bytes)
+        """
+        header_length_bytes = self.header_length.to_bytes(4, byteorder='big')
+        encoded_header = msgpack.dumps(self.header)
+        return (encoded_header, header_length_bytes)
+
     def _update_header(self, header):
         """
         Updates the self.header with the key/values in header, then updates
