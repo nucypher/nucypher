@@ -1,1 +1,3 @@
+pdbpp
+ipython
 populus
