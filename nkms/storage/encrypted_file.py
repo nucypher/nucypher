@@ -6,6 +6,14 @@ from nkms.crypto import default_algorithm, symmetric_from_algorithm
 
 class EncryptedFile(object):
     def __init__(self, key, path, mode='rb'):
+        """
+        Creates an EncryptedFile object that allows the user to encrypt or
+        decrypt data into a file defined at `path`.
+
+        :param bytes key: Symmetric key to use for encryption/decryption
+        :param string/bytes path: Path of file to open
+        :param string mode: Mode to use when opening file, default is 'rb'
+        """
         self.path = path
         self.mode = mode
 
@@ -13,7 +21,7 @@ class EncryptedFile(object):
         self.cipher = cipher(key)
 
     def _build_header(self, version=100, nonce=None, keys=None,
-                      chunk_size=1000000, num_chunks=0, msg_len=0)
+                      chunk_size=1000000, num_chunks=0, msg_len=0):
         """
         Builds a header and returns the msgpack encoded form of it.
 
