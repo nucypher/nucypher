@@ -3,6 +3,12 @@ from ethereum.tester import TransactionFailed
 
 
 def test_create_token(web3, chain):
+    """
+    These are tests for standard tokens taken from Consensys github:
+    https://github.com/ConsenSys/Tokens/
+    but some of the tests are converted from javascript to python
+    """
+
     creator = web3.eth.accounts[1]
     account1 = web3.eth.accounts[0]
 
