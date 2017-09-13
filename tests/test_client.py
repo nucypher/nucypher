@@ -1,4 +1,5 @@
 import unittest
+import msgpack
 from nacl.utils import random
 from nkms.client import Client
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
@@ -33,6 +34,48 @@ class TestClient(unittest.TestCase):
         self.assertEqual(subdirs[1], b'/foo')
         self.assertEqual(subdirs[2], b'/foo/bar')
         self.assertEqual(subdirs[3], b'/foo/bar/test.jpg')
+
+    def test_build_header_prealpha(self):
+        enc_keys = [random(148), random(148), random(148)]
+        version = 100
+        header, length = self.client._build_header(enc_keys, version=version)
+
+        self.assertEqual(len(header), length)
+        try:
+            msgpack.loads(header)
+        except Exception as E:
+            self.fail("Failed to unpack header:\n{}".format(E))
+
+        self.assertIn((3).to_bytes(4, byteorder='big'), header)
+        for key in enc_keys:
+            self.assertIn(key, header)
+
+        self.assertIn(version.to_bytes(4, byteorder='big'), header)
+
+    def test_read_header_prealpha(self):
+        enc_keys = [random(148), random(148), random(148)]
+        version = 100
+        header, length = self.client._build_header(enc_keys, version=version)
+
+        self.assertEqual(len(header), length)
+        try:
+            msgpack.loads(header)
+        except Exception as E:
+            self.fail("Failed to unpack header: {}".format(E))
+
+        for key in enc_keys:
+            self.assertIn(key, header)
+
+        self.assertIn(version.to_bytes(4, byteorder='big'), header)
+
+        header = self.client._read_header(header)
+        self.assertEqual(int, type(header[0]))
+        self.assertEqual(100, header[0])
+        self.assertEqual(list, type(header[1]))
+        self.assertEqual(3, len(header[1]))
+
+        for key in header[1]:
+            self.assertIn(key, enc_keys)
 
     def test_encrypt_key_with_path_tuple(self):
         key = random(32)

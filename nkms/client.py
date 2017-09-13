@@ -1,7 +1,10 @@
+import sha3
+import msgpack
+from nacl import utils
 from nkms.network import dummy
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
                          symmetric_from_algorithm)
-import sha3
+from io import BytesIO
 
 
 class Client(object):
@@ -21,6 +24,7 @@ class Client(object):
     functions (such as decryption using this key or interaction with different
     storage backends).
     """
+    KEY_LENGTH = 148
     network_client_factory = dummy.Client
 
     def __init__(self, conf=None):
@@ -67,6 +71,43 @@ class Client(object):
         dirs = path.split(b'/')
         return [b'/'.join(dirs[:i + 1]) for i in range(len(dirs))]
 
+    def _build_header(self, enc_keys, version=100):
+        """
+        Creates a NuCypher header for the encrypted file.
+
+        :param enc_keys: List of encrypted keys in bytes
+        :param version: Version number of Cryptographic API (default: 0.1.0.0)
+
+        :return: Complete header msgpack encoded and length of raw header
+        :rtype: Tuple of the header and the header length e.g: (<header>, 1200)
+        """
+        if version < 1000:
+            vers_bytes = version.to_bytes(4, byteorder='big')
+            num_keys_bytes = len(enc_keys).to_bytes(4, byteorder='big')
+            keys = b''.join(enc_keys)
+            header = msgpack.dumps(vers_bytes + num_keys_bytes + keys)
+        return (header, len(header))
+
+    def _read_header(self, header):
+        """
+        Reads a NuCypher header.
+
+        :param header: Msgpack encoded header to read
+
+        :return: Version number, and list of encrypted keys
+        :rtype: Tuple of an int and a list e.g: (100, [...])
+        """
+        header = BytesIO(msgpack.loads(header))
+        vers_bytes = header.read(4)
+        version = int.from_bytes(vers_bytes, byteorder='big')
+
+        # Handle pre-alpha versions
+        if version < 1000:
+            num_keys_bytes = header.read(4)
+            num_keys = int.from_bytes(num_keys_bytes, byteorder='big')
+            enc_keys = [header.read(Client.KEY_LENGTH) for _ in range(num_keys)]
+        return (version, enc_keys)
+
     def encrypt_key(self, key, pubkey=None, path=None, algorithm=None):
         """
         Encrypt (symmetric) key material with our public key or the public key
@@ -95,7 +136,7 @@ class Client(object):
         if not pubkey:
             pubkey = self._pub_key
 
-        if path:
+        if path is not None:
             enc_keys = []
             subpaths = self._split_path(path)
             for subpath in subpaths:
@@ -182,7 +223,7 @@ class Client(object):
         cipher = self._symm(key)
         return cipher.decrypt(edata)
 
-    def open(self, pubkey=None, path=None, mode='r', fd=None, algorithm=None):
+    def open(self, pubkey=None, path=None, mode='rb', fd=None, algorithm=None):
         """
         The main interface through which Python API will work.
 
@@ -200,7 +241,13 @@ class Client(object):
 
         If pubkey is not set, we're working on our own files.
         """
-        pass
+        file_path = fd or path
+        try:
+            with open(file_path, mode=mode) as f:
+                enc_data = f.read()
+        except Exception as E:
+            raise E
+        return self.decrypt(enc_data, path=path)
 
     def remove(self, pubkey=None, path=None):
         """
@@ -224,8 +271,24 @@ class Client(object):
         :return: Encrypted data
         :rtype: bytes
         """
-        # Not needed if open() is there?
-        pass
+        # Generate a secure key and encrypt the data
+        data_key = utils.random(32)
+        ciphertext = msgpack.dumps(self.encrypt_bulk(data, data_key))
+
+        # Derive keys and encrypt them
+        # TODO: https://github.com/nucypher/nucypher-kms/issues/33
+        if path is not None:
+            enc_keys = self.encrypt_key(data_key, path=path)
+        else:
+            enc_keys = [self.encrypt_key(data_key, path=path)]
+
+        # Build the header
+        header, header_length = self._build_header(enc_keys)
+
+        # Format for storage
+        header_length_bytes = header_length.to_bytes(4, byteorder='big')
+        storage_data = header_length_bytes + header + ciphertext
+        return storage_data
 
     def decrypt(self, edata, path=None, owner=None):
         """
@@ -241,5 +304,20 @@ class Client(object):
         :return: Unencrypted data
         :rtype: bytes
         """
-        # Not needed if open() is there?
-        pass
+        enc_file = BytesIO(edata)
+
+        header_length = int.from_bytes(enc_file.read(4), byteorder='big')
+        header = enc_file.read(header_length)
+        version, enc_keys = self._read_header(header)
+
+        ciphertext = msgpack.loads(enc_file.read())
+
+        if version < 1000:
+            valid_key = None
+            for enc_key in enc_keys:
+                dec_key = self.decrypt_key(enc_key, path=path)
+                if len(dec_key) == 32:
+                    valid_key = dec_key
+                    break
+            plaintext = self.decrypt_bulk(ciphertext, valid_key)
+        return plaintext
