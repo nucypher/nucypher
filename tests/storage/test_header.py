@@ -33,5 +33,18 @@ class TestHeader(unittest.TestCase):
         # Test that the header exists on the filesystem
         self.assertTrue(pathlib.Path(self.header_obj.path.decode()).is_file())
 
-        # Grab the nonce value for the next tests
-        self.nonce = self.header['nonce']
+    def test_header_update(self):
+        new_header = {
+            'version': 200,
+            'keys': [b'test'],
+            'chunk_size': 999,
+        }
+        self.header_obj.update_header(new_header)
+
+        self.assertEqual(200, self.header['version'])
+        self.assertEqual(1, len(self.header['keys']))
+        self.assertEqual(b'test', self.header['keys'][0])
+        self.assertEqual(999, self.header['chunk_size'])
+
+        # Check that the non-updated num_chunks value didn't change
+        self.assertEqual(0, self.header['num_chunks'])
