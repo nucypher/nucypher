@@ -1,6 +1,7 @@
 import msgpack
 import pathlib
 from nacl.utils import random
+from nkms.storage.constants import NONCE_RANDOM_PREFIX_SIZE
 
 
 class Header(object):
@@ -53,7 +54,7 @@ class Header(object):
         :rtype: Dict
         """
         if not nonce:
-            nonce = random(20)
+            nonce = random(NONCE_RANDOM_PREFIX_SIZE)
 
         return {
             'version': version,
