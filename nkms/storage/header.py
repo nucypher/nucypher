@@ -56,3 +56,11 @@ class Header(object):
                 f.write(msgpack.dumps(self.header))
             except ValueError as e:
                 raise e
+
+    def update_header(self, header={}):
+        """
+        Updates the self.header dict with the dict in header.
+
+        :param dict header: Values to use in the dict.update call
+        """
+        self.header.update(header)
