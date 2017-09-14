@@ -12,11 +12,13 @@ class Header(object):
         :param bytes header_path: Path to the file containing the header
         :param dict header: Header params to use when building the header
         """
-        header_file = pathlib.Path(header_path)
+        self.path = header_path
+        header_file = pathlib.Path(self.path)
         if header_file.is_file():
-            self.header = self._read_header(header_path)
+            self.header = self._read_header(self.path)
         else:
             self.header = self._build_header(**header)
+            self._write_header(self.path)
 
     def _read_header(self, header_path):
         """
@@ -77,8 +79,10 @@ class Header(object):
 
     def update_header(self, header={}):
         """
-        Updates the self.header dict with the dict in header.
+        Updates the self.header dict with the dict in header and writes it to
+        the header file.
 
         :param dict header: Values to use in the dict.update call
         """
         self.header.update(header)
+        self._write_header(self.path)
