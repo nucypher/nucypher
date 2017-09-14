@@ -1,6 +1,7 @@
 import io
+import os
 from nkms.storage import Header
-from nacl.utils import random
+from nkms.storage.constants import NONCE_COUNTER_BYTE_SIZE
 from nkms.crypto import default_algorithm, symmetric_from_algorithm
 
 
@@ -19,12 +20,22 @@ class EncryptedFile(object):
         :param bytes path: Path of ciphertext file to open
         :param bytes header_path: Path of header file
         """
-        self.path = path
+        cipher = symmetric_from_algorithm(default_algorithm)
+        self.cipher = cipher(key)
+
+        # Opens the header file and parses it, if it exists. If not, creates it
         self.header_path = header_path
         self.header_obj = Header(self.header_path)
 
-        cipher = symmetric_from_algorithm(default_algorithm)
-        self.cipher = cipher(key)
+        self.path = path
+
+        # Always seek the beginning of the file on first open
+        self.file_obj = open(self.path, mode='a+b')
+        self.file_obj.seek(0)
+
+    @property
+    def header(self):
+        return self.header_obj.header
 
     def _read_chunk(self, chunk_size, nonce):
         """
@@ -39,51 +50,24 @@ class EncryptedFile(object):
         ciphertext = self.file_obj.read(chunk_size)
         return self.cipher.decrypt(ciphertext, nonce=nonce)
 
-    @property
-    def header(self):
-        return self.header_obj.header
-
-    def open_new(self, keys, chunk_size=1000000, nonce=None):
-        """
-        Opens a new EncryptedFile and creates a header for it ready for
-        writing encrypted data.
-
-        :param list keys: Encrypted keys to put in the header.
-        :param int chunk_size: Size of encrypted chunks in bytes, default is 1MB
-        :param bytes nonce: 20 byte Nonce to use for encryption
-        """
-        self.file_obj = open(self.path, mode=self.mode)
-        self._build_header(nonce=nonce, keys=keys, chunk_size=chunk_size)
-
-    def open(self, is_new=False):
-        """
-        Opens a file for Encryption/Decryption.
-
-        :param bool is_new: Is the file new (and empty)?
-        """
-        # TODO: Error if self.file_obj is already defined
-        self.file_obj = open(self.path, mode=self.mode)
-
-        # file_obj is now ready for reading/writing encrypted data
-        if not is_new:
-            self._read_header()
-
     def read(self, num_chunks=0):
         """
         Reads num_chunks of encrypted ciphertext and decrypt/authenticate it.
 
-        :param int num_chunks: Number of chunks to read. Default is all chunks
+        :param int num_chunks: Number of chunks to read. When set to 0, it will
+            read the all the chunks and decrypt them.
 
         :return: List of decrypted/authenticated ciphertext chunks
         :rtype: List
         """
-        if num_chunks == 0:
-            num_chunks = self.header['chunks']
+        if not num_chunks:
+            num_chunks = self.header['num_chunks']
 
         chunks = []
         for chunk_num in range(num_chunks):
             nonce = (self.header['nonce']
-                     + chunk_num.to_bytes(4, byteorder='big'))
+                     + chunk_num.to_bytes(NONCE_COUNTER_BYTE_SIZE,
+                                          byteorder='big'))
             chunks.append(self._read_chunk(self.header['chunk_size'], nonce))
         return chunks
 
@@ -97,16 +81,22 @@ class EncryptedFile(object):
         :return: Number of chunks written
         :rtype: int
         """
-        # Always start off at the last chunk_num
+        # Always start writing at the end of the file, never overwrite.
+        self.file_obj.seek(0, os.SEEK_END)
+
+        # Start off at the last chunk_num
         chunk_num = self.header['num_chunks']
+
         buf_data = io.BytesIO(data)
 
         plaintext = buf_data.read(self.header['chunk_size'])
         while len(plaintext) > 0:
             nonce = (self.header['nonce']
-                     + chunk_num.to_bytes(4, byteorder='big'))
-            enc_msg = self.cipher.encrypt(plaintext, nonce=nonce)
-            self.file_obj.write(enc_msg.ciphertext)
+                     + chunk_num.to_bytes(NONCE_COUNTER_BYTE_SIZE,
+                                          byteorder='big'))
+            enc_data = self.cipher.encrypt(plaintext, nonce=nonce)
+            self.file_obj.write(enc_data.ciphertext)
+
             plaintext = buf_data.read(self.header['chunk_size'])
             chunk_num += 1
         self._update_header({'num_chunks': chunk_num})
