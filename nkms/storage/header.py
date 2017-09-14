@@ -14,7 +14,7 @@ class Header(object):
         :param dict header: Header params to use when building the header
         """
         self.path = header_path
-        header_file = pathlib.Path(self.path)
+        header_file = pathlib.Path(self.path.decode())
         if header_file.is_file():
             self.header = self._read_header(self.path)
         else:
