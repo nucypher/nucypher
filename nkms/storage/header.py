@@ -17,6 +17,15 @@ class Header(object):
             self.header = self._build_header(**header)
 
     def _read_header(self, header_path):
+        """
+        Reads the header file located at `header_path` and loads it from its
+        msgpack format into the self.header dict.
+
+        :param bytes/string header_path: The path to the header file
+
+        :return: The loaded dict from the header file
+        :rtype: Dict
+        """
         with open(header_path, mode='rb') as f:
             # TODO: Use custom Exception (invalid or corrupt header)
             try:
@@ -51,6 +60,13 @@ class Header(object):
         }
 
     def _write_header(self, header_path):
+        """
+        Writes the msgpack dumped self.header dict to the file located at
+        `header_path`.
+
+        :param string/bytes header_path: The path to write the msgpack dumped
+            header to
+        """
         with open(header_path, mode='wb') as f:
             try:
                 f.write(msgpack.dumps(self.header))
