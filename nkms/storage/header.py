@@ -1,17 +1,19 @@
 import msgpack
+import pathlib
 from nacl.utils import random
 
 
 class Header(object):
-    def __init__(self, header_path=None, header={}):
+    def __init__(self, header_path, header={}):
         """
         Initializes a header object that contains metadata about a storage
         object (ie: EncryptedFile)
 
-        :param bytes/string header_path: Path to the file containing the header
+        :param bytes header_path: Path to the file containing the header
         :param dict header: Header params to use when building the header
         """
-        if header_path:
+        header_file = pathlib.Path(header_path)
+        if header_file.is_file():
             self.header = self._read_header(header_path)
         else:
             self.header = self._build_header(**header)
