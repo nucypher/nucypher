@@ -5,24 +5,23 @@ from nkms.crypto import default_algorithm, symmetric_from_algorithm
 
 
 class EncryptedFile(object):
-    def __init__(self, key, path, header_path=None):
+    def __init__(self, key, path, header_path):
         """
         Creates an EncryptedFile object that allows the user to encrypt or
         decrypt data into a file defined at `path`.
+
         An EncryptedFile object actually is composed of two files:
         1) The ciphertext -- This is the chunked and encrypted ciphertext
         2) The header -- This contains the metadata of the ciphertext that
             tells us how to decrypt it, or add more data.
 
         :param bytes key: Symmetric key to use for encryption/decryption
-        :param string/bytes path: Path of ciphertext file to open
-        :param string/bytes header_path: Path of header file
+        :param bytes path: Path of ciphertext file to open
+        :param bytes header_path: Path of header file
         """
         self.path = path
         self.header_path = header_path
-
-        if header_path:
-            self.header_obj = Header(header_path=self.header_path)
+        self.header_obj = Header(self.header_path)
 
         cipher = symmetric_from_algorithm(default_algorithm)
         self.cipher = cipher(key)
