@@ -113,8 +113,7 @@ class EncryptedFile(object):
 
     def close(self):
         """
-        Writes the header to the file_obj and closes it. Called after the user
-        is finished writing data to the file_obj.
+        Writes the header to the filesystem and closes the file_obj.
         """
-        header, header_length = self._encode_header()
-        self.file_obj.write(header + header_length)
+        self.header.update_header()
+        self.file_obj.close()
