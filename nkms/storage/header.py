@@ -34,7 +34,7 @@ class Header(object):
                 raise e
         return header
 
-    def _build_header(self, version=100, nonce=None, keys=None,
+    def _build_header(self, version=100, nonce=None, keys=[],
                       chunk_size=1000000, num_chunks=0):
         """
         Builds a header and sets the header dict in the `Header` object.
