@@ -49,3 +49,10 @@ class Header(object):
             'chunk_size': chunk_size,
             'num_chunks': num_chunks,
         }
+
+    def _write_header(self, header_path):
+        with open(header_path, mode='wb') as f:
+            try:
+                f.write(msgpack.dumps(self.header))
+            except ValueError as e:
+                raise e
