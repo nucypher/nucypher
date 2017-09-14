@@ -1,12 +1,11 @@
-import msgpack
-import os
 import io
+from nkms.storage import Header
 from nacl.utils import random
 from nkms.crypto import default_algorithm, symmetric_from_algorithm
 
 
 class EncryptedFile(object):
-    def __init__(self, key, path, mode='rb'):
+    def __init__(self, key, path, header_path=None):
         """
         Creates an EncryptedFile object that allows the user to encrypt or
         decrypt data into a file defined at `path`.
@@ -16,11 +15,14 @@ class EncryptedFile(object):
             tells us how to decrypt it, or add more data.
 
         :param bytes key: Symmetric key to use for encryption/decryption
-        :param string/bytes path: Path of file to open
-        :param string mode: Mode to use when opening file, default is 'rb'
+        :param string/bytes path: Path of ciphertext file to open
+        :param string/bytes header_path: Path of header file
         """
         self.path = path
-        self.mode = mode
+        self.header_path = header_path
+
+        if header_path:
+            self.header_obj = Header(header_path=self.header_path)
 
         cipher = symmetric_from_algorithm(default_algorithm)
         self.cipher = cipher(key)
@@ -37,6 +39,10 @@ class EncryptedFile(object):
         """
         ciphertext = self.file_obj.read(chunk_size)
         return self.cipher.decrypt(ciphertext, nonce=nonce)
+
+    @property
+    def header(self):
+        return self.header_obj.header
 
     def open_new(self, keys, chunk_size=1000000, nonce=None):
         """
