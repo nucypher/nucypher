@@ -18,7 +18,7 @@ class TestHeader(unittest.TestCase):
         self.header_obj = TestHeader.header
         self.header = TestHeader.header.header
 
-    def test_header_defaults(self):
+    def step1_test_header_defaults(self):
         # Test dict values
         self.assertEqual(100, self.header['version'])
         self.assertEqual(20, len(self.header['nonce']))
@@ -33,7 +33,7 @@ class TestHeader(unittest.TestCase):
         # Test that the header exists on the filesystem
         self.assertTrue(pathlib.Path(self.header_obj.path.decode()).is_file())
 
-    def test_header_update(self):
+    def step2_test_header_update(self):
         new_header = {
             'version': 200,
             'keys': [b'test'],
@@ -49,7 +49,7 @@ class TestHeader(unittest.TestCase):
         # Check that the non-updated num_chunks value didn't change
         self.assertEqual(0, self.header['num_chunks'])
 
-    def test_header_zread(self):
+    def step3_test_header_read(self):
         header = Header(b'test_header.nuc.header').header
 
         self.assertEqual(200, header[b'version'])
@@ -57,3 +57,16 @@ class TestHeader(unittest.TestCase):
         self.assertEqual(b'test', header[b'keys'][0])
         self.assertEqual(999, header[b'chunk_size'])
         self.assertEqual(0, header[b'num_chunks'])
+
+    def _steps(self):
+        for attr in sorted(dir(self)):
+            if not attr.startswith('step'):
+                continue
+            yield attr
+
+    def test_header(self):
+        for _s in self._steps():
+            try:
+                getattr(self, _s)()
+            except Exception as e:
+                self.fail('{} failed({})'.format(_s, e))
