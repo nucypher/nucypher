@@ -49,11 +49,11 @@ class TestHeader(unittest.TestCase):
         # Check that the non-updated num_chunks value didn't change
         self.assertEqual(0, self.header['num_chunks'])
 
-    def test_header_read(self):
+    def test_header_zread(self):
         header = Header(b'test_header.nuc.header').header
 
         self.assertEqual(200, header[b'version'])
         self.assertEqual(1, len(header[b'keys']))
         self.assertEqual(b'test', header[b'keys'][0])
         self.assertEqual(999, header[b'chunk_size'])
-        self.assertEqual(10, header[b'num_chunks'])
+        self.assertEqual(0, header[b'num_chunks'])
