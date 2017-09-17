@@ -24,6 +24,11 @@ def test_pre():
     pk_alice = pre.priv2pub(sk_alice)
     pk_bob = pre.priv2pub(sk_bob)
 
+    assert len(pk_alice) == 34
+    assert len(pk_bob) == 34
+    assert pk_alice[0] == 1
+    assert pk_bob[0] == 1
+
     cleartext = b'Hello world'
 
     cyphertext_for_alice = pre.encrypt(pk_alice, cleartext)
