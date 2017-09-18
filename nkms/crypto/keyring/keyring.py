@@ -41,7 +41,23 @@ class KeyRing(object):
         return self.sig_keypair.verify(msg_digest, signature)
 
     def encrypt(self, plaintext):
-        pass
+        """
+        Encrypts the plaintext provided.
+
+        :param bytes plaintext: Plaintext to encrypt w/ EncryptingKeypair
+
+        :rtype: bytes
+        :return: Ciphertext of plaintext
+        """
+        return self.enc_keypair.encrypt(plaintext)
 
     def decrypt(self, ciphertext):
-        pass
+        """
+        Decrypts the ciphertext provided.
+
+        :param bytes ciphertext: Ciphertext to decrypt w/ EncryptingKeypair
+
+        :rtype: bytes
+        :return: Plaintext of Encrypted ciphertext
+        """
+        return self.enc_keypair.decrypt(ciphertext)
