@@ -1,0 +1,5 @@
+
+
+
+class KeyRing(object):
+    pass
