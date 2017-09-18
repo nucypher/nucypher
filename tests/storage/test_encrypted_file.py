@@ -20,3 +20,6 @@ class TestEncryptedFile(unittest.TestCase):
     def setUp(self):
         self.enc_file = TestEncryptedFile.enc_file_obj
         self.header = TestEncryptedFile.enc_file_obj.header
+
+    def step1_update_header(self):
+        pass
