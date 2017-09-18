@@ -1,15 +1,19 @@
 import sha3
-from nkms.crypto.keyring.keys import SigningKeypair
+from nkms.crypto.keyring.keys import SigningKeypair, EncryptingKeypair
 
 
 class KeyRing(object):
-    def __init__(self, sig_keypair=None, enc_keypair=None):
-        self.sig_keypair = SigningKeypair(sig_keypair)
-        if not enc_keypair:
-            # Generate encryption keypair
-            # TODO: Create an encryption_keypair
-            pass
-        self.enc_keypair = enc_keypair
+    def __init__(self, sig_privkey=None, enc_privkey=None):
+        """
+        Initializes a KeyRing object. Uses the private keys to initialize
+        their respective objects, if provided. If not, it will generate new
+        keypairs.
+
+        :param bytes sig_privkey: Private key in bytes of ECDSA signing keypair
+        :param bytes enc_privkey: Private key in bytes of encrypting keypair
+        """
+        self.sig_keypair = SigningKeypair(sig_privkey)
+        self.enc_keypair = EncryptingKeypair(enc_privkey)
 
     def sign(self, message):
         """
@@ -35,3 +39,9 @@ class KeyRing(object):
         """
         msg_digest = sha3.keccak_256(message).digest()
         return self.sig_keypair.verify(msg_digest, signature)
+
+    def encrypt(self, plaintext):
+        pass
+
+    def decrypt(self, ciphertext):
+        pass
