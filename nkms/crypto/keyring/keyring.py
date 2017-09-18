@@ -7,6 +7,7 @@ class KeyRing(object):
         self.sig_keypair = SigningKeypair(sig_keypair)
         if not enc_keypair:
             # Generate encryption keypair
+            # TODO: Create an encryption_keypair
             pass
         self.enc_keypair = enc_keypair
 
@@ -19,7 +20,7 @@ class KeyRing(object):
         :rtype: bytestring
         :return: Signature of message
         """
-        msg_digest = sha3.keccak_256(message)
+        msg_digest = sha3.keccak_256(message).digest()
         return self.sig_keypair.sign(msg_digest)
 
     def verify(self, message, signature):
@@ -32,5 +33,5 @@ class KeyRing(object):
         :rtype: Boolean
         :return: Is the message signature valid or not?
         """
-        msg_digest = sha3.keccak_256(message)
+        msg_digest = sha3.keccak_256(message).digest()
         return self.sig_keypair.verify(msg_digest, signature)
