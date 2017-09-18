@@ -15,6 +15,20 @@ class SigningKeypair(object):
         # Get the public component
         self.pub_key = privtopub(self.priv_key)
 
+    def _vrs_msgpack_dump(self, v, r, s):
+        v_bytes = v.to_bytes(1, byteorder='big')
+        r_bytes = r.to_bytes(32, byteorder='big')
+        s_bytes = s.to_bytes(32, byteorder='big')
+        return msgpack.dumps((v_bytes, r_bytes, s_bytes))
+
+    def _vrs_msgpack_load(self, msgpack_vrs):
+        sig = msgpack.loads(msgpack_vrs)
+        v = int.from_bytes(sig[0], byteorder='big')
+        r = int.from_bytes(sig[1], byteorder='big')
+        s = int.from_bytes(sig[2], byteorder='big')
+        return (v, r, s)
+
+
     def sign(self, msghash):
         """
         Signs a hashed message and returns a msgpack'ed v, r, and s.
@@ -25,10 +39,7 @@ class SigningKeypair(object):
         :return: Msgpacked bytestring of v, r, and s (the signature)
         """
         v, r, s = ecdsa_raw_sign(msghash, self.priv_key)
-        v_bytes = v.to_bytes(1, byteorder='big')
-        r_bytes = r.to_bytes(32, byteorder='big')
-        s_bytes = s.to_bytes(32, byteorder='big')
-        return msgpack.dumps((v_bytes + r_bytes + s_bytes))
+        return self._vrs_msgpack_dump(v, r, s)
 
     def verify(self, msghash, signature):
         """
@@ -40,12 +51,8 @@ class SigningKeypair(object):
         :rtype: Boolean
         :return: Is the signature valid or not?
         """
-        sig = msgpack.loads(signature)
-        v = int.from_bytes(sig[0], byteorder='big')
-        r = int.from_bytes(sig[1], byteorder='big')
-        s = int.from_bytes(sig[2], byteorder='big')
-
+        sig = self._vrs_msgpack_load(signature)
         # Generate the public key from the signature and validate
         # TODO: Look into fixed processing time functions for comparison
-        verify_sig = ecdsa_raw_recover(msghash, (v, r, s))
+        verify_sig = ecdsa_raw_recover(msghash, sig)
         return verify_sig == self.pub_key
