@@ -12,7 +12,23 @@ class EncryptingKeypair(object):
         self.pub_key = self.pre.priv2pub(self.priv_key)
 
     def encrypt(self, data):
+        """
+        Encrypts the data provided.
+
+        :param bytes data: The data to encrypt
+
+        :rtype: bytes
+        :return: Encrypted ciphertext
+        """
         return self.pre.encrypt(self.pub_key, data)
 
     def decrypt(self, enc_data):
+        """
+        Decrypts the data provided
+
+        :param bytes enc_data: Decrypts the data provided
+
+        :rtype: bytes
+        :return: Decrypted plaintext
+        """
         return self.pre.decrypt(self.priv_key, enc_data)
