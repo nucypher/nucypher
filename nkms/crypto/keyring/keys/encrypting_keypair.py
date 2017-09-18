@@ -10,3 +10,6 @@ class EncryptingKeypair(object):
         else:
             self.priv_key = privkey_bytes
         self.pub_key = self.pre.priv2pub(self.priv_key)
+
+    def encrypt(self, data):
+        return self.pre.encrypt(self.pub_key, data)
