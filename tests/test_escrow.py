@@ -29,12 +29,32 @@ def test_escrow(web3, chain):
     # Ursula asks for refund
     tx = ursula_escrow.transact({'from': ursula}).withdraw(500)
     chain.wait.for_receipt(tx)
-    # Nope Ursula, you cannot do it
-    assert token.call().balanceOf(ursula_escrow.address) == 1000
-    assert token.call().balanceOf(ursula) == 9000
+    # and it works
+    assert token.call().balanceOf(ursula_escrow.address) == 500
+    assert token.call().balanceOf(ursula) == 9500
 
-    # Only Jury can refund Ursula
+    # Jury cannot withdraw
     tx = ursula_escrow.transact({'from': human_jury}).withdraw(500)
     chain.wait.for_receipt(tx)
     assert token.call().balanceOf(ursula_escrow.address) == 500
     assert token.call().balanceOf(ursula) == 9500
+
+    # But Jury can lock
+    tx = ursula_escrow.transact({'from': human_jury}).setLock(500)
+    chain.wait.for_receipt(tx)
+
+    # And Ursula's withdrawal attepmt won't succeed
+    tx = ursula_escrow.transact({'from': ursula}).withdraw(100)
+    chain.wait.for_receipt(tx)
+    assert token.call().balanceOf(ursula_escrow.address) == 500
+    assert token.call().balanceOf(ursula) == 9500
+
+    # Now Jury unlocks some
+    tx = ursula_escrow.transact({'from': human_jury}).setLock(200)
+    chain.wait.for_receipt(tx)
+
+    # And Ursula can withdraw
+    tx = ursula_escrow.transact({'from': ursula}).withdraw(100)
+    chain.wait.for_receipt(tx)
+    assert token.call().balanceOf(ursula_escrow.address) == 400
+    assert token.call().balanceOf(ursula) == 9600
