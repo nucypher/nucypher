@@ -13,3 +13,6 @@ class EncryptingKeypair(object):
 
     def encrypt(self, data):
         return self.pre.encrypt(self.pub_key, data)
+
+    def decrypt(self, enc_data):
+        return self.pre.decrypt(self.priv_key, enc_data)
