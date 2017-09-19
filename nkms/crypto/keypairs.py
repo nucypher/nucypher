@@ -14,7 +14,7 @@ class EncryptingKeypair(object):
             self.priv_key = privkey_bytes
         self.pub_key = self.pre.priv2pub(self.priv_key)
 
-    def encrypt(self, data):
+    def encrypt(self, data, pubkey=None):
         """
         Encrypts the data provided.
 
@@ -23,7 +23,9 @@ class EncryptingKeypair(object):
         :rtype: bytes
         :return: Encrypted ciphertext
         """
-        return self.pre.encrypt(self.pub_key, data)
+        if not pubkey:
+            pubkey = self.pub_key
+        return self.pre.encrypt(pubkey, data)
 
     def decrypt(self, enc_data):
         """
