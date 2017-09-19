@@ -1,7 +1,7 @@
 import unittest
 import sha3
 import msgpack
-from nkms.crypto.keyring.keys import SigningKeypair
+from nkms.crypto.keypairs import SigningKeypair, EncryptingKeypair
 
 
 class TestSigningKeypair(unittest.TestCase):
@@ -35,3 +35,23 @@ class TestSigningKeypair(unittest.TestCase):
 
         verify_sig = self.keypair.verify(msg_digest, signature)
         self.assertTrue(verify_sig)
+
+
+class TestEncryptingKeypair(unittest.TestCase):
+    def setUp(self):
+        self.send_keypair = EncryptingKeypair()
+        self.recv_keypair = EncryptingKeypair()
+        self.msg = b'this is a test'
+
+    def test_encryption(self):
+        ciphertext = self.send_keypair.encrypt(self.msg,
+                pubkey=self.recv_keypair.pub_key)
+        self.assertNotEqual(self.msg, ciphertext)
+
+    def test_decryption(self):
+        ciphertext = self.send_keypair.encrypt(self.msg,
+                pubkey=self.recv_keypair.pub_key)
+        self.assertNotEqual(self.msg, ciphertext)
+
+        plaintext = self.recv_keypair.decrypt(ciphertext)
+        self.assertEqual(self.msg, plaintext)
