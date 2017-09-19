@@ -26,7 +26,8 @@ class TestKeyRing(unittest.TestCase):
         self.assertTrue(32, len(sig[1]))    # Check r
         self.assertTrue(32, len(sig[2]))    # Check s
 
-        is_valid = self.keyring_a.verify(self.msg, signature)
+        is_valid = self.keyring_b.verify(self.msg, signature,
+                                    pubkey=self.keyring_a.sig_keypair.pub_key)
         self.assertTrue(is_valid)
 
     def test_encryption(self):
