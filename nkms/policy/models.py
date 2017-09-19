@@ -79,8 +79,9 @@ class Policy(object):
         return policy
 
     def hash(self, pubkey_sig_alice, hash_input):
+        hash_input = str(hash_input).encode()
         self.hashed_part = content_hash(hash_input)
-        hash_input_for_id = (pubkey_sig_alice, self.hashed_part)
+        hash_input_for_id = str(pubkey_sig_alice).encode() + str(self.hashed_part).encode()
         self.id = content_hash(hash_input_for_id)
         return self.id
 
