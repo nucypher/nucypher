@@ -13,25 +13,19 @@ class TestSigningKeypair(unittest.TestCase):
         msg_digest = sha3.keccak_256(self.msg).digest()
         signature = self.keypair.sign(msg_digest)
 
-        try:
-            sig = msgpack.loads(signature)
-            self.assertTrue(1, len(sig[0]))     # Check v
-            self.assertTrue(32, len(sig[1]))    # Check r
-            self.assertTrue(32, len(sig[2]))    # Check s
-        except Exception as e:
-            self.fail("Failed to msgpack.load signature: {}".format(e))
+        sig = msgpack.loads(signature)
+        self.assertTrue(1, len(sig[0]))     # Check v
+        self.assertTrue(32, len(sig[1]))    # Check r
+        self.assertTrue(32, len(sig[2]))    # Check s
 
     def test_verification(self):
         msg_digest = sha3.keccak_256(self.msg).digest()
         signature = self.keypair.sign(msg_digest)
 
-        try:
-            sig = msgpack.loads(signature)
-            self.assertTrue(1, len(sig[0]))     # Check v
-            self.assertTrue(32, len(sig[1]))    # Check r
-            self.assertTrue(32, len(sig[2]))    # Check s
-        except Exception as e:
-            self.fail("Failed to msgpack.load signature: {}".format(e))
+        sig = msgpack.loads(signature)
+        self.assertTrue(1, len(sig[0]))     # Check v
+        self.assertTrue(32, len(sig[1]))    # Check r
+        self.assertTrue(32, len(sig[2]))    # Check s
 
         verify_sig = self.keypair.verify(msg_digest, signature)
         self.assertTrue(verify_sig)
