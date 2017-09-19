@@ -40,7 +40,7 @@ class KeyRing(object):
         msg_digest = sha3.keccak_256(message).digest()
         return self.sig_keypair.verify(msg_digest, signature)
 
-    def encrypt(self, plaintext):
+    def encrypt(self, plaintext, pubkey=None):
         """
         Encrypts the plaintext provided.
 
@@ -49,7 +49,9 @@ class KeyRing(object):
         :rtype: bytes
         :return: Ciphertext of plaintext
         """
-        return self.enc_keypair.encrypt(plaintext)
+        if not pubkey:
+            pubkey = self.enc_keypair.pub_key
+        return self.enc_keypair.encrypt(plaintext, pubkey=pubkey)
 
     def decrypt(self, ciphertext):
         """
