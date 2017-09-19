@@ -27,24 +27,29 @@ class KeyRing(object):
         msg_digest = sha3.keccak_256(message).digest()
         return self.sig_keypair.sign(msg_digest)
 
-    def verify(self, message, signature):
+    def verify(self, message, signature, pubkey=None):
         """
         Verifies a signature.
 
         :param bytes message: Message to check signature for
         :param bytes signature: Signature to validate
+        :param bytes pubkey: Pubkey to validate signature with
+                             Default is the sig_keypair's pub_key
 
         :rtype: Boolean
         :return: Is the message signature valid or not?
         """
+        if not pubkey:
+            pubkey = self.sig_keypair.pub_key
         msg_digest = sha3.keccak_256(message).digest()
-        return self.sig_keypair.verify(msg_digest, signature)
+        return self.sig_keypair.verify(msg_digest, signature, pubkey=pubkey)
 
     def encrypt(self, plaintext, pubkey=None):
         """
         Encrypts the plaintext provided.
 
         :param bytes plaintext: Plaintext to encrypt w/ EncryptingKeypair
+        :param bytes pubkey: Pubkey to encrypt for
 
         :rtype: bytes
         :return: Ciphertext of plaintext

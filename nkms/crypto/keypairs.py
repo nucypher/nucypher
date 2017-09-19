@@ -19,6 +19,7 @@ class EncryptingKeypair(object):
         Encrypts the data provided.
 
         :param bytes data: The data to encrypt
+        :param bytes pubkey: Pubkey to encrypt for
 
         :rtype: bytes
         :return: Encrypted ciphertext
@@ -64,7 +65,6 @@ class SigningKeypair(object):
         s = int.from_bytes(sig[2], byteorder='big')
         return (v, r, s)
 
-
     def sign(self, msghash):
         """
         Signs a hashed message and returns a msgpack'ed v, r, and s.
@@ -77,18 +77,22 @@ class SigningKeypair(object):
         v, r, s = ecdsa_raw_sign(msghash, self.priv_key)
         return self._vrs_msgpack_dump(v, r, s)
 
-    def verify(self, msghash, signature):
+    def verify(self, msghash, signature, pubkey=None):
         """
         Takes a msgpacked signature and verifies the message.
 
         :param bytes msghash: The hashed message to verify
         :param bytes signature: The msgpacked signature (v, r, and s)
+        :param bytes pubkey: Pubkey to validate signature for
+                             Default is the keypair's pub_key.
 
         :rtype: Boolean
         :return: Is the signature valid or not?
         """
+        if not pubkey:
+            pubkey = self.pub_key
         sig = self._vrs_msgpack_load(signature)
         # Generate the public key from the signature and validate
         # TODO: Look into fixed processing time functions for comparison
         verify_sig = ecdsa_raw_recover(msghash, sig)
-        return verify_sig == self.pub_key
+        return verify_sig == pubkey
