@@ -1,5 +1,5 @@
 import sha3
-from nkms.crypto.keyring.keys import SigningKeypair, EncryptingKeypair
+from nkms.crypto.keypairs import SigningKeypair, EncryptingKeypair
 
 
 class KeyRing(object):
