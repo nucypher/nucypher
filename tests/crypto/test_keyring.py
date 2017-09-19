@@ -32,3 +32,14 @@ class TestKeyRing(unittest.TestCase):
 
         is_valid = self.keyring.verify(self.msg, signature)
         self.assertTrue(is_valid)
+
+    def test_encryption(self):
+        ciphertext = self.keyring.encrypt(self.msg)
+        self.assertTrue(self.msg != ciphertext)
+
+    def test_decryption(self):
+        ciphertext = self.keyring.encrypt(self.msg)
+        self.assertTrue(self.msg != ciphertext)
+
+        plaintext = self.keyring.decrypt(ciphertext)
+        self.assertTrue(self.msg == plaintext)
