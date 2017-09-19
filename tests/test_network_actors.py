@@ -1,22 +1,45 @@
-from nkms.crypto.keys import KeyChain
-
+from nkms.crypto.keyring import KeyRing
 from nkms.policy.models import PolicyGroup
 
 
+class MockUrsula(object):
+    def encrypt_for(self, payload):
+        # TODO: Make this a testable result
+        import random
+        return random.getrandbits(32)
+
+
+
+class MockPolicyOfferResponse(object):
+    was_accepted = True
+
+
+class MockNetworkyStuff(object):
+
+    def transmit_offer(self, ursula, policy_offer):
+        return MockPolicyOfferResponse()
+
+    def find_ursula(self, id, hashed_part):
+        return MockUrsula()
+
+
+
+
+
 def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
-    keychain_alice = KeyChain()
-    keychain_bob = KeyChain()
-    keychain_ursula = KeyChain()
+    keychain_alice = KeyRing()
+    keychain_bob = KeyRing()
+    keychain_ursula = KeyRing()
 
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
-    kfrag_id = 74
 
     # Alice runs this to get a policy object.
-    policy_group = PolicyGroup.craft(keychain_alice.pubkey_sig,
-                                       keychain_bob.pubkey_sig,
-                                       resource_id,
-                                       kfrag_id
-                                       )
-
-    policy_group.transmit()
+    policy_group = PolicyGroup.craft(keychain_alice,
+                                     keychain_bob.enc_keypair.pub_key,
+                                     resource_id,
+                                     m=20,
+                                     n=50
+                                     )
+    networky_stuff = MockNetworkyStuff()
+    policy_group.transmit(networky_stuff)
