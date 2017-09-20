@@ -1,5 +1,6 @@
 import unittest
 import msgpack
+import random
 from nkms.crypto.keyring import KeyRing
 
 
@@ -42,3 +43,8 @@ class TestKeyRing(unittest.TestCase):
 
         plaintext = self.keyring_b.decrypt(ciphertext)
         self.assertEqual(self.msg, plaintext)
+
+    def test_secure_random(self):
+        length = random.randrange(1, 100)
+        rand_bytes = self.keyring_a.secure_random(length)
+        self.assertEqual(length, len(rand_bytes))
