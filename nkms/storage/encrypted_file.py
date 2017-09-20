@@ -61,14 +61,14 @@ class EncryptedFile(object):
         :rtype: List
         """
         if not num_chunks:
-            num_chunks = self.header['num_chunks']
+            num_chunks = self.header[b'num_chunks']
 
         chunks = []
         for chunk_num in range(num_chunks):
-            nonce = (self.header['nonce']
+            nonce = (self.header[b'nonce']
                      + chunk_num.to_bytes(NONCE_COUNTER_BYTE_SIZE,
                                           byteorder='big'))
-            chunks.append(self._read_chunk(self.header['chunk_size'], nonce))
+            chunks.append(self._read_chunk(self.header[b'chunk_size'], nonce))
         return chunks
 
     def write(self, data):
@@ -85,23 +85,23 @@ class EncryptedFile(object):
         self.file_obj.seek(0, os.SEEK_END)
 
         # Start off at the last chunk_num
-        chunk_num = self.header['num_chunks']
+        chunk_num = self.header[b'num_chunks']
 
         buf_data = io.BytesIO(data)
 
         chunks_written = 0
-        plaintext = buf_data.read(self.header['chunk_size'])
+        plaintext = buf_data.read(self.header[b'chunk_size'])
         while len(plaintext) > 0:
-            nonce = (self.header['nonce']
+            nonce = (self.header[b'nonce']
                      + chunk_num.to_bytes(NONCE_COUNTER_BYTE_SIZE,
                                           byteorder='big'))
             enc_data = self.cipher.encrypt(plaintext, nonce=nonce)
             self.file_obj.write(enc_data.ciphertext)
             chunks_written += 1
 
-            plaintext = buf_data.read(self.header['chunk_size'])
+            plaintext = buf_data.read(self.header[b'chunk_size'])
             chunk_num += 1
-        self.header_obj.update_header({'num_chunks': chunk_num})
+        self.header_obj.update_header({b'num_chunks': chunk_num})
         return chunks_written
 
     def close(self):

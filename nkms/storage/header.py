@@ -57,11 +57,11 @@ class Header(object):
             nonce = random(NONCE_RANDOM_PREFIX_SIZE)
 
         return {
-            'version': version,
-            'nonce': nonce,
-            'keys': keys,
-            'chunk_size': chunk_size,
-            'num_chunks': num_chunks,
+            b'version': version,
+            b'nonce': nonce,
+            b'keys': keys,
+            b'chunk_size': chunk_size,
+            b'num_chunks': num_chunks,
         }
 
     def _write_header(self, header_path):

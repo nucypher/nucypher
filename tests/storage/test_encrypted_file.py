@@ -24,9 +24,9 @@ class TestEncryptedFile(unittest.TestCase):
         self.header_obj = TestEncryptedFile.enc_file_obj.header_obj
 
     def step1_update_header(self):
-        updated_header = {'chunk_size': 10}
+        updated_header = {b'chunk_size': 10}
         self.header_obj.update_header(header=updated_header)
-        self.assertEqual(10, self.header['chunk_size'])
+        self.assertEqual(10, self.header[b'chunk_size'])
 
     def step2_write_data(self):
         # Writes the equivalent of three chunks per the updated header
