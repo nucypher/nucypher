@@ -23,3 +23,16 @@ class TestEncryptedFile(unittest.TestCase):
 
     def step1_update_header(self):
         pass
+
+    def _steps(self):
+        for attr in sorted(dir(self)):
+            if not attr.startswith('step'):
+                continue
+            yield attr
+
+    def test_encrypted_file(self):
+        for _s in self._steps():
+            try:
+                getattr(self, _s)()
+            except Exception as e:
+                self.fail('{} failed({})'.format(_s, e))
