@@ -1,11 +1,10 @@
-import base64
 import msgpack
 from nkms import crypto
 from npre.bbs98 import PRE as BasePRE
 
 
 def convert_priv(sk):
-    return b'0:' + base64.encodebytes(sk).strip()
+    return b'\x00' + sk
 
 
 class PRE(BasePRE):
