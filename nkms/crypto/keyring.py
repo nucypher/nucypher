@@ -16,6 +16,22 @@ class KeyRing(object):
         self.sig_keypair = SigningKeypair(sig_privkey)
         self.enc_keypair = EncryptingKeypair(enc_privkey)
 
+    @property
+    def sig_pubkey(self):
+        return self.sig_keypair.pub_key
+
+    @property
+    def sig_privkey(self):
+        return self.sig_keypair.priv_key
+
+    @property
+    def enc_pubkey(self):
+        return self.enc_keypair.pub_key
+
+    @property
+    def enc_privkey(self):
+        return self.enc_keypair.priv_key
+
     def sign(self, message):
         """
         Signs a message and returns a signature with the keccak hash.

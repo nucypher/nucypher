@@ -28,17 +28,17 @@ class TestKeyRing(unittest.TestCase):
         self.assertTrue(32, len(sig[2]))    # Check s
 
         is_valid = self.keyring_b.verify(self.msg, signature,
-                                    pubkey=self.keyring_a.sig_keypair.pub_key)
+                                         pubkey=self.keyring_a.sig_pubkey)
         self.assertTrue(is_valid)
 
     def test_encryption(self):
         ciphertext = self.keyring_a.encrypt(self.msg,
-                                    pubkey=self.keyring_b.enc_keypair.pub_key)
+                                            pubkey=self.keyring_b.enc_pubkey)
         self.assertNotEqual(self.msg, ciphertext)
 
     def test_decryption(self):
         ciphertext = self.keyring_a.encrypt(self.msg,
-                                    pubkey=self.keyring_b.enc_keypair.pub_key)
+                                            pubkey=self.keyring_b.enc_pubkey)
         self.assertNotEqual(self.msg, ciphertext)
 
         plaintext = self.keyring_b.decrypt(ciphertext)
