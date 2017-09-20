@@ -89,6 +89,7 @@ class EncryptedFile(object):
 
         buf_data = io.BytesIO(data)
 
+        chunks_written = 0
         plaintext = buf_data.read(self.header['chunk_size'])
         while len(plaintext) > 0:
             nonce = (self.header['nonce']
@@ -96,14 +97,16 @@ class EncryptedFile(object):
                                           byteorder='big'))
             enc_data = self.cipher.encrypt(plaintext, nonce=nonce)
             self.file_obj.write(enc_data.ciphertext)
+            chunks_written += 1
 
             plaintext = buf_data.read(self.header['chunk_size'])
             chunk_num += 1
-        self._update_header({'num_chunks': chunk_num})
+        self.header_obj.update_header({'num_chunks': chunk_num})
+        return chunks_written
 
     def close(self):
         """
         Writes the header to the filesystem and closes the file_obj.
         """
-        self.header.update_header()
+        self.header_obj.update_header()
         self.file_obj.close()
