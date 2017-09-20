@@ -3,3 +3,6 @@ NONCE_RANDOM_PREFIX_SIZE = 20
 
 # Size of the counter in bytes (4 = int)
 NONCE_COUNTER_BYTE_SIZE = 4
+
+# Length of padding from NaCl
+PADDING_LENGTH = 16

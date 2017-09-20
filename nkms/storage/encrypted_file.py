@@ -1,7 +1,7 @@
 import io
 import os
 from nkms.storage.header import Header
-from nkms.storage.constants import NONCE_COUNTER_BYTE_SIZE
+from nkms.storage.constants import NONCE_COUNTER_BYTE_SIZE, PADDING_LENGTH
 from nkms.crypto import default_algorithm, symmetric_from_algorithm
 
 
