@@ -47,7 +47,7 @@ class EncryptedFile(object):
         :return: Decrypted/Authenticated chunk
         :rtype: Bytes
         """
-        ciphertext = self.file_obj.read(chunk_size)
+        ciphertext = self.file_obj.read(chunk_size + PADDING_LENGTH)
         return self.cipher.decrypt(ciphertext, nonce=nonce)
 
     def read(self, num_chunks=0):
