@@ -90,6 +90,17 @@ class KeyRing(object):
         """
         return self.enc_keypair.decrypt(ciphertext)
 
+    def rekey(self, pubkey):
+        """
+        Generates a re-encryption key for the specified pubkey.
+
+        :param bytes pubkey: Public key of the recipient
+
+        :rtype: bytes
+        :return: Re-encryption key for the specified public key
+        """
+        return self.enc_keypair.rekey(pubkey)
+
     def secure_random(self, length):
         """
         Generates a bytestring from a secure random source for keys, etc.
