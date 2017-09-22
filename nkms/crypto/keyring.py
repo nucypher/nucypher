@@ -18,7 +18,6 @@ class KeyRing(object):
         self.sig_keypair = SigningKeypair(sig_privkey)
         self.enc_keypair = EncryptingKeypair(enc_privkey)
         self.pre = pre_from_algorithm(default_algorithm)
-        self.symm = symmetric_from_algorithm(default_algorithm)
 
     @property
     def sig_pubkey(self):
@@ -90,17 +89,6 @@ class KeyRing(object):
         """
         return self.enc_keypair.decrypt(ciphertext)
 
-    def rekey(self, pubkey):
-        """
-        Generates a re-encryption key for the specified pubkey.
-
-        :param bytes pubkey: Public key of the recipient
-
-        :rtype: bytes
-        :return: Re-encryption key for the specified public key
-        """
-        return self.enc_keypair.rekey(pubkey)
-
     def secure_random(self, length):
         """
         Generates a bytestring from a secure random source for keys, etc.
@@ -124,29 +112,3 @@ class KeyRing(object):
         """
         key = sha3.keccak_256(self.enc_privkey + path).digest()
         return self.pre.priv2pub(key) if is_pub else key
-
-    def encrypt_bulk(self, data, key):
-        """
-        Encrypt bulk of the data with nacl's SecretBox.
-
-        :param bytes data: Data to encrypt
-        :param bytes key: Symmetric key
-
-        :rtype: bytes
-        :return: Ciphertext of encrypted data
-        """
-        cipher = self.symm(key)
-        return cipher.encrypt(data)
-
-    def decrypt_bulk(self, ciphertext, key):
-        """
-        Decrypts bulk of the data with nacl's SecretBox.
-
-        :param bytes ciphertext: Ciphertext to decrypt
-        :param bytes key: Symmetric key
-
-        :rtype: bytes
-        :return: Plaintext decrypted from ciphertext
-        """
-        cipher = self.symm(key)
-        return cipher.decrypt(ciphertext)
