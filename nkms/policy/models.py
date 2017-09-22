@@ -3,25 +3,25 @@ from nkms.crypto.pre.keygen import generate_re_encryption_keys
 from nkms.policy.constants import UNKNOWN_KFRAG
 
 
-class PolicyGroup(object):
-    """
-    The terms and conditions by which Alice shares with Bob.
-    """
+class PolicyManager(object):
+    pass
 
-    def __init__(self, policies=None):
-        self.policies = policies or []
 
-    @staticmethod
-    def craft(keychain_alice: "KeyChain",
-              pubkey_enc_bob: tuple,
-              uri: bytes,
-              m: int,
-              n: int
-              ):
+class PolicyManagerForAlice(PolicyManager):
+
+    def __init__(self, keychain_alice: "KeyChain"):
+        self.keychain_alice = keychain_alice
+
+    def create_policy_group(self,
+                 pubkey_enc_bob: tuple,
+                 uri: bytes,
+                 m: int,
+                 n: int
+                 ):
         """
         Alice dictates a new group of policies.
         """
-        re_enc_keys = generate_re_encryption_keys(keychain_alice.enc_keypair.priv_key,
+        re_enc_keys = generate_re_encryption_keys(self.keychain_alice.enc_keypair.priv_key,
                                                   pubkey_enc_bob,
                                                   m,
                                                   n)
@@ -29,7 +29,7 @@ class PolicyGroup(object):
         for kfrag_id, key in enumerate(re_enc_keys):
             policy = Policy.from_alice(
                 key,  # Bob won't know this.
-                keychain_alice.sig_keypair.pub_key,
+                self.keychain_alice.sig_keypair.pub_key,
                 pubkey_enc_bob,
                 uri,  # Ursula won't know this.
                 kfrag_id,
@@ -38,6 +38,14 @@ class PolicyGroup(object):
 
         return PolicyGroup(policies)
 
+
+class PolicyGroup(object):
+    """
+    The terms and conditions by which Alice shares with Bob.
+    """
+
+    def __init__(self, policies=None):
+        self.policies = policies or []
 
     def transmit(self, networky_stuff):
         for policy in self.policies:
@@ -94,14 +102,15 @@ class Policy(object):
 
     def generate_challenge_pack(self):
         if self.kfrag == UNKNOWN_KFRAG:
-            raise TypeError("Can't generate a challenge pack unless we know the kfrag.  Are you Alice?")
+            raise TypeError(
+                "Can't generate a challenge pack unless we know the kfrag.  Are you Alice?")
 
         # TODO: make this work instead of being random.
         import random
-        self.challenge_pack = [(random.getrandbits(32), random.getrandbits(32)) for x in range(self.challenge_size)]
+        self.challenge_pack = [(random.getrandbits(32), random.getrandbits(32)) for x in
+                               range(self.challenge_size)]
         return True
 
     def update_treasure_map(self, policy_offer_result):
         # TODO: parse the result and add the node information to the treasure map.
         self.treasure_map.append(policy_offer_result)
-

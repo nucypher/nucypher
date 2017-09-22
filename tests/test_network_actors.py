@@ -1,5 +1,5 @@
 from nkms.crypto.keyring import KeyRing
-from nkms.policy.models import PolicyGroup
+from nkms.policy.models import PolicyGroup, PolicyManagerForAlice
 
 
 class MockUrsula(object):
@@ -35,7 +35,8 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     resource_id = b"as098duasdlkj213098asf"
 
     # Alice runs this to get a policy object.
-    policy_group = PolicyGroup.craft(keychain_alice,
+    policy_manager = PolicyManagerForAlice(keychain_alice)
+    policy_group = policy_manager.create_policy_group(
                                      keychain_bob.enc_keypair.pub_key,
                                      resource_id,
                                      m=20,
