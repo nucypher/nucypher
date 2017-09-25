@@ -63,6 +63,18 @@ class EncryptingKeypair(object):
         return self.pre.split_rekey(privkey_a, privkey_b, min_shares,
                                     num_shares)
 
+    def build_rekey(self, shares):
+        """
+        Reconstructs a re-encryption key with the key shares provided.
+
+        :param list shares: List of re-encryption key shares
+
+        :rtype: EncryptedKey
+        :return: EncryptedKey from `shares`
+        """
+        # TODO: What to do if not enough shares, or invalid?
+        return self.pre.combine(shares)
+
     def reencrypt(self, reenc_key, ciphertext):
         """
         Re-encrypts the provided ciphertext for the recipient of the generated
