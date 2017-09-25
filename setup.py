@@ -23,7 +23,7 @@ TESTS_REQUIRE = [
 LINKS = [
         'https://github.com/nucypher/kademlia/archive/kms-dependency.tar.gz#egg=kademlia-1.0',
         'https://github.com/bmuller/rpcudp/archive/python3.5.tar.gz#egg=rpcudp-3.0.0',
-        'https://github.com/nucypher/nucypher-pre-python/archive/0.3.tar.gz#egg=npre-0.3']
+        'https://github.com/nucypher/nucypher-pre-python@kms-dependency#egg=npre']
 
 setup(name='nkms',
       version='0.1',
