@@ -39,6 +39,18 @@ class EncryptingKeypair(object):
         """
         return self.pre.decrypt(self.priv_key, enc_data)
 
+    def rekey(self, pubkey):
+        """
+        Generates a re-encryption key for the specified pubkey.
+
+        :param bytes pubkey: The public key of the recipient
+
+        :rtype: bytes
+        :return: Re-encryption key for the specified pubkey
+        """
+        return self.pre.rekey(self.priv_key, pubkey)
+
+
 
 class SigningKeypair(object):
     def __init__(self, privkey_bytes=None):

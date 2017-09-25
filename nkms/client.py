@@ -1,7 +1,8 @@
-import sha3
 import msgpack
 from nacl import utils
 from nkms.network import dummy
+from nkms.crypto.keyring import KeyRing
+from nkms.crypto.storage import EncryptedFile, Header
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
                          symmetric_from_algorithm)
 from io import BytesIO
@@ -37,23 +38,9 @@ class Client(object):
         self._pre = pre_from_algorithm(default_algorithm)
         self._symm = symmetric_from_algorithm(default_algorithm)
 
-        # TODO: Check for existing keypair before generation
+        # TODO: Load existing keys into the KeyRing
         # TODO: Save newly generated keypair
-        self._priv_key = self._pre.gen_priv(dtype='bytes')
-        self._pub_key = self._pre.priv2pub(self._priv_key)
-
-    def _derive_path_key(self, path, is_pub=True):
-        """
-        Derives a public key for the specific path.
-
-        :param bytes path: Path to generate key for.
-        :param bool is_pub: Is the derived key a public key?
-
-        :return: Derived key
-        :rtype: bytes
-        """
-        key = sha3.keccak_256(self._priv_key + path).digest()
-        return self._pre.priv2pub(key) if is_pub else key
+        self.keyring = KeyRing()
 
     def _split_path(self, path):
         """
@@ -70,43 +57,6 @@ class Client(object):
 
         dirs = path.split(b'/')
         return [b'/'.join(dirs[:i + 1]) for i in range(len(dirs))]
-
-    def _build_header(self, enc_keys, version=100):
-        """
-        Creates a NuCypher header for the encrypted file.
-
-        :param enc_keys: List of encrypted keys in bytes
-        :param version: Version number of Cryptographic API (default: 0.1.0.0)
-
-        :return: Complete header msgpack encoded and length of raw header
-        :rtype: Tuple of the header and the header length e.g: (<header>, 1200)
-        """
-        if version < 1000:
-            vers_bytes = version.to_bytes(4, byteorder='big')
-            num_keys_bytes = len(enc_keys).to_bytes(4, byteorder='big')
-            keys = b''.join(enc_keys)
-            header = msgpack.dumps(vers_bytes + num_keys_bytes + keys)
-        return (header, len(header))
-
-    def _read_header(self, header):
-        """
-        Reads a NuCypher header.
-
-        :param header: Msgpack encoded header to read
-
-        :return: Version number, and list of encrypted keys
-        :rtype: Tuple of an int and a list e.g: (100, [...])
-        """
-        header = BytesIO(msgpack.loads(header))
-        vers_bytes = header.read(4)
-        version = int.from_bytes(vers_bytes, byteorder='big')
-
-        # Handle pre-alpha versions
-        if version < 1000:
-            num_keys_bytes = header.read(4)
-            num_keys = int.from_bytes(num_keys_bytes, byteorder='big')
-            enc_keys = [header.read(Client.KEY_LENGTH) for _ in range(num_keys)]
-        return (version, enc_keys)
 
     def encrypt_key(self, key, pubkey=None, path=None, algorithm=None):
         """
@@ -140,7 +90,7 @@ class Client(object):
             enc_keys = []
             subpaths = self._split_path(path)
             for subpath in subpaths:
-                path_pubkey = self._derive_path_key(subpath)
+                path_pubkey = self.keyring.derive_path_key(subpath)
                 enc_keys.append(self.encrypt_key(key, pubkey=path_pubkey))
             return enc_keys
         elif not path:
@@ -157,9 +107,9 @@ class Client(object):
         :rtype: bytes
         """
         if path is not None:
-            priv_key = self._derive_path_key(path, is_pub=False)
+            priv_key = self.keyring.derive_path_key(path, is_pub=False)
         else:
-            priv_key = self._priv_key
+            priv_key = self.keyring.enc_privkey
         return self._pre.decrypt(priv_key, enc_key)
 
     def grant(self, pubkey, path=None, policy=None):
@@ -192,36 +142,14 @@ class Client(object):
     def list_permissions(self, pubkey=None, path=None):
         pass
 
-    def encrypt_bulk(self, data, key, algorithm=None):
+    def open(self, file_path, header_path, pubkey=None, path=None):
         """
-        Encrypt bulk of the data with a symmetric cipher
+        Returns an EncryptedFile object from a file_path and header_path.
 
-        :param bytes data: Data to encrypt
-        :param bytes key: Symmetric key
-        :param str algorithm: Algorithm to use or None for default
-
-        :return: Encrypted data
-        :rtype: bytes
+        :param bytes file_path: Path of the encrypted file
+        :param bytes 
         """
-        # TODO Handle algorithm
-        # Nonce is generated implicitly within cipher.encrypt as random data
-        cipher = self._symm(key)
-        return cipher.encrypt(data)
-
-    def decrypt_bulk(self, edata, key, algorithm=None):
-        """
-        Decrypt bulk of the data with a symmetric cipher
-
-        :param bytes edata: Data to decrypt
-        :param bytes key: Symmetric key
-        :param str algorithm: Algorithm to use or None for default
-
-        :return: Plaintext data
-        :rtype: bytes
-        """
-        # TODO Handle algorithm
-        cipher = self._symm(key)
-        return cipher.decrypt(edata)
+        pass
 
     def open(self, pubkey=None, path=None, mode='rb', fd=None, algorithm=None):
         """
@@ -242,11 +170,9 @@ class Client(object):
         If pubkey is not set, we're working on our own files.
         """
         file_path = fd or path
-        try:
-            with open(file_path, mode=mode) as f:
-                enc_data = f.read()
-        except Exception as E:
-            raise E
+        with open(file_path, mode=mode) as f:
+            enc_data = f.read()
+
         return self.decrypt(enc_data, path=path)
 
     def remove(self, pubkey=None, path=None):
@@ -256,11 +182,12 @@ class Client(object):
         """
         pass
 
-    def encrypt(self, data, path=None, algorithm=None):
+    def encrypt(self, data, key, path=None, algorithm=None):
         """
         Encrypts data in a form ready to ship to the storage layer.
 
         :param bytes data: Data to encrypt
+        :param bytes key: Data encryption key to use when encrypting
         :param tuple(str) path: Path to the data (to be able to share
             sub-paths). If None, encrypted with just our pubkey.
             If contains only 1 element or is a string, this is just used as a
@@ -271,9 +198,7 @@ class Client(object):
         :return: Encrypted data
         :rtype: bytes
         """
-        # Generate a secure key and encrypt the data
-        data_key = utils.random(32)
-        ciphertext = msgpack.dumps(self.encrypt_bulk(data, data_key))
+        ciphertext = msgpack.dumps(self.keyring.encrypt(data, data_key))
 
         # Derive keys and encrypt them
         # TODO: https://github.com/nucypher/nucypher-kms/issues/33
@@ -281,13 +206,6 @@ class Client(object):
             enc_keys = self.encrypt_key(data_key, path=path)
         else:
             enc_keys = [self.encrypt_key(data_key, path=path)]
-
-        # Build the header
-        header, header_length = self._build_header(enc_keys)
-
-        # Format for storage
-        header_length_bytes = header_length.to_bytes(4, byteorder='big')
-        storage_data = header_length_bytes + header + ciphertext
         return storage_data
 
     def decrypt(self, edata, path=None, owner=None):
