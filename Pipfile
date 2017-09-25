@@ -12,12 +12,13 @@ lmdb = "*"
 pynacl = "*"
 "pysha3" = "*"
 bidict = "*"
+"py-ecc" = "*"
 
 [dev-packages]
 
 pytest = "*"
 coverage = "*"
-pytest-cov = "*"
+"pytest-cov" = "*"
 pdbpp = "*"
 ipython = "*"
 appdirs = "*"
