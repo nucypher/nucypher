@@ -1,6 +1,7 @@
 import unittest
 import sha3
 import msgpack
+import random
 from nkms.crypto.keypairs import SigningKeypair, EncryptingKeypair
 
 
@@ -65,4 +66,23 @@ class TestEncryptingKeypair(unittest.TestCase):
 
         dec_key = self.recv_keypair.decrypt_key(reenc_key)
         self.assertEqual(32, len(dec_key))
+        self.assertTrue(dec_key == raw_symm)
+
+    def test_split_rekey(self):
+        raw_symm, enc_symm = self.send_keypair.generate_key()
+        self.assertEqual(32, len(raw_symm))
+        self.assertTrue(raw_symm != enc_symm)
+
+        enc_shares = self.send_keypair.split_rekey(self.send_keypair.priv_key,
+                                                   self.recv_keypair.priv_key,
+                                                   4, 10)
+        self.assertEqual(10, len(enc_shares))
+
+        rand_shares = random.sample(enc_shares, 4)
+        reenc_key = self.send_keypair.build_rekey(rand_shares)
+
+        reenc_data = self.send_keypair.reencrypt(reenc_key, enc_symm)
+        self.assertTrue(reenc_data != enc_symm)
+
+        dec_key = self.recv_keypair.decrypt_key(reenc_data)
         self.assertTrue(dec_key == raw_symm)
