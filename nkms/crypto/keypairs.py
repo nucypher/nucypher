@@ -33,16 +33,30 @@ class EncryptingKeypair(object):
         """
         return self.pre.decapsulate(self.priv_key, enc_key)
 
-    def rekey(self, pubkey):
+    def rekey(self, privkey_a, privkey_b):
         """
-        Generates a re-encryption key for the specified pubkey.
+        Generates a re-encryption key in interactive mode.
 
-        :param bytes pubkey: The public key of the recipient
+        :param bytes privkey_a: Alice's private key
+        :param bytes privkey_b: Bob's private key (or an ephemeral privkey)
 
         :rtype: bytes
-        :return: Re-encryption key for the specified pubkey
+        :return: Bytestring of a re-encryption key
         """
-        return self.pre.rekey(self.priv_key, pubkey)
+        return self.pre.rekey(privkey_a, privkey_b)
+
+    def reencrypt(self, reenc_key, ciphertext):
+        """
+        Re-encrypts the provided ciphertext for the recipient of the generated
+        re-encryption key.
+
+        :param bytes reenc_key: The re-encryption key from the proxy to Bob
+        :param bytes ciphertext: The ciphertext to re-encrypt to Bob
+
+        :rtype: bytes
+        :return: Re-encrypted ciphertext
+        """
+        return self.pre.reencrypt(reenc_key, ciphertext)
 
 
 class SigningKeypair(object):
