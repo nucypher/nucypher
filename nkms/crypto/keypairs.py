@@ -1,18 +1,28 @@
 import msgpack
 from random import SystemRandom
 from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_sign, ecdsa_raw_recover
-from nkms.crypto import default_algorithm, pre_from_algorithm
+from npre import umbral
 
 
 class EncryptingKeypair(object):
     def __init__(self, privkey_bytes=None):
-        self.pre = pre_from_algorithm(default_algorithm)
+        self.pre = umbral.PRE()
 
         if not privkey_bytes:
             self.priv_key = self.pre.gen_priv(dtype='bytes')
         else:
             self.priv_key = privkey_bytes
         self.pub_key = self.pre.priv2pub(self.priv_key)
+
+    def generate_key(self):
+        """
+        Generate a raw symmetric key and its encrypted counterpart.
+
+        :rtype: Tuple(bytes, bytes)
+        :return: Tuple of the raw encrypted key and the encrypted key
+        """
+        symm_key, enc_symm_key = self.pre.encapsulate(self.pub_key)
+        return (symm_key, enc_symm_key)
 
     def encrypt(self, data, pubkey=None):
         """
@@ -49,7 +59,6 @@ class EncryptingKeypair(object):
         :return: Re-encryption key for the specified pubkey
         """
         return self.pre.rekey(self.priv_key, pubkey)
-
 
 
 class SigningKeypair(object):
