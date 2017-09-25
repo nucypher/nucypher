@@ -39,15 +39,30 @@ class TestEncryptingKeypair(unittest.TestCase):
         self.recv_keypair = EncryptingKeypair()
         self.msg = b'this is a test'
 
-    def test_encryption(self):
-        ciphertext = self.send_keypair.encrypt(self.msg,
-                pubkey=self.recv_keypair.pub_key)
-        self.assertNotEqual(self.msg, ciphertext)
+    def test_key_gen(self):
+        raw_symm, enc_symm = self.send_keypair.generate_key()
+        self.assertEqual(32, len(raw_symm))
+        self.assertTrue(raw_symm != enc_symm)
 
-    def test_decryption(self):
-        ciphertext = self.send_keypair.encrypt(self.msg,
-                pubkey=self.recv_keypair.pub_key)
-        self.assertNotEqual(self.msg, ciphertext)
+    def test_key_decryption(self):
+        raw_symm, enc_symm = self.send_keypair.generate_key()
+        self.assertEqual(32, len(raw_symm))
+        self.assertTrue(raw_symm != enc_symm)
 
-        plaintext = self.recv_keypair.decrypt(ciphertext)
-        self.assertEqual(self.msg, plaintext)
+        dec_symm_key = self.send_keypair.decrypt_key(enc_symm)
+        self.assertEqual(32, len(dec_symm_key))
+        self.assertTrue(raw_symm == dec_symm_key)
+
+    def test_reencryption(self):
+        raw_symm, enc_symm = self.send_keypair.generate_key()
+        self.assertEqual(32, len(raw_symm))
+        self.assertTrue(raw_symm != enc_symm)
+
+        rekey_ab = self.send_keypair.rekey(self.send_keypair.priv_key,
+                                           self.recv_keypair.priv_key)
+        reenc_key = self.send_keypair.reencrypt(rekey_ab, enc_symm)
+        self.assertTrue(reenc_key != enc_symm)
+
+        dec_key = self.recv_keypair.decrypt_key(reenc_key)
+        self.assertEqual(32, len(dec_key))
+        self.assertTrue(dec_key == raw_symm)
