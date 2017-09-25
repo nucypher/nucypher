@@ -13,6 +13,7 @@ pynacl = "*"
 "pysha3" = "*"
 bidict = "*"
 "py-ecc" = "*"
+"pytest-xdist" = "*"
 
 [dev-packages]
 
