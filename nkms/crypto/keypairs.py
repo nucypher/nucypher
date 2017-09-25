@@ -47,10 +47,8 @@ class EncryptingKeypair(object):
 
     def split_rekey(self, privkey_a, privkey_b, min_shares, num_shares):
         """
-        Generates a re-encryption key in interactive mode using the split-key
-        method. This will require the re-encryption key to be reconstructed by
-        with a threshold of shares `min_shares`. This generates a total of
-        `num_shares` that can be used to reconstruct the key.
+        Generates key shares that can be used to re-encrypt data. Requires
+        `min_shares` to be able to successfully combine data for full key.
 
         :param int privkey_a: Alice's private key
         :param int privkey_b: Bob's private key (or an ephemeral privkey)
@@ -63,11 +61,11 @@ class EncryptingKeypair(object):
         return self.pre.split_rekey(privkey_a, privkey_b, min_shares,
                                     num_shares)
 
-    def build_rekey(self, shares):
+    def build_secret(self, shares):
         """
-        Reconstructs a re-encryption key with the key shares provided.
+        Reconstructs a secret from the given shares.
 
-        :param list shares: List of re-encryption key shares
+        :param list shares: List of secret share fragments.
 
         :rtype: EncryptedKey
         :return: EncryptedKey from `shares`
