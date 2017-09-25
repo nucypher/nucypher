@@ -24,30 +24,14 @@ class EncryptingKeypair(object):
         symm_key, enc_symm_key = self.pre.encapsulate(self.pub_key)
         return (symm_key, enc_symm_key)
 
-    def encrypt(self, data, pubkey=None):
+    def decrypt_key(self, enc_key):
         """
-        Encrypts the data provided.
-
-        :param bytes data: The data to encrypt
-        :param bytes pubkey: Pubkey to encrypt for
+        Decrypts an ECIES encrypted symmetric key.
 
         :rtype: bytes
-        :return: Encrypted ciphertext
+        :return: Bytestring of the decrypted symmetric key
         """
-        if not pubkey:
-            pubkey = self.pub_key
-        return self.pre.encrypt(pubkey, data)
-
-    def decrypt(self, enc_data):
-        """
-        Decrypts the data provided
-
-        :param bytes enc_data: Decrypts the data provided
-
-        :rtype: bytes
-        :return: Decrypted plaintext
-        """
-        return self.pre.decrypt(self.priv_key, enc_data)
+        return self.pre.decapsulate(self.priv_key, enc_key)
 
     def rekey(self, pubkey):
         """
