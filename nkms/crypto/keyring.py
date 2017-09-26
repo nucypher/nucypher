@@ -1,8 +1,7 @@
 import sha3
 from nacl.utils import random
 from nkms.crypto.keypairs import SigningKeypair, EncryptingKeypair
-from nkms.crypto import (default_algorithm, pre_from_algorithm,
-                         symmetric_from_algorithm)
+from npre import umbral
 
 
 class KeyRing(object):
@@ -17,7 +16,7 @@ class KeyRing(object):
         """
         self.sig_keypair = SigningKeypair(sig_privkey)
         self.enc_keypair = EncryptingKeypair(enc_privkey)
-        self.pre = pre_from_algorithm(default_algorithm)
+        self.pre = umbral.PRE()
 
     @property
     def sig_pubkey(self):
