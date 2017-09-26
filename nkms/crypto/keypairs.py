@@ -16,14 +16,15 @@ class EncryptingKeypair(object):
             self.priv_key = privkey_bytes
         self.pub_key = self.pre.priv2pub(self.priv_key)
 
-    def generate_key(self):
+    def generate_key(self, pubkey=None):
         """
         Generate a raw symmetric key and its encrypted counterpart.
 
         :rtype: Tuple(bytes, bytes)
         :return: Tuple of the raw encrypted key and the encrypted key
         """
-        symm_key, enc_symm_key = self.pre.encapsulate(self.pub_key)
+        pubkey = pubkey or self.pub_key
+        symm_key, enc_symm_key = self.pre.encapsulate(pubkey)
         return (symm_key, enc_symm_key)
 
     def decrypt_key(self, enc_key):
