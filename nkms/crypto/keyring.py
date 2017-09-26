@@ -110,7 +110,7 @@ class KeyRing(object):
         """
         return self.enc_keypair.reencrypt(reenc_key, ciphertext)
 
-    def split_secret(self, privkey_a, privkey_b, min_shares, num_shares):
+    def gen_split_rekey(self, privkey_a, privkey_b, min_shares, num_shares):
         """
         Generates secret shares that can be used to reconstruct data given
         `min_shares` have been acquired.

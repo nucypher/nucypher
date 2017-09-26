@@ -56,6 +56,29 @@ class TestKeyRing(unittest.TestCase):
         self.assertEqual(32, len(dec_key))
         self.assertTrue(dec_key == raw_key)
 
+    def test_split_key_sharing(self):
+        raw_key, enc_key = self.keyring_a.generate_key()
+        self.assertTrue(32, len(raw_key))
+
+        shares = self.keyring_a.gen_split_rekey(self.keyring_a.enc_privkey,
+                                                self.keyring_b.enc_privkey,
+                                                4, 10)
+        self.assertEqual(10, len(shares))
+
+        rand_shares = random.sample(shares, 4)
+        self.assertEqual(4, len(rand_shares))
+
+        frags = [self.keyring_a.reencrypt(rk, enc_key) for rk in rand_shares]
+        self.assertEqual(4, len(frags))
+
+        split_enc_key = self.keyring_b.build_secret(frags)
+        self.assertTrue(raw_key != split_enc_key)
+        self.assertTrue(enc_key != split_enc_key)
+
+        dec_key = self.keyring_b.decrypt_key(split_enc_key)
+        self.assertEqual(32, len(dec_key))
+        self.assertTrue(dec_key == raw_key)
+
     def test_secure_random(self):
         length = random.randrange(1, 100)
         rand_bytes = self.keyring_a.secure_random(length)
