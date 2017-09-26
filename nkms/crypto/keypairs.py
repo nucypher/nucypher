@@ -61,7 +61,7 @@ class EncryptingKeypair(object):
         return self.pre.split_rekey(privkey_a, privkey_b, min_shares,
                                     num_shares)
 
-    def build_secret(self, shares):
+    def combine(self, shares):
         """
         Reconstructs a secret from the given shares.
 
