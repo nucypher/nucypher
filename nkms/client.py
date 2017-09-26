@@ -1,11 +1,11 @@
+from io import BytesIO
+
 import msgpack
-from nacl import utils
-from nkms.network import dummy
-from nkms.crypto.keyring import KeyRing
-from nkms.crypto.storage import EncryptedFile, Header
+
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
                          symmetric_from_algorithm)
-from io import BytesIO
+from nkms.crypto.keyring import KeyRing
+from nkms.network import dummy
 
 
 class Client(object):
