@@ -31,19 +31,6 @@ class TestKeyRing(unittest.TestCase):
                                          pubkey=self.keyring_a.sig_pubkey)
         self.assertTrue(is_valid)
 
-    def test_encryption(self):
-        ciphertext = self.keyring_a.encrypt(self.msg,
-                                            pubkey=self.keyring_b.enc_pubkey)
-        self.assertNotEqual(self.msg, ciphertext)
-
-    def test_decryption(self):
-        ciphertext = self.keyring_a.encrypt(self.msg,
-                                            pubkey=self.keyring_b.enc_pubkey)
-        self.assertNotEqual(self.msg, ciphertext)
-
-        plaintext = self.keyring_b.decrypt(ciphertext)
-        self.assertEqual(self.msg, plaintext)
-
     def test_secure_random(self):
         length = random.randrange(1, 100)
         rand_bytes = self.keyring_a.secure_random(length)
