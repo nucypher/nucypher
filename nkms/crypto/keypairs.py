@@ -5,6 +5,8 @@ from npre import umbral
 
 
 class EncryptingKeypair(object):
+    KEYSIZE = 32
+
     def __init__(self, privkey_bytes=None):
         self.pre = umbral.PRE()
 
