@@ -1,5 +1,6 @@
 import sha3
 from nacl.utils import random
+from nacl.secret import SecretBox
 from nkms.crypto.keypairs import SigningKeypair, EncryptingKeypair
 from npre import umbral
 
@@ -136,6 +137,32 @@ class KeyRing(object):
         """
         # TODO: What to do if not enough shares, or invalid?
         return self.enc_keypair.combine(shares)
+
+    def symm_encrypt(self, key, plaintext):
+        """
+        Encrypts the plaintext using SecretBox symmetric encryption.
+
+        :param bytes key: Key to encrypt with
+        :param bytes plaintext: Plaintext to encrypt
+
+        :rtype: bytes
+        :return: Ciphertext from SecretBox symmetric encryption
+        """
+        cipher = SecretBox(key)
+        return cipher.encrypt(plaintext)
+
+    def symm_decrypt(self, key, ciphertext):
+        """
+        Decrypts the ciphertext using SecretBox symmetric decryption.
+
+        :param bytes key: Key to decrypt with
+        :param bytes ciphertext: Ciphertext from SecretBox encryption
+
+        :rtype: bytes
+        :return: Plaintext from SecretBox decryption
+        """
+        cipher = SecretBox(key)
+        return cipher.decrypt(ciphertext)
 
     def secure_random(self, length):
         """
