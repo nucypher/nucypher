@@ -64,6 +64,78 @@ class KeyRing(object):
         msg_digest = sha3.keccak_256(message).digest()
         return self.sig_keypair.verify(msg_digest, signature, pubkey=pubkey)
 
+    def generate_key(self):
+        """
+        Generates a raw symmetric key and its encrypted counterpart.
+
+        :rtype: Tuple(bytes, EncryptedKey)
+        :return: Tuple containing raw encrypted key and the encrypted key
+        """
+        symm_key, enc_symm_key = self.enc_keypair.generate_key()
+        return (symm_key, enc_symm_key)
+
+    def decrypt_key(self, enc_key):
+        """
+        Decrypts an ECIES encrypted symmetric key.
+
+        :rtype: bytes
+        :return: Bytestring of the decrypted symmetric key
+        """
+        return self.enc_keypair.decrypt_key(enc_key)
+
+    def rekey(self, privkey_a, privkey_b):
+        """
+        Generates a re-encryption key in interactive mode.
+
+        :param bytes privkey_a: Alive's private key
+        :param bytes privkey_b: Bob's private key (or an ephemeral privkey)
+
+        :rtype: bytes
+        :return: Bytestring of a re-encryption key
+        """
+        return self.enc_keypair.rekey(privkey_a, privkey_b)
+
+    def split_secret(self, privkey_a, privkey_b, min_shares, num_shares):
+        """
+        Generates secret shares that can be used to reconstruct data given
+        `min_shares` have been acquired.
+
+        :param bytes privkey_a: Alice's private key
+        :param bytes privkey_b: Bob's private key (or an ephemeral privkey)
+        :param int min_shares: Threshold shares needed to reconstruct secret
+        :param int num_shares: Total number of shares to create
+
+        :rtype: List(RekeyFrag)
+        :return: List of `num_shares` RekeyFrags
+        """
+        return self.enc_keypair.split_rekey(privkey_a, privkey_b,
+                                            min_shares, num_shares)
+
+    def build_secret(self, shares):
+        """
+        Reconstructs a secret from the given shares.
+
+        :param list shares: List of secret share fragments
+
+        :rtype: EncryptedKey
+        :return: EncrypedKey from `shares`
+        """
+        # TODO: What to do if not enough shares, or invalid?
+        return self.enc_keypair.combine(shares)
+
+    def reencrypt(self, reenc_key, ciphertext):
+        """
+        Re-encrypts the provided ciphertext for the recipient of the generated
+        re-encryption key provided.
+
+        :param bytes reenc_key: The re-encryption key from the proxy to Bob
+        :param bytes ciphertext: The ciphertext to re-encrypt to Bob
+
+        :rtype: bytes
+        :return: Re-encrypted ciphertext
+        """
+        return self.enc_keypair.reencrypt(reenc_key, ciphertext)
+
     def secure_random(self, length):
         """
         Generates a bytestring from a secure random source for keys, etc.
