@@ -64,31 +64,6 @@ class KeyRing(object):
         msg_digest = sha3.keccak_256(message).digest()
         return self.sig_keypair.verify(msg_digest, signature, pubkey=pubkey)
 
-    def encrypt(self, plaintext, pubkey=None):
-        """
-        Encrypts the plaintext provided.
-
-        :param bytes plaintext: Plaintext to encrypt w/ EncryptingKeypair
-        :param bytes pubkey: Pubkey to encrypt for
-
-        :rtype: bytes
-        :return: Ciphertext of plaintext
-        """
-        if not pubkey:
-            pubkey = self.enc_keypair.pub_key
-        return self.enc_keypair.encrypt(plaintext, pubkey=pubkey)
-
-    def decrypt(self, ciphertext):
-        """
-        Decrypts the ciphertext provided.
-
-        :param bytes ciphertext: Ciphertext to decrypt w/ EncryptingKeypair
-
-        :rtype: bytes
-        :return: Plaintext of Encrypted ciphertext
-        """
-        return self.enc_keypair.decrypt(ciphertext)
-
     def secure_random(self, length):
         """
         Generates a bytestring from a secure random source for keys, etc.
