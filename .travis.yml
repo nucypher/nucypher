@@ -9,4 +9,4 @@ install:
   - "pipenv install --dev --three"
 
 script:
-  - "pipenv run pytest -n 8 -v tests"
+  - "pipenv run pytest -v tests"
