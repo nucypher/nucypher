@@ -45,6 +45,17 @@ class TestKeyRing(unittest.TestCase):
         self.assertTrue(32, len(dec_key))
         self.assertTrue(raw_key == dec_key)
 
+    def test_rekey_and_reencryption(self):
+        raw_key, enc_key = self.keyring_a.generate_key()
+        reenc_key = self.keyring_a.rekey(self.keyring_a.enc_privkey,
+                                         self.keyring_b.enc_privkey)
+
+        rekey_enc_key = self.keyring_a.reencrypt(reenc_key, enc_key)
+
+        dec_key = self.keyring_b.decrypt_key(rekey_enc_key)
+        self.assertEqual(32, len(dec_key))
+        self.assertTrue(dec_key == raw_key)
+
     def test_secure_random(self):
         length = random.randrange(1, 100)
         rand_bytes = self.keyring_a.secure_random(length)

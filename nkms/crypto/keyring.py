@@ -97,6 +97,19 @@ class KeyRing(object):
         """
         return self.enc_keypair.rekey(privkey_a, privkey_b)
 
+    def reencrypt(self, reenc_key, ciphertext):
+        """
+        Re-encrypts the provided ciphertext for the recipient of the generated
+        re-encryption key provided.
+
+        :param bytes reenc_key: The re-encryption key from the proxy to Bob
+        :param bytes ciphertext: The ciphertext to re-encrypt to Bob
+
+        :rtype: bytes
+        :return: Re-encrypted ciphertext
+        """
+        return self.enc_keypair.reencrypt(reenc_key, ciphertext)
+
     def split_secret(self, privkey_a, privkey_b, min_shares, num_shares):
         """
         Generates secret shares that can be used to reconstruct data given
@@ -124,19 +137,6 @@ class KeyRing(object):
         """
         # TODO: What to do if not enough shares, or invalid?
         return self.enc_keypair.combine(shares)
-
-    def reencrypt(self, reenc_key, ciphertext):
-        """
-        Re-encrypts the provided ciphertext for the recipient of the generated
-        re-encryption key provided.
-
-        :param bytes reenc_key: The re-encryption key from the proxy to Bob
-        :param bytes ciphertext: The ciphertext to re-encrypt to Bob
-
-        :rtype: bytes
-        :return: Re-encrypted ciphertext
-        """
-        return self.enc_keypair.reencrypt(reenc_key, ciphertext)
 
     def secure_random(self, length):
         """
