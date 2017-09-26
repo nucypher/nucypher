@@ -78,10 +78,14 @@ class KeyRing(object):
         """
         Decrypts an ECIES encrypted symmetric key.
 
+        :param bytes enc_key: ECIES encrypted key in bytes
+
         :rtype: bytes
         :return: Bytestring of the decrypted symmetric key
         """
-        return self.enc_keypair.decrypt_key(enc_key)
+        enc_key = int.from_bytes(enc_key, byteorder='big')
+        dec_key = self.enc_keypair.decrypt_key(enc_key)
+        return dec_key.to_bytes(self.enc_keypair.KEYSIZE, byteorder='big')
 
     def rekey(self, privkey_a, privkey_b):
         """

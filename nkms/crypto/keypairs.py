@@ -30,8 +30,10 @@ class EncryptingKeypair(object):
         """
         Decrypts an ECIES encrypted symmetric key.
 
-        :rtype: bytes
-        :return: Bytestring of the decrypted symmetric key
+        :param int enc_key: The ECIES encrypted key as an integer
+
+        :rtype: int
+        :return: Decrypted key as an integer
         """
         return self.pre.decapsulate(self.priv_key, enc_key)
 
