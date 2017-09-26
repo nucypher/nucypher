@@ -84,7 +84,7 @@ class TestEncryptingKeypair(unittest.TestCase):
         frags = [self.send_keypair.reencrypt(rk, enc_symm) for rk in rand_shares]
         self.assertEqual(4, len(frags))
 
-        enc_key = self.recv_keypair.build_secret(frags)
+        enc_key = self.recv_keypair.combine(frags)
         self.assertTrue(raw_symm != enc_key)
         self.assertTrue(enc_symm != enc_key)
 
