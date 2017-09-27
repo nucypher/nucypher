@@ -27,16 +27,18 @@ class EncryptingKeypair(object):
         symm_key, enc_symm_key = self.pre.encapsulate(pubkey)
         return (symm_key, enc_symm_key)
 
-    def decrypt_key(self, enc_key):
+    def decrypt_key(self, enc_key, privkey=None):
         """
         Decrypts an ECIES encrypted symmetric key.
 
         :param int enc_key: The ECIES encrypted key as an integer
+        :param bytes privkey: The privkey to decapsulate from
 
         :rtype: int
         :return: Decrypted key as an integer
         """
-        return self.pre.decapsulate(self.priv_key, enc_key)
+        priv_key = privkey or self.priv_key
+        return self.pre.decapsulate(priv_key, enc_key)
 
     def rekey(self, privkey_a, privkey_b):
         """

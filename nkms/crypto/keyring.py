@@ -1,4 +1,5 @@
 import sha3
+import npre.elliptic_curve as ec
 from nacl.utils import random
 from nacl.secret import SecretBox
 from nkms.crypto.keypairs import SigningKeypair, EncryptingKeypair
@@ -74,35 +75,39 @@ class KeyRing(object):
         symm_key, enc_symm_key = self.enc_keypair.generate_key()
         return (symm_key, enc_symm_key)
 
-    def decrypt_key(self, enc_key):
+    def decrypt_key(self, enc_key, privkey=None):
         """
         Decrypts an ECIES encrypted symmetric key.
 
         :param EncryptedKey enc_key: ECIES encrypted key in bytes
+        :param bytes privkey: The privkey to decrypt with
 
         :rtype: bytes
         :return: Bytestring of the decrypted symmetric key
         """
-        return self.enc_keypair.decrypt_key(enc_key)
+        return self.enc_keypair.decrypt_key(enc_key, privkey)
 
-    def rekey(self, privkey_a, pubkey_b, symm_key):
+    def rekey(self, privkey_a, pubkey_b):
         """
         Generates a re-encryption key in interactive mode.
 
         :param bytes privkey_a: Alive's private key
         :param bytes pubkey_b: Bob's public key
-        :param bytes symm_key: Symmetric key to encrypt the ephemeral key
 
         :rtype: bytes
         :return: Bytestring of a re-encryption key
         """
+        # Generate an ephemeral keypair
         priv_e = self.enc_keypair.pre.gen_priv()
-        priv_e_bytes = int(priv_e).to_bytes(self.enc_keypair.KEYSIZE,
-                                            byteorder='big')
+        priv_e_bytes = ec.serialize(priv_e)[1:]
+
+        # Encrypt ephemeral key with an ECIES generated key
+        symm_key_bob, enc_symm_key_bob = self.enc_keypair.generate_key(
+                                                            pubkey=pubkey_b)
+        enc_priv_e = self.symm_encrypt(symm_key_bob, priv_e_bytes)
 
         reenc_key = self.enc_keypair.rekey(self.enc_privkey, priv_e)
-        enc_priv_e = self.symm_encrypt(symm_key, priv_e_bytes)
-        return (reenc_key, enc_priv_e)
+        return (reenc_key, enc_symm_key_bob, enc_priv_e)
 
     def reencrypt(self, reenc_key, ciphertext):
         """

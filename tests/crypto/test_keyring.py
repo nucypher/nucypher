@@ -1,7 +1,9 @@
 import unittest
 import msgpack
 import random
+import npre.elliptic_curve as ec
 from nkms.crypto.keyring import KeyRing
+from nacl.secret import SecretBox
 
 
 class TestKeyRing(unittest.TestCase):
@@ -46,16 +48,31 @@ class TestKeyRing(unittest.TestCase):
         self.assertTrue(raw_key == dec_key)
 
     def test_rekey_and_reencryption(self):
-        raw_key, enc_key = self.keyring_a.generate_key()
-        reenc_key, enc_priv_e = self.keyring_a.rekey(self.keyring_a.enc_privkey,
-                                                     self.keyring_b.enc_pubkey,
-                                                     raw_key)
+        # Generate random key for Alice's data
+        symm_key_alice, enc_symm_key_alice = self.keyring_a.generate_key()
 
-        rekey_enc_key = self.keyring_a.reencrypt(reenc_key, enc_key)
+        # Generate the re-encryption key and the ephemeral key data
+        reenc_key, enc_symm_key_bob, enc_priv_e = self.keyring_a.rekey(
+                                                    self.keyring_a.enc_privkey,
+                                                    self.keyring_b.enc_pubkey)
 
-        dec_key = self.keyring_b.decrypt_key(rekey_enc_key)
-        self.assertEqual(32, len(dec_key))
-        self.assertTrue(dec_key == raw_key)
+        # Re-encrypt Alice's symm key
+        enc_symm_key_ab = self.keyring_a.reencrypt(reenc_key,
+                                                   enc_symm_key_alice)
+
+        # Decapsulate the ECIES encrypted key
+        dec_symm_key_bob = self.keyring_b.decrypt_key(enc_symm_key_bob)
+        self.assertEqual(32, len(dec_symm_key_bob))
+
+        # Decrypt the ephemeral private key
+        dec_priv_e = self.keyring_b.symm_decrypt(dec_symm_key_bob, enc_priv_e)
+        self.assertEqual(32, len(dec_priv_e))
+        dec_priv_e = int.from_bytes(dec_priv_e, byteorder='big')
+
+        dec_key = self.keyring_b.decrypt_key(enc_symm_key_ab,
+                                             privkey=dec_priv_e)
+
+        self.assertEqual(dec_key, symm_key_alice)
 
     def test_split_key_sharing(self):
         raw_key, enc_key = self.keyring_a.generate_key()
