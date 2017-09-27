@@ -1,12 +1,14 @@
 import msgpack
 from random import SystemRandom
 from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_sign, ecdsa_raw_recover
-from nkms.crypto import default_algorithm, pre_from_algorithm
+from npre import umbral
 
 
 class EncryptingKeypair(object):
+    KEYSIZE = 32
+
     def __init__(self, privkey_bytes=None):
-        self.pre = pre_from_algorithm(default_algorithm)
+        self.pre = umbral.PRE()
 
         if not privkey_bytes:
             self.priv_key = self.pre.gen_priv(dtype='bytes')
@@ -14,42 +16,82 @@ class EncryptingKeypair(object):
             self.priv_key = privkey_bytes
         self.pub_key = self.pre.priv2pub(self.priv_key)
 
-    def encrypt(self, data, pubkey=None):
+    def generate_key(self, pubkey=None):
         """
-        Encrypts the data provided.
+        Generate a raw symmetric key and its encrypted counterpart.
 
-        :param bytes data: The data to encrypt
-        :param bytes pubkey: Pubkey to encrypt for
+        :rtype: Tuple(bytes, bytes)
+        :return: Tuple of the raw encrypted key and the encrypted key
+        """
+        pubkey = pubkey or self.pub_key
+        symm_key, enc_symm_key = self.pre.encapsulate(pubkey)
+        return (symm_key, enc_symm_key)
+
+    def decrypt_key(self, enc_key, privkey=None):
+        """
+        Decrypts an ECIES encrypted symmetric key.
+
+        :param int enc_key: The ECIES encrypted key as an integer
+        :param bytes privkey: The privkey to decapsulate from
+
+        :rtype: int
+        :return: Decrypted key as an integer
+        """
+        priv_key = privkey or self.priv_key
+        return self.pre.decapsulate(priv_key, enc_key)
+
+    def rekey(self, privkey_a, privkey_b):
+        """
+        Generates a re-encryption key in interactive mode.
+
+        :param bytes privkey_a: Alice's private key
+        :param bytes privkey_b: Bob's private key (or an ephemeral privkey)
 
         :rtype: bytes
-        :return: Encrypted ciphertext
+        :return: Bytestring of a re-encryption key
         """
-        if not pubkey:
-            pubkey = self.pub_key
-        return self.pre.encrypt(pubkey, data)
+        return self.pre.rekey(privkey_a, privkey_b)
 
-    def decrypt(self, enc_data):
+    def split_rekey(self, privkey_a, privkey_b, min_shares, num_shares):
         """
-        Decrypts the data provided
+        Generates key shares that can be used to re-encrypt data. Requires
+        `min_shares` to be able to successfully combine data for full key.
 
-        :param bytes enc_data: Decrypts the data provided
+        :param int privkey_a: Alice's private key
+        :param int privkey_b: Bob's private key (or an ephemeral privkey)
+        :param int min_shares: Threshold of shares needed to reconstruct key
+        :param int num_shares: Total number of shares to generate
+
+        :rtype: List(RekeyFrag)
+        :return: List of `num_shares` RekeyFrags
+        """
+        return self.pre.split_rekey(privkey_a, privkey_b, min_shares,
+                                    num_shares)
+
+    def combine(self, shares):
+        """
+        Reconstructs a secret from the given shares.
+
+        :param list shares: List of secret share fragments.
+
+        :rtype: EncryptedKey
+        :return: EncryptedKey from `shares`
+        """
+        # TODO: What to do if not enough shares, or invalid?
+        return self.pre.combine(shares)
+
+    def reencrypt(self, reenc_key, ciphertext):
+        """
+        Re-encrypts the provided ciphertext for the recipient of the generated
+        re-encryption key.
+
+        :param bytes reenc_key: The re-encryption key from the proxy to Bob
+        :param bytes ciphertext: The ciphertext to re-encrypt to Bob
 
         :rtype: bytes
-        :return: Decrypted plaintext
+        :return: Re-encrypted ciphertext
         """
-        return self.pre.decrypt(self.priv_key, enc_data)
-
-    def rekey(self, pubkey):
-        """
-        Generates a re-encryption key for the specified pubkey.
-
-        :param bytes pubkey: The public key of the recipient
-
-        :rtype: bytes
-        :return: Re-encryption key for the specified pubkey
-        """
-        return self.pre.rekey(self.priv_key, pubkey)
-
+        return self.pre.reencrypt(reenc_key, ciphertext)
 
 
 class SigningKeypair(object):

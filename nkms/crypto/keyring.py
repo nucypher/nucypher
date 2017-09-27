@@ -1,8 +1,9 @@
 import sha3
+import npre.elliptic_curve as ec
 from nacl.utils import random
+from nacl.secret import SecretBox
 from nkms.crypto.keypairs import SigningKeypair, EncryptingKeypair
-from nkms.crypto import (default_algorithm, pre_from_algorithm,
-                         symmetric_from_algorithm)
+from npre import umbral
 
 
 class KeyRing(object):
@@ -17,7 +18,7 @@ class KeyRing(object):
         """
         self.sig_keypair = SigningKeypair(sig_privkey)
         self.enc_keypair = EncryptingKeypair(enc_privkey)
-        self.pre = pre_from_algorithm(default_algorithm)
+        self.pre = umbral.PRE()
 
     @property
     def sig_pubkey(self):
@@ -64,30 +65,116 @@ class KeyRing(object):
         msg_digest = sha3.keccak_256(message).digest()
         return self.sig_keypair.verify(msg_digest, signature, pubkey=pubkey)
 
-    def encrypt(self, plaintext, pubkey=None):
+    def generate_key(self):
         """
-        Encrypts the plaintext provided.
+        Generates a raw symmetric key and its encrypted counterpart.
 
-        :param bytes plaintext: Plaintext to encrypt w/ EncryptingKeypair
-        :param bytes pubkey: Pubkey to encrypt for
+        :rtype: Tuple(bytes, EncryptedKey)
+        :return: Tuple containing raw encrypted key and the encrypted key
+        """
+        symm_key, enc_symm_key = self.enc_keypair.generate_key()
+        return (symm_key, enc_symm_key)
+
+    def decrypt_key(self, enc_key, privkey=None):
+        """
+        Decrypts an ECIES encrypted symmetric key.
+
+        :param EncryptedKey enc_key: ECIES encrypted key in bytes
+        :param bytes privkey: The privkey to decrypt with
 
         :rtype: bytes
-        :return: Ciphertext of plaintext
+        :return: Bytestring of the decrypted symmetric key
         """
-        if not pubkey:
-            pubkey = self.enc_keypair.pub_key
-        return self.enc_keypair.encrypt(plaintext, pubkey=pubkey)
+        return self.enc_keypair.decrypt_key(enc_key, privkey)
 
-    def decrypt(self, ciphertext):
+    def rekey(self, privkey_a, pubkey_b):
         """
-        Decrypts the ciphertext provided.
+        Generates a re-encryption key in interactive mode.
 
-        :param bytes ciphertext: Ciphertext to decrypt w/ EncryptingKeypair
+        :param bytes privkey_a: Alive's private key
+        :param bytes pubkey_b: Bob's public key
 
         :rtype: bytes
-        :return: Plaintext of Encrypted ciphertext
+        :return: Bytestring of a re-encryption key
         """
-        return self.enc_keypair.decrypt(ciphertext)
+        # Generate an ephemeral keypair
+        priv_e = self.enc_keypair.pre.gen_priv()
+        priv_e_bytes = ec.serialize(priv_e)[1:]
+
+        # Encrypt ephemeral key with an ECIES generated key
+        symm_key_bob, enc_symm_key_bob = self.enc_keypair.generate_key(
+                                                            pubkey=pubkey_b)
+        enc_priv_e = self.symm_encrypt(symm_key_bob, priv_e_bytes)
+
+        reenc_key = self.enc_keypair.rekey(self.enc_privkey, priv_e)
+        return (reenc_key, enc_symm_key_bob, enc_priv_e)
+
+    def reencrypt(self, reenc_key, ciphertext):
+        """
+        Re-encrypts the provided ciphertext for the recipient of the generated
+        re-encryption key provided.
+
+        :param bytes reenc_key: The re-encryption key from the proxy to Bob
+        :param bytes ciphertext: The ciphertext to re-encrypt to Bob
+
+        :rtype: bytes
+        :return: Re-encrypted ciphertext
+        """
+        return self.enc_keypair.reencrypt(reenc_key, ciphertext)
+
+    def gen_split_rekey(self, privkey_a, privkey_b, min_shares, num_shares):
+        """
+        Generates secret shares that can be used to reconstruct data given
+        `min_shares` have been acquired.
+
+        :param bytes privkey_a: Alice's private key
+        :param bytes privkey_b: Bob's private key (or an ephemeral privkey)
+        :param int min_shares: Threshold shares needed to reconstruct secret
+        :param int num_shares: Total number of shares to create
+
+        :rtype: List(RekeyFrag)
+        :return: List of `num_shares` RekeyFrags
+        """
+        return self.enc_keypair.split_rekey(privkey_a, privkey_b,
+                                            min_shares, num_shares)
+
+    def build_secret(self, shares):
+        """
+        Reconstructs a secret from the given shares.
+
+        :param list shares: List of secret share fragments
+
+        :rtype: EncryptedKey
+        :return: EncrypedKey from `shares`
+        """
+        # TODO: What to do if not enough shares, or invalid?
+        return self.enc_keypair.combine(shares)
+
+    def symm_encrypt(self, key, plaintext):
+        """
+        Encrypts the plaintext using SecretBox symmetric encryption.
+
+        :param bytes key: Key to encrypt with
+        :param bytes plaintext: Plaintext to encrypt
+
+        :rtype: bytes
+        :return: Ciphertext from SecretBox symmetric encryption
+        """
+        cipher = SecretBox(key)
+        return cipher.encrypt(plaintext)
+
+    def symm_decrypt(self, key, ciphertext):
+        """
+        Decrypts the ciphertext using SecretBox symmetric decryption.
+
+        :param bytes key: Key to decrypt with
+        :param bytes ciphertext: Ciphertext from SecretBox encryption
+
+        :rtype: bytes
+        :return: Plaintext from SecretBox decryption
+        """
+        cipher = SecretBox(key)
+        return cipher.decrypt(ciphertext)
 
     def secure_random(self, length):
         """
