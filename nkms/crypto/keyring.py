@@ -85,17 +85,24 @@ class KeyRing(object):
         """
         return self.enc_keypair.decrypt_key(enc_key)
 
-    def rekey(self, privkey_a, privkey_b):
+    def rekey(self, privkey_a, pubkey_b, symm_key):
         """
         Generates a re-encryption key in interactive mode.
 
         :param bytes privkey_a: Alive's private key
-        :param bytes privkey_b: Bob's private key (or an ephemeral privkey)
+        :param bytes pubkey_b: Bob's public key
+        :param bytes symm_key: Symmetric key to encrypt the ephemeral key
 
         :rtype: bytes
         :return: Bytestring of a re-encryption key
         """
-        return self.enc_keypair.rekey(privkey_a, privkey_b)
+        priv_e = self.enc_keypair.pre.gen_priv()
+        priv_e_bytes = int(priv_e).to_bytes(self.enc_keypair.KEYSIZE,
+                                            byteorder='big')
+
+        reenc_key = self.enc_keypair.rekey(self.enc_privkey, priv_e)
+        enc_priv_e = self.symm_encrypt(symm_key, priv_e_bytes)
+        return (reenc_key, enc_priv_e)
 
     def reencrypt(self, reenc_key, ciphertext):
         """

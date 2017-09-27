@@ -47,8 +47,9 @@ class TestKeyRing(unittest.TestCase):
 
     def test_rekey_and_reencryption(self):
         raw_key, enc_key = self.keyring_a.generate_key()
-        reenc_key = self.keyring_a.rekey(self.keyring_a.enc_privkey,
-                                         self.keyring_b.enc_privkey)
+        reenc_key, enc_priv_e = self.keyring_a.rekey(self.keyring_a.enc_privkey,
+                                                     self.keyring_b.enc_pubkey,
+                                                     raw_key)
 
         rekey_enc_key = self.keyring_a.reencrypt(reenc_key, enc_key)
 
