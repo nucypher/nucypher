@@ -1,0 +1,13 @@
+language: python
+cache: pip
+python:
+- '3.5'
+- '3.6'
+install:
+- pip install pipenv --upgrade
+- pipenv install --dev --three
+script:
+- pipenv run pytest -v tests
+notifications:
+  slack:
+    secure: ZGr5vpk+YoQiOqp0ABXUZZyRNL8egBbJGvpTvmmde3pV7wNjjrNvuVHJ6CHHiOiwULojg/+iDYaO//saMHicXI+dFZs9FuyiLR3YbjPF3UCdCFG8fI3EUaFHU+OTY+kSYx9ZvrXFqzGixNpwPCy7kHR22E58yXLTLSPZpNdq7bZsAcHt2DOTnNUO96Rr+1UGekEB+zDqGpJvYR6zujkNe+dO3ZJTp9ldTEKyl93dVLqKuEwsMdd7HMWLucL8aQKdJ8PMz9zxfNpLNHiM4aqgiJz0ZMgjQXOfoDeaF47G9RhGbuX23FodP1u4Lje15dIZ/Lk9w/zMrpu8lY+YDond0ir4atDKYRi9TRzsTlqtJYgpPi5toKd5LBiEk5pkqyQn5M7YS7OcSLVcP2p5Fb8XIlJeACxe0N/lwdgbKRwEypqBbZ+fYQJPMkmi3zCxpfojjCXOs+zuNo/EQ2K/qaQA8H/zBNlhiuFKX3yWY+aVGvvYLqYzjGOy92jrU7OSvnKp+PeTGGWA/XDfNbGmt5aFhE3arzw6Y/W6coDG7Nl+eMlSb7ZZCXvnmV/tip+RrxmWY5q75Anc0DQ4Aui+cNeW1Ew8wIPuRwgPsOcgxE2PYSayvsSizoz7r6nGKnWl6SwNj70YFyXs17xQ3/B9RspyUC6EpXa0Ozg/KqRvJuQ5PY8=

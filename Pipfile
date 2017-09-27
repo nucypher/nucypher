@@ -1,0 +1,24 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "kms-dependency"}
+npre = {git = "https://github.com/nucypher/nucypher-pre-python", ref = "kms-dependency"}
+kademlia = {git = "https://github.com/nucypher/kademlia", ref = "kms-dependency"}
+lmdb = "*"
+pynacl = "*"
+"pysha3" = "*"
+bidict = "*"
+"py-ecc" = "*"
+
+[dev-packages]
+
+pytest = "*"
+coverage = "*"
+"pytest-cov" = "*"
+pdbpp = "*"
+ipython = "*"
+appdirs = "*"
