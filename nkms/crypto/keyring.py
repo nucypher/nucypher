@@ -66,8 +66,7 @@ class KeyRing(object):
         key = sha3.keccak_256(priv_key + path).digest()
 
         key_int = int.from_bytes(key, byteorder='big')
-        # TODO: Figure out why this returns 34 bytes..
-        return ec.serialize(self.pre.priv2pub(key_int))[2:] if is_pub else key
+        return self.pre.priv2pub(key_int) if is_pub else key
 
     def encrypt(self, plaintext, path=None):
         """
@@ -76,10 +75,21 @@ class KeyRing(object):
         :param bytes plaintext: Plaintext to encrypt
         :param bytes path: Path to derive keys for the encrypted plaintext
 
-        :rtype: List
+        :rtype: List(Tuple(enc_path_symm_key, enc_symm_key), ..)
         :return: List of encrypted keys for each subpath in path, if provided
         """
-        pass
+        if path:
+            subpaths = self._split_path(path)
+
+        path_keys = [self._derive_path_key(subpath) for subpath in subpaths]
+
+        enc_keys = []
+        for key in path_keys:
+            path_symm_key, enc_symm_key = self.generate_key(pubkey=key)
+            enc_keys.append(
+                    (self.symm_encrypt(path_symm_key, plaintext), enc_symm_key))
+        return enc_keys
+
 
     def sign(self, message):
         """
@@ -110,14 +120,16 @@ class KeyRing(object):
         msg_digest = sha3.keccak_256(message).digest()
         return self.sig_keypair.verify(msg_digest, signature, pubkey=pubkey)
 
-    def generate_key(self):
+    def generate_key(self, pubkey=None):
         """
         Generates a raw symmetric key and its encrypted counterpart.
+
+        :param ec.Element pubkey: Pubkey to generate key for
 
         :rtype: Tuple(bytes, EncryptedKey)
         :return: Tuple containing raw encrypted key and the encrypted key
         """
-        symm_key, enc_symm_key = self.enc_keypair.generate_key()
+        symm_key, enc_symm_key = self.enc_keypair.generate_key(pubkey=pubkey)
         return (symm_key, enc_symm_key)
 
     def decrypt_key(self, enc_key, privkey=None):
