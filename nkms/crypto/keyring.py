@@ -69,6 +69,18 @@ class KeyRing(object):
         # TODO: Figure out why this returns 34 bytes..
         return ec.serialize(self.pre.priv2pub(key_int))[2:] if is_pub else key
 
+    def encrypt(self, plaintext, path=None):
+        """
+        Encrypts `plaintext` with a subkey made from the path, if provided.
+
+        :param bytes plaintext: Plaintext to encrypt
+        :param bytes path: Path to derive keys for the encrypted plaintext
+
+        :rtype: List
+        :return: List of encrypted keys for each subpath in path, if provided
+        """
+        pass
+
     def sign(self, message):
         """
         Signs a message and returns a signature with the keccak hash.
