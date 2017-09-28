@@ -90,20 +90,20 @@ class KeyRing(object):
                     (self.symm_encrypt(path_symm_key, plaintext), enc_symm_key))
         return enc_keys
 
-    def decrypt(self, enc_path_key, enc_key):
+    def decrypt(self, enc_path_key, enc_symm_key):
         """
-        Decrypts the encrypted path key `enc_path_key` with the `enc_key`.
-        This works by decapsulating `enc_key` and using it to decrypt
+        Decrypts the encrypted path key `enc_path_key` with the `enc_symm_key`.
+        This works by decapsulating `enc_symm_key` and using it to decrypt
         `enc_path_key`.
 
         :param bytes enc_path_key: Encrypted key used to encrypt the data key
-        :param EncryptedKey enc_key: Encrypted key used to encrypt the path key
+        :param EncryptedKey enc_symm_key: Encrypted key used to encrypt path key
 
         :rtype: bytes
         :return: Plaintext of the enc_path_key
         """
-        pass
-
+        dec_symm_key = self.decrypt_key(enc_symm_key)
+        return self.symm_decrypt(dec_symm_key, enc_path_key)
 
 
     def sign(self, message):
