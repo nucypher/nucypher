@@ -114,6 +114,21 @@ class TestKeyRing(unittest.TestCase):
         plaintext = self.keyring_a.symm_decrypt(key, ciphertext)
         self.assertTrue(self.msg == plaintext)
 
+    def test_split_path(self):
+        subpaths = self.keyring_a._split_path(b'/foo/bar')
+        self.assertEqual(3, len(subpaths))
+        self.assertTrue(b'' in subpaths)
+        self.assertTrue(b'/foo' in subpaths)
+        self.assertTrue(b'/foo/bar' in subpaths)
+
+        subpaths = self.keyring_a._split_path(b'foobar')
+        self.assertEqual(1, len(subpaths))
+        self.assertTrue(b'foobar' in subpaths)
+
+        subpaths = self.keyring_a._split_path(b'')
+        self.assertEqual(1, len(subpaths))
+        self.assertTrue(b'' in subpaths)
+
     def test_secure_random(self):
         length = random.randrange(1, 100)
         rand_bytes = self.keyring_a.secure_random(length)
