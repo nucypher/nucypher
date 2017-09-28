@@ -1,4 +1,5 @@
 from kademlia.network import Server
+from nkms.crypto.keyring import KeyRing
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 
 
@@ -31,6 +32,10 @@ class Ursula(Character):
 
 class Alice(Character):
     _server_class = NuCypherSeedOnlyDHTServer
+
+    def __init__(self):
+        # TODO: Handle loading keypairs from config
+        self.keyring = KeyRing()
 
     def find_best_ursula(self):
         # TODO: Right now this just finds the nearest node and returns its ip and port.  Make it do something useful.
