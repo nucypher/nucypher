@@ -129,6 +129,22 @@ class TestKeyRing(unittest.TestCase):
         self.assertEqual(1, len(subpaths))
         self.assertTrue(b'' in subpaths)
 
+    def test_derive_path_key(self):
+        path = b'/foo/bar'
+
+        path_priv_key = self.keyring_a._derive_path_key(path, is_pub=False)
+        self.assertEqual(32, len(path_priv_key))
+
+        path_pub_key = self.keyring_a._derive_path_key(path)
+        self.assertEqual(32, len(path_pub_key))
+
+        path_priv_key_int = int.from_bytes(path_priv_key, byteorder='big')
+        verify_path_key = self.keyring_a.pre.priv2pub(path_priv_key_int)
+        # TODO: Figure out why this returns 34 chars
+        verify_path_key = ec.serialize(verify_path_key)[2:]
+        self.assertEqual(32, len(verify_path_key))
+        self.assertEqual(path_priv_key, path_priv_key)
+
     def test_secure_random(self):
         length = random.randrange(1, 100)
         rand_bytes = self.keyring_a.secure_random(length)

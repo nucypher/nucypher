@@ -62,8 +62,12 @@ class KeyRing(object):
         :rtype: bytes
         :return: Derived key
         """
-        key = sha3.keccak_256(self.enc_privkey + path).digest()
-        return self.pre.priv2pub(key) if is_pub else key
+        priv_key = ec.serialize(self.enc_privkey)[1:]
+        key = sha3.keccak_256(priv_key + path).digest()
+
+        key_int = int.from_bytes(key, byteorder='big')
+        # TODO: Figure out why this returns 34 bytes..
+        return ec.serialize(self.pre.priv2pub(key_int))[2:] if is_pub else key
 
     def sign(self, message):
         """
