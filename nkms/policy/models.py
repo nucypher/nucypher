@@ -1,4 +1,5 @@
 from nkms.crypto.hash import content_hash
+from nkms.crypto.keyring import KeyRing
 from nkms.crypto.pre.keygen import generate_re_encryption_keys
 from nkms.policy.constants import UNKNOWN_KFRAG
 
@@ -9,7 +10,7 @@ class PolicyManager(object):
 
 class PolicyManagerForAlice(PolicyManager):
 
-    def __init__(self, keychain_alice: "KeyChain"):
+    def __init__(self, keychain_alice: KeyRing):
         self.keychain_alice = keychain_alice
 
     def create_policy_group(self,
@@ -67,11 +68,19 @@ class Policy(object):
     """
     ursula = None
     hashed_part = None
+    _id = None
 
     def __init__(self, kfrag=UNKNOWN_KFRAG, challenge_size=20):
         self.kfrag = kfrag
         self.challenge_size = challenge_size
         self.treasure_map = []
+
+    @property
+    def id(self):
+        if self._id:
+            return self._id
+        else:
+            raise RuntimeError("No implemented way to get id yet.")
 
     @staticmethod
     def from_alice(kfrag,
@@ -90,8 +99,8 @@ class Policy(object):
         hash_input = str(hash_input).encode()
         self.hashed_part = content_hash(hash_input)
         hash_input_for_id = str(pubkey_sig_alice).encode() + str(self.hashed_part).encode()
-        self.id = content_hash(hash_input_for_id)
-        return self.id
+        self._id = content_hash(hash_input_for_id)
+        return self._id
 
     def craft_offer(self, networky_stuff):
         """
