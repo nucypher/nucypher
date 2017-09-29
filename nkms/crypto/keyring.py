@@ -105,7 +105,6 @@ class KeyRing(object):
         dec_symm_key = self.decrypt_key(enc_symm_key)
         return self.symm_decrypt(dec_symm_key, enc_path_key)
 
-
     def sign(self, message):
         """
         Signs a message and returns a signature with the keccak hash.
