@@ -9,16 +9,30 @@ class PolicyManager(object):
 
 
 class PolicyManagerForAlice(PolicyManager):
-
     def __init__(self, keychain_alice: KeyRing):
         self.keychain_alice = keychain_alice
 
+    def find_n_ursulas(self, networky_stuff, offer: PolicyOffer) -> list:
+        """
+        :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
+
+        :return: A list, with each element containing an Ursula and an OfferResult.
+        """
+        ursulas_and_results = []
+        while ursulas_and_results < n:
+            try:
+                # TODO: Oh wait.  I guess we need Policy IDs before this moment.
+                ursulas_and_results.append(networky_stuff.find_ursula(self.id, self.hashed_part, offer))
+            except networky_stuff.NotEnoughQualifiedUrsulas:
+                pass  # Tell Alice to either wait or lower the value of n.
+        return ursulas_and_results
+
     def create_policy_group(self,
-                 pubkey_enc_bob: tuple,
-                 uri: bytes,
-                 m: int,
-                 n: int
-                 ):
+                            pubkey_enc_bob: tuple,
+                            uri: bytes,
+                            m: int,
+                            n: int
+                            ):
         """
         Alice dictates a new group of policies.
         """
@@ -49,6 +63,7 @@ class PolicyGroup(object):
         self.policies = policies or []
 
     def transmit(self, networky_stuff):
+
         for policy in self.policies:
             policy_offer = policy.craft_offer(networky_stuff)
             result = networky_stuff.transmit_offer(policy.ursula, policy_offer)
@@ -102,13 +117,6 @@ class Policy(object):
         self._id = content_hash(hash_input_for_id)
         return self._id
 
-    def craft_offer(self, networky_stuff):
-        """
-        Find an Ursula and craft an offer for her.
-        """
-        self.ursula = networky_stuff.find_ursula(self.id, self.hashed_part)
-        return self.ursula.encrypt_for((self.kfrag, self.challenge_pack, self.treasure_map))
-
     def generate_challenge_pack(self):
         if self.kfrag == UNKNOWN_KFRAG:
             raise TypeError(
@@ -120,6 +128,28 @@ class Policy(object):
                                range(self.challenge_size)]
         return True
 
+    def craft_offer(self, networky_stuff):
+        """
+        Craft an offer to send to Ursula.
+        """
+        return self.ursula.encrypt_for((self.kfrag, self.challenge_pack, self.treasure_map))
+
     def update_treasure_map(self, policy_offer_result):
         # TODO: parse the result and add the node information to the treasure map.
         self.treasure_map.append(policy_offer_result)
+
+
+class PolicyOffer(object):
+    """
+    An offer from Alice to Ursula to enter into a contract for Re-Encryption services.
+    """
+    def __init__(self, n, deposit, contract_end_datetime):
+        """
+        :param n: The total number of Policies which Alice wishes to create.
+        :param deposit: Funds which will pay for the timeframe  of the contract (not the actual re-encryptions);
+            a portion will be locked for each Ursula that accepts.
+        :param contract_end_datetime: The moment which Alice wants the contract to end.
+        """
+        self.n = n
+        self.deposit = deposit
+        self.contract_end_datetime = contract_end_datetime

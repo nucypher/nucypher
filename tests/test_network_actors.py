@@ -33,6 +33,9 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
 
+    # First, Alice finds a group of N Ursulas and makes an offer.
+    networky_stuff = MockNetworkyStuff()
+
     # Alice runs this to get a policy object.
     policy_manager = PolicyManagerForAlice(keychain_alice)
     policy_group = policy_manager.create_policy_group(
