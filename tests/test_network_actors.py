@@ -1,9 +1,12 @@
 import asyncio
 import unittest
 
+import datetime
+
 from nkms.characters import Ursula, Alice
 from nkms.crypto.keyring import KeyRing
-from nkms.policy.models import PolicyManagerForAlice
+from nkms.policy.constants import NON_PAYMENT
+from nkms.policy.models import PolicyManagerForAlice, PolicyOffer
 
 
 class MockUrsula(object):
@@ -33,11 +36,17 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
 
-    # First, Alice finds a group of N Ursulas and makes an offer.
-    networky_stuff = MockNetworkyStuff()
+    # Alice has a policy in mind; she crafts an offer.
+    n = 50
+    deposit = NON_PAYMENT
+    contract_end_datetime = datetime.datetime.now() + datetime.timedelta(days=5)
+    offer = PolicyOffer(n, deposit, contract_end_datetime)
 
-    # Alice runs this to get a policy object.
+    # Now, Alice needs to find N Ursulas to whom to make the offer.
+    networky_stuff = MockNetworkyStuff()
     policy_manager = PolicyManagerForAlice(keychain_alice)
+    ursulas_and_result = policy_manager.find_n_ursulas(networky_stuff=networky_stuff, n=50, offer=offer)
+
     policy_group = policy_manager.create_policy_group(
         keychain_bob.enc_keypair.pub_key,
         resource_id,
