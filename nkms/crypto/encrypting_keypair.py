@@ -23,9 +23,9 @@ class EncryptingKeypair(object):
         self.pre = _tl.pre
 
         if not privkey:
-            self.priv_key = self.pre.gen_priv()
+            self._priv_key = self.pre.gen_priv()
         else:
-            self.priv_key = ec.deserialize(
+            self._priv_key = ec.deserialize(
                     self.pre.ecgroup, b'\x00' + privkey)
 
         # We don't always need a public key, so let's make it lazily
@@ -37,7 +37,7 @@ class EncryptingKeypair(object):
         Lazy generation of a public key
         """
         if self.__pub_key is None:
-            self.__pub_key = self.pre.priv2pub(self.priv_key)
+            self.__pub_key = self.pre.priv2pub(self._priv_key)
         return self.__pub_key
 
     @property
@@ -80,12 +80,23 @@ class EncryptingKeypair(object):
         ekey, edata = edata
         ekey = umbral.EncryptedKey(
                 ekey=ec.deserialize(self.pre.ecgroup, ekey), re_id=None)
-        key = self.pre.decapsulate(self.priv_key, ekey)
+        key = self.pre.decapsulate(self._priv_key, ekey)
         cipher = SecretBox(key)
         return cipher.decrypt(edata)
 
-    def rekey():
-        pass
+    def rekey(self,
+              pubkey: bytes) -> Tuple[bytes, Tuple[bytes, bytes]]:
+        """
+        Create re-encryption key from private key which we have to public key
+        pubkey.
+        Internally, we create an ephemeral key priv_eph randomly and share data
+        with it, and also attach encrypted priv_eph as the second part of the
+        tuple
+        """
+        priv_eph = self.pre.gen_priv()
+        rk = self.pre.rekey(self._priv_key, priv_eph)
+        encrypted_eph = self.encrypt(ec.serialize(priv_eph))
+        return (ec.serialize(rk), encrypted_eph)
 
     def reencrypt():
         pass
