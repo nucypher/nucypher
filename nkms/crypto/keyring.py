@@ -177,7 +177,7 @@ class KeyRing(object):
                                                             pubkey=pubkey_b)
         enc_priv_e = self.symm_encrypt(symm_key_bob, priv_e_bytes)
 
-        reenc_key = self.enc_keypair.rekey(self.enc_privkey, priv_e)
+        reenc_key = self.enc_keypair.rekey(privkey_a, priv_e)
         return (reenc_key, enc_symm_key_bob, enc_priv_e)
 
     def reencrypt(self, reenc_key, ciphertext):
