@@ -70,19 +70,45 @@ class EncryptingKeypair(object):
                 cipher.encrypt(data))
 
     def decrypt(self,
-                edata: Tuple[bytes, bytes]) -> bytes:
+                edata: Tuple[bytes, bytes],
+                privkey: bytes = None) -> bytes:
         """
         Decrypt data encrypted by ECIES
         edata = (ekey, edata)
             ekey is needed to reconstruct a DH secret
             edata encrypted by the block cipher
+            privkey is optional private key if we want to use something else
+            than what keypair uses
         """
+        if isinstance(edata[0], tuple) and isinstance(edata[1], tuple):
+            # In case it was re-encrypted data
+            return self.decrypt_reencrypted(edata, privkey=privkey)
+
         ekey, edata = edata
         ekey = umbral.EncryptedKey(
                 ekey=ec.deserialize(self.pre.ecgroup, ekey), re_id=None)
-        key = self.pre.decapsulate(self._priv_key, ekey)
+        if privkey is None:
+            privkey = self._priv_key
+        else:
+            privkey = ec.deserialize(self.pre.ecgroup, privkey)
+
+        key = self.pre.decapsulate(privkey, ekey)
         cipher = SecretBox(key)
         return cipher.decrypt(edata)
+
+    def decrypt_reencrypted(
+            self,
+            edata: Tuple[Tuple[bytes, bytes], Tuple[bytes, bytes]]
+            ) -> bytes:
+        """
+        Decrypt data which was re-encrypted for our public key
+        Format of edata is the same as the output of reencrypt() method:
+        data encrypted with an ephemeral key
+        and the ephemeral private key encrypted for recepient (Bob)
+        """
+        edata_by_eph, encrypted_eph = edata
+        priv_eph = self.decrypt(encrypted_eph)
+        return self.decrypt(edata_by_eph, privkey=priv_eph)
 
     def rekey(self,
               pubkey: bytes) -> Tuple[bytes, Tuple[bytes, bytes]]:
@@ -98,8 +124,27 @@ class EncryptingKeypair(object):
         encrypted_eph = self.encrypt(ec.serialize(priv_eph))
         return (ec.serialize(rk), encrypted_eph)
 
-    def reencrypt():
-        pass
+    def reencrypt(self,
+                  rekey: Tuple[bytes, Tuple[bytes, bytes]],
+                  ciphertext: Tuple[bytes, bytes]
+                  ) -> Tuple[Tuple[bytes, bytes], Tuple[bytes, bytes]]:
+        """
+        Re-encrypt for public key
+        rekey is (rk, encrypted_eph), same as output of rekey()
+        ciphertext is a tuple in the same format as output of encrypt()
+
+        Output is two tuples: data encrypted with an ephemeral key
+        and the ephemeral private key encrypted for recepient (Bob)
+        """
+        rk, encrypted_eph = rekey
+        rk = ec.deserialize(self.pre.ecgroup, rekey)
+        ekey, edata = ciphertext
+        ekey = ec.deserialize(self.pre.ecgroup, ekey)
+
+        ekey = self.pre.reencrypt(rk, ekey)
+
+        ekey = ec.serialize(ekey)
+        return (ekey, edata), encrypted_eph
 
     def combine():
         pass
