@@ -66,7 +66,7 @@ class EncryptingKeypair(object):
         key, ekey = self.pre.encapsulate(pubkey)
         cipher = SecretBox(key)
 
-        return (ec.serialize(ekey.ekey),
+        return ((ec.serialize(ekey.ekey), None),
                 cipher.encrypt(data))
 
     def decrypt(self,
@@ -82,11 +82,11 @@ class EncryptingKeypair(object):
         """
         if isinstance(edata[0], tuple) and isinstance(edata[1], tuple):
             # In case it was re-encrypted data
-            return self.decrypt_reencrypted(edata, privkey=privkey)
+            return self.decrypt_reencrypted(edata)
 
         ekey, edata = edata
         ekey = umbral.EncryptedKey(
-                ekey=ec.deserialize(self.pre.ecgroup, ekey), re_id=None)
+                ekey=ec.deserialize(self.pre.ecgroup, ekey[0]), re_id=ekey[1])
         if privkey is None:
             privkey = self._priv_key
         else:
@@ -111,7 +111,7 @@ class EncryptingKeypair(object):
         return self.decrypt(edata_by_eph, privkey=priv_eph)
 
     def rekey(self,
-              pubkey: bytes) -> Tuple[bytes, Tuple[bytes, bytes]]:
+              pubkey: bytes) -> Tuple[tuple, Tuple[bytes, bytes]]:
         """
         Create re-encryption key from private key which we have to public key
         pubkey.
@@ -121,11 +121,11 @@ class EncryptingKeypair(object):
         """
         priv_eph = self.pre.gen_priv()
         rk = self.pre.rekey(self._priv_key, priv_eph)
-        encrypted_eph = self.encrypt(ec.serialize(priv_eph))
-        return (ec.serialize(rk), encrypted_eph)
+        encrypted_eph = self.encrypt(ec.serialize(priv_eph), pubkey=pubkey)
+        return ((rk.id, ec.serialize(rk.key)), encrypted_eph)
 
     def reencrypt(self,
-                  rekey: Tuple[bytes, Tuple[bytes, bytes]],
+                  rekey: Tuple[tuple, Tuple[bytes, bytes]],
                   ciphertext: Tuple[bytes, bytes]
                   ) -> Tuple[Tuple[bytes, bytes], Tuple[bytes, bytes]]:
         """
@@ -137,13 +137,14 @@ class EncryptingKeypair(object):
         and the ephemeral private key encrypted for recepient (Bob)
         """
         rk, encrypted_eph = rekey
-        rk = ec.deserialize(self.pre.ecgroup, rekey)
+        rk = umbral.RekeyFrag(rk[0], ec.deserialize(self.pre.ecgroup, rk[1]))
         ekey, edata = ciphertext
-        ekey = ec.deserialize(self.pre.ecgroup, ekey)
+        ekey = umbral.EncryptedKey(
+                ekey=ec.deserialize(self.pre.ecgroup, ekey[0]), re_id=ekey[1])
 
         ekey = self.pre.reencrypt(rk, ekey)
 
-        ekey = ec.serialize(ekey)
+        ekey = (ec.serialize(ekey.ekey), ekey.re_id)
         return (ekey, edata), encrypted_eph
 
     def combine():
