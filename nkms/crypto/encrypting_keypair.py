@@ -85,8 +85,9 @@ class EncryptingKeypair(object):
             return self.decrypt_reencrypted(edata)
 
         ekey, edata = edata
-        # TODO when it comes to decrypt(), ekey[1] is always Nonde
-        # Should get rid of it
+        # When it comes to decrypt(), ekey[1] is always None
+        # we could use that and save 2 bytes,
+        # but it makes the code less readable
         ekey = umbral.EncryptedKey(
                 ekey=ec.deserialize(self.pre.ecgroup, ekey[0]), re_id=ekey[1])
         if privkey is None:
