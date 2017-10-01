@@ -40,7 +40,7 @@ def test_reencrypt_m_n(num_shares, min_shares):
     data = b'Hello Bob'
     alice = EncryptingKeypair()
     bob = EncryptingKeypair()
-    ursulas = [EncryptingKeypair() for i in min_shares]
+    ursulas = [EncryptingKeypair() for i in range(min_shares)]
 
     e = alice.encrypt(data)
     re_ab = alice.split_rekey(bob.pub_key, min_shares, num_shares)

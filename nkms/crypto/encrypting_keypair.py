@@ -156,12 +156,12 @@ class EncryptingKeypair(object):
                     ekey=ec.deserialize(self.pre.ecgroup, share[0][0][0]),
                     re_id=share[0][0][1])
                  for share in shares]
-        ekey = self.pre.combine(shares)
+        ekey = self.pre.combine(ekeys)
         ekey = (ec.serialize(ekey.ekey), ekey.re_id)
 
         # Everything except ekey is the same for all shares!
         # TODO instead of trusting the first share, trust the majority
-        return (ekey, ekeys[0][0][1]), ekeys[0][1]
+        return (ekey, shares[0][0][1]), shares[0][1]
 
     def split_rekey(self,
                     pubkey: bytes,
