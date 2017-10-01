@@ -1,7 +1,7 @@
 from npre import umbral
 from npre import elliptic_curve as ec
 from nacl.secret import SecretBox
-from typing import Tuple
+from typing import Tuple, List
 from threading import local
 
 _tl = local()
@@ -85,6 +85,8 @@ class EncryptingKeypair(object):
             return self.decrypt_reencrypted(edata)
 
         ekey, edata = edata
+        # TODO when it comes to decrypt(), ekey[1] is always Nonde
+        # Should get rid of it
         ekey = umbral.EncryptedKey(
                 ekey=ec.deserialize(self.pre.ecgroup, ekey[0]), re_id=ekey[1])
         if privkey is None:
@@ -147,8 +149,29 @@ class EncryptingKeypair(object):
         ekey = (ec.serialize(ekey.ekey), ekey.re_id)
         return (ekey, edata), encrypted_eph
 
-    def combine():
-        pass
+    def combine(self,
+                shares: Tuple[Tuple[bytes, bytes], Tuple[bytes, bytes]]
+                ) -> Tuple[Tuple[bytes, bytes], Tuple[bytes, bytes]]:
+        ekeys = [umbral.EncryptedKey(
+                    ekey=ec.deserialize(self.pre.ecgroup, share[0][0][0]),
+                    re_id=share[0][0][1])
+                 for share in shares]
+        ekey = self.pre.combine(shares)
+        ekey = (ec.serialize(ekey.ekey), ekey.re_id)
 
-    def split_rekey():
-        pass
+        # Everything except ekey is the same for all shares!
+        # TODO instead of trusting the first share, trust the majority
+        return (ekey, ekeys[0][0][1]), ekeys[0][1]
+
+    def split_rekey(self,
+                    pubkey: bytes,
+                    min_shares: int,
+                    num_shares: int
+                    ) -> List[Tuple[tuple, Tuple[bytes, bytes]]]:
+        priv_eph = self.pre.gen_priv()
+        rks = self.pre.split_rekey(self._priv_key, priv_eph,
+                                   min_shares, num_shares)
+        encrypted_eph = self.encrypt(ec.serialize(priv_eph), pubkey=pubkey)
+
+        return [((rk.id, ec.serialize(rk.key)), encrypted_eph)
+                for rk in rks]
