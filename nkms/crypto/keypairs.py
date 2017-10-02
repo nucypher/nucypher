@@ -7,14 +7,20 @@ from npre import umbral
 class EncryptingKeypair(object):
     KEYSIZE = 32
 
-    def __init__(self, privkey_bytes=None):
+    def __init__(self, privkey=None):
         self.pre = umbral.PRE()
 
-        if not privkey_bytes:
-            self.priv_key = self.pre.gen_priv(dtype='bytes')
+        if not privkey:
+            self.priv_key = self.pre.gen_priv()
         else:
-            self.priv_key = privkey_bytes
-        self.pub_key = self.pre.priv2pub(self.priv_key)
+            self.priv_key = privkey
+        self._pub_key = None
+
+    @property
+    def pub_key(self):
+        if self._pub_key is None:
+            self._pub_key = self.pre.priv2pub(self.priv_key)
+        return self._pub_key
 
     def generate_key(self, pubkey=None):
         """

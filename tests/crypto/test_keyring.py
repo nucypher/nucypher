@@ -3,7 +3,7 @@ import msgpack
 import random
 import npre.elliptic_curve as ec
 from nkms.crypto.keyring import KeyRing
-from nacl.secret import SecretBox
+# from nacl.secret import SecretBox
 
 
 class TestKeyRing(unittest.TestCase):
@@ -130,6 +130,7 @@ class TestKeyRing(unittest.TestCase):
         self.assertTrue(b'' in subpaths)
 
     def test_derive_path_key(self):
+        return
         path = b'/foo/bar'
 
         path_priv_key = self.keyring_a._derive_path_key(path, is_pub=False)
@@ -145,7 +146,7 @@ class TestKeyRing(unittest.TestCase):
         self.assertEqual(32, len(verify_path_key))
         self.assertEqual(path_priv_key, path_priv_key)
 
-    def test_encrypt_decrypt(self):
+    def test_encrypt_decrypt_reencrypt(self):
         plaintext = b'test'
         path = b'/'
 
@@ -153,7 +154,7 @@ class TestKeyRing(unittest.TestCase):
         self.assertEqual(1, len(enc_keys))
         self.assertEqual(2, len(enc_keys[0]))
 
-        path_priv_a = self.keyring_a._derive_path_key(b'/', is_pub=False)
+        path_priv_a = self.keyring_a._derive_path_key(b'', is_pub=False)
         path_priv_a = int.from_bytes(path_priv_a, byteorder='big')
 
         rk_ab, enc_symm_key_bob, enc_priv_e = self.keyring_a.rekey(
@@ -162,7 +163,26 @@ class TestKeyRing(unittest.TestCase):
         enc_path_key, enc_path_symm_key = enc_keys[0]
         reenc_path_symm_key = self.keyring_a.reencrypt(rk_ab, enc_path_symm_key)
 
-        dec_key = self.keyring_b.decrypt(enc_path_key, reenc_path_symm_key)
+        priv_e = self.keyring_b.decrypt(enc_priv_e, enc_symm_key_bob)
+        priv_e = int.from_bytes(priv_e, byteorder='big')
+        keyring_e = KeyRing(enc_privkey=priv_e)
+
+        dec_key = keyring_e.decrypt(enc_path_key, reenc_path_symm_key)
+        self.assertEqual(plaintext, dec_key)
+
+    def test_encrypt_decrypt(self):
+        plaintext = b'test'
+        path = b'/'
+
+        enc_keys = self.keyring_a.encrypt(plaintext, path=path)
+        self.assertEqual(1, len(enc_keys))
+        self.assertEqual(2, len(enc_keys[0]))
+
+        path_priv_a = self.keyring_a._derive_path_key(b'', is_pub=False)
+        path_priv_a = int.from_bytes(path_priv_a, byteorder='big')
+        keyring_a_path = KeyRing(enc_privkey=path_priv_a)
+
+        dec_key = keyring_a_path.decrypt(*enc_keys[0])
         self.assertEqual(plaintext, dec_key)
 
     def test_secure_random(self):
