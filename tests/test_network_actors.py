@@ -3,10 +3,21 @@ import unittest
 
 import datetime
 
+from nkms import crypto
 from nkms.characters import Ursula, Alice
+from nkms.crypto.encrypting_keypair import EncryptingKeypair
 from nkms.crypto.keyring import KeyRing
 from nkms.policy.constants import NON_PAYMENT
-from nkms.policy.models import PolicyManagerForAlice, PolicyOffer
+from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, PolicyGroup
+
+
+class MockEncryptingPair(object):
+
+    def encrypt(self, cleartext):
+        pass
+
+    def decrypt(selfs, ciphertext):
+        pass
 
 
 class MockUrsula(object):
@@ -26,6 +37,29 @@ class MockNetworkyStuff(object):
 
     def find_ursula(self, id, hashed_part):
         return MockUrsula()
+
+
+class MockTreasureMap(TreasureMap):
+    pass
+
+
+def test_alice_hands_over_treasure_map():
+    keychain_alice = KeyRing()
+    bob_encrypting_keypair = EncryptingKeypair()
+    keychain_ursula = KeyRing()
+
+    treasure_map = TreasureMap()
+    for i in range(50):
+        treasure_map.nodes.append(crypto.random(50))
+
+    encrypted_treasure_map = bob_encrypting_keypair.encrypt(treasure_map.packed_payload())
+
+    # For example, a hashed path.
+    resource_id = b"as098duasdlkj213098asf"
+    policy_group = PolicyGroup(resource_id, bob_encrypting_keypair.pub_key)
+    policy_group.id # <--- THIS will be the key on the "free" layer.
+    assert False  # Fail.
+
 
 
 def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():

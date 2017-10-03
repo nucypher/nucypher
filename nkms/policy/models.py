@@ -1,3 +1,5 @@
+import msgpack
+
 from nkms.crypto.hash import content_hash
 from nkms.crypto.keyring import KeyRing
 from nkms.crypto.pre.keygen import generate_re_encryption_keys
@@ -52,6 +54,11 @@ class PolicyManagerForAlice(PolicyManager):
         """
         Alice dictates a new group of policies.
         """
+        policy_group = PolicyGroup(uri, pubkey_enc_bob)
+
+        #### Below this line awaits refactor for the two-tier approach.
+
+
         re_enc_keys = generate_re_encryption_keys(self.keychain_alice.enc_keypair.priv_key,
                                                   pubkey_enc_bob,
                                                   m,
@@ -75,8 +82,12 @@ class PolicyGroup(object):
     The terms and conditions by which Alice shares with Bob.
     """
 
-    def __init__(self, policies=None):
+    _id = None
+
+    def __init__(self, uri, pubkey_enc_bob, policies=None):
         self.policies = policies or []
+        self.pubkey_enc_bob = pubkey_enc_bob
+        self.uri = uri
 
     def transmit(self, networky_stuff):
 
@@ -85,6 +96,13 @@ class PolicyGroup(object):
             result = networky_stuff.transmit_offer(policy.ursula, policy_offer)
             if result.was_accepted:
                 policy.update_treasure_map(result)
+
+    @property
+    def id(self):
+        if not self._id:
+            self._id = content_hash(self.uri + self.pubkey_enc_bob)
+        return self._id
+
 
 
 class Policy(object):
@@ -153,3 +171,12 @@ class Policy(object):
     def update_treasure_map(self, policy_offer_result):
         # TODO: parse the result and add the node information to the treasure map.
         self.treasure_map.append(policy_offer_result)
+
+
+class TreasureMap(object):
+
+    def __init__(self):
+        self.nodes = []
+
+    def packed_payload(self):
+        return msgpack.dumps(self.nodes)
