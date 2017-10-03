@@ -109,12 +109,12 @@ class KeyRing(object):
         """
         Signs a message and returns a signature with the keccak hash.
 
-        :param bytes message: Message to sign in bytes
+        :param Iterable message: Message to sign in an iterable of bytes
 
         :rtype: bytestring
         :return: Signature of message
         """
-        msg_digest = sha3.keccak_256(message).digest()
+        msg_digest = self.sig_keypair.digest(message)
         return self.sig_keypair.sign(msg_digest)
 
     def verify(self, message, signature, pubkey=None):
