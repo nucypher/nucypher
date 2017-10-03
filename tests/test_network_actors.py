@@ -1,4 +1,5 @@
 import asyncio
+import unittest
 
 from nkms.characters import Ursula, Alice
 from nkms.crypto.keyring import KeyRing
@@ -44,6 +45,7 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     policy_group.transmit(networky_stuff)
 
 
+@unittest.skip(reason="Work in progress")
 def test_alice_finds_ursula():
     event_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(event_loop)
