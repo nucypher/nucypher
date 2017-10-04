@@ -1,5 +1,6 @@
 import msgpack
 
+from nkms.crypto import random
 from nkms.crypto.hash import content_hash
 from nkms.crypto.keyring import KeyRing
 from nkms.crypto.pre.keygen import generate_re_encryption_keys
@@ -10,6 +11,7 @@ class PolicyOffer(object):
     """
     An offer from Alice to Ursula to enter into a contract for Re-Encryption services.
     """
+
     def __init__(self, n, deposit, contract_end_datetime):
         """
         :param n: The total number of Policies which Alice wishes to create.
@@ -40,7 +42,8 @@ class PolicyManagerForAlice(PolicyManager):
         while len(ursulas_and_results) < n:
             try:
                 # TODO: Oh wait.  I guess we need Policy IDs before this moment.
-                ursulas_and_results.append(networky_stuff.find_ursula(self.id, self.hashed_part, offer))
+                ursulas_and_results.append(
+                    networky_stuff.find_ursula(self.id, self.hashed_part, offer))
             except networky_stuff.NotEnoughQualifiedUrsulas:
                 pass  # Tell Alice to either wait or lower the value of n.
         return ursulas_and_results
@@ -49,32 +52,25 @@ class PolicyManagerForAlice(PolicyManager):
                             pubkey_enc_bob: tuple,
                             uri: bytes,
                             m: int,
-                            n: int
+                            n: int,
+                            offer: PolicyOffer,
                             ):
         """
         Alice dictates a new group of policies.
         """
-        policy_group = PolicyGroup(uri, pubkey_enc_bob)
-
-        #### Below this line awaits refactor for the two-tier approach.
-
-
         re_enc_keys = generate_re_encryption_keys(self.keychain_alice.enc_keypair.priv_key,
                                                   pubkey_enc_bob,
                                                   m,
                                                   n)
         policies = []
-        for kfrag_id, key in enumerate(re_enc_keys):
+        for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
-                key,  # Bob won't know this.
+                rekey,
                 self.keychain_alice.sig_keypair.pub_key,
-                pubkey_enc_bob,
-                uri,  # Ursula won't know this.
-                kfrag_id,
             )
             policies.append(policy)
 
-        return PolicyGroup(policies)
+        return PolicyGroup(uri, pubkey_enc_bob, policies)
 
 
 class PolicyGroup(object):
@@ -100,9 +96,8 @@ class PolicyGroup(object):
     @property
     def id(self):
         if not self._id:
-            self._id = content_hash(self.uri + self.pubkey_enc_bob)
+            self._id = content_hash(self.uri, self.pubkey_enc_bob)
         return self._id
-
 
 
 class Policy(object):
@@ -119,10 +114,24 @@ class Policy(object):
     hashed_part = None
     _id = None
 
-    def __init__(self, kfrag=UNKNOWN_KFRAG, challenge_size=20):
+    def __init__(self, kfrag=UNKNOWN_KFRAG, deterministic_id_portion=None, challenge_size=20, set_id=True):
+        """
+
+        :param kfrag:
+            The kFrag obviously, but defaults to UNKNOWN_KFRAG in case the user wants to set it later.
+        :param deterministic_id_portion:  Probably the fingerprint of Alice's public key.
+            Any part that Ursula can use to verify that Alice is the rightful setter of this ID.
+            If it's not included, the Policy ID will be comlpetely random.
+        :param challenge_size:  The number of challenges to create in the ChallengePack.
+        """
         self.kfrag = kfrag
+        self.deterministic_id_portion = deterministic_id_portion
+        self.random_id_portion = random(32)
         self.challenge_size = challenge_size
         self.treasure_map = []
+
+        if set_id:
+            self.set_id()
 
     @property
     def id(self):
@@ -131,21 +140,26 @@ class Policy(object):
         else:
             raise RuntimeError("No implemented way to get id yet.")
 
+    def set_id(self):
+        if self.deterministic_id_portion:
+            self._id = "{}-{}".format(content_hash(*[str(d).encode() for d in self.deterministic_id_portion], self.random_id_portion),
+                                      content_hash(self.random_id_portion))
+        else:
+            self._id = content_hash(self.random_id_portion)
+
+
+
     @staticmethod
     def from_alice(kfrag,
                    pubkey_sig_alice,
-                   pubkey_enc_bob,
-                   uri,
-                   kfrag_id
                    ):
-        policy = Policy(kfrag)
+        policy = Policy(kfrag, deterministic_id_portion=pubkey_sig_alice)
         policy.generate_challenge_pack()
-        policy.hash(pubkey_sig_alice=pubkey_sig_alice, hash_input=(pubkey_enc_bob, uri, kfrag_id))
 
         return policy
 
     def hash(self, pubkey_sig_alice, hash_input):
-        hash_input = str(hash_input).encode()
+
         self.hashed_part = content_hash(hash_input)
         hash_input_for_id = str(pubkey_sig_alice).encode() + str(self.hashed_part).encode()
         self._id = content_hash(hash_input_for_id)
@@ -174,7 +188,6 @@ class Policy(object):
 
 
 class TreasureMap(object):
-
     def __init__(self):
         self.nodes = []
 

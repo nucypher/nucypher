@@ -127,7 +127,7 @@ class SigningKeypair(object):
         s = int.from_bytes(sig[2], byteorder='big')
         return (v, r, s)
 
-    def digest(self, *args):
+    def digest(self, *messages):
         """
         Accepts an iterable containing bytes and digests it.
 
@@ -137,8 +137,8 @@ class SigningKeypair(object):
         :return: bytestring of digested data
         """
         hash = sha3.keccak_256()
-        for arg in args:
-            hash.update(arg)
+        for message in messages:
+            hash.update(message)
         return hash.digest()
 
     def sign(self, msghash):

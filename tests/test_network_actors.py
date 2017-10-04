@@ -3,6 +3,8 @@ import unittest
 
 import datetime
 
+import pytest
+
 from nkms import crypto
 from nkms.characters import Ursula, Alice
 from nkms.crypto.encrypting_keypair import EncryptingKeypair
@@ -43,25 +45,38 @@ class MockTreasureMap(TreasureMap):
     pass
 
 
-def test_alice_hands_over_treasure_map():
-    keychain_alice = KeyRing()
+def test_complete_treasure_map_flow():
+    """
+    Shows that Alice can share a TreasureMap with Ursula and that Bob can receive and decrypt it.
+    """
+
+    keyring_alice = KeyRing()
     bob_encrypting_keypair = EncryptingKeypair()
-    keychain_ursula = KeyRing()
+    keyring_ursula = KeyRing()
+
+    alice, ursula, event_loop = test_alice_finds_ursula()
+
+    _discovered_ursula_ip, discovered_ursula_port = alice.find_best_ursula()
 
     treasure_map = TreasureMap()
     for i in range(50):
         treasure_map.nodes.append(crypto.random(50))
 
     encrypted_treasure_map = bob_encrypting_keypair.encrypt(treasure_map.packed_payload())
+    signature = "THIS IS A SIGNATURE"
 
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
     policy_group = PolicyGroup(resource_id, bob_encrypting_keypair.pub_key)
-    policy_group.id # <--- THIS will be the key on the "free" layer.
-    assert False  # Fail.
+    setter = alice.server.set(policy_group.id, encrypted_treasure_map)
+    event_loop.run_until_complete(setter)
+
+    treasure_map_as_set_on_network = list(ursula.server.storage.items())[0][1]
+    treasure_map_as_decrypted_by_bob = bob_encrypting_keypair.decrypt(treasure_map_as_set_on_network)
+    assert treasure_map_as_decrypted_by_bob == treasure_map.packed_payload()
 
 
-
+@pytest.mark.skip("Until we get encrypt_for worked out.")
 def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     keychain_alice = KeyRing()
     keychain_bob = KeyRing()
@@ -79,13 +94,13 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     # Now, Alice needs to find N Ursulas to whom to make the offer.
     networky_stuff = MockNetworkyStuff()
     policy_manager = PolicyManagerForAlice(keychain_alice)
-    ursulas_and_result = policy_manager.find_n_ursulas(networky_stuff=networky_stuff, n=50, offer=offer)
 
     policy_group = policy_manager.create_policy_group(
         keychain_bob.enc_keypair.pub_key,
         resource_id,
         m=20,
-        n=50
+        n=50,
+        offer=offer,
     )
     networky_stuff = MockNetworkyStuff()
     policy_group.transmit(networky_stuff)
@@ -109,4 +124,4 @@ def test_alice_finds_ursula():
 
     _discovered_ursula_ip, discovered_ursula_port = alice.find_best_ursula()
     assert ursula_port == ursula_port
-    return alice, ursula
+    return alice, ursula, event_loop
