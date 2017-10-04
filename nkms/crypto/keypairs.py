@@ -114,6 +114,9 @@ class SigningKeypair(object):
         # Get the public component
         self.pub_key = privtopub(self.priv_key)
 
+    def pubkey_bytes(self):
+        return b''.join(i.to_bytes(32, 'big') for i in self.pub_key)
+
     def _vrs_msgpack_dump(self, v, r, s):
         v_bytes = v.to_bytes(1, byteorder='big')
         r_bytes = r.to_bytes(32, byteorder='big')
@@ -127,7 +130,7 @@ class SigningKeypair(object):
         s = int.from_bytes(sig[2], byteorder='big')
         return (v, r, s)
 
-    def digest(self, *args):
+    def digest(self, *messages):
         """
         Accepts an iterable containing bytes and digests it.
 
@@ -137,8 +140,8 @@ class SigningKeypair(object):
         :return: bytestring of digested data
         """
         hash = sha3.keccak_256()
-        for arg in args:
-            hash.update(arg)
+        for message in messages:
+            hash.update(message)
         return hash.digest()
 
     def sign(self, msghash):
