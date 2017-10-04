@@ -1,7 +1,9 @@
 import msgpack
+import sha3
 from random import SystemRandom
 from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_sign, ecdsa_raw_recover
 from npre import umbral
+from typing import Iterable
 
 
 class EncryptingKeypair(object):
@@ -124,6 +126,20 @@ class SigningKeypair(object):
         r = int.from_bytes(sig[1], byteorder='big')
         s = int.from_bytes(sig[2], byteorder='big')
         return (v, r, s)
+
+    def digest(self, *args):
+        """
+        Accepts an iterable containing bytes and digests it.
+
+        :param bytes *args: Data to hash
+
+        :rtype: bytes
+        :return: bytestring of digested data
+        """
+        hash = sha3.keccak_256()
+        for arg in args:
+            hash.update(arg)
+        return hash.digest()
 
     def sign(self, msghash):
         """

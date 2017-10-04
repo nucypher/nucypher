@@ -33,6 +33,12 @@ class TestSigningKeypair(unittest.TestCase):
                                            pubkey=self.keypair_a.pub_key)
         self.assertTrue(verify_sig)
 
+    def test_digest(self):
+        digest_a = self.keypair_a.digest(b'foo', b'bar')
+        digest_b = self.keypair_a.digest(b'foobar')
+
+        self.assertEqual(digest_a, digest_b)
+
 
 class TestEncryptingKeypair(unittest.TestCase):
     def setUp(self):
