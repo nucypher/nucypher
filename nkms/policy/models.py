@@ -41,7 +41,6 @@ class PolicyManagerForAlice(PolicyManager):
         ursulas_and_results = []
         while len(ursulas_and_results) < n:
             try:
-                # TODO: Oh wait.  I guess we need Policy IDs before this moment.
                 ursulas_and_results.append(
                     networky_stuff.find_ursula(self.id, self.hashed_part, offer))
             except networky_stuff.NotEnoughQualifiedUrsulas:
@@ -66,7 +65,7 @@ class PolicyManagerForAlice(PolicyManager):
         for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
                 rekey,
-                self.keychain_alice.sig_keypair.pub_key,
+                self.keychain_alice.sig_keypair.pubkey_bytes(),
             )
             policies.append(policy)
 
@@ -121,7 +120,7 @@ class Policy(object):
             The kFrag obviously, but defaults to UNKNOWN_KFRAG in case the user wants to set it later.
         :param deterministic_id_portion:  Probably the fingerprint of Alice's public key.
             Any part that Ursula can use to verify that Alice is the rightful setter of this ID.
-            If it's not included, the Policy ID will be comlpetely random.
+            If it's not included, the Policy ID will be completely random.
         :param challenge_size:  The number of challenges to create in the ChallengePack.
         """
         self.kfrag = kfrag

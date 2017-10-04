@@ -114,6 +114,9 @@ class SigningKeypair(object):
         # Get the public component
         self.pub_key = privtopub(self.priv_key)
 
+    def pubkey_bytes(self):
+        return b''.join(i.to_bytes(32, 'big') for i in self.pub_key)
+
     def _vrs_msgpack_dump(self, v, r, s):
         v_bytes = v.to_bytes(1, byteorder='big')
         r_bytes = r.to_bytes(32, byteorder='big')
