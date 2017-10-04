@@ -91,7 +91,6 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     policy_group.transmit(networky_stuff)
 
 
-@unittest.skip(reason="Work in progress")
 def test_alice_finds_ursula():
     event_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(event_loop)
@@ -99,12 +98,15 @@ def test_alice_finds_ursula():
     ursula_port = 8468
 
     ursula = Ursula()
+    ursula.attach_server()
     ursula.server.listen(ursula_port)
     event_loop.run_until_complete(ursula.server.bootstrap([("127.0.0.1", ursula_port)]))
 
     alice = Alice()
+    alice.attach_server()
     alice.server.listen(8471)
     event_loop.run_until_complete(ursula.server.bootstrap([("127.0.0.1", 8471)]))
 
     _discovered_ursula_ip, discovered_ursula_port = alice.find_best_ursula()
     assert ursula_port == ursula_port
+    return alice, ursula
