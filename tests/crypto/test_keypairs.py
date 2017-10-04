@@ -33,18 +33,8 @@ class TestSigningKeypair(unittest.TestCase):
                                            pubkey=self.keypair_a.pub_key)
         self.assertTrue(verify_sig)
 
-    def test_digest_iterable(self):
-        # Test digest equality
-        digest_a = self.keypair_a.digest([self.msg])
-        digest_b = self.keypair_a.digest((self.msg))
-        digest_c = self.keypair_a.digest(self.msg)
-
-        self.assertEqual(digest_a, digest_b)
-        self.assertEqual(digest_a, digest_c)
-        self.assertEqual(digest_b, digest_c)
-
-        # Test multiple items
-        digest_a = self.keypair_a.digest([b'foo', b'bar'])
+    def test_digest(self):
+        digest_a = self.keypair_a.digest(b'foo', b'bar')
         digest_b = self.keypair_a.digest(b'foobar')
 
         self.assertEqual(digest_a, digest_b)
