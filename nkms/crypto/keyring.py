@@ -31,37 +31,7 @@ class KeyRing(object):
         self.sig_keypair = SigningKeypair(sig_privkey)
         self.enc_keypair = EncryptingKeypair(enc_privkey)
         self.pre = umbral.PRE()
-
-    def encrypt_for(self, recipient: str, cleartext: bytes, sign: bool = True,
-                    sign_cleartext=True) -> tuple:
-        """
-        :param recipient: The character whose public key will be used to encrypt cleartext.
-        :param cleartext: The secret to be encrypted.
-        :param sign: Whether or not to sign the message.
-        :param sign_cleartext: When signing, the cleartext is signed if this is True,  Otherwise, the resulting ciphertext is signed.
-        :return: A tuple, (ciphertext, signature).  If sign==False, then signature will be NOT_SIGNED.
-        """
-
-    def verify_from(self, actor_that_sender_claims_to_be: str, signature: bytes,
-                    ciphertext: bytes = None, decrypt=True,
-                    signature_is_on_cleartext=True) -> tuple:
-        """
-        :param actor_that_sender_claims_to_be: The str representation of the actor on this KeyRing
-            that the sender is claiming to be.
-        :param ciphertext:
-        :param decrypt:
-        :param signature_is_on_cleartext:
-        :return:
-        """
-        actor = self.lookup_actor(actor_that_sender_claims_to_be)
-
-    def _lookup_actor(self, actor: str):
-
-        actor = self._key_mapping.get(actor)
-        if actor is None:
-            raise self.ActorNotFound
-        else:
-            return actor
+        self._key_mapping = {}
 
     @property
     def sig_pubkey(self):
