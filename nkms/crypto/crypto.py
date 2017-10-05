@@ -1,7 +1,7 @@
 from npre import umbral
 from npre import elliptic_curve
 from nacl.secret import SecretBox
-from typing import Tuple
+from typing import Tuple, Union
 
 
 class Crypto(object):
@@ -60,6 +60,20 @@ class Crypto(object):
         :return: Generated key in bytes, and EncryptedKey
         """
         return Crypto.PRE.encapsulate(pubkey)
+
+    @staticmethod
+    def ecies_priv2pub(
+        privkey: Union[bytes, elliptic_curve.Element]
+    ) -> elliptic_curve.Element:
+        """
+        Takes a private key (secret bytes or an elliptic_curve.Element) and
+        derives the Public key from it.
+
+        :param privkey: The Private key to derive the public key from
+
+        :return: The Public component of the Private key provided
+        """
+        return Crypto.PRE.priv2pub(privkey)
 
     @staticmethod
     def ecies_decapsulate(
