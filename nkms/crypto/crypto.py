@@ -21,6 +21,19 @@ class Crypto(object):
         return elliptic_curve.deserialize(Crypto.PRE.ecgroup, b'\x00' + privkey)
 
     @staticmethod
+    def pub_bytes2ec(
+        pubkey: bytes,
+    ) -> elliptic_curve.Element:
+        """
+        Turns a public key, in bytes, into an elliptic_curve.Element.
+
+        :param pubkey: Public key to turn into an elliptic_curve.Element.
+
+        :return: elliptic_curve.Element
+        """
+        return elliptic_curve.deserialize(Crypto.PRE.ecgroup, b'\x01' + pubkey)
+
+    @staticmethod
     def symm_encrypt(
         key: bytes,
         plaintext: bytes
