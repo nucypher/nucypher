@@ -1,12 +1,19 @@
-import sha3
 import npre.elliptic_curve as ec
-from nacl.utils import random
+import sha3
 from nacl.secret import SecretBox
+from nacl.utils import random
+
 from nkms.crypto.keypairs import SigningKeypair, EncryptingKeypair
 from npre import umbral
 
 
 class KeyRing(object):
+    """
+    KeyRing is an accessory that a Character carries in order to give her high-level, easy-to-read access to certain specific powers, such as key generation, encryption, signing, and re-encryption.
+
+    A Character's KeyRing is the canonical representation of that Character's capacity to relate to other Characters using lower-level cryptographic functions.
+    """
+
     def __init__(self, sig_privkey=None, enc_privkey=None):
         """
         Initializes a KeyRing object. Uses the private keys to initialize
@@ -19,6 +26,15 @@ class KeyRing(object):
         self.sig_keypair = SigningKeypair(sig_privkey)
         self.enc_keypair = EncryptingKeypair(enc_privkey)
         self.pre = umbral.PRE()
+
+    def encrypt_for(self, recipient, cleartext:bytes, sign: bool=True) ->:
+        """
+
+        :param recipient: The character whose public key will be used to encrypt cleartext.
+        :param cleartext: The secret to be encrypted.
+        :param sign: Whether or not to sign the message.
+        :return: A tuple, (ciphertext, signature).  If sign==False, then signature will be NOT_SIGNED.
+        """
 
     @property
     def sig_pubkey(self):
@@ -87,7 +103,7 @@ class KeyRing(object):
         for key in path_keys:
             path_symm_key, enc_symm_key = self.generate_key(pubkey=key)
             enc_keys.append(
-                    (self.symm_encrypt(path_symm_key, plaintext), enc_symm_key))
+                (self.symm_encrypt(path_symm_key, plaintext), enc_symm_key))
         return enc_keys
 
     def decrypt(self, enc_path_key, enc_symm_key):
@@ -174,7 +190,7 @@ class KeyRing(object):
 
         # Encrypt ephemeral key with an ECIES generated key
         symm_key_bob, enc_symm_key_bob = self.enc_keypair.generate_key(
-                                                            pubkey=pubkey_b)
+            pubkey=pubkey_b)
         enc_priv_e = self.symm_encrypt(symm_key_bob, priv_e_bytes)
 
         reenc_key = self.enc_keypair.rekey(privkey_a, priv_e)
