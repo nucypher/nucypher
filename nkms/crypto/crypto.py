@@ -8,6 +8,19 @@ class Crypto(object):
     PRE = umbral.PRE()
 
     @staticmethod
+    def priv_bytes2ec(
+        privkey: bytes
+    ) -> elliptic_curve.Element:
+        """
+        Turns a private key, in bytes, into an elliptic_curve.Element.
+
+        :param privkey: Private key to turn into an elliptic_curve.Element.
+
+        :return: elliptic_curve.Element
+        """
+        return elliptic_curve.deserialize(Crypto.PRE.ecgroup, b'\x00' + privkey)
+
+    @staticmethod
     def symm_encrypt(
         key: bytes,
         plaintext: bytes
