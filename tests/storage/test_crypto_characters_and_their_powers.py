@@ -12,8 +12,8 @@ def test_signing_only_power_can_sign():
 
     message = b"Llamas."
     content_hash(message)
-    signed_thing = alices_seal(message)
-    verification = alice._crypto_power._power_ups[SigningKeypair].verify(message, signed_thing)
+    signature = alices_seal(message)
+    verification = alice._crypto_power.verify(signature, message)
 
     assert verification
 

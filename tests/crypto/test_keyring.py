@@ -1,7 +1,9 @@
-import unittest
-import msgpack
 import random
+import unittest
+
+import msgpack
 import npre.elliptic_curve as ec
+
 from nkms.crypto.keyring import KeyRing
 # from nacl.secret import SecretBox
 from nkms.crypto.powers import CryptoPower, SigningKeypair
@@ -19,21 +21,21 @@ class TestKeyRing(unittest.TestCase):
         signature = self.power_of_signing.sign(self.msg)
 
         sig = msgpack.loads(signature)
-        self.assertTrue(1, len(sig[0]))     # Check v
-        self.assertTrue(32, len(sig[1]))    # Check r
-        self.assertTrue(32, len(sig[2]))    # Check s
+        self.assertTrue(1, len(sig[0]))  # Check v
+        self.assertTrue(32, len(sig[1]))  # Check r
+        self.assertTrue(32, len(sig[2]))  # Check s
 
     def test_verification(self):
         signature = self.power_of_signing.sign(self.msg)
 
         sig = msgpack.loads(signature)
-        self.assertTrue(1, len(sig[0]))     # Check v
-        self.assertTrue(32, len(sig[1]))    # Check r
-        self.assertTrue(32, len(sig[2]))    # Check s
+        self.assertTrue(1, len(sig[0]))  # Check v
+        self.assertTrue(32, len(sig[1]))  # Check r
+        self.assertTrue(32, len(sig[2]))  # Check s
 
-        # TODO: So ugly.  Obviously CryptoPower needs to be able to verify.
-        is_valid = self.power_of_signing._power_ups[SigningKeypair].verify(self.msg, signature,
-                                         pubkey=self.power_of_signing.public_keys[SigningKeypair])
+        is_valid = self.power_of_signing.verify(signature, self.msg,
+                                                pubkey=self.power_of_signing.public_keys[
+                                                    SigningKeypair])
         self.assertTrue(is_valid)
 
     def test_key_generation(self):
@@ -56,8 +58,8 @@ class TestKeyRing(unittest.TestCase):
 
         # Generate the re-encryption key and the ephemeral key data
         reenc_key, enc_symm_key_bob, enc_priv_e = self.keyring_a.rekey(
-                                                    self.keyring_a.enc_privkey,
-                                                    self.keyring_b.enc_pubkey)
+            self.keyring_a.enc_privkey,
+            self.keyring_b.enc_pubkey)
 
         # Re-encrypt Alice's symm key
         enc_symm_key_ab = self.keyring_a.reencrypt(reenc_key,
@@ -161,7 +163,7 @@ class TestKeyRing(unittest.TestCase):
         path_priv_a = int.from_bytes(path_priv_a, byteorder='big')
 
         rk_ab, enc_symm_key_bob, enc_priv_e = self.keyring_a.rekey(
-                path_priv_a, self.keyring_b.enc_pubkey)
+            path_priv_a, self.keyring_b.enc_pubkey)
 
         enc_path_key, enc_path_symm_key = enc_keys[0]
         reenc_path_symm_key = self.keyring_a.reencrypt(rk_ab, enc_path_symm_key)

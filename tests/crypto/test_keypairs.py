@@ -30,7 +30,7 @@ class TestSigningKeypair(unittest.TestCase):
         self.assertTrue(32, len(sig[1]))    # Check r
         self.assertTrue(32, len(sig[2]))    # Check s
 
-        verify_sig = self.keypair_b.verify(msg_digest, signature,
+        verify_sig = self.keypair_b.verify(signature, msg_digest,
                                            pubkey=self.keypair_a.pub_key)
         self.assertTrue(verify_sig)
 

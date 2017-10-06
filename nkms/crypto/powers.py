@@ -5,6 +5,7 @@ import msgpack
 import sha3
 from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_sign, ecdsa_raw_recover
 
+from nkms.crypto.hash import signature_hash
 from nkms.crypto.keypairs import EncryptingKeypair
 
 
@@ -46,7 +47,7 @@ class CryptoPower(object):
         """
         Signs a message and returns a signature with the keccak hash.
 
-        :param Iterable message: Message to sign in an iterable of bytes
+        :param Iterable messages: Messages to sign in an iterable of bytes
 
         :rtype: bytestring
         :return: Signature of message
@@ -55,13 +56,24 @@ class CryptoPower(object):
             sig_keypair = self._power_ups[SigningKeypair]
         except KeyError:
             raise NoSigningPower
-        # msg_digest = sig_keypair.digest(*messages)  #  This didn't work.  I guess we don't hash things before signing / verifying?
-        msg_digest = b"".join(messages)  # This does work.
+        msg_digest = b"".join(signature_hash(m) for m in messages)  # This does work.
         return sig_keypair.sign(msg_digest)
+
+    def verify(self, signature, *messages, pubkey=None):
+        """
+        Inverse of sign() above.
+        """
+        try:
+            sig_keypair = self._power_ups[SigningKeypair]
+        except KeyError:
+            raise NoSigningPower
+        msg_digest = b"".join(signature_hash(m) for m in messages)  # This does work.
+        return sig_keypair.verify(signature, msg_digest, pubkey)
 
     def encrypt_for(self, pubkey_sign_id, cleartext):
         try:
             enc_keypair = self._power_ups[EncryptingKeypair]
+            # TODO: Actually encrypt.
         except KeyError:
             raise NoSigningPower
 
@@ -119,6 +131,8 @@ class SigningKeypair(PowerUp):
 
     def sign(self, msghash):
         """
+        TODO: Use crypto API sign()
+
         Signs a hashed message and returns a msgpack'ed v, r, and s.
 
         :param bytes msghash: Hash of the message
@@ -129,8 +143,10 @@ class SigningKeypair(PowerUp):
         v, r, s = ecdsa_raw_sign(msghash, self.priv_key)
         return self._vrs_msgpack_dump(v, r, s)
 
-    def verify(self, msghash, signature, pubkey=None):
+    def verify(self, signature, msghash, pubkey=None):
         """
+        TODO: Use crypto API verify()
+
         Takes a msgpacked signature and verifies the message.
 
         :param bytes msghash: The hashed message to verify
