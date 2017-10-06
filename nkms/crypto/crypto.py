@@ -188,6 +188,19 @@ class Crypto(object):
                                       min_shares, total_shares)
 
     @staticmethod
+    def ecies_combine(
+        encrypted_keys: List[umbral.EncryptedKey]
+    ) -> umbral.EncryptedKey:
+        """
+        Combines the encrypted keys together to form a rekey from split_rekey.
+
+        :param encrypted_keys: Encrypted keys to combine
+
+        :return: The combined EncryptedKey of the rekey
+        """
+        return Crypto.PRE.combine(encrypted_keys)
+
+    @staticmethod
     def ecies_reencrypt(
         rekey: Union[bytes, umbral.RekeyFrag],
         enc_key: Union[bytes, umbral.EncryptedKey],
