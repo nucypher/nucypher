@@ -53,3 +53,13 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(bytes, type(dec_text))
         self.assertNotEqual(ciphertext, dec_text)
         self.assertEqual(plaintext, dec_text)
+
+    def test_ecies_gen_priv(self):
+        # Check serialiation first
+        privkey = Crypto.ecies_gen_priv()
+        self.assertEqual(bytes, type(privkey))
+        self.assertEqual(32, len(privkey))
+
+        # Check no serialization
+        privkey = Crypto.ecies_gen_priv(to_bytes=False)
+        self.assertEqual(ec.ec_element, type(privkey))
