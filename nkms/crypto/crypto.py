@@ -135,3 +135,28 @@ class Crypto(object):
         if type(privkey) == bytes:
             privkey = Crypto.priv_bytes2ec(privkey)
         return Crypto.PRE.decapsulate(privkey, enc_key)
+
+    @staticmethod
+    def ecies_rekey(
+        privkey_a: Union[bytes, elliptic_curve.Element],
+        privkey_b: Union[bytes, elliptic_curve.Element],
+        to_bytes: bool = True
+    ) -> Union[bytes, umbral.RekeyFrag]:
+        """
+        Generates a re-encryption key from privkey_a to privkey_b.
+
+        :param privkey_a: Private key to re-encrypt from
+        :param privkey_b: Private key to re-encrypt to
+        :param to_bytes: Format result as bytes?
+
+        :return: Re-encryption key
+        """
+        if type(privkey_a) == bytes:
+            privkey_a = Crypto.priv_bytes2ec(privkey_a)
+        if type(privkey_b) == bytes:
+            privkey_b = Crypto.priv_bytes2ec(privkey_b)
+
+        rk = Crypto.PRE.rekey(privkey_a, privkey_b)
+        if to_bytes:
+            return elliptic_curve.serialize(rk.key)
+        return rk
