@@ -160,3 +160,22 @@ class Crypto(object):
         if to_bytes:
             return elliptic_curve.serialize(rk.key)
         return rk
+
+    @staticmethod
+    def ecies_reencrypt(
+        rekey: Union[bytes, umbral.RekeyFrag],
+        enc_key: Union[bytes, umbral.EncryptedKey],
+    ) -> umbral.EncryptedKey:
+        """
+        Re-encrypts the key provided.
+
+        :param rekey: Re-encryption key to use
+        :param enc_key: Encrypted key to re-encrypt
+
+        :return: The re-encrypted key
+        """
+        if type(rekey) == bytes:
+            rekey = umbral.RekeyFrag(None, Crypto.priv_bytes2ec(rekey))
+        if type(enc_key) == bytes:
+            enc_key = umbral.EncryptedKey(Crypto.priv_bytes2ec(enc_key), None)
+        return Crypto.PRE.reencrypt(rekey, enc_key)
