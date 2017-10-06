@@ -10,7 +10,10 @@ class TestCrypto(unittest.TestCase):
     def setUp(self):
         self.pre = umbral.PRE()
         self.privkey_a = self.pre.gen_priv()
+        self.privkey_a_bytes = ec.serialize(self.privkey_a)[1:]
+
         self.privkey_b = self.pre.gen_priv()
+        self.privkey_b_bytes = ec.serialize(self.privkey_b)[1:]
 
     def test_priv_bytes2ec(self):
         privkey_bytes = ec.serialize(self.privkey_a)[1:]
@@ -63,3 +66,13 @@ class TestCrypto(unittest.TestCase):
         # Check no serialization
         privkey = Crypto.ecies_gen_priv(to_bytes=False)
         self.assertEqual(ec.ec_element, type(privkey))
+
+    def test_ecies_priv2pub(self):
+        # Check serialization first
+        pubkey = Crypto.ecies_priv2pub(self.privkey_a)
+        self.assertEqual(bytes, type(pubkey))
+        self.assertEqual(33, len(pubkey))
+
+        # Check no serialization
+        pubkey = Crypto.ecies_priv2pub(self.privkey_a_bytes, to_bytes=False)
+        self.assertEqual(ec.ec_element, type(pubkey))
