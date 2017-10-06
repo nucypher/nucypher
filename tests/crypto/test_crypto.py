@@ -130,3 +130,23 @@ class TestCrypto(unittest.TestCase):
                                    to_bytes=False)
         self.assertEqual(umbral.RekeyFrag, type(rekey))
         self.assertEqual(ec.ec_element, type(rekey.key))
+
+    def test_ecies_split_rekey(self):
+        # Check w/o conversion
+        frags = Crypto.ecies_split_rekey(self.privkey_a, self.privkey_b, 3, 4)
+        self.assertEqual(list, type(frags))
+        self.assertEqual(4, len(frags))
+
+        # Check with conversion
+        frags = Crypto.ecies_split_rekey(self.privkey_a_bytes,
+                                         self.privkey_b_bytes, 3, 4)
+        self.assertEqual(list, type(frags))
+        self.assertEqual(4, len(frags))
+
+    def test_ecies_combine(self):
+        # TODO
+        pass
+
+    def test_ecies_reencrypt(self):
+        # TODO
+        pass
