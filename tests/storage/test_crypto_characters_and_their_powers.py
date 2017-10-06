@@ -1,7 +1,21 @@
 from nkms.characters import Alice, Ursula
 import pytest
 
+from nkms.crypto.hash import content_hash
 from nkms.crypto.powers import CryptoPower, SigningKeypair, NoSigningPower
+
+
+def test_signing_only_power_can_sign():
+    signing_only = CryptoPower(power_ups=[SigningKeypair])
+    alice = Alice(crypto_power=signing_only)
+    alices_seal = alice.seal
+
+    message = b"Llamas."
+    content_hash(message)
+    signed_thing = alices_seal(message)
+    verification = alice._crypto_power._power_ups[SigningKeypair].verify(message, signed_thing)
+
+    assert verification
 
 
 def test_signing_only_power_cannot_encrypt():

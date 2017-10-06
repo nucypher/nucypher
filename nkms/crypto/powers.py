@@ -55,7 +55,8 @@ class CryptoPower(object):
             sig_keypair = self._power_ups[SigningKeypair]
         except KeyError:
             raise NoSigningPower
-        msg_digest = sig_keypair.digest(*messages)
+        # msg_digest = sig_keypair.digest(*messages)  #  This didn't work.  I guess we don't hash things before signing / verifying?
+        msg_digest = b"".join(messages)  # This does work.
         return sig_keypair.sign(msg_digest)
 
     def encrypt_for(self, pubkey_sign_id, cleartext):
