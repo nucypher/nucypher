@@ -15,6 +15,12 @@ class TestCrypto(unittest.TestCase):
         self.privkey_b = self.pre.gen_priv()
         self.privkey_b_bytes = ec.serialize(self.privkey_b)[1:]
 
+        self.pubkey_a = self.pre.priv2pub(self.privkey_a)
+        self.pubkey_b = self.pre.priv2pub(self.privkey_b)
+
+        self.pubkey_a_bytes = ec.serialize(self.pubkey_a)[1:]
+        self.pubkey_b_bytes = ec.serialize(self.pubkey_b)[1:]
+
     def test_priv_bytes2ec(self):
         privkey_bytes = ec.serialize(self.privkey_a)[1:]
         self.assertEqual(bytes, type(privkey_bytes))
@@ -76,3 +82,39 @@ class TestCrypto(unittest.TestCase):
         # Check no serialization
         pubkey = Crypto.ecies_priv2pub(self.privkey_a_bytes, to_bytes=False)
         self.assertEqual(ec.ec_element, type(pubkey))
+
+    def test_ecies_encapsulate(self):
+        # Check from ec.element
+        key, enc_key = Crypto.ecies_encapsulate(self.pubkey_a)
+        self.assertNotEqual(key, enc_key)
+        self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(32, len(key))
+
+        # Check from bytes
+        key, enc_key = Crypto.ecies_encapsulate(self.pubkey_a_bytes)
+        self.assertNotEqual(key, enc_key)
+        self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(32, len(key))
+
+    def test_ecies_decapsulate(self):
+        # Check from ec.element
+        key, enc_key = Crypto.ecies_encapsulate(self.pubkey_a)
+        self.assertNotEqual(key, enc_key)
+        self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(32, len(key))
+
+        dec_key = Crypto.ecies_decapsulate(self.privkey_a, enc_key)
+        self.assertEqual(bytes, type(dec_key))
+        self.assertEqual(32, len(dec_key))
+        self.assertEqual(key, dec_key)
+
+        # Check from bytes
+        key, enc_key = Crypto.ecies_encapsulate(self.pubkey_a_bytes)
+        self.assertNotEqual(key, enc_key)
+        self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(32, len(key))
+
+        dec_key = Crypto.ecies_decapsulate(self.privkey_a, enc_key)
+        self.assertEqual(bytes, type(dec_key))
+        self.assertEqual(32, len(dec_key))
+        self.assertEqual(key, dec_key)

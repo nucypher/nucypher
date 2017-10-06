@@ -116,7 +116,6 @@ class Crypto(object):
         """
         if type(pubkey) == bytes:
             pubkey = Crypto.pub_bytes2ec(pubkey)
-        pubkey = elliptic_curve.deserialize(Crypto.PRE.ecgroup, pubkey)
         return Crypto.PRE.encapsulate(pubkey)
 
     @staticmethod
