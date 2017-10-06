@@ -1,7 +1,7 @@
 from npre import umbral
 from npre import elliptic_curve
 from nacl.secret import SecretBox
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
 
 class Crypto(object):
@@ -160,6 +160,32 @@ class Crypto(object):
         if to_bytes:
             return elliptic_curve.serialize(rk.key)
         return rk
+
+    @staticmethod
+    def ecies_split_rekey(
+        privkey_a: Union[bytes, elliptic_curve.Element],
+        privkey_b: Union[bytes, elliptic_curve.Element],
+        min_shares: int,
+        total_shares: int
+    ) -> List[umbral.RekeyFrag]:
+        """
+        Performs a split-key re-encryption key generation where a minimum
+        number of shares `min_shares` are required to reproduce a rekey.
+        Will split a rekey into `total_shares`.
+
+        :param privkey_a: Privkey to re-encrypt from
+        :param privkey_b: Privkey to re-encrypt to
+        :param min_shares: Minimum shares needed to reproduce rekey
+        :param total_shares: Total shares to generate from split-rekey gen
+
+        :return: A list of RekeyFrags to distribute
+        """
+        if type(privkey_a) == bytes:
+            privkey_a = Crypto.priv_bytes2ec(privkey_a)
+        if type(privkey_b) == bytes:
+            privkey_b = Crypto.priv_bytes2ec(privkey_b)
+        return Crypto.PRE.split_rekey(privkey_a, privkey_b,
+                                      min_shares, total_shares)
 
     @staticmethod
     def ecies_reencrypt(
