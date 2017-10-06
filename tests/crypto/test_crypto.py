@@ -1,4 +1,6 @@
 import unittest
+import random
+from nacl.utils import EncryptedMessage
 from npre import umbral
 from npre import elliptic_curve as ec
 from nkms.crypto.crypto import Crypto
@@ -30,3 +32,24 @@ class TestCrypto(unittest.TestCase):
         pubkey_ec = Crypto.pub_bytes2ec(pubkey_bytes)
         self.assertEqual(ec.ec_element, type(pubkey_ec))
         self.assertEqual(pubkey_ec, pubkey)
+
+    def test_symm_encrypt(self):
+        key = random._urandom(32)
+        plaintext = b'this is a test'
+
+        ciphertext = Crypto.symm_encrypt(key, plaintext)
+        self.assertEqual(EncryptedMessage, type(ciphertext))
+        self.assertNotEqual(plaintext, ciphertext)
+
+    def test_symm_decrypt(self):
+        key = random._urandom(32)
+        plaintext = b'this is a test'
+
+        ciphertext = Crypto.symm_encrypt(key, plaintext)
+        self.assertEqual(EncryptedMessage, type(ciphertext))
+        self.assertNotEqual(plaintext, ciphertext)
+
+        dec_text = Crypto.symm_decrypt(key, ciphertext)
+        self.assertEqual(bytes, type(dec_text))
+        self.assertNotEqual(ciphertext, dec_text)
+        self.assertEqual(plaintext, dec_text)
