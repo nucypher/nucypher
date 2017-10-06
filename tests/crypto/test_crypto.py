@@ -118,3 +118,15 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(bytes, type(dec_key))
         self.assertEqual(32, len(dec_key))
         self.assertEqual(key, dec_key)
+
+    def test_ecies_rekey(self):
+        # Check serialization first
+        rekey = Crypto.ecies_rekey(self.privkey_a, self.privkey_b)
+        self.assertEqual(bytes, type(rekey))
+        self.assertEqual(32, len(rekey))
+
+        # Check no serialization
+        rekey = Crypto.ecies_rekey(self.privkey_a_bytes, self.privkey_b_bytes,
+                                   to_bytes=False)
+        self.assertEqual(umbral.RekeyFrag, type(rekey))
+        self.assertEqual(ec.ec_element, type(rekey.key))

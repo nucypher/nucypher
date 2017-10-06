@@ -157,7 +157,7 @@ class Crypto(object):
 
         rk = Crypto.PRE.rekey(privkey_a, privkey_b)
         if to_bytes:
-            return elliptic_curve.serialize(rk.key)
+            return elliptic_curve.serialize(rk.key)[1:]
         return rk
 
     @staticmethod
