@@ -1,6 +1,7 @@
 from kademlia.network import Server
 from nkms.crypto.constants import NOT_SIGNED
 from nkms.crypto.keyring import KeyRing
+from nkms.crypto.powers import CryptoPower, SigningKeypair
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 
 
@@ -12,10 +13,24 @@ class Character(object):
     _server_class = Server
     _actor_mapping = {}
 
-    def __init__(self, attach_server=True, keyring: KeyRing=None):
+    class ActorNotFound(Exception):
+        """raised when we try to interact with an actor of whom we haven't learned yet."""
+
+    def __init__(self, attach_server=True, crypto_power: CryptoPower=None):
         if attach_server:
             self.attach_server()
-        self.keyring = keyring or KeyRing()
+        self._crypto_power = crypto_power or CryptoPower(power_ups=[SigningKeypair])
+
+        class Seal(object):
+            """
+            Can be called to sign something or used to express the signing public key as bytes.
+            """
+            def __call__(seal_instance, *messages_to_sign):
+                return self._crypto_power.sign(*messages_to_sign)
+            def as_bytes(seal_instance):
+                return self._crypto_power.pubkey_sig_bytes()
+
+        self.seal = Seal()
 
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs) -> None:
@@ -38,14 +53,14 @@ class Character(object):
         Optionally signs the message as well.
 
         :param recipient: The character whose public key will be used to encrypt cleartext.
-        :param cleartext: The secret to be encrypted.
+        :param cleartext: The secret    to be encrypted.
         :param sign: Whether or not to sign the message.
         :param sign_cleartext: When signing, the cleartext is signed if this is True,  Otherwise, the resulting ciphertext is signed.
         :return: A tuple, (ciphertext, signature).  If sign==False, then signature will be NOT_SIGNED.
         """
         actor = self._lookup_actor(recipient)
-        pubkey_sign_id = actor.pubkey_collection['signing']
-        ciphertext = self.keyring.encrypt_for(pubkey_sign_id)
+        pubkey_sign_id = actor.seal()  # I don't even like this.  I prefer .seal(), which
+        ciphertext = self._crypto_power.encrypt_for(pubkey_sign_id, cleartext)
 
         if sign:
             if sign_cleartext:
@@ -78,7 +93,7 @@ class Character(object):
     def _lookup_actor(self, actor_id: str):
         try:
             return self._actor_mapping[actor_id]
-        except KeyError::
+        except KeyError:
             raise self.ActorNotFound("We haven't learned of an actor with ID {}".format(actor_id))
 
 
@@ -92,3 +107,17 @@ class Alice(Character):
     def find_best_ursula(self):
         # TODO: Right now this just finds the nearest node and returns its ip and port.  Make it do something useful.
         return self.server.bootstrappableNeighbors()[0]
+
+
+    def generate_re_encryption_keys(self,
+                                    pubkey_enc_bob,
+                                    m,
+                                    n):
+        # TODO: Make this actually work.
+        kfrags = [
+            'sfasdfsd9',
+            'dfasd09fi',
+            'sdfksd3f9',
+        ]
+
+        return kfrags

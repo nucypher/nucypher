@@ -77,7 +77,7 @@ def test_complete_treasure_map_flow():
 
 
 def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
-    keychain_alice = KeyRing()
+    alice = Alice()
     keychain_bob = KeyRing()
     keychain_ursula = KeyRing()
 
@@ -92,7 +92,7 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
 
     # Now, Alice needs to find N Ursulas to whom to make the offer.
     networky_stuff = MockNetworkyStuff()
-    policy_manager = PolicyManagerForAlice(keychain_alice)
+    policy_manager = PolicyManagerForAlice(alice)
 
     policy_group = policy_manager.create_policy_group(
         keychain_bob.enc_keypair.pub_key,

@@ -3,7 +3,7 @@ import sha3
 from nacl.secret import SecretBox
 from nacl.utils import random
 
-from nkms.crypto.keypairs import SigningKeypair, EncryptingKeypair
+from nkms.crypto.keypairs import EncryptingKeypair
 from npre import umbral
 
 
@@ -19,7 +19,7 @@ class KeyRing(object):
         raised if a method tries to find an actor that we don't yet know about.
         """
 
-    def __init__(self, sig_privkey=None, enc_privkey=None):
+    def __init__(self, enc_privkey=None):
         """
         Initializes a KeyRing object. Uses the private keys to initialize
         their respective objects, if provided. If not, it will generate new
@@ -28,18 +28,9 @@ class KeyRing(object):
         :param bytes sig_privkey: Private key in bytes of ECDSA signing keypair
         :param bytes enc_privkey: Private key in bytes of encrypting keypair
         """
-        self.sig_keypair = SigningKeypair(sig_privkey)
         self.enc_keypair = EncryptingKeypair(enc_privkey)
         self.pre = umbral.PRE()
         self._key_mapping = {}
-
-    @property
-    def sig_pubkey(self):
-        return self.sig_keypair.pub_key
-
-    @property
-    def sig_privkey(self):
-        return self.sig_keypair.priv_key
 
     @property
     def enc_pubkey(self):
@@ -117,18 +108,6 @@ class KeyRing(object):
         """
         dec_symm_key = self.decrypt_key(enc_symm_key)
         return self.symm_decrypt(dec_symm_key, enc_path_key)
-
-    def sign(self, message):
-        """
-        Signs a message and returns a signature with the keccak hash.
-
-        :param Iterable message: Message to sign in an iterable of bytes
-
-        :rtype: bytestring
-        :return: Signature of message
-        """
-        msg_digest = self.sig_keypair.digest(message)
-        return self.sig_keypair.sign(msg_digest)
 
     def verify(self, message, signature, pubkey=None):
         """

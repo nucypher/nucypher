@@ -2,7 +2,8 @@ import unittest
 import sha3
 import msgpack
 import random
-from nkms.crypto.keypairs import SigningKeypair, EncryptingKeypair
+from nkms.crypto.keypairs import EncryptingKeypair
+from nkms.crypto.powers import SigningKeypair
 
 
 class TestSigningKeypair(unittest.TestCase):

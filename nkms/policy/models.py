@@ -1,9 +1,8 @@
 import msgpack
 
+from nkms.characters import Alice
 from nkms.crypto import random
 from nkms.crypto.hash import content_hash
-from nkms.crypto.keyring import KeyRing
-from nkms.crypto.pre.keygen import generate_re_encryption_keys
 from nkms.policy.constants import UNKNOWN_KFRAG
 
 
@@ -29,8 +28,8 @@ class PolicyManager(object):
 
 
 class PolicyManagerForAlice(PolicyManager):
-    def __init__(self, keychain_alice: KeyRing):
-        self.keychain_alice = keychain_alice
+    def __init__(self, owner: Alice):
+        self.owner = owner
 
     def find_n_ursulas(self, networky_stuff, n, offer: PolicyOffer) -> list:
         """
@@ -57,7 +56,7 @@ class PolicyManagerForAlice(PolicyManager):
         """
         Alice dictates a new group of policies.
         """
-        re_enc_keys = generate_re_encryption_keys(self.keychain_alice.enc_keypair.priv_key,
+        re_enc_keys = self.owner.generate_re_encryption_keys(
                                                   pubkey_enc_bob,
                                                   m,
                                                   n)
@@ -65,7 +64,7 @@ class PolicyManagerForAlice(PolicyManager):
         for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
                 rekey,
-                self.keychain_alice.sig_keypair.pubkey_bytes(),
+                self.owner.seal.as_bytes(),
             )
             policies.append(policy)
 

@@ -4,17 +4,19 @@ import random
 import npre.elliptic_curve as ec
 from nkms.crypto.keyring import KeyRing
 # from nacl.secret import SecretBox
+from nkms.crypto.powers import CryptoPower, SigningKeypair
 
 
 class TestKeyRing(unittest.TestCase):
     def setUp(self):
+        self.power_of_signing = CryptoPower(power_ups=[SigningKeypair])
         self.keyring_a = KeyRing()
         self.keyring_b = KeyRing()
 
         self.msg = b'this is a test'
 
     def test_signing(self):
-        signature = self.keyring_a.sign(self.msg)
+        signature = self.power_of_signing.sign(self.msg)
 
         sig = msgpack.loads(signature)
         self.assertTrue(1, len(sig[0]))     # Check v
@@ -22,15 +24,16 @@ class TestKeyRing(unittest.TestCase):
         self.assertTrue(32, len(sig[2]))    # Check s
 
     def test_verification(self):
-        signature = self.keyring_a.sign(self.msg)
+        signature = self.power_of_signing.sign(self.msg)
 
         sig = msgpack.loads(signature)
         self.assertTrue(1, len(sig[0]))     # Check v
         self.assertTrue(32, len(sig[1]))    # Check r
         self.assertTrue(32, len(sig[2]))    # Check s
 
-        is_valid = self.keyring_b.verify(self.msg, signature,
-                                         pubkey=self.keyring_a.sig_pubkey)
+        # TODO: So ugly.  Obviously CryptoPower needs to be able to verify.
+        is_valid = self.power_of_signing._power_ups[SigningKeypair].verify(self.msg, signature,
+                                         pubkey=self.power_of_signing.public_keys[SigningKeypair])
         self.assertTrue(is_valid)
 
     def test_key_generation(self):
