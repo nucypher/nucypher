@@ -10,26 +10,26 @@ class Crypto(object):
     @staticmethod
     def priv_bytes2ec(
         privkey: bytes
-    ) -> elliptic_curve.Element:
+    ) -> elliptic_curve.ec_element:
         """
-        Turns a private key, in bytes, into an elliptic_curve.Element.
+        Turns a private key, in bytes, into an elliptic_curve.ec_element.
 
-        :param privkey: Private key to turn into an elliptic_curve.Element.
+        :param privkey: Private key to turn into an elliptic_curve.ec_element.
 
-        :return: elliptic_curve.Element
+        :return: elliptic_curve.ec_element
         """
         return elliptic_curve.deserialize(Crypto.PRE.ecgroup, b'\x00' + privkey)
 
     @staticmethod
     def pub_bytes2ec(
         pubkey: bytes,
-    ) -> elliptic_curve.Element:
+    ) -> elliptic_curve.ec_element:
         """
-        Turns a public key, in bytes, into an elliptic_curve.Element.
+        Turns a public key, in bytes, into an elliptic_curve.ec_element.
 
-        :param pubkey: Public key to turn into an elliptic_curve.Element.
+        :param pubkey: Public key to turn into an elliptic_curve.ec_element.
 
-        :return: elliptic_curve.Element
+        :return: elliptic_curve.ec_element
         """
         return elliptic_curve.deserialize(Crypto.PRE.ecgroup, b'\x01' + pubkey)
 
@@ -68,7 +68,7 @@ class Crypto(object):
     @staticmethod
     def ecies_gen_priv(
         to_bytes: bool = True
-    ) -> Union[bytes, elliptic_curve.Element]:
+    ) -> Union[bytes, elliptic_curve.ec_element]:
         """
         Generates an ECIES private key.
 
@@ -83,11 +83,11 @@ class Crypto(object):
 
     @staticmethod
     def ecies_priv2pub(
-        privkey: Union[bytes, elliptic_curve.Element],
+        privkey: Union[bytes, elliptic_curve.ec_element],
         to_bytes: bool = True
-    ) -> Union[bytes, elliptic_curve.Element]:
+    ) -> Union[bytes, elliptic_curve.ec_element]:
         """
-        Takes a private key (secret bytes or an elliptic_curve.Element) and
+        Takes a private key (secret bytes or an elliptic_curve.ec_element) and
         derives the Public key from it.
 
         :param privkey: The Private key to derive the public key from
@@ -105,7 +105,7 @@ class Crypto(object):
 
     @staticmethod
     def ecies_encapsulate(
-        pubkey: Union[bytes, elliptic_curve.Element],
+        pubkey: Union[bytes, elliptic_curve.ec_element],
     ) -> Tuple[bytes, umbral.EncryptedKey]:
         """
         Encapsulates an ECIES generated symmetric key for a public key.
@@ -121,7 +121,7 @@ class Crypto(object):
 
     @staticmethod
     def ecies_decapsulate(
-        privkey: Union[bytes, elliptic_curve.Element],
+        privkey: Union[bytes, elliptic_curve.ec_element],
         enc_key: umbral.EncryptedKey
     ) -> bytes:
         """
@@ -138,8 +138,8 @@ class Crypto(object):
 
     @staticmethod
     def ecies_rekey(
-        privkey_a: Union[bytes, elliptic_curve.Element],
-        privkey_b: Union[bytes, elliptic_curve.Element],
+        privkey_a: Union[bytes, elliptic_curve.ec_element],
+        privkey_b: Union[bytes, elliptic_curve.ec_element],
         to_bytes: bool = True
     ) -> Union[bytes, umbral.RekeyFrag]:
         """
@@ -163,8 +163,8 @@ class Crypto(object):
 
     @staticmethod
     def ecies_split_rekey(
-        privkey_a: Union[bytes, elliptic_curve.Element],
-        privkey_b: Union[bytes, elliptic_curve.Element],
+        privkey_a: Union[bytes, elliptic_curve.ec_element],
+        privkey_b: Union[bytes, elliptic_curve.ec_element],
         min_shares: int,
         total_shares: int
     ) -> List[umbral.RekeyFrag]:
