@@ -4,6 +4,7 @@ import unittest
 import msgpack
 import npre.elliptic_curve as ec
 
+from nkms.crypto.crypto import Crypto
 from nkms.crypto.keyring import KeyRing
 # from nacl.secret import SecretBox
 from nkms.crypto.powers import CryptoPower, SigningKeypair
@@ -33,9 +34,9 @@ class TestKeyRing(unittest.TestCase):
         self.assertTrue(32, len(sig[1]))  # Check r
         self.assertTrue(32, len(sig[2]))  # Check s
 
-        is_valid = self.power_of_signing.verify(signature, self.msg,
-                                                pubkey=self.power_of_signing.public_keys[
-                                                    SigningKeypair])
+        msghash = Crypto.digest(self.msg)
+        is_valid = Crypto.verify(signature, msghash,
+                                 pubkey=self.power_of_signing.pubkey_sig_tuple())
         self.assertTrue(is_valid)
 
     def test_key_generation(self):

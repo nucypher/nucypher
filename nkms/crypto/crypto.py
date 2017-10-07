@@ -1,7 +1,11 @@
+import msgpack
+from py_ecc.secp256k1.secp256k1 import ecdsa_raw_recover
+
 from npre import umbral
 from npre import elliptic_curve
 from nacl.secret import SecretBox
 from typing import Tuple, Union, List
+import sha3
 
 
 class Crypto(object):
@@ -217,3 +221,52 @@ class Crypto(object):
         if type(enc_key) == bytes:
             enc_key = umbral.EncryptedKey(Crypto.priv_bytes2ec(enc_key), None)
         return Crypto.PRE.reencrypt(rekey, enc_key)
+
+    @staticmethod
+    def vrs_msgpack_dump(v, r, s):
+        v_bytes = v.to_bytes(1, byteorder='big')
+        r_bytes = r.to_bytes(32, byteorder='big')
+        s_bytes = s.to_bytes(32, byteorder='big')
+        return msgpack.dumps((v_bytes, r_bytes, s_bytes))
+
+    @staticmethod
+    def vrs_msgpack_load(msgpack_vrs):
+        sig = msgpack.loads(msgpack_vrs)
+        v = int.from_bytes(sig[0], byteorder='big')
+        r = int.from_bytes(sig[1], byteorder='big')
+        s = int.from_bytes(sig[2], byteorder='big')
+        return (v, r, s)
+
+    @staticmethod
+    def digest(*messages):
+        """
+        Accepts an iterable containing bytes and digests it.
+
+        :param bytes *args: Data to hash
+
+        :rtype: bytes
+        :return: bytestring of digested data
+        """
+        hash = sha3.keccak_256()
+        for message in messages:
+            hash.update(message)
+        return hash.digest()
+
+    @staticmethod
+    def verify(signature, msghash, pubkey=None):
+        """
+        Takes a msgpacked signature and verifies the message.
+
+        :param bytes msghash: The hashed message to verify
+        :param bytes signature: The msgpacked signature (v, r, and s)
+        :param bytes pubkey: Pubkey to validate signature for
+                             Default is the keypair's pub_key.
+
+        :rtype: Boolean
+        :return: Is the signature valid or not?
+        """
+        sig = Crypto.vrs_msgpack_load(signature)
+        # Generate the public key from the signature and validate
+        # TODO: Look into fixed processing time functions for comparison
+        verify_sig = ecdsa_raw_recover(msghash, sig)
+        return verify_sig == pubkey
