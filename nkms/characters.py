@@ -29,6 +29,9 @@ class Character(object):
         If neither crypto_power nor crypto_power_ups are provided, we give this Character all CryptoPowerUps
         listed in their _default_crypto_powerups attribute.
         """
+        if crypto_power and crypto_power_ups:
+            raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
+
         if attach_server:
             self.attach_server()
         if crypto_power:
