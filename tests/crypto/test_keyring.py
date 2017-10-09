@@ -104,14 +104,14 @@ class TestKeyRing(unittest.TestCase):
         self.assertTrue(dec_key == raw_key)
 
     def test_symm_encryption(self):
-        key = self.keyring_a.secure_random(32)
+        key = Crypto.secure_random(32)
         self.assertEqual(32, len(key))
 
         ciphertext = self.keyring_a.symm_encrypt(key, self.msg)
         self.assertTrue(self.msg not in ciphertext)
 
     def test_symm_decryption(self):
-        key = self.keyring_a.secure_random(32)
+        key = Crypto.secure_random(32)
         self.assertEqual(32, len(key))
 
         ciphertext = self.keyring_a.symm_encrypt(key, self.msg)
@@ -193,5 +193,5 @@ class TestKeyRing(unittest.TestCase):
 
     def test_secure_random(self):
         length = random.randrange(1, 100)
-        rand_bytes = self.keyring_a.secure_random(length)
+        rand_bytes = Crypto.secure_random(length)
         self.assertEqual(length, len(rand_bytes))

@@ -5,6 +5,7 @@ import pytest
 
 from nkms import crypto
 from nkms.characters import Ursula, Alice, Character
+from nkms.crypto.crypto import Crypto
 from nkms.crypto.encrypting_keypair import EncryptingKeypair
 from nkms.crypto.keystore import KeyStore
 from nkms.policy.constants import NON_PAYMENT
@@ -57,7 +58,7 @@ def test_complete_treasure_map_flow():
 
     treasure_map = TreasureMap()
     for i in range(50):
-        treasure_map.nodes.append(crypto.random(50))
+        treasure_map.nodes.append(Crypto.secure_random(50))
 
     encrypted_treasure_map = bob_encrypting_keypair.encrypt(treasure_map.packed_payload())
     signature = "THIS IS A SIGNATURE"

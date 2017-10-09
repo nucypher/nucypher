@@ -6,6 +6,7 @@ from npre import elliptic_curve
 from nacl.secret import SecretBox
 from typing import Tuple, Union, List
 import sha3
+from nacl.utils import random  as nacl_random
 
 
 class Crypto(object):
@@ -270,3 +271,7 @@ class Crypto(object):
         # TODO: Look into fixed processing time functions for comparison
         verify_sig = ecdsa_raw_recover(msghash, sig)
         return verify_sig == pubkey
+
+    @staticmethod
+    def secure_random(length: int) -> bytes:
+        return nacl_random(length)
