@@ -15,7 +15,7 @@ class Character(object):
     _actor_mapping = {}
     _default_crypto_powerups = None
 
-    class ActorNotFound(Exception):
+    class NotFound(KeyError):
         """raised when we try to interact with an actor of whom we haven't learned yet."""
 
     def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
@@ -103,7 +103,7 @@ class Character(object):
         """
         Inverse of encrypt_for.
 
-        :param actor_that_sender_claims_to_be: The str representation of the actor on this KeyRing
+        :param actor_that_sender_claims_to_be: The str representation of the actor on this KeyStore
             that the sender is claiming to be.
         :param message:
         :param decrypt:
@@ -111,7 +111,7 @@ class Character(object):
         :return:
         """
         actor = self._lookup_actor(actor_whom_sender_claims_to_be)
-        signature_pub_key = actor.seal.as_tuple()  # TODO: and again, maybe in the real world this looks in KeyStorage.
+        signature_pub_key = actor.seal.as_tuple()  # TODO: and again, maybe in the real world this looks in KeyStore.
         msg_digest = b"".join(signature_hash(m) for m in messages)  # This does work.
         return Crypto.verify(signature, msg_digest, signature_pub_key)
 
@@ -119,7 +119,7 @@ class Character(object):
         try:
             return self._actor_mapping[actor.id()]
         except KeyError:
-            raise self.ActorNotFound("We haven't learned of an actor with ID {}".format(actor.id()))
+            raise self.NotFound("We haven't learned of an actor with ID {}".format(actor.id()))
 
     def id(self):
         return "whatever actor id ends up being - {}".format(id(self))

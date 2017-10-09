@@ -23,7 +23,7 @@ class NoEncryptingPower(PowerUpError):
 class CryptoPower(object):
     def __init__(self, power_ups=[]):
         self._power_ups = {}
-        self.public_keys = {}  # TODO: The keys here will actually be IDs for looking up in a KeyRing.
+        self.public_keys = {}  # TODO: The keys here will actually be IDs for looking up in a KeyStore.
 
         if power_ups:
             for power_up in power_ups:
@@ -41,17 +41,17 @@ class CryptoPower(object):
         self._power_ups[power_up_class] = power_up_instance
 
         if power_up.confers_public_key:
-            self.public_keys[power_up_class] = power_up_instance.public_key()  # TODO: Make this an ID for later lookup on a KeyRing.
+            self.public_keys[power_up_class] = power_up_instance.public_key()  # TODO: Make this an ID for later lookup on a KeyStore.
 
 
     def pubkey_sig_bytes(self):
         try:
-            return self._power_ups[SigningKeypair].pubkey_bytes()  # TODO: Turn this into an ID lookup on a KeyRing.
+            return self._power_ups[SigningKeypair].pubkey_bytes()  # TODO: Turn this into an ID lookup on a KeyStore.
         except KeyError:
             raise NoSigningPower
     def pubkey_sig_tuple(self):
         try:
-            return self._power_ups[SigningKeypair].pub_key  # TODO: Turn this into an ID lookup on a KeyRing.
+            return self._power_ups[SigningKeypair].pub_key  # TODO: Turn this into an ID lookup on a KeyStore.
         except KeyError:
             raise NoSigningPower
 

@@ -7,21 +7,14 @@ from nkms.crypto.keypairs import EncryptingKeypair
 from npre import umbral
 
 
-class KeyRing(object):
+class KeyStore(object):
     """
-    KeyRing is an accessory that a Character carries in order to give her high-level, easy-to-read access to certain specific powers, such as key generation, encryption, signing, and re-encryption.
-
-    A Character's KeyRing is the canonical representation of that Character's capacity to relate to other Characters using lower-level cryptographic functions.
+    A vault of cryptographic keys owned by and stored on behalf of a discrete actor.
     """
-
-    class ActorNotFound(KeyError):
-        """
-        raised if a method tries to find an actor that we don't yet know about.
-        """
 
     def __init__(self, enc_privkey=None):
         """
-        Initializes a KeyRing object. Uses the private keys to initialize
+        Initializes a KeyStore object. Uses the private keys to initialize
         their respective objects, if provided. If not, it will generate new
         keypairs.
 

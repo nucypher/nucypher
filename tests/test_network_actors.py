@@ -1,20 +1,17 @@
 import asyncio
-import unittest
-
 import datetime
 
 import pytest
 
 from nkms import crypto
-from nkms.characters import Ursula, Alice
+from nkms.characters import Ursula, Alice, Character
 from nkms.crypto.encrypting_keypair import EncryptingKeypair
-from nkms.crypto.keyring import KeyRing
+from nkms.crypto.keystore import KeyStore
 from nkms.policy.constants import NON_PAYMENT
 from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, PolicyGroup
 
 
 class MockEncryptingPair(object):
-
     def encrypt(self, cleartext):
         pass
 
@@ -50,9 +47,9 @@ def test_complete_treasure_map_flow():
     Shows that Alice can share a TreasureMap with Ursula and that Bob can receive and decrypt it.
     """
 
-    keyring_alice = KeyRing()
+    keyring_alice = KeyStore()
     bob_encrypting_keypair = EncryptingKeypair()
-    keyring_ursula = KeyRing()
+    keyring_ursula = KeyStore()
 
     alice, ursula, event_loop = test_alice_finds_ursula()
 
@@ -72,14 +69,15 @@ def test_complete_treasure_map_flow():
     event_loop.run_until_complete(setter)
 
     treasure_map_as_set_on_network = list(ursula.server.storage.items())[0][1]
-    treasure_map_as_decrypted_by_bob = bob_encrypting_keypair.decrypt(treasure_map_as_set_on_network)
+    treasure_map_as_decrypted_by_bob = bob_encrypting_keypair.decrypt(
+        treasure_map_as_set_on_network)
     assert treasure_map_as_decrypted_by_bob == treasure_map.packed_payload()
 
 
 def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     alice = Alice()
-    keychain_bob = KeyRing()
-    keychain_ursula = KeyRing()
+    keychain_bob = KeyStore()
+    keychain_ursula = KeyStore()
 
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
@@ -124,3 +122,19 @@ def test_alice_finds_ursula():
     _discovered_ursula_ip, discovered_ursula_port = alice.find_best_ursula()
     assert ursula_port == ursula_port
     return alice, ursula, event_loop
+
+
+def test_trying_to_find_unknown_actor_raises_not_found():
+    terry = Character()
+    alice = Alice()
+
+    message = b"some_message"
+    signature = alice.seal(message)
+
+    # Terry can't reference Alice...
+    with pytest.raises(Character.NotFound):
+        verification = terry.verify_from(alice, signature, message)
+
+    # ...before learning about Alice.
+    terry.learn_about_actor(alice)
+    verification = terry.verify_from(alice, signature, message)

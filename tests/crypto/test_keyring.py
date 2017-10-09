@@ -5,7 +5,7 @@ import msgpack
 import npre.elliptic_curve as ec
 
 from nkms.crypto.crypto import Crypto
-from nkms.crypto.keyring import KeyRing
+from nkms.crypto.keystore import KeyStore
 # from nacl.secret import SecretBox
 from nkms.crypto.powers import CryptoPower, SigningKeypair
 
@@ -13,8 +13,8 @@ from nkms.crypto.powers import CryptoPower, SigningKeypair
 class TestKeyRing(unittest.TestCase):
     def setUp(self):
         self.power_of_signing = CryptoPower(power_ups=[SigningKeypair])
-        self.keyring_a = KeyRing()
-        self.keyring_b = KeyRing()
+        self.keyring_a = KeyStore()
+        self.keyring_b = KeyStore()
 
         self.msg = b'this is a test'
 
@@ -171,7 +171,7 @@ class TestKeyRing(unittest.TestCase):
 
         priv_e = self.keyring_b.decrypt(enc_priv_e, enc_symm_key_bob)
         priv_e = int.from_bytes(priv_e, byteorder='big')
-        keyring_e = KeyRing(enc_privkey=priv_e)
+        keyring_e = KeyStore(enc_privkey=priv_e)
 
         dec_key = keyring_e.decrypt(enc_path_key, reenc_path_symm_key)
         self.assertEqual(plaintext, dec_key)
@@ -186,7 +186,7 @@ class TestKeyRing(unittest.TestCase):
 
         path_priv_a = self.keyring_a._derive_path_key(b'', is_pub=False)
         path_priv_a = int.from_bytes(path_priv_a, byteorder='big')
-        keyring_a_path = KeyRing(enc_privkey=path_priv_a)
+        keyring_a_path = KeyStore(enc_privkey=path_priv_a)
 
         dec_key = keyring_a_path.decrypt(*enc_keys[0])
         self.assertEqual(plaintext, dec_key)
