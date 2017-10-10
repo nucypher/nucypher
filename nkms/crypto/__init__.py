@@ -1,5 +1,4 @@
 import importlib
-from nacl.utils import random  # noqa
 from npre.curves import secp256k1
 
 default_algorithm = dict(

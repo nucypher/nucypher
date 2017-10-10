@@ -1,8 +1,11 @@
+import msgpack
+import sha3
 from random import SystemRandom
 from npre import umbral
 from npre import elliptic_curve
 from nacl.secret import SecretBox
 from typing import Tuple, Union, List
+from py_ecc.secp256k1.secp256k1 import ecdsa_raw_recover
 
 
 PRE = umbral.PRE()
@@ -10,7 +13,7 @@ SYSTEM_RAND = SystemRandom()
 
 
 def priv_bytes2ec(
-    privkey: bytes
+        privkey: bytes
 ) -> elliptic_curve.ec_element:
     """
     Turns a private key, in bytes, into an elliptic_curve.ec_element.
@@ -23,7 +26,7 @@ def priv_bytes2ec(
 
 
 def pub_bytes2ec(
-    pubkey: bytes,
+        pubkey: bytes,
 ) -> elliptic_curve.ec_element:
     """
     Turns a public key, in bytes, into an elliptic_curve.ec_element.
@@ -69,9 +72,58 @@ def secure_random_range(
     return SYSTEM_RAND.randrange(min, max)
 
 
+def vrs_msgpack_dump(v, r, s):
+    v_bytes = v.to_bytes(1, byteorder='big')
+    r_bytes = r.to_bytes(32, byteorder='big')
+    s_bytes = s.to_bytes(32, byteorder='big')
+    return msgpack.dumps((v_bytes, r_bytes, s_bytes))
+
+
+def vrs_msgpack_load(msgpack_vrs):
+    sig = msgpack.loads(msgpack_vrs)
+    v = int.from_bytes(sig[0], byteorder='big')
+    r = int.from_bytes(sig[1], byteorder='big')
+    s = int.from_bytes(sig[2], byteorder='big')
+    return (v, r, s)
+
+
+def digest(*messages):
+    """
+    Accepts an iterable containing bytes and digests it.
+
+    :param bytes *args: Data to hash
+
+    :rtype: bytes
+    :return: bytestring of digested data
+    """
+    hash = sha3.keccak_256()
+    for message in messages:
+        hash.update(message)
+    return hash.digest()
+
+
+def verify(signature, msghash, pubkey=None):
+    """
+    Takes a msgpacked signature and verifies the message.
+
+    :param bytes msghash: The hashed message to verify
+    :param bytes signature: The msgpacked signature (v, r, and s)
+    :param bytes pubkey: Pubkey to validate signature for
+                         Default is the keypair's pub_key.
+
+    :rtype: Boolean
+    :return: Is the signature valid or not?
+    """
+    sig = vrs_msgpack_load(signature)
+    # Generate the public key from the signature and validate
+    # TODO: Look into fixed processing time functions for comparison
+    verify_sig = ecdsa_raw_recover(msghash, sig)
+    return verify_sig == pubkey
+
+
 def symm_encrypt(
-    key: bytes,
-    plaintext: bytes
+        key: bytes,
+        plaintext: bytes
 ) -> bytes:
     """
     Performs symmetric encryption using nacl.SecretBox.
@@ -86,8 +138,8 @@ def symm_encrypt(
 
 
 def symm_decrypt(
-    key: bytes,
-    ciphertext: bytes
+        key: bytes,
+        ciphertext: bytes
 ) -> bytes:
     """
     Decrypts ciphertext performed with nacl.SecretBox.
@@ -102,7 +154,7 @@ def symm_decrypt(
 
 
 def ecies_gen_priv(
-    to_bytes: bool = True
+        to_bytes: bool = True
 ) -> Union[bytes, elliptic_curve.ec_element]:
     """
     Generates an ECIES private key.
@@ -118,8 +170,8 @@ def ecies_gen_priv(
 
 
 def ecies_priv2pub(
-    privkey: Union[bytes, elliptic_curve.ec_element],
-    to_bytes: bool = True
+        privkey: Union[bytes, elliptic_curve.ec_element],
+        to_bytes: bool = True
 ) -> Union[bytes, elliptic_curve.ec_element]:
     """
     Takes a private key (secret bytes or an elliptic_curve.ec_element) and
@@ -140,7 +192,7 @@ def ecies_priv2pub(
 
 
 def ecies_encapsulate(
-    pubkey: Union[bytes, elliptic_curve.ec_element],
+        pubkey: Union[bytes, elliptic_curve.ec_element],
 ) -> Tuple[bytes, umbral.EncryptedKey]:
     """
     Encapsulates an ECIES generated symmetric key for a public key.
@@ -155,8 +207,8 @@ def ecies_encapsulate(
 
 
 def ecies_decapsulate(
-    privkey: Union[bytes, elliptic_curve.ec_element],
-    enc_key: umbral.EncryptedKey
+        privkey: Union[bytes, elliptic_curve.ec_element],
+        enc_key: umbral.EncryptedKey
 ) -> bytes:
     """
     Decapsulates an ECIES generated encrypted key with a private key.
@@ -172,9 +224,9 @@ def ecies_decapsulate(
 
 
 def ecies_rekey(
-    privkey_a: Union[bytes, elliptic_curve.ec_element],
-    privkey_b: Union[bytes, elliptic_curve.ec_element],
-    to_bytes: bool = True
+        privkey_a: Union[bytes, elliptic_curve.ec_element],
+        privkey_b: Union[bytes, elliptic_curve.ec_element],
+        to_bytes: bool = True
 ) -> Union[bytes, umbral.RekeyFrag]:
     """
     Generates a re-encryption key from privkey_a to privkey_b.
@@ -197,10 +249,10 @@ def ecies_rekey(
 
 
 def ecies_split_rekey(
-    privkey_a: Union[bytes, elliptic_curve.ec_element],
-    privkey_b: Union[bytes, elliptic_curve.ec_element],
-    min_shares: int,
-    total_shares: int
+        privkey_a: Union[bytes, elliptic_curve.ec_element],
+        privkey_b: Union[bytes, elliptic_curve.ec_element],
+        min_shares: int,
+        total_shares: int
 ) -> List[umbral.RekeyFrag]:
     """
     Performs a split-key re-encryption key generation where a minimum
@@ -219,11 +271,11 @@ def ecies_split_rekey(
     if type(privkey_b) == bytes:
         privkey_b = priv_bytes2ec(privkey_b)
     return PRE.split_rekey(privkey_a, privkey_b,
-                                  min_shares, total_shares)
+                           min_shares, total_shares)
 
 
 def ecies_combine(
-    encrypted_keys: List[umbral.EncryptedKey]
+        encrypted_keys: List[umbral.EncryptedKey]
 ) -> umbral.EncryptedKey:
     """
     Combines the encrypted keys together to form a rekey from split_rekey.
@@ -236,8 +288,8 @@ def ecies_combine(
 
 
 def ecies_reencrypt(
-    rekey: Union[bytes, umbral.RekeyFrag],
-    enc_key: Union[bytes, umbral.EncryptedKey],
+        rekey: Union[bytes, umbral.RekeyFrag],
+        enc_key: Union[bytes, umbral.EncryptedKey],
 ) -> umbral.EncryptedKey:
     """
     Re-encrypts the key provided.

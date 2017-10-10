@@ -2,7 +2,10 @@ import unittest
 import sha3
 import msgpack
 import random
-from nkms.crypto.keypairs import SigningKeypair, EncryptingKeypair
+
+from nkms.crypto import crypto as Crypto
+from nkms.crypto.keypairs import EncryptingKeypair
+from nkms.crypto.powers import SigningKeypair
 
 
 class TestSigningKeypair(unittest.TestCase):
@@ -29,13 +32,13 @@ class TestSigningKeypair(unittest.TestCase):
         self.assertTrue(32, len(sig[1]))    # Check r
         self.assertTrue(32, len(sig[2]))    # Check s
 
-        verify_sig = self.keypair_b.verify(msg_digest, signature,
+        verify_sig = Crypto.verify(signature, msg_digest,
                                            pubkey=self.keypair_a.pub_key)
         self.assertTrue(verify_sig)
 
     def test_digest(self):
-        digest_a = self.keypair_a.digest(b'foo', b'bar')
-        digest_b = self.keypair_a.digest(b'foobar')
+        digest_a = Crypto.digest(b'foo', b'bar')
+        digest_b = Crypto.digest(b'foobar')
 
         self.assertEqual(digest_a, digest_b)
 
