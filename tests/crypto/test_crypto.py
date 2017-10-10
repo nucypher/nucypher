@@ -3,7 +3,7 @@ import random
 from nacl.utils import EncryptedMessage
 from npre import umbral
 from npre import elliptic_curve as ec
-from nkms.crypto.crypto import Crypto
+from nkms.crypto import crypto as Crypto
 
 
 class TestCrypto(unittest.TestCase):
@@ -88,6 +88,7 @@ class TestCrypto(unittest.TestCase):
         key, enc_key = Crypto.ecies_encapsulate(self.pubkey_a)
         self.assertNotEqual(key, enc_key)
         self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(bytes, type(key))
         self.assertEqual(32, len(key))
 
         # Check from bytes
@@ -101,6 +102,7 @@ class TestCrypto(unittest.TestCase):
         key, enc_key = Crypto.ecies_encapsulate(self.pubkey_a)
         self.assertNotEqual(key, enc_key)
         self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(bytes, type(key))
         self.assertEqual(32, len(key))
 
         dec_key = Crypto.ecies_decapsulate(self.privkey_a, enc_key)
@@ -112,6 +114,7 @@ class TestCrypto(unittest.TestCase):
         key, enc_key = Crypto.ecies_encapsulate(self.pubkey_a_bytes)
         self.assertNotEqual(key, enc_key)
         self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(bytes, type(key))
         self.assertEqual(32, len(key))
 
         dec_key = Crypto.ecies_decapsulate(self.privkey_a, enc_key)
@@ -144,9 +147,48 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(4, len(frags))
 
     def test_ecies_combine(self):
-        # TODO
-        pass
+        eph_priv = self.pre.gen_priv()
+        eph_pub = self.pre.priv2pub(eph_priv)
+
+        plain_key, enc_key = Crypto.ecies_encapsulate(eph_pub)
+        self.assertNotEqual(plain_key, enc_key)
+        self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(bytes, type(plain_key))
+        self.assertEqual(32, len(plain_key))
+
+        rk_frags = Crypto.ecies_split_rekey(eph_priv, self.privkey_b, 6, 10)
+        self.assertEqual(list, type(rk_frags))
+        self.assertEqual(10, len(rk_frags))
+
+        rk_selected = random.sample(rk_frags, 6)
+        shares = [Crypto.ecies_reencrypt(rk_frag, enc_key) for rk_frag in rk_selected]
+        self.assertEqual(list, type(shares))
+        self.assertEqual(6, len(shares))
+        [self.assertEqual(umbral.EncryptedKey, type(share)) for share in shares]
+
+        e_b = Crypto.ecies_combine(shares)
+        self.assertEqual(umbral.EncryptedKey, type(e_b))
+
+        dec_key = Crypto.ecies_decapsulate(self.privkey_b, e_b)
+        self.assertEqual(bytes, type(dec_key))
+        self.assertEqual(32, len(dec_key))
+        self.assertEqual(plain_key, dec_key)
 
     def test_ecies_reencrypt(self):
-        # TODO
-        pass
+        eph_priv = self.pre.gen_priv()
+        eph_pub = self.pre.priv2pub(eph_priv)
+
+        plain_key, enc_key = Crypto.ecies_encapsulate(eph_pub)
+        self.assertNotEqual(plain_key, enc_key)
+        self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(bytes, type(plain_key))
+        self.assertEqual(32, len(plain_key))
+
+        rk_eb = Crypto.ecies_rekey(eph_priv, self.privkey_b,
+                                   to_bytes=False)
+        self.assertEqual(umbral.RekeyFrag, type(rk_eb))
+        self.assertEqual(ec.ec_element, type(rk_eb.key))
+
+        reenc_key = Crypto.ecies_reencrypt(rk_eb, enc_key)
+        dec_key = Crypto.ecies_decapsulate(self.privkey_b, reenc_key)
+        self.assertEqual(plain_key, dec_key)

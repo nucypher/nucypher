@@ -3,7 +3,7 @@ from typing import Iterable
 
 from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_sign, ecdsa_raw_recover
 
-from nkms.crypto.crypto import Crypto
+from nkms.crypto import crypto as Crypto
 from nkms.crypto.hash import signature_hash
 from nkms.crypto.keypairs import EncryptingKeypair
 

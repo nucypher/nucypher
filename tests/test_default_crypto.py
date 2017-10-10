@@ -1,8 +1,7 @@
 from nkms.crypto import default_algorithm
 from nkms.crypto import symmetric_from_algorithm
 from nkms.crypto import pre_from_algorithm
-from nkms import crypto
-from nkms.crypto.crypto import Crypto
+from nkms.crypto import crypto as Crypto
 
 
 def test_symmetric():

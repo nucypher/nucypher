@@ -1,7 +1,7 @@
 import msgpack
 
 from nkms.characters import Alice
-from nkms.crypto.crypto import Crypto
+from nkms.crypto import crypto as Crypto
 from nkms.crypto.hash import content_hash
 from nkms.policy.constants import UNKNOWN_KFRAG
 
