@@ -1,3 +1,4 @@
+import os
 from npre import umbral
 from npre import elliptic_curve
 from nacl.secret import SecretBox
@@ -31,6 +32,22 @@ def pub_bytes2ec(
     :return: elliptic_curve.ec_element
     """
     return elliptic_curve.deserialize(PRE.ecgroup, b'\x01' + pubkey)
+
+
+def secure_random(
+    num_bytes: int
+) -> bytes:
+    """
+    Returns an amount `num_bytes` of data from the OS's random device.
+    If a randomness source isn't found, returns a `NotImplementedError`.
+    In this case, a secure random source most likely doesn't exist and
+    randomness will have to found elsewhere.
+
+    :param num_bytes: Number of bytes to return.
+
+    :return: bytes
+    """
+    return os.urandom(num_bytes)
 
 
 def symm_encrypt(
