@@ -1,6 +1,6 @@
 from kademlia.network import Server
 from nkms.crypto.constants import NOT_SIGNED
-from nkms.crypto.crypto import Crypto
+from nkms.crypto import crypto as Crypto
 from nkms.crypto.hash import signature_hash
 from nkms.crypto.powers import CryptoPower, SigningKeypair
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer

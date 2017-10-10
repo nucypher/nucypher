@@ -3,7 +3,7 @@ import sha3
 import msgpack
 import random
 
-from nkms.crypto.crypto import Crypto
+from nkms.crypto import crypto as Crypto
 from nkms.crypto.keypairs import EncryptingKeypair
 from nkms.crypto.powers import SigningKeypair
 

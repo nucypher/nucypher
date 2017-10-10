@@ -1,6 +1,5 @@
 import msgpack
-from nkms import crypto
-from nkms.crypto.crypto import Crypto
+from nkms.crypto import crypto as Crypto
 from npre.bbs98 import PRE as BasePRE
 
 

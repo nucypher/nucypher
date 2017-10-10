@@ -4,9 +4,8 @@ import unittest
 import msgpack
 import npre.elliptic_curve as ec
 
-from nkms.crypto.crypto import Crypto
+from nkms.crypto import crypto as Crypto
 from nkms.crypto.keystore import KeyStore
-# from nacl.secret import SecretBox
 from nkms.crypto.powers import CryptoPower, SigningKeypair
 
 

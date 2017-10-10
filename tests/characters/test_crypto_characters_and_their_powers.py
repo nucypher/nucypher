@@ -1,7 +1,7 @@
 import pytest
 
 from nkms.characters import Alice, Ursula, Character
-from nkms.crypto.crypto import Crypto
+from nkms.crypto import crypto as Crypto
 from nkms.crypto.powers import CryptoPower, SigningKeypair, NoSigningPower, NoEncryptingPower
 
 
