@@ -87,11 +87,12 @@ def vrs_msgpack_load(msgpack_vrs):
     return (v, r, s)
 
 
-def digest(*messages):
+def keccak_digest(*messages):
     """
-    Accepts an iterable containing bytes and digests it.
+    Accepts an iterable containing bytes and digests it returning a
+    Keccak digest of 32 bytes (keccak_256).
 
-    :param bytes *args: Data to hash
+    :param bytes *messages: Data to hash
 
     :rtype: bytes
     :return: bytestring of digested data
