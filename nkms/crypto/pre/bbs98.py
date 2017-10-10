@@ -1,5 +1,6 @@
 import msgpack
 from nkms import crypto
+from nkms.crypto.crypto import Crypto
 from npre.bbs98 import PRE as BasePRE
 
 
@@ -24,7 +25,7 @@ class PRE(BasePRE):
         return super(PRE, self).priv2pub(priv)
 
     def rekey(self, priv1, pub2):
-        priv_to = crypto.random(self.KEY_SIZE)
+        priv_to = Crypto.secure_random(self.KEY_SIZE)
         rk = super(PRE, self).rekey(
                 convert_priv(priv1), convert_priv(priv_to), dtype=bytes)
         epriv_to = self.encrypt(pub2, priv_to)

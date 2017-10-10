@@ -4,7 +4,7 @@ import msgpack
 
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
                          symmetric_from_algorithm)
-from nkms.crypto.keyring import KeyRing
+from nkms.crypto.keystore import KeyStore
 from nkms.network import dummy
 
 
@@ -38,9 +38,9 @@ class Client(object):
         self._pre = pre_from_algorithm(default_algorithm)
         self._symm = symmetric_from_algorithm(default_algorithm)
 
-        # TODO: Load existing keys into the KeyRing
+        # TODO: Load existing keys into the KeyStore
         # TODO: Save newly generated keypair
-        self.keyring = KeyRing()
+        self.keyring = KeyStore()
 
     def _split_path(self, path):
         """
