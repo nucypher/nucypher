@@ -21,26 +21,26 @@ class TestCrypto(unittest.TestCase):
         self.pubkey_a_bytes = ec.serialize(self.pubkey_a)[1:]
         self.pubkey_b_bytes = ec.serialize(self.pubkey_b)[1:]
 
-    def test_priv_bytes2ec(self):
-        privkey_bytes = ec.serialize(self.privkey_a)[1:]
-        self.assertEqual(bytes, type(privkey_bytes))
-        self.assertEqual(32, len(privkey_bytes))
+    def test_secure_random(self):
+        rand1 = Crypto.secure_random(10)
+        rand2 = Crypto.secure_random(10)
 
-        privkey = Crypto.priv_bytes2ec(privkey_bytes)
-        self.assertEqual(ec.ec_element, type(privkey))
-        self.assertEqual(self.privkey_a, privkey)
+        self.assertNotEqual(rand1, rand2)
+        self.assertEqual(bytes, type(rand1))
+        self.assertEqual(bytes, type(rand2))
+        self.assertEqual(10, len(rand1))
+        self.assertEqual(10, len(rand2))
 
-    def test_pub_bytes2ec(self):
-        pubkey = self.pre.priv2pub(self.privkey_a)
-        self.assertEqual(ec.ec_element, type(pubkey))
+    def test_secure_random_range(self):
+        output = [Crypto.secure_random_range(1, 3) for _ in range(20)]
 
-        pubkey_bytes = ec.serialize(pubkey)[1:]
-        self.assertEqual(bytes, type(pubkey_bytes))
-        self.assertEqual(33, len(pubkey_bytes))
+        # Test that highest output can be max-1
+        self.assertNotIn(3, output)
 
-        pubkey_ec = Crypto.pub_bytes2ec(pubkey_bytes)
-        self.assertEqual(ec.ec_element, type(pubkey_ec))
-        self.assertEqual(pubkey_ec, pubkey)
+        # Test that min is present
+        output = [Crypto.secure_random_range(1, 2) for _ in range(20)]
+        self.assertNotIn(2, output)
+        self.assertIn(1, output)
 
     def test_symm_encrypt(self):
         key = random._urandom(32)
@@ -62,6 +62,27 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(bytes, type(dec_text))
         self.assertNotEqual(ciphertext, dec_text)
         self.assertEqual(plaintext, dec_text)
+
+    def test_priv_bytes2ec(self):
+        privkey_bytes = ec.serialize(self.privkey_a)[1:]
+        self.assertEqual(bytes, type(privkey_bytes))
+        self.assertEqual(32, len(privkey_bytes))
+
+        privkey = Crypto.priv_bytes2ec(privkey_bytes)
+        self.assertEqual(ec.ec_element, type(privkey))
+        self.assertEqual(self.privkey_a, privkey)
+
+    def test_pub_bytes2ec(self):
+        pubkey = self.pre.priv2pub(self.privkey_a)
+        self.assertEqual(ec.ec_element, type(pubkey))
+
+        pubkey_bytes = ec.serialize(pubkey)[1:]
+        self.assertEqual(bytes, type(pubkey_bytes))
+        self.assertEqual(33, len(pubkey_bytes))
+
+        pubkey_ec = Crypto.pub_bytes2ec(pubkey_bytes)
+        self.assertEqual(ec.ec_element, type(pubkey_ec))
+        self.assertEqual(pubkey_ec, pubkey)
 
     def test_ecies_gen_priv(self):
         # Check serialiation first
