@@ -5,7 +5,7 @@ from npre import umbral
 from npre import elliptic_curve
 from nacl.secret import SecretBox
 from typing import Tuple, Union, List
-from py_ecc.secp256k1 import ecdsa_raw_recover, ecdsa_raw_sign
+from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_recover, ecdsa_raw_sign
 
 
 PRE = umbral.PRE()
@@ -46,7 +46,9 @@ def secure_random_range(
     return SYSTEM_RAND.randrange(min, max)
 
 
-def keccak_digest(*messages):
+def keccak_digest(
+    *messages: bytes
+) -> bytes:
     """
     Accepts an iterable containing bytes and digests it returning a
     Keccak digest of 32 bytes (keccak_256).
@@ -60,6 +62,23 @@ def keccak_digest(*messages):
     for message in messages:
         hash.update(message)
     return hash.digest()
+
+
+def ecdsa_gen_priv(
+    to_bytes: bool = True
+) -> bytes:
+    """
+    Generates an ECDSA Private Key.
+
+    :param to_bytes: Serialize to bytes or not?
+
+    :return: Byte encoded ECDSA privkey
+    """
+    privkey = secure_random_range(1, N)
+    if to_bytes:
+        # TODO: Use constant for keylength (32)
+        return privkey.to_bytes(32, byteorder='big')
+    return privkey
 
 
 def ecdsa_gen_sig(

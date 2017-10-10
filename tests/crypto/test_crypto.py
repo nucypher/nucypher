@@ -59,6 +59,16 @@ class TestCrypto(unittest.TestCase):
 
         self.assertEqual(digest1, digest2)
 
+    def test_ecdsa_gen_priv(self):
+        # Test serialization first
+        privkey = Crypto.ecdsa_gen_priv()
+        self.assertEqual(bytes, type(privkey))
+        self.assertEqual(32, len(privkey))
+
+        # Test no serialization
+        privkey = Crypto.ecdsa_gen_priv(to_bytes=False)
+        self.assertEqual(int, type(privkey))
+
     def test_ecdsa_gen_sig(self):
         v, r, s = 1, 2, 3
 
