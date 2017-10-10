@@ -64,21 +64,62 @@ def keccak_digest(
     return hash.digest()
 
 
-def ecdsa_gen_priv(
-    to_bytes: bool = True
+def ecdsa_pub2bytes(
+    pubkey: Tuple[int]
 ) -> bytes:
     """
-    Generates an ECDSA Private Key.
+    Takes an ECDSA public key and converts to bytes.
 
-    :param to_bytes: Serialize to bytes or not?
+    :param pubkey: Tuple[int] of Public Key
+
+    :return: bytestring of Public key
+    """
+    x = pubkey[0].to_bytes(32, byteorder='big')
+    y = pubkey[1].to_bytes(32, byteorder='big')
+    return x+y
+
+
+def ecdsa_bytes2pub(
+    pubkey: bytes
+) -> Tuple[int]:
+    """
+    Takes a byte encoded ECDSA public key and converts to a Tuple of x, and y
+
+    :param pubkey: Byte encoded public key
+
+    :return: Tuple[int] of Public Key
+    """
+    x = int.from_bytes(pubkey[:32], byteorder='big')
+    y = int.from_bytes(pubkey[32:], byteorder='big')
+    return (x, y)
+
+
+def ecdsa_gen_priv() -> bytes:
+    """
+    Generates an ECDSA Private Key.
 
     :return: Byte encoded ECDSA privkey
     """
     privkey = secure_random_range(1, N)
+    return privkey.to_bytes(32, byteorder='big')
+
+
+def ecdsa_priv2pub(
+    privkey: bytes,
+    to_bytes: bool = True
+) -> Union[bytes, Tuple[int]]:
+    """
+    Returns the public component of an ECDSA private key.
+
+    :param privkey: Private key as an int or bytestring
+    :param to_bytes: Serialize to bytes or not?
+
+    :return: Byte encoded or Tuple[int] ECDSA pubkey
+    """
+    pubkey = privtopub(privkey)
     if to_bytes:
-        # TODO: Use constant for keylength (32)
-        return privkey.to_bytes(32, byteorder='big')
-    return privkey
+        return ecdsa_pub2bytes(pubkey)
+    return pubkey
 
 
 def ecdsa_gen_sig(
@@ -130,7 +171,7 @@ def ecdsa_sign(
 def ecdsa_verify(
     signature: bytes,
     msghash: bytes,
-    pubkey: bytes
+    pubkey: Union[bytes, Tuple[int]]
 ) -> bool:
     """
     Takes a msgpacked signature and verifies the message.
@@ -142,6 +183,9 @@ def ecdsa_verify(
     :rtype: Boolean
     :return: Is the signature valid or not?
     """
+    if bytes == type(pubkey):
+        pubkey = ecdsa_bytes2pub(pubkey)
+
     sig = ecdsa_load_sig(signature)
     verify_sig = ecdsa_raw_recover(msghash, sig)
     # TODO: Should this equality test be done better?
