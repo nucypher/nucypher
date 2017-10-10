@@ -46,21 +46,6 @@ def secure_random_range(
     return SYSTEM_RAND.randrange(min, max)
 
 
-def vrs_msgpack_dump(v, r, s):
-    v_bytes = v.to_bytes(1, byteorder='big')
-    r_bytes = r.to_bytes(32, byteorder='big')
-    s_bytes = s.to_bytes(32, byteorder='big')
-    return msgpack.dumps((v_bytes, r_bytes, s_bytes))
-
-
-def vrs_msgpack_load(msgpack_vrs):
-    sig = msgpack.loads(msgpack_vrs)
-    v = int.from_bytes(sig[0], byteorder='big')
-    r = int.from_bytes(sig[1], byteorder='big')
-    s = int.from_bytes(sig[2], byteorder='big')
-    return (v, r, s)
-
-
 def keccak_digest(*messages):
     """
     Accepts an iterable containing bytes and digests it returning a
@@ -75,6 +60,36 @@ def keccak_digest(*messages):
     for message in messages:
         hash.update(message)
     return hash.digest()
+
+
+def ecdsa_gen_sig(
+    v: int,
+    r: int,
+    s: int
+) -> bytes:
+    """
+    Generates an ECDSA signature, in bytes, via msgpack.
+
+    :param v: v of sig
+    :param r: r of sig
+    :param s: s of sig
+
+    :return: msgpack of v, r, and s (bytes)
+    """
+    return msgpack.dumps((v, r, s))
+
+
+def ecdsa_load_sig(
+    msgpack_sig: bytes
+) -> Tuple[int]:
+    """
+    Loads an ECDSA signature, from msgpack, to a tuple.
+
+    :param msgpack_sig: The msgpack'd signature of v, r, and s.
+
+    :return: Tuple(v, r, s)
+    """
+    return tuple(msgpack.loads(msgpack_sig))
 
 
 def verify(signature, msghash, pubkey=None):
