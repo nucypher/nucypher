@@ -1,4 +1,4 @@
-import os
+from random import SystemRandom
 from npre import umbral
 from npre import elliptic_curve
 from nacl.secret import SecretBox
@@ -6,6 +6,7 @@ from typing import Tuple, Union, List
 
 
 PRE = umbral.PRE()
+SYSTEM_RAND = SystemRandom()
 
 
 def priv_bytes2ec(
@@ -47,7 +48,25 @@ def secure_random(
 
     :return: bytes
     """
-    return os.urandom(num_bytes)
+    # TODO: Should we just use os.urandom or avoid the import w/ this?
+    return SYSTEM_RAND.getrandbits(num_bytes*8).to_bytes(num_bytes,
+                                                         byteorder='big')
+
+
+def secure_random_range(
+    min: int,
+    max: int
+) -> int:
+    """
+    Returns a number from a secure random source betwee the range of
+    `min` and `max` - 1.
+
+    :param min: Minimum number in the range
+    :param max: Maximum number in the range
+
+    :return: int
+    """
+    return SYSTEM_RAND.randrange(min, max)
 
 
 def symm_encrypt(
