@@ -59,6 +59,23 @@ class TestCrypto(unittest.TestCase):
 
         self.assertEqual(digest1, digest2)
 
+    def test_ecdsa_gen_sig(self):
+        v, r, s = 1, 2, 3
+
+        sig = Crypto.ecdsa_gen_sig(v, r, s)
+        self.assertEqual(bytes, type(sig))
+
+    def test_ecdsa_load_sig(self):
+        v, r, s = 1, 2, 3
+
+        sig = Crypto.ecdsa_gen_sig(v, r, s)
+        self.assertEqual(bytes, type(sig))
+
+        loaded_sig = Crypto.ecdsa_load_sig(sig)
+        self.assertEqual(tuple, type(loaded_sig))
+        self.assertEqual(3, len(loaded_sig))
+        self.assertEqual((1, 2, 3), loaded_sig)
+
 
     def test_symm_encrypt(self):
         key = random._urandom(32)
