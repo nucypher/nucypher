@@ -3,7 +3,7 @@ import random
 from nacl.utils import EncryptedMessage
 from npre import umbral
 from npre import elliptic_curve as ec
-from nkms.crypto.crypto import Crypto
+from nkms.crypto import crypto as Crypto
 
 
 class TestCrypto(unittest.TestCase):
