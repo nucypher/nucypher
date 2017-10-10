@@ -1,5 +1,6 @@
 import unittest
 import random
+import sha3
 from nacl.utils import EncryptedMessage
 from npre import umbral
 from npre import elliptic_curve as ec
@@ -41,6 +42,23 @@ class TestCrypto(unittest.TestCase):
         output = [Crypto.secure_random_range(1, 2) for _ in range(20)]
         self.assertNotIn(2, output)
         self.assertIn(1, output)
+
+    def test_keccak_digest(self):
+        data = b'this is a test'
+
+        digest1 = sha3.keccak_256(data).digest()
+        digest2 = Crypto.keccak_digest(data)
+
+        self.assertEqual(digest1, digest2)
+
+        # Test iterables
+        data = data.split()
+
+        digest1 = sha3.keccak_256(b''.join(data)).digest()
+        digest2 = Crypto.keccak_digest(*data)
+
+        self.assertEqual(digest1, digest2)
+
 
     def test_symm_encrypt(self):
         key = random._urandom(32)
