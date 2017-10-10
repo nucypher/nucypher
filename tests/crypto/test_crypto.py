@@ -115,9 +115,29 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(3, len(loaded_sig))
         self.assertEqual((1, 2, 3), loaded_sig)
 
+    def test_ecdsa_sign(self):
+        msghash = Crypto.secure_random(32)
+        privkey = Crypto.ecdsa_gen_priv()
+
+        vrs = Crypto.ecdsa_sign(msghash, privkey)
+        self.assertEqual(tuple, type(vrs))
+        self.assertEqual(3, len(vrs))
+
+    def test_ecdsa_verify(self):
+        msghash = Crypto.secure_random(32)
+        privkey = Crypto.ecdsa_gen_priv()
+        pubkey = Crypto.ecdsa_priv2pub(privkey, to_bytes=False)
+
+        vrs = Crypto.ecdsa_sign(msghash, privkey)
+        self.assertEqual(tuple, type(vrs))
+        self.assertEqual(3, len(vrs))
+
+        is_verified = Crypto.ecdsa_verify(*vrs, msghash, pubkey)
+        self.assertEqual(bool, type(is_verified))
+        self.assertTrue(is_verified)
 
     def test_symm_encrypt(self):
-        key = random._urandom(32)
+        key = Crypto.secure_random(32)
         plaintext = b'this is a test'
 
         ciphertext = Crypto.symm_encrypt(key, plaintext)
@@ -125,7 +145,7 @@ class TestCrypto(unittest.TestCase):
         self.assertNotEqual(plaintext, ciphertext)
 
     def test_symm_decrypt(self):
-        key = random._urandom(32)
+        key = Crypto.secure_random(32)
         plaintext = b'this is a test'
 
         ciphertext = Crypto.symm_encrypt(key, plaintext)

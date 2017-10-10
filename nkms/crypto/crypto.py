@@ -169,15 +169,19 @@ def ecdsa_sign(
 
 
 def ecdsa_verify(
-    signature: bytes,
+    v: int,
+    r: int,
+    s: int,
     msghash: bytes,
     pubkey: Union[bytes, Tuple[int]]
 ) -> bool:
     """
     Takes a msgpacked signature and verifies the message.
 
+    :param v: V of sig
+    :param r: R of sig
+    :param s: S of sig
     :param bytes msghash: The hashed message to verify
-    :param bytes signature: The msgpacked signature (v, r, and s)
     :param bytes pubkey: Pubkey to validate signature for
 
     :rtype: Boolean
@@ -186,8 +190,7 @@ def ecdsa_verify(
     if bytes == type(pubkey):
         pubkey = ecdsa_bytes2pub(pubkey)
 
-    sig = ecdsa_load_sig(signature)
-    verify_sig = ecdsa_raw_recover(msghash, sig)
+    verify_sig = ecdsa_raw_recover(msghash, (v, r, s))
     # TODO: Should this equality test be done better?
     return verify_sig == pubkey
 
