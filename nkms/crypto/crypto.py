@@ -92,22 +92,40 @@ def ecdsa_load_sig(
     return tuple(msgpack.loads(msgpack_sig))
 
 
-def verify(signature, msghash, pubkey=None):
+def ecdsa_sign(
+    msghash: bytes,
+    privkey: bytes
+) -> Tuple[int]:
+    """
+    Accepts a hashed message and signs it with the private key given.
+
+    :param msghash: Hashed message to sign
+    :param privkey: Private key to sign with
+
+    :return: Tuple(v, r, s)
+    """
+    v, r, s = ecdsa_raw_sign(msghash, privkey)
+    return (v, r, s)
+
+
+def ecdsa_verify(
+    signature: bytes,
+    msghash: bytes,
+    pubkey: bytes
+) -> bool:
     """
     Takes a msgpacked signature and verifies the message.
 
     :param bytes msghash: The hashed message to verify
     :param bytes signature: The msgpacked signature (v, r, and s)
     :param bytes pubkey: Pubkey to validate signature for
-                         Default is the keypair's pub_key.
 
     :rtype: Boolean
     :return: Is the signature valid or not?
     """
-    sig = vrs_msgpack_load(signature)
-    # Generate the public key from the signature and validate
-    # TODO: Look into fixed processing time functions for comparison
+    sig = ecdsa_load_sig(signature)
     verify_sig = ecdsa_raw_recover(msghash, sig)
+    # TODO: Should this equality test be done better?
     return verify_sig == pubkey
 
 
