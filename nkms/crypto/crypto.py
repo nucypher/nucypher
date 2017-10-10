@@ -5,37 +5,11 @@ from npre import umbral
 from npre import elliptic_curve
 from nacl.secret import SecretBox
 from typing import Tuple, Union, List
-from py_ecc.secp256k1.secp256k1 import ecdsa_raw_recover
+from py_ecc.secp256k1 import ecdsa_raw_recover, ecdsa_raw_sign
 
 
 PRE = umbral.PRE()
 SYSTEM_RAND = SystemRandom()
-
-
-def priv_bytes2ec(
-        privkey: bytes
-) -> elliptic_curve.ec_element:
-    """
-    Turns a private key, in bytes, into an elliptic_curve.ec_element.
-
-    :param privkey: Private key to turn into an elliptic_curve.ec_element.
-
-    :return: elliptic_curve.ec_element
-    """
-    return elliptic_curve.deserialize(PRE.ecgroup, b'\x00' + privkey)
-
-
-def pub_bytes2ec(
-        pubkey: bytes,
-) -> elliptic_curve.ec_element:
-    """
-    Turns a public key, in bytes, into an elliptic_curve.ec_element.
-
-    :param pubkey: Public key to turn into an elliptic_curve.ec_element.
-
-    :return: elliptic_curve.ec_element
-    """
-    return elliptic_curve.deserialize(PRE.ecgroup, b'\x01' + pubkey)
 
 
 def secure_random(
@@ -152,6 +126,32 @@ def symm_decrypt(
     """
     cipher = SecretBox(key)
     return cipher.decrypt(ciphertext)
+
+
+def priv_bytes2ec(
+        privkey: bytes
+) -> elliptic_curve.ec_element:
+    """
+    Turns a private key, in bytes, into an elliptic_curve.ec_element.
+
+    :param privkey: Private key to turn into an elliptic_curve.ec_element.
+
+    :return: elliptic_curve.ec_element
+    """
+    return elliptic_curve.deserialize(PRE.ecgroup, b'\x00' + privkey)
+
+
+def pub_bytes2ec(
+        pubkey: bytes,
+) -> elliptic_curve.ec_element:
+    """
+    Turns a public key, in bytes, into an elliptic_curve.ec_element.
+
+    :param pubkey: Public key to turn into an elliptic_curve.ec_element.
+
+    :return: elliptic_curve.ec_element
+    """
+    return elliptic_curve.deserialize(PRE.ecgroup, b'\x01' + pubkey)
 
 
 def ecies_gen_priv(
