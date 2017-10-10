@@ -98,6 +98,23 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(bytes, type(privkey))
         self.assertEqual(32, len(privkey))
 
+    def test_ecdsa_priv2pub(self):
+        privkey = Crypto.ecdsa_gen_priv()
+        self.assertEqual(bytes, type(privkey))
+        self.assertEqual(32, len(privkey))
+
+        # Test Serialization
+        pubkey = Crypto.ecdsa_priv2pub(privkey)
+        self.assertEqual(bytes, type(pubkey))
+        self.assertEqual(64, len(pubkey))
+
+        # Test no serialization
+        pubkey = Crypto.ecdsa_priv2pub(privkey, to_bytes=False)
+        self.assertEqual(tuple, type(pubkey))
+        self.assertEqual(2, len(pubkey))
+        self.assertEqual(int, type(pubkey[0]))
+        self.assertEqual(int, type(pubkey[1]))
+
     def test_ecdsa_gen_sig(self):
         v, r, s = 1, 2, 3
 
