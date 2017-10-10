@@ -88,6 +88,7 @@ class TestCrypto(unittest.TestCase):
         key, enc_key = Crypto.ecies_encapsulate(self.pubkey_a)
         self.assertNotEqual(key, enc_key)
         self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(bytes, type(key))
         self.assertEqual(32, len(key))
 
         # Check from bytes
@@ -101,6 +102,7 @@ class TestCrypto(unittest.TestCase):
         key, enc_key = Crypto.ecies_encapsulate(self.pubkey_a)
         self.assertNotEqual(key, enc_key)
         self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(bytes, type(key))
         self.assertEqual(32, len(key))
 
         dec_key = Crypto.ecies_decapsulate(self.privkey_a, enc_key)
@@ -112,6 +114,7 @@ class TestCrypto(unittest.TestCase):
         key, enc_key = Crypto.ecies_encapsulate(self.pubkey_a_bytes)
         self.assertNotEqual(key, enc_key)
         self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(bytes, type(key))
         self.assertEqual(32, len(key))
 
         dec_key = Crypto.ecies_decapsulate(self.privkey_a, enc_key)
@@ -148,5 +151,20 @@ class TestCrypto(unittest.TestCase):
         pass
 
     def test_ecies_reencrypt(self):
-        # TODO
-        pass
+        eph_priv = self.pre.gen_priv()
+        eph_pub = self.pre.priv2pub(eph_priv)
+
+        plain_key, enc_key = Crypto.ecies_encapsulate(eph_pub)
+        self.assertNotEqual(plain_key, enc_key)
+        self.assertEqual(umbral.EncryptedKey, type(enc_key))
+        self.assertEqual(bytes, type(plain_key))
+        self.assertEqual(32, len(plain_key))
+
+        rk_eb = Crypto.ecies_rekey(eph_priv, self.privkey_b,
+                                   to_bytes=False)
+        self.assertEqual(umbral.RekeyFrag, type(rk_eb))
+        self.assertEqual(ec.ec_element, type(rk_eb.key))
+
+        reenc_key = Crypto.ecies_reencrypt(rk_eb, enc_key)
+        dec_key = Crypto.ecies_decapsulate(self.privkey_b, reenc_key)
+        self.assertEqual(plain_key, dec_key)
