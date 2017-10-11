@@ -88,9 +88,9 @@ class Character(object):
 
         if sign:
             if sign_cleartext:
-                signature = self.keyring.sign(cleartext)
+                signature = self.seal(cleartext)
             else:
-                signature = self.keyring.sign(ciphertext)
+                signature = self.seal(ciphertext)
         else:
             signature = NOT_SIGNED
 
