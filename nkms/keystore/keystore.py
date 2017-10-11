@@ -32,3 +32,30 @@ class KeyStore(object):
         """
         ecdsa_keypair = keypairs.SigningKeypair().gen_privkey()
         return ecdsa_keypair
+
+    def get_key(self):
+        """
+        Returns a key from the KeyStore.
+
+        TODO: Implement this.
+        TODO: Retrieve key by KeyID.
+        """
+        pass
+
+    def add_key(self):
+        """
+        Adds a key to the KeyStore.
+
+        TODO: Implement this.
+        TODO: Maybe make an abstract base class for Keypair?
+        """
+        pass
+
+    def del_key(self):
+        """
+        Deletes a key from the KeyStore.
+
+        TODO: Implement this.
+        TODO: Delete key by KeyID.
+        """
+        pass
