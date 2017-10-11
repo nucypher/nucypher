@@ -1,5 +1,5 @@
 from random import SystemRandom
-from typing import Iterable, List, Tuple
+from typing import Iterable, Union, List, Tuple
 
 from py_ecc.secp256k1 import N, privtopub
 
@@ -169,6 +169,29 @@ class EncryptingPower(CryptoPowerUp):
         if is_pub:
             key = API.ecies_priv2pub(key)
         return key
+
+    def _encrypt_key(
+        self,
+        data_key: bytes,
+        path_keys: Union[bytes, List[bytes]],
+    ) -> List[Tuple[bytes, bytes]]:
+        """
+        Encrypts the data key with the path keys provided.
+
+        :param data_key: Symmetric data key to encrypt
+        :param path_keys: Path keys to encrypt the data_key with
+
+        :return: List[Tuple[enc_key_data, enc_key_path]]
+        """
+        if type(path_keys) is bytes:
+            path_keys = [path_keys]
+
+        enc_keys = []
+        for path_key in path_keys:
+            plain_key_data, enc_key_path = API.ecies_encaspulate(path_key)
+            enc_key_data = API.symm_encrypt(plain_key_data, data_key)
+            enc_keys.append((enc_key_data, enc_key_path))
+        return enc_keys
 
     def encrypt(
         self,
