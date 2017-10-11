@@ -2,7 +2,6 @@ import msgpack
 
 from nkms.characters import Alice
 from nkms.crypto import api
-from nkms.crypto.hash import content_hash
 from nkms.policy.constants import UNKNOWN_KFRAG
 
 
@@ -94,7 +93,7 @@ class PolicyGroup(object):
     @property
     def id(self):
         if not self._id:
-            self._id = content_hash(self.uri, self.pubkey_enc_bob)
+            self._id = api.keccak_digest(self.uri, self.pubkey_enc_bob)
         return self._id
 
 
@@ -140,10 +139,10 @@ class Policy(object):
 
     def set_id(self):
         if self.deterministic_id_portion:
-            self._id = "{}-{}".format(content_hash(*[str(d).encode() for d in self.deterministic_id_portion], self.random_id_portion),
-                                      content_hash(self.random_id_portion))
+            self._id = "{}-{}".format(api.keccak_digest(*[str(d).encode() for d in self.deterministic_id_portion], self.random_id_portion),
+                                      api.keccak_digest(self.random_id_portion))
         else:
-            self._id = content_hash(self.random_id_portion)
+            self._id = api.keccak_digest(self.random_id_portion)
 
 
 
@@ -158,9 +157,9 @@ class Policy(object):
 
     def hash(self, pubkey_sig_alice, hash_input):
 
-        self.hashed_part = content_hash(hash_input)
+        self.hashed_part = api.keccak_digest(hash_input)
         hash_input_for_id = str(pubkey_sig_alice).encode() + str(self.hashed_part).encode()
-        self._id = content_hash(hash_input_for_id)
+        self._id = api.keccak_digest(hash_input_for_id)
         return self._id
 
     def generate_challenge_pack(self):
