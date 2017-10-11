@@ -152,9 +152,26 @@ class EncryptingPower(CryptoPowerUp):
         dirs = path.split(b'/')
         return [b'/'.join(dirs[:i + 1]) for i in range(len(dirs))]
 
+    def _derive_path_key(
+        self,
+        path: bytes,
+        is_pub: bool = True
+    ) -> bytes:
+        """
+        Derives a key for the specific path.
 
+        :param path: Path to derive key for
+        :is_pub: Is the derived key a public key?
 
-    def encrypt(self,
+        :return: Derived key
+        """
+        key = API.keccak_digest(self.priv_key, path)
+        if is_pub:
+            key = API.ecies_priv2pub(key)
+        return key
+
+    def encrypt(
+        self,
         data: bytes,
         recp_keypair: keypairs.EncryptingKeypair,
         M: int,
