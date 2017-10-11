@@ -4,7 +4,7 @@ import unittest
 import msgpack
 import npre.elliptic_curve as ec
 
-from nkms.crypto import crypto as Crypto
+from nkms.crypto import api
 from nkms.crypto.keystore import KeyStore
 from nkms.crypto.powers import CryptoPower, SigningKeypair
 
@@ -20,21 +20,21 @@ class TestKeyRing(unittest.TestCase):
     def test_signing(self):
         signature = self.power_of_signing.sign(self.msg)
 
-        sig = msgpack.loads(signature)
-        self.assertTrue(1, len(sig[0]))  # Check v
-        self.assertTrue(32, len(sig[1]))  # Check r
-        self.assertTrue(32, len(sig[2]))  # Check s
+        sig = api.ecdsa_load_sig(signature)
+        self.assertTrue(int, type(sig[0]))  # Check v
+        self.assertTrue(int, type(sig[1]))  # Check r
+        self.assertTrue(int, type(sig[2]))  # Check s
 
     def test_verification(self):
         signature = self.power_of_signing.sign(self.msg)
 
-        sig = msgpack.loads(signature)
-        self.assertTrue(1, len(sig[0]))  # Check v
-        self.assertTrue(32, len(sig[1]))  # Check r
-        self.assertTrue(32, len(sig[2]))  # Check s
+        sig = api.ecdsa_load_sig(signature)
+        self.assertTrue(int, type(sig[0]))  # Check v
+        self.assertTrue(int, type(sig[1]))  # Check r
+        self.assertTrue(int, type(sig[2]))  # Check s
 
-        msghash = Crypto.digest(self.msg)
-        is_valid = Crypto.verify(signature, msghash,
+        msghash = api.keccak_digest(self.msg)
+        is_valid = api.ecdsa_verify(*sig, msghash,
                                  pubkey=self.power_of_signing.pubkey_sig_tuple())
         self.assertTrue(is_valid)
 
@@ -103,14 +103,14 @@ class TestKeyRing(unittest.TestCase):
         self.assertTrue(dec_key == raw_key)
 
     def test_symm_encryption(self):
-        key = Crypto.secure_random(32)
+        key = api.secure_random(32)
         self.assertEqual(32, len(key))
 
         ciphertext = self.keyring_a.symm_encrypt(key, self.msg)
         self.assertTrue(self.msg not in ciphertext)
 
     def test_symm_decryption(self):
-        key = Crypto.secure_random(32)
+        key = api.secure_random(32)
         self.assertEqual(32, len(key))
 
         ciphertext = self.keyring_a.symm_encrypt(key, self.msg)
@@ -192,5 +192,5 @@ class TestKeyRing(unittest.TestCase):
 
     def test_secure_random(self):
         length = random.randrange(1, 100)
-        rand_bytes = Crypto.secure_random(length)
+        rand_bytes = api.secure_random(length)
         self.assertEqual(length, len(rand_bytes))

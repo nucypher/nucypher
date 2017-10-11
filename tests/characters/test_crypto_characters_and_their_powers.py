@@ -1,7 +1,7 @@
 import pytest
 
 from nkms.characters import Alice, Ursula, Character
-from nkms.crypto import crypto as Crypto
+from nkms.crypto import api
 from nkms.crypto.powers import CryptoPower, SigningKeypair, NoSigningPower, NoEncryptingPower
 
 
@@ -39,7 +39,8 @@ def test_actor_with_signing_power_can_sign():
     signature = seal_of_the_signer(message)
 
     # ...or to get the signer's public key for verification purposes.
-    verification = Crypto.verify(signature, Crypto.digest(message), seal_of_the_signer.as_tuple())
+    sig = api.ecdsa_load_sig(signature)
+    verification = api.ecdsa_verify(*sig, api.keccak_digest(message), seal_of_the_signer.as_tuple())
 
     assert verification is True
 

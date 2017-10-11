@@ -3,7 +3,7 @@ from typing import Iterable
 
 from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_sign, ecdsa_raw_recover
 
-from nkms.crypto import crypto as Crypto
+from nkms.crypto import api
 from nkms.crypto.hash import signature_hash
 from nkms.crypto.keypairs import EncryptingKeypair
 
@@ -115,8 +115,8 @@ class SigningKeypair(CryptoPowerUp):
         :rtype: Bytestring
         :return: Msgpacked bytestring of v, r, and s (the signature)
         """
-        v, r, s = ecdsa_raw_sign(msghash, self.priv_key)
-        return Crypto.vrs_msgpack_dump(v, r, s)
+        v, r, s = api.ecdsa_sign(msghash, self.priv_key)
+        return api.ecdsa_gen_sig(v, r, s)
 
     def public_key(self):
         return self.pub_key

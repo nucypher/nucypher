@@ -1,7 +1,7 @@
 import msgpack
 
 from nkms.characters import Alice
-from nkms.crypto import crypto as Crypto
+from nkms.crypto import api
 from nkms.crypto.hash import content_hash
 from nkms.policy.constants import UNKNOWN_KFRAG
 
@@ -124,7 +124,7 @@ class Policy(object):
         """
         self.kfrag = kfrag
         self.deterministic_id_portion = deterministic_id_portion
-        self.random_id_portion = Crypto.secure_random(32)  # TOOD: Where do we actually want this to live?
+        self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
         self.challenge_size = challenge_size
         self.treasure_map = []
 

@@ -1,6 +1,6 @@
 from kademlia.network import Server
 from nkms.crypto.constants import NOT_SIGNED
-from nkms.crypto import crypto as Crypto
+from nkms.crypto import api
 from nkms.crypto.hash import signature_hash
 from nkms.crypto.powers import CryptoPower, SigningKeypair
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
@@ -113,7 +113,8 @@ class Character(object):
         actor = self._lookup_actor(actor_whom_sender_claims_to_be)
         signature_pub_key = actor.seal.as_tuple()  # TODO: and again, maybe in the real world this looks in KeyStore.
         msg_digest = b"".join(signature_hash(m) for m in messages)  # This does work.
-        return Crypto.verify(signature, msg_digest, signature_pub_key)
+        sig = api.ecdsa_load_sig(signature)
+        return api.ecdsa_verify(*sig, msg_digest, signature_pub_key)
 
     def _lookup_actor(self, actor: "Character"):
         try:
