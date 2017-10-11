@@ -1,4 +1,4 @@
-from nkms.crypto import api as API
+from nkms.keystore import keypairs
 
 
 class KeyStore(object):
@@ -15,18 +15,20 @@ class KeyStore(object):
         """
         pass
 
-    def gen_ecies_keypair(self):
+    def gen_ecies_keypair(self) -> keypairs.EncryptingKeypair:
         """
         Generates an ECIES keypair.
 
         :return: ECIES encrypting keypair
         """
-        pass
+        ecies_keypair = keypairs.EncryptingKeypair().gen_privkey()
+        return ecies_keypair
 
-    def gen_ecdsa_keypair(self):
+    def gen_ecdsa_keypair(self) -> keypairs.SigningKeypair:
         """
         Generates an ECDSA keypair.
 
         :return ECDSA signing keypair
         """
-        pass
+        ecdsa_keypair = keypairs.SigningKeypair().gen_privkey()
+        return ecdsa_keypair
