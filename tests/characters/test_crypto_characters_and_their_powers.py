@@ -2,7 +2,13 @@ import pytest
 
 from nkms.characters import Alice, Ursula, Character
 from nkms.crypto import api
-from nkms.crypto.powers import CryptoPower, SigningKeypair, NoSigningPower, NoEncryptingPower
+from nkms.crypto.constants import NOT_SIGNED
+from nkms.crypto.powers import CryptoPower, SigningKeypair, NoSigningPower, NoEncryptingPower, \
+    EncryptingKeypair
+
+"""
+SIGNING
+"""
 
 
 def test_actor_without_signing_power_cannot_sign():
@@ -68,6 +74,11 @@ def test_anybody_can_verify():
     assert verification is True
 
 
+"""
+ENCRYPTION
+"""
+
+
 def test_signing_only_power_cannot_encrypt():
     """
     Similar to the above with signing, here we show that a Character without the EncryptingKeypair
@@ -79,11 +90,9 @@ def test_signing_only_power_cannot_encrypt():
 
     # ..and here's Ursula, for whom our Character above wants to encrypt.
     ursula = Ursula()
-    ursula.pubkey_collection = {'signing': "some_privkey_sig"}
 
     # They meet.
     can_sign_but_not_encrypt.learn_about_actor(ursula)
-
 
     # The Character has the message ready...
     cleartext = "This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
@@ -91,3 +100,20 @@ def test_signing_only_power_cannot_encrypt():
     # But without the proper PowerUp, no encryption happens.
     with pytest.raises(NoEncryptingPower) as e_info:
         can_sign_but_not_encrypt.encrypt_for(ursula, cleartext)
+
+
+def test_character_with_encrypting_power_can_encrypt():
+    """
+    Now, a Character *with* EncryptingKeyPair can encrypt.
+    """
+    can_sign_and_encrypt = Character(crypto_power_ups=[SigningKeypair, EncryptingKeypair])
+    ursula = Ursula()
+    can_sign_and_encrypt.learn_about_actor(ursula)
+
+    cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
+
+    # TODO: Make encrypt_for actually encrypt.
+    ciphertext, signature = can_sign_and_encrypt.encrypt_for(ursula, cleartext, sign=False)
+    assert signature == NOT_SIGNED
+
+    assert ciphertext is not None # annnd fail.
