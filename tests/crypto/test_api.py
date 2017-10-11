@@ -122,15 +122,18 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(bytes, type(sig))
 
     def test_ecdsa_load_sig(self):
-        v, r, s = 1, 2, 3
+        v = 1
+        r = int.from_bytes(api.secure_random(32), byteorder='big')
+        s = int.from_bytes(api.secure_random(32), byteorder='big')
 
         sig = api.ecdsa_gen_sig(v, r, s)
         self.assertEqual(bytes, type(sig))
+        self.assertEqual(65, len(sig))
 
         loaded_sig = api.ecdsa_load_sig(sig)
         self.assertEqual(tuple, type(loaded_sig))
         self.assertEqual(3, len(loaded_sig))
-        self.assertEqual((1, 2, 3), loaded_sig)
+        self.assertEqual((v, r, s), loaded_sig)
 
     def test_ecdsa_sign(self):
         msghash = api.secure_random(32)

@@ -1,4 +1,3 @@
-import msgpack
 import sha3
 from random import SystemRandom
 from npre import umbral
@@ -128,28 +127,34 @@ def ecdsa_gen_sig(
     s: int
 ) -> bytes:
     """
-    Generates an ECDSA signature, in bytes, via msgpack.
+    Generates an ECDSA signature, in bytes.
 
     :param v: v of sig
     :param r: r of sig
     :param s: s of sig
 
-    :return: msgpack of v, r, and s (bytes)
+    :return: bytestring of v, r, and s
     """
-    return msgpack.dumps((v, r, s))
+    v = v.to_bytes(1, byteorder='big')
+    r = r.to_bytes(32, byteorder='big')
+    s = s.to_bytes(32, byteorder='big')
+    return v+r+s
 
 
 def ecdsa_load_sig(
-    msgpack_sig: bytes
+    signature: bytes
 ) -> Tuple[int]:
     """
-    Loads an ECDSA signature, from msgpack, to a tuple.
+    Loads an ECDSA signature, from a bytestring, to a tuple.
 
-    :param msgpack_sig: The msgpack'd signature of v, r, and s.
+    :param signature: Signature, as a bytestring, of v, r, and s.
 
     :return: Tuple(v, r, s)
     """
-    return tuple(msgpack.loads(msgpack_sig))
+    v = int.from_bytes(signature[:1], byteorder='big')
+    r = int.from_bytes(signature[1:33], byteorder='big')
+    s = int.from_bytes(signature[33:], byteorder='big')
+    return (v, r, s)
 
 
 def ecdsa_sign(
@@ -176,7 +181,7 @@ def ecdsa_verify(
     pubkey: Union[bytes, Tuple[int]]
 ) -> bool:
     """
-    Takes a msgpacked signature and verifies the message.
+    Takes a v, r, s, a pubkey, and a hash of a message to verify via ECDSA.
 
     :param v: V of sig
     :param r: R of sig
