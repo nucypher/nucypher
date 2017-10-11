@@ -200,7 +200,7 @@ class EncryptingPower(CryptoPowerUp):
         M: int,
         N: int,
         path: bytes = None
-    ) -> Tuple:
+    ) -> Tuple[bytes, List[Tuple[bytes, bytes]], List[umbral.RekeyFrag]]:
         """
         Encrypts data using ECIES.
 
@@ -210,4 +210,22 @@ class EncryptingPower(CryptoPowerUp):
         :param N: Total number of kFrags to generate.
         :param path: Path of file to generate pathkey(s) for
         """
-        pass
+        # Encrypt plaintext data with nacl.SecretBox (symmetric)
+        data_key = API.secure_random(EncryptingPower.KEYSIZE)
+        enc_data = API.symm_encrypt(data_key, data)
+
+        # Derive path keys, if path. If not, use our public key
+        if path:
+            subpaths = self._split_path(path)
+            path_keys = [self._derive_path_key(subpath) for subpath in subpaths]
+        else:
+            path_keys = [self.pub_key]
+
+        # Encrypt the data key with the path keys
+        enc_keys = self._encrypt_key(data_key, path_keys)
+
+        # Generate ephemeral key and encrypt it
+        eph_priv_key = API.ecies.gen_priv()
+        symm_key_eph, enc_symm_key_eph = API.ecies_encaspulate(
+                                                recp_keypair.pubkey)
+        enc_eph_key = API.symm_encrypt(symm_key_eph, eph_priv_key)
