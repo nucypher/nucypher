@@ -1,12 +1,12 @@
 from nkms.crypto import default_algorithm
 from nkms.crypto import symmetric_from_algorithm
 from nkms.crypto import pre_from_algorithm
-from nkms.crypto import crypto as Crypto
+from nkms.crypto import api
 
 
 def test_symmetric():
     Cipher = symmetric_from_algorithm(default_algorithm)
-    key = Crypto.secure_random(Cipher.KEY_SIZE)
+    key = api.secure_random(Cipher.KEY_SIZE)
     cipher = Cipher(key)
     data = b'Hello world' * 10
 
