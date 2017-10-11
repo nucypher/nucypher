@@ -1,9 +1,10 @@
 from random import SystemRandom
-from typing import Iterable
+from typing import Iterable, List, Tuple
 
 from py_ecc.secp256k1 import N, privtopub
 
-from nkms.crypto import api
+from nkms.crypto import API as API
+from nkms.keystore import keypairs
 from npre import umbral
 
 
@@ -71,7 +72,7 @@ class CryptoPower(object):
             sig_keypair = self._power_ups[SigningKeypair]
         except KeyError:
             raise NoSigningPower
-        msg_digest = b"".join(api.keccak_digest(m) for m in messages)
+        msg_digest = b"".join(API.keccak_digest(m) for m in messages)
 
         return sig_keypair.sign(msg_digest)
 
@@ -118,108 +119,55 @@ class SigningKeypair(CryptoPowerUp):
         :rtype: Bytestring
         :return: Msgpacked bytestring of v, r, and s (the signature)
         """
-        v, r, s = api.ecdsa_sign(msghash, self.priv_key)
-        return api.ecdsa_gen_sig(v, r, s)
+        v, r, s = API.ecdsa_sign(msghash, self.priv_key)
+        return API.ecdsa_gen_sig(v, r, s)
 
     def public_key(self):
         return self.pub_key
 
 
-class EncryptingKeypair(CryptoPowerUp):
+class EncryptingPower(CryptoPowerUp):
     KEYSIZE = 32
-    confers_public_key = True
 
-    def __init__(self, privkey=None):
-        self.pre = umbral.PRE()
-
-        if not privkey:
-            self.priv_key = self.pre.gen_priv()
-        else:
-            self.priv_key = privkey
-        self._pub_key = None
-
-    @property
-    def pub_key(self):
-        if self._pub_key is None:
-            self._pub_key = self.pre.priv2pub(self.priv_key)
-        return self._pub_key
-
-    def generate_key(self, pubkey=None):
+    def __init__(self, keypair: keypairs.EncryptingKeypair):
         """
-        Generate a raw symmetric key and its encrypted counterpart.
-
-        :rtype: Tuple(bytes, bytes)
-        :return: Tuple of the raw encrypted key and the encrypted key
+        Initalizes an EncryptingPower object for CryptoPower.
         """
-        pubkey = pubkey or self.pub_key
-        symm_key, enc_symm_key = self.pre.encapsulate(pubkey)
-        return (symm_key, enc_symm_key)
+        self.keypair = keypair
+        self.priv_key = keypair.privkey
+        self.pub_key = keypair.pubkey
 
-    def decrypt_key(self, enc_key, privkey=None):
+    def _split_path(self, path: bytes) -> List[bytes]:
         """
-        Decrypts an ECIES encrypted symmetric key.
+        Splits the file path provided and provides subpaths to each directory.
 
-        :param int enc_key: The ECIES encrypted key as an integer
-        :param bytes privkey: The privkey to decapsulate from
+        :param path: Path to file
 
-        :rtype: int
-        :return: Decrypted key as an integer
+        :return: Subpath(s) from path
         """
-        priv_key = privkey or self.priv_key
-        return self.pre.decapsulate(priv_key, enc_key)
+        # Hacky workaround: b'/'.split(b'/') == [b'', b'']
+        if path == b'/':
+            return [b'']
 
-    def rekey(self, privkey_a, privkey_b):
+        dirs = path.split(b'/')
+        return [b'/'.join(dirs[:i + 1]) for i in range(len(dirs))]
+
+
+
+    def encrypt(self,
+        data: bytes,
+        recp_keypair: keypairs.EncryptingKeypair,
+        M: int,
+        N: int,
+        path: bytes = None
+    ) -> Tuple:
         """
-        Generates a re-encryption key in interactive mode.
+        Encrypts data using ECIES.
 
-        :param bytes privkey_a: Alice's private key
-        :param bytes privkey_b: Bob's private key (or an ephemeral privkey)
-
-        :rtype: bytes
-        :return: Bytestring of a re-encryption key
+        :param data: Data to encrypt
+        :param path: Path to derive pathkey(s) for
+        :param M: Minimum number of kFrags needed to complete ciphertext
+        :param N: Total number of kFrags to generate.
+        :param path: Path of file to generate pathkey(s) for
         """
-        return self.pre.rekey(privkey_a, privkey_b)
-
-    def split_rekey(self, privkey_a, privkey_b, min_shares, num_shares):
-        """
-        Generates key shares that can be used to re-encrypt data. Requires
-        `min_shares` to be able to successfully combine data for full key.
-
-        :param int privkey_a: Alice's private key
-        :param int privkey_b: Bob's private key (or an ephemeral privkey)
-        :param int min_shares: Threshold of shares needed to reconstruct key
-        :param int num_shares: Total number of shares to generate
-
-        :rtype: List(RekeyFrag)
-        :return: List of `num_shares` RekeyFrags
-        """
-        return self.pre.split_rekey(privkey_a, privkey_b, min_shares,
-                                    num_shares)
-
-    def combine(self, shares):
-        """
-        Reconstructs a secret from the given shares.
-
-        :param list shares: List of secret share fragments.
-
-        :rtype: EncryptedKey
-        :return: EncryptedKey from `shares`
-        """
-        # TODO: What to do if not enough shares, or invalid?
-        return self.pre.combine(shares)
-
-    def reencrypt(self, reenc_key, ciphertext):
-        """
-        Re-encrypts the provided ciphertext for the recipient of the generated
-        re-encryption key.
-
-        :param bytes reenc_key: The re-encryption key from the proxy to Bob
-        :param bytes ciphertext: The ciphertext to re-encrypt to Bob
-
-        :rtype: bytes
-        :return: Re-encrypted ciphertext
-        """
-        return self.pre.reencrypt(reenc_key, ciphertext)
-
-    def public_key(self):
-        return self.pub_key
+        pass
