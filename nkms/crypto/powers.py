@@ -184,6 +184,26 @@ class EncryptingPower(CryptoPowerUp):
         enc_key_data = API.symm_encrypt(plain_key_data, data_key)
         return (enc_key_data, enc_key_path)
 
+    def _decrypt_key(
+        self,
+        enc_data_key: bytes,
+        enc_path_key: bytes,
+        priv_key: bytes
+    ) -> bytes:
+        """
+        Decrypts the enc_data_key via ECIES decapsulation.
+
+        TODO: Name these params better
+
+        :param enc_data_key: Encrypted key to decrypt
+        :param enc_path_key: ECIES encapsulated key
+        :param priv_key: Private key to use in ECIES decapsulate
+
+        :return: decrypted key
+        """
+        dec_symm_key = API.ecies_decapsulate(priv_key, enc_path_key)
+        return API.symm_decrypt(dec_symm_key, enc_data_key)
+
     def encrypt(
         self,
         data: bytes,
@@ -191,7 +211,7 @@ class EncryptingPower(CryptoPowerUp):
         M: int,
         N: int,
         path: bytes = None
-    ) -> Tuple[Tuple[bytes, bytes], bytes, List[umbral.RekeyFrag]]:
+    ) -> Tuple[Tuple[bytes, bytes, bytes], bytes, List[umbral.RekeyFrag]]:
         """
         Encrypts data using ECIES.
 
