@@ -3,10 +3,8 @@ import datetime
 
 import pytest
 
-from nkms import crypto
-from nkms.characters import Ursula, Alice, Character
+from nkms.characters import Ursula, Alice, Character, Bob
 from nkms.crypto import api
-from nkms.crypto.encrypting_keypair import EncryptingKeypair
 from nkms.keystore.keystore import KeyStore
 from nkms.policy.constants import NON_PAYMENT
 from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, PolicyGroup
@@ -47,12 +45,9 @@ def test_complete_treasure_map_flow():
     """
     Shows that Alice can share a TreasureMap with Ursula and that Bob can receive and decrypt it.
     """
-
-    keyring_alice = KeyStore()
-    bob_encrypting_keypair = EncryptingKeypair()
-    keyring_ursula = KeyStore()
-
     alice, ursula, event_loop = test_alice_finds_ursula()
+    bob = Bob()
+    alice.learn_about_actor(bob)
 
     _discovered_ursula_ip, discovered_ursula_port = alice.find_best_ursula()
 
@@ -60,12 +55,12 @@ def test_complete_treasure_map_flow():
     for i in range(50):
         treasure_map.nodes.append(api.secure_random(50))
 
-    encrypted_treasure_map = bob_encrypting_keypair.encrypt(treasure_map.packed_payload())
+    encrypted_treasure_map = alice.encrypt_for(bob, treasure_map.packed_payload())
     signature = "THIS IS A SIGNATURE"
 
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
-    policy_group = PolicyGroup(resource_id, bob_encrypting_keypair.pub_key)
+    policy_group = PolicyGroup(resource_id, bob)
     setter = alice.server.set(policy_group.id, encrypted_treasure_map)
     event_loop.run_until_complete(setter)
 

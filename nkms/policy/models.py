@@ -1,6 +1,6 @@
 import msgpack
 
-from nkms.characters import Alice
+from nkms.characters import Alice, Bob
 from nkms.crypto import api
 from nkms.policy.constants import UNKNOWN_KFRAG
 
@@ -77,9 +77,9 @@ class PolicyGroup(object):
 
     _id = None
 
-    def __init__(self, uri, pubkey_enc_bob, policies=None):
+    def __init__(self, uri: str, bob: Bob, policies=None):
         self.policies = policies or []
-        self.pubkey_enc_bob = pubkey_enc_bob
+        self.bob = bob
         self.uri = uri
 
     def transmit(self, networky_stuff):

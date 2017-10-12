@@ -1,6 +1,6 @@
 from kademlia.network import Server
-from nkms.crypto.constants import NOT_SIGNED
 from nkms.crypto import api
+from nkms.crypto.constants import NOT_SIGNED
 from nkms.crypto.powers import CryptoPower, SigningKeypair
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 
@@ -125,11 +125,6 @@ class Character(object):
         return "whatever actor id ends up being - {}".format(id(self))
 
 
-class Ursula(Character):
-    _server_class = NuCypherDHTServer
-    _default_crypto_powerups = [SigningKeypair]
-
-
 class Alice(Character):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningKeypair]
@@ -150,3 +145,12 @@ class Alice(Character):
         ]
 
         return kfrags
+
+
+class Bob(Character):
+    _default_crypto_powerups = [SigningKeypair]
+
+
+class Ursula(Character):
+    _server_class = NuCypherDHTServer
+    _default_crypto_powerups = [SigningKeypair]
