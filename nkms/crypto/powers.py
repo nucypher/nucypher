@@ -155,26 +155,23 @@ class EncryptingPower(CryptoPowerUp):
     def _derive_path_key(
         self,
         path: bytes,
-        is_pub: bool = True
     ) -> bytes:
         """
         Derives a key for the specific path.
 
         :param path: Path to derive key for
-        :is_pub: Is the derived key a public key?
 
         :return: Derived key
         """
-        key = API.keccak_digest(self.priv_key, path)
-        if is_pub:
-            key = API.ecies_priv2pub(key)
-        return key
+        priv_key = API.keccak_digest(self.priv_key, path)
+        pub_key = API.ecies_priv2pub(priv_key)
+        return (priv_key, pub_key)
 
     def _encrypt_key(
         self,
         data_key: bytes,
-        path_keys: Union[bytes, List[bytes]],
-    ) -> List[Tuple[bytes, bytes]]:
+        path_key: bytes,
+    ) -> bytes:
         """
         Encrypts the data key with the path keys provided.
 
@@ -183,15 +180,9 @@ class EncryptingPower(CryptoPowerUp):
 
         :return: List[Tuple[enc_key_data, enc_key_path]]
         """
-        if type(path_keys) is bytes:
-            path_keys = [path_keys]
-
-        enc_keys = []
-        for path_key in path_keys:
-            plain_key_data, enc_key_path = API.ecies_encaspulate(path_key)
-            enc_key_data = API.symm_encrypt(plain_key_data, data_key)
-            enc_keys.append((enc_key_data, enc_key_path))
-        return enc_keys
+        plain_key_data, enc_key_path = API.ecies_encaspulate(path_key)
+        enc_key_data = API.symm_encrypt(plain_key_data, data_key)
+        return (enc_key_data, enc_key_path)
 
     def encrypt(
         self,
@@ -200,12 +191,13 @@ class EncryptingPower(CryptoPowerUp):
         M: int,
         N: int,
         path: bytes = None
-    ) -> Tuple[bytes, List[Tuple[bytes, bytes]], List[umbral.RekeyFrag]]:
+    ) -> Tuple[Tuple[bytes, bytes], bytes, List[umbral.RekeyFrag]]:
         """
         Encrypts data using ECIES.
 
         :param data: Data to encrypt
         :param path: Path to derive pathkey(s) for
+        :param recp_keypair: Recipient's EncryptingKeypair
         :param M: Minimum number of kFrags needed to complete ciphertext
         :param N: Total number of kFrags to generate.
         :param path: Path of file to generate pathkey(s) for
@@ -216,16 +208,19 @@ class EncryptingPower(CryptoPowerUp):
 
         # Derive path keys, if path. If not, use our public key
         if path:
-            subpaths = self._split_path(path)
-            path_keys = [self._derive_path_key(subpath) for subpath in subpaths]
+            path_priv, path_pub = self._derive_path_key(path)
         else:
-            path_keys = [self.pub_key]
+            path_priv = self.priv_key
+            path_pub = self.pub_key
 
         # Encrypt the data key with the path keys
-        enc_keys = self._encrypt_key(data_key, path_keys)
+        enc_data_key = self._encrypt_key(data_key, path_pub)
 
-        # Generate ephemeral key and encrypt it
+        # Generate ephemeral key and create a re-encryption key
         eph_priv_key = API.ecies.gen_priv()
-        symm_key_eph, enc_symm_key_eph = API.ecies_encaspulate(
-                                                recp_keypair.pubkey)
-        enc_eph_key = API.symm_encrypt(symm_key_eph, eph_priv_key)
+        reenc_frags = API.ecies_split_rekey(path_priv, eph_priv_key, M, N)
+
+        # Encrypt the ephemeral key for Bob
+        enc_eph_key = self._encrypt_key(eph_priv_key, recp_keypair.pubkey)
+
+        return ((enc_data, enc_eph_key), enc_data_key, reenc_frags)
