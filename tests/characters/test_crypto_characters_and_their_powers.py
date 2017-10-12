@@ -73,6 +73,10 @@ def test_anybody_can_verify():
     verification = somebody.verify_from(alice, signature, message)
     assert verification is True
 
+    # If we pass the signature and message backwards, we get TypeError.
+    # with pytest.raises(TypeError):
+    #    verification = somebody.verify_from(alice, message, signature)
+
 
 """
 ENCRYPTION
