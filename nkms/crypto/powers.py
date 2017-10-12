@@ -201,6 +201,8 @@ class EncryptingPower(CryptoPowerUp):
         :param M: Minimum number of kFrags needed to complete ciphertext
         :param N: Total number of kFrags to generate.
         :param path: Path of file to generate pathkey(s) for
+
+        :return: Tuple((enc_data, enc_eph_key), enc_data_key, reenc_frags)
         """
         # Encrypt plaintext data with nacl.SecretBox (symmetric)
         data_key = API.secure_random(EncryptingPower.KEYSIZE)
@@ -224,3 +226,20 @@ class EncryptingPower(CryptoPowerUp):
         enc_eph_key = self._encrypt_key(eph_priv_key, recp_keypair.pubkey)
 
         return ((enc_data, enc_eph_key), enc_data_key, reenc_frags)
+
+    def decrypt(
+        self,
+        enc_data: bytes,
+        enc_eph_key: bytes,
+        key_frags: List[umbral.EncryptedKey]
+    ) -> bytes:
+        """
+        Decrypts data using the ECIES scheme.
+
+        :param enc_data: Encrypted data to decrypt
+        :param enc_eph_key: The encrypted ephemeral key
+        :param key_frags: Re-encryption keyfrags to combine.
+
+        :return: Decrypted data
+        """
+        pass
