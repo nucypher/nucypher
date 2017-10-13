@@ -5,9 +5,9 @@ import pytest
 
 from nkms.characters import Ursula, Alice, Character, Bob
 from nkms.crypto import api
-from nkms.keystore.keystore import KeyStore
 from nkms.policy.constants import NON_PAYMENT
 from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, PolicyGroup
+
 
 class MockPolicyOfferResponse(object):
     was_accepted = True
@@ -19,6 +19,7 @@ class MockNetworkyStuff(object):
 
     def find_ursula(self, id, hashed_part):
         return Ursula()
+
 
 def test_treasure_map_direct_from_alice_to_bob():
     """
@@ -46,9 +47,10 @@ def test_treasure_map_direct_from_alice_to_bob():
 
     treasure_map_as_set_on_network = list(ursula.server.storage.items())[0][1]
     verified, treasure_map_as_decrypted_by_bob = bob.verify_from(alice, signature,
-                                                       treasure_map_as_set_on_network,
-                                                       decrypt=True, signature_is_on_cleartext=True,
-                                                       cheat_cleartext=treasure_map.packed_payload())  #  TODO: Remove this once encrypting power is implemented.
+                                                                 treasure_map_as_set_on_network,
+                                                                 decrypt=True,
+                                                                 signature_is_on_cleartext=True,
+                                                                 cheat_cleartext=treasure_map.packed_payload())  # TODO: Remove this once encrypting power is implemented.
     assert treasure_map_as_decrypted_by_bob == treasure_map.packed_payload()
     assert verified is True
 

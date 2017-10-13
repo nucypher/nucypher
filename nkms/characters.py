@@ -1,5 +1,4 @@
 from kademlia.network import Server
-from nkms.characters import Character
 from nkms.crypto import api
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningKeypair

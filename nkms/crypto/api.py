@@ -409,3 +409,11 @@ def ecies_reencrypt(
     if type(enc_key) == bytes:
         enc_key = umbral.EncryptedKey(priv_bytes2ec(enc_key), None)
     return PRE.reencrypt(rekey, enc_key)
+
+
+def generate_random_keypair():
+    priv_number = SYSTEM_RAND.randrange(1, N)
+    priv_key = priv_number.to_bytes(32, byteorder='big')
+    # Get the public component
+    pub_key = privtopub(priv_key)
+    return priv_key, pub_key

@@ -1,18 +1,29 @@
 from nkms.crypto import api as API
 
 
-class EncryptingKeypair(object):
+class Keypair(object):
+
+    public_only = False
+
+    def __init__(self, privkey: bytes = None, pubkey: bytes = None):
+        if privkey and pubkey:
+            self.privkey, self.pubkey = privkey, pubkey
+        elif not privkey and not pubkey:
+            # Neither key is provided; we'll generate.
+            self.privkey, self.pubkey = API.generate_random_keypair()
+        elif privkey and not pubkey:
+            # We have the privkey; use it to generate the pubkey.
+            self.privkey = privkey
+            self.pubkey = API.privtopub(privkey)
+        elif pubkey and not privkey:
+            # We have only the pubkey; this is a public-only pair.
+            self.public_only = True
+
+
+class EncryptingKeypair(Keypair):
     """
     An EncryptingKeypair that uses ECIES.
     """
-
-    def __init__(self, privkey: bytes = None, pubkey: bytes = None):
-        """
-        Initializes an EncryptingKeypair object.
-        """
-        self.privkey = privkey
-        self.pubkey = pubkey
-        # TODO: Generate KeyID as a keccak_digest of the pubkey.
 
     def gen_privkey(self, create_pubkey: bool = True):
         """
