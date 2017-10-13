@@ -93,7 +93,7 @@ class PolicyGroup(object):
     @property
     def id(self):
         if not self._id:
-            self._id = api.keccak_digest(self.uri, self.pubkey_enc_bob)
+            self._id = api.keccak_digest(self.uri, self.bob.seal.as_bytes())
         return self._id
 
 

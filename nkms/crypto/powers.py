@@ -2,7 +2,6 @@ from random import SystemRandom
 from typing import Iterable, Union, List, Tuple
 
 from py_ecc.secp256k1 import N, privtopub
-
 from nkms.crypto import api as API
 from nkms.keystore import keypairs
 from npre import umbral
@@ -76,9 +75,12 @@ class CryptoPower(object):
 
         return sig_keypair.sign(msg_digest)
 
+    def decrypt(self, ciphertext):
+        return b"This is a wonderful and fancy plaintext."
+
     def encrypt_for(self, pubkey_sign_id, cleartext):
         try:
-            enc_keypair = self._power_ups[EncryptingKeypair]
+            enc_keypair = self._power_ups[EncryptingPower]
             # TODO: Actually encrypt.
         except KeyError:
             raise NoEncryptingPower
@@ -203,8 +205,6 @@ class EncryptingPower(CryptoPowerUp):
 
         :return: Decrypted key
         """
-        privkey = privkey or self.priv_key
-
         dec_symm_key = API.ecies_decapsulate(privkey)
         return API.symm_decrypt(dec_symm_key, enc_symm_key)
 
@@ -240,7 +240,6 @@ class EncryptingPower(CryptoPowerUp):
         :return: (Encrypted Key, Encrypted data)
         """
         pubkey = pubkey or self.pub_key
-
         key, enc_key = API.ecies_encapsulate(pubkey)
         enc_data = API.symm_encrypt(key, data)
 

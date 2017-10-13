@@ -48,6 +48,7 @@ def test_complete_treasure_map_flow():
     alice, ursula, event_loop = test_alice_finds_ursula()
     bob = Bob()
     alice.learn_about_actor(bob)
+    bob.learn_about_actor(alice)
 
     _discovered_ursula_ip, discovered_ursula_port = alice.find_best_ursula()
 
@@ -55,8 +56,8 @@ def test_complete_treasure_map_flow():
     for i in range(50):
         treasure_map.nodes.append(api.secure_random(50))
 
-    encrypted_treasure_map = alice.encrypt_for(bob, treasure_map.packed_payload())
-    signature = "THIS IS A SIGNATURE"
+    encrypted_treasure_map, signature = alice.encrypt_for(bob, treasure_map.packed_payload(),
+                                                          cheat=True)
 
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
@@ -65,9 +66,12 @@ def test_complete_treasure_map_flow():
     event_loop.run_until_complete(setter)
 
     treasure_map_as_set_on_network = list(ursula.server.storage.items())[0][1]
-    treasure_map_as_decrypted_by_bob = bob_encrypting_keypair.decrypt(
-        treasure_map_as_set_on_network)
+    verified, treasure_map_as_decrypted_by_bob = bob.verify_from(alice, signature,
+                                                       treasure_map_as_set_on_network,
+                                                       decrypt=True, signature_is_on_cleartext=True,
+                                                       cheat_cleartext=treasure_map.packed_payload())  #  TODO: Remove this once encrypting power is implemented.
     assert treasure_map_as_decrypted_by_bob == treasure_map.packed_payload()
+    assert verified is True
 
 
 def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():

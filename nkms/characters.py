@@ -1,6 +1,6 @@
 from kademlia.network import Server
 from nkms.crypto import api
-from nkms.crypto.constants import NOT_SIGNED
+from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningKeypair
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 
@@ -71,7 +71,7 @@ class Character(object):
         self._actor_mapping[actor.id()] = actor
 
     def encrypt_for(self, recipient: str, cleartext: bytes, sign: bool = True,
-                    sign_cleartext=True) -> tuple:
+                    sign_cleartext=True, cheat=False) -> tuple:
         """
         Looks up recipient actor, finds that actor's pubkey_enc on our keyring, and encrypts for them.
         Optionally signs the message as well.
@@ -84,7 +84,11 @@ class Character(object):
         """
         actor = self._lookup_actor(recipient)
         pubkey_sign_id = actor.seal()  # I don't even like this.  I prefer .seal(), which
-        ciphertext = self._crypto_power.encrypt_for(pubkey_sign_id, cleartext)
+
+        if cheat:
+            ciphertext = b"this is 100% free-range ciphertext"
+        else:
+            ciphertext = self._crypto_power.encrypt_for(pubkey_sign_id, cleartext)
 
         if sign:
             if sign_cleartext:
@@ -98,7 +102,8 @@ class Character(object):
 
     def verify_from(self, actor_whom_sender_claims_to_be: str, signature: bytes,
                     *messages: bytes, decrypt=False,
-                    signature_is_on_cleartext=True) -> tuple:
+                    signature_is_on_cleartext=False,
+                    cheat_cleartext=None) -> tuple:
         """
         Inverse of encrypt_for.
 
@@ -109,11 +114,27 @@ class Character(object):
         :param signature_is_on_cleartext:
         :return:
         """
+        cleartext = NO_DECRYPTION_PERFORMED
+        if signature_is_on_cleartext:
+            if decrypt:
+                cleartext = self._crypto_power.decrypt(*messages)
+                msg_digest = api.keccak_digest(cleartext)
+            else:
+                raise ValueError(
+                    "Can't look for a signature on the cleartext if we're not decrypting.")
+        else:
+            msg_digest = b"".join(api.keccak_digest(m) for m in messages)
+
+        # TODO: Remove this block once encrypting power is implemented.
+        if cheat_cleartext:
+            cleartext = cheat_cleartext
+            msg_digest = api.keccak_digest(cleartext)
+
         actor = self._lookup_actor(actor_whom_sender_claims_to_be)
         signature_pub_key = actor.seal.as_tuple()  # TODO: and again, maybe in the real world this looks in KeyStore.
-        msg_digest = b"".join(api.keccak_digest(m) for m in messages)  # This does work.
+
         sig = api.ecdsa_load_sig(signature)
-        return api.ecdsa_verify(*sig, msg_digest, signature_pub_key)
+        return api.ecdsa_verify(*sig, msg_digest, signature_pub_key), cleartext
 
     def _lookup_actor(self, actor: "Character"):
         try:
