@@ -205,6 +205,26 @@ class EncryptingPower(CryptoPowerUp):
         return API.symm_decrypt(dec_symm_key, enc_data_key)
 
     def encrypt(
+            self,
+            data: bytes,
+            pubkey: bytes
+    ) -> Tuple[bytes, bytes]:
+        """
+        Encrypts data with Public key encryption
+
+        :param data: Data to encrypt
+        :param pubkey: publc key to encrypt for
+
+        :return: (Encrypted Key, Encrypted data)
+        """
+        pubkey = pubkey or self.pub_key
+
+        key, enc_key = API.ecies_encaspulate(pubkey)
+        enc_data = API.symm_encrypt(key, data)
+
+        return (API.elliptic_curve.serialize(enc_key.ekey), enc_data)
+
+    def encrypt(
         self,
         data: bytes,
         recp_keypair: keypairs.EncryptingKeypair,
