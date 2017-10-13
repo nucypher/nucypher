@@ -207,7 +207,7 @@ class EncryptingPower(CryptoPowerUp):
     def encrypt(
             self,
             data: bytes,
-            pubkey: bytes
+            pubkey: bytes,
     ) -> Tuple[bytes, bytes]:
         """
         Encrypts data with Public key encryption
@@ -223,6 +223,24 @@ class EncryptingPower(CryptoPowerUp):
         enc_data = API.symm_encrypt(key, data)
 
         return (API.elliptic_curve.serialize(enc_key.ekey), enc_data)
+
+    def gen_path_keys(
+            self,
+            path: bytes
+    ) -> List[Tuple[bytes, bytes]]:
+        """
+        Generates path keys and returns path keys
+
+        :param path: Path to derive key(s) from
+
+        :return: List of path keys
+        """
+        subpaths = self._split_path(path)
+        keys = []
+        for subpath in subpaths:
+            path_priv, path_pub = self._derive_path_key(subpath)
+            keys.append((path_priv, path_pub))
+        return keys
 
     def encrypt(
         self,
