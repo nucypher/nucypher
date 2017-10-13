@@ -46,7 +46,7 @@ class PolicyManagerForAlice(PolicyManager):
         return ursulas_and_results
 
     def create_policy_group(self,
-                            pubkey_enc_bob: tuple,
+                            bob: Bob,
                             uri: bytes,
                             m: int,
                             n: int,
@@ -56,7 +56,7 @@ class PolicyManagerForAlice(PolicyManager):
         Alice dictates a new group of policies.
         """
         re_enc_keys = self.owner.generate_re_encryption_keys(
-                                                  pubkey_enc_bob,
+                                                  bob.seal.as_tuple(),
                                                   m,
                                                   n)
         policies = []
@@ -67,7 +67,7 @@ class PolicyManagerForAlice(PolicyManager):
             )
             policies.append(policy)
 
-        return PolicyGroup(uri, pubkey_enc_bob, policies)
+        return PolicyGroup(uri, bob, policies)
 
 
 class PolicyGroup(object):

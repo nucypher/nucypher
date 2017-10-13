@@ -9,22 +9,6 @@ from nkms.keystore.keystore import KeyStore
 from nkms.policy.constants import NON_PAYMENT
 from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, PolicyGroup
 
-
-class MockEncryptingPair(object):
-    def encrypt(self, cleartext):
-        pass
-
-    def decrypt(selfs, ciphertext):
-        pass
-
-
-class MockUrsula(object):
-    def encrypt_for(self, payload):
-        # TODO: Make this a testable result
-        import random
-        return random.getrandbits(32)
-
-
 class MockPolicyOfferResponse(object):
     was_accepted = True
 
@@ -34,14 +18,9 @@ class MockNetworkyStuff(object):
         return MockPolicyOfferResponse()
 
     def find_ursula(self, id, hashed_part):
-        return MockUrsula()
+        return Ursula()
 
-
-class MockTreasureMap(TreasureMap):
-    pass
-
-
-def test_complete_treasure_map_flow():
+def test_treasure_map_direct_from_alice_to_bob():
     """
     Shows that Alice can share a TreasureMap with Ursula and that Bob can receive and decrypt it.
     """
@@ -76,8 +55,7 @@ def test_complete_treasure_map_flow():
 
 def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     alice = Alice()
-    keychain_bob = KeyStore()
-    keychain_ursula = KeyStore()
+    bob = Bob()
 
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
@@ -93,7 +71,7 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     policy_manager = PolicyManagerForAlice(alice)
 
     policy_group = policy_manager.create_policy_group(
-        keychain_bob.enc_keypair.pub_key,
+        bob,
         resource_id,
         m=20,
         n=50,
