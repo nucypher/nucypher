@@ -36,8 +36,7 @@ def test_treasure_map_direct_from_alice_to_bob():
     for i in range(50):
         treasure_map.nodes.append(api.secure_random(50))
 
-    encrypted_treasure_map, signature = alice.encrypt_for(bob, treasure_map.packed_payload(),
-                                                          cheat=True)
+    encrypted_treasure_map, signature = alice.encrypt_for(bob, treasure_map.packed_payload())
 
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
@@ -50,7 +49,7 @@ def test_treasure_map_direct_from_alice_to_bob():
                                                                  treasure_map_as_set_on_network,
                                                                  decrypt=True,
                                                                  signature_is_on_cleartext=True,
-                                                                 cheat_cleartext=treasure_map.packed_payload())  # TODO: Remove this once encrypting power is implemented.
+                                                                 )
     assert treasure_map_as_decrypted_by_bob == treasure_map.packed_payload()
     assert verified is True
 

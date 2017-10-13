@@ -1,7 +1,7 @@
 from kademlia.network import Server
 from nkms.crypto import api
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
-from nkms.crypto.powers import CryptoPower, SigningKeypair
+from nkms.crypto.powers import CryptoPower, SigningKeypair, EncryptingPower
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 
 
@@ -71,7 +71,7 @@ class Character(object):
         self._actor_mapping[actor.id()] = actor
 
     def encrypt_for(self, recipient: str, cleartext: bytes, sign: bool = True,
-                    sign_cleartext=True, cheat=False) -> tuple:
+                    sign_cleartext=True) -> tuple:
         """
         Looks up recipient actor, finds that actor's pubkey_enc on our keyring, and encrypts for them.
         Optionally signs the message as well.
@@ -85,10 +85,7 @@ class Character(object):
         actor = self._lookup_actor(recipient)
         pubkey_sign_id = actor.seal()  # I don't even like this.  I prefer .seal(), which
 
-        if cheat:
-            ciphertext = b"this is 100% free-range ciphertext"
-        else:
-            ciphertext = self._crypto_power.encrypt_for(pubkey_sign_id, cleartext)
+        ciphertext = self._crypto_power.encrypt_for(pubkey_sign_id, cleartext)
 
         if sign:
             if sign_cleartext:
@@ -102,8 +99,7 @@ class Character(object):
 
     def verify_from(self, actor_whom_sender_claims_to_be: "Character", signature: bytes,
                     *messages: bytes, decrypt=False,
-                    signature_is_on_cleartext=False,
-                    cheat_cleartext=None) -> tuple:
+                    signature_is_on_cleartext=False) -> tuple:
         """
         Inverse of encrypt_for.
 
@@ -124,11 +120,6 @@ class Character(object):
         else:
             msg_digest = b"".join(api.keccak_digest(m) for m in messages)
 
-        # TODO: Remove this block once encrypting power is implemented.
-        if cheat_cleartext:
-            cleartext = cheat_cleartext
-            msg_digest = api.keccak_digest(cleartext)
-
         actor = self._lookup_actor(actor_whom_sender_claims_to_be)
         signature_pub_key = actor.seal.as_tuple()  # TODO: and again, maybe in the real world this looks in KeyStore.
 
@@ -147,7 +138,7 @@ class Character(object):
 
 class Alice(Character):
     _server_class = NuCypherSeedOnlyDHTServer
-    _default_crypto_powerups = [SigningKeypair]
+    _default_crypto_powerups = [SigningKeypair, EncryptingPower]
 
     def find_best_ursula(self):
         # TODO: Right now this just finds the nearest node and returns its ip and port.  Make it do something useful.
@@ -168,7 +159,7 @@ class Alice(Character):
 
 
 class Bob(Character):
-    _default_crypto_powerups = [SigningKeypair]
+    _default_crypto_powerups = [SigningKeypair, EncryptingPower]
 
 
 class Ursula(Character):
