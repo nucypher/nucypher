@@ -236,16 +236,20 @@ class EncryptingPower(CryptoPowerUp):
             path_pub = self.pub_key
 
         # Encrypt the data key with the path keys
-        enc_data_key = self._encrypt_key(data_key, path_pub)
+        enc_data_key, enc_path_key = self._encrypt_key(data_key, path_pub)
 
         # Generate ephemeral key and create a re-encryption key
         eph_priv_key = API.ecies.gen_priv()
         reenc_frags = API.ecies_split_rekey(path_priv, eph_priv_key, M, N)
 
         # Encrypt the ephemeral key for Bob
-        enc_eph_key = self._encrypt_key(eph_priv_key, recp_keypair.pubkey)
+        enc_eph_priv, enc_symm_eph = self._encrypt_key(eph_priv_key,
+                                                       recp_keypair.pubkey)
 
-        return ((enc_data, enc_eph_key), enc_data_key, reenc_frags)
+        # TODO: For the love of God, simplify this
+        return (
+            (enc_data, enc_eph_priv, enc_symm_eph), enc_data_key, reenc_frags
+        )
 
     def decrypt(
         self,
