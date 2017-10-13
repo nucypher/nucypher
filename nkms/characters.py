@@ -1,4 +1,5 @@
 from kademlia.network import Server
+from nkms.characters import Character
 from nkms.crypto import api
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningKeypair
@@ -100,19 +101,18 @@ class Character(object):
 
         return ciphertext, signature
 
-    def verify_from(self, actor_whom_sender_claims_to_be: str, signature: bytes,
+    def verify_from(self, actor_whom_sender_claims_to_be: "Character", signature: bytes,
                     *messages: bytes, decrypt=False,
                     signature_is_on_cleartext=False,
                     cheat_cleartext=None) -> tuple:
         """
         Inverse of encrypt_for.
 
-        :param actor_that_sender_claims_to_be: The str representation of the actor on this KeyStore
-            that the sender is claiming to be.
-        :param message:
-        :param decrypt:
-        :param signature_is_on_cleartext:
-        :return:
+        :param actor_that_sender_claims_to_be: A Character instance representing the actor whom the sender claims to be.  We check the public key owned by this Character instance to verify.
+        :param messages: The messages to be verified.
+        :param decrypt: Whether or not to decrypt the messages.
+        :param signature_is_on_cleartext: True if we expect the signature to be on the cleartext.  Otherwise, we presume that the ciphertext is what is signed.
+        :return: (Whether or not the signature is valid, the decrypted plaintext or NO_DECRYPTION_PERFORMED)
         """
         cleartext = NO_DECRYPTION_PERFORMED
         if signature_is_on_cleartext:
