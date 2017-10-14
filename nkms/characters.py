@@ -1,5 +1,8 @@
+from collections import namedtuple
+
 from kademlia.network import Server
 from nkms.crypto import api
+from nkms.crypto.api import pubkey_tuple_to_bytes
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningKeypair, EncryptingPower
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
@@ -44,17 +47,23 @@ class Character(object):
             """
             Can be called to sign something or used to express the signing public key as bytes.
             """
+            __call__ = self._crypto_power.sign
 
-            def __call__(seal_instance, *messages_to_sign):
-                return self._crypto_power.sign(*messages_to_sign)
-
-            def as_bytes(seal_instance):
-                return self._crypto_power.pubkey_sig_bytes()
-
-            def as_tuple(self_instance):
+            def _as_tuple(seal):
                 return self._crypto_power.pubkey_sig_tuple()
 
+            def __iter__(seal):
+                yield from seal._as_tuple()
+
+            def __bytes__(seal):
+                return pubkey_tuple_to_bytes(seal)
+
+            def __eq__(seal, other):
+                return other == seal._as_tuple() or bytes(seal)
+
         self.seal = Seal()
+
+
 
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs) -> None:
@@ -66,6 +75,10 @@ class Character(object):
             return self._server
         else:
             raise RuntimeError("Server hasn't been attached.")
+
+    @property
+    def name(self):
+        return self.__class__.__name__
 
     def learn_about_actor(self, actor):
         self._actor_mapping[actor.id()] = actor
@@ -83,9 +96,8 @@ class Character(object):
         :return: A tuple, (ciphertext, signature).  If sign==False, then signature will be NOT_SIGNED.
         """
         actor = self._lookup_actor(recipient)
-        pubkey_sign_id = actor.seal()  # I don't even like this.  I prefer .seal(), which
 
-        ciphertext = self._crypto_power.encrypt_for(pubkey_sign_id, cleartext)
+        ciphertext = self._crypto_power.encrypt_for(actor.seal, cleartext)  # TODO: actor.seal is wrong here; we want their enc key, not sig.
 
         if sign:
             if sign_cleartext:
@@ -121,7 +133,7 @@ class Character(object):
             msg_digest = b"".join(api.keccak_digest(m) for m in messages)
 
         actor = self._lookup_actor(actor_whom_sender_claims_to_be)
-        signature_pub_key = actor.seal.as_tuple()  # TODO: and again, maybe in the real world this looks in KeyStore.
+        signature_pub_key = actor.seal
 
         sig = api.ecdsa_load_sig(signature)
         return api.ecdsa_verify(*sig, msg_digest, signature_pub_key), cleartext
@@ -145,10 +157,11 @@ class Alice(Character):
         return self.server.bootstrappableNeighbors()[0]
 
     def generate_re_encryption_keys(self,
-                                    pubkey_enc_bob,
+                                    bob,
                                     m,
                                     n):
         # TODO: Make this actually work.
+        pubkey_enc_bob = bob.seal  # ???  We need Bob's enc key, not sig.
         kfrags = [
             'sfasdfsd9',
             'dfasd09fi',

@@ -25,11 +25,11 @@ def test_actor_without_signing_power_cannot_sign():
     with pytest.raises(NoSigningPower) as e_info:
         non_signer.seal("something")
 
-    # ...or as a way to show the public key.
+    # ...or as a way to cast the public key to bytes or tuple.
     with pytest.raises(NoSigningPower) as e_info:
-        non_signer.seal.as_bytes()
+        bytes(non_signer.seal)
     with pytest.raises(NoSigningPower) as e_info:
-        non_signer.seal.as_tuple()
+        tuple(non_signer.seal)
 
 
 def test_actor_with_signing_power_can_sign():
@@ -48,7 +48,7 @@ def test_actor_with_signing_power_can_sign():
 
     # ...or to get the signer's public key for verification purposes.
     sig = api.ecdsa_load_sig(signature)
-    verification = api.ecdsa_verify(*sig, api.keccak_digest(message), seal_of_the_signer.as_tuple())
+    verification = api.ecdsa_verify(*sig, api.keccak_digest(message), seal_of_the_signer)
 
     assert verification is True
 

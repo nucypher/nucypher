@@ -56,14 +56,14 @@ class PolicyManagerForAlice(PolicyManager):
         Alice dictates a new group of policies.
         """
         re_enc_keys = self.owner.generate_re_encryption_keys(
-                                                  bob.seal.as_tuple(),
+                                                  bob,
                                                   m,
                                                   n)
         policies = []
         for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
                 rekey,
-                self.owner.seal.as_bytes(),
+                self.owner.seal,
             )
             policies.append(policy)
 
@@ -122,7 +122,7 @@ class Policy(object):
         :param challenge_size:  The number of challenges to create in the ChallengePack.
         """
         self.kfrag = kfrag
-        self.deterministic_id_portion = deterministic_id_portion
+        self.deterministic_id_portion = bytes(deterministic_id_portion)
         self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
         self.challenge_size = challenge_size
         self.treasure_map = []
@@ -148,9 +148,9 @@ class Policy(object):
 
     @staticmethod
     def from_alice(kfrag,
-                   pubkey_sig_alice,
+                   alice_seal,
                    ):
-        policy = Policy(kfrag, deterministic_id_portion=pubkey_sig_alice)
+        policy = Policy(kfrag, deterministic_id_portion=alice_seal)
         policy.generate_challenge_pack()
 
         return policy
