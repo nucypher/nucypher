@@ -3,6 +3,7 @@ from typing import Tuple
 from nacl.secret import SecretBox
 
 from nkms.crypto import api as API
+from nkms.crypto._alpha import generate_random_keypair
 from npre import umbral
 
 
@@ -15,7 +16,7 @@ class Keypair(object):
             self.privkey, self.pubkey = privkey, pubkey
         elif not privkey and not pubkey:
             # Neither key is provided; we'll generate.
-            self.privkey, self.pubkey = API.generate_random_keypair()
+            self.privkey, self.pubkey = generate_random_keypair()
         elif privkey and not pubkey:
             # We have the privkey; use it to generate the pubkey.
             self.privkey = privkey

@@ -2,7 +2,7 @@ from collections import namedtuple
 
 from kademlia.network import Server
 from nkms.crypto import api
-from nkms.crypto.api import pubkey_tuple_to_bytes
+from nkms.crypto._alpha import pubkey_tuple_to_bytes
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningKeypair, EncryptingPower
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer

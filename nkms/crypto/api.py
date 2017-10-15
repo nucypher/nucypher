@@ -1,11 +1,12 @@
-import sha3
 from random import SystemRandom
-from npre import umbral
-from npre import elliptic_curve
-from nacl.secret import SecretBox
 from typing import Tuple, Union, List
+
+import sha3
+from nacl.secret import SecretBox
 from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_recover, ecdsa_raw_sign
 
+from npre import elliptic_curve
+from npre import umbral
 
 PRE = umbral.PRE()
 SYSTEM_RAND = SystemRandom()
@@ -409,15 +410,3 @@ def ecies_reencrypt(
     if type(enc_key) == bytes:
         enc_key = umbral.EncryptedKey(priv_bytes2ec(enc_key), None)
     return PRE.reencrypt(rekey, enc_key)
-
-
-def generate_random_keypair():
-    priv_number = SYSTEM_RAND.randrange(1, N)
-    priv_key = priv_number.to_bytes(32, byteorder='big')
-    # Get the public component
-    pub_key = privtopub(priv_key)
-    return priv_key, pub_key
-
-
-def pubkey_tuple_to_bytes(pub_key):
-    return b''.join(i.to_bytes(32, 'big') for i in pub_key)
