@@ -59,7 +59,7 @@ class Character(object):
                 return pubkey_tuple_to_bytes(seal)
 
             def __eq__(seal, other):
-                return other == seal._as_tuple() or bytes(seal)
+                return other == seal._as_tuple() or other == bytes(seal)
 
         self.seal = Seal()
 
