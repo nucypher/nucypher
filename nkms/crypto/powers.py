@@ -247,22 +247,21 @@ class EncryptingPower(CryptoPowerUp):
 
     def decrypt(
             self,
-            enc_data: bytes,
-            enc_key: bytes,
+            enc_data: Tuple[bytes, bytes],
             privkey: bytes = None
     ) -> bytes:
         """
         Decrypts data using ECIES PKE. If no `privkey` is provided, it uses
         `self.priv_key`.
 
-        :param enc_data: Data to decrypt
-        :param enc_key: (Serialized) Encapsulated ECIES key
+        :param enc_data: Tuple: (encrypted data, ECIES encapsulated key)
         :param privkey: Private key to decapsulate with
 
         :return: Decrypted data
         """
         privkey = privkey or self.priv_key
+        ciphertext, enc_key = enc_data
         enc_key = API.elliptic_curve.deserialize(enc_key)
 
         dec_key = API.ecies_decapsulate(privkey, enc_key)
-        return API.symm_decrypt(dec_key, enc_data)
+        return API.symm_decrypt(dec_key, ciphertext)
