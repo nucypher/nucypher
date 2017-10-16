@@ -243,8 +243,7 @@ class EncryptingPower(CryptoPowerUp):
 
         key, enc_key = API.ecies_encaspulate(pubkey)
         enc_data = API.symm_encrypt(key, data)
-
-        return (API.elliptic_curve.serialize(enc_key.ekey), enc_data)
+        return (enc_data, API.elliptic_curve.serialize(enc_key.ekey))
 
     def decrypt(
             self,
@@ -263,6 +262,7 @@ class EncryptingPower(CryptoPowerUp):
         :return: Decrypted data
         """
         privkey = privkey or self.priv_key
+        enc_key = API.elliptic_curve.deserialize(enc_key)
 
-        dec_key = API.ecies_decapsulate(privkey)
+        dec_key = API.ecies_decapsulate(privkey, enc_key)
         return API.symm_decrypt(dec_key, enc_data)
