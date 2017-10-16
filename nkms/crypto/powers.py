@@ -167,62 +167,83 @@ class EncryptingPower(CryptoPowerUp):
         pub_key = API.ecies_priv2pub(priv_key)
         return (priv_key, pub_key)
 
+    # def _encrypt_key(
+    #     self,
+    #     data_key: bytes,
+    #     path_key: bytes,
+    # ) -> bytes:
+    #     """
+    #     Encrypts the data key with the path keys provided.
+
+    #     :param data_key: Symmetric data key to encrypt
+    #     :param path_keys: Path keys to encrypt the data_key with
+
+    #     :return: List[Tuple[enc_key_data, enc_key_path]]
+    #     """
+    #     plain_key_data, enc_key_path = API.ecies_encaspulate(path_key)
+    #     enc_key_data = API.symm_encrypt(plain_key_data, data_key)
+    #     return (enc_key_data, enc_key_path)
+
+    # def _decrypt_key(
+    #     self,
+    #     enc_data_key: bytes,
+    #     enc_path_key: bytes,
+    #     priv_key: bytes
+    # ) -> bytes:
+    #     """
+    #     Decrypts the enc_data_key via ECIES decapsulation.
+
+    #     TODO: Name these params better
+
+    #     :param enc_data_key: Encrypted key to decrypt
+    #     :param enc_path_key: ECIES encapsulated key
+    #     :param priv_key: Private key to use in ECIES decapsulate
+
+    #     :return: decrypted key
+    #     """
+    #     dec_symm_key = API.ecies_decapsulate(priv_key, enc_path_key)
+    #     return API.symm_decrypt(dec_symm_key, enc_data_key)
+
     def _encrypt_key(
-        self,
-        data_key: bytes,
-        path_key: bytes,
-    ) -> bytes:
-        """
-        Encrypts the data key with the path keys provided.
-
-        :param data_key: Symmetric data key to encrypt
-        :param path_keys: Path keys to encrypt the data_key with
-
-        :return: List[Tuple[enc_key_data, enc_key_path]]
-        """
-        plain_key_data, enc_key_path = API.ecies_encaspulate(path_key)
-        enc_key_data = API.symm_encrypt(plain_key_data, data_key)
-        return (enc_key_data, enc_key_path)
-
-    def _decrypt_key(
-        self,
-        enc_data_key: bytes,
-        enc_path_key: bytes,
-        priv_key: bytes
-    ) -> bytes:
-        """
-        Decrypts the enc_data_key via ECIES decapsulation.
-
-        TODO: Name these params better
-
-        :param enc_data_key: Encrypted key to decrypt
-        :param enc_path_key: ECIES encapsulated key
-        :param priv_key: Private key to use in ECIES decapsulate
-
-        :return: decrypted key
-        """
-        dec_symm_key = API.ecies_decapsulate(priv_key, enc_path_key)
-        return API.symm_decrypt(dec_symm_key, enc_data_key)
-
-    def encrypt(
             self,
-            data: bytes,
-            pubkey: bytes,
+            key: bytes,
+            pubkey: bytes = None
     ) -> Tuple[bytes, bytes]:
         """
-        Encrypts data with Public key encryption
+        Encrypts the `key` provided for the provided `pubkey` using the ECIES
+        schema. If no `pubkey` is provided, it uses `self.pub_key`.
 
-        :param data: Data to encrypt
-        :param pubkey: publc key to encrypt for
+        :param key: Key to encrypt
+        :param pubkey: Public Key to encrypt the `key` for
 
-        :return: (Encrypted Key, Encrypted data)
+        :return (encrypted key, encapsulated ECIES key)
         """
         pubkey = pubkey or self.pub_key
 
-        key, enc_key = API.ecies_encaspulate(pubkey)
-        enc_data = API.symm_encrypt(key, data)
+        symm_key, enc_symm_key = API.ecies_encaspulate(pubkey)
+        enc_key = API.symm_encrypt(symm_key, key)
+        return (enc_key, enc_symm_key)
 
-        return (API.elliptic_curve.serialize(enc_key.ekey), enc_data)
+    def _decrypt_key(
+            self,
+            enc_key: bytes,
+            enc_symm_key: bytes,
+            privkey: bytes = None
+    ) -> bytes:
+        """
+        Decrypts the encapsulated `enc_key` with the `privkey`, if provided.
+        If `privkey` is None, then it uses `self.priv_key`.
+
+        :param enc_key: ECIES encapsulated key
+        :param enc_symm_key: Symmetrically encrypted key
+        :param privkey: Private key to decrypt with (if provided)
+
+        :return: Decrypted key
+        """
+        privkey = privkey or self.priv_key
+
+        dec_symm_key = API.ecies_decapsulate(privkey)
+        return API.symm_decrypt(dec_symm_key, enc_symm_key)
 
     def gen_path_keys(
             self,
@@ -243,65 +264,75 @@ class EncryptingPower(CryptoPowerUp):
         return keys
 
     def encrypt(
-        self,
-        data: bytes,
-        recp_keypair: keypairs.EncryptingKeypair,
-        M: int,
-        N: int,
-        path: bytes = None
-    ) -> Tuple[Tuple[bytes, bytes, bytes], bytes, List[umbral.RekeyFrag]]:
+            self,
+            data: bytes,
+            pubkey: bytes = None
+    ) -> Tuple[bytes, bytes]:
         """
-        Encrypts data using ECIES.
+        Encrypts data with Public key encryption
 
         :param data: Data to encrypt
-        :param path: Path to derive pathkey(s) for
-        :param recp_keypair: Recipient's EncryptingKeypair
-        :param M: Minimum number of kFrags needed to complete ciphertext
-        :param N: Total number of kFrags to generate.
-        :param path: Path of file to generate pathkey(s) for
+        :param pubkey: publc key to encrypt for
 
-        :return: Tuple((enc_data, enc_eph_key), enc_data_key, reenc_frags)
+        :return: (Encrypted Key, Encrypted data)
         """
-        # Encrypt plaintext data with nacl.SecretBox (symmetric)
-        data_key = API.secure_random(EncryptingPower.KEYSIZE)
-        enc_data = API.symm_encrypt(data_key, data)
+        pubkey = pubkey or self.pub_key
 
-        # Derive path keys, if path. If not, use our public key
-        if path:
-            path_priv, path_pub = self._derive_path_key(path)
-        else:
-            path_priv = self.priv_key
-            path_pub = self.pub_key
+        key, enc_key = API.ecies_encaspulate(pubkey)
+        enc_data = API.symm_encrypt(key, data)
 
-        # Encrypt the data key with the path keys
-        enc_data_key, enc_path_key = self._encrypt_key(data_key, path_pub)
-
-        # Generate ephemeral key and create a re-encryption key
-        eph_priv_key = API.ecies.gen_priv()
-        reenc_frags = API.ecies_split_rekey(path_priv, eph_priv_key, M, N)
-
-        # Encrypt the ephemeral key for Bob
-        enc_eph_priv, enc_symm_eph = self._encrypt_key(eph_priv_key,
-                                                       recp_keypair.pubkey)
-
-        # TODO: For the love of God, simplify this
-        return (
-            (enc_data, enc_eph_priv, enc_symm_eph), enc_data_key, reenc_frags
-        )
+        return (API.elliptic_curve.serialize(enc_key.ekey), enc_data)
 
     def decrypt(
-        self,
-        enc_data: bytes,
-        enc_eph_key: bytes,
-        key_frags: List[umbral.EncryptedKey]
-    ) -> bytes:
-        """
-        Decrypts data using the ECIES scheme.
+            self,
+            enc_data: bytes,
+            enc_key: bytes,
+            privkey: bytes = None
+    ) -> 
 
-        :param enc_data: Encrypted data to decrypt
-        :param enc_eph_key: The encrypted ephemeral key
-        :param key_frags: Re-encryption keyfrags to combine.
+    # def encrypt(
+    #     self,
+    #     data: bytes,
+    #     recp_keypair: keypairs.EncryptingKeypair,
+    #     M: int,
+    #     N: int,
+    #     path: bytes = None
+    # ) -> Tuple[Tuple[bytes, bytes, bytes], bytes, List[umbral.RekeyFrag]]:
+    #     """
+    #     Encrypts data using ECIES.
 
-        :return: Decrypted data
-        """
-        pass
+    #     :param data: Data to encrypt
+    #     :param path: Path to derive pathkey(s) for
+    #     :param recp_keypair: Recipient's EncryptingKeypair
+    #     :param M: Minimum number of kFrags needed to complete ciphertext
+    #     :param N: Total number of kFrags to generate.
+    #     :param path: Path of file to generate pathkey(s) for
+
+    #     :return: Tuple((enc_data, enc_eph_key), enc_data_key, reenc_frags)
+    #     """
+    #     # Encrypt plaintext data with nacl.SecretBox (symmetric)
+    #     data_key = API.secure_random(EncryptingPower.KEYSIZE)
+    #     enc_data = API.symm_encrypt(data_key, data)
+
+    #     # Derive path keys, if path. If not, use our public key
+    #     if path:
+    #         path_priv, path_pub = self._derive_path_key(path)
+    #     else:
+    #         path_priv = self.priv_key
+    #         path_pub = self.pub_key
+
+    #     # Encrypt the data key with the path keys
+    #     enc_data_key, enc_path_key = self._encrypt_key(data_key, path_pub)
+
+    #     # Generate ephemeral key and create a re-encryption key
+    #     eph_priv_key = API.ecies.gen_priv()
+    #     reenc_frags = API.ecies_split_rekey(path_priv, eph_priv_key, M, N)
+
+    #     # Encrypt the ephemeral key for Bob
+    #     enc_eph_priv, enc_symm_eph = self._encrypt_key(eph_priv_key,
+    #                                                    recp_keypair.pubkey)
+
+    #     # TODO: For the love of God, simplify this
+    #     return (
+    #         (enc_data, enc_eph_priv, enc_symm_eph), enc_data_key, reenc_frags
+    #     )
