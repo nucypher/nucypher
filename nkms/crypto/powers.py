@@ -3,7 +3,7 @@ from typing import Iterable, Union, List, Tuple
 
 from py_ecc.secp256k1 import N, privtopub
 
-from nkms.crypto import API as API
+from nkms.crypto import api as API
 from nkms.keystore import keypairs
 from npre import umbral
 

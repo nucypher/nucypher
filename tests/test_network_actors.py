@@ -7,7 +7,7 @@ from nkms import crypto
 from nkms.characters import Ursula, Alice, Character
 from nkms.crypto import api
 from nkms.crypto.encrypting_keypair import EncryptingKeypair
-from nkms.crypto.keystore import KeyStore
+from nkms.keystore.keystore import KeyStore
 from nkms.policy.constants import NON_PAYMENT
 from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, PolicyGroup
 
