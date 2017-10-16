@@ -1,11 +1,10 @@
-import unittest
-import sha3
-import msgpack
 import random
+import unittest
+
+import sha3
 
 from nkms.crypto import api
-from nkms.crypto.keypairs import EncryptingKeypair
-from nkms.crypto.powers import SigningKeypair
+from nkms.crypto.powers import SigningKeypair, EncryptingKeypair
 
 
 class TestSigningKeypair(unittest.TestCase):
@@ -20,21 +19,21 @@ class TestSigningKeypair(unittest.TestCase):
 
         sig = api.ecdsa_load_sig(signature)
         self.assertEqual(tuple, type(sig))
-        self.assertEqual(int, type(sig[0]))     # Check v
-        self.assertEqual(int, type(sig[1]))    # Check r
-        self.assertEqual(int, type(sig[2]))    # Check s
+        self.assertEqual(int, type(sig[0]))  # Check v
+        self.assertEqual(int, type(sig[1]))  # Check r
+        self.assertEqual(int, type(sig[2]))  # Check s
 
     def test_verification(self):
         msg_digest = sha3.keccak_256(self.msg).digest()
         signature = self.keypair_a.sign(msg_digest)
 
         sig = api.ecdsa_load_sig(signature)
-        self.assertEqual(int, type(sig[0]))     # Check v
-        self.assertEqual(int, type(sig[1]))    # Check r
-        self.assertEqual(int, type(sig[2]))    # Check s
+        self.assertEqual(int, type(sig[0]))  # Check v
+        self.assertEqual(int, type(sig[1]))  # Check r
+        self.assertEqual(int, type(sig[2]))  # Check s
 
         verify_sig = api.ecdsa_verify(*sig, msg_digest,
-                                           self.keypair_a.pub_key)
+                                      self.keypair_a.pub_key)
         self.assertTrue(verify_sig)
 
     def test_digest(self):

@@ -5,7 +5,7 @@ import msgpack
 import npre.elliptic_curve as ec
 
 from nkms.crypto import api
-from nkms.crypto.keystore import KeyStore
+from nkms.keystore.keystore import KeyStore
 from nkms.crypto.powers import CryptoPower, SigningKeypair
 
 

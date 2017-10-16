@@ -4,7 +4,7 @@ import msgpack
 
 from nkms.crypto import (default_algorithm, pre_from_algorithm,
                          symmetric_from_algorithm)
-from nkms.crypto.keystore import KeyStore
+from nkms.keystore.keystore import KeyStore
 from nkms.network import dummy
 
 

@@ -3,7 +3,7 @@ import sha3
 from nacl.secret import SecretBox
 from nacl.utils import random
 
-from nkms.crypto.keypairs import EncryptingKeypair
+from nkms.crypto.powers import EncryptingKeypair
 from npre import umbral
 
 
