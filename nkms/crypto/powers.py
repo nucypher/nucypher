@@ -228,14 +228,14 @@ class EncryptingPower(CryptoPowerUp):
 
     def encrypt(
             self,
-            pubkey: bytes = None,
-            data: bytes
+            data: bytes,
+            pubkey: bytes = None
     ) -> Tuple[bytes, bytes]:
         """
         Encrypts data with Public key encryption
 
-        :param pubkey: publc key to encrypt for
         :param data: Data to encrypt
+        :param pubkey: publc key to encrypt for
 
         :return: (Encrypted Key, Encrypted data)
         """
@@ -247,15 +247,15 @@ class EncryptingPower(CryptoPowerUp):
 
     def decrypt(
             self,
-            privkey: bytes = None,
-            enc_data: Tuple[bytes, bytes]
+            enc_data: Tuple[bytes, bytes],
+            privkey: bytes = None
     ) -> bytes:
         """
         Decrypts data using ECIES PKE. If no `privkey` is provided, it uses
         `self.priv_key`.
 
-        :param privkey: Private key to decapsulate with
         :param enc_data: Tuple: (encrypted data, ECIES encapsulated key)
+        :param privkey: Private key to decapsulate with
 
         :return: Decrypted data
         """
