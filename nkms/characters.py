@@ -1,7 +1,6 @@
 from kademlia.network import Server
 
 from nkms.crypto import api
-from nkms.crypto._alpha import pubkey_tuple_to_bytes
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningKeypair, EncryptingPower
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
@@ -55,7 +54,7 @@ class Character(object):
                 yield from seal._as_tuple()
 
             def __bytes__(seal):
-                return pubkey_tuple_to_bytes(seal)
+                return self._crypto_power.pubkey_sig_bytes()
 
             def __eq__(seal, other):
                 return other == seal._as_tuple() or other == bytes(seal)
