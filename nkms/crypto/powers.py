@@ -94,7 +94,7 @@ class CryptoPowerUp(object):
     confers_public_key = False
 
 
-class SigningKeypair(CryptoPowerUp):
+class SigningPower(CryptoPowerUp):
     confers_public_key = True
 
     def __init__(self, keypair=None):  # TODO: Pretty much move this __init__ to SigningPower
