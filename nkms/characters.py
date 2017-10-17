@@ -4,7 +4,7 @@ from kademlia.network import Server
 from nkms.crypto import api
 from nkms.crypto._alpha import pubkey_tuple_to_bytes
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
-from nkms.crypto.powers import CryptoPower, SigningKeypair, EncryptingPower
+from nkms.crypto.powers import CryptoPower, SigningKeypair, EncryptingPower, NoEncryptingPower
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 
 
@@ -63,8 +63,6 @@ class Character(object):
 
         self.seal = Seal()
 
-
-
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs) -> None:
         self._server = self._server_class(ksize, alpha, id, storage, *args, **kwargs)
@@ -97,7 +95,7 @@ class Character(object):
         """
         actor = self._lookup_actor(recipient)
 
-        ciphertext = self._crypto_power.encrypt_for(actor.seal, cleartext)  # TODO: actor.seal is wrong here; we want their enc key, not sig.
+        ciphertext = self._crypto_power.encrypt_for(actor.public_encryption_key(), cleartext)  # TODO: Come up with a better method for getting their private key.
 
         if sign:
             if sign_cleartext:
@@ -110,7 +108,7 @@ class Character(object):
         return ciphertext, signature
 
     def verify_from(self, actor_whom_sender_claims_to_be: "Character", signature: bytes,
-                    *messages: bytes, decrypt=False,
+                    message: bytes, decrypt=False,
                     signature_is_on_cleartext=False) -> tuple:
         """
         Inverse of encrypt_for.
@@ -124,13 +122,13 @@ class Character(object):
         cleartext = NO_DECRYPTION_PERFORMED
         if signature_is_on_cleartext:
             if decrypt:
-                cleartext = self._crypto_power.decrypt(*messages)
+                cleartext = self._crypto_power.decrypt(message)
                 msg_digest = api.keccak_digest(cleartext)
             else:
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not decrypting.")
         else:
-            msg_digest = b"".join(api.keccak_digest(m) for m in messages)
+            msg_digest = api.keccak_digest(message)
 
         actor = self._lookup_actor(actor_whom_sender_claims_to_be)
         signature_pub_key = actor.seal
@@ -146,6 +144,12 @@ class Character(object):
 
     def id(self):
         return "whatever actor id ends up being - {}".format(id(self))
+
+    def public_encryption_key(self):
+        try:
+            return self._crypto_power._power_ups[EncryptingPower].keypair.pubkey
+        except KeyError:
+            raise NoEncryptingPower
 
 
 class Alice(Character):
@@ -177,4 +181,4 @@ class Bob(Character):
 
 class Ursula(Character):
     _server_class = NuCypherDHTServer
-    _default_crypto_powerups = [SigningKeypair]
+    _default_crypto_powerups = [SigningKeypair, EncryptingPower]

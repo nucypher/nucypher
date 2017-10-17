@@ -1,8 +1,11 @@
-from typing import Iterable, List, Tuple
+from random import SystemRandom
+from typing import Iterable, Union, List, Tuple
+
+from py_ecc.secp256k1 import N, privtopub
 
 from nkms.crypto import api as API
 from nkms.keystore import keypairs
-from nkms.keystore.keypairs import EncryptingKeypair
+from nkms.keystore.keypairs import SigningKeypair as RealSigingKeypair, EncryptingKeypair
 
 
 class PowerUpError(TypeError):
@@ -74,12 +77,17 @@ class CryptoPower(object):
         return sig_keypair.sign(msg_digest)
 
     def decrypt(self, ciphertext):
-        return b"This is a wonderful and fancy plaintext."
-
-    def encrypt_for(self, pubkey_sign_id, cleartext):
         try:
-            enc_keypair = self._power_ups[EncryptingPower]
-            # TODO: Actually encrypt.
+            encrypting_power = self._power_ups[EncryptingPower]
+            return encrypting_power.decrypt(ciphertext)
+        except KeyError:
+            raise NoEncryptingPower
+
+    def encrypt_for(self, pubkey, cleartext):
+        try:
+            encrypting_power = self._power_ups[EncryptingPower]
+            ciphertext = encrypting_power.encrypt(cleartext, bytes(pubkey))
+            return ciphertext
         except KeyError:
             raise NoEncryptingPower
 
