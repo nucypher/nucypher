@@ -2,7 +2,6 @@ from typing import Iterable, List, Tuple
 
 from nkms.crypto import api as API
 from nkms.keystore import keypairs
-from nkms.keystore.keypairs import SigningKeypair as RealSigingKeypair, EncryptingKeypair
 
 
 class PowerUpError(TypeError):
@@ -20,7 +19,8 @@ class NoEncryptingPower(PowerUpError):
 class CryptoPower(object):
     def __init__(self, power_ups=[]):
         self._power_ups = {}
-        self.public_keys = {}  # TODO: The keys here will actually be IDs for looking up in a KeyStore.
+        # TODO: The keys here will actually be IDs for looking up in a KeyStore.
+        self.public_keys = {}
 
         if power_ups:
             for power_up in power_ups:
@@ -35,24 +35,28 @@ class CryptoPower(object):
             power_up_instance = power_up()
         else:
             raise TypeError(
-                "power_up must be a subclass of CryptoPowerUp or an instance of a subclass of CryptoPowerUp.")
+                ("power_up must be a subclass of CryptoPowerUp or an instance "
+                 "of a subclass of CryptoPowerUp."))
         self._power_ups[power_up_class] = power_up_instance
 
         if power_up.confers_public_key:
+            # TODO: Make this an ID for later lookup on a KeyStore.
             self.public_keys[
-                power_up_class] = power_up_instance.public_key()  # TODO: Make this an ID for later lookup on a KeyStore.
+                power_up_class] = power_up_instance.public_key()
 
     def pubkey_sig_bytes(self):
         try:
+            # TODO: Turn this into an ID lookup on a KeyStore.
             return self._power_ups[
-                SigningKeypair].pub_key  # TODO: Turn this into an ID lookup on a KeyStore.
+                keypairs.SigningKeypair].pub_key
         except KeyError:
             raise NoSigningPower
 
     def pubkey_sig_tuple(self):
         try:
+            # TODO: Turn this into an ID lookup on a KeyStore.
             return API.ecdsa_bytes2pub(self._power_ups[
-                                           SigningKeypair].pub_key)  # TODO: Turn this into an ID lookup on a KeyStore.
+                                           keypairs.SigningKeypair].pub_key)
         except KeyError:
             raise NoSigningPower
 
@@ -64,7 +68,7 @@ class CryptoPower(object):
         :return: Signature of message
         """
         try:
-            sig_keypair = self._power_ups[SigningKeypair]
+            sig_keypair = self._power_ups[keypairs.SigningKeypair]
         except KeyError:
             raise NoSigningPower
         msg_digest = b"".join(API.keccak_digest(m) for m in messages)
