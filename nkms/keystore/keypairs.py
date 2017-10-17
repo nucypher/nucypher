@@ -11,6 +11,9 @@ class Keypair(object):
 
     public_only = False
 
+    # TODO: Throw error if a key is called and it doesn't exist
+    # TODO: Maybe write a custome error ofr ^?
+
     def __init__(self, privkey: bytes = None, pubkey: bytes = None):
         if privkey and pubkey:
             self.privkey, self.pubkey = privkey, pubkey
@@ -20,9 +23,10 @@ class Keypair(object):
         elif privkey and not pubkey:
             # We have the privkey; use it to generate the pubkey.
             self.privkey = privkey
-            self.pubkey = API.privtopub(privkey)
+            self._gen_pubkey()
         elif pubkey and not privkey:
             # We have only the pubkey; this is a public-only pair.
+            self.pubkey = pubkey
             self.public_only = True
 
 
@@ -42,7 +46,10 @@ class EncryptingKeypair(Keypair):
         """
         self.privkey = API.ecies_gen_priv()
         if create_pubkey:
-            self.pubkey = API.ecies_priv2pub(self.privkey)
+            self._gen_pubkey()
+
+    def _gen_pubkey(self):
+        self.pubkey = API.ecies_priv2pub(self.privkey)
 
     def decrypt(self,
                 edata: Tuple[bytes, bytes],
@@ -75,18 +82,10 @@ class EncryptingKeypair(Keypair):
         return cipher.decrypt(edata)
 
 
-class SigningKeypair(object):
+class SigningKeypair(Keypair):
     """
     A SigningKeypair that uses ECDSA.
     """
-
-    def __init__(self, privkey: bytes = None, pubkey: bytes = None):
-        """
-        Initalizes a SigningKeypair object.
-        """
-        self.privkey = privkey
-        self.pubkey = pubkey
-        # TODO: Generate a KeyID as a keccak_digest of the pubkey,
 
     def gen_privkey(self, create_pubkey: bool = True):
         """
@@ -100,4 +99,30 @@ class SigningKeypair(object):
         """
         self.privkey = API.ecdsa_gen_priv()
         if create_pubkey:
-            self.pubkey = API.ecdsa_priv2pub(self.privkey)
+            self._gen_pubkey()
+
+    def _gen_pubkey(self):
+        self.pubkey = API.ecdsa_priv2pub(self.privkey)
+
+    def sign(self, msghash: bytes) -> bytes:
+        """
+        Signs a hashed message and returns a signature.
+
+        :param msghash: The hashed message to sign
+
+        :return: Signature in bytes
+        """
+        v, r, s = API.ecdsa_sign(msghash, self.privkey)
+        return API.ecdsa_gen_sig(v, r, s)
+
+    def verify(self, msghash: bytes, signature: bytes) -> bool:
+        """
+        Verifies that a signature came from this keypair.
+
+        :param msghash: Hashed message used in the signature
+        :param signature: Signature of the hashed message
+
+        :return: Boolean if the signature is valid
+        """
+        v, r, s = API.ecdsa_load_sig(signature)
+        return API.ecdsa_verify(v, r, s, msghash, self.pubkey)

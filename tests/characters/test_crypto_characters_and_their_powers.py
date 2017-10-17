@@ -9,7 +9,7 @@ SIGNING
 """
 
 from nkms.crypto.constants import NO_DECRYPTION_PERFORMED
-from nkms.crypto.powers import CryptoPower, SigningKeypair, NoSigningPower, NoEncryptingPower, \
+from nkms.crypto.powers import CryptoPower, SigningPower, NoSigningPower, NoEncryptingPower, \
     EncryptingPower
 
 
@@ -40,7 +40,7 @@ def test_actor_with_signing_power_can_sign():
     """
     message = b"Llamas."
 
-    signer = Character(crypto_power_ups=[SigningKeypair])
+    signer = Character(crypto_power_ups=[SigningPower])
     seal_of_the_signer = signer.seal
 
     # We can use the signer's seal to sign a message...
@@ -93,7 +93,7 @@ def test_signing_only_power_cannot_encrypt():
     """
 
     # Here's somebody who can sign but not encrypt.
-    can_sign_but_not_encrypt = Character(crypto_power_ups=[SigningKeypair])
+    can_sign_but_not_encrypt = Character(crypto_power_ups=[SigningPower])
 
     # ..and here's Ursula, for whom our Character above wants to encrypt.
     ursula = Ursula()
@@ -113,7 +113,7 @@ def test_character_with_encrypting_power_can_encrypt():
     """
     Now, a Character *with* EncryptingKeyPair can encrypt.
     """
-    can_sign_and_encrypt = Character(crypto_power_ups=[SigningKeypair, EncryptingPower])
+    can_sign_and_encrypt = Character(crypto_power_ups=[SigningPower, EncryptingPower])
     ursula = Ursula()
     can_sign_and_encrypt.learn_about_actor(ursula)
 

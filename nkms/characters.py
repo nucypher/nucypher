@@ -2,7 +2,7 @@ from kademlia.network import Server
 
 from nkms.crypto import api
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
-from nkms.crypto.powers import CryptoPower, SigningKeypair, EncryptingPower
+from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 
 
@@ -152,7 +152,7 @@ class Character(object):
 
 class Alice(Character):
     _server_class = NuCypherSeedOnlyDHTServer
-    _default_crypto_powerups = [SigningKeypair, EncryptingPower]
+    _default_crypto_powerups = [SigningPower, EncryptingPower]
 
     def find_best_ursula(self):
         # TODO: Right now this just finds the nearest node and returns its ip and port.  Make it do something useful.
@@ -174,9 +174,9 @@ class Alice(Character):
 
 
 class Bob(Character):
-    _default_crypto_powerups = [SigningKeypair, EncryptingPower]
+    _default_crypto_powerups = [SigningPower, EncryptingPower]
 
 
 class Ursula(Character):
     _server_class = NuCypherDHTServer
-    _default_crypto_powerups = [SigningKeypair, EncryptingPower]
+    _default_crypto_powerups = [SigningPower, EncryptingPower]
