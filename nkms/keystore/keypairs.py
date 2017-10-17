@@ -114,3 +114,15 @@ class SigningKeypair(Keypair):
         """
         v, r, s = API.ecdsa_sign(msghash, self.privkey)
         return API.ecdsa_gen_sig(v, r, s)
+
+    def verify(self, msghash: bytes, signature: bytes) -> bool:
+        """
+        Verifies that a signature came from this keypair.
+
+        :param msghash: Hashed message used in the signature
+        :param signature: Signature of the hashed message
+
+        :return: Boolean if the signature is valid
+        """
+        v, r, s = API.ecdsa_load_sig(signature)
+        return API.ecdsa_verify(v, r, s, msghash, self.pubkey)
