@@ -1,10 +1,9 @@
-from collections import namedtuple
-
 from kademlia.network import Server
+
 from nkms.crypto import api
 from nkms.crypto._alpha import pubkey_tuple_to_bytes
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
-from nkms.crypto.powers import CryptoPower, SigningKeypair, EncryptingPower, NoEncryptingPower
+from nkms.crypto.powers import CryptoPower, SigningKeypair, EncryptingPower
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 
 
@@ -95,8 +94,8 @@ class Character(object):
         """
         actor = self._lookup_actor(recipient)
 
-        ciphertext = self._crypto_power.encrypt_for(actor.public_encryption_key(), cleartext)  # TODO: Come up with a better method for getting their private key.
-
+        ciphertext = self._crypto_power.encrypt_for(actor.public_key(EncryptingPower),
+                                                    cleartext)
         if sign:
             if sign_cleartext:
                 signature = self.seal(cleartext)
@@ -145,11 +144,11 @@ class Character(object):
     def id(self):
         return "whatever actor id ends up being - {}".format(id(self))
 
-    def public_encryption_key(self):
+    def public_key(self, key_class):
         try:
-            return self._crypto_power._power_ups[EncryptingPower].keypair.pubkey
+            return self._crypto_power.public_keys[key_class]
         except KeyError:
-            raise NoEncryptingPower
+            raise  # TODO: Does it make sense to have a specialized exception here?  Probably.
 
 
 class Alice(Character):

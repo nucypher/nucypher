@@ -1,7 +1,4 @@
-from random import SystemRandom
-from typing import Iterable, Union, List, Tuple
-
-from py_ecc.secp256k1 import N, privtopub
+from typing import Iterable, List, Tuple
 
 from nkms.crypto import api as API
 from nkms.keystore import keypairs
@@ -55,7 +52,7 @@ class CryptoPower(object):
     def pubkey_sig_tuple(self):
         try:
             return API.ecdsa_bytes2pub(self._power_ups[
-                SigningKeypair].pub_key)  # TODO: Turn this into an ID lookup on a KeyStore.
+                                           SigningKeypair].pub_key)  # TODO: Turn this into an ID lookup on a KeyStore.
         except KeyError:
             raise NoSigningPower
 
@@ -107,9 +104,6 @@ class SigningKeypair(CryptoPowerUp):
 
         self.priv_key, self.pub_key = self.real_keypair.privkey, self.real_keypair.pubkey
 
-    def pubkey_bytes(self):
-        return b''.join(i.to_bytes(32, 'big') for i in self.pub_key)
-
     def sign(self, msghash):
         """
         TODO: Use crypto API sign()
@@ -129,6 +123,7 @@ class SigningKeypair(CryptoPowerUp):
 
 
 class EncryptingPower(CryptoPowerUp):
+    confers_public_key = True
     KEYSIZE = 32
 
     def __init__(self, keypair: keypairs.EncryptingKeypair = None):
@@ -156,8 +151,8 @@ class EncryptingPower(CryptoPowerUp):
         return [b'/'.join(dirs[:i + 1]) for i in range(len(dirs))]
 
     def _derive_path_key(
-        self,
-        path: bytes,
+            self,
+            path: bytes,
     ) -> bytes:
         """
         Derives a key for the specific path.
@@ -272,3 +267,6 @@ class EncryptingPower(CryptoPowerUp):
         dec_key = API.ecies_decapsulate(privkey, enc_key)
 
         return API.symm_decrypt(dec_key, ciphertext)
+
+    def public_key(self):
+        return self.keypair.pubkey
