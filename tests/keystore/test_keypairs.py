@@ -1,4 +1,5 @@
 import unittest
+from nkms.crypto import api as API
 from nkms.keystore import keypairs
 
 
@@ -28,6 +29,23 @@ class TestKeypairs(unittest.TestCase):
         self.assertTrue(self.ecdsa_keypair.pubkey is not None)
         self.assertEqual(bytes, type(self.ecdsa_keypair.pubkey))
         self.assertEqual(64, len(self.ecdsa_keypair.pubkey))
+
+    def test_ecdsa_keypair_signing(self):
+        msghash = API.keccak_digest(b'hello world!')
+
+        sig = self.ecdsa_keypair.sign(msghash)
+        self.assertEqual(bytes, type(sig))
+        self.assertEqual(65, len(sig))
+
+    def test_ecdsa_keypair_verification(self):
+        msghash = API.keccak_digest(b'hello world!')
+
+        sig = self.ecdsa_keypair.sign(msghash)
+        self.assertEqual(bytes, type(sig))
+        self.assertEqual(65, len(sig))
+
+        is_valid = self.ecdsa_keypair.verify(msghash, sig)
+        self.assertTrue(is_valid)
 
     def test_keypair_object(self):
         # Test both keys
