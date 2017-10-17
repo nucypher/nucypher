@@ -111,17 +111,13 @@ class SigningPower(CryptoPowerUp):
 
     def sign(self, msghash):
         """
-        TODO: Use crypto API sign()
+        Signs a hashed message and returns a signature.
 
-        Signs a hashed message and returns a msgpack'ed v, r, and s.
+        :param msghash: The hashed message to sign
 
-        :param bytes msghash: Hash of the message
-
-        :rtype: Bytestring
-        :return: Msgpacked bytestring of v, r, and s (the signature)
+        :return: Signature in bytes
         """
-        v, r, s = API.ecdsa_sign(msghash, self.priv_key)
-        return API.ecdsa_gen_sig(v, r, s)
+        return self.keypair.sign(msghash)
 
     def public_key(self):
         return self.pub_key

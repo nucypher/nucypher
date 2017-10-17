@@ -103,3 +103,14 @@ class SigningKeypair(Keypair):
 
     def _gen_pubkey(self):
         self.pubkey = API.ecdsa_priv2pub(self.privkey)
+
+    def sign(self, msghash: bytes) -> bytes:
+        """
+        Signs a hashed message and returns a signature.
+
+        :param msghash: The hashed message to sign
+
+        :return: Signature in bytes
+        """
+        v, r, s = API.ecdsa_sign(msghash, self.privkey)
+        return API.ecdsa_gen_sig(v, r, s)
