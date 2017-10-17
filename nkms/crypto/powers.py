@@ -101,12 +101,13 @@ class CryptoPowerUp(object):
 class SigningPower(CryptoPowerUp):
     confers_public_key = True
 
-    def __init__(self, keypair=None):  # TODO: Pretty much move this __init__ to SigningPower
-
-        self.real_keypair = keypair or RealSigingKeypair()  # Total throwaway line - this will not be "real_keypair" because this will be in SigningPower
-        self.real_keypair.gen_privkey()
-
-        self.priv_key, self.pub_key = self.real_keypair.privkey, self.real_keypair.pubkey
+    def __init__(self, keypair: keypairs.keypairs.SigningKeypair = None):
+        """
+        Initializes a SigningPower object for CryptoPower.
+        """
+        self.keypair = keypair or keypairs.SigningKeypair()
+        self.priv_key = self.keypair.privkey
+        self.pub_key = self.real_keypair.pubkey
 
     def sign(self, msghash):
         """
@@ -135,7 +136,7 @@ class EncryptingPower(CryptoPowerUp):
         Initalizes an EncryptingPower object for CryptoPower.
         """
 
-        self.keypair = keypair or EncryptingKeypair()
+        self.keypair = keypair or keypairs.EncryptingKeypair()
         self.priv_key = self.keypair.privkey
         self.pub_key = self.keypair.pubkey
 
