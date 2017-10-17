@@ -101,13 +101,13 @@ class CryptoPowerUp(object):
 class SigningPower(CryptoPowerUp):
     confers_public_key = True
 
-    def __init__(self, keypair: keypairs.keypairs.SigningKeypair = None):
+    def __init__(self, keypair: keypairs.SigningKeypair = None):
         """
         Initializes a SigningPower object for CryptoPower.
         """
         self.keypair = keypair or keypairs.SigningKeypair()
         self.priv_key = self.keypair.privkey
-        self.pub_key = self.real_keypair.pubkey
+        self.pub_key = self.keypair.pubkey
 
     def sign(self, msghash):
         """
