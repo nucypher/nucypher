@@ -4,6 +4,7 @@ from nacl.secret import SecretBox
 
 from nkms.crypto import api as API
 from npre import umbral
+from npre import elliptic_curve as ec
 
 
 class Keypair(object):
@@ -63,11 +64,11 @@ class EncryptingKeypair(Keypair):
         # we could use that and save 2 bytes,
         # but it makes the code less readable
         ekey = umbral.EncryptedKey(
-                ekey=ec.deserialize(self.pre.ecgroup, ekey[0]), re_id=ekey[1])
+                ekey=ec.deserialize(API.PRE.ecgroup, ekey[0]), re_id=ekey[1])
         if privkey is None:
             privkey = self._priv_key
         else:
-            privkey = ec.deserialize(self.pre.ecgroup, privkey)
+            privkey = ec.deserialize(API.PRE.ecgroup, privkey)
 
         key = self.pre.decapsulate(privkey, ekey)
         cipher = SecretBox(key)
