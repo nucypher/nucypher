@@ -48,23 +48,21 @@ class CryptoPower(object):
     def pubkey_sig_bytes(self):
         try:
             return self._power_ups[
-                SigningKeypair].pubkey_bytes()  # TODO: Turn this into an ID lookup on a KeyStore.
+                SigningKeypair].pub_key  # TODO: Turn this into an ID lookup on a KeyStore.
         except KeyError:
             raise NoSigningPower
 
     def pubkey_sig_tuple(self):
         try:
-            return self._power_ups[
-                SigningKeypair].pub_key  # TODO: Turn this into an ID lookup on a KeyStore.
+            return API.ecdsa_bytes2pub(self._power_ups[
+                SigningKeypair].pub_key)  # TODO: Turn this into an ID lookup on a KeyStore.
         except KeyError:
             raise NoSigningPower
 
     def sign(self, *messages):
         """
         Signs a message and returns a signature with the keccak hash.
-
         :param Iterable messages: Messages to sign in an iterable of bytes
-
         :rtype: bytestring
         :return: Signature of message
         """
@@ -158,8 +156,8 @@ class EncryptingPower(CryptoPowerUp):
         return [b'/'.join(dirs[:i + 1]) for i in range(len(dirs))]
 
     def _derive_path_key(
-            self,
-            path: bytes,
+        self,
+        path: bytes,
     ) -> bytes:
         """
         Derives a key for the specific path.
@@ -208,6 +206,8 @@ class EncryptingPower(CryptoPowerUp):
 
         :return: Decrypted key
         """
+        privkey = privkey or self.priv_key
+
         dec_symm_key = API.ecies_decapsulate(privkey)
         return API.symm_decrypt(dec_symm_key, enc_symm_key)
 
@@ -243,6 +243,7 @@ class EncryptingPower(CryptoPowerUp):
         :return: (Encrypted Key, Encrypted data)
         """
         pubkey = pubkey or self.pub_key
+
         key, enc_key = API.ecies_encapsulate(pubkey)
         enc_data = API.symm_encrypt(key, data)
 
