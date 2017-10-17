@@ -48,7 +48,7 @@ class CryptoPower(object):
         try:
             # TODO: Turn this into an ID lookup on a KeyStore.
             return self._power_ups[
-                keypairs.SigningKeypair].pub_key
+                SigningPower].pub_key
         except KeyError:
             raise NoSigningPower
 
@@ -56,7 +56,7 @@ class CryptoPower(object):
         try:
             # TODO: Turn this into an ID lookup on a KeyStore.
             return API.ecdsa_bytes2pub(self._power_ups[
-                                           keypairs.SigningKeypair].pub_key)
+                                           SigningPower].pub_key)
         except KeyError:
             raise NoSigningPower
 
@@ -68,7 +68,7 @@ class CryptoPower(object):
         :return: Signature of message
         """
         try:
-            sig_keypair = self._power_ups[keypairs.SigningKeypair]
+            sig_keypair = self._power_ups[SigningPower]
         except KeyError:
             raise NoSigningPower
         msg_digest = b"".join(API.keccak_digest(m) for m in messages)
