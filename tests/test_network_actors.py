@@ -3,28 +3,10 @@ import datetime
 
 import pytest
 
-from nkms import crypto
-from nkms.characters import Ursula, Alice, Character
+from nkms.characters import Ursula, Alice, Character, Bob
 from nkms.crypto import api
-from nkms.crypto.encrypting_keypair import EncryptingKeypair
-from nkms.keystore.keystore import KeyStore
 from nkms.policy.constants import NON_PAYMENT
 from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, PolicyGroup
-
-
-class MockEncryptingPair(object):
-    def encrypt(self, cleartext):
-        pass
-
-    def decrypt(selfs, ciphertext):
-        pass
-
-
-class MockUrsula(object):
-    def encrypt_for(self, payload):
-        # TODO: Make this a testable result
-        import random
-        return random.getrandbits(32)
 
 
 class MockPolicyOfferResponse(object):
@@ -36,23 +18,16 @@ class MockNetworkyStuff(object):
         return MockPolicyOfferResponse()
 
     def find_ursula(self, id, hashed_part):
-        return MockUrsula()
+        return Ursula()
 
-
-class MockTreasureMap(TreasureMap):
-    pass
-
-
-def test_complete_treasure_map_flow():
+def test_treasure_map_from_alice_to_ursula_to_bob():
     """
     Shows that Alice can share a TreasureMap with Ursula and that Bob can receive and decrypt it.
     """
-
-    keyring_alice = KeyStore()
-    bob_encrypting_keypair = EncryptingKeypair()
-    keyring_ursula = KeyStore()
-
     alice, ursula, event_loop = test_alice_finds_ursula()
+    bob = Bob()
+    alice.learn_about_actor(bob)
+    bob.learn_about_actor(alice)
 
     _discovered_ursula_ip, discovered_ursula_port = alice.find_best_ursula()
 
@@ -60,25 +35,27 @@ def test_complete_treasure_map_flow():
     for i in range(50):
         treasure_map.nodes.append(api.secure_random(50))
 
-    encrypted_treasure_map = bob_encrypting_keypair.encrypt(treasure_map.packed_payload())
-    signature = "THIS IS A SIGNATURE"
+    encrypted_treasure_map, signature = alice.encrypt_for(bob, treasure_map.packed_payload())
 
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
-    policy_group = PolicyGroup(resource_id, bob_encrypting_keypair.pub_key)
+    policy_group = PolicyGroup(resource_id, bob)
     setter = alice.server.set(policy_group.id, encrypted_treasure_map)
     event_loop.run_until_complete(setter)
 
     treasure_map_as_set_on_network = list(ursula.server.storage.items())[0][1]
-    treasure_map_as_decrypted_by_bob = bob_encrypting_keypair.decrypt(
-        treasure_map_as_set_on_network)
+    verified, treasure_map_as_decrypted_by_bob = bob.verify_from(alice, signature,
+                                                                 treasure_map_as_set_on_network,
+                                                                 decrypt=True,
+                                                                 signature_is_on_cleartext=True,
+                                                                 )
     assert treasure_map_as_decrypted_by_bob == treasure_map.packed_payload()
+    assert verified is True
 
 
 def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     alice = Alice()
-    keychain_bob = KeyStore()
-    keychain_ursula = KeyStore()
+    bob = Bob()
 
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
@@ -94,7 +71,7 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     policy_manager = PolicyManagerForAlice(alice)
 
     policy_group = policy_manager.create_policy_group(
-        keychain_bob.enc_keypair.pub_key,
+        bob,
         resource_id,
         m=20,
         n=50,

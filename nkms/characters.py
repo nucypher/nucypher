@@ -1,7 +1,8 @@
 from kademlia.network import Server
-from nkms.crypto.constants import NOT_SIGNED
+
 from nkms.crypto import api
-from nkms.crypto.powers import CryptoPower, SigningKeypair
+from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
+from nkms.crypto.powers import CryptoPower, SigningKeypair, EncryptingPower
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 
 
@@ -44,15 +45,19 @@ class Character(object):
             """
             Can be called to sign something or used to express the signing public key as bytes.
             """
+            __call__ = self._crypto_power.sign
 
-            def __call__(seal_instance, *messages_to_sign):
-                return self._crypto_power.sign(*messages_to_sign)
+            def _as_tuple(seal):
+                return self._crypto_power.pubkey_sig_tuple()
 
-            def as_bytes(seal_instance):
+            def __iter__(seal):
+                yield from seal._as_tuple()
+
+            def __bytes__(seal):
                 return self._crypto_power.pubkey_sig_bytes()
 
-            def as_tuple(self_instance):
-                return self._crypto_power.pubkey_sig_tuple()
+            def __eq__(seal, other):
+                return other == seal._as_tuple() or other == bytes(seal)
 
         self.seal = Seal()
 
@@ -66,6 +71,10 @@ class Character(object):
             return self._server
         else:
             raise RuntimeError("Server hasn't been attached.")
+
+    @property
+    def name(self):
+        return self.__class__.__name__
 
     def learn_about_actor(self, actor):
         self._actor_mapping[actor.id()] = actor
@@ -83,9 +92,9 @@ class Character(object):
         :return: A tuple, (ciphertext, signature).  If sign==False, then signature will be NOT_SIGNED.
         """
         actor = self._lookup_actor(recipient)
-        pubkey_sign_id = actor.seal()  # I don't even like this.  I prefer .seal(), which
-        ciphertext = self._crypto_power.encrypt_for(pubkey_sign_id, cleartext)
 
+        ciphertext = self._crypto_power.encrypt_for(actor.public_key(EncryptingPower),
+                                                    cleartext)
         if sign:
             if sign_cleartext:
                 signature = self.seal(cleartext)
@@ -96,24 +105,34 @@ class Character(object):
 
         return ciphertext, signature
 
-    def verify_from(self, actor_whom_sender_claims_to_be: str, signature: bytes,
-                    *messages: bytes, decrypt=False,
-                    signature_is_on_cleartext=True) -> tuple:
+    def verify_from(self, actor_whom_sender_claims_to_be: "Character", signature: bytes,
+                    message: bytes, decrypt=False,
+                    signature_is_on_cleartext=False) -> tuple:
         """
         Inverse of encrypt_for.
 
-        :param actor_that_sender_claims_to_be: The str representation of the actor on this KeyStore
-            that the sender is claiming to be.
-        :param message:
-        :param decrypt:
-        :param signature_is_on_cleartext:
-        :return:
+        :param actor_that_sender_claims_to_be: A Character instance representing the actor whom the sender claims to be.  We check the public key owned by this Character instance to verify.
+        :param messages: The messages to be verified.
+        :param decrypt: Whether or not to decrypt the messages.
+        :param signature_is_on_cleartext: True if we expect the signature to be on the cleartext.  Otherwise, we presume that the ciphertext is what is signed.
+        :return: (Whether or not the signature is valid, the decrypted plaintext or NO_DECRYPTION_PERFORMED)
         """
+        cleartext = NO_DECRYPTION_PERFORMED
+        if signature_is_on_cleartext:
+            if decrypt:
+                cleartext = self._crypto_power.decrypt(message)
+                msg_digest = api.keccak_digest(cleartext)
+            else:
+                raise ValueError(
+                    "Can't look for a signature on the cleartext if we're not decrypting.")
+        else:
+            msg_digest = api.keccak_digest(message)
+
         actor = self._lookup_actor(actor_whom_sender_claims_to_be)
-        signature_pub_key = actor.seal.as_tuple()  # TODO: and again, maybe in the real world this looks in KeyStore.
-        msg_digest = b"".join(api.keccak_digest(m) for m in messages)  # This does work.
+        signature_pub_key = actor.seal
+
         sig = api.ecdsa_load_sig(signature)
-        return api.ecdsa_verify(*sig, msg_digest, signature_pub_key)
+        return api.ecdsa_verify(*sig, msg_digest, signature_pub_key), cleartext
 
     def _lookup_actor(self, actor: "Character"):
         try:
@@ -124,25 +143,27 @@ class Character(object):
     def id(self):
         return "whatever actor id ends up being - {}".format(id(self))
 
-
-class Ursula(Character):
-    _server_class = NuCypherDHTServer
-    _default_crypto_powerups = [SigningKeypair]
+    def public_key(self, key_class):
+        try:
+            return self._crypto_power.public_keys[key_class]
+        except KeyError:
+            raise  # TODO: Does it make sense to have a specialized exception here?  Probably.
 
 
 class Alice(Character):
     _server_class = NuCypherSeedOnlyDHTServer
-    _default_crypto_powerups = [SigningKeypair]
+    _default_crypto_powerups = [SigningKeypair, EncryptingPower]
 
     def find_best_ursula(self):
         # TODO: Right now this just finds the nearest node and returns its ip and port.  Make it do something useful.
         return self.server.bootstrappableNeighbors()[0]
 
     def generate_re_encryption_keys(self,
-                                    pubkey_enc_bob,
+                                    bob,
                                     m,
                                     n):
         # TODO: Make this actually work.
+        pubkey_enc_bob = bob.seal  # ???  We need Bob's enc key, not sig.
         kfrags = [
             'sfasdfsd9',
             'dfasd09fi',
@@ -150,3 +171,12 @@ class Alice(Character):
         ]
 
         return kfrags
+
+
+class Bob(Character):
+    _default_crypto_powerups = [SigningKeypair, EncryptingPower]
+
+
+class Ursula(Character):
+    _server_class = NuCypherDHTServer
+    _default_crypto_powerups = [SigningKeypair, EncryptingPower]

@@ -1,11 +1,8 @@
-from random import SystemRandom
-from typing import Iterable, Union, List, Tuple
-
-from py_ecc.secp256k1 import N, privtopub
+from typing import Iterable, List, Tuple
 
 from nkms.crypto import api as API
 from nkms.keystore import keypairs
-from npre import umbral
+from nkms.keystore.keypairs import SigningKeypair as RealSigingKeypair, EncryptingKeypair
 
 
 class PowerUpError(TypeError):
@@ -48,23 +45,21 @@ class CryptoPower(object):
     def pubkey_sig_bytes(self):
         try:
             return self._power_ups[
-                SigningKeypair].pubkey_bytes()  # TODO: Turn this into an ID lookup on a KeyStore.
+                SigningKeypair].pub_key  # TODO: Turn this into an ID lookup on a KeyStore.
         except KeyError:
             raise NoSigningPower
 
     def pubkey_sig_tuple(self):
         try:
-            return self._power_ups[
-                SigningKeypair].pub_key  # TODO: Turn this into an ID lookup on a KeyStore.
+            return API.ecdsa_bytes2pub(self._power_ups[
+                                           SigningKeypair].pub_key)  # TODO: Turn this into an ID lookup on a KeyStore.
         except KeyError:
             raise NoSigningPower
 
     def sign(self, *messages):
         """
         Signs a message and returns a signature with the keccak hash.
-
         :param Iterable messages: Messages to sign in an iterable of bytes
-
         :rtype: bytestring
         :return: Signature of message
         """
@@ -76,10 +71,18 @@ class CryptoPower(object):
 
         return sig_keypair.sign(msg_digest)
 
-    def encrypt_for(self, pubkey_sign_id, cleartext):
+    def decrypt(self, ciphertext):
         try:
-            enc_keypair = self._power_ups[EncryptingKeypair]
-            # TODO: Actually encrypt.
+            encrypting_power = self._power_ups[EncryptingPower]
+            return encrypting_power.decrypt(ciphertext)
+        except KeyError:
+            raise NoEncryptingPower
+
+    def encrypt_for(self, pubkey, cleartext):
+        try:
+            encrypting_power = self._power_ups[EncryptingPower]
+            ciphertext = encrypting_power.encrypt(cleartext, bytes(pubkey))
+            return ciphertext
         except KeyError:
             raise NoEncryptingPower
 
@@ -94,19 +97,12 @@ class CryptoPowerUp(object):
 class SigningKeypair(CryptoPowerUp):
     confers_public_key = True
 
-    def __init__(self, privkey_bytes=None):
-        self.secure_rand = SystemRandom()
-        if privkey_bytes:
-            self.priv_key = privkey_bytes
-        else:
-            # Key generation is random([1, N - 1])
-            priv_number = self.secure_rand.randrange(1, N)
-            self.priv_key = priv_number.to_bytes(32, byteorder='big')
-        # Get the public component
-        self.pub_key = privtopub(self.priv_key)
+    def __init__(self, keypair=None):  # TODO: Pretty much move this __init__ to SigningPower
 
-    def pubkey_bytes(self):
-        return b''.join(i.to_bytes(32, 'big') for i in self.pub_key)
+        self.real_keypair = keypair or RealSigingKeypair()  # Total throwaway line - this will not be "real_keypair" because this will be in SigningPower
+        self.real_keypair.gen_privkey()
+
+        self.priv_key, self.pub_key = self.real_keypair.privkey, self.real_keypair.pubkey
 
     def sign(self, msghash):
         """
@@ -127,15 +123,17 @@ class SigningKeypair(CryptoPowerUp):
 
 
 class EncryptingPower(CryptoPowerUp):
+    confers_public_key = True
     KEYSIZE = 32
 
-    def __init__(self, keypair: keypairs.EncryptingKeypair):
+    def __init__(self, keypair: keypairs.EncryptingKeypair = None):
         """
         Initalizes an EncryptingPower object for CryptoPower.
         """
-        self.keypair = keypair
-        self.priv_key = keypair.privkey
-        self.pub_key = keypair.pubkey
+
+        self.keypair = keypair or EncryptingKeypair()
+        self.priv_key = self.keypair.privkey
+        self.pub_key = self.keypair.pubkey
 
     def _split_path(self, path: bytes) -> List[bytes]:
         """
@@ -153,8 +151,8 @@ class EncryptingPower(CryptoPowerUp):
         return [b'/'.join(dirs[:i + 1]) for i in range(len(dirs))]
 
     def _derive_path_key(
-        self,
-        path: bytes,
+            self,
+            path: bytes,
     ) -> bytes:
         """
         Derives a key for the specific path.
@@ -269,3 +267,6 @@ class EncryptingPower(CryptoPowerUp):
         dec_key = API.ecies_decapsulate(privkey, enc_key)
 
         return API.symm_decrypt(dec_key, ciphertext)
+
+    def public_key(self):
+        return self.keypair.pubkey

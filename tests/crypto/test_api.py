@@ -327,3 +327,7 @@ class TestCrypto(unittest.TestCase):
         reenc_key = api.ecies_reencrypt(rk_eb, enc_key)
         dec_key = api.ecies_decapsulate(self.privkey_b, reenc_key)
         self.assertEqual(plain_key, dec_key)
+
+    def test_alpha_is_resolved(self):
+        with self.assertRaises(ImportError):
+            from nkms.crypto import _alpha

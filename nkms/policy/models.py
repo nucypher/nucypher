@@ -1,6 +1,6 @@
 import msgpack
 
-from nkms.characters import Alice
+from nkms.characters import Alice, Bob
 from nkms.crypto import api
 from nkms.policy.constants import UNKNOWN_KFRAG
 
@@ -46,7 +46,7 @@ class PolicyManagerForAlice(PolicyManager):
         return ursulas_and_results
 
     def create_policy_group(self,
-                            pubkey_enc_bob: tuple,
+                            bob: Bob,
                             uri: bytes,
                             m: int,
                             n: int,
@@ -56,18 +56,18 @@ class PolicyManagerForAlice(PolicyManager):
         Alice dictates a new group of policies.
         """
         re_enc_keys = self.owner.generate_re_encryption_keys(
-                                                  pubkey_enc_bob,
+                                                  bob,
                                                   m,
                                                   n)
         policies = []
         for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
                 rekey,
-                self.owner.seal.as_bytes(),
+                self.owner.seal,
             )
             policies.append(policy)
 
-        return PolicyGroup(uri, pubkey_enc_bob, policies)
+        return PolicyGroup(uri, bob, policies)
 
 
 class PolicyGroup(object):
@@ -77,9 +77,9 @@ class PolicyGroup(object):
 
     _id = None
 
-    def __init__(self, uri, pubkey_enc_bob, policies=None):
+    def __init__(self, uri: str, bob: Bob, policies=None):
         self.policies = policies or []
-        self.pubkey_enc_bob = pubkey_enc_bob
+        self.bob = bob
         self.uri = uri
 
     def transmit(self, networky_stuff):
@@ -93,7 +93,7 @@ class PolicyGroup(object):
     @property
     def id(self):
         if not self._id:
-            self._id = api.keccak_digest(self.uri, self.pubkey_enc_bob)
+            self._id = api.keccak_digest(self.uri, bytes(self.bob.seal))
         return self._id
 
 
@@ -122,7 +122,7 @@ class Policy(object):
         :param challenge_size:  The number of challenges to create in the ChallengePack.
         """
         self.kfrag = kfrag
-        self.deterministic_id_portion = deterministic_id_portion
+        self.deterministic_id_portion = bytes(deterministic_id_portion)
         self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
         self.challenge_size = challenge_size
         self.treasure_map = []
@@ -148,9 +148,9 @@ class Policy(object):
 
     @staticmethod
     def from_alice(kfrag,
-                   pubkey_sig_alice,
+                   alice_seal,
                    ):
-        policy = Policy(kfrag, deterministic_id_portion=pubkey_sig_alice)
+        policy = Policy(kfrag, deterministic_id_portion=alice_seal)
         policy.generate_challenge_pack()
 
         return policy

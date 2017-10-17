@@ -3,12 +3,14 @@ import pytest
 from nkms.characters import Alice, Ursula, Character
 from nkms.crypto import api
 from nkms.crypto.constants import NOT_SIGNED
-from nkms.crypto.powers import CryptoPower, SigningKeypair, NoSigningPower, NoEncryptingPower, \
-    EncryptingKeypair
 
 """
 SIGNING
 """
+
+from nkms.crypto.constants import NO_DECRYPTION_PERFORMED
+from nkms.crypto.powers import CryptoPower, SigningKeypair, NoSigningPower, NoEncryptingPower, \
+    EncryptingPower
 
 
 def test_actor_without_signing_power_cannot_sign():
@@ -23,11 +25,11 @@ def test_actor_without_signing_power_cannot_sign():
     with pytest.raises(NoSigningPower) as e_info:
         non_signer.seal("something")
 
-    # ...or as a way to show the public key.
+    # ...or as a way to cast the public key to bytes or tuple.
     with pytest.raises(NoSigningPower) as e_info:
-        non_signer.seal.as_bytes()
+        bytes(non_signer.seal)
     with pytest.raises(NoSigningPower) as e_info:
-        non_signer.seal.as_tuple()
+        tuple(non_signer.seal)
 
 
 def test_actor_with_signing_power_can_sign():
@@ -46,7 +48,7 @@ def test_actor_with_signing_power_can_sign():
 
     # ...or to get the signer's public key for verification purposes.
     sig = api.ecdsa_load_sig(signature)
-    verification = api.ecdsa_verify(*sig, api.keccak_digest(message), seal_of_the_signer.as_tuple())
+    verification = api.ecdsa_verify(*sig, api.keccak_digest(message), seal_of_the_signer)
 
     assert verification is True
 
@@ -70,8 +72,13 @@ def test_anybody_can_verify():
     signature = alice.seal(message)
 
     # Our everyman can verify it.
-    verification = somebody.verify_from(alice, signature, message)
+    verification, cleartext = somebody.verify_from(alice, signature, message, decrypt=False)
     assert verification is True
+    assert cleartext is NO_DECRYPTION_PERFORMED
+
+    # If we pass the signature and message backwards, we get TypeError.
+    # with pytest.raises(TypeError):
+    #    verification = somebody.verify_from(alice, message, signature)
 
 
 """
@@ -106,7 +113,7 @@ def test_character_with_encrypting_power_can_encrypt():
     """
     Now, a Character *with* EncryptingKeyPair can encrypt.
     """
-    can_sign_and_encrypt = Character(crypto_power_ups=[SigningKeypair, EncryptingKeypair])
+    can_sign_and_encrypt = Character(crypto_power_ups=[SigningKeypair, EncryptingPower])
     ursula = Ursula()
     can_sign_and_encrypt.learn_about_actor(ursula)
 
@@ -116,4 +123,4 @@ def test_character_with_encrypting_power_can_encrypt():
     ciphertext, signature = can_sign_and_encrypt.encrypt_for(ursula, cleartext, sign=False)
     assert signature == NOT_SIGNED
 
-    assert ciphertext is not None # annnd fail.
+    assert ciphertext is not None  # annnd fail.
