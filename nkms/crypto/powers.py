@@ -69,8 +69,8 @@ class CryptoPower(object):
         """
         try:
             sig_keypair = self._power_ups[SigningPower]
-        except KeyError:
-            raise NoSigningPower
+        except KeyError as e:
+            raise NoSigningPower(e)
         msg_digest = b"".join(API.keccak_digest(m) for m in messages)
 
         return sig_keypair.sign(msg_digest)
