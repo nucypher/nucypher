@@ -7,7 +7,7 @@ install:
 - pip install pipenv --upgrade
 - pipenv install --dev --three
 script:
-- pipenv run "pytest --cov=./nkms/* -v tests"
+- pipenv run "pytest --cov=nkms -v tests"
 - codecov
 notifications:
   slack:
