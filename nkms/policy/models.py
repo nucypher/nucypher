@@ -1,6 +1,6 @@
 import msgpack
 
-from nkms.characters import Alice, Bob
+from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.policy.constants import UNKNOWN_KFRAG
 
@@ -107,7 +107,7 @@ class Policy(object):
     only she can set a policy with that ID.  Ursula must verify this; otherwise a collision
     attack is possible.
     """
-    ursula = None
+    _ursula = None
     hashed_part = None
     _id = None
 
@@ -122,7 +122,7 @@ class Policy(object):
         :param challenge_size:  The number of challenges to create in the ChallengePack.
         """
         self.kfrag = kfrag
-        self.deterministic_id_portion = bytes(deterministic_id_portion)
+        self.deterministic_id_portion = deterministic_id_portion
         self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
         self.challenge_size = challenge_size
         self.treasure_map = []
@@ -144,7 +144,12 @@ class Policy(object):
         else:
             self._id = api.keccak_digest(self.random_id_portion)
 
-
+    @property
+    def ursula(self):
+        if not self._ursula:
+            raise Ursula.NotFound
+        else:
+            return self._ursula
 
     @staticmethod
     def from_alice(kfrag,
@@ -178,6 +183,7 @@ class Policy(object):
         Craft an offer to send to Ursula.
         """
         return self.ursula.encrypt_for((self.kfrag, self.challenge_pack, self.treasure_map))
+
 
     def update_treasure_map(self, policy_offer_result):
         # TODO: parse the result and add the node information to the treasure map.

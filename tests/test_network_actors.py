@@ -6,7 +6,7 @@ import pytest
 from nkms.characters import Ursula, Alice, Character, Bob
 from nkms.crypto import api
 from nkms.policy.constants import NON_PAYMENT
-from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, PolicyGroup
+from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, PolicyGroup, Policy
 
 
 class MockPolicyOfferResponse(object):
@@ -51,6 +51,13 @@ def test_treasure_map_from_alice_to_ursula_to_bob():
                                                                  )
     assert treasure_map_as_decrypted_by_bob == treasure_map.packed_payload()
     assert verified is True
+
+
+def test_cannot_offer_policy_without_finding_ursula():
+    networky_stuff = MockNetworkyStuff()
+    policy = Policy()
+    with pytest.raises(Ursula.NotFound):
+        policy_offer = policy.craft_offer(networky_stuff)
 
 
 def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
