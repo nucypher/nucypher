@@ -165,9 +165,9 @@ class Alice(Character):
         # TODO: Make this actually work.
         pubkey_enc_bob = bob.seal  # ???  We need Bob's enc key, not sig.
         kfrags = [
-            'sfasdfsd9',
-            'dfasd09fi',
-            'sdfksd3f9',
+            b'sfasdfsd9',
+            b'dfasd09fi',
+            b'sdfksd3f9',
         ]
 
         return kfrags

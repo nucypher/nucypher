@@ -80,21 +80,21 @@ class PolicyGroup(object):
 
         :return: A list, with each element containing an Ursula and an OfferResult.
         """
-        ursulas_and_results = []
         for policy in self.policies:
             try:
                 ursula, result = networky_stuff.find_ursula(self.id, offer)
-                policy.activate(ursula, result)
+                # TODO: Here, we need to assess the result and see if we're actually good to go.
+                if result.was_accepted:
+                    policy.activate(ursula, result)
             except networky_stuff.NotEnoughQualifiedUrsulas:
                 pass  # Tell Alice to either wait or lower the value of n.
 
-    def transmit(self, networky_stuff):
+    def transmit_payloads(self, networky_stuff):
 
         for policy in self.policies:
-            policy_offer = policy.craft_offer(networky_stuff)
-            result = networky_stuff.transmit_offer(policy.ursula, policy_offer)
-            if result.was_accepted:
-                policy.update_treasure_map(result)
+            payload = policy.encrypt_payload_for_ursula()
+            response = networky_stuff.animate_policy(policy.ursula, payload)
+            # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
 
     @property
     def id(self):
@@ -172,6 +172,9 @@ class Policy(object):
 
         return policy
 
+    def payload(self):
+        return msgpack.dumps({b"kf": bytes(self.kfrag), b"cp": msgpack.dumps(self.challenge_pack)})
+
     def activate(self, ursula, negotiation_result):
         self.ursula = ursula
         self.negotiation_result = negotiation_result
@@ -194,11 +197,11 @@ class Policy(object):
                                range(self.challenge_size)]
         return True
 
-    def craft_offer(self, networky_stuff):
+    def encrypt_payload_for_ursula(self):
         """
         Craft an offer to send to Ursula.
         """
-        return self.alice.encrypt_for(self.ursula, bytes(self.kfrag) + bytes(self.challenge_pack) + bytes( self.treasure_map))  # TODO: Properly concantenate these.
+        return self.alice.encrypt_for(self.ursula, self.payload())
 
 
     def update_treasure_map(self, policy_offer_result):
