@@ -14,11 +14,11 @@ class MockPolicyOfferResponse(object):
 
 
 class MockNetworkyStuff(object):
-    def transmit_offer(self, ursula, policy_offer):
-        return MockPolicyOfferResponse()
+    # def transmit_offer(self, ursula, policy_offer):
+    #     return
 
-    def find_ursula(self, id, hashed_part):
-        return Ursula()
+    def find_ursula(self, id, offer):
+        return Ursula(), MockPolicyOfferResponse()
 
 def test_treasure_map_from_alice_to_ursula_to_bob():
     """
@@ -55,7 +55,7 @@ def test_treasure_map_from_alice_to_ursula_to_bob():
 
 def test_cannot_offer_policy_without_finding_ursula():
     networky_stuff = MockNetworkyStuff()
-    policy = Policy()
+    policy = Policy(Alice())
     with pytest.raises(Ursula.NotFound):
         policy_offer = policy.craft_offer(networky_stuff)
 
@@ -82,10 +82,10 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
         resource_id,
         m=20,
         n=50,
-        offer=offer,
     )
     networky_stuff = MockNetworkyStuff()
-    # policy_group.transmit(networky_stuff)  # Until we figure out encrypt_for logic
+    policy_group.find_n_ursulas(networky_stuff, offer)
+    policy_group.transmit(networky_stuff)  # Until we figure out encrypt_for logic
 
 
 def test_alice_finds_ursula():
