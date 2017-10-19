@@ -380,6 +380,29 @@ def ecies_split_rekey(
                            min_shares, total_shares)
 
 
+def ecies_ephemeral_split_rekey(
+        privkey_a: Union[bytes, elliptic_curve.ec_element],
+        pubkey_b: Union[bytes, elliptic_curve.ec_element],
+        min_shares: int,
+        total_shares: int
+) -> Tuple[List[umbral.RekeyFrag], Tuple[bytes, bytes]]:
+    """
+    Performs a split-key re-encryption key generation where a minimum
+    number of shares `min_shares` are required to reproduce a rekey.
+    Will split a rekey inot `total_shares`.
+    This also generates an ephemeral keypair for the recipient as `pubkey_b`.
+
+    :param privkey_a: Privkey to re-encrypt from
+    :param pubkey_b: Public key to re-encrypt for (w/ ephemeral key)
+    :param min_shares: Minium shares needed to reproduce a rekey
+    :param total_shares: Total shares to generate from split-rekey gen
+
+    :return: A tuple containing a list of rekey frags, and a tuple of the
+             encrypted ephemeral key data
+    """
+    pass
+
+
 def ecies_combine(
         encrypted_keys: List[umbral.EncryptedKey]
 ) -> umbral.EncryptedKey:
