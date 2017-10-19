@@ -4,6 +4,7 @@ from typing import Tuple, Union, List
 import sha3
 from nacl.secret import SecretBox
 from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_recover, ecdsa_raw_sign
+from nkms.crypto import _internal
 
 from npre import elliptic_curve
 from npre import umbral
@@ -398,9 +399,12 @@ def ecies_ephemeral_split_rekey(
     :param total_shares: Total shares to generate from split-rekey gen
 
     :return: A tuple containing a list of rekey frags, and a tuple of the
-             encrypted ephemeral key data
+             encrypted ephemeral key data (enc_symm_key, enc_eph_privkey)
     """
-    pass
+    eph_privkey, enc_eph_data = _internal._ecies_gen_ephemeral_key(pubkey_b)
+    frags = ecies_split_rekey(privkey_a, eph_privkey, min_shares, total_shares)
+
+    return (frags, enc_eph_data)
 
 
 def ecies_combine(
