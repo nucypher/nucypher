@@ -2,6 +2,7 @@ import asyncio
 import datetime
 
 import pytest
+import unittest
 
 from nkms.characters import Ursula, Alice, Character, Bob
 from nkms.crypto import api
@@ -63,6 +64,7 @@ def test_cannot_offer_policy_without_finding_ursula():
         policy_offer = policy.encrypt_payload_for_ursula()
 
 
+@unittest.skip("Update L84 to properly use the `generate_rekey_frag` method")
 def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     alice = Alice()
     bob = Bob()

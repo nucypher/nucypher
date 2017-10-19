@@ -43,10 +43,7 @@ class PolicyManagerForAlice(PolicyManager):
         """
         Alice dictates a new group of policies.
         """
-        re_enc_keys = self.owner.generate_re_encryption_keys(
-                                                  bob,
-                                                  m,
-                                                  n)
+        re_enc_keys = self.owner.generate_rekey_frags(bob, m, n)
         policies = []
         for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
