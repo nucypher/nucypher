@@ -281,6 +281,18 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(list, type(frags))
         self.assertEqual(4, len(frags))
 
+    def test_ecies_ephemeral_split_rekey(self):
+        frags, enc_eph_data = api.ecies_ephemeral_split_rekey(self.privkey_a,
+                                                              self.pubkey_b,
+                                                              3, 4)
+        self.assertEqual(list, type(frags))
+        self.assertEqual(4, len(frags))
+
+        self.assertEqual(tuple, type(enc_eph_data))
+        self.assertEqual(2, len(enc_eph_data))
+        self.assertEqual(umbral.EncryptedKey, type(enc_eph_data[0]))
+        self.assertEqual(EncryptedMessage, type(enc_eph_data[1]))
+
     def test_ecies_combine(self):
         eph_priv = self.pre.gen_priv()
         eph_pub = self.pre.priv2pub(eph_priv)
