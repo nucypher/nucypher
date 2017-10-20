@@ -1,6 +1,8 @@
 import lmdb
 import sha3
 from nkms.keystore import keypairs
+from nkms.keystore import constants
+from typing import Union
 
 
 class KeyStore(object):
@@ -62,23 +64,59 @@ class KeyStore(object):
             ecdsa_keypair.gen_privkey()
         return ecdsa_keypair
 
-    def get_key(self):
+    def get_key(self, fingerprint: bytes) -> Union[keypairs.EncryptingKeypair,
+                                                   keypairs.SigningKeypair]:
         """
         Returns a key from the KeyStore.
 
-        TODO: Implement this.
-        TODO: Retrieve key by KeyID.
-        """
-        pass
+        :param fingerprint: Fingerprint, in bytes, of key to return
 
-    def add_key(self):
-        """
-        Adds a key to the KeyStore.
+        :return: Keypair of the returned key.
 
-        TODO: Implement this.
-        TODO: Maybe make an abstract base class for Keypair?
         """
-        pass
+        with self.lmdb_env.begin() as txn:
+            key = txn.get(fingerprint)
+
+        keypair_byte = key[0]
+        key_type_byte = key[1]
+        key = key[2:]
+
+        if keypair_byte == constants.ENC_KEYPAIR_BYTE:
+            if key_type_byte == constants.PUB_KEY_BYTE:
+                return keypairs.EncryptingKeypair(pubkey=key)
+
+            elif key_type_byte == constants.PRIV_KEY_BYTE:
+                return keypairs.EncryptingKeypair(privkey=key)
+
+        elif keypair_byte == constants.SIG_KEYPAIR_BYTE:
+            if key_type_byte == constants.PUB_KEY_BYTE:
+                return keypairs.SigningKeypair(pubkey=key)
+
+            elif key_type_byte == constants.PRIV_KEY_BYTE:
+                return keypairs.SigningKeypair(privkey=key)
+
+    def add_key(self,
+                keypair: Union[keypairs.EncryptingKeypair,
+                               keypairs.SigningKeypair],
+                store_pub: bool = True) -> bytes:
+        """
+        Gets a fingerprint of the key and adds it to the keystore.
+
+        :param key: Key, in bytes, to add to lmdb
+        ::
+
+        :return: Fingerprint, in bytes, of the added key
+        """
+        if store_pub:
+            fingerprint = self._get_fingerprint(keypair.pubkey)
+            key = keypair.serialize_pubkey()
+        else:
+            fingerprint = self._get_fingerprint(keypair.privkey)
+            key = keypair.serialize_privkey()
+
+        with self.lmdb_env.begin(write=True) as txn:
+            txn.put(fingerprint, key)
+        return fingerprint
 
     def del_key(self):
         """
