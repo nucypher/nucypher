@@ -77,6 +77,9 @@ class KeyStore(object):
         with self.lmdb_env.begin() as txn:
             key = txn.get(fingerprint)
 
+        if not key:
+            return None
+
         keypair_byte = key[0]
         key_type_byte = key[1]
         key = key[2:]
