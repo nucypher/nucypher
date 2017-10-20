@@ -80,8 +80,8 @@ class KeyStore(object):
         if not key:
             return None
 
-        keypair_byte = key[0]
-        key_type_byte = key[1]
+        keypair_byte = key[0].to_bytes(1, 'big')
+        key_type_byte = key[1].to_bytes(1, 'big')
         key = key[2:]
 
         if keypair_byte == constants.ENC_KEYPAIR_BYTE:
