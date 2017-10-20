@@ -1,3 +1,5 @@
+import lmdb
+import sha3
 from nkms.keystore import keypairs
 
 
@@ -6,14 +8,29 @@ class KeyStore(object):
     A storage class of cryptographic keys.
     """
 
-    def __init__(self):
+    def __init__(self, lmdb_path):
         """
-        Initializes a KeyStore object.
+        Initalizes a KeyStore object.
 
-        TODO: Actually store keys.
-        TODO: Load keys from system.
+        :param lmdb_path: LMDB path to open for reading
         """
-        pass
+        self.lmdb_env = lmdb.open(lmdb_path)
+
+    def __del__(self):
+        """
+        KeyStore cleanup?
+        """
+        self.lmdb_env.close()
+
+    def _get_fingerprint(self, key: bytes) -> bytes:
+        """
+        Hashes the key using keccak_256 and returns the hexdigest in bytes.
+
+        :param key: Key to hash
+
+        :return: Hexdigest fingerprint of key (keccak 256) in bytes
+        """
+        return sha3.keccak_256(key).hexdigest().encode()
 
     def gen_ecies_keypair(self, gen_priv=True) -> keypairs.EncryptingKeypair:
         """
