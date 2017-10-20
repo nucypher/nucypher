@@ -118,11 +118,11 @@ class KeyStore(object):
             txn.put(fingerprint, key)
         return fingerprint
 
-    def del_key(self):
+    def del_key(self, fingerprint: bytes):
         """
         Deletes a key from the KeyStore.
 
-        TODO: Implement this.
-        TODO: Delete key by KeyID.
+        :param fingerprint: Fingerprint of key to delete
         """
-        pass
+        with self.lmdb_env.begin(write=True) as txn:
+            txn.delete(fingerprint)
