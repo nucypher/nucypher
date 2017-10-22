@@ -1,3 +1,7 @@
+import pytest
+from ethereum.tester import TransactionFailed
+
+
 def test_escrow(web3, chain):
     creator = web3.eth.accounts[0]
     ursula = web3.eth.accounts[1]
@@ -20,8 +24,23 @@ def test_escrow(web3, chain):
             deploy_transaction={'from': ursula})
     assert txhash is not None
 
+    # Give Escrow rights to transfer
+    tx = token.transact({'from': ursula}).approve(ursula_escrow.address, 10000)
+    chain.wait.for_receipt(tx)
+    assert token.call().allowance(ursula, ursula_escrow.address) == 10000
+
+    # Ursula's withdrawal attempt won't succeed because nothing to withdraw
+    with pytest.raises(TransactionFailed):
+        tx = ursula_escrow.transact({'from': ursula}).withdraw(100)
+        chain.wait.for_receipt(tx)
+
+    # But Jury can't lock because nothing to lock
+    with pytest.raises(TransactionFailed):
+        tx = ursula_escrow.transact({'from': human_jury}).setLock(ursula, 500)
+        chain.wait.for_receipt(tx)
+
     # Ursula transfers some tokens to the escrow
-    tx = token.transact({'from': ursula}).transfer(ursula_escrow.address, 1000)
+    tx = ursula_escrow.transact({'from': ursula}).deposit(1000)
     chain.wait.for_receipt(tx)
     assert token.call().balanceOf(ursula_escrow.address) == 1000
     assert token.call().balanceOf(ursula) == 9000
@@ -34,23 +53,25 @@ def test_escrow(web3, chain):
     assert token.call().balanceOf(ursula) == 9500
 
     # Jury cannot withdraw
-    tx = ursula_escrow.transact({'from': human_jury}).withdraw(500)
-    chain.wait.for_receipt(tx)
+    with pytest.raises(TransactionFailed):
+        tx = ursula_escrow.transact({'from': human_jury}).withdraw(500)
+        chain.wait.for_receipt(tx)
     assert token.call().balanceOf(ursula_escrow.address) == 500
     assert token.call().balanceOf(ursula) == 9500
 
     # But Jury can lock
-    tx = ursula_escrow.transact({'from': human_jury}).setLock(500)
+    tx = ursula_escrow.transact({'from': human_jury}).setLock(ursula, 500)
     chain.wait.for_receipt(tx)
 
-    # And Ursula's withdrawal attepmt won't succeed
-    tx = ursula_escrow.transact({'from': ursula}).withdraw(100)
-    chain.wait.for_receipt(tx)
+    # And Ursula's withdrawal attempt won't succeed
+    with pytest.raises(TransactionFailed):
+        tx = ursula_escrow.transact({'from': ursula}).withdraw(100)
+        chain.wait.for_receipt(tx)
     assert token.call().balanceOf(ursula_escrow.address) == 500
     assert token.call().balanceOf(ursula) == 9500
 
     # Now Jury unlocks some
-    tx = ursula_escrow.transact({'from': human_jury}).setLock(200)
+    tx = ursula_escrow.transact({'from': human_jury}).setLock(ursula, 200)
     chain.wait.for_receipt(tx)
 
     # And Ursula can withdraw
