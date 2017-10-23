@@ -5,6 +5,13 @@ from nkms.keystore import constants
 from typing import Union
 
 
+class KeyNotFound(KeyError):
+    """
+    Exception class for KeyStore get_key calls for keys that don't exist.
+    """
+    pass
+
+
 class KeyStore(object):
     """
     A storage class of cryptographic keys.
@@ -78,7 +85,8 @@ class KeyStore(object):
             key = txn.get(fingerprint)
 
         if not key:
-            return None
+            raise KeyNotFound(
+                    "No key with fingerprint {} found.".format(fingerprint))
 
         keypair_byte = key[0].to_bytes(1, 'big')
         key_type_byte = key[1].to_bytes(1, 'big')
