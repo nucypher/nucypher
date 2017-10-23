@@ -85,7 +85,7 @@ class KeyStore(object):
             key = txn.get(fingerprint)
 
         if not key:
-            return None
+            raise KeyNotFound("No key found with the provided fingerprint.")
 
         keypair_byte = key[0].to_bytes(1, 'big')
         key_type_byte = key[1].to_bytes(1, 'big')
