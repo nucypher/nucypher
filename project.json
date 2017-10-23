@@ -1,0 +1,9 @@
+{
+  "compilation": {
+    "contracts_source_dirs": [
+      "./contracts"
+    ],
+    "import_remappings": []
+  },
+  "version": "7"
+}
