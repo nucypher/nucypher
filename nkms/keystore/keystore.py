@@ -5,6 +5,13 @@ from nkms.keystore import constants
 from typing import Union
 
 
+class KeyNotFound(KeyError):
+    """
+    Exception class for KeyStore get_key calls for keys that don't exist.
+    """
+    pass
+
+
 class KeyStore(object):
     """
     A storage class of cryptographic keys.
