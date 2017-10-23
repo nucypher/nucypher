@@ -3,6 +3,7 @@ from typing import Tuple
 from nacl.secret import SecretBox
 
 from nkms.crypto import api as API
+from nkms.keystore import constants
 from npre import umbral
 from npre import elliptic_curve as ec
 
@@ -81,6 +82,28 @@ class EncryptingKeypair(Keypair):
         cipher = SecretBox(key)
         return cipher.decrypt(edata)
 
+    def serialize_pubkey(self) -> bytes:
+        """
+        Serializes the pubkey for storage.
+
+        :return: The serialized pubkey in bytes
+        """
+        serialized_key = (constants.ENC_KEYPAIR_BYTE +
+                          constants.PUB_KEY_BYTE +
+                          self.pubkey)
+        return serialized_key
+
+    def serialize_privkey(self) -> bytes:
+        """
+        Serializes the privkey for storage.
+
+        :return: The serialized privkey in bytes
+        """
+        serialized_key = (constants.ENC_KEYPAIR_BYTE +
+                          constants.PRIV_KEY_BYTE +
+                          self.privkey)
+        return serialized_key
+
 
 class SigningKeypair(Keypair):
     """
@@ -126,3 +149,25 @@ class SigningKeypair(Keypair):
         """
         v, r, s = API.ecdsa_load_sig(signature)
         return API.ecdsa_verify(v, r, s, msghash, self.pubkey)
+
+    def serialize_pubkey(self) -> bytes:
+        """
+        Serializes the pubkey for storage.
+
+        :return: The serialized pubkey in bytes
+        """
+        serialized_key = (constants.SIG_KEYPAIR_BYTE +
+                          constants.PUB_KEY_BYTE +
+                          self.pubkey)
+        return serialized_key
+
+    def serialize_privkey(self) -> bytes:
+        """
+        Serializes the privkey for storage.
+
+        :return: The serialized privkey in bytes
+        """
+        serialized_key = (constants.SIG_KEYPAIR_BYTE +
+                          constants.PRIV_KEY_BYTE +
+                          self.privkey)
+        return serialized_key
