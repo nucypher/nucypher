@@ -1,6 +1,6 @@
 import msgpack
 
-from nkms.characters import Alice, Bob
+from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.policy.constants import UNKNOWN_KFRAG
 
@@ -22,6 +22,10 @@ class PolicyOffer(object):
         self.contract_end_datetime = contract_end_datetime
 
 
+class PolicyOfferResponse(object):
+    pass
+
+
 class PolicyManager(object):
     pass
 
@@ -30,40 +34,21 @@ class PolicyManagerForAlice(PolicyManager):
     def __init__(self, owner: Alice):
         self.owner = owner
 
-    def find_n_ursulas(self, networky_stuff, n, offer: PolicyOffer) -> list:
-        """
-        :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
-
-        :return: A list, with each element containing an Ursula and an OfferResult.
-        """
-        ursulas_and_results = []
-        while len(ursulas_and_results) < n:
-            try:
-                ursulas_and_results.append(
-                    networky_stuff.find_ursula(self.id, self.hashed_part, offer))
-            except networky_stuff.NotEnoughQualifiedUrsulas:
-                pass  # Tell Alice to either wait or lower the value of n.
-        return ursulas_and_results
-
     def create_policy_group(self,
                             bob: Bob,
                             uri: bytes,
                             m: int,
                             n: int,
-                            offer: PolicyOffer,
                             ):
         """
         Alice dictates a new group of policies.
         """
-        re_enc_keys = self.owner.generate_re_encryption_keys(
-                                                  bob,
-                                                  m,
-                                                  n)
+        re_enc_keys = self.owner.generate_rekey_frags(bob, m, n)
         policies = []
         for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
-                rekey,
-                self.owner.seal,
+                alice=self.owner,
+                kfrag=rekey,
             )
             policies.append(policy)
 
@@ -82,13 +67,31 @@ class PolicyGroup(object):
         self.bob = bob
         self.uri = uri
 
-    def transmit(self, networky_stuff):
+    @property
+    def n(self):
+        return len(self.policies)
+
+    def find_n_ursulas(self, networky_stuff, offer: PolicyOffer) -> list:
+        """
+        :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
+
+        :return: A list, with each element containing an Ursula and an OfferResult.
+        """
+        for policy in self.policies:
+            try:
+                ursula, result = networky_stuff.find_ursula(self.id, offer)
+                # TODO: Here, we need to assess the result and see if we're actually good to go.
+                if result.was_accepted:
+                    policy.activate(ursula, result)
+            except networky_stuff.NotEnoughQualifiedUrsulas:
+                pass  # Tell Alice to either wait or lower the value of n.
+
+    def transmit_payloads(self, networky_stuff):
 
         for policy in self.policies:
-            policy_offer = policy.craft_offer(networky_stuff)
-            result = networky_stuff.transmit_offer(policy.ursula, policy_offer)
-            if result.was_accepted:
-                policy.update_treasure_map(result)
+            payload = policy.encrypt_payload_for_ursula()
+            response = networky_stuff.animate_policy(policy.ursula, payload)
+            # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
 
     @property
     def id(self):
@@ -107,11 +110,11 @@ class Policy(object):
     only she can set a policy with that ID.  Ursula must verify this; otherwise a collision
     attack is possible.
     """
-    ursula = None
+    _ursula = None
     hashed_part = None
     _id = None
 
-    def __init__(self, kfrag=UNKNOWN_KFRAG, deterministic_id_portion=None, challenge_size=20, set_id=True):
+    def __init__(self, alice, kfrag=UNKNOWN_KFRAG, deterministic_id_portion=None, challenge_size=20, set_id=True):
         """
 
         :param kfrag:
@@ -121,8 +124,9 @@ class Policy(object):
             If it's not included, the Policy ID will be completely random.
         :param challenge_size:  The number of challenges to create in the ChallengePack.
         """
+        self.alice = alice
         self.kfrag = kfrag
-        self.deterministic_id_portion = bytes(deterministic_id_portion)
+        self.deterministic_id_portion = deterministic_id_portion
         self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
         self.challenge_size = challenge_size
         self.treasure_map = []
@@ -144,16 +148,33 @@ class Policy(object):
         else:
             self._id = api.keccak_digest(self.random_id_portion)
 
+    @property
+    def ursula(self):
+        if not self._ursula:
+            raise Ursula.NotFound
+        else:
+            return self._ursula
 
+    @ursula.setter
+    def ursula(self, ursula_object):
+        self.alice.learn_about_actor(ursula_object)
+        self._ursula = ursula_object
 
     @staticmethod
     def from_alice(kfrag,
-                   alice_seal,
+                   alice,
                    ):
-        policy = Policy(kfrag, deterministic_id_portion=alice_seal)
+        policy = Policy(alice, kfrag, deterministic_id_portion=alice.seal)
         policy.generate_challenge_pack()
 
         return policy
+
+    def payload(self):
+        return msgpack.dumps({b"kf": bytes(self.kfrag), b"cp": msgpack.dumps(self.challenge_pack)})
+
+    def activate(self, ursula, negotiation_result):
+        self.ursula = ursula
+        self.negotiation_result = negotiation_result
 
     def hash(self, pubkey_sig_alice, hash_input):
 
@@ -173,11 +194,12 @@ class Policy(object):
                                range(self.challenge_size)]
         return True
 
-    def craft_offer(self, networky_stuff):
+    def encrypt_payload_for_ursula(self):
         """
         Craft an offer to send to Ursula.
         """
-        return self.ursula.encrypt_for((self.kfrag, self.challenge_pack, self.treasure_map))
+        return self.alice.encrypt_for(self.ursula, self.payload())
+
 
     def update_treasure_map(self, policy_offer_result):
         # TODO: parse the result and add the node information to the treasure map.

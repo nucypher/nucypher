@@ -1,6 +1,6 @@
 from kademlia.network import Server
 
-from nkms.crypto import api
+from nkms.crypto import api as API
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
@@ -121,18 +121,18 @@ class Character(object):
         if signature_is_on_cleartext:
             if decrypt:
                 cleartext = self._crypto_power.decrypt(message)
-                msg_digest = api.keccak_digest(cleartext)
+                msg_digest = API.keccak_digest(cleartext)
             else:
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not decrypting.")
         else:
-            msg_digest = api.keccak_digest(message)
+            msg_digest = API.keccak_digest(message)
 
         actor = self._lookup_actor(actor_whom_sender_claims_to_be)
         signature_pub_key = actor.seal
 
-        sig = api.ecdsa_load_sig(signature)
-        return api.ecdsa_verify(*sig, msg_digest, signature_pub_key), cleartext
+        sig = API.ecdsa_load_sig(signature)
+        return API.ecdsa_verify(*sig, msg_digest, signature_pub_key), cleartext
 
     def _lookup_actor(self, actor: "Character"):
         try:
@@ -158,19 +158,21 @@ class Alice(Character):
         # TODO: Right now this just finds the nearest node and returns its ip and port.  Make it do something useful.
         return self.server.bootstrappableNeighbors()[0]
 
-    def generate_re_encryption_keys(self,
-                                    bob,
-                                    m,
-                                    n):
-        # TODO: Make this actually work.
-        pubkey_enc_bob = bob.seal  # ???  We need Bob's enc key, not sig.
-        kfrags = [
-            'sfasdfsd9',
-            'dfasd09fi',
-            'sdfksd3f9',
-        ]
+    def generate_rekey_frags(self, alice_privkey, bob_pubkey, m, n):
+        """
+        Generates re-encryption key frags and returns the frags and encrypted
+        ephemeral key data.
 
-        return kfrags
+        :param alice_privkey: Alice's private key
+        :param bob_pubkey: Bob's public key
+        :param m: Minimum number of rekey shares needed to rebuild ciphertext
+        :param n: Total number of rekey shares to generate
+
+        :return: Tuple(kfrags, eph_key_data)
+        """
+        kfrags, eph_key_data = API.ecies_ephemeral_split_rekey(
+                                    alice_privkey, bob_pubkey, m, n)
+        return (kfrags, eph_key_data)
 
 
 class Bob(Character):

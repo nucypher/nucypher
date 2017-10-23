@@ -4,6 +4,7 @@ from typing import Tuple, Union, List
 import sha3
 from nacl.secret import SecretBox
 from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_recover, ecdsa_raw_sign
+from nkms.crypto import _internal
 
 from npre import elliptic_curve
 from npre import umbral
@@ -378,6 +379,32 @@ def ecies_split_rekey(
         privkey_b = priv_bytes2ec(privkey_b)
     return PRE.split_rekey(privkey_a, privkey_b,
                            min_shares, total_shares)
+
+
+def ecies_ephemeral_split_rekey(
+        privkey_a: Union[bytes, elliptic_curve.ec_element],
+        pubkey_b: Union[bytes, elliptic_curve.ec_element],
+        min_shares: int,
+        total_shares: int
+) -> Tuple[List[umbral.RekeyFrag], Tuple[bytes, bytes]]:
+    """
+    Performs a split-key re-encryption key generation where a minimum
+    number of shares `min_shares` are required to reproduce a rekey.
+    Will split a rekey inot `total_shares`.
+    This also generates an ephemeral keypair for the recipient as `pubkey_b`.
+
+    :param privkey_a: Privkey to re-encrypt from
+    :param pubkey_b: Public key to re-encrypt for (w/ ephemeral key)
+    :param min_shares: Minium shares needed to reproduce a rekey
+    :param total_shares: Total shares to generate from split-rekey gen
+
+    :return: A tuple containing a list of rekey frags, and a tuple of the
+             encrypted ephemeral key data (enc_symm_key, enc_eph_privkey)
+    """
+    eph_privkey, enc_eph_data = _internal._ecies_gen_ephemeral_key(pubkey_b)
+    frags = ecies_split_rekey(privkey_a, eph_privkey, min_shares, total_shares)
+
+    return (frags, enc_eph_data)
 
 
 def ecies_combine(
