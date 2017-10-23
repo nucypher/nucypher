@@ -57,10 +57,10 @@ class TestKeyStore(unittest.TestCase):
 
         # Test del_key pubkey
         self.ks.del_key(fingerprint_pub)
-        key = self.ks.get_key(fingerprint_pub)
-        self.assertIsNone(key)
+        with self.assertRaises(keystore.KeyNotFound):
+            key = self.ks.get_key(fingerprint_pub)
 
         # Test del_key privkey
         self.ks.del_key(fingerprint_priv)
-        key = self.ks.get_key(fingerprint_priv)
-        self.assertIsNone(key)
+        with self.assertRaises(keystore.KeyNotFound):
+            key = self.ks.get_key(fingerprint_priv)
