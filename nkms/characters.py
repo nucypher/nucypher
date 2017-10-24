@@ -158,7 +158,7 @@ class Alice(Character):
         # TODO: Right now this just finds the nearest node and returns its ip and port.  Make it do something useful.
         return self.server.bootstrappableNeighbors()[0]
 
-    def generate_rekey_frags(self, alice_privkey, bob_pubkey, m, n):
+    def generate_rekey_frags(self, alice_privkey, bob, m, n):
         """
         Generates re-encryption key frags and returns the frags and encrypted
         ephemeral key data.
@@ -171,7 +171,7 @@ class Alice(Character):
         :return: Tuple(kfrags, eph_key_data)
         """
         kfrags, eph_key_data = API.ecies_ephemeral_split_rekey(
-                                    alice_privkey, bob_pubkey, m, n)
+                                    alice_privkey, bytes(bob.seal), m, n)
         return (kfrags, eph_key_data)
 
 

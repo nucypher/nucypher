@@ -2,6 +2,7 @@ import msgpack
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
+from nkms.crypto.powers import EncryptingPower
 from nkms.policy.constants import UNKNOWN_KFRAG
 
 
@@ -43,7 +44,10 @@ class PolicyManagerForAlice(PolicyManager):
         """
         Alice dictates a new group of policies.
         """
-        re_enc_keys = self.owner.generate_rekey_frags(bob, m, n)
+
+        ##### Temporary until we decide on an API for private key access
+        alice_priv_enc = self.owner._crypto_power._power_ups[EncryptingPower].priv_key
+        re_enc_keys, encrypted_key = self.owner.generate_rekey_frags(alice_priv_enc, bob, m, n)  # TODO: Access Alice's private key inside this method.
         policies = []
         for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
