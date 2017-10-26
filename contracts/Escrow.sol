@@ -1,7 +1,7 @@
 pragma solidity ^0.4.8;
 
 
-import "./Token.sol";
+import "zeppelin-solidity/contracts/token/ERC20.sol";
 import "./LinkedList.sol";
 
 
@@ -16,13 +16,16 @@ contract Escrow {
     struct TokenInfo {
         uint256 value;
         uint256 lockedValue;
+        uint256 releaseTime;
     }
 
+
     address owner;
-    address tokenContractAddress;
+    ERC20 token;
     address jury;
     mapping (address => TokenInfo) tokenInfo;
     LinkedList.Data tokenOwners;
+    uint256 miningCoefficient;
 
     /**
     * @dev Throws if called by any account other than the _user.
@@ -39,34 +42,53 @@ contract Escrow {
     * @param _value Amount of tokens to check
     **/
     modifier whenAvailable(address _owner, uint256 _value) {
-        Token token = Token(tokenContractAddress);
-        require(_value <= token.balanceOf(address(this)));
         require(_value <= tokenInfo[_owner].value);
+        require(_value <= token.balanceOf(address(this)));
+        _;
+    }
+
+    /**
+    * @dev Throws if not locked tokens less then _value.
+    * @param _owner Owner of tokens
+    * @param _value Amount of tokens to check
+    **/
+    modifier whenNotLocked(address _owner, uint256 _value) {
+        require(_value <= token.balanceOf(address(this)));
+        require(_value <= tokenInfo[_owner].value - tokenInfo[_owner].lockedValue ||
+            _value <= tokenInfo[_owner].value &&
+            (tokenInfo[_owner].lockedValue == 0 ||
+            tokenInfo[_owner].releaseTime <= now));
         _;
     }
 
     /**
     * @notice The Escrow constructor sets address of token contract and jury address
-    * @param _tokenContractAddress Token contract address
+    * @param _token Token contract
     * @param _jury The user who is allowed to locking token
+    * @param _miningCoefficient amount of tokens that will be credited
+    for each locked token in each iteration
     **/
-    function Escrow(address _tokenContractAddress, address _jury) {
-        tokenContractAddress = _tokenContractAddress;
+    function Escrow(ERC20 _token, address _jury, uint256 _miningCoefficient) {
+        token = _token;
         jury = _jury;
         owner = msg.sender;
+        miningCoefficient = _miningCoefficient;
     }
 
     /**
     * @notice Setting locked value. Available only for jury
     * @param _owner Owner of tokens
     * @param _value Amount of tokens which should lock
+    * @param _releaseTime Timestamp when tokens will be unlocked
     **/
-    function setLock(address _owner, uint256 _value)
+    function setLock(address _owner, uint256 _value, uint256 _releaseTime)
         onlyBy(jury)
         whenAvailable(_owner, _value)
         returns (bool success)
     {
+        require(_value == 0 || _releaseTime >= now);
         tokenInfo[_owner].lockedValue = _value;
+        tokenInfo[_owner].releaseTime = _releaseTime;
         return true;
     }
 
@@ -75,11 +97,10 @@ contract Escrow {
     * @param _value Amount of token to withdraw
     **/
     function withdraw(uint256 _value)
-        whenAvailable(msg.sender, _value + tokenInfo[msg.sender].lockedValue)
+        whenNotLocked(msg.sender, _value)
         returns (bool success)
     {
         tokenInfo[msg.sender].value -= _value;
-        Token token = Token(tokenContractAddress);
         if (!token.transfer(msg.sender, _value)) {
             revert();
             return false;
@@ -96,7 +117,6 @@ contract Escrow {
             tokenOwners.push(msg.sender, true);
         }
         tokenInfo[msg.sender].value += _value;
-        Token token = Token(tokenContractAddress);
         if (!token.transferFrom(msg.sender, address(this), _value)) {
             revert();
             return false;
@@ -115,7 +135,6 @@ contract Escrow {
         tokenOwners.remove(msg.sender);
         uint256 value = tokenInfo[msg.sender].value;
         delete tokenInfo[msg.sender];
-        Token token = Token(tokenContractAddress);
         if (!token.transfer(msg.sender, value)) {
             revert();
             return false;
@@ -127,10 +146,8 @@ contract Escrow {
     * @notice Terminate contract and refund to owners
     * @dev The called token contracts could try to re-enter this contract.
     Only supply token contracts you trust.
-    */
+    **/
     function destroy() onlyBy(owner) public {
-        Token token = Token(tokenContractAddress);
-
         // Transfer tokens to owners
         var current = tokenOwners.step(0x0, true);
         while (current != 0x0) {
@@ -145,15 +162,68 @@ contract Escrow {
         selfdestruct(owner);
     }
 
-//    /**
-//    * @notice Withdraw tokens to owner
-//    * @param _to Owner of tokens
-//    * @param _value Amount of token to withdraw
-//    **/
-//    function withdrawTo(address _to, uint256 _value) internal returns (bool success) {
-//        tokenInfo[_to].value -= _value;
-//        Token token = Token(tokenContractAddress);
-//        return token.transfer(_to, _value);
-//    }
+    /**
+    * @notice Get locked tokens value in a specified moment in time
+    * @param _owner Tokens owner
+    * @param _time Timestamp for searching
+    **/
+    function getLockedTokens(address _owner, uint256 _time)
+        public constant returns (uint256)
+    {
+        if (tokenInfo[_owner].releaseTime <= _time) {
+            return 0;
+        } else {
+            return tokenInfo[_owner].lockedValue;
+        }
+    }
 
+    /**
+    * @notice Get locked tokens value for all owners in a specified moment in time
+    * @param _time Timestamp for searching
+    **/
+    function getAllLockedTokens(uint256 _time)
+        public constant returns (uint256 result)
+    {
+        var current = tokenOwners.step(0x0, true);
+        while (current != 0x0) {
+            result += getLockedTokens(current, _time);
+            current = tokenOwners.step(current, true);
+        }
+    }
+
+    /**
+    * @notice Get locked tokens value for owner
+    * @param _owner Tokens owner
+    **/
+    function getLockedTokens(address _owner)
+        public constant returns (uint256)
+    {
+        return getLockedTokens(_owner, now);
+    }
+
+    /**
+    * @notice Get locked tokens value for all owners
+    **/
+    function getAllLockedTokens()
+        public constant returns (uint256 result)
+    {
+        return getAllLockedTokens(now);
+    }
+
+    /**
+    * @notice Mine tokens in specified moment of time for all users who locked their tokens
+    * @param _time Timestamp for mining
+    **/
+    function mine(uint256 _time) {
+        require(_time < now);
+        var current = tokenOwners.step(0x0, true);
+        while (current != 0x0) {
+            var lockedValue = getLockedTokens(current, _time);
+            if (lockedValue > 0) {
+                //TODO handle overflow
+                tokenInfo[current].value += lockedValue * miningCoefficient;
+            }
+            current = tokenOwners.step(current, true);
+        }
+    }
 }

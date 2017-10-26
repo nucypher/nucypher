@@ -1,9 +1,10 @@
 {
   "compilation": {
     "contracts_source_dirs": [
-      "./contracts"
+      "./contracts",
+      "../zeppelin-solidity/contracts"
     ],
-    "import_remappings": []
+    "import_remappings": ["zeppelin-solidity=../zeppelin-solidity"]
   },
   "version": "7"
 }

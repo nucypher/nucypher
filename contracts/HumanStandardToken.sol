@@ -11,7 +11,7 @@ Machine-based, rapid creation of many tokens would not necessarily need these ex
 
 .*/
 
-import "./StandardToken.sol";
+import "zeppelin-solidity/contracts/token/StandardToken.sol";
 
 pragma solidity ^0.4.8;
 
