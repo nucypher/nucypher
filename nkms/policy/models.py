@@ -175,8 +175,7 @@ class Policy(object):
         return policy
 
     def payload(self):
-        kfrag_as_bytes = serialize(self.kfrag)
-        return msgpack.dumps({b"kf": bytes(self.kfrag), b"cp": msgpack.dumps(self.challenge_pack)})
+        return msgpack.dumps({b"kf": [serialize(k) for k in self.kfrag], b"cp": msgpack.dumps(self.challenge_pack)})
 
     def activate(self, ursula, negotiation_result):
         self.ursula = ursula

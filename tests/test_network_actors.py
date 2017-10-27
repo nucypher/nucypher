@@ -69,13 +69,6 @@ def test_treasure_map_from_alice_to_ursula():
 
     treasure_map_as_set_on_network = list(URSULA.server.storage.items())[0][1]
     assert tuple(treasure_map_as_set_on_network) == encrypted_treasure_map  # IE, Ursula stores it properly.
-
-    verified, treasure_map_as_decrypted_by_bob = BOB.verify_from(ALICE, signature,
-                                                                 treasure_map_as_set_on_network,
-                                                                 decrypt=True,
-                                                                 signature_is_on_cleartext=True,
-                                                                 )
-
     return treasure_map, treasure_map_as_set_on_network, signature
 
 
@@ -94,7 +87,8 @@ def test_treasure_map_from_ursula_to_bob():
     """
     Bob finds Ursula and upgrades their connection to TLS to receive the TreasureMap.
     """
-    pass
+    treasure_map, treasure_map_as_set_on_network, signature = test_treasure_map_from_alice_to_ursula()
+
 
 
 def test_cannot_offer_policy_without_finding_ursula():
