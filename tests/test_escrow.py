@@ -1,14 +1,11 @@
 import pytest
 from ethereum.tester import TransactionFailed
-from datetime import datetime, timedelta
 
 
 def test_escrow(web3, chain):
     creator = web3.eth.accounts[0]
     ursula = web3.eth.accounts[1]
     alice = web3.eth.accounts[2]
-    human_jury = web3.eth.accounts[3]
-    timestamp = int((datetime.now() + timedelta(seconds=1000)).timestamp())
 
     # Create an ERC20 token
     token, txhash = chain.provider.get_or_deploy_contract(
@@ -26,7 +23,7 @@ def test_escrow(web3, chain):
 
     # Creator deploys the escrow
     escrow, txhash = chain.provider.get_or_deploy_contract(
-            'Escrow', deploy_args=[token.address, human_jury, 1],
+            'Escrow', deploy_args=[token.address, 1],
             deploy_transaction={'from': creator})
     assert txhash is not None
 
@@ -43,9 +40,9 @@ def test_escrow(web3, chain):
         tx = escrow.transact({'from': ursula}).withdraw(100)
         chain.wait.for_receipt(tx)
 
-    # And Jury can't lock because nothing to lock
+    # And can't lock because nothing to lock
     with pytest.raises(TransactionFailed):
-        tx = escrow.transact({'from': human_jury}).setLock(ursula, 500, timestamp)
+        tx = escrow.transact({'from': ursula}).lock(500, 100)
         chain.wait.for_receipt(tx)
 
     # Ursula and Alice transfer some tokens to the escrow
@@ -70,54 +67,37 @@ def test_escrow(web3, chain):
     assert escrow.call().getLockedTokens(alice) == 0
     assert escrow.call().getAllLockedTokens() == 0
 
-    # Jury cannot withdraw
-    with pytest.raises(TransactionFailed):
-        tx = escrow.transact({'from': human_jury}).withdraw(500)
-        chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(escrow.address) == 1000
-    assert token.call().balanceOf(ursula) == 9500
-
-    # But Jury can lock
-    tx = escrow.transact({'from': human_jury}).setLock(ursula, 500, timestamp)
+    # Ursula and Alice lock some tokens for 100 and 200 blocks
+    tx = escrow.transact({'from': ursula}).lock(500, 100)
     chain.wait.for_receipt(tx)
     assert escrow.call().getLockedTokens(ursula) == 500
     assert escrow.call().getLockedTokens(alice) == 0
     assert escrow.call().getAllLockedTokens() == 500
-    tx = escrow.transact({'from': human_jury}).setLock(alice, 100, timestamp)
+    tx = escrow.transact({'from': alice}).lock(100, 200)
     chain.wait.for_receipt(tx)
     assert escrow.call().getLockedTokens(ursula) == 500
     assert escrow.call().getLockedTokens(alice) == 100
     assert escrow.call().getAllLockedTokens() == 600
 
-    # And Ursula's withdrawal attempt won't succeed
+    # Ursula's withdrawal attempt won't succeed
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula}).withdraw(100)
         chain.wait.for_receipt(tx)
     assert token.call().balanceOf(escrow.address) == 1000
     assert token.call().balanceOf(ursula) == 9500
 
-    # Now Jury unlocks some
-    tx = escrow.transact({'from': human_jury}).setLock(ursula, 200, timestamp)
-    chain.wait.for_receipt(tx)
-    assert escrow.call().getLockedTokens(ursula) == 200
-    assert escrow.call().getAllLockedTokens() == 300
+    # Wait 100 blocks
+    chain.wait.for_block(web3.eth.blockNumber + 100)
+    assert escrow.call().getLockedTokens(ursula) == 0
+    assert escrow.call().getAllLockedTokens() == 100
 
-    # And Ursula can withdraw
+    # And Ursula can withdraw some tokens
     tx = escrow.transact({'from': ursula}).withdraw(100)
     chain.wait.for_receipt(tx)
     assert token.call().balanceOf(escrow.address) == 900
     assert token.call().balanceOf(ursula) == 9600
 
-    # But can't withdraw all
-    with pytest.raises(TransactionFailed):
-        tx = escrow.transact({'from': ursula}).withdraw(400)
-        chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(escrow.address) == 900
-    assert token.call().balanceOf(ursula) == 9600
-
-    # Ursula can withdraw all after Jury unlocks all
-    tx = escrow.transact({'from': human_jury}).setLock(ursula, 0, timestamp)
-    chain.wait.for_receipt(tx)
+    # And Ursula can withdraw all
     tx = escrow.transact({'from': ursula}).withdrawAll()
     chain.wait.for_receipt(tx)
     assert token.call().balanceOf(escrow.address) == 500
@@ -128,8 +108,8 @@ def test_escrow(web3, chain):
     # Ursula transfers some tokens to the escrow
     tx = escrow.transact({'from': ursula}).deposit(1000)
     chain.wait.for_receipt(tx)
-    # And Jury lock some
-    tx = escrow.transact({'from': human_jury}).setLock(ursula, 500, timestamp)
+    # And lock some of them
+    tx = escrow.transact({'from': ursula}).lock(500, 100)
     chain.wait.for_receipt(tx)
 
     # Ursula can't destroy contract
@@ -137,7 +117,7 @@ def test_escrow(web3, chain):
         tx = escrow.transact({'from': ursula}).destroy()
         chain.wait.for_receipt(tx)
 
-    # Destroy contract from creator and refund all to Ursula
+    # Destroy contract from creator and refund all to Ursula and Alice
     tx = escrow.transact({'from': creator}).destroy()
     chain.wait.for_receipt(tx)
     assert token.call().balanceOf(escrow.address) == 0
