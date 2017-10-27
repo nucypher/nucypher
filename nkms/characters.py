@@ -12,7 +12,6 @@ class Character(object):
     """
     _server = None
     _server_class = Server
-    _actor_mapping = {}
     _default_crypto_powerups = None
 
     class NotFound(KeyError):
@@ -29,6 +28,7 @@ class Character(object):
         If neither crypto_power nor crypto_power_ups are provided, we give this Character all CryptoPowerUps
         listed in their _default_crypto_powerups attribute.
         """
+        self._actor_mapping = {}
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
 
@@ -182,3 +182,9 @@ class Bob(Character):
 class Ursula(Character):
     _server_class = NuCypherDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
+
+
+def community_meeting(*characters):
+    for character in characters:
+        for newcomer in characters:
+            character.learn_about_actor(newcomer)

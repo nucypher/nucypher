@@ -1,4 +1,5 @@
 import msgpack
+from npre.elliptic_curve import serialize
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
@@ -174,6 +175,7 @@ class Policy(object):
         return policy
 
     def payload(self):
+        kfrag_as_bytes = serialize(self.kfrag)
         return msgpack.dumps({b"kf": bytes(self.kfrag), b"cp": msgpack.dumps(self.challenge_pack)})
 
     def activate(self, ursula, negotiation_result):
