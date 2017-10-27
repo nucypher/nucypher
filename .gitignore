@@ -9,3 +9,4 @@ __pycache__
 /.tox
 /.idea
 .coverage
+_temp_test_datastore

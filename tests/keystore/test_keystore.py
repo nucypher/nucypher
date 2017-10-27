@@ -5,7 +5,7 @@ from nkms.keystore import keystore, keypairs
 
 class TestKeyStore(unittest.TestCase):
     def setUp(self):
-        self.ks = keystore.KeyStore('test')
+        self.ks = keystore.KeyStore('_temp_test_datastore')
 
     def test_ecies_keypair_generation(self):
         keypair = self.ks.gen_ecies_keypair()
