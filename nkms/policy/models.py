@@ -1,10 +1,10 @@
 import msgpack
+from npre.constants import UNKNOWN_KFRAG
 from npre.elliptic_curve import serialize
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.powers import EncryptingPower
-from nkms.policy.constants import UNKNOWN_KFRAG
 
 
 class PolicyOffer(object):
@@ -175,7 +175,7 @@ class Policy(object):
         return policy
 
     def payload(self):
-        return msgpack.dumps({b"kf": [serialize(k) for k in self.kfrag], b"cp": msgpack.dumps(self.challenge_pack)})
+        return msgpack.dumps({b"kf": bytes(self.kfrag), b"cp": msgpack.dumps(self.challenge_pack)})
 
     def activate(self, ursula, negotiation_result):
         self.ursula = ursula
