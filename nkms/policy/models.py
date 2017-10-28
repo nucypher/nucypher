@@ -1,7 +1,5 @@
 import msgpack
 from npre.constants import UNKNOWN_KFRAG
-from npre.elliptic_curve import serialize
-
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.powers import EncryptingPower
@@ -212,8 +210,11 @@ class Policy(object):
 
 
 class TreasureMap(object):
-    def __init__(self):
-        self.nodes = []
+    def __init__(self, nodes=None):
+        self.nodes = nodes or []
 
     def packed_payload(self):
         return msgpack.dumps(self.nodes)
+
+    def __eq__(self, other):
+        return self.nodes == other.nodes

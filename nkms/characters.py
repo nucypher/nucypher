@@ -1,3 +1,4 @@
+import msgpack
 from kademlia.network import Server
 
 from nkms.crypto import api as API
@@ -6,6 +7,9 @@ from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 
 import asyncio
+
+from nkms.policy.constants import NOT_FROM_ALICE
+
 
 class Character(object):
     """
@@ -177,16 +181,37 @@ class Alice(Character):
 
 
 class Bob(Character):
+    _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def find_ursula(self, id, networky_stuff):
-        wtf = self.server.get(id)
-        return wtf
+    def __init__(self, alice=None):
+        super().__init__()
+        if alice:
+            self.alice = alice
 
-    def find_ursula_now(self, id, networky_stuff):
-        ursula_coro = self.find_ursula(id, networky_stuff)
+    @property
+    def alice(self):
+        if not self._alice:
+            raise Alice.NotFound
+        else:
+            return self._alice
+
+    @alice.setter
+    def alice(self, alice_object):
+        self.learn_about_actor(alice_object)
+        self._alice = alice_object
+
+    def get_treasure_map(self, policy_group, signature):
+        ursula_coro = self.server.get(policy_group.id)
         event_loop = asyncio.get_event_loop()
-        return event_loop.run_until_complete(ursula_coro)pass
+        encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
+        verified, packed_node_list = self.verify_from(self.alice, signature, encrypted_treasure_map,
+                                                  signature_is_on_cleartext=True, decrypt=True)
+        if not verified:
+            return NOT_FROM_ALICE
+        else:
+            from nkms.policy.models import TreasureMap
+            return TreasureMap(msgpack.loads(packed_node_list))
 
 class Ursula(Character):
     _server_class = NuCypherDHTServer

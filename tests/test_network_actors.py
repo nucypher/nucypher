@@ -22,9 +22,13 @@ EVENT_LOOP.run_until_complete(URSULA.server.bootstrap([("127.0.0.1", URSULA_PORT
 ALICE = Alice()
 ALICE.attach_server()
 ALICE.server.listen(8471)
-EVENT_LOOP.run_until_complete(URSULA.server.bootstrap([("127.0.0.1", 8471)]))
+EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
 
-BOB = Bob()
+BOB = Bob(alice=ALICE)
+BOB.attach_server()
+BOB.server.listen(8475)
+EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", 8471)]))
+
 
 community_meeting(ALICE, BOB, URSULA)
 
@@ -56,9 +60,7 @@ def test_treasure_map_from_alice_to_ursula():
     """
     Shows that Alice can share a TreasureMap with Ursula and that Bob can receive and decrypt it.
     """
-    treasure_map = TreasureMap()
-    for i in range(50):
-        treasure_map.nodes.append(api.secure_random(50))
+    treasure_map = TreasureMap([api.secure_random(50) for _ in range(50)])  # TODO: This is still random here.
 
     encrypted_treasure_map, signature = ALICE.encrypt_for(BOB, treasure_map.packed_payload())
 
@@ -92,9 +94,9 @@ def test_treasure_map_from_ursula_to_bob():
     networky_stuff = MockNetworkyStuff()
 
     # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume, through a side-channel with Alice.
-    ursula = BOB.find_ursula_now(policy_group.id, networky_stuff)
+    treasure_map_from_wire = BOB.get_treasure_map(policy_group, signature)
 
-    pytest.fail()
+    assert treasure_map == treasure_map_from_wire
 
 
 def test_cannot_offer_policy_without_finding_ursula():
