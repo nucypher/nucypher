@@ -5,6 +5,7 @@ from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 
+import asyncio
 
 class Character(object):
     """
@@ -178,6 +179,14 @@ class Alice(Character):
 class Bob(Character):
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
+    def find_ursula(self, id, networky_stuff):
+        wtf = self.server.get(id)
+        return wtf
+
+    def find_ursula_now(self, id, networky_stuff):
+        ursula_coro = self.find_ursula(id, networky_stuff)
+        event_loop = asyncio.get_event_loop()
+        return event_loop.run_until_complete(ursula_coro)pass
 
 class Ursula(Character):
     _server_class = NuCypherDHTServer

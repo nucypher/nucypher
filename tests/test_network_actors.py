@@ -2,16 +2,14 @@ import asyncio
 import datetime
 
 import pytest
-import unittest
 
 from nkms.characters import Ursula, Alice, Character, Bob, community_meeting
 from nkms.crypto import api
-from nkms.crypto.constants import NO_DECRYPTION_PERFORMED
+from nkms.network.node import NetworkyStuff
 from nkms.policy.constants import NON_PAYMENT
 from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, PolicyGroup, Policy
 
-
-EVENT_LOOP = asyncio.new_event_loop()
+EVENT_LOOP = asyncio.get_event_loop()
 asyncio.set_event_loop(EVENT_LOOP)
 
 URSULA_PORT = 8468
@@ -36,20 +34,23 @@ def test_alice_finds_ursula():
     assert discovered_ursula_port == URSULA_PORT
 
 
-
 class MockPolicyOfferResponse(object):
     was_accepted = True
 
 
-class MockNetworkyStuff(object):
+class MockNetworkyStuff(NetworkyStuff):
     def go_live_with_policy(self, ursula, policy_offer):
         return
 
-    def find_ursula(self, id, offer):
-        return Ursula(), MockPolicyOfferResponse()
+    def find_ursula(self, id, offer=None):
+        if offer:
+            return Ursula(), MockPolicyOfferResponse()
+        else:
+            return super().find_ursula(id)
 
     def animate_policy(self, ursula, payload):
         return
+
 
 def test_treasure_map_from_alice_to_ursula():
     """
@@ -69,11 +70,11 @@ def test_treasure_map_from_alice_to_ursula():
 
     treasure_map_as_set_on_network = list(URSULA.server.storage.items())[0][1]
     assert tuple(treasure_map_as_set_on_network) == encrypted_treasure_map  # IE, Ursula stores it properly.
-    return treasure_map, treasure_map_as_set_on_network, signature
+    return treasure_map, treasure_map_as_set_on_network, signature, policy_group
 
 
 def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob():
-    treasure_map, treasure_map_as_set_on_network, signature = test_treasure_map_from_alice_to_ursula()
+    treasure_map, treasure_map_as_set_on_network, signature, _ = test_treasure_map_from_alice_to_ursula()
     verified, treasure_map_as_decrypted_by_bob = BOB.verify_from(ALICE, signature,
                                                                  treasure_map_as_set_on_network,
                                                                  decrypt=True,
@@ -87,8 +88,13 @@ def test_treasure_map_from_ursula_to_bob():
     """
     Bob finds Ursula and upgrades their connection to TLS to receive the TreasureMap.
     """
-    treasure_map, treasure_map_as_set_on_network, signature = test_treasure_map_from_alice_to_ursula()
+    treasure_map, treasure_map_as_set_on_network, signature, policy_group = test_treasure_map_from_alice_to_ursula()
+    networky_stuff = MockNetworkyStuff()
 
+    # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume, through a side-channel with Alice.
+    ursula = BOB.find_ursula_now(policy_group.id, networky_stuff)
+
+    pytest.fail()
 
 
 def test_cannot_offer_policy_without_finding_ursula():
