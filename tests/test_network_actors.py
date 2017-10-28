@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 
+import msgpack
 import pytest
 
 from nkms.characters import Ursula, Alice, Character, Bob, community_meeting
@@ -63,22 +64,24 @@ def test_treasure_map_from_alice_to_ursula():
     treasure_map = TreasureMap([api.secure_random(50) for _ in range(50)])  # TODO: This is still random here.
 
     encrypted_treasure_map, signature = ALICE.encrypt_for(BOB, treasure_map.packed_payload())
+    packed_encrypted_treasure_map = msgpack.dumps(encrypted_treasure_map)
 
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
     policy_group = PolicyGroup(resource_id, BOB)
-    setter = ALICE.server.set(policy_group.id, encrypted_treasure_map)
+    setter = ALICE.server.set(policy_group.id, packed_encrypted_treasure_map)
     EVENT_LOOP.run_until_complete(setter)
 
     treasure_map_as_set_on_network = list(URSULA.server.storage.items())[0][1]
-    assert tuple(treasure_map_as_set_on_network) == encrypted_treasure_map  # IE, Ursula stores it properly.
+    assert treasure_map_as_set_on_network == packed_encrypted_treasure_map  # IE, Ursula stores it properly.
     return treasure_map, treasure_map_as_set_on_network, signature, policy_group
 
 
 def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob():
     treasure_map, treasure_map_as_set_on_network, signature, _ = test_treasure_map_from_alice_to_ursula()
+    encrypted_treasure_map = msgpack.loads(treasure_map_as_set_on_network)
     verified, treasure_map_as_decrypted_by_bob = BOB.verify_from(ALICE, signature,
-                                                                 treasure_map_as_set_on_network,
+                                                                 encrypted_treasure_map,
                                                                  decrypt=True,
                                                                  signature_is_on_cleartext=True,
                                                                  )

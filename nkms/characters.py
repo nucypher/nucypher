@@ -204,7 +204,8 @@ class Bob(Character):
     def get_treasure_map(self, policy_group, signature):
         ursula_coro = self.server.get(policy_group.id)
         event_loop = asyncio.get_event_loop()
-        encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
+        packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
+        encrypted_treasure_map = msgpack.loads(packed_encrypted_treasure_map)
         verified, packed_node_list = self.verify_from(self.alice, signature, encrypted_treasure_map,
                                                   signature_is_on_cleartext=True, decrypt=True)
         if not verified:
