@@ -2,16 +2,31 @@ import pytest
 from ethereum.tester import TransactionFailed
 
 
-def test_escrow_v2(web3, chain):
+@pytest.fixture()
+def token(web3, chain):
+    creator = web3.eth.accounts[0]
+    # Create an ERC20 token
+    token_contract, _ = chain.provider.get_or_deploy_contract(
+        'HumanStandardToken', deploy_args=[
+            10 ** 9, 'NuCypher KMS', 6, 'KMS'],
+        deploy_transaction={'from': creator})
+    return token_contract
+
+
+@pytest.fixture()
+def wallet_manager(web3, chain, token):
+    creator = web3.eth.accounts[0]
+    # Creator deploys the wallet manager
+    wallet_manager_contract, _ = chain.provider.get_or_deploy_contract(
+            'WalletManager', deploy_args=[token.address, 1000],
+            deploy_transaction={'from': creator})
+    return wallet_manager_contract
+
+
+def test_escrow_v2(web3, chain, token, wallet_manager):
     creator = web3.eth.accounts[0]
     ursula = web3.eth.accounts[1]
     alice = web3.eth.accounts[2]
-
-    # Create an ERC20 token
-    token, txhash = chain.provider.get_or_deploy_contract(
-            'HumanStandardToken', deploy_args=[
-                10 ** 9, 'NuCypher KMS', 6, 'KMS'],
-            deploy_transaction={'from': creator})
 
     # Give Ursula and Alice some coins
     tx = token.transact({'from': creator}).transfer(ursula, 10000)
@@ -20,12 +35,6 @@ def test_escrow_v2(web3, chain):
     chain.wait.for_receipt(tx)
     assert token.call().balanceOf(ursula) == 10000
     assert token.call().balanceOf(alice) == 10000
-
-    # Creator deploys the escrow
-    wallet_manager, txhash = chain.provider.get_or_deploy_contract(
-            'WalletManager', deploy_args=[token.address, 1],
-            deploy_transaction={'from': creator})
-    assert txhash is not None
 
     # Ursula and Alice create wallets
     contract_factory = chain.provider.get_contract_factory("Wallet")
@@ -124,3 +133,56 @@ def test_escrow_v2(web3, chain):
     assert token.call().balanceOf(alice_wallet.address) == 0
     assert token.call().balanceOf(ursula) == 10000
     assert token.call().balanceOf(alice) == 10000
+
+
+def test_mining(web3, chain, token, wallet_manager):
+    creator = web3.eth.accounts[0]
+    ursula = web3.eth.accounts[1]
+    alice = web3.eth.accounts[2]
+
+    # Ursula and Alice create wallets
+    contract_factory = chain.provider.get_contract_factory("Wallet")
+    tx = wallet_manager.transact({'from': ursula}).createWallet()
+    chain.wait.for_receipt(tx)
+    ursula_wallet = contract_factory(address=wallet_manager.call().wallets(ursula))
+    tx = wallet_manager.transact({'from': alice}).createWallet()
+    chain.wait.for_receipt(tx)
+    alice_wallet = contract_factory(address=wallet_manager.call().wallets(alice))
+
+    # Give Ursula and Alice some coins
+    tx = token.transact({'from': creator}).transfer(ursula, 10000)
+    chain.wait.for_receipt(tx)
+    tx = token.transact({'from': creator}).transfer(alice, 10000)
+    chain.wait.for_receipt(tx)
+
+    # Ursula and Alice transfer some money to wallets
+    tx = token.transact({'from': ursula}).transfer(ursula_wallet.address, 1000)
+    chain.wait.for_receipt(tx)
+    tx = token.transact({'from': alice}).transfer(alice_wallet.address, 500)
+    chain.wait.for_receipt(tx)
+
+    # Ursula and Alice lock some tokens for 100 and 200 blocks
+    tx = ursula_wallet.transact({'from': ursula}).lock(500, 100)
+    chain.wait.for_receipt(tx)
+    tx = alice_wallet.transact({'from': alice}).lock(100, 200)
+    chain.wait.for_receipt(tx)
+
+    # Give manager some coins
+    tx = token.transact({'from': creator}).transfer(wallet_manager.address, 10000)
+    chain.wait.for_receipt(tx)
+
+    # Wait 150 blocks and mine tokens
+    chain.wait.for_block(web3.eth.blockNumber + 150)
+    tx = wallet_manager.transact({'from': creator}).mine()
+    chain.wait.for_receipt(tx)
+    assert token.call().balanceOf(ursula_wallet.address) == 1050
+    assert token.call().balanceOf(alice_wallet.address) > 510
+    assert wallet_manager.call().getAllLockedTokens() == 100
+
+    # Wait 100 blocks and mine tokens
+    chain.wait.for_block(web3.eth.blockNumber + 100)
+    tx = wallet_manager.transact({'from': creator}).mine()
+    chain.wait.for_receipt(tx)
+    assert token.call().balanceOf(ursula_wallet.address) == 1050
+    assert token.call().balanceOf(alice_wallet.address) == 520
+    assert wallet_manager.call().getAllLockedTokens() == 0

@@ -11,8 +11,10 @@ import "./LinkedList.sol";
 contract Wallet is Ownable {
 
     ERC20 token;
-    uint256 lockedValue;
-    uint256 releaseBlock;
+    uint256 public lockedValue;
+    uint256 public lockedBlock;
+    uint256 public releaseBlock;
+    uint256 public decimals;
     address manager;
 
     /**
@@ -37,17 +39,18 @@ contract Wallet is Ownable {
     /**
     * @notice Lock some tokens
     * @param _value Amount of tokens which should lock
-    * @param _releaseBlock Block number when tokens will be unlocked
+    * @param _blocks Amount of blocks during which tokens will be locked
     **/
-    function lock(uint256 _value, uint256 _releaseBlock)
+    function lock(uint256 _value, uint256 _blocks)
 //        onlyBy(manager)
         onlyOwner
         returns (bool success)
     {
-        require(_value <= token.balanceOf(address(this)) && _releaseBlock > 0);
+        require(_value <= token.balanceOf(address(this)) && _blocks > 0);
         require(getLockedTokens() == 0);
         lockedValue = _value;
-        releaseBlock = _releaseBlock;
+        releaseBlock = block.number + _blocks;
+        lockedBlock = block.number;
         return true;
     }
 
@@ -95,6 +98,13 @@ contract Wallet is Ownable {
             return true;
         }
     }
+
+    /**
+    * @notice Set mined decimals
+    **/
+    function setDecimals(uint256 _decimals) onlyBy(manager) {
+        decimals = _decimals;
+    }
 }
 
 /**
@@ -107,6 +117,7 @@ contract WalletManager is Ownable {
     mapping (address => Wallet) public wallets;
     LinkedList.Data walletOwners;
     uint256 miningCoefficient;
+    uint256 lastMinedBlock;
 
     /**
     * @notice The WalletManager constructor sets address of token contract and mining coefficient
@@ -117,6 +128,7 @@ contract WalletManager is Ownable {
     function WalletManager(ERC20 _token, uint256 _miningCoefficient) {
         token = _token;
         miningCoefficient = _miningCoefficient;
+        lastMinedBlock = block.number;
     }
 
     /**
@@ -124,6 +136,7 @@ contract WalletManager is Ownable {
     * @return Address of created wallet
     **/
     function createWallet() returns (address) {
+        //TODO check existence
         Wallet wallet = new Wallet(token);
         wallet.transferOwnership(msg.sender);
         wallets[msg.sender] = wallet;
@@ -231,13 +244,28 @@ contract WalletManager is Ownable {
     **/
     function mine() onlyOwner {
         var current = walletOwners.step(0x0, true);
+        var minedBlocks = block.number - lastMinedBlock;
         while (current != 0x0) {
-            var lockedValue = getLockedTokens(current);
-            if (lockedValue > 0) {
-                //TODO handle overflow and errors
-                token.transfer(current, lockedValue * miningCoefficient);
+            Wallet wallet = wallets[current];
+            var lockedValue = wallet.lockedValue();
+            if (wallet.releaseBlock() > lastMinedBlock && lockedValue > 0) {
+                var lockedBlocks = minedBlocks;
+                var lockedBlock = wallet.lockedBlock();
+                var releaseBlock = wallet.releaseBlock();
+                if (lastMinedBlock < lockedBlock) {
+                    lockedBlocks -= lockedBlock - lastMinedBlock;
+                }
+                if (block.number > releaseBlock) {
+                    lockedBlocks -= block.number - releaseBlock;
+                }
+                //TODO handle overflow
+                var minedValue = lockedBlocks * lockedValue + wallet.decimals();
+                //TODO handle errors
+                token.transfer(wallet, minedValue / miningCoefficient);
+                wallet.setDecimals(minedValue % miningCoefficient);
             }
             current = walletOwners.step(current, true);
         }
+        lastMinedBlock = block.number;
     }
 }

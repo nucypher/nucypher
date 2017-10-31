@@ -2,6 +2,7 @@ pragma solidity ^0.4.8;
 
 
 import "zeppelin-solidity/contracts/token/ERC20.sol";
+import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./LinkedList.sol";
 
 
@@ -9,29 +10,22 @@ import "./LinkedList.sol";
 * @notice Contract holds and locks client tokens.
 Each client that lock his tokens will receive some compensation
 **/
-contract Escrow {
+contract Escrow is Ownable {
     using LinkedList for LinkedList.Data;
 
     struct TokenInfo {
         uint256 value;
         uint256 lockedValue;
+        uint256 lockedBlock;
         uint256 releaseBlock;
+        uint256 decimals;
     }
 
-    address owner;
     ERC20 token;
-    mapping (address => TokenInfo) tokenInfo;
+    mapping (address => TokenInfo) public tokenInfo;
     LinkedList.Data tokenOwners;
     uint256 miningCoefficient;
-
-    /**
-    * @dev Throws if called by any account other than the _user.
-    * @param _user The user who is allowed to call
-    **/
-    modifier onlyBy(address _user) {
-        require(msg.sender == _user);
-        _;
-    }
+    uint256 lastMinedBlock;
 
     /**
     * @dev Throws if not locked tokens less then _value.
@@ -54,6 +48,7 @@ contract Escrow {
         token = _token;
         owner = msg.sender;
         miningCoefficient = _miningCoefficient;
+        lastMinedBlock = block.number;
     }
 
     /**
@@ -75,14 +70,15 @@ contract Escrow {
     /**
     * @notice Lock some tokens
     * @param _value Amount of tokens which should lock
-    * @param _releaseBlock Block number when tokens will be unlocked
+    * @param _blocks Amount of blocks during which tokens will be locked
     **/
-    function lock(uint256 _value, uint256 _releaseBlock) returns (bool success) {
-        require(_value <= tokenInfo[msg.sender].value && _releaseBlock > 0);
+    function lock(uint256 _value, uint256 _blocks) returns (bool success) {
+        require(_value <= tokenInfo[msg.sender].value && _blocks > 0);
         require(_value <= token.balanceOf(address(this)));
         require(getLockedTokens(msg.sender) == 0);
         tokenInfo[msg.sender].lockedValue = _value;
-        tokenInfo[msg.sender].releaseBlock = _releaseBlock;
+        tokenInfo[msg.sender].lockedBlock = block.number;
+        tokenInfo[msg.sender].releaseBlock = block.number + _blocks;
         return true;
     }
 
@@ -127,7 +123,7 @@ contract Escrow {
     * @dev The called token contracts could try to re-enter this contract.
     Only supply token contracts you trust.
     **/
-    function destroy() onlyBy(owner) public {
+    function destroy() onlyOwner public {
         // Transfer tokens to owners
         var current = tokenOwners.step(0x0, true);
         while (current != 0x0) {
@@ -193,15 +189,27 @@ contract Escrow {
     /**
     * @notice Mine tokens for all users who locked their tokens
     **/
-    function mine() onlyBy(owner) {
+    function mine() onlyOwner {
         var current = tokenOwners.step(0x0, true);
+        var minedBlocks = block.number - lastMinedBlock;
         while (current != 0x0) {
-            var lockedValue = getLockedTokens(current);
-            if (lockedValue > 0) {
+            if (tokenInfo[current].releaseBlock > lastMinedBlock &&
+                tokenInfo[current].lockedValue > 0) {
+                var lockedBlocks = minedBlocks;
+                if (lastMinedBlock < tokenInfo[current].lockedBlock) {
+                    lockedBlocks -= tokenInfo[current].lockedBlock - lastMinedBlock;
+                }
+                if (block.number > tokenInfo[current].releaseBlock) {
+                    lockedBlocks -= block.number - tokenInfo[current].releaseBlock;
+                }
                 //TODO handle overflow
-                tokenInfo[current].value += lockedValue * miningCoefficient;
+                var minedValue = lockedBlocks * tokenInfo[current].lockedValue +
+                    tokenInfo[current].decimals;
+                tokenInfo[current].value += minedValue / miningCoefficient;
+                tokenInfo[current].decimals = minedValue % miningCoefficient;
             }
             current = tokenOwners.step(current, true);
         }
+        lastMinedBlock = block.number;
     }
 }
