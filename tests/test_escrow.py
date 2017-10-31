@@ -6,7 +6,7 @@ from ethereum.tester import TransactionFailed
 def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
-    token, txhash = chain.provider.get_or_deploy_contract(
+    token, _ = chain.provider.get_or_deploy_contract(
         'HumanStandardToken', deploy_args=[
             10 ** 9, 'NuCypher KMS', 6, 'KMS'],
         deploy_transaction={'from': creator})
