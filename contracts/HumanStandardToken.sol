@@ -10,12 +10,13 @@ Machine-based, rapid creation of many tokens would not necessarily need these ex
 3) Optional approveAndCall() functionality to notify a contract if an approval() has occurred.
 
 .*/
-
-import "zeppelin-solidity/contracts/token/StandardToken.sol";
-
 pragma solidity ^0.4.8;
 
-contract HumanStandardToken is StandardToken {
+
+import "./MineableToken.sol";
+
+
+contract HumanStandardToken is MineableToken {
     string public name = 'NuCypher key management system';
     uint8 public decimals = 6;
     string public symbol = 'KMS';

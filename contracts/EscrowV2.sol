@@ -2,13 +2,16 @@ pragma solidity ^0.4.8;
 
 
 import "zeppelin-solidity/contracts/token/ERC20.sol";
+import "zeppelin-solidity/contracts/token/SafeERC20.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "./MineableToken.sol";
 import "./LinkedList.sol";
 
 /**
 * @notice Contract holds and locks client tokens.
 **/
 contract Wallet is Ownable {
+    using SafeERC20 for ERC20;
 
     ERC20 token;
     uint256 public lockedValue;
@@ -60,7 +63,8 @@ contract Wallet is Ownable {
     **/
     function withdraw(uint256 _value) onlyOwner returns (bool success) {
         require(_value <= token.balanceOf(address(this)) - getLockedTokens());
-        return token.transfer(msg.sender, _value);
+        token.safeTransfer(msg.sender, _value);
+        return true;
     }
 
     /**
@@ -90,17 +94,13 @@ contract Wallet is Ownable {
     Only supply token contracts you trust.
     **/
     function destroy() onlyBy(manager) public returns (bool) {
-        if (token.transfer(owner, token.balanceOf(address(this)))) {
-            // Transfer Eth to owner and terminate contract
-            selfdestruct(owner);
-            return true;
-        } else {
-            return true;
-        }
+        token.safeTransfer(owner, token.balanceOf(address(this)));
+        selfdestruct(owner);
+        return true;
     }
 
     /**
-    * @notice Set mined decimals
+    * @notice Set minted decimals
     **/
     function setDecimals(uint256 _decimals) onlyBy(manager) {
         decimals = _decimals;
@@ -113,11 +113,11 @@ contract Wallet is Ownable {
 contract WalletManager is Ownable {
     using LinkedList for LinkedList.Data;
 
-    ERC20 token;
+    MineableToken token;
     mapping (address => Wallet) public wallets;
     LinkedList.Data walletOwners;
     uint256 miningCoefficient;
-    uint256 lastMinedBlock;
+    uint256 lastMintedBlock;
 
     /**
     * @notice The WalletManager constructor sets address of token contract and mining coefficient
@@ -125,10 +125,10 @@ contract WalletManager is Ownable {
     * @param _miningCoefficient amount of tokens that will be credited
     for each locked token in each iteration
     **/
-    function WalletManager(ERC20 _token, uint256 _miningCoefficient) {
+    function WalletManager(MineableToken _token, uint256 _miningCoefficient) {
         token = _token;
         miningCoefficient = _miningCoefficient;
-        lastMinedBlock = block.number;
+        lastMintedBlock = block.number;
     }
 
     /**
@@ -240,32 +240,32 @@ contract WalletManager is Ownable {
     }
 
     /**
-    * @notice Mine tokens for all users who locked their tokens
+    * @notice Mint tokens for all users who locked their tokens
     **/
-    function mine() onlyOwner {
+    function mint() onlyOwner {
         var current = walletOwners.step(0x0, true);
-        var minedBlocks = block.number - lastMinedBlock;
+        var mintedBlocks = block.number - lastMintedBlock;
         while (current != 0x0) {
             Wallet wallet = wallets[current];
             var lockedValue = wallet.lockedValue();
-            if (wallet.releaseBlock() > lastMinedBlock && lockedValue > 0) {
-                var lockedBlocks = minedBlocks;
+            if (wallet.releaseBlock() > lastMintedBlock && lockedValue > 0) {
+                var lockedBlocks = mintedBlocks;
                 var lockedBlock = wallet.lockedBlock();
                 var releaseBlock = wallet.releaseBlock();
-                if (lastMinedBlock < lockedBlock) {
-                    lockedBlocks -= lockedBlock - lastMinedBlock;
+                if (lastMintedBlock < lockedBlock) {
+                    lockedBlocks -= lockedBlock - lastMintedBlock;
                 }
                 if (block.number > releaseBlock) {
                     lockedBlocks -= block.number - releaseBlock;
                 }
                 //TODO handle overflow
-                var minedValue = lockedBlocks * lockedValue + wallet.decimals();
+                var mintedValue = lockedBlocks * lockedValue + wallet.decimals();
                 //TODO handle errors
-                token.transfer(wallet, minedValue / miningCoefficient);
-                wallet.setDecimals(minedValue % miningCoefficient);
+                token.mint(wallet, mintedValue / miningCoefficient);
+                wallet.setDecimals(mintedValue % miningCoefficient);
             }
             current = walletOwners.step(current, true);
         }
-        lastMinedBlock = block.number;
+        lastMintedBlock = block.number;
     }
 }

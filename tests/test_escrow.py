@@ -165,19 +165,32 @@ def test_mining(web3, chain, token, escrow):
     assert escrow.call().tokenInfo(ursula)[0] == 1000
     assert escrow.call().tokenInfo(alice)[0] == 500
 
-    # Wait 150 blocks and mine tokens
+    # Give rights for mining
+    tx = token.transact({'from': creator}).addMiner(escrow.address)
+    chain.wait.for_receipt(tx)
+    assert token.call().isMiner(escrow.address)
+
+    # Wait 150 blocks and mint tokens
     chain.wait.for_block(web3.eth.blockNumber + 150)
-    tx = escrow.transact({'from': creator}).mine()
+    tx = escrow.transact({'from': creator}).mint()
     chain.wait.for_receipt(tx)
     assert escrow.call().tokenInfo(ursula)[0] == 1050
     assert escrow.call().tokenInfo(alice)[0] > 510
     assert escrow.call().getAllLockedTokens() == 100
 
-    # Wait 100 blocks and mine tokens
+    # Wait 100 blocks and mint tokens
     chain.wait.for_block(web3.eth.blockNumber + 100)
-    tx = escrow.transact({'from': creator}).mine()
+    tx = escrow.transact({'from': creator}).mint()
     chain.wait.for_receipt(tx)
     assert escrow.call().tokenInfo(ursula)[0] == 1050
     assert escrow.call().tokenInfo(alice)[0] == 520
     assert escrow.call().getAllLockedTokens() == 0
+
+    # Ursula and Alice can withdraw all
+    tx = escrow.transact({'from': ursula}).withdrawAll()
+    chain.wait.for_receipt(tx)
+    tx = escrow.transact({'from': alice}).withdrawAll()
+    chain.wait.for_receipt(tx)
+    assert token.call().balanceOf(ursula) == 10050
+    assert token.call().balanceOf(alice) == 10020
 

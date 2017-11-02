@@ -83,18 +83,24 @@ def main():
         tx = escrow.transact({'from': alice}).lock(100, 200)
         chain.wait.for_receipt(tx)
 
-        # Wait 150 blocks and mine tokens
-        chain.wait.for_block(web3.eth.blockNumber + 150)
-        print("Estimate gas for mining = " +
-              str(escrow.estimateGas({'from': creator}).mine()))
-        tx = escrow.transact({'from': creator}).mine()
+        # Give rights for mining
+        print("Estimate gas for giving rights for mining = " +
+              str(token.estimateGas({'from': creator}).addMiner(escrow.address)))
+        tx = token.transact({'from': creator}).addMiner(escrow.address)
         chain.wait.for_receipt(tx)
 
-        # Wait 100 blocks and mine tokens
+        # Wait 150 blocks and mint tokens
+        chain.wait.for_block(web3.eth.blockNumber + 150)
+        print("Estimate gas for mining = " +
+              str(escrow.estimateGas({'from': creator}).mint()))
+        tx = escrow.transact({'from': creator}).mint()
+        chain.wait.for_receipt(tx)
+
+        # Wait 100 blocks and mint tokens
         chain.wait.for_block(web3.eth.blockNumber + 100)
         print("Estimate gas for mining = " +
-              str(escrow.estimateGas({'from': creator}).mine()))
-        tx = escrow.transact({'from': creator}).mine()
+              str(escrow.estimateGas({'from': creator}).mint()))
+        tx = escrow.transact({'from': creator}).mint()
         chain.wait.for_receipt(tx)
 
         # Creator deploys the wallet manager
@@ -140,18 +146,22 @@ def main():
         tx = token.transact({'from': creator}).transfer(wallet_manager.address, 10000)
         chain.wait.for_receipt(tx)
 
-        # Wait 150 blocks and mine tokens
-        chain.wait.for_block(web3.eth.blockNumber + 150)
-        print("Estimate gas for mining = " +
-              str(wallet_manager.estimateGas({'from': creator}).mine()))
-        tx = wallet_manager.transact({'from': creator}).mine()
+        # Give rights for mining
+        tx = token.transact({'from': creator}).addMiner(wallet_manager.address)
         chain.wait.for_receipt(tx)
 
-        # Wait 100 blocks and mine tokens
+        # Wait 150 blocks and mint tokens
+        chain.wait.for_block(web3.eth.blockNumber + 150)
+        print("Estimate gas for mining = " +
+              str(wallet_manager.estimateGas({'from': creator}).mint()))
+        tx = wallet_manager.transact({'from': creator}).mint()
+        chain.wait.for_receipt(tx)
+
+        # Wait 100 blocks and mint tokens
         chain.wait.for_block(web3.eth.blockNumber + 100)
         print("Estimate gas for mining = " +
-              str(wallet_manager.estimateGas({'from': creator}).mine()))
-        tx = wallet_manager.transact({'from': creator}).mine()
+              str(wallet_manager.estimateGas({'from': creator}).mint()))
+        tx = wallet_manager.transact({'from': creator}).mint()
         chain.wait.for_receipt(tx)
 
         print("All done!")

@@ -1,7 +1,8 @@
 pragma solidity ^0.4.8;
 
 
-import "zeppelin-solidity/contracts/token/ERC20.sol";
+import "./MineableToken.sol";
+import "zeppelin-solidity/contracts/token/SafeERC20.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./LinkedList.sol";
 
@@ -12,6 +13,7 @@ Each client that lock his tokens will receive some compensation
 **/
 contract Escrow is Ownable {
     using LinkedList for LinkedList.Data;
+    using SafeERC20 for MineableToken;
 
     struct TokenInfo {
         uint256 value;
@@ -21,11 +23,11 @@ contract Escrow is Ownable {
         uint256 decimals;
     }
 
-    ERC20 token;
+    MineableToken token;
     mapping (address => TokenInfo) public tokenInfo;
     LinkedList.Data tokenOwners;
     uint256 miningCoefficient;
-    uint256 lastMinedBlock;
+    uint256 lastMintedBlock;
 
     /**
     * @dev Throws if not locked tokens less then _value.
@@ -44,11 +46,11 @@ contract Escrow is Ownable {
     * @param _miningCoefficient amount of tokens that will be credited
     for each locked token in each iteration
     **/
-    function Escrow(ERC20 _token, uint256 _miningCoefficient) {
+    function Escrow(MineableToken _token, uint256 _miningCoefficient) {
         token = _token;
         owner = msg.sender;
         miningCoefficient = _miningCoefficient;
-        lastMinedBlock = block.number;
+        lastMintedBlock = block.number;
     }
 
     /**
@@ -60,10 +62,7 @@ contract Escrow is Ownable {
             tokenOwners.push(msg.sender, true);
         }
         tokenInfo[msg.sender].value += _value;
-        if (!token.transferFrom(msg.sender, address(this), _value)) {
-            revert();
-            return false;
-        }
+        token.safeTransferFrom(msg.sender, address(this), _value);
         return true;
     }
 
@@ -91,10 +90,7 @@ contract Escrow is Ownable {
         returns (bool success)
     {
         tokenInfo[msg.sender].value -= _value;
-        if (!token.transfer(msg.sender, _value)) {
-            revert();
-            return false;
-        }
+        token.safeTransfer(msg.sender, _value);
         return true;
     }
 
@@ -111,10 +107,7 @@ contract Escrow is Ownable {
         tokenOwners.remove(msg.sender);
         uint256 value = tokenInfo[msg.sender].value;
         delete tokenInfo[msg.sender];
-        if (!token.transfer(msg.sender, value)) {
-            revert();
-            return false;
-        }
+        token.safeTransfer(msg.sender, value);
         return true;
     }
 
@@ -187,29 +180,33 @@ contract Escrow is Ownable {
     }
 
     /**
-    * @notice Mine tokens for all users who locked their tokens
+    * @notice Mint tokens for all users who locked their tokens
     **/
-    function mine() onlyOwner {
+    function mint() onlyOwner {
         var current = tokenOwners.step(0x0, true);
-        var minedBlocks = block.number - lastMinedBlock;
+        var mintedBlocks = block.number - lastMintedBlock;
+        uint256 allMintedValue = 0;
         while (current != 0x0) {
-            if (tokenInfo[current].releaseBlock > lastMinedBlock &&
+            if (tokenInfo[current].releaseBlock > lastMintedBlock &&
                 tokenInfo[current].lockedValue > 0) {
-                var lockedBlocks = minedBlocks;
-                if (lastMinedBlock < tokenInfo[current].lockedBlock) {
-                    lockedBlocks -= tokenInfo[current].lockedBlock - lastMinedBlock;
+                var lockedBlocks = mintedBlocks;
+                if (lastMintedBlock < tokenInfo[current].lockedBlock) {
+                    lockedBlocks -= tokenInfo[current].lockedBlock - lastMintedBlock;
                 }
                 if (block.number > tokenInfo[current].releaseBlock) {
                     lockedBlocks -= block.number - tokenInfo[current].releaseBlock;
                 }
                 //TODO handle overflow
-                var minedValue = lockedBlocks * tokenInfo[current].lockedValue +
+                var value = lockedBlocks * tokenInfo[current].lockedValue +
                     tokenInfo[current].decimals;
-                tokenInfo[current].value += minedValue / miningCoefficient;
-                tokenInfo[current].decimals = minedValue % miningCoefficient;
+                var mintedValue = value / miningCoefficient;
+                allMintedValue += mintedValue;
+                tokenInfo[current].value += mintedValue;
+                tokenInfo[current].decimals = value % miningCoefficient;
             }
             current = tokenOwners.step(current, true);
         }
-        lastMinedBlock = block.number;
+        lastMintedBlock = block.number;
+        token.mint(address(this), allMintedValue);
     }
 }

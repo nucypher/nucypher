@@ -167,22 +167,31 @@ def test_mining(web3, chain, token, wallet_manager):
     tx = alice_wallet.transact({'from': alice}).lock(100, 200)
     chain.wait.for_receipt(tx)
 
-    # Give manager some coins
-    tx = token.transact({'from': creator}).transfer(wallet_manager.address, 10000)
+    # Give rights for mining
+    tx = token.transact({'from': creator}).addMiner(wallet_manager.address)
     chain.wait.for_receipt(tx)
+    assert token.call().isMiner(wallet_manager.address)
 
-    # Wait 150 blocks and mine tokens
+    # Wait 150 blocks and mint tokens
     chain.wait.for_block(web3.eth.blockNumber + 150)
-    tx = wallet_manager.transact({'from': creator}).mine()
+    tx = wallet_manager.transact({'from': creator}).mint()
     chain.wait.for_receipt(tx)
     assert token.call().balanceOf(ursula_wallet.address) == 1050
     assert token.call().balanceOf(alice_wallet.address) > 510
     assert wallet_manager.call().getAllLockedTokens() == 100
 
-    # Wait 100 blocks and mine tokens
+    # Wait 100 blocks and mint tokens
     chain.wait.for_block(web3.eth.blockNumber + 100)
-    tx = wallet_manager.transact({'from': creator}).mine()
+    tx = wallet_manager.transact({'from': creator}).mint()
     chain.wait.for_receipt(tx)
     assert token.call().balanceOf(ursula_wallet.address) == 1050
     assert token.call().balanceOf(alice_wallet.address) == 520
     assert wallet_manager.call().getAllLockedTokens() == 0
+
+    # Ursula and Alice can withdraw all
+    tx = ursula_wallet.transact({'from': ursula}).withdraw(1050)
+    chain.wait.for_receipt(tx)
+    tx = alice_wallet.transact({'from': alice}).withdraw(520)
+    chain.wait.for_receipt(tx)
+    assert token.call().balanceOf(ursula) == 10050
+    assert token.call().balanceOf(alice) == 10020
