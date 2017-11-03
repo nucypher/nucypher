@@ -1,15 +1,14 @@
 import sha3
 
 from nkms.keystore.db import Base
-from nkms.crypto import api as API
-from sqlalchemy import Column, Integer, BigInteger, String
+from sqlalchemy import Column, Integer, BigInteger, LargeBinary
 
 
 class Key(Base):
     __tablename__ = 'keys'
 
     id = Column(Integer, primary_key=True)
-    fingerprint = Column(String(64), unique=True)
+    fingerprint = Column(LargeBinary(64), unique=True)
     key_data = Column(BigInteger, unique=True)
 
     def __init__(self, key_data):

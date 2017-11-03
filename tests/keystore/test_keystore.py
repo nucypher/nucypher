@@ -1,5 +1,7 @@
 import unittest
 import sha3
+from sqlalchemy import create_engine
+from nkms.keystore.db import Base
 from nkms.keystore import keystore, keypairs
 
 
@@ -19,13 +21,16 @@ class TestKeyStore(unittest.TestCase):
         self.assertEqual(bytes, type(keypair.privkey))
         self.assertEqual(bytes, type(keypair.pubkey))
 
-    def test_lmdb_keystore(self):
+    def test_sqlite_keystore(self):
+        engine = create_engine('sqlite:///:memory:', echo=True)
+        Base.metadata.create_all(engine)
+
         keypair = self.ks.gen_ecies_keypair()
         self.assertEqual(keypairs.EncryptingKeypair, type(keypair))
         self.assertEqual(bytes, type(keypair.privkey))
         self.assertEqual(bytes, type(keypair.pubkey))
 
-        # Test add_key pubkey
+        # Test add pubkey
         fingerprint_pub = self.ks.add_key(keypair, store_pub=True)
         self.assertEqual(bytes, type(fingerprint_pub))
         self.assertEqual(64, len(fingerprint_pub))
@@ -33,7 +38,7 @@ class TestKeyStore(unittest.TestCase):
         key_hash = sha3.keccak_256(keypair.pubkey).hexdigest().encode()
         self.assertEqual(key_hash, fingerprint_pub)
 
-        # Test add_key privkey
+        # Test add privkey
         fingerprint_priv = self.ks.add_key(keypair, store_pub=False)
         self.assertEqual(bytes, type(fingerprint_priv))
         self.assertEqual(64, len(fingerprint_priv))
@@ -41,13 +46,13 @@ class TestKeyStore(unittest.TestCase):
         key_hash = sha3.keccak_256(keypair.privkey).hexdigest().encode()
         self.assertEqual(key_hash, fingerprint_priv)
 
-        # Test get_key pubkey
+        # Test get pubkey
         keypair_pub = self.ks.get_key(fingerprint_pub)
         self.assertEqual(keypairs.EncryptingKeypair, type(keypair_pub))
         self.assertTrue(keypair_pub.public_only)
         self.assertEqual(keypair.pubkey, keypair_pub.pubkey)
 
-        # Test get_key privkey
+        # Test get privkey
         keypair_priv = self.ks.get_key(fingerprint_priv)
         self.assertEqual(keypairs.EncryptingKeypair, type(keypair_priv))
         self.assertFalse(keypair_priv.public_only)
@@ -55,12 +60,12 @@ class TestKeyStore(unittest.TestCase):
         self.assertIsNotNone(keypair_priv.pubkey)
         self.assertEqual(keypair.pubkey, keypair_priv.pubkey)
 
-        # Test del_key pubkey
+        # Test del pubkey
         self.ks.del_key(fingerprint_pub)
         with self.assertRaises(keystore.KeyNotFound):
             key = self.ks.get_key(fingerprint_pub)
 
-        # Test del_key privkey
+        # Test del privkey
         self.ks.del_key(fingerprint_priv)
         with self.assertRaises(keystore.KeyNotFound):
             key = self.ks.get_key(fingerprint_priv)
