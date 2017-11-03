@@ -13,10 +13,11 @@ Machine-based, rapid creation of many tokens would not necessarily need these ex
 pragma solidity ^0.4.8;
 
 
+import "zeppelin-solidity/contracts/token/BurnableToken.sol";
 import "./MineableToken.sol";
 
 
-contract HumanStandardToken is MineableToken {
+contract HumanStandardToken is MineableToken, BurnableToken {
     string public name = 'NuCypher key management system';
     uint8 public decimals = 6;
     string public symbol = 'KMS';

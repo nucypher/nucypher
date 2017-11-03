@@ -3,17 +3,19 @@ pragma solidity ^0.4.8;
 
 import "zeppelin-solidity/contracts/token/ERC20.sol";
 import "zeppelin-solidity/contracts/token/SafeERC20.sol";
+import "zeppelin-solidity/contracts/math/SafeMath.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
-import "./MineableToken.sol";
+import "./HumanStandardToken.sol";
 import "./LinkedList.sol";
 
 /**
 * @notice Contract holds and locks client tokens.
 **/
 contract Wallet is Ownable {
-    using SafeERC20 for ERC20;
+    using SafeERC20 for BurnableToken;
+    using SafeMath for uint256;
 
-    ERC20 token;
+    BurnableToken token;
     uint256 public lockedValue;
     uint256 public lockedBlock;
     uint256 public releaseBlock;
@@ -21,11 +23,10 @@ contract Wallet is Ownable {
     address manager;
 
     /**
-    * @dev Throws if called by any account other than the _user.
-    * @param _user The user who is allowed to call
+    * @dev Throws if called by any account other than the manager.
     **/
-    modifier onlyBy(address _user) {
-        require(msg.sender == _user);
+    modifier onlyManager() {
+        require(msg.sender == manager);
         _;
     }
 
@@ -33,7 +34,7 @@ contract Wallet is Ownable {
     * @notice Wallet constructor set token contract
     * @param _token Token contract
     **/
-    function Wallet(ERC20 _token) {
+    function Wallet(BurnableToken _token) {
         token = _token;
 //        manager = WalletManager(msg.sender);
         manager = msg.sender;
@@ -45,14 +46,14 @@ contract Wallet is Ownable {
     * @param _blocks Amount of blocks during which tokens will be locked
     **/
     function lock(uint256 _value, uint256 _blocks)
-//        onlyBy(manager)
-        onlyOwner
+        onlyManager
+//        onlyOwner
         returns (bool success)
     {
-        require(_value <= token.balanceOf(address(this)) && _blocks > 0);
-        require(getLockedTokens() == 0);
+        require(_value <= token.balanceOf(address(this)) && _blocks != 0);
+//        require(getLockedTokens() == 0);
         lockedValue = _value;
-        releaseBlock = block.number + _blocks;
+        releaseBlock = block.number.add(_blocks);
         lockedBlock = block.number;
         return true;
     }
@@ -93,7 +94,7 @@ contract Wallet is Ownable {
     * @dev The called token contracts could try to re-enter this contract.
     Only supply token contracts you trust.
     **/
-    function destroy() onlyBy(manager) public returns (bool) {
+    function destroy() onlyManager public returns (bool) {
         token.safeTransfer(owner, token.balanceOf(address(this)));
         selfdestruct(owner);
         return true;
@@ -102,8 +103,18 @@ contract Wallet is Ownable {
     /**
     * @notice Set minted decimals
     **/
-    function setDecimals(uint256 _decimals) onlyBy(manager) {
+    function setDecimals(uint256 _decimals) onlyManager {
         decimals = _decimals;
+    }
+
+    /**
+    * @notice Burn locked tokens
+    * @param _value Amount of tokens that will be confiscated
+    **/
+    function burn(uint256 _value) onlyManager {
+        require(getLockedTokens() >= _value);
+        lockedValue = lockedValue.sub(_value);
+        token.burn(_value);
     }
 }
 
@@ -112,8 +123,10 @@ contract Wallet is Ownable {
 **/
 contract WalletManager is Ownable {
     using LinkedList for LinkedList.Data;
+    using SafeERC20 for HumanStandardToken;
+    using SafeMath for uint256;
 
-    MineableToken token;
+    HumanStandardToken token;
     mapping (address => Wallet) public wallets;
     LinkedList.Data walletOwners;
     uint256 miningCoefficient;
@@ -125,7 +138,8 @@ contract WalletManager is Ownable {
     * @param _miningCoefficient amount of tokens that will be credited
     for each locked token in each iteration
     **/
-    function WalletManager(MineableToken _token, uint256 _miningCoefficient) {
+    function WalletManager(HumanStandardToken _token, uint256 _miningCoefficient) {
+        require(_miningCoefficient != 0);
         token = _token;
         miningCoefficient = _miningCoefficient;
         lastMintedBlock = block.number;
@@ -136,13 +150,11 @@ contract WalletManager is Ownable {
     * @return Address of created wallet
     **/
     function createWallet() returns (address) {
-        //TODO check existence
+        require(!walletOwners.valueExists(msg.sender));
         Wallet wallet = new Wallet(token);
         wallet.transferOwnership(msg.sender);
         wallets[msg.sender] = wallet;
-        if (!walletOwners.valueExists(msg.sender)) {
-            walletOwners.push(msg.sender, true);
-        }
+        walletOwners.push(msg.sender, true);
         return wallet;
     }
 
@@ -152,6 +164,8 @@ contract WalletManager is Ownable {
     * @param _releaseBlock Block number when tokens will be unlocked
     **/
     function lock(uint256 _value, uint256 _releaseBlock) returns (bool success) {
+        require(walletOwners.valueExists(msg.sender));
+        require(wallets[msg.sender].getLockedTokens(lastMintedBlock) == 0);
         return wallets[msg.sender].lock(_value, _releaseBlock);
     }
 
@@ -184,12 +198,10 @@ contract WalletManager is Ownable {
         // Transfer tokens to owners
         var current = walletOwners.step(0x0, true);
         while (current != 0x0) {
-            //TODO handle errors
             wallets[current].destroy();
             current = walletOwners.step(current, true);
         }
-        //TODO handle errors
-        token.transfer(owner, token.balanceOf(address(this)));
+        token.safeTransfer(owner, token.balanceOf(address(this)));
 
         // Transfer Eth to owner and terminate contract
         selfdestruct(owner);
@@ -258,14 +270,27 @@ contract WalletManager is Ownable {
                 if (block.number > releaseBlock) {
                     lockedBlocks -= block.number - releaseBlock;
                 }
-                //TODO handle overflow
-                var mintedValue = lockedBlocks * lockedValue + wallet.decimals();
-                //TODO handle errors
-                token.mint(wallet, mintedValue / miningCoefficient);
+                var mintedValue = lockedBlocks.mul(lockedValue).add(wallet.decimals());
+                token.mint(wallet, mintedValue.div(miningCoefficient));
                 wallet.setDecimals(mintedValue % miningCoefficient);
             }
             current = walletOwners.step(current, true);
         }
         lastMintedBlock = block.number;
+    }
+
+    /**
+    * @notice Penalize token owner
+    * @param _user Token owner
+    * @param _value Amount of tokens that will be confiscated
+    **/
+    function penalize(address _user, uint256 _value)
+        onlyOwner
+        public returns (bool success)
+    {
+        require(walletOwners.valueExists(_user));
+//        require(getLockedTokens(_user) >= _value);
+        wallets[_user].burn(_value);
+        return true;
     }
 }

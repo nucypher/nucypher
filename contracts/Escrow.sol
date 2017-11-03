@@ -1,10 +1,11 @@
 pragma solidity ^0.4.8;
 
 
-import "./MineableToken.sol";
 import "zeppelin-solidity/contracts/token/SafeERC20.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "zeppelin-solidity/contracts/math/SafeMath.sol";
 import "./LinkedList.sol";
+import "./HumanStandardToken.sol";
 
 
 /**
@@ -13,7 +14,8 @@ Each client that lock his tokens will receive some compensation
 **/
 contract Escrow is Ownable {
     using LinkedList for LinkedList.Data;
-    using SafeERC20 for MineableToken;
+    using SafeERC20 for HumanStandardToken;
+    using SafeMath for uint256;
 
     struct TokenInfo {
         uint256 value;
@@ -23,7 +25,7 @@ contract Escrow is Ownable {
         uint256 decimals;
     }
 
-    MineableToken token;
+    HumanStandardToken token;
     mapping (address => TokenInfo) public tokenInfo;
     LinkedList.Data tokenOwners;
     uint256 miningCoefficient;
@@ -46,7 +48,8 @@ contract Escrow is Ownable {
     * @param _miningCoefficient amount of tokens that will be credited
     for each locked token in each iteration
     **/
-    function Escrow(MineableToken _token, uint256 _miningCoefficient) {
+    function Escrow(HumanStandardToken _token, uint256 _miningCoefficient) {
+        require(_miningCoefficient != 0);
         token = _token;
         owner = msg.sender;
         miningCoefficient = _miningCoefficient;
@@ -61,7 +64,7 @@ contract Escrow is Ownable {
         if (!tokenOwners.valueExists(msg.sender)) {
             tokenOwners.push(msg.sender, true);
         }
-        tokenInfo[msg.sender].value += _value;
+        tokenInfo[msg.sender].value = tokenInfo[msg.sender].value.add(_value);
         token.safeTransferFrom(msg.sender, address(this), _value);
         return true;
     }
@@ -72,12 +75,12 @@ contract Escrow is Ownable {
     * @param _blocks Amount of blocks during which tokens will be locked
     **/
     function lock(uint256 _value, uint256 _blocks) returns (bool success) {
-        require(_value <= tokenInfo[msg.sender].value && _blocks > 0);
+        require(_value <= tokenInfo[msg.sender].value && _blocks != 0);
         require(_value <= token.balanceOf(address(this)));
-        require(getLockedTokens(msg.sender) == 0);
+        require(getLockedTokens(msg.sender, lastMintedBlock) == 0);
         tokenInfo[msg.sender].lockedValue = _value;
         tokenInfo[msg.sender].lockedBlock = block.number;
-        tokenInfo[msg.sender].releaseBlock = block.number + _blocks;
+        tokenInfo[msg.sender].releaseBlock = block.number.add(_blocks);
         return true;
     }
 
@@ -98,14 +101,16 @@ contract Escrow is Ownable {
     * @notice Withdraw all amount of tokens back to owner (only if no locked)
     **/
     function withdrawAll()
-        whenNotLocked(msg.sender, tokenInfo[msg.sender].value)
+//        whenNotLocked(msg.sender, tokenInfo[msg.sender].value)
         returns (bool success)
     {
         if (!tokenOwners.valueExists(msg.sender)) {
             return true;
         }
-        tokenOwners.remove(msg.sender);
         uint256 value = tokenInfo[msg.sender].value;
+        require(value <= token.balanceOf(address(this)));
+        require(getLockedTokens(msg.sender, lastMintedBlock) == 0);
+        tokenOwners.remove(msg.sender);
         delete tokenInfo[msg.sender];
         token.safeTransfer(msg.sender, value);
         return true;
@@ -120,12 +125,10 @@ contract Escrow is Ownable {
         // Transfer tokens to owners
         var current = tokenOwners.step(0x0, true);
         while (current != 0x0) {
-            //TODO handle errors
-            token.transfer(current, tokenInfo[current].value);
+            token.safeTransfer(current, tokenInfo[current].value);
             current = tokenOwners.step(current, true);
         }
-        //TODO handle errors
-        token.transfer(owner, token.balanceOf(address(this)));
+        token.safeTransfer(owner, token.balanceOf(address(this)));
 
         // Transfer Eth to owner and terminate contract
         selfdestruct(owner);
@@ -196,17 +199,32 @@ contract Escrow is Ownable {
                 if (block.number > tokenInfo[current].releaseBlock) {
                     lockedBlocks -= block.number - tokenInfo[current].releaseBlock;
                 }
-                //TODO handle overflow
-                var value = lockedBlocks * tokenInfo[current].lockedValue +
-                    tokenInfo[current].decimals;
-                var mintedValue = value / miningCoefficient;
-                allMintedValue += mintedValue;
-                tokenInfo[current].value += mintedValue;
+                var value = lockedBlocks.mul(tokenInfo[current].lockedValue).add(
+                    tokenInfo[current].decimals);
+                var mintedValue = value.div(miningCoefficient);
+                allMintedValue = allMintedValue.add(mintedValue);
+                tokenInfo[current].value = tokenInfo[current].value.add(mintedValue);
                 tokenInfo[current].decimals = value % miningCoefficient;
             }
             current = tokenOwners.step(current, true);
         }
         lastMintedBlock = block.number;
         token.mint(address(this), allMintedValue);
+    }
+
+    /**
+    * @notice Penalize token owner
+    * @param _user Token owner
+    * @param _value Amount of tokens that will be confiscated
+    **/
+    function penalize(address _user, uint256 _value)
+        onlyOwner
+        public returns (bool success)
+    {
+        require(getLockedTokens(_user) >= _value);
+        tokenInfo[_user].value = tokenInfo[_user].value.sub(_value);
+        tokenInfo[_user].lockedValue = tokenInfo[_user].lockedValue.sub(_value);
+        token.burn(_value);
+        return true;
     }
 }

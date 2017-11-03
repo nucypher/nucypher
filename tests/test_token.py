@@ -79,3 +79,9 @@ def test_create_token(web3, chain):
     tx = token.transact({'from': creator}).removeMiner(account1)
     chain.wait.for_receipt(tx)
     assert not token.call().isMiner(account1)
+
+    # Can burn own tokens
+    tx = token.transact({'from': account2}).burn(10000)
+    chain.wait.for_receipt(tx)
+    assert token.call().balanceOf(account2) == 10
+    assert token.call().totalSupply() == 10 ** 9
