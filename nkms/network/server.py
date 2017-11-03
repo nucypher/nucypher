@@ -1,5 +1,6 @@
 import asyncio
 import random
+import types
 
 import msgpack
 
@@ -46,6 +47,12 @@ class NuCypherDHTServer(Server):
 
         spider = NodeSpiderCrawl(self.protocol, node, nearest, self.ksize, self.alpha)
         nodes = await spider.find()
+
+        while isinstance(nodes, types.CoroutineType):
+            # This is awful.
+            self.log.warning("Didn't get a list of nodes from spider.find().  Got {} instead.".format(nodes))
+            nodes = await nodes
+            self.log.warning("Cast nodes to {}".format(nodes))
         self.log.info("setting '%s' on %s" % (dkey.hex(), list(map(str, nodes))))
 
         # if this node is close too, then store here as well

@@ -1,16 +1,16 @@
+import asyncio
+
 import msgpack
+
 from kademlia.network import Server
 from kademlia.utils import digest
-
 from nkms.crypto import api as API
 from nkms.crypto.api import secure_random
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
+from nkms.network import blockchain_client
 from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
-
-import asyncio
-
 from nkms.policy.constants import NOT_FROM_ALICE
 
 
@@ -173,7 +173,7 @@ class Alice(Character):
 
     def find_best_ursula(self):
         # TODO: This just finds *some* Ursula - let's have it find a particularly good one.
-        return list_all_ursulas()[0]
+        return list_all_ursulas()[1]
 
     def generate_rekey_frags(self, alice_privkey, bob, m, n):
         """
@@ -188,7 +188,7 @@ class Alice(Character):
         :return: Tuple(kfrags, eph_key_data)
         """
         kfrags, eph_key_data = API.ecies_ephemeral_split_rekey(
-                                    alice_privkey, bytes(bob.seal), m, n)
+            alice_privkey, bytes(bob.seal), m, n)
         return (kfrags, eph_key_data)
 
 
@@ -219,7 +219,7 @@ class Bob(Character):
         packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
         encrypted_treasure_map = msgpack.loads(packed_encrypted_treasure_map)
         verified, packed_node_list = self.verify_from(self.alice, signature, encrypted_treasure_map,
-                                                  signature_is_on_cleartext=True, decrypt=True)
+                                                      signature_is_on_cleartext=True, decrypt=True)
         if not verified:
             return NOT_FROM_ALICE
         else:
@@ -253,7 +253,9 @@ class Ursula(Character):
     def publish_interface_information(self):
         if not self.port and self.interface:
             raise RuntimeError("Must listen before publishing interface information.")
-        setter = self.server.set(key=self.ip_dht_key(), value=msgpack.dumps((self.port, self.interface)))
+        ip_dht_key = self.ip_dht_key()
+        setter = self.server.set(key=ip_dht_key, value=msgpack.dumps((self.port, self.interface)))
+        blockchain_client._ursulas_on_blockchain.append(ip_dht_key)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 

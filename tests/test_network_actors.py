@@ -4,6 +4,7 @@ import datetime
 import msgpack
 import pytest
 
+from kademlia.utils import digest
 from nkms.characters import Ursula, Alice, Character, Bob, community_meeting
 from nkms.crypto import api
 from nkms.network import blockchain_client
@@ -24,16 +25,13 @@ def make_fake_ursulas(how_many):
         _URSULA = Ursula()
         _URSULA.attach_server()
         _URSULA.listen(URSULA_PORT + _u, "127.0.0.1")
-        blockchain_client._ursulas_on_blockchain.append(_URSULA.ip_dht_key())
 
         URSULAS.append(_URSULA)
 
     for _counter, ursula in enumerate(URSULAS):
-        # EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
+        EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
         EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT + _counter)]))
         ursula.publish_interface_information()
-
-    EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT + p) for p in range(how_many)]))
 
     return URSULAS
 
@@ -54,13 +52,13 @@ community_meeting(ALICE, BOB, URSULAS[0])
 
 
 def test_alice_finds_ursula():
+    ursula_index = 1
     all_ursulas = list_all_ursulas()
-    _discovered_ursula_dht_key = ALICE.find_best_ursula()
-    getter = ALICE.server.get(_discovered_ursula_dht_key)
+    getter = ALICE.server.get(all_ursulas[ursula_index])
     loop = asyncio.get_event_loop()
     interface_bytes = loop.run_until_complete(getter)
     port, interface = msgpack.loads(interface_bytes)
-    assert port == URSULA_PORT
+    assert port == URSULA_PORT + ursula_index
 
 
 class MockPolicyOfferResponse(object):
@@ -96,7 +94,7 @@ def test_treasure_map_from_alice_to_ursula():
     setter = ALICE.server.set(policy_group.id, packed_encrypted_treasure_map)
     set_event = EVENT_LOOP.run_until_complete(setter)
 
-    treasure_map_as_set_on_network = list(URSULAS[0].server.storage.items())[0][1]
+    treasure_map_as_set_on_network = URSULAS[0].server.storage[digest(policy_group.id)]
     assert treasure_map_as_set_on_network == packed_encrypted_treasure_map  # IE, Ursula stores it properly.
     return treasure_map, treasure_map_as_set_on_network, signature, policy_group
 
