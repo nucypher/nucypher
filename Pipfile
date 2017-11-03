@@ -13,6 +13,7 @@ pynacl = "*"
 "pysha3" = "*"
 bidict = "*"
 "py-ecc" = "*"
+sqlalchemy = "*"
 
 [dev-packages]
 
