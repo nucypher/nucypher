@@ -1,7 +1,7 @@
-import lmdb
 import sha3
-from nkms.keystore import keypairs
-from nkms.keystore import constants
+from nkms.keystore import keypairs, constants
+from nkms.keystore.db.models import Key
+from sqlalchemy.orm import sessionmaker
 from typing import Union
 
 
@@ -17,19 +17,13 @@ class KeyStore(object):
     A storage class of cryptographic keys.
     """
 
-    def __init__(self, lmdb_path):
+    def __init__(self, sqlalchemy_engine=None):
         """
         Initalizes a KeyStore object.
 
-        :param lmdb_path: LMDB path to open for reading
+        :param sqlalchemy_engine: SQLAlchemy engine object to create session
         """
-        self.lmdb_env = lmdb.open(lmdb_path)
-
-    def __del__(self):
-        """
-        KeyStore cleanup?
-        """
-        self.lmdb_env.close()
+        self.session = sessionmaker(bind=sqlalchemy_engine)()
 
     def _get_fingerprint(self, key: bytes) -> bytes:
         """
@@ -81,16 +75,14 @@ class KeyStore(object):
         :return: Keypair of the returned key.
 
         """
-        with self.lmdb_env.begin() as txn:
-            key = txn.get(fingerprint)
-
+        key = self.session.query(Key).filter_by(fingerprint=fingerprint).first()
         if not key:
             raise KeyNotFound(
                     "No key with fingerprint {} found.".format(fingerprint))
 
-        keypair_byte = key[0].to_bytes(1, 'big')
-        key_type_byte = key[1].to_bytes(1, 'big')
-        key = key[2:]
+        keypair_byte = key.key_data[0].to_bytes(1, 'big')
+        key_type_byte = key.key_data[1].to_bytes(1, 'big')
+        key = key.key_data[2:]
 
         if keypair_byte == constants.ENC_KEYPAIR_BYTE:
             if key_type_byte == constants.PUB_KEY_BYTE:
@@ -125,8 +117,9 @@ class KeyStore(object):
             fingerprint = self._get_fingerprint(keypair.privkey)
             key = keypair.serialize_privkey()
 
-        with self.lmdb_env.begin(write=True) as txn:
-            txn.put(fingerprint, key)
+        # Create new Key object and commit to db
+        self.session.add(Key(key))
+        self.session.commit()
         return fingerprint
 
     def del_key(self, fingerprint: bytes):
@@ -135,5 +128,5 @@ class KeyStore(object):
 
         :param fingerprint: Fingerprint of key to delete
         """
-        with self.lmdb_env.begin(write=True) as txn:
-            txn.delete(fingerprint)
+        self.session.query(Key).filter_by(fingerprint=fingerprint).delete()
+        self.session.commit()

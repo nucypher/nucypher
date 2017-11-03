@@ -7,7 +7,10 @@ from nkms.keystore import keystore, keypairs
 
 class TestKeyStore(unittest.TestCase):
     def setUp(self):
-        self.ks = keystore.KeyStore('test')
+        engine = create_engine('sqlite:///:memory:')
+        Base.metadata.create_all(engine)
+
+        self.ks = keystore.KeyStore(engine)
 
     def test_ecies_keypair_generation(self):
         keypair = self.ks.gen_ecies_keypair()
@@ -22,9 +25,6 @@ class TestKeyStore(unittest.TestCase):
         self.assertEqual(bytes, type(keypair.pubkey))
 
     def test_sqlite_keystore(self):
-        engine = create_engine('sqlite:///:memory:', echo=True)
-        Base.metadata.create_all(engine)
-
         keypair = self.ks.gen_ecies_keypair()
         self.assertEqual(keypairs.EncryptingKeypair, type(keypair))
         self.assertEqual(bytes, type(keypair.privkey))
