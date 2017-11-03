@@ -1,9 +1,12 @@
 import msgpack
 from kademlia.network import Server
+from kademlia.utils import digest
 
 from nkms.crypto import api as API
+from nkms.crypto.api import secure_random
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
+from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 
 import asyncio
@@ -18,6 +21,7 @@ class Character(object):
     _server = None
     _server_class = Server
     _default_crypto_powerups = None
+    _seal = None
 
     class NotFound(KeyError):
         """raised when we try to interact with an actor of whom we haven't learned yet."""
@@ -37,8 +41,6 @@ class Character(object):
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
 
-        if attach_server:
-            self.attach_server()
         if crypto_power:
             self._crypto_power = crypto_power
         elif crypto_power_ups:
@@ -64,11 +66,21 @@ class Character(object):
             def __eq__(seal, other):
                 return other == seal._as_tuple() or other == bytes(seal)
 
-        self.seal = Seal()
+        self._seal = Seal()
+
+        if attach_server:
+            self.attach_server()
 
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs) -> None:
         self._server = self._server_class(ksize, alpha, id, storage, *args, **kwargs)
+
+    @property
+    def seal(self):
+        if not self._seal:
+            raise AttributeError("Seal has not been set up yet.")
+        else:
+            return self._seal
 
     @property
     def server(self) -> Server:
@@ -160,8 +172,8 @@ class Alice(Character):
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
     def find_best_ursula(self):
-        # TODO: Right now this just finds the nearest node and returns its ip and port.  Make it do something useful.
-        return self.server.bootstrappableNeighbors()[0]
+        # TODO: This just finds *some* Ursula - let's have it find a particularly good one.
+        return list_all_ursulas()[0]
 
     def generate_rekey_frags(self, alice_privkey, bob, m, n):
         """
@@ -214,9 +226,36 @@ class Bob(Character):
             from nkms.policy.models import TreasureMap
             return TreasureMap(msgpack.loads(packed_node_list))
 
+
 class Ursula(Character):
     _server_class = NuCypherDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
+
+    port = None
+    interface = None
+
+    def ip_dht_key(self):
+        return b"uaddr-" + bytes(self.seal)
+
+    def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
+                      *args, **kwargs):
+
+        if not id:
+            id = digest(secure_random(32))  # TODO: Network-wide deterministic ID generation (ie, auction or whatever)
+
+        super().attach_server(ksize, alpha, id, storage)
+
+    def listen(self, port, interface):
+        self.port = port
+        self.interface = interface
+        return self.server.listen(port, interface)
+
+    def publish_interface_information(self):
+        if not self.port and self.interface:
+            raise RuntimeError("Must listen before publishing interface information.")
+        setter = self.server.set(key=self.ip_dht_key(), value=msgpack.dumps((self.port, self.interface)))
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(setter)
 
 
 def community_meeting(*characters):

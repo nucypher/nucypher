@@ -6,6 +6,8 @@ import pytest
 
 from nkms.characters import Ursula, Alice, Character, Bob, community_meeting
 from nkms.crypto import api
+from nkms.network import blockchain_client
+from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.node import NetworkyStuff
 from nkms.policy.constants import NON_PAYMENT
 from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, PolicyGroup, Policy
@@ -13,12 +15,29 @@ from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, 
 EVENT_LOOP = asyncio.get_event_loop()
 asyncio.set_event_loop(EVENT_LOOP)
 
-URSULA_PORT = 8468
+URSULA_PORT = 7468
 
-URSULA = Ursula()
-URSULA.attach_server()
-URSULA.server.listen(URSULA_PORT)
-EVENT_LOOP.run_until_complete(URSULA.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
+
+def make_fake_ursulas(how_many):
+    URSULAS = []
+    for _u in range(how_many):
+        _URSULA = Ursula()
+        _URSULA.attach_server()
+        _URSULA.listen(URSULA_PORT + _u, "127.0.0.1")
+        blockchain_client._ursulas_on_blockchain.append(_URSULA.ip_dht_key())
+
+        URSULAS.append(_URSULA)
+
+    for _counter, ursula in enumerate(URSULAS):
+        # EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
+        EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT + _counter)]))
+        ursula.publish_interface_information()
+
+    EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT + p) for p in range(how_many)]))
+
+    return URSULAS
+
+URSULAS = make_fake_ursulas(6)
 
 ALICE = Alice()
 ALICE.attach_server()
@@ -28,15 +47,20 @@ EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", URSULA_PORT)
 BOB = Bob(alice=ALICE)
 BOB.attach_server()
 BOB.server.listen(8475)
-EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", 8471)]))
+EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
 
 
-community_meeting(ALICE, BOB, URSULA)
+community_meeting(ALICE, BOB, URSULAS[0])
 
 
 def test_alice_finds_ursula():
-    _discovered_ursula_ip, discovered_ursula_port = ALICE.find_best_ursula()
-    assert discovered_ursula_port == URSULA_PORT
+    all_ursulas = list_all_ursulas()
+    _discovered_ursula_dht_key = ALICE.find_best_ursula()
+    getter = ALICE.server.get(_discovered_ursula_dht_key)
+    loop = asyncio.get_event_loop()
+    interface_bytes = loop.run_until_complete(getter)
+    port, interface = msgpack.loads(interface_bytes)
+    assert port == URSULA_PORT
 
 
 class MockPolicyOfferResponse(object):
@@ -70,9 +94,9 @@ def test_treasure_map_from_alice_to_ursula():
     resource_id = b"as098duasdlkj213098asf"
     policy_group = PolicyGroup(resource_id, BOB)
     setter = ALICE.server.set(policy_group.id, packed_encrypted_treasure_map)
-    EVENT_LOOP.run_until_complete(setter)
+    set_event = EVENT_LOOP.run_until_complete(setter)
 
-    treasure_map_as_set_on_network = list(URSULA.server.storage.items())[0][1]
+    treasure_map_as_set_on_network = list(URSULAS[0].server.storage.items())[0][1]
     assert treasure_map_as_set_on_network == packed_encrypted_treasure_map  # IE, Ursula stores it properly.
     return treasure_map, treasure_map_as_set_on_network, signature, policy_group
 
