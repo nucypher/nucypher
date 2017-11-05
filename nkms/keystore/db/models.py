@@ -12,11 +12,10 @@ class Key(Base):
     key_data = Column(LargeBinary, unique=True)
 
     def __init__(self, key_data):
-        self.fingerprint = Key.get_fingerprint(key_data[2:])
         self.key_data = key_data
+        self.fingerprint = self.get_fingerprint()
 
-    @classmethod
-    def get_fingerprint(cls, key_data: bytes) -> bytes:
+    def get_fingerprint(self) -> bytes:
         """
         Hashes the key with keccak_256 and returns the hexdigest as a String.
 
@@ -24,4 +23,4 @@ class Key(Base):
 
         :return: Fingerprint of key as a string
         """
-        return sha3.keccak_256(key_data).hexdigest().encode()
+        return sha3.keccak_256(self.key_data[2:]).hexdigest().encode()
