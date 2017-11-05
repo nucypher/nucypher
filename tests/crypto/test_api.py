@@ -178,7 +178,13 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(plaintext, dec_text)
 
     def test_priv_bytes2ec(self):
-        privkey_bytes = ec.serialize(self.privkey_a)[1:]
+        full_privkey_bytes = ec.serialize(self.privkey_a)
+        privkey_bytes = full_privkey_bytes[1:]
+
+        if len(privkey_bytes) is not 32:
+            # Debug information here.
+            print("Hey everybody!  Here's the weird len31 bug.  The bytes were {}.".format(full_privkey_bytes))
+
         self.assertEqual(bytes, type(privkey_bytes))
         self.assertEqual(32, len(privkey_bytes))
 
