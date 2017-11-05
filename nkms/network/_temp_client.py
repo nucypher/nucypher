@@ -26,6 +26,11 @@ def main(reactor):
         optionsForClientTLS(u"the-authority", Certificate.loadPEM(caPem),
                             PrivateCertificate.loadPEM(pem)),
     )
+    clientEndpoint = SSL4ClientEndpoint(
+        reactor, u"localhost", 4321,
+        optionsForClientTLS(u"the-authority", Certificate.loadPEM(caPem),
+                            PrivateCertificate.loadPEM(pem)),
+    )
     proto = yield clientEndpoint.connect(Factory.forProtocol(SendAnyData))
     yield proto.deferred
 

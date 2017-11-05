@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 
 rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "kms-dependency"}
-npre = {git = "https://github.com/nucypher/nucypher-pre-python", ref = "kms-dependency"}
+npre = "*"
 kademlia = {git = "https://github.com/nucypher/kademlia", ref = "kms-dependency"}
 lmdb = "*"
 pynacl = "*"
@@ -14,6 +14,9 @@ pynacl = "*"
 bidict = "*"
 "py-ecc" = "*"
 sqlalchemy = "*"
+twisted = "*"
+pyopenssl = "*"
+"service-identity" = "*"
 
 [dev-packages]
 
