@@ -1,9 +1,11 @@
 import asyncio
 import random
+import types
+
+import msgpack
 
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
-from kademlia.node import Node
 from kademlia.utils import digest
 from nkms.network.capabilities import SeedOnly, ServerCapability
 from nkms.network.node import NuCypherNode
@@ -18,7 +20,7 @@ class NuCypherDHTServer(Server):
 
     def __init__(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
         super().__init__(ksize=20, alpha=3, id=None, storage=None, *args, **kwargs)
-        self.node = NuCypherNode(id or digest(random.getrandbits(255)))
+        self.node = NuCypherNode(id or digest(random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
 
     def serialize_capabilities(self):
         return [ServerCapability.stringify(capability) for capability in self.capabilities]
@@ -45,6 +47,12 @@ class NuCypherDHTServer(Server):
 
         spider = NodeSpiderCrawl(self.protocol, node, nearest, self.ksize, self.alpha)
         nodes = await spider.find()
+
+        while isinstance(nodes, types.CoroutineType):
+            # This is awful.
+            self.log.warning("Didn't get a list of nodes from spider.find().  Got {} instead.".format(nodes))
+            nodes = await nodes
+            self.log.warning("Cast nodes to {}".format(nodes))
         self.log.info("setting '%s' on %s" % (dkey.hex(), list(map(str, nodes))))
 
         # if this node is close too, then store here as well
@@ -62,6 +70,10 @@ class NuCypherDHTServer(Server):
                 ds.append(value_was_set)
         # return true only if at least one store call succeeded
         return any(ds)
+
+    def get_now(self, key):
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(self.get(key))
 
 
 class NuCypherSeedOnlyDHTServer(NuCypherDHTServer):

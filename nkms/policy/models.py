@@ -1,8 +1,8 @@
 import msgpack
-
+from npre.constants import UNKNOWN_KFRAG
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
-from nkms.policy.constants import UNKNOWN_KFRAG
+from nkms.crypto.powers import EncryptingPower
 
 
 class PolicyOffer(object):
@@ -43,7 +43,10 @@ class PolicyManagerForAlice(PolicyManager):
         """
         Alice dictates a new group of policies.
         """
-        re_enc_keys = self.owner.generate_rekey_frags(bob, m, n)
+
+        ##### Temporary until we decide on an API for private key access
+        alice_priv_enc = self.owner._crypto_power._power_ups[EncryptingPower].priv_key
+        re_enc_keys, encrypted_key = self.owner.generate_rekey_frags(alice_priv_enc, bob, m, n)  # TODO: Access Alice's private key inside this method.
         policies = []
         for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
@@ -207,8 +210,11 @@ class Policy(object):
 
 
 class TreasureMap(object):
-    def __init__(self):
-        self.nodes = []
+    def __init__(self, nodes=None):
+        self.nodes = nodes or []
 
     def packed_payload(self):
         return msgpack.dumps(self.nodes)
+
+    def __eq__(self, other):
+        return self.nodes == other.nodes

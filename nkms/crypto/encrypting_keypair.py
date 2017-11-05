@@ -4,6 +4,8 @@ from nacl.secret import SecretBox
 from typing import Tuple, List
 from threading import local
 
+from nkms.crypto.api import PRE
+
 _tl = local()
 _tl.pre = None
 
@@ -140,7 +142,7 @@ class EncryptingKeypair(object):
         and the ephemeral private key encrypted for recepient (Bob)
         """
         rk, encrypted_eph = rekey
-        rk = umbral.RekeyFrag(rk[0], ec.deserialize(self.pre.ecgroup, rk[1]))
+        rk = umbral.RekeyFrag(rk[0], ec.deserialize(self.pre.ecgroup, rk[1]), pre=PRE)
         ekey, edata = ciphertext
         ekey = umbral.EncryptedKey(
                 ekey=ec.deserialize(self.pre.ecgroup, ekey[0]), re_id=ekey[1])

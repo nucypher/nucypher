@@ -20,3 +20,9 @@ class NuCypherNode(Node):
             if c.prohibits_storage:
                 return False
         return True
+
+
+class NetworkyStuff(object):
+
+    def find_ursula(self, id, offer=None):
+        pass
