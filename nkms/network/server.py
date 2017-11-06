@@ -1,8 +1,5 @@
 import asyncio
 import random
-import types
-
-import msgpack
 
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
@@ -20,7 +17,8 @@ class NuCypherDHTServer(Server):
 
     def __init__(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
         super().__init__(ksize=20, alpha=3, id=None, storage=None, *args, **kwargs)
-        self.node = NuCypherNode(id or digest(random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
+        self.node = NuCypherNode(id or digest(
+            random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
 
     def serialize_capabilities(self):
         return [ServerCapability.stringify(capability) for capability in self.capabilities]
@@ -69,6 +67,14 @@ class NuCypherDHTServer(Server):
     def get_now(self, key):
         loop = asyncio.get_event_loop()
         return loop.run_until_complete(self.get(key))
+
+    async def set(self, key, value):
+        """
+        Set the given string key to the given value in the network.
+        """
+        self.log.debug("setting '%s' = '%s' on network" % (key, value))
+        key = digest(key)
+        return await self.set_digest(key, value)
 
 
 class NuCypherSeedOnlyDHTServer(NuCypherDHTServer):

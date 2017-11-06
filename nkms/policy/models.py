@@ -218,3 +218,6 @@ class TreasureMap(object):
 
     def __eq__(self, other):
         return self.nodes == other.nodes
+
+    def __iter__(self):
+        pass

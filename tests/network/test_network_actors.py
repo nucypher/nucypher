@@ -56,7 +56,7 @@ def test_alice_finds_ursula():
     getter = ALICE.server.get(all_ursulas[ursula_index])
     loop = asyncio.get_event_loop()
     interface_bytes = loop.run_until_complete(getter)
-    port, interface = msgpack.loads(interface_bytes)
+    port, interface, ursula_pubkey_sig = msgpack.loads(interface_bytes)
     assert port == URSULA_PORT + ursula_index
 
 
@@ -126,6 +126,7 @@ def test_treasure_map_from_ursula_to_bob():
 def test_cannot_offer_policy_without_finding_ursula():
     networky_stuff = MockNetworkyStuff()
     policy = Policy(Alice())
+
     with pytest.raises(Ursula.NotFound):
         policy_offer = policy.encrypt_payload_for_ursula()
 
@@ -170,3 +171,17 @@ def test_trying_to_find_unknown_actor_raises_not_found():
     verification, NO_DECRYPTION_PERFORMED = tony_clifton.verify_from(ALICE, signature, message)
 
     assert verification is True
+
+
+def test_bob_and_ursula_upgrade_to_tls():
+    treasure_map, treasure_map_as_set_on_network, signature, policy_group = test_treasure_map_from_alice_to_ursula()
+    networky_stuff = MockNetworkyStuff()
+
+    # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume, through a side-channel with Alice.
+    treasure_map_from_wire = BOB.get_treasure_map(policy_group, signature)
+
+
+    # for ursula in treasure_map_from_wire:
+    #     pass
+    #
+    # BOB

@@ -36,6 +36,15 @@ class NuCypherHashProtocol(KademliaProtocol):
         else:
             return NODE_HAS_NO_STORAGE, False
 
+    def rpc_store(self, sender, nodeid, key, value):
+        source = NuCypherNode(nodeid, sender[0], sender[1])
+        self.welcomeIfNewNode(source)
+        self.log.debug("got a store request from %s" % str(sender))
+        if value.startswith(b"uaddr"):
+            assert False
+        self.storage[key] = value
+        return True
+
 
 class NuCypherSeedOnlyProtocol(NuCypherHashProtocol):
     def __init__(self, *args, **kwargs):

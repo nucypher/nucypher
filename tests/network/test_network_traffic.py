@@ -114,8 +114,8 @@ def test_seed_only_node_knows_it_can_store_on_full_node():
     event_loop.run_until_complete(seed_only_server.bootstrap([("127.0.0.1", 8468)]))
 
     # The seed-only will try to store a value.
-    key_to_store = "llamas"
-    value_to_store = "tons_of_things_keyed_llamas"
+    key_to_store = b"llamas"
+    value_to_store = b"tons_of_things_keyed_llamas"
     setter = seed_only_server.set(key_to_store, value_to_store)
 
     # But watch - unlike before, this node knows it can set values.

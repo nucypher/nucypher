@@ -254,7 +254,7 @@ class Ursula(Character):
         if not self.port and self.interface:
             raise RuntimeError("Must listen before publishing interface information.")
         ip_dht_key = self.ip_dht_key()
-        setter = self.server.set(key=ip_dht_key, value=msgpack.dumps((self.port, self.interface)))
+        setter = self.server.set(key=ip_dht_key, value=msgpack.dumps((self.port, self.interface, bytes(self.seal))))
         blockchain_client._ursulas_on_blockchain.append(ip_dht_key)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
