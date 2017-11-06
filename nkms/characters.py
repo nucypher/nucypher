@@ -8,6 +8,7 @@ from nkms.crypto import api as API
 from nkms.crypto.api import secure_random
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
+from nkms.crypto.utils import verify
 from nkms.network import blockchain_client
 from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
@@ -138,18 +139,14 @@ class Character(object):
         if signature_is_on_cleartext:
             if decrypt:
                 cleartext = self._crypto_power.decrypt(message)
-                msg_digest = API.keccak_digest(cleartext)
+                message = cleartext
             else:
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not decrypting.")
-        else:
-            msg_digest = API.keccak_digest(message)
 
         actor = self._lookup_actor(actor_whom_sender_claims_to_be)
-        signature_pub_key = actor.seal
 
-        sig = API.ecdsa_load_sig(signature)
-        return API.ecdsa_verify(*sig, msg_digest, signature_pub_key), cleartext
+        return verify(signature, message, actor.seal), cleartext
 
     def _lookup_actor(self, actor: "Character"):
         try:
@@ -235,7 +232,7 @@ class Ursula(Character):
     interface = None
 
     def ip_dht_key(self):
-        return b"uaddr-" + bytes(self.seal)
+        return bytes(self.seal)
 
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs):
@@ -254,7 +251,12 @@ class Ursula(Character):
         if not self.port and self.interface:
             raise RuntimeError("Must listen before publishing interface information.")
         ip_dht_key = self.ip_dht_key()
-        setter = self.server.set(key=ip_dht_key, value=msgpack.dumps((self.port, self.interface)))
+
+        interface_info = msgpack.dumps((self.port, self.interface))
+        signature = self.seal(interface_info)
+
+        value = b"uaddr-" + msgpack.dumps([signature, bytes(self.seal), interface_info])
+        setter = self.server.set(key=ip_dht_key, value=value)
         blockchain_client._ursulas_on_blockchain.append(ip_dht_key)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)

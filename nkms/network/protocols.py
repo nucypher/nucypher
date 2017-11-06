@@ -1,4 +1,4 @@
-import asyncio
+import msgpack
 
 from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
@@ -6,12 +6,14 @@ from kademlia.utils import digest
 from nkms.network.constants import NODE_HAS_NO_STORAGE
 from nkms.network.node import NuCypherNode
 from nkms.network.routing import NuCypherRoutingTable
+from nkms.crypto import api as API, utils
 
 
 class NuCypherHashProtocol(KademliaProtocol):
     def __init__(self, sourceNode, storage, ksize, *args, **kwargs):
         super().__init__(sourceNode, storage, ksize, *args, **kwargs)
         self.router = NuCypherRoutingTable(self, ksize, sourceNode)
+        self.illegal_keys_seen = []
 
     def check_node_for_storage(self, node):
         try:
@@ -35,6 +37,26 @@ class NuCypherHashProtocol(KademliaProtocol):
             return success, data
         else:
             return NODE_HAS_NO_STORAGE, False
+
+    def rpc_store(self, sender, nodeid, key, value):
+        source = NuCypherNode(nodeid, sender[0], sender[1])
+        self.welcomeIfNewNode(source)
+        self.log.debug("got a store request from %s" % str(sender))
+        if value.startswith(b"uaddr"):
+            signature, ursula_pubkey_sig, interface_info = msgpack.loads(value.lstrip(b"uaddr-"))
+            proper_key = digest(ursula_pubkey_sig)
+            verified = utils.verify(signature, interface_info, ursula_pubkey_sig)
+            if not verified or not proper_key == key:
+                # TODO: What exactly to do in this scenario?
+                self.log.warning("Possible Vladimir detected - tried to set incorrect Ursula interface key.")
+                self.illegal_keys_seen.append(key)
+                return
+        self.storage[key] = value
+        return True
+
+
+
+
 
 
 class NuCypherSeedOnlyProtocol(NuCypherHashProtocol):
