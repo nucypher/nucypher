@@ -28,8 +28,7 @@ def make_fake_ursulas(how_many):
         URSULAS.append(_URSULA)
 
     for _counter, ursula in enumerate(URSULAS):
-        EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
-        #  EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT + _c) for _c in range(how_many)]))
+        EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT + _c) for _c in range(how_many)]))
         ursula.publish_interface_information()
 
     return URSULAS

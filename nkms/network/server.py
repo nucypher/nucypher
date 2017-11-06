@@ -53,14 +53,10 @@ class NuCypherDHTServer(Server):
             self.storage[dkey] = value
         ds = []
         for n in nodes:
-            if self.node.id == n.id:
-                # TOOD: Consider whether to store stuff locally.  We don't really know yet.  Probably at least some things.
-                ds.append(False)
-            else:
-                disposition, value_was_set = await self.protocol.callStore(n, dkey, value)
-                if value_was_set:
-                    self.digests_set += 1
-                ds.append(value_was_set)
+            _disposition, value_was_set = await self.protocol.callStore(n, dkey, value)
+            if value_was_set:
+                self.digests_set += 1
+            ds.append(value_was_set)
         # return true only if at least one store call succeeded
         return any(ds)
 
