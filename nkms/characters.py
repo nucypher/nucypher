@@ -235,7 +235,7 @@ class Ursula(Character):
     interface = None
 
     def ip_dht_key(self):
-        return b"uaddr-" + bytes(self.seal)
+        return bytes(self.seal)
 
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs):
@@ -254,7 +254,12 @@ class Ursula(Character):
         if not self.port and self.interface:
             raise RuntimeError("Must listen before publishing interface information.")
         ip_dht_key = self.ip_dht_key()
-        setter = self.server.set(key=ip_dht_key, value=msgpack.dumps((self.port, self.interface, bytes(self.seal))))
+
+        interface_info = msgpack.dumps((self.port, self.interface))
+        signature = self.seal(interface_info)
+
+        value = b"uaddr-" + msgpack.dumps([signature, bytes(self.seal), interface_info])
+        setter = self.server.set(key=ip_dht_key, value=value)
         blockchain_client._ursulas_on_blockchain.append(ip_dht_key)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
