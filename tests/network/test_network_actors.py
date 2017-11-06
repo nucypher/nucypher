@@ -55,9 +55,33 @@ def test_alice_finds_ursula():
     all_ursulas = list_all_ursulas()
     getter = ALICE.server.get(all_ursulas[ursula_index])
     loop = asyncio.get_event_loop()
-    interface_bytes = loop.run_until_complete(getter)
-    port, interface, ursula_pubkey_sig = msgpack.loads(interface_bytes)
+    value = loop.run_until_complete(getter)
+    signature, ursula_pubkey_sig, interface_info = msgpack.loads(value.lstrip(b"uaddr-"))
+    port, interface = msgpack.loads(interface_info)
     assert port == URSULA_PORT + ursula_index
+
+
+def test_ursula_with_bad_interface_key_does_not_propagate():
+    vladimir = URSULAS[0]
+    ursula = URSULAS[1]
+
+    # Ursula hasn't seen any illegal keys.
+    assert ursula.server.protocol.illegal_keys_seen == []
+
+    # Vladimir does almost everything right....
+    interface_info = msgpack.dumps((vladimir.port, vladimir.interface))
+    signature = vladimir.seal(interface_info)
+    value = b"uaddr-" + msgpack.dumps([signature, bytes(vladimir.seal), interface_info])
+
+    # Except he sets an illegal key for his interface.
+    illegal_key = "Not allowed to set arbitrary key for this."
+    setter = vladimir.server.set(key=illegal_key, value=value)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(setter)
+
+    # Now Ursula has seen an illegal key.
+    assert digest(illegal_key) in ursula.server.protocol.illegal_keys_seen
+
 
 
 class MockPolicyOfferResponse(object):

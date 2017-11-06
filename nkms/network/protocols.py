@@ -13,6 +13,7 @@ class NuCypherHashProtocol(KademliaProtocol):
     def __init__(self, sourceNode, storage, ksize, *args, **kwargs):
         super().__init__(sourceNode, storage, ksize, *args, **kwargs)
         self.router = NuCypherRoutingTable(self, ksize, sourceNode)
+        self.illegal_keys_seen = []
 
     def check_node_for_storage(self, node):
         try:
@@ -48,6 +49,7 @@ class NuCypherHashProtocol(KademliaProtocol):
             if not verified or not proper_key == key:
                 # TODO: What exactly to do in this scenario?
                 self.log.warning("Possible Vladimir detected - tried to set incorrect Ursula interface key.")
+                self.illegal_keys_seen.append(key)
                 return
         self.storage[key] = value
         return True
