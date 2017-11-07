@@ -43,7 +43,7 @@ class Keypair(object):
         key_type_byte = key_data[1].to_bytes(1, 'big')
         key = key_data[2:]
 
-        if keypair_byte == constants.ENC_KEYPAIR_BYTES:
+        if keypair_byte == constants.ENC_KEYPAIR_BYTE:
             if key_type_byte == constants.PUB_KEY_BYTE:
                 return EncryptingKeypair(pubkey=key)
 
