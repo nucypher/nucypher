@@ -28,8 +28,7 @@ def make_fake_ursulas(how_many):
         URSULAS.append(_URSULA)
 
     for _counter, ursula in enumerate(URSULAS):
-        EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
-        EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT + _counter)]))
+        EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT + _c) for _c in range(how_many)]))
         ursula.publish_interface_information()
 
     return URSULAS
@@ -50,6 +49,16 @@ EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", URSULA_PORT)])
 community_meeting(ALICE, BOB, URSULAS[0])
 
 
+def test_all_ursulas_know_about_all_other_ursulas():
+    ignorance = []
+    for acounter, announcing_ursula in enumerate(list_all_ursulas()):
+        for counter, propagating_ursula in enumerate(URSULAS):
+            if not digest(announcing_ursula) in propagating_ursula.server.storage:
+                ignorance.append((counter, acounter))
+    if ignorance:
+        pytest.fail(str(["{} didn't know about {}".format(counter, acounter) for counter, acounter in ignorance]))
+
+
 def test_alice_finds_ursula():
     ursula_index = 1
     all_ursulas = list_all_ursulas()
@@ -61,7 +70,7 @@ def test_alice_finds_ursula():
     assert port == URSULA_PORT + ursula_index
 
 
-def test_ursula_with_bad_interface_key_does_not_propagate():
+def test_vladimir_illegal_interface_key_does_not_propagate():
     vladimir = URSULAS[0]
     ursula = URSULAS[1]
 
