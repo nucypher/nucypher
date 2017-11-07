@@ -30,6 +30,33 @@ class Keypair(object):
             self.pubkey = pubkey
             self.public_only = True
 
+    @staticmethod
+    def deserialize_key(key_data: bytes) -> 'Keypair':
+        """
+        Deserialize the key_data into a Keypair object.
+
+        :param key_data: Serialized key data from a keypair object
+
+        :return: Keypair object
+        """
+        keypair_byte = key_data[0].to_bytes(1, 'big')
+        key_type_byte = key_data[1].to_bytes(1, 'big')
+        key = key_data[2:]
+
+        if keypair_byte == constants.ENC_KEYPAIR_BYTE:
+            if key_type_byte == constants.PUB_KEY_BYTE:
+                return EncryptingKeypair(pubkey=key)
+
+            elif key_type_byte == constants.PRIV_KEY_BYTE:
+                return EncryptingKeypair(privkey=key)
+
+        elif keypair_byte == constants.SIG_KEYPAIR_BYTE:
+            if key_type_byte == constants.PUB_KEY_BYTE:
+                return SigningKeypair(pubkey=key)
+
+            elif key_type_byte == constants.PRIV_KEY_BYTE:
+                return SigningKeypair(privkey=key)
+
 
 class EncryptingKeypair(Keypair):
     """
