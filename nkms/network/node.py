@@ -21,6 +21,9 @@ class NuCypherNode(Node):
                 return False
         return True
 
+    class NotEnoughQualifiedUrsulas(Exception):
+        pass
+
 
 class NetworkyStuff(object):
 

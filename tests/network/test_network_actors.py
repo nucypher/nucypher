@@ -3,19 +3,21 @@ import datetime
 
 import msgpack
 import pytest
-from kademlia.utils import digest
 
+from kademlia.utils import digest
 from nkms.characters import Ursula, Alice, Character, Bob, community_meeting
-from nkms.crypto import api
 from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.node import NetworkyStuff
 from nkms.policy.constants import NON_PAYMENT
-from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, TreasureMap, PolicyGroup, Policy
+from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, Policy
 
 EVENT_LOOP = asyncio.get_event_loop()
 asyncio.set_event_loop(EVENT_LOOP)
 
 URSULA_PORT = 7468
+NUMBER_OF_URSULAS_IN_NETWORK = 6
+
+URSULA_PORTS = range(URSULA_PORT, URSULA_PORT + NUMBER_OF_URSULAS_IN_NETWORK)
 
 
 def make_fake_ursulas(how_many):
@@ -28,13 +30,14 @@ def make_fake_ursulas(how_many):
         URSULAS.append(_URSULA)
 
     for _counter, ursula in enumerate(URSULAS):
-        EVENT_LOOP.run_until_complete(ursula.server.bootstrap([("127.0.0.1", URSULA_PORT + _c) for _c in range(how_many)]))
+        EVENT_LOOP.run_until_complete(
+            ursula.server.bootstrap([("127.0.0.1", URSULA_PORT + _c) for _c in range(how_many)]))
         ursula.publish_interface_information()
 
     return URSULAS
 
 
-URSULAS = make_fake_ursulas(6)
+URSULAS = make_fake_ursulas(NUMBER_OF_URSULAS_IN_NETWORK)
 
 ALICE = Alice()
 ALICE.attach_server()
@@ -92,18 +95,23 @@ def test_vladimir_illegal_interface_key_does_not_propagate():
     assert digest(illegal_key) in ursula.server.protocol.illegal_keys_seen
 
 
-
 class MockPolicyOfferResponse(object):
     was_accepted = True
 
 
 class MockNetworkyStuff(NetworkyStuff):
+    def __init__(self):
+        self.ursulas = iter(URSULAS)
+
     def go_live_with_policy(self, ursula, policy_offer):
         return
 
     def find_ursula(self, id, offer=None):
         if offer:
-            return Ursula(), MockPolicyOfferResponse()
+            try:
+                return next(self.ursulas), MockPolicyOfferResponse()
+            except StopIteration:
+                raise self.NotEnoughQualifiedUrsulas
         else:
             return super().find_ursula(id)
 
@@ -115,16 +123,18 @@ def test_treasure_map_from_alice_to_ursula():
     """
     Shows that Alice can share a TreasureMap with Ursula and that Bob can receive and decrypt it.
     """
-    treasure_map = TreasureMap([api.secure_random(50) for _ in range(50)])  # TODO: This is still random here.
+    # For example, a hashed path.
+    resource_id = b"as098duasdlkj213098asf"
+    policy_group = test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload()
+
+    # treasure_map = TreasureMap([api.secure_random(50) for _ in range(50)])  # TODO: This is still random here.
+    treasure_map = policy_group.treasure_map
 
     encrypted_treasure_map, signature = ALICE.encrypt_for(BOB, treasure_map.packed_payload())
     packed_encrypted_treasure_map = msgpack.dumps(encrypted_treasure_map)
 
-    # For example, a hashed path.
-    resource_id = b"as098duasdlkj213098asf"
-    policy_group = PolicyGroup(resource_id, BOB)
     setter = ALICE.server.set(policy_group.id, packed_encrypted_treasure_map)
-    set_event = EVENT_LOOP.run_until_complete(setter)
+    _set_event = EVENT_LOOP.run_until_complete(setter)
 
     treasure_map_as_set_on_network = URSULAS[0].server.storage[digest(policy_group.id)]
     assert treasure_map_as_set_on_network == packed_encrypted_treasure_map  # IE, Ursula stores it properly.
@@ -169,7 +179,7 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     resource_id = b"as098duasdlkj213098asf"
 
     # Alice has a policy in mind; she crafts an offer.
-    n = 50
+    n = NUMBER_OF_URSULAS_IN_NETWORK
     deposit = NON_PAYMENT
     contract_end_datetime = datetime.datetime.now() + datetime.timedelta(days=5)
     offer = PolicyOffer(n, deposit, contract_end_datetime)
@@ -181,12 +191,14 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     policy_group = policy_manager.create_policy_group(
         BOB,
         resource_id,
-        m=20,
-        n=50,
+        m=3,
+        n=n,
     )
     networky_stuff = MockNetworkyStuff()
     policy_group.find_n_ursulas(networky_stuff, offer)
     policy_group.transmit_payloads(networky_stuff)  # Until we figure out encrypt_for logic
+
+    return policy_group
 
 
 def test_trying_to_find_unknown_actor_raises_not_found():
@@ -209,26 +221,11 @@ def test_trying_to_find_unknown_actor_raises_not_found():
 def test_treaure_map_is_legit():
     treasure_map, treasure_map_as_set_on_network, signature, policy_group = test_treasure_map_from_alice_to_ursula()
 
-    for ursula in treasure_map:
-        getter = ALICE.server.get(ursula.interface_id)
+    for ursula_interface_id in treasure_map:
+        getter = ALICE.server.get(ursula_interface_id)
         loop = asyncio.get_event_loop()
         value = loop.run_until_complete(getter)
         signature, ursula_pubkey_sig, interface_info = msgpack.loads(value.lstrip(b"uaddr-"))
-        port, interface = msgpack.loads(interface_info)
-    assert False
+        port, _interface = msgpack.loads(interface_info)
+        assert port in URSULA_PORTS
 
-
-
-
-def test_bob_and_ursula_upgrade_to_tls():
-    treasure_map, treasure_map_as_set_on_network, signature, policy_group = test_treasure_map_from_alice_to_ursula()
-    networky_stuff = MockNetworkyStuff()
-
-    # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume, through a side-channel with Alice.
-    treasure_map_from_wire = BOB.get_treasure_map(policy_group, signature)
-
-
-    # for ursula in treasure_map_from_wire:
-    #     pass
-    #
-    # BOB
