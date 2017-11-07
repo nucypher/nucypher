@@ -9,6 +9,7 @@ from nkms.crypto.api import secure_random
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.crypto.utils import verify
+from nkms.keystore.keypairs import Keypair
 from nkms.network import blockchain_client
 from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
@@ -28,7 +29,7 @@ class Character(object):
         """raised when we try to interact with an actor of whom we haven't learned yet."""
 
     def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
-                 crypto_power_ups=[]):
+                 crypto_power_ups=[], is_me=True):
         """
         :param attach_server:  Whether to attach a Server when this Character is born.
         :param crypto_power: A CryptoPower object; if provided, this will be the character's CryptoPower.
@@ -38,7 +39,6 @@ class Character(object):
         If neither crypto_power nor crypto_power_ups are provided, we give this Character all CryptoPowerUps
         listed in their _default_crypto_powerups attribute.
         """
-        self._actor_mapping = {}
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
 
@@ -49,28 +49,15 @@ class Character(object):
         else:
             self._crypto_power = CryptoPower(self._default_crypto_powerups)
 
-        class Seal(object):
-            """
-            Can be called to sign something or used to express the signing public key as bytes.
-            """
-            __call__ = self._crypto_power.sign
+        if is_me:
+            self._actor_mapping = {}
 
-            def _as_tuple(seal):
-                return self._crypto_power.pubkey_sig_tuple()
+            self._seal = Seal(self)
 
-            def __iter__(seal):
-                yield from seal._as_tuple()
-
-            def __bytes__(seal):
-                return self._crypto_power.pubkey_sig_bytes()
-
-            def __eq__(seal, other):
-                return other == seal._as_tuple() or other == bytes(seal)
-
-        self._seal = Seal()
-
-        if attach_server:
-            self.attach_server()
+            if attach_server:
+                self.attach_server()
+        else:
+            self._seal = StrangerSeal(self)
 
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs) -> None:
@@ -195,6 +182,7 @@ class Bob(Character):
 
     def __init__(self, alice=None):
         super().__init__()
+        self._ursulas = {}
         if alice:
             self.alice = alice
 
@@ -209,6 +197,16 @@ class Bob(Character):
     def alice(self, alice_object):
         self.learn_about_actor(alice_object)
         self._alice = alice_object
+
+    def follow_treasure_map(self, treasure_map):
+        # TODO: perform this part concurrently.
+        for ursula_interface_id in treasure_map:
+            getter = self.server.get(ursula_interface_id)
+            loop = asyncio.get_event_loop()
+            value = loop.run_until_complete(getter)
+            signature, ursula_pubkey_sig, interface_info = msgpack.loads(value.lstrip(b"uaddr-"))
+            port, interface = msgpack.loads(interface_info)
+            self._ursulas[ursula_interface_id] = Ursula.as_discovered_on_network(port=port, interface=interface,                                                                                 pubkey_sig_bytes=ursula_pubkey_sig)
 
     def get_treasure_map(self, policy_group, signature):
         ursula_coro = self.server.get(policy_group.id)
@@ -230,6 +228,13 @@ class Ursula(Character):
 
     port = None
     interface = None
+
+    @staticmethod
+    def as_discovered_on_network(port, interface, pubkey_sig_bytes):
+        ursula = Ursula(is_me=False, crypto_power_ups=[SigningPower(keypair=Keypair.deserialize_key(pubkey_sig_bytes))])
+        ursula.port = port
+        ursula.interface = interface
+        return ursula
 
     def ip_dht_key(self):
         return bytes(self.seal)
@@ -262,7 +267,41 @@ class Ursula(Character):
         loop.run_until_complete(setter)
 
 
-def community_meeting(*characters):
+class Seal(object):
+    """
+    Can be called to sign something or used to express the signing public key as bytes.
+    """
+
+    def __init__(self, character):
+        self.character = character
+
+    def __call__(self, *args, **kwargs):
+        return self.character._crypto_power.sign(*args, **kwargs)
+
+    def _as_tuple(self):
+        return self.character._crypto_power.pubkey_sig_tuple()
+
+    def __iter__(seal):
+        yield from seal._as_tuple()
+
+    def __bytes__(self):
+        return self.character._crypto_power.pubkey_sig_bytes()
+
+    def __eq__(self, other):
+        return other == self._as_tuple() or other == bytes(self)
+
+
+class StrangerSeal(Seal):
+    """
+    Seal of a stranger (ie, can only be used to glean public key, not to sign)
+    """
+
+    def __call__(self, *args, **kwargs):
+        raise TypeError(
+            "This isn't your Seal; it belongs to {} (a Stranger).  You can't sign with it.".format(self.character))
+
+
+def congregate(*characters):
     for character in characters:
         for newcomer in characters:
             character.learn_about_actor(newcomer)

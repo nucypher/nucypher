@@ -35,7 +35,7 @@ class KeyStore(object):
         """
         return sha3.keccak_256(key).hexdigest().encode()
 
-    def gen_ecies_keypair(self, gen_priv=True) -> keypairs.EncryptingKeypair:
+    def generate_encrypting_keypair(self, gen_priv=True) -> keypairs.EncryptingKeypair:
         """
         Generates an ECIES keypair.
 
@@ -50,7 +50,7 @@ class KeyStore(object):
             ecies_keypair.gen_privkey()
         return ecies_keypair
 
-    def gen_ecdsa_keypair(self, gen_priv=True) -> keypairs.SigningKeypair:
+    def generate_signing_keypair(self, gen_priv=True) -> keypairs.SigningKeypair:
         """
         Generates an ECDSA keypair.
 
@@ -79,24 +79,7 @@ class KeyStore(object):
         if not key:
             raise KeyNotFound(
                     "No key with fingerprint {} found.".format(fingerprint))
-
-        keypair_byte = key.key_data[0].to_bytes(1, 'big')
-        key_type_byte = key.key_data[1].to_bytes(1, 'big')
-        key = key.key_data[2:]
-
-        if keypair_byte == constants.ENC_KEYPAIR_BYTE:
-            if key_type_byte == constants.PUB_KEY_BYTE:
-                return keypairs.EncryptingKeypair(pubkey=key)
-
-            elif key_type_byte == constants.PRIV_KEY_BYTE:
-                return keypairs.EncryptingKeypair(privkey=key)
-
-        elif keypair_byte == constants.SIG_KEYPAIR_BYTE:
-            if key_type_byte == constants.PUB_KEY_BYTE:
-                return keypairs.SigningKeypair(pubkey=key)
-
-            elif key_type_byte == constants.PRIV_KEY_BYTE:
-                return keypairs.SigningKeypair(privkey=key)
+        return keypairs.Keypair.deserialize_key(key.key_data)
 
     def add_key(self,
                 keypair: Union[keypairs.EncryptingKeypair,

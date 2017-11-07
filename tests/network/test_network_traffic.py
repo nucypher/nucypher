@@ -102,8 +102,7 @@ def test_seed_only_node_knows_it_can_store_on_full_node():
     On the other hand, a seed-only node knows that it can store on a full node.
     """
 
-    event_loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(event_loop)
+    event_loop = asyncio.get_event_loop()
 
     full_server = NuCypherDHTServer()
     full_server.listen(8468)
@@ -126,4 +125,3 @@ def test_seed_only_node_knows_it_can_store_on_full_node():
     # annnnd stop.
     seed_only_server.stop()
     full_server.stop()
-    event_loop.close()
