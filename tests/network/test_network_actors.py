@@ -206,6 +206,20 @@ def test_trying_to_find_unknown_actor_raises_not_found():
     assert verification is True
 
 
+def test_treaure_map_is_legit():
+    treasure_map, treasure_map_as_set_on_network, signature, policy_group = test_treasure_map_from_alice_to_ursula()
+
+    for ursula in treasure_map:
+        getter = ALICE.server.get(ursula.interface_id)
+        loop = asyncio.get_event_loop()
+        value = loop.run_until_complete(getter)
+        signature, ursula_pubkey_sig, interface_info = msgpack.loads(value.lstrip(b"uaddr-"))
+        port, interface = msgpack.loads(interface_info)
+    assert False
+
+
+
+
 def test_bob_and_ursula_upgrade_to_tls():
     treasure_map, treasure_map_as_set_on_network, signature, policy_group = test_treasure_map_from_alice_to_ursula()
     networky_stuff = MockNetworkyStuff()
