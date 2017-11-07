@@ -13,19 +13,19 @@ class TestKeyStore(unittest.TestCase):
         self.ks = keystore.KeyStore(engine)
 
     def test_ecies_keypair_generation(self):
-        keypair = self.ks.gen_ecies_keypair()
+        keypair = self.ks.generate_encrypting_keypair()
         self.assertEqual(keypairs.EncryptingKeypair, type(keypair))
         self.assertEqual(bytes, type(keypair.privkey))
         self.assertEqual(bytes, type(keypair.pubkey))
 
     def test_ecdsa_keypair_generation(self):
-        keypair = self.ks.gen_ecdsa_keypair()
+        keypair = self.ks.generate_signing_keypair()
         self.assertEqual(keypairs.SigningKeypair, type(keypair))
         self.assertEqual(bytes, type(keypair.privkey))
         self.assertEqual(bytes, type(keypair.pubkey))
 
     def test_sqlite_keystore(self):
-        keypair = self.ks.gen_ecies_keypair()
+        keypair = self.ks.generate_encrypting_keypair()
         self.assertEqual(keypairs.EncryptingKeypair, type(keypair))
         self.assertEqual(bytes, type(keypair.privkey))
         self.assertEqual(bytes, type(keypair.pubkey))

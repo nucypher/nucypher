@@ -5,7 +5,7 @@ import msgpack
 import pytest
 
 from kademlia.utils import digest
-from nkms.characters import Ursula, Alice, Character, Bob, community_meeting
+from nkms.characters import Ursula, Alice, Character, Bob, congregate
 from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.node import NetworkyStuff
 from nkms.policy.constants import NON_PAYMENT
@@ -49,7 +49,7 @@ BOB.attach_server()
 BOB.server.listen(8475)
 EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
 
-community_meeting(ALICE, BOB, URSULAS[0])
+congregate(ALICE, BOB, URSULAS[0])
 
 
 def test_all_ursulas_know_about_all_other_ursulas():

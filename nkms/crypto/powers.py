@@ -1,7 +1,10 @@
+import inspect
 from typing import Iterable, List, Tuple
 
 from nkms.crypto import api as API
 from nkms.keystore import keypairs
+from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
+from nkms.keystore.keystore import KeyStore
 
 
 class PowerUpError(TypeError):
@@ -30,7 +33,7 @@ class CryptoPower(object):
         if isinstance(power_up, CryptoPowerUp):
             power_up_class = power_up.__class__
             power_up_instance = power_up
-        elif CryptoPowerUp in power_up.__bases__:
+        elif CryptoPowerUp in inspect.getmro(power_up):
             power_up_class = power_up
             power_up_instance = power_up()
         else:
@@ -98,16 +101,32 @@ class CryptoPowerUp(object):
     confers_public_key = False
 
 
-class SigningPower(CryptoPowerUp):
-    confers_public_key = True
+class KeyPairBasedPower(CryptoPowerUp):
 
-    def __init__(self, keypair: keypairs.SigningKeypair = None):
-        """
-        Initializes a SigningPower object for CryptoPower.
-        """
-        self.keypair = keypair or keypairs.SigningKeypair()
-        self.priv_key = self.keypair.privkey
-        self.pub_key = self.keypair.pubkey
+    _keypair_class = None
+
+    def __init__(self, keypair: keypairs.Keypair=None, pubkey_bytes: bytes=None):
+        if keypair and pubkey_bytes:
+            raise ValueError("Pass keypair or pubkey_bytes (or neither), but not both.")
+        elif keypair:
+            self.keypair = keypair
+        elif pubkey_bytes:
+            self.keypair = keypair or KeyStore.reconstruct_keypair(pubkey_bytes)
+        else:
+            self.keypair = self._keypair_class()
+
+    @property
+    def priv_key(self):
+        return self.keypair.privkey
+
+    @property
+    def pub_key(self):
+        return self.keypair.pubkey
+
+
+class SigningPower(KeyPairBasedPower):
+    confers_public_key = True
+    _keypair_class = SigningKeypair
 
     def sign(self, msghash):
         """
@@ -123,18 +142,10 @@ class SigningPower(CryptoPowerUp):
         return self.pub_key
 
 
-class EncryptingPower(CryptoPowerUp):
+class EncryptingPower(KeyPairBasedPower):
     confers_public_key = True
+    _keypair_class = EncryptingKeypair
     KEYSIZE = 32
-
-    def __init__(self, keypair: keypairs.EncryptingKeypair = None):
-        """
-        Initalizes an EncryptingPower object for CryptoPower.
-        """
-
-        self.keypair = keypair or keypairs.EncryptingKeypair()
-        self.priv_key = self.keypair.privkey
-        self.pub_key = self.keypair.pubkey
 
     def _split_path(self, path: bytes) -> List[bytes]:
         """

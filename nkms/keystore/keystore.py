@@ -35,7 +35,7 @@ class KeyStore(object):
         """
         return sha3.keccak_256(key).hexdigest().encode()
 
-    def gen_ecies_keypair(self, gen_priv=True) -> keypairs.EncryptingKeypair:
+    def generate_encrypting_keypair(self, gen_priv=True) -> keypairs.EncryptingKeypair:
         """
         Generates an ECIES keypair.
 
@@ -50,7 +50,7 @@ class KeyStore(object):
             ecies_keypair.gen_privkey()
         return ecies_keypair
 
-    def gen_ecdsa_keypair(self, gen_priv=True) -> keypairs.SigningKeypair:
+    def generate_signing_keypair(self, gen_priv=True) -> keypairs.SigningKeypair:
         """
         Generates an ECDSA keypair.
 
