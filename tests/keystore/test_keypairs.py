@@ -37,6 +37,14 @@ class TestKeypairs(unittest.TestCase):
         self.assertEqual(bytes, type(sig))
         self.assertEqual(65, len(sig))
 
+    def test_key_serialization(self):
+        ser_key = self.ecdsa_keypair.serialize_privkey()
+        self.assertEqual(34, len(ser_key))
+
+        deser_key = keypairs.Keypair.deserialize_key(ser_key)
+        self.assertEqual(keypairs.SigningKeypair, type(deser_key))
+        self.assertEqual(self.ecdsa_keypair.privkey, deser_key.privkey)
+
     def test_ecdsa_keypair_verification(self):
         msghash = API.keccak_digest(b'hello world!')
 
