@@ -69,6 +69,7 @@ class PolicyGroup(object):
         self.policies = policies or []
         self.bob = bob
         self.uri = uri
+        self.treasure_map = TreasureMap()
 
     @property
     def n(self):
@@ -93,8 +94,10 @@ class PolicyGroup(object):
 
         for policy in self.policies:
             payload = policy.encrypt_payload_for_ursula()
-            response = networky_stuff.animate_policy(policy.ursula, payload)
-            # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
+            _response = networky_stuff.animate_policy(policy.ursula, payload) # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
+
+            # Assuming response is what we hope for
+            self.treasure_map.add_ursula(policy.ursula)
 
     @property
     def id(self):
@@ -210,14 +213,18 @@ class Policy(object):
 
 
 class TreasureMap(object):
-    def __init__(self, nodes=None):
-        self.nodes = nodes or []
+
+    def __init__(self, ursula_interface_ids=None):
+        self.ids = ursula_interface_ids or []
 
     def packed_payload(self):
-        return msgpack.dumps(self.nodes)
+        return msgpack.dumps(self.ids)
+
+    def add_ursula(self, ursula):
+        self.ids.append(ursula.ip_dht_key())
 
     def __eq__(self, other):
-        return self.nodes == other.nodes
+        return self.ids == other.ids
 
     def __iter__(self):
-        pass
+        return iter(self.ids)

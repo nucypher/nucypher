@@ -3,10 +3,10 @@ import msgpack
 from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
+from nkms.crypto import utils
 from nkms.network.constants import NODE_HAS_NO_STORAGE
 from nkms.network.node import NuCypherNode
 from nkms.network.routing import NuCypherRoutingTable
-from nkms.crypto import api as API, utils
 
 
 class NuCypherHashProtocol(KademliaProtocol):
@@ -53,10 +53,6 @@ class NuCypherHashProtocol(KademliaProtocol):
                 return
         self.storage[key] = value
         return True
-
-
-
-
 
 
 class NuCypherSeedOnlyProtocol(NuCypherHashProtocol):
