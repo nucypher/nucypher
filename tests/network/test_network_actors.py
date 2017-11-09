@@ -71,6 +71,37 @@ def test_vladimir_illegal_interface_key_does_not_propagate():
     assert digest(illegal_key) in ursula.server.protocol.illegal_keys_seen
 
 
+def test_alice_cannot_offer_policy_without_first_finding_ursula():
+    """
+    Alice can't just offer a Policy if she doesn't know whether any Ursulas are available (she gets Ursula.NotFound).
+    """
+    networky_stuff = MockNetworkyStuff(URSULAS)
+    policy = Policy(Alice())
+
+    with pytest.raises(Ursula.NotFound):
+        policy_offer = policy.encrypt_payload_for_ursula()
+
+
+def test_trying_to_find_unknown_actor_raises_not_found():
+    """
+    Tony the test character can't make reference to a character he doesn't know about yet.
+    """
+    tony_clifton = Character()
+
+    message = b"some_message"
+    signature = ALICE.seal(message)
+
+    # Tony can't reference Alice...
+    with pytest.raises(Character.NotFound):
+        verification = tony_clifton.verify_from(ALICE, signature, message)
+
+    # ...before learning about Alice.
+    tony_clifton.learn_about_actor(ALICE)
+    verification, NO_DECRYPTION_PERFORMED = tony_clifton.verify_from(ALICE, signature, message)
+
+    assert verification is True
+
+
 def test_alice_finds_ursula():
     """
     With the help of any Ursula, Alice can find a specific Ursula.
@@ -85,62 +116,10 @@ def test_alice_finds_ursula():
     assert port == URSULA_PORT + ursula_index
 
 
-def test_treasure_map_from_alice_to_ursula():
-    """
-    Shows that Alice can share a TreasureMap with Ursula and that Bob can receive and decrypt it.
-    """
-    # For example, a hashed path.
-    resource_id = b"as098duasdlkj213098asf"
-    policy_group = test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload()
-
-    # treasure_map = TreasureMap([api.secure_random(50) for _ in range(50)])  # TODO: This is still random here.
-    treasure_map = policy_group.treasure_map
-
-    encrypted_treasure_map, signature = ALICE.encrypt_for(BOB, treasure_map.packed_payload())
-    packed_encrypted_treasure_map = msgpack.dumps(encrypted_treasure_map)
-
-    setter = ALICE.server.set(policy_group.id, packed_encrypted_treasure_map)
-    _set_event = EVENT_LOOP.run_until_complete(setter)
-
-    treasure_map_as_set_on_network = URSULAS[0].server.storage[digest(policy_group.id)]
-    assert treasure_map_as_set_on_network == packed_encrypted_treasure_map  # IE, Ursula stores it properly.
-    return treasure_map, treasure_map_as_set_on_network, signature, policy_group
-
-
-def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob():
-    treasure_map, treasure_map_as_set_on_network, signature, _ = test_treasure_map_from_alice_to_ursula()
-    encrypted_treasure_map = msgpack.loads(treasure_map_as_set_on_network)
-    verified, treasure_map_as_decrypted_by_bob = BOB.verify_from(ALICE, signature,
-                                                                 encrypted_treasure_map,
-                                                                 decrypt=True,
-                                                                 signature_is_on_cleartext=True,
-                                                                 )
-    assert treasure_map_as_decrypted_by_bob == treasure_map.packed_payload()
-    assert verified is True
-
-
-def test_treasure_map_from_ursula_to_bob():
-    """
-    Bob finds Ursula and upgrades their connection to TLS to receive the TreasureMap.
-    """
-    treasure_map, treasure_map_as_set_on_network, signature, policy_group = test_treasure_map_from_alice_to_ursula()
-    networky_stuff = MockNetworkyStuff(URSULAS)
-
-    # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume, through a side-channel with Alice.
-    treasure_map_from_wire = BOB.get_treasure_map(policy_group, signature)
-
-    assert treasure_map == treasure_map_from_wire
-
-
-def test_cannot_offer_policy_without_finding_ursula():
-    networky_stuff = MockNetworkyStuff(URSULAS)
-    policy = Policy(Alice())
-
-    with pytest.raises(Ursula.NotFound):
-        policy_offer = policy.encrypt_payload_for_ursula()
-
-
 def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
+    """
+    Now that Alice has found an Ursula, Alice can make a PolicyGroup, using Ursula's Public Key to encrypt each offer.
+    """
     # For example, a hashed path.
     resource_id = b"as098duasdlkj213098asf"
 
@@ -167,24 +146,60 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     return policy_group
 
 
-def test_trying_to_find_unknown_actor_raises_not_found():
-    tony_clifton = Character()
+def test_treasure_map_from_alice_to_ursula():
+    """
+    Having made a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula.
+    """
+    # For example, a hashed path.
+    resource_id = b"as098duasdlkj213098asf"
+    policy_group = test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload()
 
-    message = b"some_message"
-    signature = ALICE.seal(message)
+    treasure_map = policy_group.treasure_map
 
-    # Tony can't reference Alice...
-    with pytest.raises(Character.NotFound):
-        verification = tony_clifton.verify_from(ALICE, signature, message)
+    encrypted_treasure_map, signature = ALICE.encrypt_for(BOB, treasure_map.packed_payload())
+    packed_encrypted_treasure_map = msgpack.dumps(encrypted_treasure_map)
 
-    # ...before learning about Alice.
-    tony_clifton.learn_about_actor(ALICE)
-    verification, NO_DECRYPTION_PERFORMED = tony_clifton.verify_from(ALICE, signature, message)
+    setter = ALICE.server.set(policy_group.id, packed_encrypted_treasure_map)
+    _set_event = EVENT_LOOP.run_until_complete(setter)
 
-    assert verification is True
+    treasure_map_as_set_on_network = URSULAS[0].server.storage[digest(policy_group.id)]
+    assert treasure_map_as_set_on_network == packed_encrypted_treasure_map  # IE, Ursula stores it properly.
+    return treasure_map, treasure_map_as_set_on_network, signature, policy_group
+
+
+def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob():
+    """
+    The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
+    """
+    treasure_map, treasure_map_as_set_on_network, signature, _ = test_treasure_map_from_alice_to_ursula()
+    encrypted_treasure_map = msgpack.loads(treasure_map_as_set_on_network)
+    verified, treasure_map_as_decrypted_by_bob = BOB.verify_from(ALICE, signature,
+                                                                 encrypted_treasure_map,
+                                                                 decrypt=True,
+                                                                 signature_is_on_cleartext=True,
+                                                                 )
+    assert treasure_map_as_decrypted_by_bob == treasure_map.packed_payload()
+    assert verified is True
+
+
+def test_bob_can_retreive_the_treasure_map_and_decrypt_it():
+    """
+    Above, we showed that the TreasureMap saved on the network is the correct one for Bob.  Here, we show
+    that Bob can retrieve it with only the information about which he is privy pursuant to the PolicyGroup.
+    """
+    treasure_map, treasure_map_as_set_on_network, signature, policy_group = test_treasure_map_from_alice_to_ursula()
+    networky_stuff = MockNetworkyStuff(URSULAS)
+
+    # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume, through a side-channel with Alice.
+    treasure_map_from_wire = BOB.get_treasure_map(policy_group, signature)
+
+    assert treasure_map == treasure_map_from_wire
 
 
 def test_treaure_map_is_legit():
+    """
+    Sure, the TreasureMap can get to Bob, but we also need to know that each Ursula in the TreasureMap is on the network.
+    """
     treasure_map, treasure_map_as_set_on_network, signature, policy_group = test_treasure_map_from_alice_to_ursula()
 
     for ursula_interface_id in treasure_map:
