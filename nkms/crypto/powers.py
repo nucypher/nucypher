@@ -2,6 +2,7 @@ import inspect
 from typing import Iterable, List, Tuple
 
 from nkms.crypto import api as API
+from nkms.crypto.signature import Signature
 from nkms.keystore import keypairs
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
 from nkms.keystore.keystore import KeyStore
@@ -76,7 +77,7 @@ class CryptoPower(object):
             raise NoSigningPower(e)
         msg_digest = b"".join(API.keccak_digest(m) for m in messages)
 
-        return sig_keypair.sign(msg_digest)
+        return Signature(sig=sig_keypair.sign(msg_digest))
 
     def decrypt(self, ciphertext):
         try:
