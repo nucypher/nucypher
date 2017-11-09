@@ -1,8 +1,9 @@
 import msgpack
-from npre.constants import UNKNOWN_KFRAG
+
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.powers import EncryptingPower
+from npre.constants import UNKNOWN_KFRAG
 
 
 class PolicyOffer(object):
@@ -46,7 +47,8 @@ class PolicyManagerForAlice(PolicyManager):
 
         ##### Temporary until we decide on an API for private key access
         alice_priv_enc = self.owner._crypto_power._power_ups[EncryptingPower].priv_key
-        re_enc_keys, encrypted_key = self.owner.generate_rekey_frags(alice_priv_enc, bob, m, n)  # TODO: Access Alice's private key inside this method.
+        re_enc_keys, encrypted_key = self.owner.generate_rekey_frags(alice_priv_enc, bob, m,
+                                                                     n)  # TODO: Access Alice's private key inside this method.
         policies = []
         for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
@@ -94,7 +96,8 @@ class PolicyGroup(object):
 
         for policy in self.policies:
             payload = policy.encrypt_payload_for_ursula()
-            _response = networky_stuff.animate_policy(policy.ursula, payload) # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
+            _response = networky_stuff.animate_policy(policy.ursula,
+                                                      payload)  # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
 
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(policy.ursula)
@@ -149,8 +152,9 @@ class Policy(object):
 
     def set_id(self):
         if self.deterministic_id_portion:
-            self._id = "{}-{}".format(api.keccak_digest(*[str(d).encode() for d in self.deterministic_id_portion], self.random_id_portion),
-                                      api.keccak_digest(self.random_id_portion))
+            self._id = "{}-{}".format(
+                api.keccak_digest(*[str(d).encode() for d in self.deterministic_id_portion], self.random_id_portion),
+                api.keccak_digest(self.random_id_portion))
         else:
             self._id = api.keccak_digest(self.random_id_portion)
 
@@ -206,14 +210,12 @@ class Policy(object):
         """
         return self.alice.encrypt_for(self.ursula, self.payload())
 
-
     def update_treasure_map(self, policy_offer_result):
         # TODO: parse the result and add the node information to the treasure map.
         self.treasure_map.append(policy_offer_result)
 
 
 class TreasureMap(object):
-
     def __init__(self, ursula_interface_ids=None):
         self.ids = ursula_interface_ids or []
 
