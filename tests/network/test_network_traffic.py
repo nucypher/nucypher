@@ -95,33 +95,3 @@ def test_full_node_does_not_try_to_store_on_seed_only_node():
     seed_only_server.stop()
     full_server.stop()
     event_loop.close()
-
-
-def test_seed_only_node_knows_it_can_store_on_full_node():
-    """
-    On the other hand, a seed-only node knows that it can store on a full node.
-    """
-
-    event_loop = asyncio.get_event_loop()
-
-    full_server = NuCypherDHTServer()
-    full_server.listen(8468)
-    event_loop.run_until_complete(full_server.bootstrap([("127.0.0.1", 8468)]))
-
-    seed_only_server = NuCypherSeedOnlyDHTServer()
-    seed_only_server.listen(8471)
-    event_loop.run_until_complete(seed_only_server.bootstrap([("127.0.0.1", 8468)]))
-
-    # The seed-only will try to store a value.
-    key_to_store = b"llamas"
-    value_to_store = b"tons_of_things_keyed_llamas"
-    setter = seed_only_server.set(key_to_store, value_to_store)
-
-    # But watch - unlike before, this node knows it can set values.
-    result = event_loop.run_until_complete(setter)
-    assert result
-    assert seed_only_server.digests_set == 1
-
-    # annnnd stop.
-    seed_only_server.stop()
-    full_server.stop()

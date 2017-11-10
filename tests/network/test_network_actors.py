@@ -59,7 +59,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate():
     # Vladimir does almost everything right....
     interface_info = msgpack.dumps((vladimir.port, vladimir.interface))
     signature = vladimir.seal(interface_info)
-    value = b"uaddr-" + msgpack.dumps([signature, bytes(vladimir.seal), interface_info])
+    value = b"uaddr" + msgpack.dumps([signature, bytes(vladimir.seal), 0, interface_info])
 
     # Except he sets an illegal key for his interface.
     illegal_key = "Not allowed to set arbitrary key for this."
@@ -111,7 +111,7 @@ def test_alice_finds_ursula():
     getter = ALICE.server.get(all_ursulas[ursula_index])
     loop = asyncio.get_event_loop()
     value = loop.run_until_complete(getter)
-    signature, ursula_pubkey_sig, interface_info = msgpack.loads(value.lstrip(b"uaddr-"))
+    signature, ursula_pubkey_sig, ttl, interface_info = msgpack.loads(value.lstrip(b"uaddr-"))
     port, interface = msgpack.loads(interface_info)
     assert port == URSULA_PORT + ursula_index
 
@@ -152,17 +152,14 @@ def test_alice_sets_treasure_map_on_network():
     """
     policy_group = test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload()
 
-    treasure_map = policy_group.treasure_map
-
-    encrypted_treasure_map, signature = ALICE.encrypt_for(BOB, treasure_map.packed_payload())
-    packed_encrypted_treasure_map = msgpack.dumps(encrypted_treasure_map)
-
-    setter = ALICE.server.set(policy_group.id, packed_encrypted_treasure_map)
+    setter, encrypted_treasure_map, packed_encrypted_treasure_map, signature_for_bob, signature_for_ursula = ALICE.publish_treasure_map(
+        policy_group)
     _set_event = EVENT_LOOP.run_until_complete(setter)
 
-    treasure_map_as_set_on_network = URSULAS[0].server.storage[digest(policy_group.id)]
-    assert treasure_map_as_set_on_network == packed_encrypted_treasure_map  # IE, Ursula stores it properly.
-    return treasure_map, treasure_map_as_set_on_network, signature, policy_group
+    treasure_map_as_set_on_network = URSULAS[0].server.storage[
+        digest(policy_group.id)]
+    assert treasure_map_as_set_on_network == b"trmap" + packed_encrypted_treasure_map
+    return treasure_map_as_set_on_network, signature_for_bob, policy_group
 
 
 def test_treasure_map_with_bad_id_does_not_propagate():
@@ -188,14 +185,15 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob():
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
-    treasure_map, treasure_map_as_set_on_network, signature, _ = test_alice_sets_treasure_map_on_network()
-    encrypted_treasure_map = msgpack.loads(treasure_map_as_set_on_network)
+    treasure_map_as_set_on_network, signature, policy_group = test_alice_sets_treasure_map_on_network()
+    _signature_for_ursula, pubkey_sig_alice, uri_hash, encrypted_treasure_map = msgpack.loads(
+        treasure_map_as_set_on_network[5::])  # 5:: to account for prepended "trmap"
     verified, treasure_map_as_decrypted_by_bob = BOB.verify_from(ALICE, signature,
                                                                  encrypted_treasure_map,
                                                                  decrypt=True,
                                                                  signature_is_on_cleartext=True,
                                                                  )
-    assert treasure_map_as_decrypted_by_bob == treasure_map.packed_payload()
+    assert treasure_map_as_decrypted_by_bob == policy_group.treasure_map.packed_payload()
     assert verified is True
 
 
@@ -204,25 +202,26 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it():
     Above, we showed that the TreasureMap saved on the network is the correct one for Bob.  Here, we show
     that Bob can retrieve it with only the information about which he is privy pursuant to the PolicyGroup.
     """
-    treasure_map, treasure_map_as_set_on_network, signature, policy_group = test_alice_sets_treasure_map_on_network()
+    treasure_map_as_set_on_network, signature, policy_group = test_alice_sets_treasure_map_on_network()
     networky_stuff = MockNetworkyStuff(URSULAS)
 
-    # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume, through a side-channel with Alice.
+    # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume,
+    # through a side-channel with Alice.
     treasure_map_from_wire = BOB.get_treasure_map(policy_group, signature)
 
-    assert treasure_map == treasure_map_from_wire
+    assert policy_group.treasure_map == treasure_map_from_wire
 
 
 def test_treaure_map_is_legit():
     """
     Sure, the TreasureMap can get to Bob, but we also need to know that each Ursula in the TreasureMap is on the network.
     """
-    treasure_map, treasure_map_as_set_on_network, signature, policy_group = test_alice_sets_treasure_map_on_network()
+    treasure_map_as_set_on_network, signature, policy_group = test_alice_sets_treasure_map_on_network()
 
-    for ursula_interface_id in treasure_map:
+    for ursula_interface_id in policy_group.treasure_map:
         getter = ALICE.server.get(ursula_interface_id)
         loop = asyncio.get_event_loop()
         value = loop.run_until_complete(getter)
-        signature, ursula_pubkey_sig, interface_info = msgpack.loads(value.lstrip(b"uaddr-"))
+        signature, ursula_pubkey_sig, ttl, interface_info = msgpack.loads(value.lstrip(b"uaddr-"))
         port, _interface = msgpack.loads(interface_info)
         assert port in URSULA_PORTS

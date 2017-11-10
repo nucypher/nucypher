@@ -51,4 +51,4 @@ class MockNetworkyStuff(NetworkyStuff):
             return super().find_ursula(id)
 
     def animate_policy(self, ursula, payload):
-        return
+        return True, ursula.interface_dht_key()

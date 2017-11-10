@@ -57,7 +57,7 @@ class PolicyManagerForAlice(PolicyManager):
             )
             policies.append(policy)
 
-        return PolicyGroup(uri, bob, policies)
+        return PolicyGroup(uri, self.owner, bob, policies)
 
 
 class PolicyGroup(object):
@@ -67,8 +67,9 @@ class PolicyGroup(object):
 
     _id = None
 
-    def __init__(self, uri: str, bob: Bob, policies=None):
+    def __init__(self, uri: str, alice: Alice, bob: Bob, policies=None):
         self.policies = policies or []
+        self.alice = alice
         self.bob = bob
         self.uri = uri
         self.treasure_map = TreasureMap()
@@ -105,7 +106,7 @@ class PolicyGroup(object):
     @property
     def id(self):
         if not self._id:
-            self._id = api.keccak_digest(self.uri, bytes(self.bob.seal))
+            self._id = api.keccak_digest(bytes(self.alice.seal), api.keccak_digest(self.uri))
         return self._id
 
 
@@ -223,7 +224,7 @@ class TreasureMap(object):
         return msgpack.dumps(self.ids)
 
     def add_ursula(self, ursula):
-        self.ids.append(ursula.ip_dht_key())
+        self.ids.append(ursula.interface_dht_key())
 
     def __eq__(self, other):
         return self.ids == other.ids

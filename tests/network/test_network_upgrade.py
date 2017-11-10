@@ -3,9 +3,9 @@ from tests.network.test_network_actors import test_alice_sets_treasure_map_on_ne
 
 def test_bob_can_follow_treasure_map():
     """
-    Upon receiving a
+    Upon receiving a TreasureMap, Bob populates his list of Ursulas with the correct number.
     """
     assert len(BOB._ursulas) == 0
-    treasure_map, treasure_map_as_set_on_network, signature, policy_group = test_alice_sets_treasure_map_on_network()
-    BOB.follow_treasure_map(treasure_map)
+    _treasure_map_as_set_on_network, _signature, policy_group = test_alice_sets_treasure_map_on_network()
+    BOB.follow_treasure_map(policy_group.treasure_map)
     assert len(BOB._ursulas) == len(URSULAS)
