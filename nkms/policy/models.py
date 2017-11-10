@@ -2,6 +2,7 @@ import msgpack
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
+from nkms.crypto.api import keccak_digest
 from nkms.crypto.powers import EncryptingPower
 from npre.constants import UNKNOWN_KFRAG
 
@@ -78,6 +79,9 @@ class PolicyGroup(object):
     def n(self):
         return len(self.policies)
 
+    def hash(self, message):
+        return keccak_digest(message)
+
     def find_n_ursulas(self, networky_stuff, offer: PolicyOffer) -> list:
         """
         :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
@@ -92,6 +96,19 @@ class PolicyGroup(object):
                     policy.activate(ursula, result)
             except networky_stuff.NotEnoughQualifiedUrsulas:
                 pass  # Tell Alice to either wait or lower the value of n.
+
+    def treasure_map_dht_key(self):
+        """
+        One of the strangest (but sanest) methods in the codebase.
+        We need a key that Bob can glean from knowledge he already has *and* which Ursula can verify came from us.
+        So, we'll use a hash of:
+        Our public key (which everybody knows) and
+        *a hash of* the policy_group's uri, which only we and Bob know.
+        We'll give Ursula *the hash of* the policy group's uri, but not the URI itself.
+        So, to reiterate, only Alice and Bob know the URI - so either can make a hash out of it - and this hash
+        is shared with Ursula.
+        """
+        return self.hash(bytes(self.alice.seal) + self.hash(self.uri + bytes(self.bob.seal)))
 
     def transmit_payloads(self, networky_stuff):
 

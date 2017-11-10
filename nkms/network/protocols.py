@@ -42,6 +42,7 @@ class NuCypherHashProtocol(KademliaProtocol):
     def determine_legality_of_dht_key(self, signature, sender_pubkey_sig, message, extra_info, dht_key, dht_value):
         proper_key = digest(keccak_digest(bytes(sender_pubkey_sig) + bytes(extra_info)))
 
+        # TODO: This try block is not the right approach - a Ciphertext class can resolve this instead.
         try:
             # Ursula uaddr scenario
             verified = utils.verify(signature, message, sender_pubkey_sig)

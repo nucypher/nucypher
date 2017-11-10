@@ -81,6 +81,9 @@ class Character(object):
     def name(self):
         return self.__class__.__name__
 
+    def hash(self, message):
+        return keccak_digest(message)
+
     def learn_about_actor(self, actor):
         self._actor_mapping[actor.id()] = actor
 
@@ -180,21 +183,12 @@ class Alice(Character):
                                                                      policy_group.treasure_map.packed_payload())
         signature_for_ursula = self.seal(
             msgpack.dumps(encrypted_treasure_map))  # TODO: Great use-case for Ciphertext class
-        uri_hash = keccak_digest(policy_group.uri)
 
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
-        # and, reasons explained below, the uri_hash.
-        dht_value = msgpack.dumps((signature_for_ursula, bytes(self.seal), uri_hash, encrypted_treasure_map))
-
-        # This next line is one of the zaniest (but sanest) in the codebase.
-        # We need a key that Bob can glean from knowledge he already has *and* which Ursula can verify came from us.
-        # So, we'll use a hash of:
-        # Our public key (which everybody knows) and
-        # *a hash of* the policy_group's uri, which only we and Bob know.
-        # We'll give Ursula *the hash of* the policy group's uri, but not the URI itself.
-        # So, to reiterate, only Alice and Bob know the URI - so either can make a hash out of it - and this hash
-        # is shared with Ursula.
-        dht_key = keccak_digest(bytes(self.seal) + uri_hash)
+        # and, reasons explained in treasure_map_dht_key above, the uri_hash.
+        dht_value = msgpack.dumps(
+            (signature_for_ursula, bytes(self.seal), self.hash(policy_group.uri + bytes(policy_group.bob.seal)), encrypted_treasure_map))
+        dht_key = policy_group.treasure_map_dht_key()
 
         setter = self.server.set(dht_key, b"trmap" + dht_value)
         return setter, encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
@@ -228,14 +222,15 @@ class Bob(Character):
             getter = self.server.get(ursula_interface_id)
             loop = asyncio.get_event_loop()
             value = loop.run_until_complete(getter)
-            signature, ursula_pubkey_sig, ttl, interface_info = msgpack.loads(value.lstrip(b"uaddr"))  # TODO: If we're going to implement TTL, it'll be here.
+            signature, ursula_pubkey_sig, ttl, interface_info = msgpack.loads(
+                value.lstrip(b"uaddr"))  # TODO: If we're going to implement TTL, it'll be here.
             port, interface = msgpack.loads(interface_info)
             self._ursulas[ursula_interface_id] = Ursula.as_discovered_on_network(port=port, interface=interface,
                                                                                  pubkey_sig_bytes=ursula_pubkey_sig)
 
     def get_treasure_map(self, policy_group, signature):
 
-        dht_key = keccak_digest(bytes(self.alice.seal) + keccak_digest(policy_group.uri))
+        dht_key = policy_group.treasure_map_dht_key()
 
         ursula_coro = self.server.get(dht_key)
         event_loop = asyncio.get_event_loop()

@@ -157,7 +157,7 @@ def test_alice_sets_treasure_map_on_network():
     _set_event = EVENT_LOOP.run_until_complete(setter)
 
     treasure_map_as_set_on_network = URSULAS[0].server.storage[
-        digest(policy_group.id)]
+        digest(policy_group.treasure_map_dht_key())]
     assert treasure_map_as_set_on_network == b"trmap" + packed_encrypted_treasure_map
     return treasure_map_as_set_on_network, signature_for_bob, policy_group
 
