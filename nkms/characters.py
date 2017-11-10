@@ -1,9 +1,9 @@
 import asyncio
 
 import msgpack
-
 from kademlia.network import Server
 from kademlia.utils import digest
+
 from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
@@ -187,7 +187,8 @@ class Alice(Character):
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
         dht_value = msgpack.dumps(
-            (signature_for_ursula, bytes(self.seal), self.hash(policy_group.uri + bytes(policy_group.bob.seal)), encrypted_treasure_map))
+            (signature_for_ursula, bytes(self.seal), policy_group.hrac(),
+             encrypted_treasure_map))
         dht_key = policy_group.treasure_map_dht_key()
 
         setter = self.server.set(dht_key, b"trmap" + dht_value)
