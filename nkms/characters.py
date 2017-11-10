@@ -253,6 +253,7 @@ class Ursula(Character):
 
     port = None
     interface = None
+    interface_ttl = 0
 
     @staticmethod
     def as_discovered_on_network(port, interface, pubkey_sig_bytes):
@@ -278,10 +279,7 @@ class Ursula(Character):
         return msgpack.dumps((self.port, self.interface))
 
     def interface_dht_key(self):
-        return keccak_digest(bytes(self.seal) + bytes(self.interface_ttl()))
-
-    def interface_ttl(self):
-        return 0
+        return keccak_digest(bytes(self.seal) + bytes(self.interface_ttl))
 
     def interface_dht_value(self):
         signature = self.seal(self.interface_info())
