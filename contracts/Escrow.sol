@@ -3,25 +3,26 @@ pragma solidity ^0.4.8;
 
 import "zeppelin-solidity/contracts/token/SafeERC20.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
-import "zeppelin-solidity/contracts/math/SafeMath.sol";
+import "zeppelin-solidity/contracts/math/Math.sol";
 import "./LinkedList.sol";
 import "./HumanStandardToken.sol";
+import "./Miner.sol";
 
 
 /**
 * @notice Contract holds and locks client tokens.
 Each client that lock his tokens will receive some compensation
 **/
-contract Escrow is Ownable {
+contract Escrow is Miner, Ownable {
     using LinkedList for LinkedList.Data;
     using SafeERC20 for HumanStandardToken;
-    using SafeMath for uint256;
 
     struct TokenInfo {
         uint256 value;
         uint256 lockedValue;
         uint256 lockedBlock;
         uint256 releaseBlock;
+        uint256 lastMintedBlock;
         uint256 decimals;
     }
 
@@ -29,7 +30,6 @@ contract Escrow is Ownable {
     mapping (address => TokenInfo) public tokenInfo;
     LinkedList.Data tokenOwners;
     uint256 miningCoefficient;
-    uint256 lastMintedBlock;
 
     /**
     * @dev Throws if not locked tokens less then _value.
@@ -43,23 +43,22 @@ contract Escrow is Ownable {
     }
 
     /**
-    * @notice The Escrow constructor sets address of token contract and mining coefficient
+    * @notice The Escrow constructor sets address of token contract and coefficients for mining
     * @param _token Token contract
-    * @param _miningCoefficient amount of tokens that will be credited
-    for each locked token in each iteration
+    * @param _rate Curve growing rate
+    * @param _fractions Coefficient for fractions
     **/
-    function Escrow(HumanStandardToken _token, uint256 _miningCoefficient) {
-        require(_miningCoefficient != 0);
+    function Escrow(HumanStandardToken _token, uint256 _rate, uint256 _fractions)
+        Miner(_token, _rate, _fractions)
+    {
         token = _token;
-        owner = msg.sender;
-        miningCoefficient = _miningCoefficient;
-        lastMintedBlock = block.number;
     }
 
     /**
     * @notice Deposit tokens
     * @param _value Amount of token to deposit
     **/
+    //TODO add locking
     function deposit(uint256 _value) returns (bool success) {
         if (!tokenOwners.valueExists(msg.sender)) {
             tokenOwners.push(msg.sender, true);
@@ -74,13 +73,17 @@ contract Escrow is Ownable {
     * @param _value Amount of tokens which should lock
     * @param _blocks Amount of blocks during which tokens will be locked
     **/
+    //TODO extend locking
     function lock(uint256 _value, uint256 _blocks) returns (bool success) {
         require(_value <= tokenInfo[msg.sender].value && _blocks != 0);
         require(_value <= token.balanceOf(address(this)));
-        require(getLockedTokens(msg.sender, lastMintedBlock) == 0);
+        require(getLastLockedTokens() == 0);
+        //TODO create modifier and tests
+        require(_value * _blocks >= rate);
         tokenInfo[msg.sender].lockedValue = _value;
         tokenInfo[msg.sender].lockedBlock = block.number;
         tokenInfo[msg.sender].releaseBlock = block.number.add(_blocks);
+        tokenInfo[msg.sender].lastMintedBlock = block.number;
         return true;
     }
 
@@ -109,7 +112,7 @@ contract Escrow is Ownable {
         }
         uint256 value = tokenInfo[msg.sender].value;
         require(value <= token.balanceOf(address(this)));
-        require(getLockedTokens(msg.sender, lastMintedBlock) == 0);
+        require(getLastLockedTokens() == 0);
         tokenOwners.remove(msg.sender);
         delete tokenInfo[msg.sender];
         token.safeTransfer(msg.sender, value);
@@ -174,6 +177,15 @@ contract Escrow is Ownable {
     }
 
     /**
+    * @notice Get locked tokens value for sender at the time of the last minted block
+    **/
+    function getLastLockedTokens()
+        internal constant returns (uint256)
+    {
+        return getLockedTokens(msg.sender, tokenInfo[msg.sender].lastMintedBlock);
+    }
+
+    /**
     * @notice Get locked tokens value for all owners
     **/
     function getAllLockedTokens()
@@ -183,33 +195,21 @@ contract Escrow is Ownable {
     }
 
     /**
-    * @notice Mint tokens for all users who locked their tokens
+    * @notice Mint tokens for sender if he locked his tokens
     **/
-    function mint() onlyOwner {
-        var current = tokenOwners.step(0x0, true);
-        var mintedBlocks = block.number - lastMintedBlock;
-        uint256 allMintedValue = 0;
-        while (current != 0x0) {
-            if (tokenInfo[current].releaseBlock > lastMintedBlock &&
-                tokenInfo[current].lockedValue > 0) {
-                var lockedBlocks = mintedBlocks;
-                if (lastMintedBlock < tokenInfo[current].lockedBlock) {
-                    lockedBlocks -= tokenInfo[current].lockedBlock - lastMintedBlock;
-                }
-                if (block.number > tokenInfo[current].releaseBlock) {
-                    lockedBlocks -= block.number - tokenInfo[current].releaseBlock;
-                }
-                var value = lockedBlocks.mul(tokenInfo[current].lockedValue).add(
-                    tokenInfo[current].decimals);
-                var mintedValue = value.div(miningCoefficient);
-                allMintedValue = allMintedValue.add(mintedValue);
-                tokenInfo[current].value = tokenInfo[current].value.add(mintedValue);
-                tokenInfo[current].decimals = value % miningCoefficient;
-            }
-            current = tokenOwners.step(current, true);
+    function mint() {
+        require(getLastLockedTokens() != 0);
+        var lockedBlocks = Math.min256(block.number, tokenInfo[msg.sender].releaseBlock) -
+            tokenInfo[msg.sender].lastMintedBlock;
+        //TODO save decimals
+        if (mint(tokenInfo[msg.sender].lockedValue, lockedBlocks) != 0) {
+            tokenInfo[msg.sender].lastMintedBlock = block.number;
         }
-        lastMintedBlock = block.number;
-        token.mint(address(this), allMintedValue);
+
+//        var value = lockedBlocks.mul(tokenInfo[msg.sender].lockedValue).add(
+//            tokenInfo[msg.sender].decimals);
+//        tokenInfo[msg.sender].decimals = value % miningCoefficient;
+//        token.mint(msg.sender, value.div(miningCoefficient));
     }
 
     /**

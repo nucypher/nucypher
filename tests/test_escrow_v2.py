@@ -8,7 +8,7 @@ def token(web3, chain):
     # Create an ERC20 token
     token_contract, _ = chain.provider.get_or_deploy_contract(
         'HumanStandardToken', deploy_args=[
-            10 ** 9, 'NuCypher KMS', 6, 'KMS'],
+            10 ** 9, 10 ** 10, 'NuCypher KMS', 6, 'KMS'],
         deploy_transaction={'from': creator})
     return token_contract
 
@@ -179,6 +179,11 @@ def test_mining(web3, chain, token, wallet_manager):
     tx = token.transact({'from': alice}).transfer(alice_wallet.address, 500)
     chain.wait.for_receipt(tx)
 
+    # Ursula can't mint because no locked tokens
+    with pytest.raises(TransactionFailed):
+        tx = wallet_manager.transact({'from': ursula}).mint()
+        chain.wait.for_receipt(tx)
+
     # Ursula and Alice lock some tokens for 100 and 200 blocks
     tx = wallet_manager.transact({'from': ursula}).lock(500, 100)
     chain.wait.for_receipt(tx)
@@ -192,7 +197,9 @@ def test_mining(web3, chain, token, wallet_manager):
 
     # Wait 150 blocks and mint tokens
     chain.wait.for_block(web3.eth.blockNumber + 150)
-    tx = wallet_manager.transact({'from': creator}).mint()
+    tx = wallet_manager.transact({'from': ursula}).mint()
+    chain.wait.for_receipt(tx)
+    tx = wallet_manager.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
     assert token.call().balanceOf(ursula_wallet.address) == 1050
     assert token.call().balanceOf(alice_wallet.address) > 510
@@ -200,7 +207,7 @@ def test_mining(web3, chain, token, wallet_manager):
 
     # Wait 100 blocks and mint tokens
     chain.wait.for_block(web3.eth.blockNumber + 100)
-    tx = wallet_manager.transact({'from': creator}).mint()
+    tx = wallet_manager.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
     assert token.call().balanceOf(ursula_wallet.address) == 1050
     assert token.call().balanceOf(alice_wallet.address) == 520

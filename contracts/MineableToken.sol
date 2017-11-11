@@ -6,7 +6,7 @@ import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 
 /**
- * @title Mineable token
+ * @title Mintable token
  * @dev Based on code by zeppelin-solidity/contracts/token/MintableToken.sol
  */
 contract MineableToken is StandardToken, Ownable {
@@ -15,6 +15,7 @@ contract MineableToken is StandardToken, Ownable {
 
     bool public mintingFinished = false;
     mapping (address => bool) public isMiner;
+    uint256 public futureSupply;
 
     /**
     * @dev Check whether can mining
@@ -47,6 +48,7 @@ contract MineableToken is StandardToken, Ownable {
     * @return A boolean that indicates if the operation was successful.
     */
     function mint(address _to, uint256 _amount) canMint public returns (bool) {
+        require(totalSupply + _amount <= futureSupply);
         totalSupply = totalSupply.add(_amount);
         balances[_to] = balances[_to].add(_amount);
         Mint(_to, _amount);
@@ -63,4 +65,5 @@ contract MineableToken is StandardToken, Ownable {
         MintFinished();
         return true;
     }
+
 }

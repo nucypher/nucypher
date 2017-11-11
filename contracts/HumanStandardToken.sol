@@ -25,6 +25,7 @@ contract HumanStandardToken is MineableToken, BurnableToken {
 
     function HumanStandardToken(
         uint256 _initialAmount,
+        uint256 _maxAmount,
         string _tokenName,
         uint8 _decimalUnits,
         string _tokenSymbol
@@ -34,6 +35,7 @@ contract HumanStandardToken is MineableToken, BurnableToken {
         name = _tokenName;                                   // Set the name for display purposes
         decimals = _decimalUnits;                            // Amount of decimals for display purposes
         symbol = _tokenSymbol;                               // Set the symbol for display purposes
+        futureSupply = _maxAmount;                           // Update max supply
     }
 
     /* Approves and then calls the receiving contract */
@@ -47,4 +49,5 @@ contract HumanStandardToken is MineableToken, BurnableToken {
         require(_spender.call(bytes4(bytes32(sha3("receiveApproval(address,uint256,address,bytes)"))), msg.sender, _value, this, _extraData));
         return true;
     }
+
 }

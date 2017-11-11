@@ -39,7 +39,7 @@ def main():
         # Create an ERC20 token
         token, txhash = chain.provider.get_or_deploy_contract(
             'HumanStandardToken', deploy_args=[
-                10 ** 9, 'NuCypher KMS', 6, 'KMS'],
+                10 ** 9, 10 ** 10, 'NuCypher KMS', 6, 'KMS'],
             deploy_transaction={
                 'from': creator})
         check_succesful_tx(web3, txhash)
@@ -47,7 +47,7 @@ def main():
 
         # Creator deploys the escrow
         escrow, txhash = chain.provider.get_or_deploy_contract(
-            'Escrow', deploy_args=[token.address, 1000],
+            'Escrow', deploy_args=[token.address, 10 ** 5, 10 ** 7],
             deploy_transaction={'from': creator})
         check_succesful_tx(web3, txhash)
         print("Deploying Escrow, tx hash is", txhash)
@@ -77,10 +77,10 @@ def main():
 
         # Ursula and Alice lock some tokens for 100 and 200 blocks
         print("Estimate gas for locking = " +
-              str(escrow.estimateGas({'from': ursula}).lock(500, 100)))
-        tx = escrow.transact({'from': ursula}).lock(500, 100)
+              str(escrow.estimateGas({'from': ursula}).lock(1000, 100)))
+        tx = escrow.transact({'from': ursula}).lock(1000, 100)
         chain.wait.for_receipt(tx)
-        tx = escrow.transact({'from': alice}).lock(100, 200)
+        tx = escrow.transact({'from': alice}).lock(500, 200)
         chain.wait.for_receipt(tx)
 
         # Give rights for mining
@@ -91,16 +91,16 @@ def main():
 
         # Wait 150 blocks and mint tokens
         chain.wait.for_block(web3.eth.blockNumber + 150)
-        print("Estimate gas for mining = " +
-              str(escrow.estimateGas({'from': creator}).mint()))
-        tx = escrow.transact({'from': creator}).mint()
+        print("Estimate gas for Ursula mining = " +
+              str(escrow.estimateGas({'from': ursula}).mint()))
+        tx = escrow.transact({'from': ursula}).mint()
         chain.wait.for_receipt(tx)
 
         # Wait 100 blocks and mint tokens
         chain.wait.for_block(web3.eth.blockNumber + 100)
-        print("Estimate gas for mining = " +
-              str(escrow.estimateGas({'from': creator}).mint()))
-        tx = escrow.transact({'from': creator}).mint()
+        print("Estimate gas for Alice mining = " +
+              str(escrow.estimateGas({'from': alice}).mint()))
+        tx = escrow.transact({'from': alice}).mint()
         chain.wait.for_receipt(tx)
 
         # Creator deploys the wallet manager
@@ -136,14 +136,10 @@ def main():
 
         # Ursula and Alice lock some tokens for 100 and 200 blocks
         print("Estimate gas for locking = " +
-              str(ursula_wallet.estimateGas({'from': ursula}).lock(500, 100)))
-        tx = ursula_wallet.transact({'from': ursula}).lock(500, 100)
+              str(wallet_manager.estimateGas({'from': ursula}).lock(500, 100)))
+        tx = wallet_manager.transact({'from': ursula}).lock(500, 100)
         chain.wait.for_receipt(tx)
-        tx = alice_wallet.transact({'from': alice}).lock(100, 200)
-        chain.wait.for_receipt(tx)
-
-        # Give manager some coins
-        tx = token.transact({'from': creator}).transfer(wallet_manager.address, 10000)
+        tx = wallet_manager.transact({'from': alice}).lock(100, 200)
         chain.wait.for_receipt(tx)
 
         # Give rights for mining
@@ -152,16 +148,16 @@ def main():
 
         # Wait 150 blocks and mint tokens
         chain.wait.for_block(web3.eth.blockNumber + 150)
-        print("Estimate gas for mining = " +
-              str(wallet_manager.estimateGas({'from': creator}).mint()))
-        tx = wallet_manager.transact({'from': creator}).mint()
+        print("Estimate gas for Ursula mining = " +
+              str(wallet_manager.estimateGas({'from': ursula}).mint()))
+        tx = wallet_manager.transact({'from': ursula}).mint()
         chain.wait.for_receipt(tx)
 
         # Wait 100 blocks and mint tokens
         chain.wait.for_block(web3.eth.blockNumber + 100)
-        print("Estimate gas for mining = " +
-              str(wallet_manager.estimateGas({'from': creator}).mint()))
-        tx = wallet_manager.transact({'from': creator}).mint()
+        print("Estimate gas for Alice mining = " +
+              str(wallet_manager.estimateGas({'from': alice}).mint()))
+        tx = wallet_manager.transact({'from': alice}).mint()
         chain.wait.for_receipt(tx)
 
         print("All done!")

@@ -4,6 +4,7 @@ pragma solidity ^0.4.8;
 import "zeppelin-solidity/contracts/token/ERC20.sol";
 import "zeppelin-solidity/contracts/token/SafeERC20.sol";
 import "zeppelin-solidity/contracts/math/SafeMath.sol";
+import "zeppelin-solidity/contracts/math/Math.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./HumanStandardToken.sol";
 import "./LinkedList.sol";
@@ -20,6 +21,7 @@ contract Wallet is Ownable {
     uint256 public lockedBlock;
     uint256 public releaseBlock;
     uint256 public decimals;
+    uint256 public lastMintedBlock;
     address manager;
 
     /**
@@ -36,7 +38,6 @@ contract Wallet is Ownable {
     **/
     function Wallet(BurnableToken _token) {
         token = _token;
-//        manager = WalletManager(msg.sender);
         manager = msg.sender;
     }
 
@@ -55,6 +56,7 @@ contract Wallet is Ownable {
         lockedValue = _value;
         releaseBlock = block.number.add(_blocks);
         lockedBlock = block.number;
+        lastMintedBlock = block.number;
         return true;
     }
 
@@ -90,6 +92,13 @@ contract Wallet is Ownable {
     }
 
     /**
+    * @notice Get locked tokens value at the time of the last minted block
+    **/
+    function getLastLockedTokens() public constant returns (uint256) {
+        return getLockedTokens(lastMintedBlock);
+    }
+
+    /**
     * @notice Terminate contract and refund to owner
     * @dev The called token contracts could try to re-enter this contract.
     Only supply token contracts you trust.
@@ -108,6 +117,13 @@ contract Wallet is Ownable {
     }
 
     /**
+    * @notice Set last minted block
+    **/
+    function setLastMintedBlock(uint256 _lastMintedBlock) onlyManager {
+        lastMintedBlock = _lastMintedBlock;
+    }
+
+    /**
     * @notice Burn locked tokens
     * @param _value Amount of tokens that will be confiscated
     **/
@@ -119,7 +135,7 @@ contract Wallet is Ownable {
 }
 
 /**
-* Contract creates wallets and manage mining for that wallets
+* @notice Contract creates wallets and manage mining for that wallets
 **/
 contract WalletManager is Ownable {
     using LinkedList for LinkedList.Data;
@@ -130,7 +146,6 @@ contract WalletManager is Ownable {
     mapping (address => Wallet) public wallets;
     LinkedList.Data walletOwners;
     uint256 miningCoefficient;
-    uint256 lastMintedBlock;
 
     /**
     * @notice The WalletManager constructor sets address of token contract and mining coefficient
@@ -142,7 +157,6 @@ contract WalletManager is Ownable {
         require(_miningCoefficient != 0);
         token = _token;
         miningCoefficient = _miningCoefficient;
-        lastMintedBlock = block.number;
     }
 
     /**
@@ -163,9 +177,10 @@ contract WalletManager is Ownable {
     * @param _value Amount of tokens which should lock
     * @param _releaseBlock Block number when tokens will be unlocked
     **/
+    //TODO extend locking
     function lock(uint256 _value, uint256 _releaseBlock) returns (bool success) {
         require(walletOwners.valueExists(msg.sender));
-        require(wallets[msg.sender].getLockedTokens(lastMintedBlock) == 0);
+        require(wallets[msg.sender].getLastLockedTokens() == 0);
         return wallets[msg.sender].lock(_value, _releaseBlock);
     }
 
@@ -252,31 +267,18 @@ contract WalletManager is Ownable {
     }
 
     /**
-    * @notice Mint tokens for all users who locked their tokens
+    * @notice Mint tokens for sender if he locked his tokens
     **/
-    function mint() onlyOwner {
-        var current = walletOwners.step(0x0, true);
-        var mintedBlocks = block.number - lastMintedBlock;
-        while (current != 0x0) {
-            Wallet wallet = wallets[current];
-            var lockedValue = wallet.lockedValue();
-            if (wallet.releaseBlock() > lastMintedBlock && lockedValue > 0) {
-                var lockedBlocks = mintedBlocks;
-                var lockedBlock = wallet.lockedBlock();
-                var releaseBlock = wallet.releaseBlock();
-                if (lastMintedBlock < lockedBlock) {
-                    lockedBlocks -= lockedBlock - lastMintedBlock;
-                }
-                if (block.number > releaseBlock) {
-                    lockedBlocks -= block.number - releaseBlock;
-                }
-                var mintedValue = lockedBlocks.mul(lockedValue).add(wallet.decimals());
-                token.mint(wallet, mintedValue.div(miningCoefficient));
-                wallet.setDecimals(mintedValue % miningCoefficient);
-            }
-            current = walletOwners.step(current, true);
-        }
-        lastMintedBlock = block.number;
+    function mint() {
+        require(walletOwners.valueExists(msg.sender));
+        Wallet wallet = wallets[msg.sender];
+        require(wallet.getLastLockedTokens() != 0);
+        var lockedBlocks = Math.min256(block.number, wallet.releaseBlock()) -
+            wallet.lastMintedBlock();
+        var value = lockedBlocks.mul(wallet.lockedValue()).add(wallet.decimals());
+        wallet.setDecimals(value % miningCoefficient);
+        wallet.setLastMintedBlock(block.number);
+        token.mint(wallet, value.div(miningCoefficient));
     }
 
     /**

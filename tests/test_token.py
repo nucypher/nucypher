@@ -16,7 +16,7 @@ def test_create_token(web3, chain):
     # Create an ERC20 token
     token, txhash = chain.provider.get_or_deploy_contract(
             'HumanStandardToken', deploy_args=[
-                10 ** 9, 'NuCypher KMS', 6, 'KMS'],
+                10 ** 9, 10 ** 10, 'NuCypher KMS', 6, 'KMS'],
             deploy_transaction={
                 'from': creator})
     assert txhash is not None
