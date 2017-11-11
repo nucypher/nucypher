@@ -5,6 +5,7 @@ from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
 from nkms.crypto import utils
 from nkms.crypto.api import keccak_digest
+from nkms.crypto.signature import Signature
 from nkms.network.constants import NODE_HAS_NO_STORAGE
 from nkms.network.node import NuCypherNode
 from nkms.network.routing import NuCypherRoutingTable
@@ -45,10 +46,10 @@ class NuCypherHashProtocol(KademliaProtocol):
         # TODO: This try block is not the right approach - a Ciphertext class can resolve this instead.
         try:
             # Ursula uaddr scenario
-            verified = utils.verify(signature, message, sender_pubkey_sig)
+            verified = signature.verify(message, sender_pubkey_sig)
         except Exception as e:
             # trmap scenario
-            verified = utils.verify(signature, msgpack.dumps(message), sender_pubkey_sig)
+            verified = signature.verify(msgpack.dumps(message), sender_pubkey_sig)
 
         if not verified or not proper_key == dht_key:
             self.log.warning("Got request to store illegal k/v: {} / {}".format(dht_key, dht_value))
@@ -63,7 +64,8 @@ class NuCypherHashProtocol(KademliaProtocol):
         self.log.debug("got a store request from %s" % str(sender))
 
         if value.startswith(b"uaddr") or value.startswith(b"trmap"):
-            signature, sender_pubkey_sig, extra_info, message = msgpack.loads(value[5::])  # TODO: #114
+            sig_bytes, sender_pubkey_sig, extra_info, message = msgpack.loads(value[5::])  # TODO: #114
+            signature = Signature(sig_bytes)
             # extra_info is a hash of the policy_group.id in the case of a treasure map, or a TTL in the case
             # of an Ursula interface.  TODO: Decide whether to keep this notion and, if so, use the TTL.
             do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig, message, extra_info, key, value)

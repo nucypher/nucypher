@@ -8,7 +8,7 @@ from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
-from nkms.crypto.utils import verify
+
 from nkms.keystore.keypairs import Keypair
 from nkms.network import blockchain_client
 from nkms.network.blockchain_client import list_all_ursulas
@@ -136,7 +136,7 @@ class Character(object):
 
         actor = self._lookup_actor(actor_whom_sender_claims_to_be)
 
-        return verify(signature, message, actor.seal), cleartext
+        return signature.verify(message, actor.seal), cleartext
 
     def _lookup_actor(self, actor: "Character"):
         try:

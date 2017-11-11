@@ -5,9 +5,9 @@ class Signature(object):
     """
     The Signature object allows signatures to be made and verified.
     """
-    LENGTH = 32
+    _EXPECTED_LENGTH = 65
 
-    def __init__(self, v: int=None, r: int=None, s: int=None, sig: bytes=None):
+    def __init__(self, sig_as_bytes: bytes=None, v: int=None, r: int=None, s: int=None):
         """
         Initializes a Signature object.
 
@@ -17,8 +17,13 @@ class Signature(object):
 
         :return: Signature object
         """
-        if sig:
-            v, r, s = API.ecdsa_load_sig(sig)
+        if sig_as_bytes and any((v, r, s)):
+            raise ValueError("Pass *either* sig_as_bytes *or* v, r, and s - don't pass both.")
+        if not any ((sig_as_bytes, v, r, s)):
+            raise ValueError("Pass either sig_as_bytes or v, r, and s.")
+
+        if sig_as_bytes:
+            v, r, s = API.ecdsa_load_sig(sig_as_bytes)
 
         self._v = v
         self._r = r
