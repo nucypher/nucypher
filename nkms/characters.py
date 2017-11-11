@@ -322,6 +322,15 @@ class Seal(object):
     def __eq__(self, other):
         return other == self._as_tuple() or other == bytes(self)
 
+    def __add__(self, other):
+        return bytes(self) + other
+
+    def __radd__(self, other):
+        return other + bytes(self)
+
+    def __len__(self):
+        return len(bytes(self))
+
 
 class StrangerSeal(Seal):
     """
