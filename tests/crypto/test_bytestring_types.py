@@ -18,6 +18,6 @@ def test_split_signature_from_arbitrary_bytes():
     how_many_bytes = 10
     signature = Signature(secure_random(65))
     some_bytes = secure_random(how_many_bytes)
-    splitter = BytestringSplitter(Signature, how_many_bytes)
+    splitter = BytestringSplitter(Signature, (bytes, how_many_bytes))
     rebuilt_signature, rebuilt_bytes = splitter(signature + some_bytes)
 
