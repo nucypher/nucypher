@@ -1,3 +1,5 @@
+import pytest
+
 from nkms.crypto.api import secure_random
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
@@ -19,5 +21,17 @@ def test_split_signature_from_arbitrary_bytes():
     signature = Signature(secure_random(65))
     some_bytes = secure_random(how_many_bytes)
     splitter = BytestringSplitter(Signature, (bytes, how_many_bytes))
+
+
     rebuilt_signature, rebuilt_bytes = splitter(signature + some_bytes)
 
+
+def test_trying_to_extract_too_many_bytes_raises_typeerror():
+    how_many_bytes = 10
+    too_many_bytes = 11
+    signature = Signature(secure_random(65))
+    some_bytes = secure_random(how_many_bytes)
+    splitter = BytestringSplitter(Signature, (bytes, too_many_bytes))
+
+    with pytest.raises(ValueError):
+        rebuilt_signature, rebuilt_bytes = splitter(signature + some_bytes)

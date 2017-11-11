@@ -10,7 +10,7 @@ class BytestringSplitter(object):
 
     def __call__(self, splittable):
         if len(self) != len(splittable):
-            raise ValueError("Wrong number of bytes to constitute message types {} - need {}, got {}".format(self.message_types, self.total_expected_length(), len(splittable)))
+            raise ValueError("Wrong number of bytes to constitute message types {} - need {}, got {}".format(self.message_types, len(self), len(splittable)))
 
         cursor = 0
         message_objects = []
