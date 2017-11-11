@@ -59,7 +59,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate():
     # Vladimir does almost everything right....
     interface_info = msgpack.dumps((vladimir.port, vladimir.interface))
     signature = vladimir.seal(interface_info)
-    value = b"uaddr" + msgpack.dumps([signature, bytes(vladimir.seal), 0, interface_info])
+    value = b"uaddr" + msgpack.dumps([bytes(signature), bytes(vladimir.seal), 0, interface_info])  # TODO: #114
 
     # Except he sets an illegal key for his interface.
     illegal_key = "Not allowed to set arbitrary key for this."
@@ -172,7 +172,7 @@ def test_treasure_map_with_bad_id_does_not_propagate():
     treasure_map = policy_group.treasure_map
 
     encrypted_treasure_map, signature = ALICE.encrypt_for(BOB, treasure_map.packed_payload())
-    packed_encrypted_treasure_map = msgpack.dumps(encrypted_treasure_map)
+    packed_encrypted_treasure_map = msgpack.dumps(encrypted_treasure_map)  #TODO: #114?  Do we even need to pack here?
 
     setter = ALICE.server.set(illegal_policygroup_id, packed_encrypted_treasure_map)
     _set_event = EVENT_LOOP.run_until_complete(setter)

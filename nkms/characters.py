@@ -187,8 +187,8 @@ class Alice(Character):
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
         dht_value = msgpack.dumps(
-            (signature_for_ursula, bytes(self.seal), policy_group.hrac(),
-             encrypted_treasure_map))
+            (bytes(signature_for_ursula), bytes(self.seal), policy_group.hrac(),
+             encrypted_treasure_map))  # TODO: #114
         dht_key = policy_group.treasure_map_dht_key()
 
         setter = self.server.set(dht_key, b"trmap" + dht_value)
@@ -285,7 +285,7 @@ class Ursula(Character):
         signature = self.seal(self.interface_info())
         ttl = 0  # TODO: We don't actually need this - and it's not currently implemented in a meaningful way,
         # but it matches the schema for a shared TreasureMap.  Maybe we use it to indicate a TTL?
-        return b"uaddr" + msgpack.dumps((signature, bytes(self.seal), ttl, self.interface_info()))
+        return b"uaddr" + msgpack.dumps((bytes(signature), bytes(self.seal), ttl, self.interface_info()))
 
     def publish_interface_information(self):
         if not self.port and self.interface:

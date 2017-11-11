@@ -63,7 +63,7 @@ class NuCypherHashProtocol(KademliaProtocol):
         self.log.debug("got a store request from %s" % str(sender))
 
         if value.startswith(b"uaddr") or value.startswith(b"trmap"):
-            signature, sender_pubkey_sig, extra_info, message = msgpack.loads(value[5::])
+            signature, sender_pubkey_sig, extra_info, message = msgpack.loads(value[5::])  # TODO: #114
             # extra_info is a hash of the policy_group.id in the case of a treasure map, or a TTL in the case
             # of an Ursula interface.  TODO: Decide whether to keep this notion and, if so, use the TTL.
             do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig, message, extra_info, key, value)
