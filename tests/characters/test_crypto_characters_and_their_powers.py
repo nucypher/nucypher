@@ -3,14 +3,13 @@ import pytest
 from nkms.characters import Alice, Ursula, Character
 from nkms.crypto import api
 from nkms.crypto.constants import NOT_SIGNED
-
-"""
-SIGNING
-"""
-
 from nkms.crypto.constants import NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, NoSigningPower, NoEncryptingPower, \
     EncryptingPower
+
+"""
+Chapter 1: SIGNING
+"""
 
 
 def test_actor_without_signing_power_cannot_sign():
@@ -82,7 +81,7 @@ def test_anybody_can_verify():
 
 
 """
-ENCRYPTION
+Chapter 2: ENCRYPTION
 """
 
 

@@ -1,11 +1,11 @@
 import asyncio
 
 import msgpack
-
 from kademlia.network import Server
 from kademlia.utils import digest
+
 from nkms.crypto import api as API
-from nkms.crypto.api import secure_random
+from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.crypto.utils import verify
@@ -80,6 +80,9 @@ class Character(object):
     @property
     def name(self):
         return self.__class__.__name__
+
+    def hash(self, message):
+        return keccak_digest(message)
 
     def learn_about_actor(self, actor):
         self._actor_mapping[actor.id()] = actor
@@ -175,6 +178,22 @@ class Alice(Character):
             alice_privkey, bytes(bob.seal), m, n)
         return (kfrags, eph_key_data)
 
+    def publish_treasure_map(self, policy_group):
+        encrypted_treasure_map, signature_for_bob = self.encrypt_for(policy_group.bob,
+                                                                     policy_group.treasure_map.packed_payload())
+        signature_for_ursula = self.seal(
+            msgpack.dumps(encrypted_treasure_map))  # TODO: Great use-case for Ciphertext class
+
+        # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
+        # and, reasons explained in treasure_map_dht_key above, the uri_hash.
+        dht_value = msgpack.dumps(
+            (signature_for_ursula, bytes(self.seal), policy_group.hrac(),
+             encrypted_treasure_map))
+        dht_key = policy_group.treasure_map_dht_key()
+
+        setter = self.server.set(dht_key, b"trmap" + dht_value)
+        return setter, encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
+
 
 class Bob(Character):
     _server_class = NuCypherSeedOnlyDHTServer
@@ -204,15 +223,21 @@ class Bob(Character):
             getter = self.server.get(ursula_interface_id)
             loop = asyncio.get_event_loop()
             value = loop.run_until_complete(getter)
-            signature, ursula_pubkey_sig, interface_info = msgpack.loads(value.lstrip(b"uaddr-"))
+            signature, ursula_pubkey_sig, ttl, interface_info = msgpack.loads(
+                value.lstrip(b"uaddr"))  # TODO: If we're going to implement TTL, it'll be here.
             port, interface = msgpack.loads(interface_info)
-            self._ursulas[ursula_interface_id] = Ursula.as_discovered_on_network(port=port, interface=interface,                                                                                 pubkey_sig_bytes=ursula_pubkey_sig)
+            self._ursulas[ursula_interface_id] = Ursula.as_discovered_on_network(port=port, interface=interface,
+                                                                                 pubkey_sig_bytes=ursula_pubkey_sig)
 
     def get_treasure_map(self, policy_group, signature):
-        ursula_coro = self.server.get(policy_group.id)
+
+        dht_key = policy_group.treasure_map_dht_key()
+
+        ursula_coro = self.server.get(dht_key)
         event_loop = asyncio.get_event_loop()
         packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
-        encrypted_treasure_map = msgpack.loads(packed_encrypted_treasure_map)
+        _signature_for_ursula, pubkey_sig_alice, uri_hash, encrypted_treasure_map = msgpack.loads(
+            packed_encrypted_treasure_map[5::])
         verified, packed_node_list = self.verify_from(self.alice, signature, encrypted_treasure_map,
                                                       signature_is_on_cleartext=True, decrypt=True)
         if not verified:
@@ -228,6 +253,7 @@ class Ursula(Character):
 
     port = None
     interface = None
+    interface_ttl = 0
 
     @staticmethod
     def as_discovered_on_network(port, interface, pubkey_sig_bytes):
@@ -235,9 +261,6 @@ class Ursula(Character):
         ursula.port = port
         ursula.interface = interface
         return ursula
-
-    def ip_dht_key(self):
-        return bytes(self.seal)
 
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs):
@@ -252,17 +275,26 @@ class Ursula(Character):
         self.interface = interface
         return self.server.listen(port, interface)
 
+    def interface_info(self):
+        return msgpack.dumps((self.port, self.interface))
+
+    def interface_dht_key(self):
+        return keccak_digest(bytes(self.seal) + bytes(self.interface_ttl))
+
+    def interface_dht_value(self):
+        signature = self.seal(self.interface_info())
+        ttl = 0  # TODO: We don't actually need this - and it's not currently implemented in a meaningful way,
+        # but it matches the schema for a shared TreasureMap.  Maybe we use it to indicate a TTL?
+        return b"uaddr" + msgpack.dumps((signature, bytes(self.seal), ttl, self.interface_info()))
+
     def publish_interface_information(self):
         if not self.port and self.interface:
             raise RuntimeError("Must listen before publishing interface information.")
-        ip_dht_key = self.ip_dht_key()
 
-        interface_info = msgpack.dumps((self.port, self.interface))
-        signature = self.seal(interface_info)
-
-        value = b"uaddr-" + msgpack.dumps([signature, bytes(self.seal), interface_info])
-        setter = self.server.set(key=ip_dht_key, value=value)
-        blockchain_client._ursulas_on_blockchain.append(ip_dht_key)
+        dht_key = self.interface_dht_key()
+        value = self.interface_dht_value()
+        setter = self.server.set(key=dht_key, value=value)
+        blockchain_client._ursulas_on_blockchain.append(dht_key)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 

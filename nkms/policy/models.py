@@ -1,7 +1,9 @@
 import msgpack
 from npre.constants import UNKNOWN_KFRAG
+
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
+from nkms.crypto.api import keccak_digest
 from nkms.crypto.powers import EncryptingPower
 
 
@@ -46,7 +48,8 @@ class PolicyManagerForAlice(PolicyManager):
 
         ##### Temporary until we decide on an API for private key access
         alice_priv_enc = self.owner._crypto_power._power_ups[EncryptingPower].priv_key
-        re_enc_keys, encrypted_key = self.owner.generate_rekey_frags(alice_priv_enc, bob, m, n)  # TODO: Access Alice's private key inside this method.
+        re_enc_keys, encrypted_key = self.owner.generate_rekey_frags(alice_priv_enc, bob, m,
+                                                                     n)  # TODO: Access Alice's private key inside this method.
         policies = []
         for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
@@ -55,7 +58,7 @@ class PolicyManagerForAlice(PolicyManager):
             )
             policies.append(policy)
 
-        return PolicyGroup(uri, bob, policies)
+        return PolicyGroup(uri, self.owner, bob, policies)
 
 
 class PolicyGroup(object):
@@ -65,8 +68,9 @@ class PolicyGroup(object):
 
     _id = None
 
-    def __init__(self, uri: str, bob: Bob, policies=None):
+    def __init__(self, uri: str, alice: Alice, bob: Bob, policies=None):
         self.policies = policies or []
+        self.alice = alice
         self.bob = bob
         self.uri = uri
         self.treasure_map = TreasureMap()
@@ -74,6 +78,9 @@ class PolicyGroup(object):
     @property
     def n(self):
         return len(self.policies)
+
+    def hash(self, message):
+        return keccak_digest(message)
 
     def find_n_ursulas(self, networky_stuff, offer: PolicyOffer) -> list:
         """
@@ -90,11 +97,36 @@ class PolicyGroup(object):
             except networky_stuff.NotEnoughQualifiedUrsulas:
                 pass  # Tell Alice to either wait or lower the value of n.
 
+    def hrac(self):
+        """
+        The "hashed resource authentication code".
+
+        A hash of:
+        * Alice's public key
+        * Bob's public key
+        * the uri
+
+        Alice and Bob have all the information they need to construct this.
+        Ursula does not, so we share it with her.
+        """
+        return self.hash(bytes(self.alice.seal) + bytes(self.bob.seal) + self.uri)
+
+    def treasure_map_dht_key(self):
+        """
+        We need a key that Bob can glean from knowledge he already has *and* which Ursula can verify came from us.
+        Ursula will refuse to propagate this key if it she can't prove that our public key, which is included in it,
+        was used to sign the payload.
+
+        Our public key (which everybody knows) and the hrac above.
+        """
+        return self.hash(bytes(self.alice.seal) + self.hrac())
+
     def transmit_payloads(self, networky_stuff):
 
         for policy in self.policies:
             payload = policy.encrypt_payload_for_ursula()
-            _response = networky_stuff.animate_policy(policy.ursula, payload) # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
+            _response = networky_stuff.animate_policy(policy.ursula,
+                                                      payload)  # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
 
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(policy.ursula)
@@ -102,7 +134,7 @@ class PolicyGroup(object):
     @property
     def id(self):
         if not self._id:
-            self._id = api.keccak_digest(self.uri, bytes(self.bob.seal))
+            self._id = api.keccak_digest(bytes(self.alice.seal), api.keccak_digest(self.uri))
         return self._id
 
 
@@ -120,7 +152,7 @@ class Policy(object):
     hashed_part = None
     _id = None
 
-    def __init__(self, alice, kfrag=UNKNOWN_KFRAG, deterministic_id_portion=None, challenge_size=20, set_id=True):
+    def __init__(self, alice, kfrag=UNKNOWN_KFRAG, challenge_size=20, set_id=True):
         """
 
         :param kfrag:
@@ -132,13 +164,9 @@ class Policy(object):
         """
         self.alice = alice
         self.kfrag = kfrag
-        self.deterministic_id_portion = deterministic_id_portion
         self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
         self.challenge_size = challenge_size
         self.treasure_map = []
-
-        if set_id:
-            self.set_id()
 
     @property
     def id(self):
@@ -146,13 +174,6 @@ class Policy(object):
             return self._id
         else:
             raise RuntimeError("No implemented way to get id yet.")
-
-    def set_id(self):
-        if self.deterministic_id_portion:
-            self._id = "{}-{}".format(api.keccak_digest(*[str(d).encode() for d in self.deterministic_id_portion], self.random_id_portion),
-                                      api.keccak_digest(self.random_id_portion))
-        else:
-            self._id = api.keccak_digest(self.random_id_portion)
 
     @property
     def ursula(self):
@@ -170,7 +191,7 @@ class Policy(object):
     def from_alice(kfrag,
                    alice,
                    ):
-        policy = Policy(alice, kfrag, deterministic_id_portion=alice.seal)
+        policy = Policy(alice, kfrag)
         policy.generate_challenge_pack()
 
         return policy
@@ -182,19 +203,13 @@ class Policy(object):
         self.ursula = ursula
         self.negotiation_result = negotiation_result
 
-    def hash(self, pubkey_sig_alice, hash_input):
-
-        self.hashed_part = api.keccak_digest(hash_input)
-        hash_input_for_id = str(pubkey_sig_alice).encode() + str(self.hashed_part).encode()
-        self._id = api.keccak_digest(hash_input_for_id)
-        return self._id
-
     def generate_challenge_pack(self):
         if self.kfrag == UNKNOWN_KFRAG:
+            # TODO: Test this branch
             raise TypeError(
                 "Can't generate a challenge pack unless we know the kfrag.  Are you Alice?")
 
-        # TODO: make this work instead of being random.
+        # TODO: make this work instead of being random.  See #46.
         import random
         self.challenge_pack = [(random.getrandbits(32), random.getrandbits(32)) for x in
                                range(self.challenge_size)]
@@ -207,13 +222,7 @@ class Policy(object):
         return self.alice.encrypt_for(self.ursula, self.payload())
 
 
-    def update_treasure_map(self, policy_offer_result):
-        # TODO: parse the result and add the node information to the treasure map.
-        self.treasure_map.append(policy_offer_result)
-
-
 class TreasureMap(object):
-
     def __init__(self, ursula_interface_ids=None):
         self.ids = ursula_interface_ids or []
 
@@ -221,7 +230,7 @@ class TreasureMap(object):
         return msgpack.dumps(self.ids)
 
     def add_ursula(self, ursula):
-        self.ids.append(ursula.ip_dht_key())
+        self.ids.append(ursula.interface_dht_key())
 
     def __eq__(self, other):
         return self.ids == other.ids
