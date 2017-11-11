@@ -1,7 +1,7 @@
 from nkms.crypto import api as API
 
 
-class Signature(object):
+class Signature(bytes):
     """
     The Signature object allows signatures to be made and verified.
     """
@@ -28,6 +28,9 @@ class Signature(object):
         self._v = v
         self._r = r
         self._s = s
+
+    def __repr__(self):
+        return "{} v{}: {} - {}".format(__class__.__name__, self._v, self._r, self._s)
 
     def verify(self, message: bytes, pubkey: bytes) -> bool:
         """
