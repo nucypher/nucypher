@@ -30,9 +30,9 @@ class KeyFrag(Base):
     __tablename__ = 'keyfrags'
 
     id = Column(Integer, primary_key=True)
-    policy_group_id = Column(LargeBinary, unique=True)
+    hrac = Column(LargeBinary, unique=True)
     key_frag = Column(LargeBinary, unique=True)
 
-    def __init__(self, policy_group_id, key_frag):
-        self.policy_group_id = policy_group_id
+    def __init__(self, hrac, key_frag):
+        self.hrac = hrac
         self.key_frag = key_frag
