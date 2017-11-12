@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """Deploy contracts in tester.
 
 A simple Python script to deploy contracts and then estimate gas for different methods.
@@ -7,6 +9,7 @@ from populus import Project
 TIMEOUT = 10
 MINING_COEFF = [10 ** 5, 10 ** 7]
 M = int(1e6)
+NULL_ADDR = '0x' + '0' * 40
 
 
 def main():
@@ -46,20 +49,21 @@ def main():
         print('Airdrop done')
 
         # Test locking
-        tx = token.transact({'from': web3.eth.accounts[1]}).approve(
-                escrow.address, 1000 * M)
-        chain.wait.for_receipt(tx, timeout=TIMEOUT)
-        tx = escrow.transact({'from': web3.eth.accounts[1]}).deposit(1000 * M)
-        chain.wait.for_receipt(tx, timeout=TIMEOUT)
-        tx = escrow.transact({'from': web3.eth.accounts[1]}).lock(1000 * M, 100)
-        chain.wait.for_receipt(tx, timeout=TIMEOUT)
-        print('Locked')
+        for addr in web3.eth.accounts[1:]:
+            tx = token.transact({'from': addr}).approve(
+                    escrow.address, 1000 * M)
+            chain.wait.for_receipt(tx, timeout=TIMEOUT)
+            tx = escrow.transact({'from': addr}).deposit(1000 * M)
+            chain.wait.for_receipt(tx, timeout=TIMEOUT)
+            tx = escrow.transact({'from': addr}).lock(1000 * M, 100)
+            chain.wait.for_receipt(tx, timeout=TIMEOUT)
 
-        print(escrow.call().getAllLockedTokens())
-        print(escrow.call().getLockedTokens(web3.eth.accounts[1]))
-        print(escrow.call().getLockedTokens(web3.eth.accounts[2]))
+        n_tokens = escrow.call().getAllLockedTokens()
+        print('Locked', n_tokens)
 
-        print('All done')
+        print(web3.eth.accounts[1])
+        address_stop, shift = escrow.call().findCumSum(NULL_ADDR, n_tokens // 5)
+        print(address_stop, shift)
 
 
 if __name__ == "__main__":
