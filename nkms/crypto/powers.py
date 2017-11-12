@@ -77,7 +77,7 @@ class CryptoPower(object):
             raise NoSigningPower(e)
         msg_digest = b"".join(API.keccak_digest(m) for m in messages)
 
-        return Signature(sig=sig_keypair.sign(msg_digest))
+        return Signature(sig_keypair.sign(msg_digest))
 
     def decrypt(self, ciphertext):
         try:
