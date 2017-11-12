@@ -210,6 +210,7 @@ contract Escrow is Miner, Ownable {
                 break;
             } else {
                 distance += lockedTokens;
+                current = tokenOwners.step(current, true);
             }
         }
     }

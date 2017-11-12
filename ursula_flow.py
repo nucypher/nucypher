@@ -62,7 +62,8 @@ def main():
         print('Locked', n_tokens)
 
         print(web3.eth.accounts[1])
-        address_stop, shift = escrow.call().findCumSum(NULL_ADDR, n_tokens // 5)
+        print(web3.eth.accounts[-1])
+        address_stop, shift = escrow.call().findCumSum(NULL_ADDR, n_tokens // 3)
         print(address_stop, shift)
 
 
