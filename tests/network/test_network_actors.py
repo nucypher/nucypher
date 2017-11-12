@@ -6,7 +6,11 @@ import pytest
 
 from kademlia.utils import digest
 from nkms.characters import Ursula, Alice, Character, Bob, congregate
+from nkms.crypto.constants import PUBKEY_SIG_LENGTH, HASH_DIGEST_LENGTH
+from nkms.crypto.signature import Signature
+from nkms.crypto.utils import BytestringSplitter
 from nkms.network.blockchain_client import list_all_ursulas
+from nkms.network.protocols import dht_value_splitter
 from nkms.policy.constants import NON_PAYMENT
 from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, Policy
 from tests.test_utilities import make_fake_ursulas, MockNetworkyStuff
@@ -57,9 +61,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate():
     assert ursula.server.protocol.illegal_keys_seen == []
 
     # Vladimir does almost everything right....
-    interface_info = msgpack.dumps((vladimir.port, vladimir.interface))
-    signature = vladimir.seal(interface_info)
-    value = b"uaddr" + msgpack.dumps([bytes(signature), bytes(vladimir.seal), 0, interface_info])  # TODO: #114
+    value = vladimir.interface_dht_value()
 
     # Except he sets an illegal key for his interface.
     illegal_key = "Not allowed to set arbitrary key for this."
@@ -111,8 +113,8 @@ def test_alice_finds_ursula():
     getter = ALICE.server.get(all_ursulas[ursula_index])
     loop = asyncio.get_event_loop()
     value = loop.run_until_complete(getter)
-    signature, ursula_pubkey_sig, ttl, interface_info = msgpack.loads(value.lstrip(b"uaddr-"))
-    port, interface = msgpack.loads(interface_info)
+    _signature, _ursula_pubkey_sig, _hrac, interface_info = dht_value_splitter(value.lstrip(b"uaddr-"))
+    port = msgpack.loads(interface_info)[0]
     assert port == URSULA_PORT + ursula_index
 
 
@@ -185,9 +187,11 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob():
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
+
     treasure_map_as_set_on_network, signature, policy_group = test_alice_sets_treasure_map_on_network()
-    _signature_for_ursula, pubkey_sig_alice, uri_hash, encrypted_treasure_map = msgpack.loads(
+    _signature_for_ursula, pubkey_sig_alice, hrac, packed_encrypted_treasure_map = dht_value_splitter(
         treasure_map_as_set_on_network[5::])  # 5:: to account for prepended "trmap"
+    encrypted_treasure_map = msgpack.loads(packed_encrypted_treasure_map)  # TOOD: Make this a Ciphertext #112
     verified, treasure_map_as_decrypted_by_bob = BOB.verify_from(ALICE, signature,
                                                                  encrypted_treasure_map,
                                                                  decrypt=True,
@@ -222,6 +226,6 @@ def test_treaure_map_is_legit():
         getter = ALICE.server.get(ursula_interface_id)
         loop = asyncio.get_event_loop()
         value = loop.run_until_complete(getter)
-        signature, ursula_pubkey_sig, ttl, interface_info = msgpack.loads(value.lstrip(b"uaddr-"))
-        port, _interface = msgpack.loads(interface_info)
+        signature, ursula_pubkey_sig, hrac, interface_info = dht_value_splitter(value.lstrip(b"uaddr-"))
+        port = msgpack.loads(interface_info)[0]
         assert port in URSULA_PORTS
