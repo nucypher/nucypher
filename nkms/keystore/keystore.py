@@ -90,17 +90,16 @@ class KeyStore(object):
 
         :return: Deserialized RekeyFrag from KeyStore
         """
-        kfrag = self.session.query(KeyFrag)\
-            .filter_by(hrac).first()
+        kfrag = self.session.query(KeyFrag).filter_by(hrac=hrac).first()
         if not kfrag:
             raise KeyNotFound(
                 "No KeyFrag with HRAC {} found."
                 .format(hrac)
             )
         # TODO: Make this use a class
-        sig = kfrag[:65]
-        id = kfrag[65:97]
-        key = kfrag[97:]
+        sig = kfrag.key_frag[:65]
+        id = kfrag.key_frag[65:97]
+        key = kfrag.key_frag[97:]
 
         kFrag = RekeyFrag(id=id, key=key)
         if get_sig:
