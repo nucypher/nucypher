@@ -176,6 +176,44 @@ contract Escrow is Miner, Ownable {
         return getLockedTokens(_owner, block.number);
     }
 
+    /*
+       Fixedstep in cumsum
+       @start   Starting point
+       @delta   How much to step
+
+      |-------->*--------------->*---->*------------->|
+                |                      ^
+                |                      o_stop
+                |
+                |       _delta
+                |---------------------------->|
+                |
+                |                       o_shift
+                |                      |----->|
+       */
+      // _blockNumber?
+    function findCumSum(address _start, uint256 _delta)
+        public constant returns (address o_stop, uint256 o_shift)
+    {
+        uint256 distance = 0;
+        uint256 lockedTokens = 0;
+        var current = _start;
+
+        if (current == 0x0)
+            current = tokenOwners.step(current, true);
+
+        while (true) {
+            lockedTokens = getLockedTokens(current);
+            if (_delta < distance + lockedTokens) {
+                o_stop = current;
+                o_shift = _delta - distance;
+                break;
+            } else {
+                distance += lockedTokens;
+            }
+        }
+    }
+
     /**
     * @notice Get locked tokens value for sender at the time of the last minted block
     **/

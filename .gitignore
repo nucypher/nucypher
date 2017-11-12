@@ -8,3 +8,5 @@ __pycache__
 /MANIFEST
 /.tox
 .idea
+/logs
+/registrar.json
