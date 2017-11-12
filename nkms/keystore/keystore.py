@@ -130,16 +130,20 @@ class KeyStore(object):
         self.session.commit()
         return fingerprint
 
-    def add_kfrag(self, hrac: bytes, kfrag: RekeyFrag):
+    def add_kfrag(self, hrac: bytes, kfrag: RekeyFrag, sig: bytes=None):
         """
         Adds a RekeyFrag to sqlite.
 
         :param hrac: Hashed Resource Authenticate Code
         :param kfrag: RekeyFrag instance to add to sqlite
+        :param sig: Signature of kfrag (if exists)
         """
-        kfrag_data = kfrag.id + kfrag.key
-        kfrag = KeyFrag(hrac, kfrag_data)
+        kfrag_data = b''
+        if sig:
+            kfrag_data += sig
+        kfrag_data += kfrag.id + kfrag.key
 
+        kfrag = KeyFrag(hrac, kfrag_data)
         self.session.add(kfrag)
         self.session.commit()
 
