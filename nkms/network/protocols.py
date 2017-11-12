@@ -3,12 +3,16 @@ import msgpack
 from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
-from nkms.crypto import utils
 from nkms.crypto.api import keccak_digest
+from nkms.crypto.constants import PUBKEY_SIG_LENGTH, HASH_DIGEST_LENGTH
 from nkms.crypto.signature import Signature
+from nkms.crypto.utils import BytestringSplitter
 from nkms.network.constants import NODE_HAS_NO_STORAGE
 from nkms.network.node import NuCypherNode
 from nkms.network.routing import NuCypherRoutingTable
+
+dht_value_splitter = BytestringSplitter(Signature, (bytes, PUBKEY_SIG_LENGTH), (bytes, HASH_DIGEST_LENGTH),
+                                        return_remainder=True)
 
 
 class NuCypherHashProtocol(KademliaProtocol):
@@ -64,11 +68,11 @@ class NuCypherHashProtocol(KademliaProtocol):
         self.log.debug("got a store request from %s" % str(sender))
 
         if value.startswith(b"uaddr") or value.startswith(b"trmap"):
-            sig_bytes, sender_pubkey_sig, extra_info, message = msgpack.loads(value[5::])  # TODO: #114
-            signature = Signature(sig_bytes)
+            signature, sender_pubkey_sig, hrac, message = dht_value_splitter(value[5::])
+
             # extra_info is a hash of the policy_group.id in the case of a treasure map, or a TTL in the case
             # of an Ursula interface.  TODO: Decide whether to keep this notion and, if so, use the TTL.
-            do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig, message, extra_info, key, value)
+            do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig, message, hrac, key, value)
         else:
             self.log.info("Got request to store bad k/v: {} / {}".format(key, value))
             do_store = False
