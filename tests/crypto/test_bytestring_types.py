@@ -34,4 +34,4 @@ def test_trying_to_extract_too_many_bytes_raises_typeerror():
     splitter = BytestringSplitter(Signature, (bytes, too_many_bytes))
 
     with pytest.raises(ValueError):
-        rebuilt_signature, rebuilt_bytes = splitter(signature + some_bytes)
+        rebuilt_signature, rebuilt_bytes = splitter(signature + some_bytes, return_remainder=True)

@@ -221,9 +221,10 @@ class Bob(Character):
             getter = self.server.get(ursula_interface_id)
             loop = asyncio.get_event_loop()
             value = loop.run_until_complete(getter)
-            signature, ursula_pubkey_sig, hrac, interface_info = dht_value_splitter(
-                value.lstrip(b"uaddr"))  # TODO: If we're going to implement TTL, it'll be here.
-            port, interface, ttl = msgpack.loads(interface_info)
+            signature, ursula_pubkey_sig, hrac, (port, interface, ttl) = dht_value_splitter(value.lstrip(b"uaddr"),
+                                                                                            msgpack_remainder=True)
+
+            # TODO: If we're going to implement TTL, it will be here.
             self._ursulas[ursula_interface_id] = Ursula.as_discovered_on_network(port=port, interface=interface,
                                                                                  pubkey_sig_bytes=ursula_pubkey_sig)
 
@@ -234,9 +235,8 @@ class Bob(Character):
         ursula_coro = self.server.get(dht_key)
         event_loop = asyncio.get_event_loop()
         packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
-        _signature_for_ursula, pubkey_sig_alice, hrac, packed_encrypted_treasure_map = dht_value_splitter(
-            packed_encrypted_treasure_map[5::])
-        encrypted_treasure_map = msgpack.loads(packed_encrypted_treasure_map)
+        _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
+            packed_encrypted_treasure_map[5::], msgpack_remainder=True)
         verified, packed_node_list = self.verify_from(self.alice, signature, encrypted_treasure_map,
                                                       signature_is_on_cleartext=True, decrypt=True)
         if not verified:

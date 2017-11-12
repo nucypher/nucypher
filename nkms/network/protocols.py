@@ -11,8 +11,7 @@ from nkms.network.constants import NODE_HAS_NO_STORAGE
 from nkms.network.node import NuCypherNode
 from nkms.network.routing import NuCypherRoutingTable
 
-dht_value_splitter = BytestringSplitter(Signature, (bytes, PUBKEY_SIG_LENGTH), (bytes, HASH_DIGEST_LENGTH),
-                                        return_remainder=True)
+dht_value_splitter = BytestringSplitter(Signature, (bytes, PUBKEY_SIG_LENGTH), (bytes, HASH_DIGEST_LENGTH))
 
 
 class NuCypherHashProtocol(KademliaProtocol):
@@ -68,7 +67,7 @@ class NuCypherHashProtocol(KademliaProtocol):
         self.log.debug("got a store request from %s" % str(sender))
 
         if value.startswith(b"uaddr") or value.startswith(b"trmap"):
-            signature, sender_pubkey_sig, hrac, message = dht_value_splitter(value[5::])
+            signature, sender_pubkey_sig, hrac, message = dht_value_splitter(value[5::], return_remainder=True)
 
             # extra_info is a hash of the policy_group.id in the case of a treasure map, or a TTL in the case
             # of an Ursula interface.  TODO: Decide whether to keep this notion and, if so, use the TTL.

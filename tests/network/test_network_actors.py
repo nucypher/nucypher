@@ -113,7 +113,7 @@ def test_alice_finds_ursula():
     getter = ALICE.server.get(all_ursulas[ursula_index])
     loop = asyncio.get_event_loop()
     value = loop.run_until_complete(getter)
-    _signature, _ursula_pubkey_sig, _hrac, interface_info = dht_value_splitter(value.lstrip(b"uaddr-"))
+    _signature, _ursula_pubkey_sig, _hrac, interface_info = dht_value_splitter(value.lstrip(b"uaddr-"), return_remainder=True)
     port = msgpack.loads(interface_info)[0]
     assert port == URSULA_PORT + ursula_index
 
@@ -189,9 +189,9 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob():
     """
 
     treasure_map_as_set_on_network, signature, policy_group = test_alice_sets_treasure_map_on_network()
-    _signature_for_ursula, pubkey_sig_alice, hrac, packed_encrypted_treasure_map = dht_value_splitter(
-        treasure_map_as_set_on_network[5::])  # 5:: to account for prepended "trmap"
-    encrypted_treasure_map = msgpack.loads(packed_encrypted_treasure_map)  # TOOD: Make this a Ciphertext #112
+    _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
+        treasure_map_as_set_on_network[5::], msgpack_remainder=True)  # 5:: to account for prepended "trmap"
+
     verified, treasure_map_as_decrypted_by_bob = BOB.verify_from(ALICE, signature,
                                                                  encrypted_treasure_map,
                                                                  decrypt=True,
@@ -226,6 +226,6 @@ def test_treaure_map_is_legit():
         getter = ALICE.server.get(ursula_interface_id)
         loop = asyncio.get_event_loop()
         value = loop.run_until_complete(getter)
-        signature, ursula_pubkey_sig, hrac, interface_info = dht_value_splitter(value.lstrip(b"uaddr-"))
+        signature, ursula_pubkey_sig, hrac, interface_info = dht_value_splitter(value.lstrip(b"uaddr-"), return_remainder=True)
         port = msgpack.loads(interface_info)[0]
         assert port in URSULA_PORTS

@@ -2,16 +2,14 @@ import msgpack
 
 
 class BytestringSplitter(object):
-    def __init__(self, *message_types, return_remainder=False, msgpack_remainder=False):
+    def __init__(self, *message_types):
         """
         :param message_types:  A collection of types of messages to parse.
         """
         self.message_types = message_types
-        self.return_remainder = return_remainder
-        self.msgpack_remainder = msgpack_remainder
 
-    def __call__(self, splittable):
-        if not any((self.return_remainder, self.msgpack_remainder)) and len(self) != len(splittable):
+    def __call__(self, splittable, return_remainder=False, msgpack_remainder=False):
+        if not any((return_remainder, msgpack_remainder)) and len(self) != len(splittable):
             raise ValueError(
                 "Wrong number of bytes to constitute message types {} - need {}, got {} \n Did you mean to return the remainder?".format(
                     self.message_types, len(self), len(splittable)))
@@ -34,9 +32,9 @@ class BytestringSplitter(object):
 
         remainder = splittable[cursor:]
 
-        if self.msgpack_remainder:
+        if msgpack_remainder:
             message_objects.append(msgpack.loads(remainder))
-        elif self.return_remainder:
+        elif return_remainder:
             message_objects.append(remainder)
 
         return message_objects
