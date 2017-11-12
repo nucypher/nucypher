@@ -23,6 +23,8 @@ class Signature(bytes):
             raise ValueError("Pass either sig_as_bytes or v, r, and s.")
 
         if sig_as_bytes:
+            if not len(sig_as_bytes) == self._EXPECTED_LENGTH:
+                raise ValueError("{} must be {} bytes.".format(self.__class__.__name__, self._EXPECTED_LENGTH))
             v, r, s = API.ecdsa_load_sig(sig_as_bytes)
 
         self._v = v
