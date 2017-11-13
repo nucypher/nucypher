@@ -155,6 +155,45 @@ def test_escrow(web3, chain, token, escrow):
     assert token.call().balanceOf(alice) == 10000
 
 
+def test_locked_distribution(web3, chain, token, escrow):
+    NULL_ADDR = '0x' + '0' * 40
+    creator = web3.eth.accounts[0]
+    amount = token.call().balanceOf(creator) // 2
+    largest_locked = amount
+
+    # Airdrop
+    for miner in web3.eth.accounts[1:]:
+        tx = token.transact({'from': creator}).transfer(miner, amount)
+        chain.wait.for_receipt(tx)
+        amount = amount // 2
+
+    # Lock
+    for addr in web3.eth.accounts[1:][::-1]:
+        balance = token.call().balanceOf(addr)
+        tx = token.transact({'from': addr}).approve(escrow.address, balance)
+        chain.wait.for_receipt(tx)
+        tx = escrow.transact({'from': addr}).deposit(balance)
+        chain.wait.for_receipt(tx)
+        tx = escrow.transact({'from': addr}).lock(balance, 100)
+        chain.wait.for_receipt(tx)
+
+    n_locked = escrow.call().getAllLockedTokens()
+    assert n_locked > 0
+
+    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, n_locked // 3)
+    assert address_stop.lower() == web3.eth.accounts[1]
+    assert shift == n_locked // 3
+
+    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, largest_locked)
+    assert address_stop.lower() == web3.eth.accounts[2]
+    assert shift == 0
+
+    address_stop, shift = escrow.call().findCumSum(
+            web3.eth.accounts[2], largest_locked // 2 + 1)
+    assert address_stop.lower() == web3.eth.accounts[3]
+    assert shift == 1
+
+
 def test_mining(web3, chain, token, escrow):
     creator = web3.eth.accounts[0]
     ursula = web3.eth.accounts[1]
@@ -220,4 +259,3 @@ def test_mining(web3, chain, token, escrow):
     chain.wait.for_receipt(tx)
     assert token.call().balanceOf(ursula) == 10099
     assert token.call().balanceOf(alice) == 10100
-
