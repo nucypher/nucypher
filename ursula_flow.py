@@ -4,6 +4,7 @@
 
 A simple Python script to deploy contracts and then estimate gas for different methods.
 """
+import random
 from populus import Project
 
 TIMEOUT = 10
@@ -65,6 +66,21 @@ def main():
         print(web3.eth.accounts[-1])
         address_stop, shift = escrow.call().findCumSum(NULL_ADDR, n_tokens // 3)
         print(address_stop, shift)
+
+        # Experimenting with distributions of random points
+        n_ursulas = 5
+        n_select = int(n_ursulas * 1.7)  # Select more ursulas
+        points = [0] + sorted(random.randrange(n_tokens) for _ in
+                              range(n_select))
+        deltas = [i - j for i, j in zip(points[1:], points[:-1])]
+        addrs = set()
+        addr = NULL_ADDR
+        shift = 0
+        for delta in deltas:
+            addr, shift = escrow.call().findCumSum(addr, delta + shift)
+            addrs.add(addr)
+        addrs = random.sample(addrs, n_ursulas)
+        print(addrs)
 
 
 if __name__ == "__main__":
