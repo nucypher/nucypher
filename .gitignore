@@ -10,3 +10,4 @@ __pycache__
 .idea
 /logs
 /registrar.json
+/dist
