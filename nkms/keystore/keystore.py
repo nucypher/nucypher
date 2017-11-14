@@ -1,6 +1,8 @@
 import sha3
 from nkms.keystore import keypairs, constants
 from nkms.keystore.db.models import Key, KeyFrag
+from nkms.crypto.utils import BytestringSplitter
+from nkms.crypto.signature import Signature
 from sqlalchemy.orm import sessionmaker
 from typing import Union
 from npre.umbral import RekeyFrag
@@ -17,6 +19,12 @@ class KeyStore(object):
     """
     A storage class of cryptographic keys.
     """
+
+    kFrag_splitter = BytestringSplitter(
+            Signature,
+            (bytes, constants.REKEY_FRAG_ID_LEN),
+            (bytes, constants.REKEY_FRAG_KEY_LEN)
+    )
 
     def __init__(self, sqlalchemy_engine=None):
         """
@@ -97,9 +105,7 @@ class KeyStore(object):
                 .format(hrac)
             )
         # TODO: Make this use a class
-        sig = kfrag.key_frag[:65]
-        id = kfrag.key_frag[65:97]
-        key = kfrag.key_frag[97:]
+        sig, id, key = self.kFrag_splitter(kfrag.key_frag)
 
         kFrag = RekeyFrag(id=id, key=key)
         if get_sig:
