@@ -54,9 +54,7 @@ def main():
             tx = token.transact({'from': addr}).approve(
                     escrow.address, 1000 * M)
             chain.wait.for_receipt(tx, timeout=TIMEOUT)
-            tx = escrow.transact({'from': addr}).deposit(1000 * M)
-            chain.wait.for_receipt(tx, timeout=TIMEOUT)
-            tx = escrow.transact({'from': addr}).lock(1000 * M, 100)
+            tx = escrow.transact({'from': addr}).deposit(1000 * M, 100)
             chain.wait.for_receipt(tx, timeout=TIMEOUT)
 
         n_tokens = escrow.call().getAllLockedTokens()

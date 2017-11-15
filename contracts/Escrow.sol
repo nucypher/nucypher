@@ -20,7 +20,6 @@ contract Escrow is Miner, Ownable {
     struct TokenInfo {
         uint256 value;
         uint256 lockedValue;
-        uint256 lockedBlock;
         uint256 releaseBlock;
         uint256 lastMintedBlock;
         uint256 decimals;
@@ -57,33 +56,45 @@ contract Escrow is Miner, Ownable {
     /**
     * @notice Deposit tokens
     * @param _value Amount of token to deposit
+    * @param _blocks Amount of blocks during which tokens will be locked
     **/
-    //TODO add locking
-    function deposit(uint256 _value) returns (bool success) {
+    function deposit(uint256 _value, uint256 _blocks) returns (bool success) {
+        require(_value != 0);
         if (!tokenOwners.valueExists(msg.sender)) {
             tokenOwners.push(msg.sender, true);
         }
         tokenInfo[msg.sender].value = tokenInfo[msg.sender].value.add(_value);
         token.safeTransferFrom(msg.sender, address(this), _value);
-        return true;
+        return lock(_value, _blocks);
     }
 
     /**
-    * @notice Lock some tokens
+    * @notice Lock some tokens or increase lock
     * @param _value Amount of tokens which should lock
     * @param _blocks Amount of blocks during which tokens will be locked
     **/
-    //TODO extend locking
     function lock(uint256 _value, uint256 _blocks) returns (bool success) {
-        require(_value <= tokenInfo[msg.sender].value && _blocks != 0);
-        require(_value <= token.balanceOf(address(this)));
-        require(getLastLockedTokens() == 0);
-        //TODO create modifier and tests
-        require(_value * _blocks >= rate);
-        tokenInfo[msg.sender].lockedValue = _value;
-        tokenInfo[msg.sender].lockedBlock = block.number;
-        tokenInfo[msg.sender].releaseBlock = block.number.add(_blocks);
-        tokenInfo[msg.sender].lastMintedBlock = block.number;
+        require(_value != 0 || _blocks != 0);
+        uint256 lastLockedTokens = getLastLockedTokens();
+        require(_value <= token.balanceOf(address(this)) &&
+            _value <= tokenInfo[msg.sender].value.sub(lastLockedTokens));
+        // Checks if tokens are not locked or lock can be increased
+        require(
+            lastLockedTokens == 0 &&
+            !isEmptyReward(_value, _blocks) ||
+            lastLockedTokens != 0 &&
+            tokenInfo[msg.sender].releaseBlock >= block.number &&
+            !isEmptyReward(_value + tokenInfo[msg.sender].lockedValue,
+                _blocks + tokenInfo[msg.sender].releaseBlock - tokenInfo[msg.sender].lastMintedBlock)
+        );
+        if (lastLockedTokens == 0) {
+            tokenInfo[msg.sender].lockedValue = _value;
+            tokenInfo[msg.sender].releaseBlock = block.number.add(_blocks);
+            tokenInfo[msg.sender].lastMintedBlock = block.number;
+        } else {
+            tokenInfo[msg.sender].lockedValue = tokenInfo[msg.sender].lockedValue.add(_value);
+            tokenInfo[msg.sender].releaseBlock = tokenInfo[msg.sender].releaseBlock.add(_blocks);
+        }
         return true;
     }
 
@@ -240,15 +251,15 @@ contract Escrow is Miner, Ownable {
         require(getLastLockedTokens() != 0);
         var lockedBlocks = Math.min256(block.number, tokenInfo[msg.sender].releaseBlock) -
             tokenInfo[msg.sender].lastMintedBlock;
-        //TODO save decimals
-        if (mint(tokenInfo[msg.sender].lockedValue, lockedBlocks) != 0) {
+        var (amount, decimals) = mint(
+            msg.sender,
+            tokenInfo[msg.sender].lockedValue,
+            lockedBlocks,
+            tokenInfo[msg.sender].decimals);
+        if (amount != 0) {
             tokenInfo[msg.sender].lastMintedBlock = block.number;
+            tokenInfo[msg.sender].decimals = decimals;
         }
-
-//        var value = lockedBlocks.mul(tokenInfo[msg.sender].lockedValue).add(
-//            tokenInfo[msg.sender].decimals);
-//        tokenInfo[msg.sender].decimals = value % miningCoefficient;
-//        token.mint(msg.sender, value.div(miningCoefficient));
     }
 
     /**
