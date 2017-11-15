@@ -3,6 +3,8 @@ import sha3
 from sqlalchemy import create_engine
 from nkms.keystore.db import Base
 from nkms.keystore import keystore, keypairs
+from npre.umbral import RekeyFrag
+from nkms.crypto import api as API
 
 
 class TestKeyStore(unittest.TestCase):
@@ -24,7 +26,7 @@ class TestKeyStore(unittest.TestCase):
         self.assertEqual(bytes, type(keypair.privkey))
         self.assertEqual(bytes, type(keypair.pubkey))
 
-    def test_sqlite_keystore(self):
+    def test_key_sqlite_keystore(self):
         keypair = self.ks.generate_encrypting_keypair()
         self.assertEqual(keypairs.EncryptingKeypair, type(keypair))
         self.assertEqual(bytes, type(keypair.privkey))
@@ -69,3 +71,23 @@ class TestKeyStore(unittest.TestCase):
         self.ks.del_key(fingerprint_priv)
         with self.assertRaises(keystore.KeyNotFound):
             key = self.ks.get_key(fingerprint_priv)
+
+    def test_keyfrag_sqlite(self):
+        rand_sig = API.secure_random(65)
+        rand_id = API.secure_random(32)
+        rand_key = API.secure_random(32)
+        rand_hrac = API.secure_random(32)
+
+        kfrag = RekeyFrag(id=rand_id, key=rand_key)
+        self.ks.add_kfrag(rand_hrac, kfrag, sig=rand_sig)
+
+        # Check that kfrag was added
+        kfrag, signature = self.ks.get_kfrag(rand_hrac, get_sig=True)
+        self.assertEqual(rand_sig, signature)
+        self.assertEqual(kfrag.id, rand_id)
+        self.assertEqual(kfrag.key, rand_key)
+
+        # Check that kfrag gets deleted
+        self.ks.del_kfrag(rand_hrac)
+        with self.assertRaises(keystore.KeyNotFound):
+            key = self.ks.get_key(rand_hrac)

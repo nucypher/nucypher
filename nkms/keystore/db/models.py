@@ -24,3 +24,15 @@ class Key(Base):
         :return: Fingerprint of key as a string
         """
         return sha3.keccak_256(self.key_data[2:]).hexdigest().encode()
+
+
+class KeyFrag(Base):
+    __tablename__ = 'keyfrags'
+
+    id = Column(Integer, primary_key=True)
+    hrac = Column(LargeBinary, unique=True)
+    key_frag = Column(LargeBinary, unique=True)
+
+    def __init__(self, hrac, key_frag):
+        self.hrac = hrac
+        self.key_frag = key_frag

@@ -1,8 +1,11 @@
 import sha3
 from nkms.keystore import keypairs, constants
-from nkms.keystore.db.models import Key
+from nkms.keystore.db.models import Key, KeyFrag
+from nkms.crypto.utils import BytestringSplitter
+from nkms.crypto.signature import Signature
 from sqlalchemy.orm import sessionmaker
 from typing import Union
+from npre.umbral import RekeyFrag
 
 
 class KeyNotFound(KeyError):
@@ -16,6 +19,12 @@ class KeyStore(object):
     """
     A storage class of cryptographic keys.
     """
+
+    kFrag_splitter = BytestringSplitter(
+            Signature,
+            (bytes, constants.REKEY_FRAG_ID_LEN),
+            (bytes, constants.REKEY_FRAG_KEY_LEN)
+    )
 
     def __init__(self, sqlalchemy_engine=None):
         """
@@ -81,6 +90,28 @@ class KeyStore(object):
                     "No key with fingerprint {} found.".format(fingerprint))
         return keypairs.Keypair.deserialize_key(key.key_data)
 
+    def get_kfrag(self, hrac: bytes, get_sig: bool=False) -> RekeyFrag:
+        """
+        Returns a RekeyFrag from the KeyStore.
+
+        :param hrac: HRAC in bytes
+
+        :return: Deserialized RekeyFrag from KeyStore
+        """
+        kfrag = self.session.query(KeyFrag).filter_by(hrac=hrac).first()
+        if not kfrag:
+            raise KeyNotFound(
+                "No KeyFrag with HRAC {} found."
+                .format(hrac)
+            )
+        # TODO: Make this use a class
+        sig, id, key = self.kFrag_splitter(kfrag.key_frag)
+
+        kFrag = RekeyFrag(id=id, key=key)
+        if get_sig:
+            return (kFrag, sig)
+        return kFrag
+
     def add_key(self,
                 keypair: Union[keypairs.EncryptingKeypair,
                                keypairs.SigningKeypair],
@@ -89,7 +120,6 @@ class KeyStore(object):
         Gets a fingerprint of the key and adds it to the keystore.
 
         :param key: Key, in bytes, to add to lmdb
-        ::
 
         :return: Fingerprint, in bytes, of the added key
         """
@@ -105,6 +135,23 @@ class KeyStore(object):
         self.session.commit()
         return fingerprint
 
+    def add_kfrag(self, hrac: bytes, kfrag: RekeyFrag, sig: bytes=None):
+        """
+        Adds a RekeyFrag to sqlite.
+
+        :param hrac: Hashed Resource Authenticate Code
+        :param kfrag: RekeyFrag instance to add to sqlite
+        :param sig: Signature of kfrag (if exists)
+        """
+        kfrag_data = b''
+        if sig:
+            kfrag_data += sig
+        kfrag_data += kfrag.id + kfrag.key
+
+        kfrag = KeyFrag(hrac, kfrag_data)
+        self.session.add(kfrag)
+        self.session.commit()
+
     def del_key(self, fingerprint: bytes):
         """
         Deletes a key from the KeyStore.
@@ -112,4 +159,13 @@ class KeyStore(object):
         :param fingerprint: Fingerprint of key to delete
         """
         self.session.query(Key).filter_by(fingerprint=fingerprint).delete()
+        self.session.commit()
+
+    def del_kfrag(self, hrac: bytes):
+        """
+        Deletes a RekeyFrag from sqlite.
+
+        :param hrac: Hashed Resource Authentication Code
+        """
+        self.session.query(KeyFrag).filter_by(hrac=hrac).delete()
         self.session.commit()
