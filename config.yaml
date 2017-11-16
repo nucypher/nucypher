@@ -1,5 +1,5 @@
 # This is the main config file for running NuCypher KMS
 
+
 owner_key:
     keyfile: "" # Path of your keyfile from the first run script.
-    fingerprint: "" # Fingerprint of key
