@@ -298,6 +298,13 @@ class Ursula(Character):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 
+    def set_kfrag(self, hrac):
+        """
+        REST endpoint for setting a kFrag.
+        """
+        return  # Do stuff with KeyStore here.
+
+
 
 class Seal(object):
     """
