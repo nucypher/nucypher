@@ -314,6 +314,7 @@ class Ursula(Character):
         """
         REST endpoint for setting a kFrag.
         """
+        self.keystore.get_kfrag(hrac.encode())
         return  # Do stuff with KeyStore here.
 
 
