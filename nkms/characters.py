@@ -1,6 +1,7 @@
 import asyncio
 
 import msgpack
+from sqlalchemy.engine import create_engine
 
 from kademlia.network import Server
 from kademlia.utils import digest
@@ -8,7 +9,9 @@ from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
-from nkms.keystore.keypairs import Keypair, PublicKey
+from nkms.keystore import keystore
+from nkms.keystore.db import Base
+from nkms.keystore.keypairs import Keypair
 from nkms.network import blockchain_client
 from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.protocols import dht_value_splitter
@@ -254,9 +257,14 @@ class Ursula(Character):
     interface = None
     interface_ttl = 0
 
-    def __init__(self, keystore, *args, **kwargs):
+    def __init__(self, urulsas_keystore=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.keystore = keystore
+        if urulsas_keystore:
+            self.keystore = urulsas_keystore
+        else:
+            engine = create_engine('sqlite:///:memory:')
+            Base.metadata.create_all(engine)
+            self.keystore = keystore.KeyStore(engine)
 
     @staticmethod
     def as_discovered_on_network(port, interface, pubkey_sig_bytes):
@@ -307,7 +315,6 @@ class Ursula(Character):
         REST endpoint for setting a kFrag.
         """
         return  # Do stuff with KeyStore here.
-
 
 
 class Seal(object):
