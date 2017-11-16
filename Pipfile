@@ -1,7 +1,9 @@
 [[source]]
+
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
+
 
 [packages]
 
@@ -12,17 +14,19 @@ lmdb = "*"
 pynacl = "*"
 "pysha3" = "*"
 bidict = "*"
-"py-ecc" = "*"
+py-ecc = "*"
 sqlalchemy = "*"
 twisted = "*"
 pyopenssl = "*"
-"service-identity" = "*"
+service-identity = "*"
+apistar = "*"
+
 
 [dev-packages]
 
 pytest = "*"
 coverage = "*"
-"pytest-cov" = "*"
+pytest-cov = "*"
 pdbpp = "*"
 ipython = "*"
 appdirs = "*"
