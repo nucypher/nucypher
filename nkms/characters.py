@@ -254,6 +254,10 @@ class Ursula(Character):
     interface = None
     interface_ttl = 0
 
+    def __init__(self, keystore, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.keystore = keystore
+
     @staticmethod
     def as_discovered_on_network(port, interface, pubkey_sig_bytes):
         ursula = Ursula(is_me=False, crypto_power_ups=[SigningPower(keypair=Keypair.deserialize_key(pubkey_sig_bytes))])
