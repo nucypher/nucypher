@@ -13,7 +13,7 @@ Machine-based, rapid creation of many tokens would not necessarily need these ex
 pragma solidity ^0.4.8;
 
 
-import "./zeppelin/contracts/token/BurnableToken.sol";
+import "./zeppelin/token/BurnableToken.sol";
 import "./MineableToken.sol";
 
 

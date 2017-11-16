@@ -2,7 +2,7 @@ pragma solidity ^0.4.0;
 
 
 import "./MineableToken.sol";
-import "./ExponentMath.sol";
+import "./lib/ExponentMath.sol";
 import "./zeppelin/math/SafeMath.sol";
 
 
