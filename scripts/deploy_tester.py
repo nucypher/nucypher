@@ -67,20 +67,12 @@ def main():
         tx = token.transact({'from': alice}).approve(escrow.address, 500)
         chain.wait.for_receipt(tx)
 
-        # Ursula and Alice transfer some tokens to the escrow
+        # Ursula and Alice transfer some tokens to the escrow and lock them
         print("Estimate gas for deposit = " +
-              str(escrow.estimateGas({'from': ursula}).deposit(1000)))
-        tx = escrow.transact({'from': ursula}).deposit(1000)
+              str(escrow.estimateGas({'from': ursula}).deposit(1000, 100)))
+        tx = escrow.transact({'from': ursula}).deposit(1000, 100)
         chain.wait.for_receipt(tx)
-        tx = escrow.transact({'from': alice}).deposit(500)
-        chain.wait.for_receipt(tx)
-
-        # Ursula and Alice lock some tokens for 100 and 200 blocks
-        print("Estimate gas for locking = " +
-              str(escrow.estimateGas({'from': ursula}).lock(1000, 100)))
-        tx = escrow.transact({'from': ursula}).lock(1000, 100)
-        chain.wait.for_receipt(tx)
-        tx = escrow.transact({'from': alice}).lock(500, 200)
+        tx = escrow.transact({'from': alice}).deposit(500, 200)
         chain.wait.for_receipt(tx)
 
         # Give rights for mining
@@ -105,7 +97,7 @@ def main():
 
         # Creator deploys the wallet manager
         wallet_manager, txhash = chain.provider.get_or_deploy_contract(
-            'WalletManager', deploy_args=[token.address, 1000],
+            'WalletManager', deploy_args=[token.address, 10 ** 5, 10 ** 7],
             deploy_transaction={'from': creator})
         check_succesful_tx(web3, txhash)
         print("Deploying WalletManager, tx hash is", txhash)
@@ -136,10 +128,10 @@ def main():
 
         # Ursula and Alice lock some tokens for 100 and 200 blocks
         print("Estimate gas for locking = " +
-              str(wallet_manager.estimateGas({'from': ursula}).lock(500, 100)))
-        tx = wallet_manager.transact({'from': ursula}).lock(500, 100)
+              str(wallet_manager.estimateGas({'from': ursula}).lock(1000, 100)))
+        tx = wallet_manager.transact({'from': ursula}).lock(1000, 100)
         chain.wait.for_receipt(tx)
-        tx = wallet_manager.transact({'from': alice}).lock(100, 200)
+        tx = wallet_manager.transact({'from': alice}).lock(500, 200)
         chain.wait.for_receipt(tx)
 
         # Give rights for mining
