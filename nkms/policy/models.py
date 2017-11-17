@@ -54,6 +54,7 @@ class PolicyManagerForAlice(PolicyManager):
         for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
                 alice=self.owner,
+                bob=bob,
                 kfrag=rekey,
             )
             policies.append(policy)
@@ -152,7 +153,7 @@ class Policy(object):
     hashed_part = None
     _id = None
 
-    def __init__(self, alice, kfrag=UNKNOWN_KFRAG, challenge_size=20, set_id=True):
+    def __init__(self, alice, bob, kfrag=UNKNOWN_KFRAG, challenge_size=20, set_id=True):
         """
 
         :param kfrag:
@@ -163,10 +164,12 @@ class Policy(object):
         :param challenge_size:  The number of challenges to create in the ChallengePack.
         """
         self.alice = alice
+        self.bob = bob
         self.kfrag = kfrag
         self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
         self.challenge_size = challenge_size
         self.treasure_map = []
+        self.challenge_pack = []
 
     @property
     def id(self):
@@ -190,18 +193,22 @@ class Policy(object):
     @staticmethod
     def from_alice(kfrag,
                    alice,
+                   bob,
                    ):
-        policy = Policy(alice, kfrag)
+        policy = Policy(alice, bob, kfrag)
         policy.generate_challenge_pack()
 
         return policy
 
     def payload(self):
-        return msgpack.dumps({b"kf": bytes(self.kfrag), b"cp": msgpack.dumps(self.challenge_pack)})
+        return bytes(self.kfrag) + msgpack.dumps(self.encrypted_treasure_map())
 
     def activate(self, ursula, negotiation_result):
         self.ursula = ursula
         self.negotiation_result = negotiation_result
+
+    def encrypted_treasure_map(self):
+        self.alice.encrypt_for(self.bob, msgpack.dumps(self.challenge_pack))
 
     def generate_challenge_pack(self):
         if self.kfrag == UNKNOWN_KFRAG:

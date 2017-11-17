@@ -18,6 +18,7 @@ from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 from nkms.policy.constants import NOT_FROM_ALICE
+from npre.umbral import RekeyFrag
 
 
 class Character(object):
