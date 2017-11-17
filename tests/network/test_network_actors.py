@@ -75,7 +75,7 @@ def test_alice_cannot_offer_policy_without_first_finding_ursula():
     Alice can't just offer a Policy if she doesn't know whether any Ursulas are available (she gets Ursula.NotFound).
     """
     networky_stuff = MockNetworkyStuff(URSULAS)
-    policy = Policy(Alice())
+    policy = Policy(ALICE, BOB)
 
     with pytest.raises(Ursula.NotFound):
         policy_offer = policy.encrypt_payload_for_ursula()
