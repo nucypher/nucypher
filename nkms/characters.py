@@ -1,6 +1,7 @@
 import asyncio
 
 import msgpack
+import sqlite3
 from sqlalchemy.engine import create_engine
 
 from kademlia.network import Server
@@ -314,7 +315,13 @@ class Ursula(Character):
         """
         REST endpoint for setting a kFrag.
         """
-        self.keystore.get_kfrag(hrac.encode())
+        kfrag = RekeyFrag()
+        try:
+            self.keystore.add_kfrag(hrac.encode(), )
+        except sqlite3.IntegrityError:
+            raise
+            # Do something appropriately RESTful.
+
         return  # Do stuff with KeyStore here.
 
 
