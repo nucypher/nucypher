@@ -125,9 +125,10 @@ class PolicyGroup(object):
     def transmit_payloads(self, networky_stuff):
 
         for policy in self.policies:
-            payload = policy.encrypt_payload_for_ursula()
-            _response = networky_stuff.animate_policy(policy.ursula,
-                                                      payload)  # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
+            policy_payload = policy.encrypt_payload_for_ursula()
+            full_payload = self.hrac() + self.alice.seal + msgpack.dumps(policy_payload)
+            response = networky_stuff.animate_policy(policy.ursula,
+                                                      full_payload)  # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
 
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(policy.ursula)
