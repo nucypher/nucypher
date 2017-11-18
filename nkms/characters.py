@@ -19,7 +19,7 @@ from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 from nkms.policy.constants import NOT_FROM_ALICE
-from nkms.policy.models import Policy
+
 from npre.umbral import RekeyFrag
 
 
@@ -320,7 +320,8 @@ class Ursula(Character):
         TODO: Instead of taking a Request, use the apistar typing system to type a payload and validate / split it.
         TODO: Validate that the kfrag being saved is pursuant to an approved Policy (see #121).
         """
-        policy = Policy.from_payload(request.body)
+        from nkms.policy.models import Policy  # Avoid circular import
+        policy = Policy.from_ursula(request.body, self)
         kfrag = RekeyFrag()
         try:
             self.keystore.add_kfrag(hrac.encode(), None)

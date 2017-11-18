@@ -4,7 +4,13 @@ from npre.constants import UNKNOWN_KFRAG
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.powers import EncryptingPower
+from nkms.crypto.constants import HASH_DIGEST_LENGTH, PUBKEY_SIG_LENGTH
+from nkms.crypto.powers import EncryptingPower, SigningPower
+from nkms.crypto.signature import Signature
+from nkms.crypto.utils import BytestringSplitter
+from nkms.keystore.keypairs import Keypair
+
+policy_payload_splitter = BytestringSplitter((bytes, HASH_DIGEST_LENGTH), (bytes, PUBKEY_SIG_LENGTH))
 
 
 class PolicyOffer(object):
@@ -128,7 +134,7 @@ class PolicyGroup(object):
             policy_payload = policy.encrypt_payload_for_ursula()
             full_payload = self.hrac() + self.alice.seal + msgpack.dumps(policy_payload)
             response = networky_stuff.animate_policy(policy.ursula,
-                                                      full_payload)  # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
+                                                     full_payload)  # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
 
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(policy.ursula)
@@ -202,8 +208,13 @@ class Policy(object):
         return policy
 
     @staticmethod
-    def from_payload(payload):
-        payload
+    def from_ursula(group_payload, ursula):
+        hrac, alice_pubkey_sig, (payload_encrypted_for_ursula, sig_bytes) = policy_payload_splitter(group_payload, msgpack_remainder=True)
+        alice = Alice(is_me=False, crypto_power_ups=[SigningPower(keypair=Keypair.deserialize_key(alice_pubkey_sig))])
+        ursula.learn_about_actor(alice)
+        verified = ursula.verify_from(alice, Signature(sig_bytes), payload_encrypted_for_ursula)
+        encrypted_treasure_map, signature = None
+
 
     def payload(self):
         return bytes(self.kfrag) + msgpack.dumps(self.encrypted_treasure_map())
