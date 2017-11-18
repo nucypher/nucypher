@@ -6,9 +6,6 @@ import pytest
 
 from kademlia.utils import digest
 from nkms.characters import Ursula, Alice, Character, Bob, congregate
-from nkms.crypto.constants import PUBKEY_SIG_LENGTH, HASH_DIGEST_LENGTH
-from nkms.crypto.signature import Signature
-from nkms.crypto.utils import BytestringSplitter
 from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.protocols import dht_value_splitter
 from nkms.policy.constants import NON_PAYMENT
@@ -113,7 +110,8 @@ def test_alice_finds_ursula():
     getter = ALICE.server.get(all_ursulas[ursula_index])
     loop = asyncio.get_event_loop()
     value = loop.run_until_complete(getter)
-    _signature, _ursula_pubkey_sig, _hrac, interface_info = dht_value_splitter(value.lstrip(b"uaddr-"), return_remainder=True)
+    _signature, _ursula_pubkey_sig, _hrac, interface_info = dht_value_splitter(value.lstrip(b"uaddr-"),
+                                                                               return_remainder=True)
     port = msgpack.loads(interface_info)[0]
     assert port == URSULA_PORT + ursula_index
 
@@ -174,7 +172,7 @@ def test_treasure_map_with_bad_id_does_not_propagate():
     treasure_map = policy_group.treasure_map
 
     encrypted_treasure_map, signature = ALICE.encrypt_for(BOB, treasure_map.packed_payload())
-    packed_encrypted_treasure_map = msgpack.dumps(encrypted_treasure_map)  #TODO: #114?  Do we even need to pack here?
+    packed_encrypted_treasure_map = msgpack.dumps(encrypted_treasure_map)  # TODO: #114?  Do we even need to pack here?
 
     setter = ALICE.server.set(illegal_policygroup_id, packed_encrypted_treasure_map)
     _set_event = EVENT_LOOP.run_until_complete(setter)
@@ -226,6 +224,7 @@ def test_treaure_map_is_legit():
         getter = ALICE.server.get(ursula_interface_id)
         loop = asyncio.get_event_loop()
         value = loop.run_until_complete(getter)
-        signature, ursula_pubkey_sig, hrac, interface_info = dht_value_splitter(value.lstrip(b"uaddr-"), return_remainder=True)
+        signature, ursula_pubkey_sig, hrac, interface_info = dht_value_splitter(value.lstrip(b"uaddr-"),
+                                                                                return_remainder=True)
         port = msgpack.loads(interface_info)[0]
         assert port in URSULA_PORTS

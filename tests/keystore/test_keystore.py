@@ -24,7 +24,6 @@ class TestKeyStore(unittest.TestCase):
         keypair = self.ks.generate_signing_keypair()
         self.assertEqual(keypairs.SigningKeypair, type(keypair))
         self.assertEqual(bytes, type(keypair.privkey))
-        self.assertEqual(bytes, type(keypair.pubkey))
 
     def test_key_sqlite_keystore(self):
         keypair = self.ks.generate_encrypting_keypair()

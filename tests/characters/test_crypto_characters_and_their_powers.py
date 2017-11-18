@@ -47,7 +47,7 @@ def test_actor_with_signing_power_can_sign():
 
     # ...or to get the signer's public key for verification purposes.
     sig = api.ecdsa_load_sig(bytes(signature))
-    verification = api.ecdsa_verify(*sig, api.keccak_digest(message), seal_of_the_signer)
+    verification = api.ecdsa_verify(*sig, api.keccak_digest(message), seal_of_the_signer.without_metabytes())
 
     assert verification is True
 
