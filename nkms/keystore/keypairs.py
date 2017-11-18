@@ -56,6 +56,8 @@ class Keypair(object):
 
             elif key_type_byte == constants.PRIV_KEY_BYTE:
                 return SigningKeypair(privkey=key)
+        else:
+            raise ValueError("Unable to determine which type of keypair this is - keypair_byte was {}".format(keypair_byte))
 
 
 class EncryptingKeypair(Keypair):
