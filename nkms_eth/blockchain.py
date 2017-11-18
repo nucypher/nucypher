@@ -3,6 +3,7 @@ import threading
 import nkms_eth
 from os.path import dirname, join, abspath
 
+DEFAULT_NETWORK = 'mainnetrpc'
 _project = threading.local()
 
 
@@ -15,7 +16,7 @@ def project():
     return _project.project
 
 
-def chain(name='mainnetrpc'):
+def chain(name=DEFAULT_NETWORK):
     if not hasattr(_project, 'chain'):
         _project.chain = project().get_chain(name).__enter__()
     return _project.chain
