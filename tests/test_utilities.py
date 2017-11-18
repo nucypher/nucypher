@@ -2,11 +2,14 @@ import asyncio
 
 from nkms.characters import Ursula
 from nkms.network.node import NetworkyStuff
+from apistar.test import TestClient
+from apistar.core import Route
+from apistar.frameworks.wsgi import WSGIApp as App
 
 
 def make_fake_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
     """
-    :param how_many: How many Ursulas to create.
+    :param how_many_ursulas: How many Ursulas to create.
     :param ursula_starting_port: The port of the first created Ursula; subsequent Ursulas will increment the port number by 1.
     :return: A list of created Ursulas
     """
@@ -34,9 +37,15 @@ class MockPolicyOfferResponse(object):
 
 
 class MockNetworkyStuff(NetworkyStuff):
-
     def __init__(self, ursulas):
         self.ursulas = iter(ursulas)
+
+        routes = [
+            Route('/kFrag/{hrac}', 'POST', ursulas[0].set_kfrag),
+        ]
+
+        _app = App(routes=routes)
+        self.client = TestClient(_app)
 
     def go_live_with_policy(self, ursula, policy_offer):
         return
@@ -51,4 +60,5 @@ class MockNetworkyStuff(NetworkyStuff):
             return super().find_ursula(id)
 
     def animate_policy(self, ursula, payload):
+        response = self.client.post('http://localhost/kFrag/some_hrac', payload)
         return True, ursula.interface_dht_key()
