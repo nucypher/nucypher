@@ -47,13 +47,7 @@ class NuCypherHashProtocol(KademliaProtocol):
     def determine_legality_of_dht_key(self, signature, sender_pubkey_sig, message, hrac, dht_key, dht_value):
         proper_key = digest(keccak_digest(bytes(sender_pubkey_sig) + bytes(hrac)))
 
-        # TODO: This try block is not the right approach - a Ciphertext class can resolve this instead.
-        try:
-            # Ursula uaddr scenario
-            verified = signature.verify(hrac, sender_pubkey_sig)
-        except Exception as e:
-            # trmap scenario
-            verified = signature.verify(msgpack.dumps(message), sender_pubkey_sig)
+        verified = signature.verify(hrac, sender_pubkey_sig)
 
         if not verified or not proper_key == dht_key:
             self.log.warning("Got request to store illegal k/v: {} / {}".format(dht_key, dht_value))
