@@ -8,7 +8,7 @@ from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
-from nkms.keystore.keypairs import Keypair
+from nkms.keystore.keypairs import Keypair, PublicKey
 from nkms.network import blockchain_client
 from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.protocols import dht_value_splitter
@@ -175,7 +175,7 @@ class Alice(Character):
         :return: Tuple(kfrags, eph_key_data)
         """
         kfrags, eph_key_data = API.ecies_ephemeral_split_rekey(
-            alice_privkey, bytes(bob.seal), m, n)
+            alice_privkey, bytes(bob.seal.without_metabytes()), m, n)
         return (kfrags, eph_key_data)
 
     def publish_treasure_map(self, policy_group):
@@ -330,6 +330,9 @@ class Seal(object):
 
     def __len__(self):
         return len(bytes(self))
+
+    def without_metabytes(self):
+        return self.character._crypto_power.pubkey_sig_bytes().without_metabytes()
 
 
 class StrangerSeal(Seal):

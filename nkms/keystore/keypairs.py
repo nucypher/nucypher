@@ -154,7 +154,7 @@ class SigningKeypair(Keypair):
             self._gen_pubkey()
 
     def _gen_pubkey(self):
-        self.pubkey = API.ecdsa_priv2pub(self.privkey)
+        self.pubkey = PublicKey(API.ecdsa_priv2pub(self.privkey))
 
     def sign(self, msghash: bytes) -> bytes:
         """
@@ -177,7 +177,7 @@ class SigningKeypair(Keypair):
         :return: Boolean if the signature is valid
         """
         v, r, s = API.ecdsa_load_sig(signature)
-        return API.ecdsa_verify(v, r, s, msghash, self.pubkey)
+        return API.ecdsa_verify(v, r, s, msghash, self.pubkey.without_metabytes())
 
     def serialize_pubkey(self) -> bytes:
         """
@@ -200,3 +200,11 @@ class SigningKeypair(Keypair):
                           constants.PRIV_KEY_BYTE +
                           self.privkey)
         return serialized_key
+
+
+class PublicKey(bytes):
+    _EXPECTED_LENGTH = 66
+    _METABYTES_LENGTH = 2
+
+    def without_metabytes(self):
+        return self[self._METABYTES_LENGTH::]
