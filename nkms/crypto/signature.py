@@ -44,6 +44,8 @@ class Signature(bytes):
 
         :return: True if valid, False if invalid
         """
+        if not len(pubkey) == PublicKey._EXPECTED_LENGTH:
+            raise TypeError("Need a PublicKey of {} bytes to verify - got {}.".format(PublicKey._EXPECTED_LENGTH, len(pubkey)))
         msg_digest = API.keccak_digest(message)
         return API.ecdsa_verify(self._v, self._r, self._s, msg_digest, pubkey.without_metabytes())
 
