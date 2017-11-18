@@ -201,6 +201,10 @@ class Policy(object):
 
         return policy
 
+    @staticmethod
+    def from_payload(payload):
+        payload
+
     def payload(self):
         return bytes(self.kfrag) + msgpack.dumps(self.encrypted_treasure_map())
 
