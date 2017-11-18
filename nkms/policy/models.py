@@ -1,16 +1,17 @@
 import msgpack
-from npre.constants import UNKNOWN_KFRAG
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import HASH_DIGEST_LENGTH, PUBKEY_SIG_LENGTH
+from nkms.crypto.constants import HASH_DIGEST_LENGTH
 from nkms.crypto.powers import EncryptingPower, SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
-from nkms.keystore.keypairs import Keypair
+from nkms.keystore.keypairs import Keypair, PublicKey
+from npre.constants import UNKNOWN_KFRAG
 
-policy_payload_splitter = BytestringSplitter((bytes, HASH_DIGEST_LENGTH), (bytes, PUBKEY_SIG_LENGTH))
+group_payload_splitter = BytestringSplitter((bytes, HASH_DIGEST_LENGTH), PublicKey)
+policy_payload_splitter = BytestringSplitter((bytes, 66))  # TODO: I wish ReKeyFrag worked with this interface.
 
 
 class PolicyOffer(object):
@@ -209,12 +210,13 @@ class Policy(object):
 
     @staticmethod
     def from_ursula(group_payload, ursula):
-        hrac, alice_pubkey_sig, (payload_encrypted_for_ursula, sig_bytes) = policy_payload_splitter(group_payload, msgpack_remainder=True)
+        hrac, alice_pubkey_sig, (payload_encrypted_for_ursula, sig_bytes) = group_payload_splitter(group_payload,
+                                                                                                   msgpack_remainder=True)
         alice = Alice(is_me=False, crypto_power_ups=[SigningPower(keypair=Keypair.deserialize_key(alice_pubkey_sig))])
         ursula.learn_about_actor(alice)
-        verified = ursula.verify_from(alice, Signature(sig_bytes), payload_encrypted_for_ursula)
-        encrypted_treasure_map, signature = None
-
+        verified, policy_payload = ursula.verify_from(alice, Signature(sig_bytes), payload_encrypted_for_ursula,
+                                                      decrypt=True, signature_is_on_cleartext=True)
+        kfrag, encrypted_treasure_map = policy_payload_splitter(policy_payload, return_remainder=True)
 
     def payload(self):
         return bytes(self.kfrag) + msgpack.dumps(self.encrypted_treasure_map())
