@@ -1,4 +1,5 @@
 from nkms.crypto import api as API
+from nkms.keystore.keypairs import PublicKey
 
 
 class Signature(bytes):
@@ -34,7 +35,7 @@ class Signature(bytes):
     def __repr__(self):
         return "{} v{}: {} - {}".format(__class__.__name__, self._v, self._r, self._s)
 
-    def verify(self, message: bytes, pubkey: bytes) -> bool:
+    def verify(self, message: bytes, pubkey: PublicKey) -> bool:
         """
         Verifies that a message's signature was valid.
 
@@ -44,7 +45,7 @@ class Signature(bytes):
         :return: True if valid, False if invalid
         """
         msg_digest = API.keccak_digest(message)
-        return API.ecdsa_verify(self._v, self._r, self._s, msg_digest, pubkey)
+        return API.ecdsa_verify(self._v, self._r, self._s, msg_digest, pubkey.without_metabytes())
 
     def __bytes__(self):
         """
