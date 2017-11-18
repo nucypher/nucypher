@@ -27,7 +27,7 @@ class Keypair(object):
             self._gen_pubkey()
         elif pubkey and not privkey:
             # We have only the pubkey; this is a public-only pair.
-            self.pubkey = pubkey
+            self.pubkey = PublicKey(pubkey)
             self.public_only = True
 
     @staticmethod
@@ -52,7 +52,7 @@ class Keypair(object):
 
         elif keypair_byte == constants.SIG_KEYPAIR_BYTE:
             if key_type_byte == constants.PUB_KEY_BYTE:
-                return SigningKeypair(pubkey=key)
+                return SigningKeypair(pubkey=key_data)  # Kinda weird for the moment - we're using all 66 bytes here.  TODO: Decide whether to make this the norm.
 
             elif key_type_byte == constants.PRIV_KEY_BYTE:
                 return SigningKeypair(privkey=key)
