@@ -1,7 +1,8 @@
 import asyncio
+import sqlite3
 
 import msgpack
-import sqlite3
+from apistar import http
 from sqlalchemy.engine import create_engine
 
 from kademlia.network import Server
@@ -18,6 +19,7 @@ from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 from nkms.policy.constants import NOT_FROM_ALICE
+from nkms.policy.models import Policy
 from npre.umbral import RekeyFrag
 
 
@@ -312,13 +314,16 @@ class Ursula(Character):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 
-    def set_kfrag(self, hrac):
+    def set_kfrag(self, hrac, request: http.Request):
         """
         REST endpoint for setting a kFrag.
+        TODO: Instead of taking a Request, use the apistar typing system to type a payload and validate / split it.
+        TODO: Validate that the kfrag being saved is pursuant to an approved Policy (see #121).
         """
+        policy = Policy.from_payload(request.body)
         kfrag = RekeyFrag()
         try:
-            self.keystore.add_kfrag(hrac.encode(), )
+            self.keystore.add_kfrag(hrac.encode(), None)
         except sqlite3.IntegrityError:
             raise
             # Do something appropriately RESTful.
