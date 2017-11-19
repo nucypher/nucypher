@@ -134,8 +134,8 @@ class PolicyGroup(object):
         for policy in self.policies:
             policy_payload = policy.encrypt_payload_for_ursula()
             full_payload = self.hrac() + self.alice.seal + msgpack.dumps(policy_payload)
-            response = networky_stuff.animate_policy(policy.ursula,
-                                                     full_payload)  # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
+            response = networky_stuff.enact_policy(policy.ursula,
+                                                   full_payload)  # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
 
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(policy.ursula)
