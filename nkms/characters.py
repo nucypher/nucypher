@@ -66,6 +66,10 @@ class Character(object):
         else:
             self._seal = StrangerSeal(self)
 
+    @classmethod
+    def from_pubkey_sig_bytes(cls, pubkey_sig_bytes):
+        return cls(is_me=False, crypto_power_ups=[SigningPower(keypair=Keypair.deserialize_key(pubkey_sig_bytes))])
+
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs) -> None:
         self._server = self._server_class(ksize, alpha, id, storage, *args, **kwargs)
@@ -272,7 +276,7 @@ class Ursula(Character):
 
     @staticmethod
     def as_discovered_on_network(port, interface, pubkey_sig_bytes):
-        ursula = Ursula(is_me=False, crypto_power_ups=[SigningPower(keypair=Keypair.deserialize_key(pubkey_sig_bytes))])
+        ursula = Ursula.from_pubkey_sig_bytes(pubkey_sig_bytes)
         ursula.port = port
         ursula.interface = interface
         return ursula

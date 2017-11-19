@@ -212,7 +212,7 @@ class Policy(object):
     def from_ursula(group_payload, ursula):
         hrac, alice_pubkey_sig, (payload_encrypted_for_ursula, sig_bytes) = group_payload_splitter(group_payload,
                                                                                                    msgpack_remainder=True)
-        alice = Alice(is_me=False, crypto_power_ups=[SigningPower(keypair=Keypair.deserialize_key(alice_pubkey_sig))])
+        alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
         ursula.learn_about_actor(alice)
         verified, policy_payload = ursula.verify_from(alice, Signature(sig_bytes), payload_encrypted_for_ursula,
                                                       decrypt=True, signature_is_on_cleartext=True)
