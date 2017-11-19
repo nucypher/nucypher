@@ -326,14 +326,14 @@ class Ursula(Character):
         """
         from nkms.policy.models import Policy  # Avoid circular import
         policy = Policy.from_ursula(request.body, self)
-        kfrag = RekeyFrag()
+
         try:
-            self.keystore.add_kfrag(hrac.encode(), None)
+            self.keystore.add_kfrag(hrac.encode(), policy.kfrag, policy.alices_signature)
         except sqlite3.IntegrityError:
             raise
-            # Do something appropriately RESTful.
+            # Do something appropriately RESTful (ie, 4xx).
 
-        return  # Do stuff with KeyStore here.
+        return  # A 200, which whatever policy metadata.
 
 
 class Seal(object):

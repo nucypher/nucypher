@@ -3,12 +3,13 @@ import msgpack
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import HASH_DIGEST_LENGTH
-from nkms.crypto.powers import EncryptingPower, SigningPower
+from nkms.crypto.constants import HASH_DIGEST_LENGTH, NOT_SIGNED
+from nkms.crypto.powers import EncryptingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
-from nkms.keystore.keypairs import Keypair, PublicKey
+from nkms.keystore.keypairs import PublicKey
 from npre.constants import UNKNOWN_KFRAG
+from npre.umbral import RekeyFrag
 
 group_payload_splitter = BytestringSplitter((bytes, HASH_DIGEST_LENGTH), PublicKey)
 policy_payload_splitter = BytestringSplitter((bytes, 66))  # TODO: I wish ReKeyFrag worked with this interface.
@@ -161,9 +162,9 @@ class Policy(object):
     hashed_part = None
     _id = None
 
-    def __init__(self, alice, bob, kfrag=UNKNOWN_KFRAG, challenge_size=20, set_id=True):
+    def __init__(self, alice, bob=None, kfrag=UNKNOWN_KFRAG, alices_signature=NOT_SIGNED, challenge_size=20,
+                 set_id=True, encrypted_challenge_pack=None):
         """
-
         :param kfrag:
             The kFrag obviously, but defaults to UNKNOWN_KFRAG in case the user wants to set it later.
         :param deterministic_id_portion:  Probably the fingerprint of Alice's public key.
@@ -173,11 +174,14 @@ class Policy(object):
         """
         self.alice = alice
         self.bob = bob
+        self.alices_signature = alices_signature
         self.kfrag = kfrag
         self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
         self.challenge_size = challenge_size
         self.treasure_map = []
         self.challenge_pack = []
+
+        self._encrypted_challenge_pack = encrypted_challenge_pack
 
     @property
     def id(self):
@@ -214,19 +218,40 @@ class Policy(object):
                                                                                                    msgpack_remainder=True)
         alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
         ursula.learn_about_actor(alice)
-        verified, policy_payload = ursula.verify_from(alice, Signature(sig_bytes), payload_encrypted_for_ursula,
+        alices_signature = Signature(sig_bytes)
+        verified, policy_payload = ursula.verify_from(alice, alices_signature, payload_encrypted_for_ursula,
                                                       decrypt=True, signature_is_on_cleartext=True)
-        kfrag, encrypted_treasure_map = policy_payload_splitter(policy_payload, return_remainder=True)
+
+        if not verified:
+            # TODO: What do we do if it's not signed properly?
+            pass
+
+        kfrag_bytes, encrypted_challenge_pack = policy_payload_splitter(policy_payload, return_remainder=True)
+        kfrag = RekeyFrag.from_bytes(kfrag_bytes)
+        policy = Policy(alice=alice, alices_signature=alices_signature, kfrag=kfrag,
+                        encrypted_challenge_pack=encrypted_challenge_pack)
+
+        return policy
 
     def payload(self):
-        return bytes(self.kfrag) + msgpack.dumps(self.encrypted_treasure_map())
+        return bytes(self.kfrag) + msgpack.dumps(self.encrypted_treasure_map)
 
     def activate(self, ursula, negotiation_result):
         self.ursula = ursula
         self.negotiation_result = negotiation_result
 
-    def encrypted_treasure_map(self):
-        self.alice.encrypt_for(self.bob, msgpack.dumps(self.challenge_pack))
+    @property
+    def encrypted_challenge_pack(self):
+        if not self._encrypted_challenge_pack:
+            if not self.bob:
+                raise TypeError("This Policy doesn't have a Bob, so there's no way to encrypt a ChallengePack for Bob.")
+            else:
+                self._encrypted_challenge_pack = self.alice.encrypt_for(self.bob, msgpack.dumps(self.challenge_pack))
+        return self._encrypted_challenge_pack
+
+    @encrypted_challenge_pack.setter
+    def encrypted_treasure_map(self, ecp):
+        self._encrypted_challenge_pack = ecp
 
     def generate_challenge_pack(self):
         if self.kfrag == UNKNOWN_KFRAG:
@@ -236,8 +261,8 @@ class Policy(object):
 
         # TODO: make this work instead of being random.  See #46.
         import random
-        self.challenge_pack = [(random.getrandbits(32), random.getrandbits(32)) for x in
-                               range(self.challenge_size)]
+        self._challenge_pack = [(random.getrandbits(32), random.getrandbits(32)) for x in
+                                range(self.challenge_size)]
         return True
 
     def encrypt_payload_for_ursula(self):
