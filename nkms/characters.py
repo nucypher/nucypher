@@ -3,6 +3,8 @@ import sqlite3
 
 import msgpack
 from apistar import http
+from apistar.core import Route
+from apistar.frameworks.wsgi import WSGIApp as App
 from sqlalchemy.engine import create_engine
 
 from kademlia.network import Server
@@ -19,8 +21,6 @@ from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 from nkms.policy.constants import NOT_FROM_ALICE
-
-from npre.umbral import RekeyFrag
 
 
 class Character(object):
@@ -274,6 +274,15 @@ class Ursula(Character):
             Base.metadata.create_all(engine)
             self.keystore = keystore.KeyStore(engine)
 
+        self._rest_app = None
+
+    @property
+    def rest_app(self):
+        if not self._rest_app:
+            raise AttributeError("This Ursula doesn't have a REST app attached.  If you want one, init with is_me and attach_server.")
+        else:
+            return self._rest_app
+
     @staticmethod
     def as_discovered_on_network(port, interface, pubkey_sig_bytes):
         ursula = Ursula.from_pubkey_sig_bytes(pubkey_sig_bytes)
@@ -288,6 +297,12 @@ class Ursula(Character):
             id = digest(secure_random(32))  # TODO: Network-wide deterministic ID generation (ie, auction or whatever)
 
         super().attach_server(ksize, alpha, id, storage)
+
+        routes = [
+            Route('/kFrag/{hrac}', 'POST', self.set_kfrag),
+        ]
+
+        self._rest_app = App(routes=routes)
 
     def listen(self, port, interface):
         self.port = port

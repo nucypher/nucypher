@@ -1,10 +1,9 @@
 import asyncio
 
+from apistar.test import TestClient
+
 from nkms.characters import Ursula
 from nkms.network.node import NetworkyStuff
-from apistar.test import TestClient
-from apistar.core import Route
-from apistar.frameworks.wsgi import WSGIApp as App
 
 
 def make_fake_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
@@ -40,13 +39,6 @@ class MockNetworkyStuff(NetworkyStuff):
     def __init__(self, ursulas):
         self.ursulas = iter(ursulas)
 
-        routes = [
-            Route('/kFrag/{hrac}', 'POST', ursulas[0].set_kfrag),
-        ]
-
-        _app = App(routes=routes)
-        self.client = TestClient(_app)
-
     def go_live_with_policy(self, ursula, policy_offer):
         return
 
@@ -60,5 +52,6 @@ class MockNetworkyStuff(NetworkyStuff):
             return super().find_ursula(id)
 
     def enact_policy(self, ursula, payload):
-        response = self.client.post('http://localhost/kFrag/some_hrac', payload)
+        mock_client = TestClient(ursula.rest_app)
+        response = mock_client.post('http://localhost/kFrag/some_hrac', payload)
         return True, ursula.interface_dht_key()
