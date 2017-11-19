@@ -4,7 +4,12 @@ import nkms_eth
 from os.path import dirname, join, abspath
 
 DEFAULT_NETWORK = 'mainnetrpc'
+TIMEOUT = 60
 _project = threading.local()
+
+
+# TODO XXX registrar.json is created in a current directory!
+# we should instead create all new configs in ~/.local
 
 
 def project():
@@ -16,15 +21,24 @@ def project():
     return _project.project
 
 
-def chain(name=DEFAULT_NETWORK):
+def get_chain(name=None):
+    return project().get_chain(name or DEFAULT_NETWORK)
+
+
+def chain(name=None):
     if not hasattr(_project, 'chain'):
-        _project.chain = project().get_chain(name).__enter__()
+        _project.chain = get_chain(name).__enter__()
     return _project.chain
 
 
 def disconnect():
     _project.chain.__exit__(None, None, None)
-    delattr(_project, 'chain')
+    if hasattr(_project, 'project'):
+        delattr(_project, 'project')
+    if hasattr(_project, 'chain'):
+        delattr(_project, 'chain')
+    if hasattr(_project, 'web3'):
+        delattr(_project, 'web3')
 
 
 def web3():
