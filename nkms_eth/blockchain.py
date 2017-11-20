@@ -1,15 +1,17 @@
 import populus
 import threading
 import nkms_eth
+import appdirs
 from os.path import dirname, join, abspath
 
 DEFAULT_NETWORK = 'mainnetrpc'
+PYTHON_PROJECT_NAME = 'nucypher-kms'
 TIMEOUT = 60
 _project = threading.local()
 
-
-# TODO XXX registrar.json is created in a current directory!
-# we should instead create all new configs in ~/.local
+# This config is persistent and is created in user's .local directory
+REGISTRAR_PATH = join(appdirs.user_data_dir(PYTHON_PROJECT_NAME),
+                      'registrar.json')
 
 
 def project():
@@ -17,7 +19,9 @@ def project():
     # It will read user-specific configs also which may override it
     if not hasattr(_project, 'project'):
         project_dir = join(dirname(abspath(nkms_eth.__file__)), 'project')
-        _project.project = populus.Project(project_dir, create_config_file=False)
+        project = populus.Project(project_dir, create_config_file=False)
+        project.config['chains.mainnetrpc']['contracts']['backends']['JSONFile']['settings']['file_path'] = REGISTRAR_PATH
+        _project.project = project
     return _project.project
 
 

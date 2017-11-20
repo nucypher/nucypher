@@ -1,3 +1,4 @@
+appdirs
 pdbpp
 ipython
 populus
