@@ -236,7 +236,8 @@
         },
         "npre": {
             "editable": true,
-            "git": "git@github.com:jMyles/nucypher-pre-python.git@ea0da083f673811ce7c376de9bd110df46cb491e"
+            "git": "https://github.com/nucypher/nucypher-pre-python",
+            "ref": "kms-dependency"
         },
         "py": {
             "hashes": [
