@@ -11,7 +11,7 @@ from nkms.keystore.keypairs import PublicKey
 from npre.constants import UNKNOWN_KFRAG
 from npre.umbral import RekeyFrag
 
-group_payload_splitter = BytestringSplitter((bytes, HASH_DIGEST_LENGTH), PublicKey)
+group_payload_splitter = BytestringSplitter(PublicKey)
 policy_payload_splitter = BytestringSplitter((bytes, 66))  # TODO: I wish ReKeyFrag worked with this interface.
 
 
@@ -130,13 +130,15 @@ class PolicyGroup(object):
         """
         return self.hash(bytes(self.alice.seal) + self.hrac())
 
-    def transmit_payloads(self, networky_stuff):
+    def enact_policies(self, networky_stuff):
 
         for policy in self.policies:
             policy_payload = policy.encrypt_payload_for_ursula()
-            full_payload = self.hrac() + self.alice.seal + msgpack.dumps(policy_payload)
+            full_payload = self.alice.seal + msgpack.dumps(policy_payload)
             response = networky_stuff.enact_policy(policy.ursula,
-                                                   full_payload)  # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
+                                                   self.hrac(),
+                                                   full_payload)  # TODO: Parse response for confirmation.
+
 
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(policy.ursula)
@@ -214,7 +216,7 @@ class Policy(object):
 
     @staticmethod
     def from_ursula(group_payload, ursula):
-        hrac, alice_pubkey_sig, (payload_encrypted_for_ursula, sig_bytes) = group_payload_splitter(group_payload,
+        alice_pubkey_sig, (payload_encrypted_for_ursula, sig_bytes) = group_payload_splitter(group_payload,
                                                                                                    msgpack_remainder=True)
         alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
         ursula.learn_about_actor(alice)

@@ -51,7 +51,7 @@ class MockNetworkyStuff(NetworkyStuff):
         else:
             return super().find_ursula(id)
 
-    def enact_policy(self, ursula, payload):
+    def enact_policy(self, ursula, hrac, payload):
         mock_client = TestClient(ursula.rest_app)
-        response = mock_client.post('http://localhost/kFrag/some_hrac', payload)
+        response = mock_client.post('http://localhost/kFrag/{}'.format(hrac), payload)
         return True, ursula.interface_dht_key()
