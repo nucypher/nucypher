@@ -6,6 +6,7 @@ import pytest
 
 from kademlia.utils import digest
 from nkms.characters import Ursula, Alice, Character, Bob, congregate
+from nkms.keystore.db.models import KeyFrag
 from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.protocols import dht_value_splitter
 from nkms.policy.constants import NON_PAYMENT
@@ -117,15 +118,13 @@ def test_alice_finds_ursula():
     assert port == URSULA_PORT + ursula_index
 
 
-def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
+def test_alice_creates_policy_group_with_correct_hrac():
     """
-    Now that Alice has found an Ursula, Alice can make a PolicyGroup, using Ursula's Public Key to encrypt each offer.
+    Alice creates a PolicyGroup.  It has the proper HRAC, unique per her, Bob, and the uri (resource_id).
     """
     ALICE.__resource_id += b"/unique-again"  # A unique name each time, like a path.
     n = NUMBER_OF_URSULAS_IN_NETWORK
 
-    # Alice needs to find N Ursulas to whom to make her offer.
-    networky_stuff = MockNetworkyStuff(URSULAS)
     policy_manager = PolicyManagerForAlice(ALICE)
 
     policy_group = policy_manager.create_policy_group(
@@ -134,11 +133,16 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
         m=3,
         n=n,
     )
-    # TODO: Make an assertion here.
+    assert policy_group.hrac() == policy_group.hash(bytes(ALICE.seal) + bytes(BOB.seal) + ALICE.__resource_id)
     return policy_group
 
+
 def test_alice_enacts_policies_in_policy_group_via_rest():
-    policy_group = test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload()
+    """
+    Now that Alice has made a PolicyGroup, she can enact its policies, using Ursula's Public Key to encrypt each offer
+    and transmitting them via REST.
+    """
+    policy_group = test_alice_creates_policy_group_with_correct_hrac()
 
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = NON_PAYMENT
@@ -148,12 +152,15 @@ def test_alice_enacts_policies_in_policy_group_via_rest():
     networky_stuff = MockNetworkyStuff(URSULAS)
     policy_group.find_n_ursulas(networky_stuff, offer)
     policy_group.enact_policies(networky_stuff)
-    # TODO: Make an assertion
+
+    kfrag_that_was_set = policy_group.policies[0].ursula.keystore.get_kfrag(policy_group.hrac())
+    assert bool(kfrag_that_was_set)
     return policy_group
+
 
 def test_alice_sets_treasure_map_on_network():
     """
-    Having made a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
+    Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
     """
     policy_group = test_alice_enacts_policies_in_policy_group_via_rest()
 
@@ -172,7 +179,7 @@ def test_treasure_map_with_bad_id_does_not_propagate():
     In order to prevent spam attacks, Ursula refuses to propagate a TreasureMap whose PolicyGroup ID does not comport to convention.
     """
     illegal_policygroup_id = "This is not a conventional policygroup id"
-    policy_group = test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload()
+    policy_group = test_alice_creates_policy_group_with_correct_hrac()
 
     treasure_map = policy_group.treasure_map
 
