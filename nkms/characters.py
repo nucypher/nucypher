@@ -6,6 +6,7 @@ from apistar import http
 from apistar.core import Route
 from apistar.frameworks.wsgi import WSGIApp as App
 from sqlalchemy.engine import create_engine
+from sqlalchemy.exc import IntegrityError
 
 from kademlia.network import Server
 from kademlia.utils import digest
@@ -344,7 +345,7 @@ class Ursula(Character):
 
         try:
             self.keystore.add_kfrag(hrac.encode(), policy.kfrag, policy.alices_signature)
-        except sqlite3.IntegrityError:
+        except IntegrityError:
             raise
             # Do something appropriately RESTful (ie, 4xx).
 
