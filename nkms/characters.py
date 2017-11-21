@@ -1,6 +1,7 @@
 import asyncio
 import sqlite3
 
+import binascii
 import msgpack
 from apistar import http
 from apistar.core import Route
@@ -300,7 +301,7 @@ class Ursula(Character):
         super().attach_server(ksize, alpha, id, storage)
 
         routes = [
-            Route('/kFrag/{hrac}', 'POST', self.set_policy),
+            Route('/kFrag/{hrac_as_hex}', 'POST', self.set_policy),
         ]
 
         self._rest_app = App(routes=routes)
@@ -334,17 +335,18 @@ class Ursula(Character):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 
-    def set_policy(self, hrac, request: http.Request):
+    def set_policy(self, hrac_as_hex, request: http.Request):
         """
         REST endpoint for setting a kFrag.
         TODO: Instead of taking a Request, use the apistar typing system to type a payload and validate / split it.
         TODO: Validate that the kfrag being saved is pursuant to an approved Policy (see #121).
         """
         from nkms.policy.models import Policy  # Avoid circular import
+        hrac = binascii.unhexlify(hrac_as_hex)
         policy = Policy.from_ursula(request.body, self)
 
         try:
-            self.keystore.add_kfrag(hrac.encode(), policy.kfrag, policy.alices_signature)
+            self.keystore.add_kfrag(hrac, policy.kfrag, policy.alices_signature)
         except IntegrityError:
             raise
             # Do something appropriately RESTful (ie, 4xx).
