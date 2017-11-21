@@ -23,6 +23,7 @@ URSULAS, URSULA_PORTS = make_fake_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_P
 ALICE = Alice()
 ALICE.attach_server()
 ALICE.server.listen(8471)
+ALICE.__resource_id = b"some_resource_id"
 EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
 
 BOB = Bob(alice=ALICE)
@@ -120,37 +121,41 @@ def test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload():
     """
     Now that Alice has found an Ursula, Alice can make a PolicyGroup, using Ursula's Public Key to encrypt each offer.
     """
-    # For example, a hashed path.
-    resource_id = b"as098duasdlkj213098asf"
-
-    # Alice has a policy in mind; she crafts an offer.
+    ALICE.__resource_id += b"/unique-again"  # A unique name each time, like a path.
     n = NUMBER_OF_URSULAS_IN_NETWORK
-    deposit = NON_PAYMENT
-    contract_end_datetime = datetime.datetime.now() + datetime.timedelta(days=5)
-    offer = PolicyOffer(n, deposit, contract_end_datetime)
 
-    # Now, Alice needs to find N Ursulas to whom to make the offer.
+    # Alice needs to find N Ursulas to whom to make her offer.
     networky_stuff = MockNetworkyStuff(URSULAS)
     policy_manager = PolicyManagerForAlice(ALICE)
 
     policy_group = policy_manager.create_policy_group(
         BOB,
-        resource_id,
+        ALICE.__resource_id,
         m=3,
         n=n,
     )
-    networky_stuff = MockNetworkyStuff(URSULAS)
-    policy_group.find_n_ursulas(networky_stuff, offer)
-    policy_group.transmit_payloads(networky_stuff)  # Until we figure out encrypt_for logic
-
+    # TODO: Make an assertion here.
     return policy_group
 
+def test_alice_enacts_policies_in_policy_group_via_rest():
+    policy_group = test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload()
+
+    # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
+    deposit = NON_PAYMENT
+    contract_end_datetime = datetime.datetime.now() + datetime.timedelta(days=5)
+    offer = PolicyOffer(policy_group.n, deposit, contract_end_datetime)
+
+    networky_stuff = MockNetworkyStuff(URSULAS)
+    policy_group.find_n_ursulas(networky_stuff, offer)
+    policy_group.enact_policies(networky_stuff)
+    # TODO: Make an assertion
+    return policy_group
 
 def test_alice_sets_treasure_map_on_network():
     """
     Having made a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
     """
-    policy_group = test_alice_has_ursulas_public_key_and_uses_it_to_encode_policy_payload()
+    policy_group = test_alice_enacts_policies_in_policy_group_via_rest()
 
     setter, encrypted_treasure_map, packed_encrypted_treasure_map, signature_for_bob, signature_for_ursula = ALICE.publish_treasure_map(
         policy_group)
