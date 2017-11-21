@@ -300,7 +300,7 @@ class Ursula(Character):
         super().attach_server(ksize, alpha, id, storage)
 
         routes = [
-            Route('/kFrag/{hrac}', 'POST', self.set_kfrag),
+            Route('/kFrag/{hrac}', 'POST', self.set_policy),
         ]
 
         self._rest_app = App(routes=routes)
@@ -334,7 +334,7 @@ class Ursula(Character):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 
-    def set_kfrag(self, hrac, request: http.Request):
+    def set_policy(self, hrac, request: http.Request):
         """
         REST endpoint for setting a kFrag.
         TODO: Instead of taking a Request, use the apistar typing system to type a payload and validate / split it.
