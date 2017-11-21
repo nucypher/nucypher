@@ -6,7 +6,6 @@ import msgpack
 from apistar import http
 from apistar.core import Route
 from apistar.frameworks.wsgi import WSGIApp as App
-from sqlalchemy.engine import create_engine
 from sqlalchemy.exc import IntegrityError
 
 from kademlia.network import Server
@@ -15,8 +14,6 @@ from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
-from nkms.keystore import keystore
-from nkms.keystore.db import Base
 from nkms.keystore.keypairs import Keypair
 from nkms.network import blockchain_client
 from nkms.network.blockchain_client import list_all_ursulas
@@ -270,13 +267,7 @@ class Ursula(Character):
 
     def __init__(self, urulsas_keystore=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if urulsas_keystore:
-            self.keystore = urulsas_keystore
-        else:
-            self.log.warning("You didn't pass a keystore when creating Ursula - using in-memory sqlite DB (not persistent)")
-            engine = create_engine('sqlite:///:memory:')
-            Base.metadata.create_all(engine)
-            self.keystore = keystore.KeyStore(engine)
+        self.keystore = urulsas_keystore
 
         self._rest_app = None
 

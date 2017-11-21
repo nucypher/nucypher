@@ -1,8 +1,11 @@
 import asyncio
 
 from apistar.test import TestClient
+from sqlalchemy.engine import create_engine
 
 from nkms.characters import Ursula
+from nkms.keystore import keystore
+from nkms.keystore.db import Base
 from nkms.network.node import NetworkyStuff
 
 
@@ -17,7 +20,10 @@ def make_fake_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
 
     URSULAS = []
     for _u in range(how_many_ursulas):
-        _URSULA = Ursula()
+        engine = create_engine('sqlite:///:memory:')
+        Base.metadata.create_all(engine)
+        ursulas_keystore = keystore.KeyStore(engine)
+        _URSULA = Ursula(urulsas_keystore=ursulas_keystore)
         _URSULA.attach_server()
         _URSULA.listen(ursula_starting_port + _u, "127.0.0.1")
 

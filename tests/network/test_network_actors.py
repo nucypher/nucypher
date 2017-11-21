@@ -6,7 +6,6 @@ import pytest
 
 from kademlia.utils import digest
 from nkms.characters import Ursula, Alice, Character, Bob, congregate
-from nkms.keystore.db.models import KeyFrag
 from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.protocols import dht_value_splitter
 from nkms.policy.constants import NON_PAYMENT
