@@ -73,11 +73,11 @@ class TestKeyStore(unittest.TestCase):
 
     def test_keyfrag_sqlite(self):
         rand_sig = API.secure_random(65)
-        rand_id = API.secure_random(32)
-        rand_key = API.secure_random(32)
+        rand_id = b'\x00' + API.secure_random(32)
+        rand_key = b'\x00' + API.secure_random(32)
         rand_hrac = API.secure_random(32)
 
-        kfrag = RekeyFrag(id=rand_id, key=rand_key)
+        kfrag = RekeyFrag.from_bytes(rand_id+rand_key)
         self.ks.add_kfrag(rand_hrac, kfrag, sig=rand_sig)
 
         # Check that kfrag was added
