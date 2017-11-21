@@ -1,7 +1,7 @@
 import asyncio
-import sqlite3
-
 import binascii
+from logging import getLogger
+
 import msgpack
 from apistar import http
 from apistar.core import Route
@@ -48,6 +48,7 @@ class Character(object):
         If neither crypto_power nor crypto_power_ups are provided, we give this Character all CryptoPowerUps
         listed in their _default_crypto_powerups attribute.
         """
+        self.log = getLogger("characters")
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
 
@@ -272,6 +273,7 @@ class Ursula(Character):
         if urulsas_keystore:
             self.keystore = urulsas_keystore
         else:
+            self.log.warning("You didn't pass a keystore when creating Ursula - using in-memory sqlite DB (not persistent)")
             engine = create_engine('sqlite:///:memory:')
             Base.metadata.create_all(engine)
             self.keystore = keystore.KeyStore(engine)
@@ -281,7 +283,8 @@ class Ursula(Character):
     @property
     def rest_app(self):
         if not self._rest_app:
-            raise AttributeError("This Ursula doesn't have a REST app attached.  If you want one, init with is_me and attach_server.")
+            raise AttributeError(
+                "This Ursula doesn't have a REST app attached.  If you want one, init with is_me and attach_server.")
         else:
             return self._rest_app
 
