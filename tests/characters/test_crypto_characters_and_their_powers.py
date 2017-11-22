@@ -122,4 +122,4 @@ def test_character_with_encrypting_power_can_encrypt():
     ciphertext, signature = can_sign_and_encrypt.encrypt_for(ursula, cleartext, sign=False)
     assert signature == NOT_SIGNED
 
-    assert ciphertext is not None  # annnd fail.
+    assert ciphertext is not None

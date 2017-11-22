@@ -1,11 +1,17 @@
-from tests.utilities import BOB, URSULAS
+from tests.utilities import EVENT_LOOP
 
 
-def test_bob_can_follow_treasure_map():
+def test_bob_can_follow_treasure_map(enacted_policy_group, fake_ursulas):
     """
     Upon receiving a TreasureMap, Bob populates his list of Ursulas with the correct number.
     """
-    assert len(BOB._ursulas) == 0
-    _treasure_map_as_set_on_network, _signature, policy_group = test_alice_sets_treasure_map_on_network()
-    BOB.follow_treasure_map(policy_group.treasure_map)
-    assert len(BOB._ursulas) == len(URSULAS)
+    alice = enacted_policy_group.alice
+    bob = enacted_policy_group.bob
+    assert len(bob._ursulas) == 0
+
+    setter, encrypted_treasure_map, packed_encrypted_treasure_map, signature_for_bob, signature_for_ursula = alice.publish_treasure_map(
+        enacted_policy_group)
+    _set_event = EVENT_LOOP.run_until_complete(setter)
+
+    bob.follow_treasure_map(enacted_policy_group.treasure_map)
+    assert len(bob._ursulas) == len(fake_ursulas)
