@@ -5,30 +5,12 @@ import msgpack
 import pytest
 
 from kademlia.utils import digest
-from nkms.characters import Ursula, Alice, Character, Bob, congregate
+from nkms.characters import Ursula, Character
 from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.protocols import dht_value_splitter
 from nkms.policy.constants import NON_PAYMENT
-from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, Policy
-from tests.test_utilities import make_fake_ursulas, MockNetworkyStuff, ALICE
-
-EVENT_LOOP = asyncio.get_event_loop()
-asyncio.set_event_loop(EVENT_LOOP)
-
-URSULA_PORT = 7468
-NUMBER_OF_URSULAS_IN_NETWORK = 6
-
-URSULAS, URSULA_PORTS = make_fake_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT)
-
-
-EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
-
-BOB = Bob(alice=ALICE)
-BOB.attach_server()
-BOB.server.listen(8475)
-EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
-
-congregate(ALICE, BOB, URSULAS[0])
+from nkms.policy.models import PolicyOffer, Policy
+from tests.utilities import MockNetworkyStuff, ALICE
 
 
 def test_all_ursulas_know_about_all_other_ursulas():

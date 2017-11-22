@@ -1,4 +1,4 @@
-from tests.network.test_network_actors import test_alice_sets_treasure_map_on_network, BOB, URSULAS
+from tests.utilities import BOB, URSULAS
 
 
 def test_bob_can_follow_treasure_map():

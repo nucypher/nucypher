@@ -1,14 +1,12 @@
 import asyncio
 
-import pytest
 from apistar.test import TestClient
 from sqlalchemy.engine import create_engine
 
-from nkms.characters import Ursula, Alice
+from nkms.characters import Ursula, Alice, congregate, Bob
 from nkms.keystore import keystore
 from nkms.keystore.db import Base
 from nkms.network.node import NetworkyStuff
-from nkms.policy.models import PolicyManagerForAlice
 
 ALICE = Alice()
 ALICE.attach_server()
@@ -16,6 +14,19 @@ ALICE.server.listen(8471)
 ALICE.__resource_id = b"some_resource_id"
 
 NUMBER_OF_URSULAS_IN_NETWORK = 6
+
+EVENT_LOOP = asyncio.get_event_loop()
+asyncio.set_event_loop(EVENT_LOOP)
+
+URSULA_PORT = 7468
+NUMBER_OF_URSULAS_IN_NETWORK = 6
+
+EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
+
+BOB = Bob(alice=ALICE)
+BOB.attach_server()
+BOB.server.listen(8475)
+EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
 
 
 def make_fake_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
@@ -70,3 +81,7 @@ class MockNetworkyStuff(NetworkyStuff):
         mock_client = TestClient(ursula.rest_app)
         response = mock_client.post('http://localhost/kFrag/{}'.format(hrac.hex()), payload)
         return True, ursula.interface_dht_key()
+
+
+URSULAS, URSULA_PORTS = make_fake_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT)
+congregate(ALICE, BOB, URSULAS[0])
