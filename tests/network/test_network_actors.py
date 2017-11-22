@@ -5,6 +5,8 @@ import pytest
 
 from kademlia.utils import digest
 from nkms.characters import Ursula, Character
+from nkms.crypto.signature import Signature
+from nkms.crypto.utils import BytestringSplitter
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.policy.models import Policy
@@ -74,7 +76,7 @@ def test_trying_to_find_unknown_actor_raises_not_found(alice):
 
     # ...before learning about Alice.
     tony_clifton.learn_about_actor(alice)
-    verification, NO_DECRYPTION_PERFORMED = tony_clifton.verify_from(alice, signature, message)
+    verification, NO_DECRYPTION_PERFORMED = tony_clifton.verify_from(alice, message, signature)
 
     assert verification is True
 
@@ -148,7 +150,7 @@ def test_treasure_map_with_bad_id_does_not_propagate(alices_policy_group, fake_u
         fake_ursulas[0].server.storage[digest(illegal_policygroup_id)]
 
 
-def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(fake_ursulas, enacted_policy_group):
+def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, fake_ursulas, enacted_policy_group):
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
@@ -158,14 +160,14 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(fake_ursulas, 
     _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
         treasure_map_as_set_on_network[5::], msgpack_remainder=True)  # 5:: to account for prepended "trmap"
 
-    assert False  # TODO: Get Alice's signature to Bob.
-
-    verified, treasure_map_as_decrypted_by_bob = BOB.verify_from(ALICE, signature,
+    verified, cleartext = treasure_map_as_decrypted_by_bob = bob.verify_from(alice,
                                                                  encrypted_treasure_map,
                                                                  decrypt=True,
                                                                  signature_is_on_cleartext=True,
                                                                  )
-    assert treasure_map_as_decrypted_by_bob == policy_group.treasure_map.packed_payload()
+    _alices_signature, treasure_map_as_decrypted_by_bob = BytestringSplitter(Signature)(cleartext, return_remainder=True)
+
+    assert treasure_map_as_decrypted_by_bob == enacted_policy_group.treasure_map.packed_payload()
     assert verified is True
 
 
@@ -179,8 +181,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy_group, 
 
     # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume,
     # through a side-channel with Alice.
-    assert False  # TODO: Get Alice's signature to Bob.
-    treasure_map_from_wire = BOB.get_treasure_map(enacted_policy_group, signature)
+    treasure_map_from_wire = bob.get_treasure_map(enacted_policy_group)
 
     assert enacted_policy_group.treasure_map == treasure_map_from_wire
 

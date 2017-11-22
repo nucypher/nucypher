@@ -71,7 +71,7 @@ def test_anybody_can_verify():
     signature = alice.seal(message)
 
     # Our everyman can verify it.
-    verification, cleartext = somebody.verify_from(alice, signature, message, decrypt=False)
+    verification, cleartext = somebody.verify_from(alice, message, signature, decrypt=False)
     assert verification is True
     assert cleartext is NO_DECRYPTION_PERFORMED
 
@@ -101,7 +101,7 @@ def test_signing_only_power_cannot_encrypt():
     can_sign_but_not_encrypt.learn_about_actor(ursula)
 
     # The Character has the message ready...
-    cleartext = "This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
+    cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
     # But without the proper PowerUp, no encryption happens.
     with pytest.raises(NoEncryptingPower) as e_info:
