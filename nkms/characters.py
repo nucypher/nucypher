@@ -105,7 +105,7 @@ class Character(object):
     def learn_about_actor(self, actor):
         self._actor_mapping[actor.id()] = actor
 
-    def encrypt_for(self, recipient: str, cleartext: bytes, sign: bool = True,
+    def encrypt_for(self, recipient: "Character", cleartext: bytes, sign: bool = True,
                     sign_cleartext=True) -> tuple:
         """
         Looks up recipient actor, finds that actor's pubkey_enc on our keyring, and encrypts for them.
