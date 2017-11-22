@@ -104,7 +104,7 @@ class CryptoPowerUp(object):
 
 class KeyPairBasedPower(CryptoPowerUp):
 
-    _keypair_class: Type[keypairs.Keypair] = None
+    _keypair_class = keypairs.Keypair
 
     def __init__(self, keypair: keypairs.Keypair=None, pubkey_bytes: bytes=None) -> None:
         if keypair and pubkey_bytes:
