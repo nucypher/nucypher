@@ -67,7 +67,7 @@ def keccak_digest(
 
 
 def ecdsa_pub2bytes(
-        pubkey: Tuple[int]
+        pubkey: Tuple[int, int]
 ) -> bytes:
     """
     Takes an ECDSA public key and converts to bytes.
@@ -83,7 +83,7 @@ def ecdsa_pub2bytes(
 
 def ecdsa_bytes2pub(
         pubkey: bytes
-) -> Tuple[int]:
+) -> Tuple[int, int]:
     """
     Takes a byte encoded ECDSA public key and converts to a Tuple of x, and y
 
@@ -146,7 +146,7 @@ def ecdsa_gen_sig(
 
 def ecdsa_load_sig(
         signature: bytes
-) -> Tuple[int]:
+) -> Tuple[int, int, int]:
     """
     Loads an ECDSA signature, from a bytestring, to a tuple.
 
@@ -163,7 +163,7 @@ def ecdsa_load_sig(
 def ecdsa_sign(
         msghash: bytes,
         privkey: bytes
-) -> Tuple[int]:
+) -> Tuple[int, int, int]:
     """
     Accepts a hashed message and signs it with the private key given.
 
@@ -181,7 +181,7 @@ def ecdsa_verify(
         r: int,
         s: int,
         msghash: bytes,
-        pubkey: Union[bytes, Tuple[int]]
+        pubkey: Union[bytes, Tuple[int, int]]
 ) -> bool:
     """
     Takes a v, r, s, a pubkey, and a hash of a message to verify via ECDSA.
