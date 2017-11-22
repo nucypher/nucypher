@@ -58,6 +58,7 @@ class Keypair(object):
                 return SigningKeypair(privkey=key)
         else:
             raise ValueError("Unable to determine which type of keypair this is - keypair_byte was {}".format(keypair_byte))
+        assert False
 
 
 class EncryptingKeypair(Keypair):
