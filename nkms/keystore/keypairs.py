@@ -60,6 +60,18 @@ class Keypair(object):
             raise ValueError("Unable to determine which type of keypair this is - keypair_byte was {}".format(keypair_byte))
         assert False
 
+    def gen_privkey(self):
+        """
+        Generate the private key of the pair.
+        """
+        return NotImplemented
+
+    def _gen_pubkey(self):
+        """
+        Generate the public key of the pair.
+        """
+        return NotImplemented
+
 
 class EncryptingKeypair(Keypair):
     """
