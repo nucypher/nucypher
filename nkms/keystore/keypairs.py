@@ -15,7 +15,7 @@ class Keypair(object):
     # TODO: Throw error if a key is called and it doesn't exist
     # TODO: Maybe write a custome error ofr ^?
 
-    def __init__(self, privkey: bytes = None, pubkey: bytes = None):
+    def __init__(self, privkey: bytes = None, pubkey: "PublicKey" = None) -> None:
         if privkey and pubkey:
             self.privkey, self.pubkey = privkey, pubkey
         elif not privkey and not pubkey:

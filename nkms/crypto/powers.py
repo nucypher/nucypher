@@ -106,7 +106,7 @@ class KeyPairBasedPower(CryptoPowerUp):
 
     _keypair_class = None
 
-    def __init__(self, keypair: keypairs.Keypair=None, pubkey_bytes: bytes=None):
+    def __init__(self, keypair: keypairs.Keypair=None, pubkey_bytes: bytes=None) -> None:
         if keypair and pubkey_bytes:
             raise ValueError("Pass keypair or pubkey_bytes (or neither), but not both.")
         elif keypair:

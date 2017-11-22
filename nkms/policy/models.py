@@ -41,7 +41,7 @@ class PolicyManager(object):
 
 
 class PolicyManagerForAlice(PolicyManager):
-    def __init__(self, owner: Alice):
+    def __init__(self, owner: Alice) -> None:
         self.owner = owner
 
     def create_policy_group(self,
@@ -77,7 +77,7 @@ class PolicyGroup(object):
 
     _id = None
 
-    def __init__(self, uri: str, alice: Alice, bob: Bob, policies=None):
+    def __init__(self, uri: bytes, alice: Alice, bob: Bob, policies=None) -> None:
         self.policies = policies or []
         self.alice = alice
         self.bob = bob

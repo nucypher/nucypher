@@ -13,7 +13,7 @@ _tl.pre = None
 class EncryptingKeypair(object):
     KEYSIZE = 32
 
-    def __init__(self, privkey: bytes = None):
+    def __init__(self, privkey: bytes = None) -> None:
         """
         :privkey: Optional private key in a serialized form (32-byte string)
                   If not given, a random one is generated.

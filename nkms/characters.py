@@ -33,7 +33,7 @@ class Character(object):
     _seal = None
 
     def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
-                 crypto_power_ups=[], is_me=True):
+                 crypto_power_ups=[], is_me=True) -> None:
         """
         :param attach_server:  Whether to attach a Server when this Character is born.
         :param crypto_power: A CryptoPower object; if provided, this will be the character's CryptoPower.
