@@ -20,6 +20,8 @@ twisted = "*"
 pyopenssl = "*"
 service-identity = "*"
 apistar = "*"
+mypy = "*"
+pytest-mypy = "*"
 
 
 [dev-packages]

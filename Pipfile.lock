@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "f34600b0576547b08dbe3f8d0563a6fc7019bad8faff15ef2f0ade2fedab7af1"
+            "sha256": "8b73678e775f629a3a6aa4041d67f830f7a3ca388cb635ae8a678b77e1c869c6"
         },
         "host-environment-markers": {
             "implementation_name": "cpython",
@@ -56,9 +56,9 @@
         },
         "bidict": {
             "hashes": [
-                "sha256:d39699e569b757893cf0397148b3452357a95ecd88fd1ab0db663c77c93778f3"
+                "sha256:0634bb7fb8a5fe36605cc49678abbcfb70cb254125480c95322f326546093364"
             ],
-            "version": "==0.13.1"
+            "version": "==0.14.0"
         },
         "certifi": {
             "hashes": [
@@ -101,6 +101,7 @@
                 "sha256:75e1de9ba7c155d89bcf67d149b1c741df553c8158536e8d27e63167403159af",
                 "sha256:ab87dd91c0c4073758d07334c1e5f712ce8fe48f007b86f8238773963ee700a6"
             ],
+            "markers": "platform_python_implementation != 'PyPy'",
             "version": "==1.11.2"
         },
         "chardet": {
@@ -194,8 +195,8 @@
             "version": "==2.10"
         },
         "kademlia": {
-            "git": "https://github.com/nucypher/kademlia",
-            "ref": "kms-dependency"
+            "editable": true,
+            "git": "git@github.com:jMyles/kademlia.git@db4f07cc3eea72260cc4f3d26515b72e66d2126f"
         },
         "lmdb": {
             "hashes": [
@@ -234,10 +235,30 @@
             ],
             "version": "==1.0"
         },
+        "mypy": {
+            "hashes": [
+                "sha256:0d66ca31ec6a51e465f68634e9daf363b877f0caa19a7f1d6319a743fb709d25",
+                "sha256:58302374890b9803b19a5547e2229f8bab46900624a2f31f398b231e5f461929"
+            ],
+            "version": "==0.550"
+        },
         "npre": {
             "editable": true,
-            "git": "https://github.com/nucypher/nucypher-pre-python",
-            "ref": "kms-dependency"
+            "git": "git@github.com:jMyles/nucypher-pre-python.git@c52b34c4e197db7cb5f7b810e761e0032b6f47a3"
+        },
+        "psutil": {
+            "hashes": [
+                "sha256:7ef26ebe728ac821de17df23820e6ffcfd37c409fc865380e4d5ae1388f274a1",
+                "sha256:692dc72817d157aae522231dd334ea2524c6b07d844db0e7a2d6897820083427",
+                "sha256:92342777d46e4630cf17d437412dc7fce0a8561217e074d36a35eb911ffd570e",
+                "sha256:f8f2f47a987c32ed3ca2068f3dfa9060dc9ff6cbed023d627d3f27060f4e59c4",
+                "sha256:1fce45549618d1930afefe322834ba91758331725bfdaec73ba6abcc83f6dc11",
+                "sha256:f8a88553b2b5916f3bd814a91942215822a1dabae6db033cbb019095d6a24bc2",
+                "sha256:4139f76baa59142b907dd581d7ff3506a5163cb8ef69e8e92060df330bbf5788",
+                "sha256:d61bc04401ce938576e4c6ec201e812ed4114bfb9712202b87003619116c90c6",
+                "sha256:42e2de159e3c987435cb3b47d6f37035db190a1499f3af714ba7af5c379b6ba2"
+            ],
+            "version": "==5.4.1"
         },
         "py": {
             "hashes": [
@@ -323,10 +344,10 @@
         },
         "pyopenssl": {
             "hashes": [
-                "sha256:aade9985b93eaec51b0c0a2a60d14bb8dcff1ff8e36fe542e3c22812ec07315e",
-                "sha256:29630b9064a82e04d8242ea01d7c93d70ec320f5e3ed48e95fcabc6b1d0f6c76"
+                "sha256:b8a8797c50598da10526511a4a9b992b155932f86dde509906c8bee3a705b480",
+                "sha256:2d96b6a3d768bf466c56240d6dd6f035cc8e9c356d20da0583886e77ce9cf6ab"
             ],
-            "version": "==17.3.0"
+            "version": "==17.4.0"
         },
         "pysha3": {
             "hashes": [
@@ -360,6 +381,13 @@
                 "sha256:6d5bd4f7113b444c55a3bbb5c738a3dd80d43563d063fc42dcb0aaefbdd78b81"
             ],
             "version": "==3.2.5"
+        },
+        "pytest-mypy": {
+            "hashes": [
+                "sha256:9d1b54fa023f2f7e0fd8c52f7486e04c9c0d0dc410623183b0327a3645b7dea5",
+                "sha256:624251b97469291b94cd6288bb514724ce0ecc23f46d27b198a1b928291a4713"
+            ],
+            "version": "==0.3.0"
         },
         "requests": {
             "hashes": [
@@ -399,6 +427,29 @@
                 "sha256:0da1a7e35d5fcae37bc9c7978970b5feb3bc82822155b8654ec63925c05af75c"
             ],
             "version": "==17.9.0"
+        },
+        "typed-ast": {
+            "hashes": [
+                "sha256:0948004fa228ae071054f5208840a1e88747a357ec1101c17217bfe99b299d58",
+                "sha256:25d8feefe27eb0303b73545416b13d108c6067b846b543738a25ff304824ed9a",
+                "sha256:c05b41bc1deade9f90ddc5d988fe506208019ebba9f2578c622516fd201f5863",
+                "sha256:519425deca5c2b2bdac49f77b2c5625781abbaf9a809d727d3a5596b30bb4ded",
+                "sha256:6de012d2b166fe7a4cdf505eee3aaa12192f7ba365beeefaca4ec10e31241a85",
+                "sha256:79b91ebe5a28d349b6d0d323023350133e927b4de5b651a8aa2db69c761420c6",
+                "sha256:a8034021801bc0440f2e027c354b4eafd95891b573e12ff0418dec385c76785c",
+                "sha256:f19f2a4f547505fe9072e15f6f4ae714af51b5a681a97f187971f50c283193b6",
+                "sha256:c9b060bd1e5a26ab6e8267fd46fc9e02b54eb15fffb16d112d4c7b1c12987559",
+                "sha256:2e214b72168ea0275efd6c884b114ab42e316de3ffa125b267e732ed2abda892",
+                "sha256:bc978ac17468fe868ee589c795d06777f75496b1ed576d308002c8a5756fb9ea",
+                "sha256:edb04bdd45bfd76c8292c4d9654568efaedf76fe78eb246dde69bdb13b2dad87",
+                "sha256:668d0cec391d9aed1c6a388b0d5b97cd22e6073eaa5fbaa6d2946603b4871efe",
+                "sha256:29464a177d56e4e055b5f7b629935af7f49c196be47528cc94e0a7bf83fbc2b9",
+                "sha256:8550177fa5d4c1f09b5e5f524411c44633c80ec69b24e0e98906dd761941ca46",
+                "sha256:3e0d5e48e3a23e9a4d1a9f698e32a542a4a288c871d33ed8df1b092a40f3a0f9",
+                "sha256:68ba70684990f59497680ff90d18e756a47bf4863c604098f10de9716b2c0bdd",
+                "sha256:57fe287f0cdd9ceaf69e7b71a2e94a24b5d268b35df251a88fef5cc241bf73aa"
+            ],
+            "version": "==1.1.0"
         },
         "uritemplate": {
             "hashes": [
