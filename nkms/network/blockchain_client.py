@@ -1,1 +1,3 @@
-_ursulas_on_blockchain = []
+from typing import List
+
+_ursulas_on_blockchain:List = []
