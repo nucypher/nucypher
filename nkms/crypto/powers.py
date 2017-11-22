@@ -1,5 +1,5 @@
 import inspect
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Tuple, Type
 
 from nkms.crypto import api as API
 from nkms.crypto.signature import Signature
@@ -104,7 +104,7 @@ class CryptoPowerUp(object):
 
 class KeyPairBasedPower(CryptoPowerUp):
 
-    _keypair_class = None
+    _keypair_class: Type[keypairs.Keypair] = None
 
     def __init__(self, keypair: keypairs.Keypair=None, pubkey_bytes: bytes=None) -> None:
         if keypair and pubkey_bytes:
