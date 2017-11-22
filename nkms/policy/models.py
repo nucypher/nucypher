@@ -91,11 +91,9 @@ class PolicyGroup(object):
     def hash(self, message):
         return keccak_digest(message)
 
-    def find_n_ursulas(self, networky_stuff, offer: PolicyOffer) -> list:
+    def find_n_ursulas(self, networky_stuff, offer: PolicyOffer):
         """
         :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
-
-        :return: A list, with each element containing an Ursula and an OfferResult.
         """
         for policy in self.policies:
             try:
