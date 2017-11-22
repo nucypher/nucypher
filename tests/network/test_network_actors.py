@@ -10,7 +10,7 @@ from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.protocols import dht_value_splitter
 from nkms.policy.constants import NON_PAYMENT
 from nkms.policy.models import PolicyManagerForAlice, PolicyOffer, Policy
-from tests.test_utilities import make_fake_ursulas, MockNetworkyStuff
+from tests.test_utilities import make_fake_ursulas, MockNetworkyStuff, ALICE
 
 EVENT_LOOP = asyncio.get_event_loop()
 asyncio.set_event_loop(EVENT_LOOP)
@@ -20,10 +20,7 @@ NUMBER_OF_URSULAS_IN_NETWORK = 6
 
 URSULAS, URSULA_PORTS = make_fake_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT)
 
-ALICE = Alice()
-ALICE.attach_server()
-ALICE.server.listen(8471)
-ALICE.__resource_id = b"some_resource_id"
+
 EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
 
 BOB = Bob(alice=ALICE)
@@ -117,21 +114,11 @@ def test_alice_finds_ursula():
     assert port == URSULA_PORT + ursula_index
 
 
-def test_alice_creates_policy_group_with_correct_hrac():
+def test_alice_creates_policy_group_with_correct_hrac(alices_policy_group):
     """
     Alice creates a PolicyGroup.  It has the proper HRAC, unique per her, Bob, and the uri (resource_id).
     """
-    ALICE.__resource_id += b"/unique-again"  # A unique name each time, like a path.
-    n = NUMBER_OF_URSULAS_IN_NETWORK
 
-    policy_manager = PolicyManagerForAlice(ALICE)
-
-    policy_group = policy_manager.create_policy_group(
-        BOB,
-        ALICE.__resource_id,
-        m=3,
-        n=n,
-    )
     assert policy_group.hrac() == policy_group.hash(bytes(ALICE.seal) + bytes(BOB.seal) + ALICE.__resource_id)
     return policy_group
 

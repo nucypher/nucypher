@@ -1,12 +1,21 @@
 import asyncio
 
+import pytest
 from apistar.test import TestClient
 from sqlalchemy.engine import create_engine
 
-from nkms.characters import Ursula
+from nkms.characters import Ursula, Alice
 from nkms.keystore import keystore
 from nkms.keystore.db import Base
 from nkms.network.node import NetworkyStuff
+from nkms.policy.models import PolicyManagerForAlice
+
+ALICE = Alice()
+ALICE.attach_server()
+ALICE.server.listen(8471)
+ALICE.__resource_id = b"some_resource_id"
+
+NUMBER_OF_URSULAS_IN_NETWORK = 6
 
 
 def make_fake_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
