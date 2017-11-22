@@ -13,26 +13,26 @@ from nkms.policy.models import Policy
 from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
 
 
-def test_all_ursulas_know_about_all_other_ursulas(fake_ursulas):
+def test_all_ursulas_know_about_all_other_ursulas(ursulas):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
     """
     ignorance = []
     for acounter, announcing_ursula in enumerate(blockchain_client._ursulas_on_blockchain):
-        for counter, propagating_ursula in enumerate(fake_ursulas):
+        for counter, propagating_ursula in enumerate(ursulas):
             if not digest(announcing_ursula) in propagating_ursula.server.storage:
                 ignorance.append((counter, acounter))
     if ignorance:
         pytest.fail(str(["{} didn't know about {}".format(counter, acounter) for counter, acounter in ignorance]))
 
 
-def test_vladimir_illegal_interface_key_does_not_propagate(fake_ursulas):
+def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     """
     Although Ursulas propagate each other's interface information, as demonstrated above, they do not propagate
         interface information for Vladimir, an Evil Ursula.
     """
-    vladimir = fake_ursulas[0]
-    ursula = fake_ursulas[1]
+    vladimir = ursulas[0]
+    ursula = ursulas[1]
 
     # Ursula hasn't seen any illegal keys.
     assert ursula.server.protocol.illegal_keys_seen == []
@@ -50,11 +50,11 @@ def test_vladimir_illegal_interface_key_does_not_propagate(fake_ursulas):
     assert digest(illegal_key) in ursula.server.protocol.illegal_keys_seen
 
 
-def test_alice_cannot_offer_policy_without_first_finding_ursula(alice, bob, fake_ursulas):
+def test_alice_cannot_offer_policy_without_first_finding_ursula(alice, bob, ursulas):
     """
     Alice can't just offer a Policy if she doesn't know whether any Ursulas are available (she gets Ursula.NotFound).
     """
-    networky_stuff = MockNetworkyStuff(fake_ursulas)
+    networky_stuff = MockNetworkyStuff(ursulas)
     policy = Policy(alice, bob)
 
     with pytest.raises(Ursula.NotFound):
@@ -81,7 +81,7 @@ def test_trying_to_find_unknown_actor_raises_not_found(alice):
     assert verification is True
 
 
-def test_alice_finds_ursula(alice, fake_ursulas):
+def test_alice_finds_ursula(alice, ursulas):
     """
     With the help of any Ursula, Alice can find a specific Ursula.
     """
@@ -117,7 +117,7 @@ def test_alice_enacts_policies_in_policy_group_via_rest(enacted_policy_group):
     assert bool(kfrag_that_was_set)  # TODO: This can be a more poignant assertion.
 
 
-def test_alice_sets_treasure_map_on_network(enacted_policy_group, fake_ursulas):
+def test_alice_sets_treasure_map_on_network(enacted_policy_group, ursulas):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
     """
@@ -126,12 +126,12 @@ def test_alice_sets_treasure_map_on_network(enacted_policy_group, fake_ursulas):
         enacted_policy_group)
     _set_event = EVENT_LOOP.run_until_complete(setter)
 
-    treasure_map_as_set_on_network = fake_ursulas[0].server.storage[
+    treasure_map_as_set_on_network = ursulas[0].server.storage[
         digest(enacted_policy_group.treasure_map_dht_key())]
     assert treasure_map_as_set_on_network == b"trmap" + packed_encrypted_treasure_map
 
 
-def test_treasure_map_with_bad_id_does_not_propagate(alices_policy_group, fake_ursulas):
+def test_treasure_map_with_bad_id_does_not_propagate(alices_policy_group, ursulas):
     """
     In order to prevent spam attacks, Ursula refuses to propagate a TreasureMap whose PolicyGroup ID does not comport to convention.
     """
@@ -147,14 +147,14 @@ def test_treasure_map_with_bad_id_does_not_propagate(alices_policy_group, fake_u
     _set_event = EVENT_LOOP.run_until_complete(setter)
 
     with pytest.raises(KeyError):
-        fake_ursulas[0].server.storage[digest(illegal_policygroup_id)]
+        ursulas[0].server.storage[digest(illegal_policygroup_id)]
 
 
-def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, fake_ursulas, enacted_policy_group):
+def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ursulas, enacted_policy_group):
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
-    treasure_map_as_set_on_network = fake_ursulas[0].server.storage[
+    treasure_map_as_set_on_network = ursulas[0].server.storage[
         digest(enacted_policy_group.treasure_map_dht_key())]
 
     _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
@@ -171,13 +171,13 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, fa
     assert verified is True
 
 
-def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy_group, fake_ursulas):
+def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy_group, ursulas):
     """
     Above, we showed that the TreasureMap saved on the network is the correct one for Bob.  Here, we show
     that Bob can retrieve it with only the information about which he is privy pursuant to the PolicyGroup.
     """
     bob = enacted_policy_group.bob
-    networky_stuff = MockNetworkyStuff(fake_ursulas)
+    networky_stuff = MockNetworkyStuff(ursulas)
 
     # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume,
     # through a side-channel with Alice.

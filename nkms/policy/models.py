@@ -216,17 +216,18 @@ class Policy(object):
 
     @staticmethod
     def from_ursula(group_payload, ursula):
-        alice_pubkey_sig, (payload_encrypted_for_ursula, sig_bytes) = group_payload_splitter(group_payload,
-                                                                                                   msgpack_remainder=True)
+        alice_pubkey_sig, payload_encrypted_for_ursula = group_payload_splitter(group_payload,
+                                                                                msgpack_remainder=True)
         alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
         ursula.learn_about_actor(alice)
-        alices_signature = Signature(sig_bytes)
-        verified, policy_payload = ursula.verify_from(alice, alices_signature, payload_encrypted_for_ursula,
+        verified, cleartext = ursula.verify_from(alice, payload_encrypted_for_ursula,
                                                       decrypt=True, signature_is_on_cleartext=True)
 
         if not verified:
             # TODO: What do we do if it's not signed properly?
             pass
+
+        alices_signature, policy_payload = BytestringSplitter(Signature)(cleartext, return_remainder=True)
 
         kfrag_bytes, encrypted_challenge_pack = policy_payload_splitter(policy_payload, return_remainder=True)
         kfrag = RekeyFrag.from_bytes(kfrag_bytes)
@@ -271,7 +272,7 @@ class Policy(object):
         """
         Craft an offer to send to Ursula.
         """
-        return self.alice.encrypt_for(self.ursula, self.payload())
+        return self.alice.encrypt_for(self.ursula, self.payload())[0]  # We don't need the signature separately.
 
 
 class TreasureMap(object):

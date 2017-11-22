@@ -1,7 +1,7 @@
 from tests.utilities import EVENT_LOOP
 
 
-def test_bob_can_follow_treasure_map(enacted_policy_group, fake_ursulas):
+def test_bob_can_follow_treasure_map(enacted_policy_group, ursulas):
     """
     Upon receiving a TreasureMap, Bob populates his list of Ursulas with the correct number.
     """
@@ -14,4 +14,4 @@ def test_bob_can_follow_treasure_map(enacted_policy_group, fake_ursulas):
     _set_event = EVENT_LOOP.run_until_complete(setter)
 
     bob.follow_treasure_map(enacted_policy_group.treasure_map)
-    assert len(bob._ursulas) == len(fake_ursulas)
+    assert len(bob._ursulas) == len(ursulas)

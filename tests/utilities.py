@@ -19,7 +19,7 @@ URSULA_PORT = 7468
 NUMBER_OF_URSULAS_IN_NETWORK = 6
 
 
-def make_fake_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
+def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
     """
     :param how_many_ursulas: How many Ursulas to create.
     :param ursula_starting_port: The port of the first created Ursula; subsequent Ursulas will increment the port number by 1.

@@ -5,7 +5,7 @@ from nkms.characters import congregate, Alice, Bob
 from nkms.network import blockchain_client
 from nkms.policy.constants import NON_PAYMENT
 from nkms.policy.models import PolicyManagerForAlice, PolicyOffer
-from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_fake_ursulas, \
+from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
 
 
@@ -28,13 +28,13 @@ def alices_policy_group(alice, bob):
     return policy_group
 
 @pytest.fixture(scope="session")
-def enacted_policy_group(alices_policy_group, fake_ursulas):
+def enacted_policy_group(alices_policy_group, ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = NON_PAYMENT
     contract_end_datetime = datetime.datetime.now() + datetime.timedelta(days=5)
     offer = PolicyOffer(alices_policy_group.n, deposit, contract_end_datetime)
 
-    networky_stuff = MockNetworkyStuff(fake_ursulas)
+    networky_stuff = MockNetworkyStuff(ursulas)
     alices_policy_group.find_n_ursulas(networky_stuff, offer)
     alices_policy_group.enact_policies(networky_stuff)
 
@@ -51,17 +51,17 @@ def alice():
 
 
 @pytest.fixture(scope="session")
-def bob(alice, fake_ursulas):
+def bob(alice, ursulas):
     BOB = Bob(alice=alice)
     BOB.attach_server()
     BOB.server.listen(8475)
     EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
-    congregate(alice, BOB, *fake_ursulas)
+    congregate(alice, BOB, *ursulas)
     return BOB
 
 
 @pytest.fixture(scope="session")
-def fake_ursulas():
-    URSULAS = make_fake_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT)
+def ursulas():
+    URSULAS = make_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT)
     yield URSULAS
     blockchain_client._ursulas_on_blockchain.clear()
