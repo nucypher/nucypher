@@ -14,6 +14,8 @@ from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
+from nkms.crypto.signature import Signature
+from nkms.crypto.utils import BytestringSplitter
 from nkms.keystore.keypairs import Keypair
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
@@ -117,20 +119,24 @@ class Character(object):
         """
         actor = self._lookup_actor(recipient)
 
-        ciphertext = self._crypto_power.encrypt_for(actor.public_key(EncryptingPower),
-                                                    cleartext)
         if sign:
             if sign_cleartext:
                 signature = self.seal(cleartext)
+                ciphertext = self._crypto_power.encrypt_for(actor.public_key(EncryptingPower),
+                                                            signature + cleartext)
             else:
+                ciphertext = self._crypto_power.encrypt_for(actor.public_key(EncryptingPower),
+                                                            cleartext)
                 signature = self.seal(ciphertext)
         else:
             signature = NOT_SIGNED
+            ciphertext = self._crypto_power.encrypt_for(actor.public_key(EncryptingPower),
+                                                        cleartext)
 
         return ciphertext, signature
 
-    def verify_from(self, actor_whom_sender_claims_to_be: "Character", signature: bytes,
-                    message: bytes, decrypt=False,
+    def verify_from(self, actor_whom_sender_claims_to_be: "Character", message: bytes, signature: Signature = None,
+                    decrypt=False,
                     signature_is_on_cleartext=False) -> tuple:
         """
         Inverse of encrypt_for.
@@ -141,11 +147,15 @@ class Character(object):
         :param signature_is_on_cleartext: True if we expect the signature to be on the cleartext.  Otherwise, we presume that the ciphertext is what is signed.
         :return: (Whether or not the signature is valid, the decrypted plaintext or NO_DECRYPTION_PERFORMED)
         """
+        if not signature and not signature_is_on_cleartext:
+            raise ValueError("You need to either provide the Signature or decrypt and find it on the cleartext.")
+
         cleartext = NO_DECRYPTION_PERFORMED
+
         if signature_is_on_cleartext:
             if decrypt:
                 cleartext = self._crypto_power.decrypt(message)
-                message = cleartext
+                signature, message = BytestringSplitter(Signature)(cleartext, return_remainder=True)
             else:
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not decrypting.")
@@ -244,7 +254,7 @@ class Bob(Character):
             self._ursulas[ursula_interface_id] = Ursula.as_discovered_on_network(port=port, interface=interface,
                                                                                  pubkey_sig_bytes=ursula_pubkey_sig)
 
-    def get_treasure_map(self, policy_group, signature):
+    def get_treasure_map(self, policy_group):
 
         dht_key = policy_group.treasure_map_dht_key()
 
@@ -253,8 +263,9 @@ class Bob(Character):
         packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
         _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
             packed_encrypted_treasure_map[5::], msgpack_remainder=True)
-        verified, packed_node_list = self.verify_from(self.alice, signature, encrypted_treasure_map,
+        verified, cleartext = self.verify_from(self.alice, encrypted_treasure_map,
                                                       signature_is_on_cleartext=True, decrypt=True)
+        alices_signature, packed_node_list = BytestringSplitter(Signature)(cleartext, return_remainder=True)
         if not verified:
             return NOT_FROM_ALICE
         else:
