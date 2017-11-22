@@ -16,7 +16,6 @@ from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.keystore.keypairs import Keypair
 from nkms.network import blockchain_client
-from nkms.network.blockchain_client import list_all_ursulas
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 from nkms.policy.constants import NOT_FROM_ALICE
@@ -31,9 +30,6 @@ class Character(object):
     _default_crypto_powerups = None
     _seal = None
 
-    class NotFound(KeyError):
-        """raised when we try to interact with an actor of whom we haven't learned yet."""
-
     def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
                  crypto_power_ups=[], is_me=True):
         """
@@ -44,6 +40,12 @@ class Character(object):
 
         If neither crypto_power nor crypto_power_ups are provided, we give this Character all CryptoPowerUps
         listed in their _default_crypto_powerups attribute.
+
+        :param is_me: Set this to True when you want this Character to represent the owner of the configuration under
+            which the program is being run.  A Character who is_me can do things that other Characters can't, like run
+            servers, sign messages, and decrypt messages which are encrypted for them.  Typically this will be True
+            for exactly one Character, but there are scenarios in which its imaginable to be represented by zero Characters
+            or by more than one Character.
         """
         self.log = getLogger("characters")
         if crypto_power and crypto_power_ups:
@@ -65,6 +67,9 @@ class Character(object):
                 self.attach_server()
         else:
             self._seal = StrangerSeal(self)
+
+    class NotFound(KeyError):
+        """raised when we try to interact with an actor of whom we haven't learned yet."""
 
     @classmethod
     def from_pubkey_sig_bytes(cls, pubkey_sig_bytes):
