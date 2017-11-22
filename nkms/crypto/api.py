@@ -138,10 +138,10 @@ def ecdsa_gen_sig(
 
     :return: bytestring of v, r, and s
     """
-    v = v.to_bytes(1, byteorder='big')
-    r = r.to_bytes(32, byteorder='big')
-    s = s.to_bytes(32, byteorder='big')
-    return v + r + s
+    _v = v.to_bytes(1, byteorder='big')
+    _r = r.to_bytes(32, byteorder='big')
+    _s = s.to_bytes(32, byteorder='big')
+    return _v + _r + _s
 
 
 def ecdsa_load_sig(
