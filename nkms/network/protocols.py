@@ -1,5 +1,3 @@
-import msgpack
-
 from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
