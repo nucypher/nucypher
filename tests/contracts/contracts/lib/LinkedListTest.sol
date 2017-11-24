@@ -1,7 +1,7 @@
 pragma solidity ^0.4.0;
 
 
-import "../LinkedList.sol";
+import "contracts/lib/LinkedList.sol";
 
 
 /**

@@ -2,7 +2,7 @@ pragma solidity ^0.4.18;
 
 
 import "./ContractInterface.sol";
-import "../../zeppelin/ownership/Ownable.sol";
+import "contracts/zeppelin/ownership/Ownable.sol";
 
 
 /**

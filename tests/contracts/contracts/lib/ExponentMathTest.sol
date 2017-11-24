@@ -1,7 +1,7 @@
 pragma solidity ^0.4.11;
 
 
-import "../ExponentMath.sol";
+import "contracts/lib/ExponentMath.sol";
 
 
 /**

@@ -1,8 +1,8 @@
 pragma solidity ^0.4.11;
 
 
-import "../Miner.sol";
-import "../MineableToken.sol";
+import "contracts/Miner.sol";
+import "contracts/MineableToken.sol";
 
 
 /**

@@ -122,7 +122,11 @@
   },
   "compilation": {
     "contracts_source_dirs": [
-      "./contracts"
+      "./contracts",
+      "../../tests/contracts"
+    ],
+    "import_remappings": [
+      "contracts=nkms_eth/project/contracts"
     ]
   },
   "version": "7"
