@@ -2,18 +2,15 @@ pragma solidity ^0.4.18;
 
 
 import "./ContractInterface.sol";
-import "contracts/zeppelin/ownership/Ownable.sol";
+import "contracts/proxy/Upgradeable.sol";
 
 
 /**
-* @dev Copied from https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/upgradableImplementations/ContractV1.sol
+* @dev Based on from https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/upgradableImplementations/ContractV1.sol
 **/
-contract ContractV1 is ContractInterface, Ownable {
+contract ContractV1 is ContractInterface, Upgradeable {
 
-    // Stored data actually lives in the UpgradableContractProxy. However the storage layout is specified here in the implementing contracts.
-    // The first and only variable in the UpgradableContractProxy is a reference to the address of this contract.
-    // Therefore the first reference in each contract using the UpgradableContractProxy must be set aside for this address.
-    address private target;
+    event Test(address test);
 
     // The storage layout must remain the same in all the upgraded contracts, although it can be added to.
     // Note that besides the potential mess of unnecessary variables this could create over time, there isn't currently
@@ -41,6 +38,12 @@ contract ContractV1 is ContractInterface, Ownable {
 
     function getDynamicallySizedValue() public constant returns (string) {
         return dynamicallySizedValue;
+    }
+
+    function verifyState(address testTarget) public {
+        require(uint(delegateGet(testTarget, "storageValue()")) == storageValue);
+        //TODO uncomment after fixing return size
+//        require(address(delegateGet(testTarget, "dynamicallySizedValue()")) == owner);
     }
 
 }

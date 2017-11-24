@@ -14,7 +14,8 @@ def test_dispatcher(web3, chain):
     account = web3.eth.accounts[0]
 
     # Load contract interface
-    contract_interface = chain.provider.get_base_contract_factory('ContractInterface')
+    # contract_interface = chain.provider.get_base_contract_factory('ContractInterface')
+    contract_interface = chain.provider.get_base_contract_factory('ContractV1')
 
     # Deploy contracts and dispatcher for them
     contract1_lib, _ = chain.provider.get_or_deploy_contract('ContractV1')
@@ -33,13 +34,13 @@ def test_dispatcher(web3, chain):
 
     # Only owner can change target address for dispatcher
     with pytest.raises(TransactionFailed):
-        tx = dispatcher.transact({'from': account}).setTarget(contract2_lib.address)
+        tx = dispatcher.transact({'from': account}).upgrade(contract2_lib.address)
         chain.wait.for_receipt(tx)
     assert dispatcher.call().target().lower() == contract1_lib.address
 
     # Check return value before and after upgrade
     assert contract_instance.call().returnValue() == 10
-    tx = dispatcher.transact({'from': creator}).setTarget(contract2_lib.address)
+    tx = dispatcher.transact({'from': creator}).upgrade(contract2_lib.address)
     chain.wait.for_receipt(tx)
     assert dispatcher.call().target().lower() == contract2_lib.address
     assert contract_instance.call().returnValue() == 20
@@ -50,7 +51,7 @@ def test_dispatcher(web3, chain):
     tx = contract_instance.transact().getStorageValue()
     chain.wait.for_receipt(tx)
     assert contract_instance.call().getStorageValue() == 10
-    tx = dispatcher.transact({'from': creator}).setTarget(contract1_lib.address)
+    tx = dispatcher.transact({'from': creator}).upgrade(contract1_lib.address)
     chain.wait.for_receipt(tx)
     assert contract_instance.call().getStorageValue() == 10
     tx = contract_instance.transact().setStorageValue(5)
@@ -58,7 +59,7 @@ def test_dispatcher(web3, chain):
     assert contract_instance.call().getStorageValue() == 5
 
     # Check dynamically sized value
-    # TODO uncomment after fix dispatcher
+    # TODO uncomment after fixing dispatcher
     # tx = contract_instance.transact().setDynamicallySizedValue('Hola')
     # chain.wait.for_receipt(tx)
     # assert contract_instance.call().getDynamicallySizedValue() == 'Hola'

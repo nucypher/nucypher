@@ -2,19 +2,19 @@ pragma solidity ^0.4.18;
 
 
 import "./ContractInterface.sol";
-import "contracts/zeppelin/ownership/Ownable.sol";
+import "contracts/proxy/Upgradeable.sol";
 
 
 /**
-* @dev Copied from https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/upgradableImplementations/ContractV2.sol
+* @dev Based on https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/upgradableImplementations/ContractV2.sol
 **/
-contract ContractV2 is ContractInterface, Ownable {
-
-    address private target;
+contract ContractV2 is ContractInterface, Upgradeable {
 
     uint public storageValue;
     string public dynamicallySizedValue;
     uint[] public updatedDynamicallySizedValue;
+    //TODO delete after fixing return size
+    uint public storageValueToCheck;
 
     function returnValue() public constant returns (uint) {
         return 20;
@@ -47,5 +47,14 @@ contract ContractV2 is ContractInterface, Ownable {
      */
     function getUpdatedDynamicallySizedValue() public constant returns (uint[]) {
         return updatedDynamicallySizedValue;
+    }
+
+    function verifyState(address testTarget) public {
+        require(uint(delegateGet(testTarget, "storageValue()")) == storageValue);
+        //TODO uncomment after fixing return size
+//        require(address(delegateGet(testTarget, "dynamicallySizedValue()")) == owner);
+//        require(address(delegateGet(testTarget, "updatedDynamicallySizedValue()")) == owner);
+    //TODO delete after fixing return size
+//        require(uint(delegateGet(testTarget, "storageValueToCheck()")) == storageValueToCheck);
     }
 }

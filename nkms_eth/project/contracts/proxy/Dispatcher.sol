@@ -1,21 +1,18 @@
-pragma solidity ^0.4.15;
+pragma solidity ^0.4.18;
 
 
-import "../zeppelin/ownership/Ownable.sol";
+import "./Upgradeable.sol";
 
 
 /**
 * @dev Based on https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/UpgradableContractProxyOLD.sol
 * TODO When python TestRPC will have Byzantium hard fork then should use https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/UpgradableContractProxy.sol
 * @notice Proxying requests to other contracts.
-* Client should use abi of real contract and address of this contract
+* Client should use ABI of real contract and address of this contract
 **/
-contract Dispatcher is Ownable {
+contract Dispatcher is Upgradeable {
 
-    // Contracts at the target must reserve the first location in storage for this address as
-    // they will be called through this contract. This contract masquerades as the implementation to create a common
-    // location for storage of vars.
-    address public target;
+    event TargetChanged(address from, address to, address admin);
 
     /**
     * @param _target Target contract address
@@ -27,8 +24,17 @@ contract Dispatcher is Ownable {
     /**
     * @param _target New target contract address
     **/
-    function setTarget(address _target) onlyOwner {
+    function upgrade(address _target) onlyOwner {
+        verifyState(_target);
+        require(target.delegatecall(bytes4(keccak256("verifyState(address)")), _target));
+        TargetChanged(target, _target, owner);
         target = _target;
+    }
+
+    function verifyState(address testTarget) public {
+        //checks equivalence accessing target through new contract and current storage
+        require(address(delegateGet(testTarget, "target()")) == target);
+        require(address(delegateGet(testTarget, "owner()")) == owner);
     }
 
     /**
