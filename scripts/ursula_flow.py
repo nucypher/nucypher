@@ -5,7 +5,7 @@
 A simple Python script to deploy contracts and then estimate gas for different methods.
 """
 import random
-from populus import Project
+from nkms_eth.blockchain import project
 
 TIMEOUT = 10
 MINING_COEFF = [10 ** 5, 10 ** 7]
@@ -14,12 +14,12 @@ NULL_ADDR = '0x' + '0' * 40
 
 
 def main():
-    project = Project()
+    proj = project()
 
     chain_name = "tester"
     print("Make sure {} chain is running, you can connect to it, or you'll get timeout".format(chain_name))
 
-    with project.get_chain(chain_name) as chain:
+    with proj.get_chain(chain_name) as chain:
         web3 = chain.web3
         print("Web3 providers are", web3.providers)
         creator = web3.eth.accounts[0]
