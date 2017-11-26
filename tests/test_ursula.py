@@ -1,4 +1,5 @@
 from nkms_eth import token
+from nkms_eth import escrow
 from nkms_eth import ursula
 
 M = 10 ** 6
@@ -19,6 +20,6 @@ def airdrop(chain):
 
 def test_deposit(chain):
     token.create()
-    token.create_escrow()
+    escrow.create()
     airdrop(chain)
     ursula.lock(1000 * M, 100, chain.web3.eth.accounts[1])

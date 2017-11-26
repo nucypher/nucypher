@@ -1,5 +1,6 @@
 from nkms_eth import token
 from nkms_eth import blockchain
+import nkms_eth.escrow
 
 
 def lock(amount: int, locktime: int, address: str = None):
@@ -14,7 +15,7 @@ def lock(amount: int, locktime: int, address: str = None):
     """
     chain = blockchain.chain()
     address = address or chain.web3.eth.accounts[0]
-    escrow = token.escrow()
+    escrow = nkms_eth.escrow.get()
     tx = token.get().transact({'from': address}).approve(
             escrow.address, amount)
     chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
