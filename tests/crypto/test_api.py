@@ -1,10 +1,13 @@
-import unittest
 import random
+import unittest
+
 import sha3
 from nacl.utils import EncryptedMessage
-from npre import umbral
-from npre import elliptic_curve as ec
+
 from nkms.crypto import api
+from nkms.keystore.keypairs import PublicKey
+from npre import elliptic_curve as ec
+from npre import umbral
 
 
 class TestCrypto(unittest.TestCase):
@@ -85,7 +88,7 @@ class TestCrypto(unittest.TestCase):
         pubkey_bytes = api.ecdsa_priv2pub(privkey)
         self.assertEqual(bytes, type(pubkey_bytes))
 
-        pubkey = api.ecdsa_bytes2pub(pubkey_bytes)
+        pubkey = api.ecdsa_bytes2pub(pubkey_bytes[PublicKey._METABYTES_LENGTH::])
         self.assertEqual(tuple, type(pubkey))
         self.assertEqual(2, len(pubkey))
         self.assertEqual(int, type(pubkey[0]))
@@ -106,7 +109,7 @@ class TestCrypto(unittest.TestCase):
         # Test Serialization
         pubkey = api.ecdsa_priv2pub(privkey)
         self.assertEqual(bytes, type(pubkey))
-        self.assertEqual(64, len(pubkey))
+        self.assertEqual(PublicKey._EXPECTED_LENGTH, len(pubkey))
 
         # Test no serialization
         pubkey = api.ecdsa_priv2pub(privkey, to_bytes=False)
@@ -271,7 +274,7 @@ class TestCrypto(unittest.TestCase):
 
         # Check no serialization
         rekey = api.ecies_rekey(self.privkey_a_bytes, self.privkey_b_bytes,
-                                   to_bytes=False)
+                                to_bytes=False)
         self.assertEqual(umbral.RekeyFrag, type(rekey))
         self.assertEqual(ec.ec_element, type(rekey.key))
 
@@ -283,7 +286,7 @@ class TestCrypto(unittest.TestCase):
 
         # Check with conversion
         frags = api.ecies_split_rekey(self.privkey_a_bytes,
-                                         self.privkey_b_bytes, 3, 4)
+                                      self.privkey_b_bytes, 3, 4)
         self.assertEqual(list, type(frags))
         self.assertEqual(4, len(frags))
 
@@ -338,14 +341,10 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(32, len(plain_key))
 
         rk_eb = api.ecies_rekey(eph_priv, self.privkey_b,
-                                   to_bytes=False)
+                                to_bytes=False)
         self.assertEqual(umbral.RekeyFrag, type(rk_eb))
         self.assertEqual(ec.ec_element, type(rk_eb.key))
 
         reenc_key = api.ecies_reencrypt(rk_eb, enc_key)
         dec_key = api.ecies_decapsulate(self.privkey_b, reenc_key)
         self.assertEqual(plain_key, dec_key)
-
-    def test_alpha_is_resolved(self):
-        with self.assertRaises(ImportError):
-            from nkms.crypto import _alpha

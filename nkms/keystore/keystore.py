@@ -146,7 +146,7 @@ class KeyStore(object):
         kfrag_data = b''
         if sig:
             kfrag_data += sig
-        kfrag_data += kfrag.id + kfrag.key
+        kfrag_data += bytes(kfrag)
 
         kfrag = KeyFrag(hrac, kfrag_data)
         self.session.add(kfrag)

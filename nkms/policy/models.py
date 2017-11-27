@@ -1,10 +1,18 @@
 import msgpack
-from npre.constants import UNKNOWN_KFRAG
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
+from nkms.crypto.constants import HASH_DIGEST_LENGTH, NOT_SIGNED
 from nkms.crypto.powers import EncryptingPower
+from nkms.crypto.signature import Signature
+from nkms.crypto.utils import BytestringSplitter
+from nkms.keystore.keypairs import PublicKey
+from npre.constants import UNKNOWN_KFRAG
+from npre.umbral import RekeyFrag
+
+group_payload_splitter = BytestringSplitter(PublicKey)
+policy_payload_splitter = BytestringSplitter((bytes, 66))  # TODO: I wish ReKeyFrag worked with this interface.
 
 
 class PolicyOffer(object):
@@ -33,7 +41,7 @@ class PolicyManager(object):
 
 
 class PolicyManagerForAlice(PolicyManager):
-    def __init__(self, owner: Alice):
+    def __init__(self, owner: Alice) -> None:
         self.owner = owner
 
     def create_policy_group(self,
@@ -54,6 +62,7 @@ class PolicyManagerForAlice(PolicyManager):
         for kfrag_id, rekey in enumerate(re_enc_keys):
             policy = Policy.from_alice(
                 alice=self.owner,
+                bob=bob,
                 kfrag=rekey,
             )
             policies.append(policy)
@@ -68,7 +77,7 @@ class PolicyGroup(object):
 
     _id = None
 
-    def __init__(self, uri: str, alice: Alice, bob: Bob, policies=None):
+    def __init__(self, uri: bytes, alice: Alice, bob: Bob, policies=None) -> None:
         self.policies = policies or []
         self.alice = alice
         self.bob = bob
@@ -82,11 +91,9 @@ class PolicyGroup(object):
     def hash(self, message):
         return keccak_digest(message)
 
-    def find_n_ursulas(self, networky_stuff, offer: PolicyOffer) -> list:
+    def find_n_ursulas(self, networky_stuff, offer: PolicyOffer):
         """
         :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
-
-        :return: A list, with each element containing an Ursula and an OfferResult.
         """
         for policy in self.policies:
             try:
@@ -121,12 +128,15 @@ class PolicyGroup(object):
         """
         return self.hash(bytes(self.alice.seal) + self.hrac())
 
-    def transmit_payloads(self, networky_stuff):
+    def enact_policies(self, networky_stuff):
 
         for policy in self.policies:
-            payload = policy.encrypt_payload_for_ursula()
-            _response = networky_stuff.animate_policy(policy.ursula,
-                                                      payload)  # TODO: Parse response for confirmation and update TreasureMap with new Ursula friend.
+            policy_payload = policy.encrypt_payload_for_ursula()
+            full_payload = self.alice.seal + msgpack.dumps(policy_payload)
+            response = networky_stuff.enact_policy(policy.ursula,
+                                                   self.hrac(),
+                                                   full_payload)  # TODO: Parse response for confirmation.
+
 
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(policy.ursula)
@@ -152,9 +162,9 @@ class Policy(object):
     hashed_part = None
     _id = None
 
-    def __init__(self, alice, kfrag=UNKNOWN_KFRAG, challenge_size=20, set_id=True):
+    def __init__(self, alice, bob=None, kfrag=UNKNOWN_KFRAG, alices_signature=NOT_SIGNED, challenge_size=20,
+                 set_id=True, encrypted_challenge_pack=None):
         """
-
         :param kfrag:
             The kFrag obviously, but defaults to UNKNOWN_KFRAG in case the user wants to set it later.
         :param deterministic_id_portion:  Probably the fingerprint of Alice's public key.
@@ -163,10 +173,15 @@ class Policy(object):
         :param challenge_size:  The number of challenges to create in the ChallengePack.
         """
         self.alice = alice
+        self.bob = bob
+        self.alices_signature = alices_signature
         self.kfrag = kfrag
         self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
         self.challenge_size = challenge_size
         self.treasure_map = []
+        self.challenge_pack = []
+
+        self._encrypted_challenge_pack = encrypted_challenge_pack
 
     @property
     def id(self):
@@ -190,18 +205,54 @@ class Policy(object):
     @staticmethod
     def from_alice(kfrag,
                    alice,
+                   bob,
                    ):
-        policy = Policy(alice, kfrag)
+        policy = Policy(alice, bob, kfrag)
         policy.generate_challenge_pack()
 
         return policy
 
+    @staticmethod
+    def from_ursula(group_payload, ursula):
+        alice_pubkey_sig, payload_encrypted_for_ursula = group_payload_splitter(group_payload,
+                                                                                msgpack_remainder=True)
+        alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
+        ursula.learn_about_actor(alice)
+        verified, cleartext = ursula.verify_from(alice, payload_encrypted_for_ursula,
+                                                      decrypt=True, signature_is_on_cleartext=True)
+
+        if not verified:
+            # TODO: What do we do if it's not signed properly?
+            pass
+
+        alices_signature, policy_payload = BytestringSplitter(Signature)(cleartext, return_remainder=True)
+
+        kfrag_bytes, encrypted_challenge_pack = policy_payload_splitter(policy_payload, return_remainder=True)
+        kfrag = RekeyFrag.from_bytes(kfrag_bytes)
+        policy = Policy(alice=alice, alices_signature=alices_signature, kfrag=kfrag,
+                        encrypted_challenge_pack=encrypted_challenge_pack)
+
+        return policy
+
     def payload(self):
-        return msgpack.dumps({b"kf": bytes(self.kfrag), b"cp": msgpack.dumps(self.challenge_pack)})
+        return bytes(self.kfrag) + msgpack.dumps(self.encrypted_treasure_map)
 
     def activate(self, ursula, negotiation_result):
         self.ursula = ursula
         self.negotiation_result = negotiation_result
+
+    @property
+    def encrypted_challenge_pack(self):
+        if not self._encrypted_challenge_pack:
+            if not self.bob:
+                raise TypeError("This Policy doesn't have a Bob, so there's no way to encrypt a ChallengePack for Bob.")
+            else:
+                self._encrypted_challenge_pack = self.alice.encrypt_for(self.bob, msgpack.dumps(self.challenge_pack))
+        return self._encrypted_challenge_pack
+
+    @encrypted_challenge_pack.setter
+    def encrypted_treasure_map(self, ecp):
+        self._encrypted_challenge_pack = ecp
 
     def generate_challenge_pack(self):
         if self.kfrag == UNKNOWN_KFRAG:
@@ -211,15 +262,15 @@ class Policy(object):
 
         # TODO: make this work instead of being random.  See #46.
         import random
-        self.challenge_pack = [(random.getrandbits(32), random.getrandbits(32)) for x in
-                               range(self.challenge_size)]
+        self._challenge_pack = [(random.getrandbits(32), random.getrandbits(32)) for x in
+                                range(self.challenge_size)]
         return True
 
     def encrypt_payload_for_ursula(self):
         """
         Craft an offer to send to Ursula.
         """
-        return self.alice.encrypt_for(self.ursula, self.payload())
+        return self.alice.encrypt_for(self.ursula, self.payload())[0]  # We don't need the signature separately.
 
 
 class TreasureMap(object):

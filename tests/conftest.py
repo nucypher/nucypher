@@ -2,7 +2,7 @@ import nkms.db
 import shutil
 import os
 import appdirs
-
+from .fixtures import *
 
 def pytest_runtest_setup(item):
     # Monkey-patching for tests so that we don't overwrite the default db

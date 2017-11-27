@@ -47,7 +47,7 @@ def test_actor_with_signing_power_can_sign():
 
     # ...or to get the signer's public key for verification purposes.
     sig = api.ecdsa_load_sig(bytes(signature))
-    verification = api.ecdsa_verify(*sig, api.keccak_digest(message), seal_of_the_signer)
+    verification = api.ecdsa_verify(*sig, api.keccak_digest(message), seal_of_the_signer.without_metabytes())
 
     assert verification is True
 
@@ -71,7 +71,7 @@ def test_anybody_can_verify():
     signature = alice.seal(message)
 
     # Our everyman can verify it.
-    verification, cleartext = somebody.verify_from(alice, signature, message, decrypt=False)
+    verification, cleartext = somebody.verify_from(alice, message, signature, decrypt=False)
     assert verification is True
     assert cleartext is NO_DECRYPTION_PERFORMED
 
@@ -101,7 +101,7 @@ def test_signing_only_power_cannot_encrypt():
     can_sign_but_not_encrypt.learn_about_actor(ursula)
 
     # The Character has the message ready...
-    cleartext = "This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
+    cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
     # But without the proper PowerUp, no encryption happens.
     with pytest.raises(NoEncryptingPower) as e_info:
@@ -122,4 +122,4 @@ def test_character_with_encrypting_power_can_encrypt():
     ciphertext, signature = can_sign_and_encrypt.encrypt_for(ursula, cleartext, sign=False)
     assert signature == NOT_SIGNED
 
-    assert ciphertext is not None  # annnd fail.
+    assert ciphertext is not None

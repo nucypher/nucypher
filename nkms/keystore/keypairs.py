@@ -15,7 +15,7 @@ class Keypair(object):
     # TODO: Throw error if a key is called and it doesn't exist
     # TODO: Maybe write a custome error ofr ^?
 
-    def __init__(self, privkey: bytes = None, pubkey: bytes = None):
+    def __init__(self, privkey: bytes = None, pubkey: "PublicKey" = None) -> None:
         if privkey and pubkey:
             self.privkey, self.pubkey = privkey, pubkey
         elif not privkey and not pubkey:
@@ -27,7 +27,7 @@ class Keypair(object):
             self._gen_pubkey()
         elif pubkey and not privkey:
             # We have only the pubkey; this is a public-only pair.
-            self.pubkey = pubkey
+            self.pubkey = PublicKey(pubkey)
             self.public_only = True
 
     @staticmethod
@@ -52,10 +52,25 @@ class Keypair(object):
 
         elif keypair_byte == constants.SIG_KEYPAIR_BYTE:
             if key_type_byte == constants.PUB_KEY_BYTE:
-                return SigningKeypair(pubkey=key)
+                return SigningKeypair(pubkey=key_data)  # Kinda weird for the moment - we're using all 66 bytes here.  TODO: Decide whether to make this the norm.
 
             elif key_type_byte == constants.PRIV_KEY_BYTE:
                 return SigningKeypair(privkey=key)
+        else:
+            raise ValueError("Unable to determine which type of keypair this is - keypair_byte was {}".format(keypair_byte))
+        assert False
+
+    def gen_privkey(self):
+        """
+        Generate the private key of the pair.
+        """
+        return NotImplemented
+
+    def _gen_pubkey(self):
+        """
+        Generate the public key of the pair.
+        """
+        return NotImplemented
 
 
 class EncryptingKeypair(Keypair):
@@ -152,7 +167,7 @@ class SigningKeypair(Keypair):
             self._gen_pubkey()
 
     def _gen_pubkey(self):
-        self.pubkey = API.ecdsa_priv2pub(self.privkey)
+        self.pubkey = PublicKey(API.ecdsa_priv2pub(self.privkey))
 
     def sign(self, msghash: bytes) -> bytes:
         """
@@ -175,7 +190,7 @@ class SigningKeypair(Keypair):
         :return: Boolean if the signature is valid
         """
         v, r, s = API.ecdsa_load_sig(signature)
-        return API.ecdsa_verify(v, r, s, msghash, self.pubkey)
+        return API.ecdsa_verify(v, r, s, msghash, self.pubkey.without_metabytes())
 
     def serialize_pubkey(self) -> bytes:
         """
@@ -198,3 +213,11 @@ class SigningKeypair(Keypair):
                           constants.PRIV_KEY_BYTE +
                           self.privkey)
         return serialized_key
+
+
+class PublicKey(bytes):
+    _EXPECTED_LENGTH = 66
+    _METABYTES_LENGTH = 2
+
+    def without_metabytes(self):
+        return self[self._METABYTES_LENGTH::]

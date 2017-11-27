@@ -1,6 +1,7 @@
 import unittest
 from nkms.crypto import api as API
 from nkms.keystore import keypairs
+from nkms.keystore.keypairs import PublicKey
 
 
 class TestKeypairs(unittest.TestCase):
@@ -27,8 +28,7 @@ class TestKeypairs(unittest.TestCase):
         self.assertEqual(32, len(self.ecdsa_keypair.privkey))
 
         self.assertTrue(self.ecdsa_keypair.pubkey is not None)
-        self.assertEqual(bytes, type(self.ecdsa_keypair.pubkey))
-        self.assertEqual(64, len(self.ecdsa_keypair.pubkey))
+        self.assertEqual(PublicKey._EXPECTED_LENGTH, len(self.ecdsa_keypair.pubkey))
 
     def test_ecdsa_keypair_signing(self):
         msghash = API.keccak_digest(b'hello world!')
@@ -64,8 +64,7 @@ class TestKeypairs(unittest.TestCase):
         self.assertEqual(bytes, type(keypair.privkey))
         self.assertEqual(32, len(keypair.privkey))
 
-        self.assertEqual(bytes, type(keypair.pubkey))
-        self.assertEqual(64, len(keypair.pubkey))
+        self.assertEqual(PublicKey._EXPECTED_LENGTH, len(keypair.pubkey))
 
         # Test no keys (key generation)
         keypair = keypairs.SigningKeypair()
@@ -74,8 +73,7 @@ class TestKeypairs(unittest.TestCase):
         self.assertEqual(bytes, type(keypair.privkey))
         self.assertEqual(32, len(keypair.privkey))
 
-        self.assertEqual(bytes, type(keypair.pubkey))
-        self.assertEqual(64, len(keypair.pubkey))
+        self.assertEqual(PublicKey._EXPECTED_LENGTH, len(keypair.pubkey))
 
         # Test privkey only
         keypair = keypairs.SigningKeypair(privkey=self.ecdsa_keypair.privkey)
@@ -83,13 +81,10 @@ class TestKeypairs(unittest.TestCase):
 
         self.assertEqual(bytes, type(keypair.privkey))
         self.assertEqual(32, len(keypair.privkey))
-
-        self.assertEqual(bytes, type(keypair.pubkey))
-        self.assertEqual(64, len(keypair.pubkey))
+        self.assertEqual(PublicKey._EXPECTED_LENGTH, len(keypair.pubkey))
 
         # Test pubkey only
         keypair = keypairs.SigningKeypair(pubkey=self.ecdsa_keypair.pubkey)
         self.assertTrue(keypair.public_only is True)
 
-        self.assertEqual(bytes, type(keypair.pubkey))
-        self.assertEqual(64, len(keypair.pubkey))
+        self.assertEqual(PublicKey._EXPECTED_LENGTH, len(keypair.pubkey))

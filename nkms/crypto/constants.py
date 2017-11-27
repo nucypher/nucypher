@@ -1,5 +1,4 @@
 # TODO: Turn these into classes?
-PUBKEY_SIG_LENGTH = 64
 HASH_DIGEST_LENGTH = 32
 
 NOT_SIGNED = 445

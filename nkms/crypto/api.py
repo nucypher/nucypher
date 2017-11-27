@@ -4,8 +4,9 @@ from typing import Tuple, Union, List
 import sha3
 from nacl.secret import SecretBox
 from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_recover, ecdsa_raw_sign
-from nkms.crypto import _internal
 
+from nkms.crypto import _internal
+from nkms.keystore.constants import SIG_KEYPAIR_BYTE, PUB_KEY_BYTE
 from npre import elliptic_curve
 from npre import umbral
 
@@ -14,7 +15,7 @@ SYSTEM_RAND = SystemRandom()
 
 
 def secure_random(
-    num_bytes: int
+        num_bytes: int
 ) -> bytes:
     """
     Returns an amount `num_bytes` of data from the OS's random device.
@@ -27,13 +28,13 @@ def secure_random(
     :return: bytes
     """
     # TODO: Should we just use os.urandom or avoid the import w/ this?
-    return SYSTEM_RAND.getrandbits(num_bytes*8).to_bytes(num_bytes,
-                                                         byteorder='big')
+    return SYSTEM_RAND.getrandbits(num_bytes * 8).to_bytes(num_bytes,
+                                                           byteorder='big')
 
 
 def secure_random_range(
-    min: int,
-    max: int
+        min: int,
+        max: int
 ) -> int:
     """
     Returns a number from a secure random source betwee the range of
@@ -48,7 +49,7 @@ def secure_random_range(
 
 
 def keccak_digest(
-    *messages: bytes
+        *messages: bytes
 ) -> bytes:
     """
     Accepts an iterable containing bytes and digests it returning a
@@ -66,7 +67,7 @@ def keccak_digest(
 
 
 def ecdsa_pub2bytes(
-    pubkey: Tuple[int]
+        pubkey: Tuple[int, int]
 ) -> bytes:
     """
     Takes an ECDSA public key and converts to bytes.
@@ -77,12 +78,12 @@ def ecdsa_pub2bytes(
     """
     x = pubkey[0].to_bytes(32, byteorder='big')
     y = pubkey[1].to_bytes(32, byteorder='big')
-    return x+y
+    return x + y
 
 
 def ecdsa_bytes2pub(
-    pubkey: bytes
-) -> Tuple[int]:
+        pubkey: bytes
+) -> Tuple[int, int]:
     """
     Takes a byte encoded ECDSA public key and converts to a Tuple of x, and y
 
@@ -102,12 +103,12 @@ def ecdsa_gen_priv() -> bytes:
     :return: Byte encoded ECDSA privkey
     """
     privkey = secure_random_range(1, N)
-    return privkey.to_bytes(32, byteorder='big')
+    return privkey.to_bytes(32, byteorder='big')  # TODO: Add metabytes.
 
 
 def ecdsa_priv2pub(
-    privkey: bytes,
-    to_bytes: bool = True
+        privkey: bytes,
+        to_bytes: bool = True
 ) -> Union[bytes, Tuple[int]]:
     """
     Returns the public component of an ECDSA private key.
@@ -119,14 +120,14 @@ def ecdsa_priv2pub(
     """
     pubkey = privtopub(privkey)
     if to_bytes:
-        return ecdsa_pub2bytes(pubkey)
+        return SIG_KEYPAIR_BYTE + PUB_KEY_BYTE + ecdsa_pub2bytes(pubkey)
     return pubkey
 
 
 def ecdsa_gen_sig(
-    v: int,
-    r: int,
-    s: int
+        v: int,
+        r: int,
+        s: int
 ) -> bytes:
     """
     Generates an ECDSA signature, in bytes.
@@ -137,15 +138,15 @@ def ecdsa_gen_sig(
 
     :return: bytestring of v, r, and s
     """
-    v = v.to_bytes(1, byteorder='big')
-    r = r.to_bytes(32, byteorder='big')
-    s = s.to_bytes(32, byteorder='big')
-    return v+r+s
+    _v = v.to_bytes(1, byteorder='big')
+    _r = r.to_bytes(32, byteorder='big')
+    _s = s.to_bytes(32, byteorder='big')
+    return _v + _r + _s
 
 
 def ecdsa_load_sig(
-    signature: bytes
-) -> Tuple[int]:
+        signature: bytes
+) -> Tuple[int, int, int]:
     """
     Loads an ECDSA signature, from a bytestring, to a tuple.
 
@@ -160,9 +161,9 @@ def ecdsa_load_sig(
 
 
 def ecdsa_sign(
-    msghash: bytes,
-    privkey: bytes
-) -> Tuple[int]:
+        msghash: bytes,
+        privkey: bytes
+) -> Tuple[int, int, int]:
     """
     Accepts a hashed message and signs it with the private key given.
 
@@ -176,11 +177,11 @@ def ecdsa_sign(
 
 
 def ecdsa_verify(
-    v: int,
-    r: int,
-    s: int,
-    msghash: bytes,
-    pubkey: Union[bytes, Tuple[int]]
+        v: int,
+        r: int,
+        s: int,
+        msghash: bytes,
+        pubkey: Union[bytes, Tuple[int, int]]
 ) -> bool:
     """
     Takes a v, r, s, a pubkey, and a hash of a message to verify via ECDSA.
