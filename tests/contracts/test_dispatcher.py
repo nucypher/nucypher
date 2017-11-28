@@ -20,6 +20,7 @@ def test_dispatcher(web3, chain):
     # Deploy contracts and dispatcher for them
     contract1_lib, _ = chain.provider.get_or_deploy_contract('ContractV1')
     contract2_lib, _ = chain.provider.get_or_deploy_contract('ContractV2')
+    contract2_bad_lib, _ = chain.provider.get_or_deploy_contract('ContractV2Bad')
     dispatcher, _ = chain.provider.get_or_deploy_contract(
             'Dispatcher', deploy_args=[contract1_lib.address],
             deploy_transaction={'from': creator})
@@ -38,6 +39,13 @@ def test_dispatcher(web3, chain):
         chain.wait.for_receipt(tx)
     assert dispatcher.call().target().lower() == contract1_lib.address
 
+    # Can't upgrade to bad version
+    # TODO uncomment after fixing dispatcher
+    # with pytest.raises(TransactionFailed):
+    #     tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
+    #     chain.wait.for_receipt(tx)
+    # assert dispatcher.call().target().lower() == contract1_lib.address
+
     # Check return value before and after upgrade
     assert contract_instance.call().returnValue() == 10
     tx = dispatcher.transact({'from': creator}).upgrade(contract2_lib.address)
@@ -45,18 +53,38 @@ def test_dispatcher(web3, chain):
     assert dispatcher.call().target().lower() == contract2_lib.address
     assert contract_instance.call().returnValue() == 20
 
-    # Check storage value for 2 versions
+    # Check storage value
     tx = contract_instance.transact().setStorageValue(5)
     chain.wait.for_receipt(tx)
     tx = contract_instance.transact().getStorageValue()
     chain.wait.for_receipt(tx)
     assert contract_instance.call().getStorageValue() == 10
-    tx = dispatcher.transact({'from': creator}).upgrade(contract1_lib.address)
+
+    # Can't downgrade to first version due to storage
+    with pytest.raises(TransactionFailed):
+        tx = dispatcher.transact({'from': creator}).upgrade(contract1_lib.address)
+        chain.wait.for_receipt(tx)
+
+    # And can't upgrade to bad version
+    with pytest.raises(TransactionFailed):
+        tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
+        chain.wait.for_receipt(tx)
+    assert dispatcher.call().target().lower() == contract2_lib.address
+
+    # But can rollback
+    tx = dispatcher.transact({'from': creator}).rollback()
     chain.wait.for_receipt(tx)
+    assert dispatcher.call().target().lower() == contract1_lib.address
     assert contract_instance.call().getStorageValue() == 10
     tx = contract_instance.transact().setStorageValue(5)
     chain.wait.for_receipt(tx)
     assert contract_instance.call().getStorageValue() == 5
+
+    # Can't upgrade to bad version
+    with pytest.raises(TransactionFailed):
+        tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
+        chain.wait.for_receipt(tx)
+    assert dispatcher.call().target().lower() == contract1_lib.address
 
     # Check dynamically sized value
     # TODO uncomment after fixing dispatcher

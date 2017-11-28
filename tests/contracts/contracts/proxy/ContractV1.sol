@@ -10,8 +10,6 @@ import "contracts/proxy/Upgradeable.sol";
 **/
 contract ContractV1 is ContractInterface, Upgradeable {
 
-    event Test(address test);
-
     // The storage layout must remain the same in all the upgraded contracts, although it can be added to.
     // Note that besides the potential mess of unnecessary variables this could create over time, there isn't currently
     // any increase in cost because of this.

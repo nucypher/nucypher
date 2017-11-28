@@ -55,6 +55,6 @@ contract ContractV2 is ContractInterface, Upgradeable {
 //        require(address(delegateGet(testTarget, "dynamicallySizedValue()")) == owner);
 //        require(address(delegateGet(testTarget, "updatedDynamicallySizedValue()")) == owner);
     //TODO delete after fixing return size
-//        require(uint(delegateGet(testTarget, "storageValueToCheck()")) == storageValueToCheck);
+        require(uint(delegateGet(testTarget, "storageValueToCheck()")) == storageValueToCheck);
     }
 }

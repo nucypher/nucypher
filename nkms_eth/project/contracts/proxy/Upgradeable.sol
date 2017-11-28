@@ -18,6 +18,10 @@ contract Upgradeable is Ownable {
     * However the storage layout is specified here in the implementing contracts.
     **/
     address public target;
+    /**
+    * @dev Previous contract address (if available). Used for rollback
+    **/
+    address public previousTarget;
 
     /**
     * @dev Method for verifying storage state.
