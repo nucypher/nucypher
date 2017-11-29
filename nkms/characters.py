@@ -1,5 +1,6 @@
 import asyncio
 import binascii
+from binascii import hexlify
 from logging import getLogger
 
 import msgpack
@@ -171,7 +172,7 @@ class Character(object):
             raise self.NotFound("We haven't learned of an actor with ID {}".format(actor.id()))
 
     def id(self):
-        return "whatever actor id ends up being - {}".format(id(self))
+        return hexlify(bytes(self.seal))
 
     def public_key(self, key_class):
         try:
