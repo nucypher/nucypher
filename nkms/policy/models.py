@@ -293,7 +293,7 @@ class TreasureMap(object):
 class WorkOrder(object):
 
     def __init__(self, ursula_id, p_frags, receipt_bytes, receipt_signature, bob_pubkey_sig):
-        self.ursula_id = ursula_id
+        self.ursula_id = ursula_id  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
         self.p_frags = p_frags
         self.receipt_bytes = receipt_bytes
         self.receipt_signature = receipt_signature
