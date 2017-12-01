@@ -273,6 +273,12 @@ class Bob(Character):
             from nkms.policy.models import TreasureMap
             return TreasureMap(msgpack.loads(packed_node_list))
 
+    def generate_work_order(self, p_frags):
+        from nkms.policy.models import WorkOrder  # Prevent circular import
+        receipt_bytes = b"wo:" + self.hash(b"".join(p_frags))
+        receipt_signature = self.seal(receipt_bytes)
+        return WorkOrder(p_frags, receipt_bytes, receipt_signature)
+
 
 class Ursula(Character):
     _server_class = NuCypherDHTServer
