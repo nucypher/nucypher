@@ -23,3 +23,21 @@ def test_bob_can_follow_treasure_map(enacted_policy_group, ursulas, alice, bob):
 
     bob.follow_treasure_map(enacted_policy_group.treasure_map)
     assert len(bob._ursulas) == len(ursulas)
+
+
+def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy_group, alice, bob, ursulas):
+
+    # We pick up our story with Bob already having follwed the treasure map above, ie:
+    assert len(bob._ursulas) == len(ursulas)
+
+    p_frags = (b"llamas", b"dingos")
+    work_order = bob.generate_work_order(p_frags)
+
+    networky_stuff = MockNetworkyStuff(ursulas)
+    bob.issue_work_order(networky_stuff, work_order, num_ursulas=1)  # Issue the work order only to the first Ursula.
+
+    first_ursula = bob.get_ursula(0)
+    work_orders_from_bob = first_ursula.work_orders(bob=bob)
+
+    assert len(work_orders_from_bob) == 1
+    assert work_orders_from_bob[0] == work_order
