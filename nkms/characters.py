@@ -274,7 +274,8 @@ class Bob(Character):
             from nkms.policy.models import TreasureMap
             return TreasureMap(msgpack.loads(packed_node_list))
 
-    def generate_work_orders(self, p_frags, num_ursulas=None):
+    def generate_work_orders(self, policy_group, p_frags, num_ursulas=None):
+        # TODO: Perhaps instead of taking a policy_group, it makes more sense for Bob to reconstruct one with the TreasureMap.
         from nkms.policy.models import WorkOrder  # Prevent circular import
 
         existing_work_orders = self._work_orders.get(p_frags, {})
