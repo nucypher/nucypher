@@ -288,3 +288,11 @@ class TreasureMap(object):
 
     def __iter__(self):
         return iter(self.ids)
+
+
+class WorkOrder(object):
+
+    def __init__(self, p_frags, receipt_bytes, receipt_signature):
+        self.p_frags = p_frags
+        self.receipt_bytes = receipt_bytes
+        self.receipt_signature = receipt_signature
