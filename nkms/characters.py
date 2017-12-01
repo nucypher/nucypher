@@ -328,7 +328,7 @@ class Ursula(Character):
         self.interface = interface
         return self.server.listen(port, interface)
 
-    def interface_info(self):
+    def dht_interface_info(self):
         return self.port, self.interface, self.interface_ttl
 
     def interface_dht_key(self):
@@ -336,10 +336,10 @@ class Ursula(Character):
 
     def interface_dht_value(self):
         signature = self.seal(self.interface_hrac())
-        return b"uaddr" + signature + self.seal + self.interface_hrac() + msgpack.dumps(self.interface_info())
+        return b"uaddr" + signature + self.seal + self.interface_hrac() + msgpack.dumps(self.dht_interface_info())
 
     def interface_hrac(self):
-        return self.hash(msgpack.dumps(self.interface_info()))
+        return self.hash(msgpack.dumps(self.dht_interface_info()))
 
     def publish_interface_information(self):
         if not self.port and self.interface:
