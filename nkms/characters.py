@@ -229,6 +229,7 @@ class Bob(Character):
         self._ursulas = {}
         if alice:
             self.alice = alice
+        self._work_orders = {}
 
     @property
     def alice(self):
@@ -273,11 +274,27 @@ class Bob(Character):
             from nkms.policy.models import TreasureMap
             return TreasureMap(msgpack.loads(packed_node_list))
 
-    def generate_work_order(self, p_frags):
+    def generate_work_orders(self, p_frags, num_ursulas=None):
         from nkms.policy.models import WorkOrder  # Prevent circular import
-        receipt_bytes = b"wo:" + self.hash(b"".join(p_frags))
-        receipt_signature = self.seal(receipt_bytes)
-        return WorkOrder(p_frags, receipt_bytes, receipt_signature)
+
+        existing_work_orders = self._work_orders.get(p_frags, {})
+        generated_work_orders = {}
+
+        for ursula_dht_key, ursula in self._ursulas.items():
+            if ursula_dht_key in existing_work_orders:
+                continue
+            else:
+                work_order = WorkOrder.constructed_by_bob(p_frags, ursula_dht_key, self.seal)
+                existing_work_orders[ursula_dht_key] = generated_work_orders[ursula_dht_key] = work_order
+
+            if num_ursulas is not None:
+                if num_ursulas == len(generated_work_orders):
+                    break
+
+        return generated_work_orders
+
+    def get_reencrypted_c_frag(self, networky_stuff, work_order):
+        networky_stuff.reencrypt(work_order)
 
 
 class Ursula(Character):
