@@ -337,6 +337,7 @@ class Ursula(Character):
 
         routes = [
             Route('/kFrag/{hrac_as_hex}', 'POST', self.set_policy),
+            Route('/kFrag/{hrac_as_hex}/reencrypt', 'POST', self.reencrypt_via_rest),
         ]
 
         self._rest_app = App(routes=routes)
@@ -386,7 +387,13 @@ class Ursula(Character):
             raise
             # Do something appropriately RESTful (ie, 4xx).
 
-        return  # A 200, which whatever policy metadata.
+        return  # A 200, with whatever policy metadata.
+
+    def reencrypt_via_rest(self, hrac_as_hex, request: http.Request):
+        from nkms.policy.models import WorkOrder  # Avoid circular import
+        hrac = binascii.unhexlify(hrac_as_hex)
+        work_order = WorkOrder.from_rest_payload(hrac, request.body)
+        return  # TODO: perform reencryption and return 200.
 
 
 class Seal(object):
