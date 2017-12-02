@@ -305,5 +305,19 @@ class WorkOrder(object):
         receipt_bytes = b"wo:" + ursula_dht_key + keccak_digest(b"".join(pfrags))
         receipt_signature = bobs_seal(receipt_bytes)
         bob_pubkey_sig = bytes(bobs_seal)
-        return cls(ursula_dht_key, p_frags, receipt_bytes, receipt_signature, bob_pubkey_sig)
+        return cls(kfrag_hrac, pfrags, receipt_bytes, receipt_signature, bob_pubkey_sig, ursula_dht_key)
+
+    @classmethod
+    def from_rest_payload(cls, kfrag_hrac, rest_payload):
+        payload_splitter = BytestringSplitter(Signature, PublicKey)
+        signature, bob_pubkey_sig, (receipt_bytes, packed_pfrags) = payload_splitter(rest_payload, msgpack_remainder=True)
+        pfrags = msgpack.loads(packed_pfrags)
+        verified = signature.verify(receipt_bytes, bob_pubkey_sig)
+        if not verified:
+            raise ValueError("This doesn't appear to be from Bob.")
+        return cls(kfrag_hrac, pfrags, receipt_bytes, signature, bob_pubkey_sig)
+
+    def payload(self):
+        return bytes(self.receipt_signature) + self.bob_pubkey_sig + msgpack.dumps((self.receipt_bytes, msgpack.dumps(self.pfrags)))
+
 
