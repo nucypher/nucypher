@@ -1,5 +1,8 @@
 import asyncio
 
+import msgpack
+import pytest
+
 from apistar.test import TestClient
 from sqlalchemy.engine import create_engine
 
@@ -70,3 +73,15 @@ class MockNetworkyStuff(NetworkyStuff):
         mock_client = TestClient(ursula.rest_app)
         response = mock_client.post('http://localhost/kFrag/{}'.format(hrac.hex()), payload)
         return True, ursula.interface_dht_key()
+
+    def reencrypt(self, work_order):
+        for _ursula in self.ursulas:
+            if _ursula.interface_dht_key() == work_order.ursula_id:
+                ursula = _ursula
+                break
+        else:
+            pytest.fail("No Ursula with ID {}".format(work_order.ursula_id))
+        mock_client = TestClient(ursula.rest_app)
+        payload = work_order.payload()
+        response = mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(work_order.kfrag_hrac.hex()), payload)
+        self

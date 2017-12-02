@@ -295,7 +295,8 @@ class Bob(Character):
         return generated_work_orders
 
     def get_reencrypted_c_frag(self, networky_stuff, work_order):
-        networky_stuff.reencrypt(work_order)
+        c_frag = networky_stuff.reencrypt(work_order)
+        return c_frag
 
 
 class Ursula(Character):
