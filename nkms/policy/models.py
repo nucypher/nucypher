@@ -292,15 +292,17 @@ class TreasureMap(object):
 
 class WorkOrder(object):
 
-    def __init__(self, ursula_id, p_frags, receipt_bytes, receipt_signature, bob_pubkey_sig):
-        self.ursula_id = ursula_id  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
-        self.p_frags = p_frags
+    def __init__(self, kfrag_hrac, pfrags, receipt_bytes, receipt_signature, bob_pubkey_sig, ursula_id=None):
+        self.kfrag_hrac = kfrag_hrac
+        self.pfrags = pfrags
         self.receipt_bytes = receipt_bytes
         self.receipt_signature = receipt_signature
+        self.bob_pubkey_sig = bob_pubkey_sig
+        self.ursula_id = ursula_id # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
 
     @classmethod
-    def constructed_by_bob(cls, p_frags, ursula_dht_key, bobs_seal):
-        receipt_bytes = b"wo:" + ursula_dht_key + keccak_digest(b"".join(p_frags))
+    def constructed_by_bob(cls, kfrag_hrac, pfrags, ursula_dht_key, bobs_seal):
+        receipt_bytes = b"wo:" + ursula_dht_key + keccak_digest(b"".join(pfrags))
         receipt_signature = bobs_seal(receipt_bytes)
         bob_pubkey_sig = bytes(bobs_seal)
         return cls(ursula_dht_key, p_frags, receipt_bytes, receipt_signature, bob_pubkey_sig)
