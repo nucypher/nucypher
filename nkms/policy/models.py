@@ -60,15 +60,15 @@ class PolicyManagerForAlice(PolicyManager):
         re_enc_keys, encrypted_key = self.owner.generate_rekey_frags(alice_priv_enc, bob, m,
                                                                      n)  # TODO: Access Alice's private key inside this method.
         policies = []
-        for kfrag_id, rekey in enumerate(re_enc_keys):
+        for kfrag_id, kfrag in enumerate(re_enc_keys):
             policy = Policy.from_alice(
                 alice=self.owner,
                 bob=bob,
-                kfrag=rekey,
+                kfrag=kfrag,
             )
             policies.append(policy)
 
-        return PolicyGroup(uri, self.owner, bob, policies)
+        return PolicyGroup(uri, self.owner, bob, encrypted_key, policies)
 
 
 class PolicyGroup(object):
@@ -78,10 +78,11 @@ class PolicyGroup(object):
 
     _id = None
 
-    def __init__(self, uri: bytes, alice: Alice, bob: Bob, policies=None) -> None:
+    def __init__(self, uri: bytes, alice: Alice, bob: Bob, encrypted_key, policies=None) -> None:
         self.policies = policies or []
         self.alice = alice
         self.bob = bob
+        self.encrypted_key = encrypted_key
         self.uri = uri
         self.treasure_map = TreasureMap()
 
@@ -137,7 +138,6 @@ class PolicyGroup(object):
             response = networky_stuff.enact_policy(policy.ursula,
                                                    self.hrac(),
                                                    full_payload)  # TODO: Parse response for confirmation.
-
 
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(policy.ursula)
@@ -220,7 +220,7 @@ class Policy(object):
         alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
         ursula.learn_about_actor(alice)
         verified, cleartext = ursula.verify_from(alice, payload_encrypted_for_ursula,
-                                                      decrypt=True, signature_is_on_cleartext=True)
+                                                 decrypt=True, signature_is_on_cleartext=True)
 
         if not verified:
             # TODO: What do we do if it's not signed properly?

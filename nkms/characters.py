@@ -274,18 +274,19 @@ class Bob(Character):
             from nkms.policy.models import TreasureMap
             return TreasureMap(msgpack.loads(packed_node_list))
 
-    def generate_work_orders(self, policy_group, p_frags, num_ursulas=None):
+    def generate_work_orders(self, policy_group, *pfrags, num_ursulas=None):
         # TODO: Perhaps instead of taking a policy_group, it makes more sense for Bob to reconstruct one with the TreasureMap.
         from nkms.policy.models import WorkOrder  # Prevent circular import
 
-        existing_work_orders = self._work_orders.get(p_frags, {})
+        # existing_work_orders = self._work_orders.get(pfrags, {})  #  TODO: lookup whether we've done this reencryption before - see #137.
+        existing_work_orders = {}
         generated_work_orders = {}
 
         for ursula_dht_key, ursula in self._ursulas.items():
             if ursula_dht_key in existing_work_orders:
                 continue
             else:
-                work_order = WorkOrder.constructed_by_bob(policy_group.hrac(), p_frags, ursula_dht_key, self.seal)
+                work_order = WorkOrder.constructed_by_bob(policy_group.hrac(), pfrags, ursula_dht_key, self.seal)
                 existing_work_orders[ursula_dht_key] = generated_work_orders[ursula_dht_key] = work_order
 
             if num_ursulas is not None:
@@ -394,6 +395,12 @@ class Ursula(Character):
         from nkms.policy.models import WorkOrder  # Avoid circular import
         hrac = binascii.unhexlify(hrac_as_hex)
         work_order = WorkOrder.from_rest_payload(hrac, request.body)
+        kfrag = self.keystore.get_kfrag(hrac)  # Careful!  :-)
+        cfrags = []
+
+        for pfrag in work_order.pfrags:
+            cfrags.append(API.ecies_reencrypt(kfrag, pfrag))
+
         return  # TODO: perform reencryption and return 200.
 
 
