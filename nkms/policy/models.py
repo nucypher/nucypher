@@ -3,14 +3,13 @@ import msgpack
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import HASH_DIGEST_LENGTH, NOT_SIGNED
+from nkms.crypto.constants import NOT_SIGNED
 from nkms.crypto.fragments import KFrag
 from nkms.crypto.powers import EncryptingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 from nkms.keystore.keypairs import PublicKey
 from npre.constants import UNKNOWN_KFRAG
-from npre.umbral import RekeyFrag
 
 group_payload_splitter = BytestringSplitter(PublicKey)
 policy_payload_splitter = BytestringSplitter(KFrag)
@@ -291,18 +290,17 @@ class TreasureMap(object):
 
 
 class WorkOrder(object):
-
     def __init__(self, kfrag_hrac, pfrags, receipt_bytes, receipt_signature, bob_pubkey_sig, ursula_id=None):
         self.kfrag_hrac = kfrag_hrac
         self.pfrags = pfrags
         self.receipt_bytes = receipt_bytes
         self.receipt_signature = receipt_signature
         self.bob_pubkey_sig = bob_pubkey_sig
-        self.ursula_id = ursula_id # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
+        self.ursula_id = ursula_id  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
 
     @classmethod
     def constructed_by_bob(cls, kfrag_hrac, pfrags, ursula_dht_key, bobs_seal):
-        receipt_bytes = b"wo:" + ursula_dht_key + keccak_digest(b"".join(pfrags))
+        receipt_bytes = b"wo:" + ursula_dht_key  # TODO: represent the pfrags as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(pfrags))  - See #137
         receipt_signature = bobs_seal(receipt_bytes)
         bob_pubkey_sig = bytes(bobs_seal)
         return cls(kfrag_hrac, pfrags, receipt_bytes, receipt_signature, bob_pubkey_sig, ursula_dht_key)
@@ -310,7 +308,8 @@ class WorkOrder(object):
     @classmethod
     def from_rest_payload(cls, kfrag_hrac, rest_payload):
         payload_splitter = BytestringSplitter(Signature, PublicKey)
-        signature, bob_pubkey_sig, (receipt_bytes, packed_pfrags) = payload_splitter(rest_payload, msgpack_remainder=True)
+        signature, bob_pubkey_sig, (receipt_bytes, packed_pfrags) = payload_splitter(rest_payload,
+                                                                                     msgpack_remainder=True)
         pfrags = msgpack.loads(packed_pfrags)
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
@@ -318,6 +317,6 @@ class WorkOrder(object):
         return cls(kfrag_hrac, pfrags, receipt_bytes, signature, bob_pubkey_sig)
 
     def payload(self):
-        return bytes(self.receipt_signature) + self.bob_pubkey_sig + msgpack.dumps((self.receipt_bytes, msgpack.dumps(self.pfrags)))
-
-
+        # TODO: serialize pfrag to be able to send it over the wire - #137.
+        return bytes(self.receipt_signature) + self.bob_pubkey_sig + msgpack.dumps(
+            (self.receipt_bytes, msgpack.dumps(self.pfrags)))

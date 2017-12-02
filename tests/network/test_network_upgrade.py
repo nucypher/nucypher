@@ -1,3 +1,4 @@
+from nkms.crypto import api
 from tests.utilities import EVENT_LOOP, MockNetworkyStuff
 
 
