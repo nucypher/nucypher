@@ -31,8 +31,8 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy_group, a
     # We pick up our story with Bob already having follwed the treasure map above, ie:
     assert len(bob._ursulas) == len(ursulas)
 
-    p_frags = (b"llamas", b"dingos")
-    work_orders = bob.generate_work_orders(enacted_policy_group, p_frags, num_ursulas=1)
+    pfrag = enacted_policy_group.encrypted_key
+    work_orders = bob.generate_work_orders(enacted_policy_group, pfrag, num_ursulas=1)
 
     assert len(work_orders) == 1
 
