@@ -34,3 +34,7 @@ def get(name=CONTRACT_NAME):
     Gets an existing contract or returns an error
     """
     return blockchain.chain().provider.get_contract(name)
+
+
+def balance(address: str):
+    return get().call().balanceOf(address)

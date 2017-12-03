@@ -14,9 +14,12 @@ def create():
     """
     chain = blockchain.chain()
     creator = chain.web3.eth.accounts[0]  # TODO: make it possible to override
+    tok = token.get()
     escrow, tx = chain.provider.get_or_deploy_contract(
         ESCROW_NAME, deploy_args=[token.get().address] + MINING_COEFF,
         deploy_transaction={'from': creator})
+    chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
+    tx = tok.transact({'from': creator}).addMiner(escrow.address)
     chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
     return escrow
 

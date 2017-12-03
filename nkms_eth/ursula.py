@@ -23,9 +23,17 @@ def lock(amount: int, locktime: int, address: str = None):
     chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
 
 
-def mine():
-    pass
+def mine(address: str = None):
+    chain = blockchain.chain()
+    address = address or chain.web3.eth.accounts[0]
+    escrow = nkms_eth.escrow.get()
+    tx = escrow.transact({'from': address}).mint()
+    chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
 
 
-def withdraw():
-    pass
+def withdraw(address: str = None):
+    chain = blockchain.chain()
+    address = address or chain.web3.eth.accounts[0]
+    escrow = nkms_eth.escrow.get()
+    tx = escrow.transact({'from': address}).withdrawAll()
+    chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
