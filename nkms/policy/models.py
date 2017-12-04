@@ -4,6 +4,7 @@ from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.constants import HASH_DIGEST_LENGTH, NOT_SIGNED
+from nkms.crypto.fragments import KFrag
 from nkms.crypto.powers import EncryptingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
@@ -12,7 +13,7 @@ from npre.constants import UNKNOWN_KFRAG
 from npre.umbral import RekeyFrag
 
 group_payload_splitter = BytestringSplitter(PublicKey)
-policy_payload_splitter = BytestringSplitter((bytes, 66))  # TODO: I wish ReKeyFrag worked with this interface.
+policy_payload_splitter = BytestringSplitter(KFrag)
 
 
 class PolicyOffer(object):
@@ -227,8 +228,7 @@ class Policy(object):
 
         alices_signature, policy_payload = BytestringSplitter(Signature)(cleartext, return_remainder=True)
 
-        kfrag_bytes, encrypted_challenge_pack = policy_payload_splitter(policy_payload, return_remainder=True)
-        kfrag = RekeyFrag.from_bytes(kfrag_bytes)
+        kfrag, encrypted_challenge_pack = policy_payload_splitter(policy_payload, return_remainder=True)
         policy = Policy(alice=alice, alices_signature=alices_signature, kfrag=kfrag,
                         encrypted_challenge_pack=encrypted_challenge_pack)
 
