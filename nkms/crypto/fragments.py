@@ -30,6 +30,15 @@ class KFrag(object):
         else:
             return bytes(self) == bytes(other_kfrag)
 
+    def __add__(self, other):
+        return bytes(self) + other
+
+    def __radd__(self, other):
+        return other + bytes(self)
+
+    def __getitem__(self, slice):
+        return bytes(self)[slice]
+
     @property
     def key(self):
         return self._umbral_kfrag.key
@@ -37,12 +46,6 @@ class KFrag(object):
     @property
     def id(self):
         return self._umbral_kfrag.id
-
-    def __add__(self, other):
-        return bytes(self) + other
-
-    def __radd__(self, other):
-        return other + bytes(self)
 
 
 class CFrag(object):

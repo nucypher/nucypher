@@ -40,7 +40,6 @@ def test_split_kfrag_from_arbitrary_bytes():
     assert kfrag == rebuilt_kfrag
 
 
-
 def test_trying_to_extract_too_many_bytes_raises_typeerror():
     how_many_bytes = 10
     too_many_bytes = 11
