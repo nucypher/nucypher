@@ -9,8 +9,6 @@ class PFrag(object):
 class KFrag(object):
 
     _EXPECTED_LENGTH = 66
-    _id_length = 33
-    _key_length = 33
     _is_unknown_kfrag = False
 
     def __init__(self, id_plus_key_as_bytes=None, umbral_kfrag=None):
