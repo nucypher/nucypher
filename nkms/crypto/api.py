@@ -6,6 +6,7 @@ from nacl.secret import SecretBox
 from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_recover, ecdsa_raw_sign
 
 from nkms.crypto import _internal
+from nkms.crypto.fragments import KFrag
 from nkms.keystore.constants import SIG_KEYPAIR_BYTE, PUB_KEY_BYTE
 from npre import elliptic_curve
 from npre import umbral
@@ -378,8 +379,9 @@ def ecies_split_rekey(
         privkey_a = priv_bytes2ec(privkey_a)
     if type(privkey_b) == bytes:
         privkey_b = priv_bytes2ec(privkey_b)
-    return PRE.split_rekey(privkey_a, privkey_b,
+    umbral_rekeys = PRE.split_rekey(privkey_a, privkey_b,
                            min_shares, total_shares)
+    return [KFrag(umbral_kfrag=u) for u in umbral_rekeys]
 
 
 def ecies_ephemeral_split_rekey(
