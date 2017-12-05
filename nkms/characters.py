@@ -231,8 +231,8 @@ class Bob(Character):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def __init__(self, alice=None):
-        super().__init__()
+    def __init__(self, alice=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._ursulas = {}
         if alice:
             self.alice = alice
@@ -273,7 +273,7 @@ class Bob(Character):
         _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
             packed_encrypted_treasure_map[5::], msgpack_remainder=True)
         verified, cleartext = self.verify_from(self.alice, encrypted_treasure_map,
-                                                      signature_is_on_cleartext=True, decrypt=True)
+                                               signature_is_on_cleartext=True, decrypt=True)
         alices_signature, packed_node_list = BytestringSplitter(Signature)(cleartext, return_remainder=True)
         if not verified:
             return NOT_FROM_ALICE
