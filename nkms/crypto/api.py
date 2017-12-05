@@ -1,12 +1,12 @@
-from random import SystemRandom
 from typing import Tuple, Union, List
 
 import sha3
 from nacl.secret import SecretBox
 from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_recover, ecdsa_raw_sign
+from random import SystemRandom
 
 from nkms.crypto import _internal
-from nkms.crypto.fragments import KFrag
+from nkms.crypto.fragments import KFrag, PFrag
 from nkms.keystore.constants import SIG_KEYPAIR_BYTE, PUB_KEY_BYTE
 from npre import elliptic_curve
 from npre import umbral
@@ -380,7 +380,7 @@ def ecies_split_rekey(
     if type(privkey_b) == bytes:
         privkey_b = priv_bytes2ec(privkey_b)
     umbral_rekeys = PRE.split_rekey(privkey_a, privkey_b,
-                           min_shares, total_shares)
+                                    min_shares, total_shares)
     return [KFrag(umbral_kfrag=u) for u in umbral_rekeys]
 
 
@@ -404,10 +404,11 @@ def ecies_ephemeral_split_rekey(
     :return: A tuple containing a list of rekey frags, and a tuple of the
              encrypted ephemeral key data (enc_symm_key, enc_eph_privkey)
     """
-    eph_privkey, enc_eph_data = _internal._ecies_gen_ephemeral_key(pubkey_b)
-    frags = ecies_split_rekey(privkey_a, eph_privkey, min_shares, total_shares)
+    eph_privkey, (encrypted_key, encrypted_message) = _internal._ecies_gen_ephemeral_key(pubkey_b)
+    kfrags = ecies_split_rekey(privkey_a, eph_privkey, min_shares, total_shares)
+    pfrag = PFrag(ephemeral_data_as_bytes=None, encrypted_key=encrypted_key, encrypted_message=encrypted_message)
 
-    return (frags, enc_eph_data)
+    return (kfrags, pfrag)
 
 
 def ecies_combine(
