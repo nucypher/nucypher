@@ -80,4 +80,29 @@ class KFrag(object):
 
 
 class CFrag(object):
-    pass
+
+    _EXPECTED_LENGTH = 33
+
+    def __init__(self, encrypted_key_as_bytes=None, reencrypted_data=None):
+        from nkms.crypto.api import PRE  # Avoid circular import
+        if encrypted_key_as_bytes and reencrypted_data:
+            raise ValueError("Pass the bytes or the EncryptedKey, not both.")
+        elif encrypted_key_as_bytes:
+            self.encrypted_key = PRE.load_key(encrypted_key_as_bytes)
+        elif reencrypted_data:
+            self.encrypted_key = reencrypted_data
+        else:
+            assert False # Again, do we want a concept of an "empty" CFrag?
+
+    def __bytes__(self):
+        from nkms.crypto.api import PRE  # Avoid circular import
+        return PRE.save_key(self.encrypted_key.ekey)
+
+    def __len__(self):
+        return len(bytes(self))
+
+    def __add__(self, other):
+        return bytes(self) + other
+
+    def __radd__(self, other):
+        return other + bytes(self)

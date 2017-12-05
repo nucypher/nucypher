@@ -6,7 +6,7 @@ from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_recover, ecdsa_raw_sign
 from random import SystemRandom
 
 from nkms.crypto import _internal
-from nkms.crypto.fragments import KFrag, PFrag
+from nkms.crypto.fragments import KFrag, PFrag, CFrag
 from nkms.keystore.constants import SIG_KEYPAIR_BYTE, PUB_KEY_BYTE
 from npre import elliptic_curve
 from npre import umbral
@@ -412,7 +412,7 @@ def ecies_ephemeral_split_rekey(
 
 
 def ecies_combine(
-        encrypted_keys: List[umbral.EncryptedKey]
+        cfrags: List[CFrag]
 ) -> umbral.EncryptedKey:
     """
     Combines the encrypted keys together to form a rekey from split_rekey.
@@ -421,7 +421,7 @@ def ecies_combine(
 
     :return: The combined EncryptedKey of the rekey
     """
-    return PRE.combine(encrypted_keys)
+    return PRE.combine([cfrag.encrypted_key for cfrag in cfrags])
 
 
 def ecies_reencrypt(
@@ -440,4 +440,5 @@ def ecies_reencrypt(
         rekey = umbral.RekeyFrag(None, priv_bytes2ec(rekey))
     if type(enc_key) == bytes:
         enc_key = umbral.EncryptedKey(priv_bytes2ec(enc_key), None)
-    return PRE.reencrypt(rekey, enc_key)
+    reencrypted_data = PRE.reencrypt(rekey, enc_key)
+    return CFrag(reencrypted_data)
