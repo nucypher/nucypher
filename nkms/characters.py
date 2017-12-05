@@ -4,13 +4,12 @@ from binascii import hexlify
 from logging import getLogger
 
 import msgpack
-from apistar.http import Response
+from sqlalchemy.exc import IntegrityError
 
 from apistar import http
 from apistar.core import Route
 from apistar.frameworks.wsgi import WSGIApp as App
-from sqlalchemy.exc import IntegrityError
-
+from apistar.http import Response
 from kademlia.network import Server
 from kademlia.utils import digest
 from nkms.crypto import api as API
@@ -72,6 +71,12 @@ class Character(object):
                 self.attach_server()
         else:
             self._seal = StrangerSeal(self)
+
+    def __eq__(self, other):
+        return bytes(self.seal) == bytes(other.seal)
+
+    def __hash__(self):
+        return int.from_bytes(self.seal, byteorder="big")
 
     class NotFound(KeyError):
         """raised when we try to interact with an actor of whom we haven't learned yet."""
