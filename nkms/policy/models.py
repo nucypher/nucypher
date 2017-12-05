@@ -1,10 +1,12 @@
+import binascii
+
 import msgpack
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.constants import NOT_SIGNED
-from nkms.crypto.fragments import KFrag
+from nkms.crypto.fragments import KFrag, PFrag
 from nkms.crypto.powers import EncryptingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
@@ -77,11 +79,11 @@ class PolicyGroup(object):
 
     _id = None
 
-    def __init__(self, uri: bytes, alice: Alice, bob: Bob, encrypted_key, policies=None) -> None:
+    def __init__(self, uri: bytes, alice: Alice, bob: Bob, pfrag, policies=None) -> None:
         self.policies = policies or []
         self.alice = alice
         self.bob = bob
-        self.encrypted_key = encrypted_key
+        self.pfrag = pfrag
         self.uri = uri
         self.treasure_map = TreasureMap()
 
