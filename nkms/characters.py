@@ -323,6 +323,7 @@ class Ursula(Character):
         self.keystore = urulsas_keystore
 
         self._rest_app = None
+        self._work_orders = []
 
     @property
     def rest_app(self):
@@ -409,9 +410,24 @@ class Ursula(Character):
         cfrag_byte_stream = b""
 
         for pfrag in work_order.pfrags:
-            cfrag_byte_stream += (API.ecies_reencrypt(kfrag, pfrag))
+            cfrag_byte_stream += API.ecies_reencrypt(kfrag, pfrag.encrypted_key)
 
-        Response(content=cfrag_byte_stream, content_type="application/octet-stream")
+        self._work_orders.append(work_order)  # TODO: Put this in Ursula's datastore
+
+        return Response(content=cfrag_byte_stream, content_type="application/octet-stream")
+
+    def work_orders(self, bob=None):
+        """
+        TODO: This is better written as a model method for Ursula's datastore.
+        """
+        if not bob:
+            return self._work_orders
+        else:
+            work_orders_from_bob = []
+            for work_order in self._work_orders:
+                if work_order.bob == bob:
+                    work_orders_from_bob.append(work_order)
+            return work_orders_from_bob
 
 
 class Seal(object):
