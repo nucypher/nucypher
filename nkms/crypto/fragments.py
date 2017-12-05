@@ -1,11 +1,9 @@
 from nkms.crypto.utils import BytestringSplitter
 from npre.constants import UNKNOWN_KFRAG
-from npre.umbral import RekeyFrag
+from npre.umbral import RekeyFrag, EncryptedKey
 
 
 class PFrag(object):
-
-
     _key_length = 34
     _message_length = 72
     _EXPECTED_LENGTH = _key_length + _message_length
@@ -18,7 +16,7 @@ class PFrag(object):
             raise ValueError("Pass either the ephemeral data as bytes or the encrypted key and message.  Not both.")
         elif ephemeral_data_as_bytes:
             encrypted_key, self.encrypted_message = self.splitter(ephemeral_data_as_bytes)
-            self.encrypted_key = PRE.load_key(encrypted_key)
+            self.encrypted_key = EncryptedKey(ekey=PRE.load_key(encrypted_key), re_id=None)
         elif encrypted_key and encrypted_message:
             self.encrypted_key = encrypted_key
             self.encrypted_message = encrypted_message
