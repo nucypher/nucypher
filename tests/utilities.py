@@ -1,17 +1,15 @@
 import asyncio
 
-import msgpack
 import pytest
-
-from apistar.test import TestClient
 from sqlalchemy.engine import create_engine
 
-from nkms.characters import Ursula, Alice, Bob
+from apistar.test import TestClient
+from nkms.characters import Ursula
+from nkms.crypto.fragments import CFrag
+from nkms.crypto.utils import RepeatingBytestringSplitter
 from nkms.keystore import keystore
 from nkms.keystore.db import Base
 from nkms.network.node import NetworkyStuff
-
-
 
 NUMBER_OF_URSULAS_IN_NETWORK = 6
 
@@ -55,6 +53,7 @@ class MockPolicyOfferResponse(object):
 
 class MockNetworkyStuff(NetworkyStuff):
     def __init__(self, ursulas):
+        self._ursulas = {u.interface_dht_key(): u for u in ursulas}
         self.ursulas = iter(ursulas)
 
     def go_live_with_policy(self, ursula, policy_offer):
@@ -74,14 +73,19 @@ class MockNetworkyStuff(NetworkyStuff):
         response = mock_client.post('http://localhost/kFrag/{}'.format(hrac.hex()), payload)
         return True, ursula.interface_dht_key()
 
+    def get_ursula_by_id(self, ursula_id):
+        print(self._ursulas)
+        try:
+            ursula = self._ursulas[ursula_id]
+        except KeyError:
+            pytest.fail("No Ursula with ID {}".format(ursula_id))
+        return ursula
+
     def reencrypt(self, work_order):
-        for _ursula in self.ursulas:
-            if _ursula.interface_dht_key() == work_order.ursula_id:
-                ursula = _ursula
-                break
-        else:
-            pytest.fail("No Ursula with ID {}".format(work_order.ursula_id))
+        print(work_order)
+        ursula = self.get_ursula_by_id(work_order.ursula_id)
         mock_client = TestClient(ursula.rest_app)
         payload = work_order.payload()
         response = mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(work_order.kfrag_hrac.hex()), payload)
-        self
+        cfrags = RepeatingBytestringSplitter(CFrag)(response.content)
+        return cfrags
