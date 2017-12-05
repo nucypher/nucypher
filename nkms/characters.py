@@ -4,6 +4,8 @@ from binascii import hexlify
 from logging import getLogger
 
 import msgpack
+from apistar.http import Response
+
 from apistar import http
 from apistar.core import Route
 from apistar.frameworks.wsgi import WSGIApp as App
@@ -396,12 +398,12 @@ class Ursula(Character):
         hrac = binascii.unhexlify(hrac_as_hex)
         work_order = WorkOrder.from_rest_payload(hrac, request.body)
         kfrag = self.keystore.get_kfrag(hrac)  # Careful!  :-)
-        cfrags = []
+        cfrag_byte_stream = b""
 
         for pfrag in work_order.pfrags:
-            cfrags.append(API.ecies_reencrypt(kfrag, pfrag))
+            cfrag_byte_stream += (API.ecies_reencrypt(kfrag, pfrag))
 
-        return  # TODO: perform reencryption and return 200.
+        Response(content=cfrag_byte_stream, content_type="application/octet-stream")
 
 
 class Seal(object):
