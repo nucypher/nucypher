@@ -293,7 +293,7 @@ class Bob(Character):
             if ursula_dht_key in existing_work_orders:
                 continue
             else:
-                work_order = WorkOrder.constructed_by_bob(policy_group.hrac(), pfrags, ursula_dht_key, self.seal)
+                work_order = WorkOrder.constructed_by_bob(policy_group.hrac(), pfrags, ursula_dht_key, self)
                 existing_work_orders[ursula_dht_key] = generated_work_orders[ursula_dht_key] = work_order
 
             if num_ursulas is not None:

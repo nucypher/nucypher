@@ -290,33 +290,41 @@ class TreasureMap(object):
 
 
 class WorkOrder(object):
-    def __init__(self, kfrag_hrac, pfrags, receipt_bytes, receipt_signature, bob_pubkey_sig, ursula_id=None):
+    def __init__(self, bob, kfrag_hrac, pfrags, receipt_bytes, receipt_signature, ursula_id=None):
+        self.bob = bob
         self.kfrag_hrac = kfrag_hrac
         self.pfrags = pfrags
         self.receipt_bytes = receipt_bytes
         self.receipt_signature = receipt_signature
-        self.bob_pubkey_sig = bob_pubkey_sig
         self.ursula_id = ursula_id  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
 
+    def __repr__(self):
+        return "WorkOrder (pfrags: {}) {} for {}".format([binascii.hexlify(bytes(p))[:6] for p in self.pfrags],
+        binascii.hexlify(self.receipt_bytes)[:6],
+        binascii.hexlify(self.ursula_id)[:6])
+
+    def __eq__(self, other):
+        return (self.receipt_bytes, self.receipt_signature) == (other.receipt_bytes, other.receipt_signature)
+
     @classmethod
-    def constructed_by_bob(cls, kfrag_hrac, pfrags, ursula_dht_key, bobs_seal):
+    def constructed_by_bob(cls, kfrag_hrac, pfrags, ursula_dht_key, bob):
         receipt_bytes = b"wo:" + ursula_dht_key  # TODO: represent the pfrags as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(pfrags))  - See #137
-        receipt_signature = bobs_seal(receipt_bytes)
-        bob_pubkey_sig = bytes(bobs_seal)
-        return cls(kfrag_hrac, pfrags, receipt_bytes, receipt_signature, bob_pubkey_sig, ursula_dht_key)
+        receipt_signature = bob.seal(receipt_bytes)
+        return cls(bob, kfrag_hrac, pfrags, receipt_bytes, receipt_signature, ursula_dht_key)
 
     @classmethod
     def from_rest_payload(cls, kfrag_hrac, rest_payload):
         payload_splitter = BytestringSplitter(Signature, PublicKey)
         signature, bob_pubkey_sig, (receipt_bytes, packed_pfrags) = payload_splitter(rest_payload,
                                                                                      msgpack_remainder=True)
-        pfrags = msgpack.loads(packed_pfrags)
+        pfrags = [PFrag(p) for p in msgpack.loads(packed_pfrags)]
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
             raise ValueError("This doesn't appear to be from Bob.")
-        return cls(kfrag_hrac, pfrags, receipt_bytes, signature, bob_pubkey_sig)
+        bob = Bob.from_pubkey_sig_bytes(bob_pubkey_sig)
+        return cls(bob, kfrag_hrac, pfrags, receipt_bytes, signature)
 
     def payload(self):
         pfrags_as_bytes = [bytes(p) for p in self.pfrags]
         packed_receipt_and_pfrags = msgpack.dumps((self.receipt_bytes, msgpack.dumps(pfrags_as_bytes)))
-        return bytes(self.receipt_signature) + self.bob_pubkey_sig + packed_receipt_and_pfrags
+        return bytes(self.receipt_signature) + self.bob.seal + packed_receipt_and_pfrags
