@@ -32,14 +32,16 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy_group, a
     assert len(bob._ursulas) == len(ursulas)
 
     pfrag = enacted_policy_group.encrypted_key
-    work_orders = bob.generate_work_orders(enacted_policy_group, pfrag, num_ursulas=1)
+    work_orders = bob.generate_work_orders(enacted_policy_group, pfrag, num_ursulas=1)  # Make a work order only for the first Ursula.
 
     assert len(work_orders) == 1
 
     networky_stuff = MockNetworkyStuff(ursulas)
 
+    acquired_cfrags = []
+
     for ursula_dht_key, work_order in work_orders.items():
-        bob.get_reencrypted_c_frag(networky_stuff, work_order)  # Issue the work order only to the first Ursula.
+        acquired_cfrags.append(bob.get_reencrypted_c_frag(networky_stuff, work_order))  # Issue the work order - remember - only to the first Ursula.
 
     first_ursula = bob.get_ursula(0)
     work_orders_from_bob = first_ursula.work_orders(bob=bob)
