@@ -317,6 +317,6 @@ class WorkOrder(object):
         return cls(kfrag_hrac, pfrags, receipt_bytes, signature, bob_pubkey_sig)
 
     def payload(self):
-        # TODO: serialize pfrag to be able to send it over the wire - #137.
-        return bytes(self.receipt_signature) + self.bob_pubkey_sig + msgpack.dumps(
-            (self.receipt_bytes, msgpack.dumps(self.pfrags)))
+        pfrags_as_bytes = [bytes(p) for p in self.pfrags]
+        packed_receipt_and_pfrags = msgpack.dumps((self.receipt_bytes, msgpack.dumps(pfrags_as_bytes)))
+        return bytes(self.receipt_signature) + self.bob_pubkey_sig + packed_receipt_and_pfrags
