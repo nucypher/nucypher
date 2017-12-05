@@ -5,6 +5,7 @@ import sha3
 from nacl.utils import EncryptedMessage
 
 from nkms.crypto import api
+from nkms.crypto.fragments import PFrag
 from nkms.keystore.keypairs import PublicKey
 from npre import elliptic_curve as ec
 from npre import umbral
@@ -297,10 +298,9 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(list, type(frags))
         self.assertEqual(4, len(frags))
 
-        self.assertEqual(tuple, type(enc_eph_data))
-        self.assertEqual(2, len(enc_eph_data))
-        self.assertEqual(umbral.EncryptedKey, type(enc_eph_data[0]))
-        self.assertEqual(EncryptedMessage, type(enc_eph_data[1]))
+        self.assertEqual(PFrag._EXPECTED_LENGTH, len(enc_eph_data))
+        self.assertEqual(umbral.EncryptedKey, type(enc_eph_data.deserialized()[0]))
+        self.assertEqual(EncryptedMessage, type(enc_eph_data.deserialized()[1]))
 
     def test_ecies_combine(self):
         eph_priv = self.pre.gen_priv()
