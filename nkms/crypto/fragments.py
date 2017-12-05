@@ -78,23 +78,33 @@ class KFrag(object):
 
 
 class CFrag(object):
-
-    _EXPECTED_LENGTH = 33
+    _EXPECTED_LENGTH = 67
+    _key_element_length = 34
+    _re_id_length = 33
 
     def __init__(self, encrypted_key_as_bytes=None, reencrypted_data=None):
         from nkms.crypto.api import PRE  # Avoid circular import
         if encrypted_key_as_bytes and reencrypted_data:
             raise ValueError("Pass the bytes or the EncryptedKey, not both.")
         elif encrypted_key_as_bytes:
-            self.encrypted_key = PRE.load_key(encrypted_key_as_bytes)
+            if not len(encrypted_key_as_bytes) == self._EXPECTED_LENGTH:
+                raise ValueError("Got {} bytes; need {} for a proper cFrag.".format(len(encrypted_key_as_bytes)),
+                                 self._EXPECTED_LENGTH)
+            key_element = PRE.load_key(encrypted_key_as_bytes[:self._key_element_length])
+            re_id = PRE.load_key(encrypted_key_as_bytes[self._key_element_length:])
+            self.encrypted_key = EncryptedKey(ekey=key_element, re_id=re_id)
         elif reencrypted_data:
             self.encrypted_key = reencrypted_data
         else:
-            assert False # Again, do we want a concept of an "empty" CFrag?
+            assert False  # Again, do we want a concept of an "empty" CFrag?
 
     def __bytes__(self):
         from nkms.crypto.api import PRE  # Avoid circular import
-        return PRE.save_key(self.encrypted_key.ekey)
+        as_bytes = PRE.save_key(self.encrypted_key.ekey) + PRE.save_key(self.encrypted_key.re_id)
+        if len(as_bytes) != self._EXPECTED_LENGTH:
+            raise TypeError("Something went crazy wrong here.  This CFrag serialized to {} bytes.".format(len(as_bytes)))
+        else:
+            return as_bytes
 
     def __len__(self):
         return len(bytes(self))
@@ -104,3 +114,6 @@ class CFrag(object):
 
     def __radd__(self, other):
         return other + bytes(self)
+
+    def __eq__(self, other_cfrag):
+        return bytes(self) == bytes(other_cfrag)
