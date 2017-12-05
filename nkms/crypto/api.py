@@ -441,4 +441,4 @@ def ecies_reencrypt(
     if type(enc_key) == bytes:
         enc_key = umbral.EncryptedKey(priv_bytes2ec(enc_key), None)
     reencrypted_data = PRE.reencrypt(rekey, enc_key)
-    return CFrag(reencrypted_data)
+    return CFrag(reencrypted_data=reencrypted_data)
