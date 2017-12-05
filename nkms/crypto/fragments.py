@@ -1,9 +1,40 @@
+from nkms.crypto.utils import BytestringSplitter
 from npre.constants import UNKNOWN_KFRAG
 from npre.umbral import RekeyFrag
 
 
 class PFrag(object):
-    pass
+
+
+    _key_length = 34
+    _message_length = 72
+    _EXPECTED_LENGTH = _key_length + _message_length
+
+    splitter = BytestringSplitter((bytes, _key_length), (bytes, _message_length))
+
+    def __init__(self, ephemeral_data_as_bytes=None, encrypted_key=None, encrypted_message=None):
+        from nkms.crypto.api import PRE  # Avoid circular import
+        if ephemeral_data_as_bytes and encrypted_key:
+            raise ValueError("Pass either the ephemeral data as bytes or the encrypted key and message.  Not both.")
+        elif ephemeral_data_as_bytes:
+            encrypted_key, self.encrypted_message = self.splitter(ephemeral_data_as_bytes)
+            self.encrypted_key = PRE.load_key(encrypted_key)
+        elif encrypted_key and encrypted_message:
+            self.encrypted_key = encrypted_key
+            self.encrypted_message = encrypted_message
+        else:
+            assert False  # What do we do if all the values were None?  Perhaps have an "UNKNOWN_PFRAG" concept?
+
+    def __bytes__(self):
+        from nkms.crypto.api import PRE  # Avoid circular import
+        encrypted_key_bytes = PRE.save_key(self.encrypted_key.ekey)
+        return encrypted_key_bytes + self.encrypted_message
+
+    def __len__(self):
+        return len(bytes(self))
+
+    def deserialized(self):
+        return self.encrypted_key, self.encrypted_message
 
 
 class KFrag(object):
