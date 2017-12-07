@@ -282,15 +282,16 @@ class Bob(Character):
             return TreasureMap(msgpack.loads(packed_node_list))
 
     def generate_work_orders(self, policy_group, *pfrags, num_ursulas=None):
-        # TODO: Perhaps instead of taking a policy_group, it makes more sense for Bob to reconstruct one with the TreasureMap.
+        # TODO: Perhaps instead of taking a policy_group, it makes more sense for Bob to reconstruct one with the TreasureMap.  See #140.
         from nkms.policy.models import WorkOrder  # Prevent circular import
 
-        # existing_work_orders = self._work_orders.get(pfrags, {})  #  TODO: lookup whether we've done this reencryption before - see #137.
-        existing_work_orders = {}
+        existing_work_orders = self._work_orders.setdefault(pfrags, {})
         generated_work_orders = {}
 
         for ursula_dht_key, ursula in self._ursulas.items():
             if ursula_dht_key in existing_work_orders:
+                # TODO: This arguably doesn't make any sense in the case of a Challenge - we only care if *this* pFrag
+                # has gone to *this* Ursula, not if *all these pFrags* have gone to this Ursula.
                 continue
             else:
                 work_order = WorkOrder.constructed_by_bob(policy_group.hrac(), pfrags, ursula_dht_key, self)
