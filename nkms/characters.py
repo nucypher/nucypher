@@ -4,11 +4,12 @@ from binascii import hexlify
 from logging import getLogger
 
 import msgpack
+from sqlalchemy.exc import IntegrityError
+
 from apistar import http
 from apistar.core import Route
 from apistar.frameworks.wsgi import WSGIApp as App
-from sqlalchemy.exc import IntegrityError
-
+from apistar.http import Response
 from kademlia.network import Server
 from kademlia.utils import digest
 from nkms.crypto import api as API
@@ -70,6 +71,12 @@ class Character(object):
                 self.attach_server()
         else:
             self._seal = StrangerSeal(self)
+
+    def __eq__(self, other):
+        return bytes(self.seal) == bytes(other.seal)
+
+    def __hash__(self):
+        return int.from_bytes(self.seal, byteorder="big")
 
     class NotFound(KeyError):
         """raised when we try to interact with an actor of whom we haven't learned yet."""
@@ -224,11 +231,12 @@ class Bob(Character):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def __init__(self, alice=None):
-        super().__init__()
+    def __init__(self, alice=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._ursulas = {}
         if alice:
             self.alice = alice
+        self._work_orders = {}
 
     @property
     def alice(self):
@@ -265,13 +273,41 @@ class Bob(Character):
         _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
             packed_encrypted_treasure_map[5::], msgpack_remainder=True)
         verified, cleartext = self.verify_from(self.alice, encrypted_treasure_map,
-                                                      signature_is_on_cleartext=True, decrypt=True)
+                                               signature_is_on_cleartext=True, decrypt=True)
         alices_signature, packed_node_list = BytestringSplitter(Signature)(cleartext, return_remainder=True)
         if not verified:
             return NOT_FROM_ALICE
         else:
             from nkms.policy.models import TreasureMap
             return TreasureMap(msgpack.loads(packed_node_list))
+
+    def generate_work_orders(self, policy_group, *pfrags, num_ursulas=None):
+        # TODO: Perhaps instead of taking a policy_group, it makes more sense for Bob to reconstruct one with the TreasureMap.
+        from nkms.policy.models import WorkOrder  # Prevent circular import
+
+        # existing_work_orders = self._work_orders.get(pfrags, {})  #  TODO: lookup whether we've done this reencryption before - see #137.
+        existing_work_orders = {}
+        generated_work_orders = {}
+
+        for ursula_dht_key, ursula in self._ursulas.items():
+            if ursula_dht_key in existing_work_orders:
+                continue
+            else:
+                work_order = WorkOrder.constructed_by_bob(policy_group.hrac(), pfrags, ursula_dht_key, self)
+                existing_work_orders[ursula_dht_key] = generated_work_orders[ursula_dht_key] = work_order
+
+            if num_ursulas is not None:
+                if num_ursulas == len(generated_work_orders):
+                    break
+
+        return generated_work_orders
+
+    def get_reencrypted_c_frag(self, networky_stuff, work_order):
+        cfrags = networky_stuff.reencrypt(work_order)
+        return cfrags
+
+    def get_ursula(self, ursula_id):
+        return self._ursulas[ursula_id]
 
 
 class Ursula(Character):
@@ -287,6 +323,7 @@ class Ursula(Character):
         self.keystore = urulsas_keystore
 
         self._rest_app = None
+        self._work_orders = []
 
     @property
     def rest_app(self):
@@ -307,12 +344,13 @@ class Ursula(Character):
                       *args, **kwargs):
 
         if not id:
-            id = digest(secure_random(32))  # TODO: Network-wide deterministic ID generation (ie, auction or whatever)
+            id = digest(secure_random(32))  # TODO: Network-wide deterministic ID generation (ie, auction or whatever)  #136.
 
         super().attach_server(ksize, alpha, id, storage)
 
         routes = [
             Route('/kFrag/{hrac_as_hex}', 'POST', self.set_policy),
+            Route('/kFrag/{hrac_as_hex}/reencrypt', 'POST', self.reencrypt_via_rest),
         ]
 
         self._rest_app = App(routes=routes)
@@ -322,7 +360,7 @@ class Ursula(Character):
         self.interface = interface
         return self.server.listen(port, interface)
 
-    def interface_info(self):
+    def dht_interface_info(self):
         return self.port, self.interface, self.interface_ttl
 
     def interface_dht_key(self):
@@ -330,10 +368,10 @@ class Ursula(Character):
 
     def interface_dht_value(self):
         signature = self.seal(self.interface_hrac())
-        return b"uaddr" + signature + self.seal + self.interface_hrac() + msgpack.dumps(self.interface_info())
+        return b"uaddr" + signature + self.seal + self.interface_hrac() + msgpack.dumps(self.dht_interface_info())
 
     def interface_hrac(self):
-        return self.hash(msgpack.dumps(self.interface_info()))
+        return self.hash(msgpack.dumps(self.dht_interface_info()))
 
     def publish_interface_information(self):
         if not self.port and self.interface:
@@ -362,7 +400,34 @@ class Ursula(Character):
             raise
             # Do something appropriately RESTful (ie, 4xx).
 
-        return  # A 200, which whatever policy metadata.
+        return  # A 200, with whatever policy metadata.
+
+    def reencrypt_via_rest(self, hrac_as_hex, request: http.Request):
+        from nkms.policy.models import WorkOrder  # Avoid circular import
+        hrac = binascii.unhexlify(hrac_as_hex)
+        work_order = WorkOrder.from_rest_payload(hrac, request.body)
+        kfrag = self.keystore.get_kfrag(hrac)  # Careful!  :-)
+        cfrag_byte_stream = b""
+
+        for pfrag in work_order.pfrags:
+            cfrag_byte_stream += API.ecies_reencrypt(kfrag, pfrag.encrypted_key)
+
+        self._work_orders.append(work_order)  # TODO: Put this in Ursula's datastore
+
+        return Response(content=cfrag_byte_stream, content_type="application/octet-stream")
+
+    def work_orders(self, bob=None):
+        """
+        TODO: This is better written as a model method for Ursula's datastore.
+        """
+        if not bob:
+            return self._work_orders
+        else:
+            work_orders_from_bob = []
+            for work_order in self._work_orders:
+                if work_order.bob == bob:
+                    work_orders_from_bob.append(work_order)
+            return work_orders_from_bob
 
 
 class Seal(object):

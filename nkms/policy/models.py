@@ -1,18 +1,20 @@
+import binascii
+
 import msgpack
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import HASH_DIGEST_LENGTH, NOT_SIGNED
+from nkms.crypto.constants import NOT_SIGNED
+from nkms.crypto.fragments import KFrag, PFrag
 from nkms.crypto.powers import EncryptingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 from nkms.keystore.keypairs import PublicKey
 from npre.constants import UNKNOWN_KFRAG
-from npre.umbral import RekeyFrag
 
 group_payload_splitter = BytestringSplitter(PublicKey)
-policy_payload_splitter = BytestringSplitter((bytes, 66))  # TODO: I wish ReKeyFrag worked with this interface.
+policy_payload_splitter = BytestringSplitter(KFrag)
 
 
 class PolicyOffer(object):
@@ -59,15 +61,15 @@ class PolicyManagerForAlice(PolicyManager):
         re_enc_keys, encrypted_key = self.owner.generate_rekey_frags(alice_priv_enc, bob, m,
                                                                      n)  # TODO: Access Alice's private key inside this method.
         policies = []
-        for kfrag_id, rekey in enumerate(re_enc_keys):
+        for kfrag_id, kfrag in enumerate(re_enc_keys):
             policy = Policy.from_alice(
                 alice=self.owner,
                 bob=bob,
-                kfrag=rekey,
+                kfrag=kfrag,
             )
             policies.append(policy)
 
-        return PolicyGroup(uri, self.owner, bob, policies)
+        return PolicyGroup(uri, self.owner, bob, encrypted_key, policies)
 
 
 class PolicyGroup(object):
@@ -77,10 +79,11 @@ class PolicyGroup(object):
 
     _id = None
 
-    def __init__(self, uri: bytes, alice: Alice, bob: Bob, policies=None) -> None:
+    def __init__(self, uri: bytes, alice: Alice, bob: Bob, pfrag, policies=None) -> None:
         self.policies = policies or []
         self.alice = alice
         self.bob = bob
+        self.pfrag = pfrag
         self.uri = uri
         self.treasure_map = TreasureMap()
 
@@ -136,7 +139,6 @@ class PolicyGroup(object):
             response = networky_stuff.enact_policy(policy.ursula,
                                                    self.hrac(),
                                                    full_payload)  # TODO: Parse response for confirmation.
-
 
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(policy.ursula)
@@ -219,7 +221,7 @@ class Policy(object):
         alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
         ursula.learn_about_actor(alice)
         verified, cleartext = ursula.verify_from(alice, payload_encrypted_for_ursula,
-                                                      decrypt=True, signature_is_on_cleartext=True)
+                                                 decrypt=True, signature_is_on_cleartext=True)
 
         if not verified:
             # TODO: What do we do if it's not signed properly?
@@ -227,8 +229,7 @@ class Policy(object):
 
         alices_signature, policy_payload = BytestringSplitter(Signature)(cleartext, return_remainder=True)
 
-        kfrag_bytes, encrypted_challenge_pack = policy_payload_splitter(policy_payload, return_remainder=True)
-        kfrag = RekeyFrag.from_bytes(kfrag_bytes)
+        kfrag, encrypted_challenge_pack = policy_payload_splitter(policy_payload, return_remainder=True)
         policy = Policy(alice=alice, alices_signature=alices_signature, kfrag=kfrag,
                         encrypted_challenge_pack=encrypted_challenge_pack)
 
@@ -288,3 +289,44 @@ class TreasureMap(object):
 
     def __iter__(self):
         return iter(self.ids)
+
+
+class WorkOrder(object):
+    def __init__(self, bob, kfrag_hrac, pfrags, receipt_bytes, receipt_signature, ursula_id=None):
+        self.bob = bob
+        self.kfrag_hrac = kfrag_hrac
+        self.pfrags = pfrags
+        self.receipt_bytes = receipt_bytes
+        self.receipt_signature = receipt_signature
+        self.ursula_id = ursula_id  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
+
+    def __repr__(self):
+        return "WorkOrder (pfrags: {}) {} for {}".format([binascii.hexlify(bytes(p))[:6] for p in self.pfrags],
+        binascii.hexlify(self.receipt_bytes)[:6],
+        binascii.hexlify(self.ursula_id)[:6])
+
+    def __eq__(self, other):
+        return (self.receipt_bytes, self.receipt_signature) == (other.receipt_bytes, other.receipt_signature)
+
+    @classmethod
+    def constructed_by_bob(cls, kfrag_hrac, pfrags, ursula_dht_key, bob):
+        receipt_bytes = b"wo:" + ursula_dht_key  # TODO: represent the pfrags as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(pfrags))  - See #137
+        receipt_signature = bob.seal(receipt_bytes)
+        return cls(bob, kfrag_hrac, pfrags, receipt_bytes, receipt_signature, ursula_dht_key)
+
+    @classmethod
+    def from_rest_payload(cls, kfrag_hrac, rest_payload):
+        payload_splitter = BytestringSplitter(Signature, PublicKey)
+        signature, bob_pubkey_sig, (receipt_bytes, packed_pfrags) = payload_splitter(rest_payload,
+                                                                                     msgpack_remainder=True)
+        pfrags = [PFrag(p) for p in msgpack.loads(packed_pfrags)]
+        verified = signature.verify(receipt_bytes, bob_pubkey_sig)
+        if not verified:
+            raise ValueError("This doesn't appear to be from Bob.")
+        bob = Bob.from_pubkey_sig_bytes(bob_pubkey_sig)
+        return cls(bob, kfrag_hrac, pfrags, receipt_bytes, signature)
+
+    def payload(self):
+        pfrags_as_bytes = [bytes(p) for p in self.pfrags]
+        packed_receipt_and_pfrags = msgpack.dumps((self.receipt_bytes, msgpack.dumps(pfrags_as_bytes)))
+        return bytes(self.receipt_signature) + self.bob.seal + packed_receipt_and_pfrags

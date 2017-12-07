@@ -10,3 +10,4 @@ __pycache__
 /.idea
 .coverage
 _temp_test_datastore
+.mypy_cache

@@ -36,7 +36,7 @@ def enacted_policy_group(alices_policy_group, ursulas):
 
     networky_stuff = MockNetworkyStuff(ursulas)
     alices_policy_group.find_n_ursulas(networky_stuff, offer)
-    alices_policy_group.enact_policies(networky_stuff)
+    alices_policy_group.enact_policies(networky_stuff)  # REST call happens here.
 
     return alices_policy_group
 
