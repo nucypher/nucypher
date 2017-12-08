@@ -306,8 +306,13 @@ class Bob(Character):
 
         return generated_work_orders
 
-    def get_reencrypted_c_frag(self, networky_stuff, work_order):
+    def get_reencrypted_c_frags(self, networky_stuff, work_order):
         cfrags = networky_stuff.reencrypt(work_order)
+        if not len(work_order) == len(cfrags):
+            raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
+        for counter, pfrag in enumerate(work_order.pfrags):
+            # TODO: Ursula is actually supposed to sign this.  See #141.
+            self._saved_work_orders[work_order.ursula_id].append(work_order)
         return cfrags
 
     def get_ursula(self, ursula_id):
