@@ -419,6 +419,7 @@ class Ursula(Character):
         cfrag_byte_stream = b""
 
         for pfrag in work_order.pfrags:
+            # TODO: Sign the result of this.  See #141.
             cfrag_byte_stream += API.ecies_reencrypt(kfrag, pfrag.encrypted_key)
 
         self._work_orders.append(work_order)  # TODO: Put this in Ursula's datastore
