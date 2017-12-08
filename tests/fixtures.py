@@ -68,3 +68,9 @@ def ursulas():
     URSULAS = make_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT)
     yield URSULAS
     blockchain_client._ursulas_on_blockchain.clear()
+
+
+@pytest.fixture(scope="session")
+def treasure_map_is_set_on_dht(alice, enacted_policy_group):
+    setter, _, _, _, _ = alice.publish_treasure_map(enacted_policy_group)
+    _set_event = EVENT_LOOP.run_until_complete(setter)
