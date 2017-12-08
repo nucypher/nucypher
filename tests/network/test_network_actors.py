@@ -107,6 +107,7 @@ def test_alice_creates_policy_group_with_correct_hrac(alices_policy_group):
         bytes(alice.seal) + bytes(bob.seal) + alice.__resource_id)
 
 
+@pytest.mark.usefixtures("treasure_map_is_set_on_dht")
 def test_alice_sets_treasure_map_on_network(enacted_policy_group, ursulas):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
@@ -140,6 +141,7 @@ def test_treasure_map_with_bad_id_does_not_propagate(alices_policy_group, ursula
         ursulas[0].server.storage[digest(illegal_policygroup_id)]
 
 
+@pytest.mark.usefixtures("treasure_map_is_set_on_dht")
 def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ursulas, enacted_policy_group):
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
@@ -161,6 +163,7 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ur
     assert verified is True
 
 
+@pytest.mark.usefixtures("treasure_map_is_set_on_dht")
 def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy_group, ursulas):
     """
     Above, we showed that the TreasureMap saved on the network is the correct one for Bob.  Here, we show

@@ -44,7 +44,7 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
             ursula.server.bootstrap([("127.0.0.1", ursula_starting_port + _c) for _c in range(how_many_ursulas)]))
         ursula.publish_interface_information()
 
-    return URSULAS  # , range(ursula_starting_port, ursula_starting_port + len(URSULAS))
+    return URSULAS
 
 
 class MockPolicyOfferResponse(object):
@@ -81,11 +81,8 @@ class MockNetworkyStuff(NetworkyStuff):
             pytest.fail("No Ursula with ID {}".format(ursula_id))
         return ursula
 
-    def reencrypt(self, work_order):
-        print(work_order)
-        ursula = self.get_ursula_by_id(work_order.ursula_id)
+    def send_work_order_payload_to_ursula(self, work_order, ursula):
         mock_client = TestClient(ursula.rest_app)
         payload = work_order.payload()
-        response = mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(work_order.kfrag_hrac.hex()), payload)
-        cfrags = RepeatingBytestringSplitter(CFrag)(response.content)
-        return cfrags
+        hrac_as_hex = work_order.kfrag_hrac.hex()
+        return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(hrac_as_hex), payload)

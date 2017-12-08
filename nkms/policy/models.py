@@ -308,6 +308,9 @@ class WorkOrder(object):
     def __eq__(self, other):
         return (self.receipt_bytes, self.receipt_signature) == (other.receipt_bytes, other.receipt_signature)
 
+    def __len__(self):
+        return len(self.pfrags)
+
     @classmethod
     def constructed_by_bob(cls, kfrag_hrac, pfrags, ursula_dht_key, bob):
         receipt_bytes = b"wo:" + ursula_dht_key  # TODO: represent the pfrags as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(pfrags))  - See #137
@@ -330,3 +333,8 @@ class WorkOrder(object):
         pfrags_as_bytes = [bytes(p) for p in self.pfrags]
         packed_receipt_and_pfrags = msgpack.dumps((self.receipt_bytes, msgpack.dumps(pfrags_as_bytes)))
         return bytes(self.receipt_signature) + self.bob.seal + packed_receipt_and_pfrags
+
+    def complete(self, cfrags):
+        # TODO: Verify that this is in fact complete - right of CFrags and properly signed.
+        # TODO: Mark it complete with datetime.
+        self
