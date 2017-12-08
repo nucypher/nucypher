@@ -1,4 +1,7 @@
 from kademlia.node import Node
+
+from nkms.crypto.fragments import CFrag
+from nkms.crypto.utils import RepeatingBytestringSplitter
 from nkms.network.capabilities import ServerCapability
 
 
@@ -29,3 +32,10 @@ class NetworkyStuff(object):
 
     def find_ursula(self, id, offer=None):
         pass
+
+    def reencrypt(self, work_order):
+        ursula = self.get_ursula_by_id(work_order.ursula_id)
+        ursula_rest_response = self.send_work_order_payload_to_ursula(work_order, ursula)
+        cfrags = RepeatingBytestringSplitter(CFrag)(ursula_rest_response.content)
+        work_order.complete(cfrags)  # TODO: We'll do verification of Ursula's signature here.  #141
+        return cfrags
