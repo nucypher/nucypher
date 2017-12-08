@@ -333,3 +333,8 @@ class WorkOrder(object):
         pfrags_as_bytes = [bytes(p) for p in self.pfrags]
         packed_receipt_and_pfrags = msgpack.dumps((self.receipt_bytes, msgpack.dumps(pfrags_as_bytes)))
         return bytes(self.receipt_signature) + self.bob.seal + packed_receipt_and_pfrags
+
+    def complete(self, cfrags):
+        # TODO: Verify that this is in fact complete - right of CFrags and properly signed.
+        # TODO: Mark it complete with datetime.
+        self
