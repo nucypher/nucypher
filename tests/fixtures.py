@@ -1,4 +1,5 @@
 import datetime
+
 import pytest
 
 from nkms.characters import congregate, Alice, Bob
@@ -27,6 +28,7 @@ def alices_policy_group(alice, bob):
     )
     return policy_group
 
+
 @pytest.fixture(scope="session")
 def enacted_policy_group(alices_policy_group, ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
@@ -36,17 +38,18 @@ def enacted_policy_group(alices_policy_group, ursulas):
 
     networky_stuff = MockNetworkyStuff(ursulas)
     alices_policy_group.find_n_ursulas(networky_stuff, offer)
-    alices_policy_group.enact_policies(networky_stuff)  # REST call happens here.
+    alices_policy_group.enact_policies(networky_stuff)  # REST call happens here, as does population of TreasureMap.
 
     return alices_policy_group
 
+
 @pytest.fixture(scope="session")
-def alice():
+def alice(ursulas):
     ALICE = Alice()
     ALICE.attach_server()
     ALICE.server.listen(8471)
     ALICE.__resource_id = b"some_resource_id"
-    EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
+    EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", u.port) for u in ursulas]))
     return ALICE
 
 

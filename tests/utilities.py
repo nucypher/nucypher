@@ -44,7 +44,7 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
             ursula.server.bootstrap([("127.0.0.1", ursula_starting_port + _c) for _c in range(how_many_ursulas)]))
         ursula.publish_interface_information()
 
-    return URSULAS  # , range(ursula_starting_port, ursula_starting_port + len(URSULAS))
+    return URSULAS
 
 
 class MockPolicyOfferResponse(object):
