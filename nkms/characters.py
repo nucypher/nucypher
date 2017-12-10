@@ -22,7 +22,7 @@ from nkms.keystore.keypairs import Keypair
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
-from nkms.policy.constants import NOT_FROM_ALICE
+from nkms.policy.constants import NOT_FROM_ALICE, NON_PAYMENT
 
 
 class Character(object):
@@ -230,6 +230,25 @@ class Alice(Character):
 
         setter = self.server.set(dht_key, b"trmap" + dht_value)
         return setter, encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
+
+    def grant(self, bob, uri, networky_stuff, m=None, n=None, expiration=None, deposit=NON_PAYMENT):
+        if not m:
+            # TODO: get m from config
+            raise NotImplementedError
+        if not n:
+            # TODO: get n from config
+            raise NotImplementedError
+        if not expiration:
+            # TODO: check default duration in config
+            raise NotImplementedError
+
+        policy_group = self.policy_manager.create_policy_group(bob, uri, m, n)
+        offer = policy_group.craft_offer(deposit, expiration)
+
+        policy_group.find_n_ursulas(networky_stuff, offer)
+        policy_group.enact_policies(networky_stuff)  # REST call happens here, as does population of TreasureMap.
+
+        return policy_group
 
 
 class Bob(Character):
