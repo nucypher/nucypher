@@ -4,14 +4,14 @@ from binascii import hexlify
 from logging import getLogger
 
 import msgpack
-from sqlalchemy.exc import IntegrityError
-
 from apistar import http
 from apistar.core import Route
 from apistar.frameworks.wsgi import WSGIApp as App
 from apistar.http import Response
 from kademlia.network import Server
 from kademlia.utils import digest
+from sqlalchemy.exc import IntegrityError
+
 from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
@@ -191,6 +191,11 @@ class Character(object):
 class Alice(Character):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from nkms.policy.models import PolicyManagerForAlice  # Avoid circular import
+        self.policy_manager = PolicyManagerForAlice(self)
 
     def find_best_ursula(self):
         # TODO: This just finds *some* Ursula - let's have it find a particularly good one.
