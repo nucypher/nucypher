@@ -56,7 +56,7 @@ def test_mine_withdraw(chain):
     for u in chain.web3.eth.accounts[1:]:
         ursula.lock((10 + random.randrange(9000)) * M, 100, u)
 
-    chain.wait.for_block(chain.web3.eth.blockNumber + 100)
+    chain.wait.for_block(chain.web3.eth.blockNumber + 150)
 
     ursula.mine(addr)
     ursula.withdraw(addr)

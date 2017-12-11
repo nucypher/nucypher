@@ -41,7 +41,7 @@ def test_linked_list(web3, chain):
     assert instance.call().remove(address4) == NULL
 
     # Remove middle value
-    assert instance.call().remove(address2).lower() == address2
+    assert instance.call().remove(address2) == address2
     tx = instance.transact().remove(address2)
     chain.wait.for_receipt(tx)
     assert instance.call().sizeOf() == 2
@@ -49,10 +49,10 @@ def test_linked_list(web3, chain):
     # Check node
     node = instance.call().getLinks(address1)
     assert node[0] == HEAD
-    assert node[1].lower() == address3
+    assert node[1].lower() == address3.lower()
 
     # Remove another value
-    assert instance.call().remove(address3).lower() == address3
+    assert instance.call().remove(address3) == address3
     tx = instance.transact().remove(address3)
     chain.wait.for_receipt(tx)
     assert instance.call().sizeOf() == 1
@@ -63,7 +63,7 @@ def test_linked_list(web3, chain):
     assert node[1] == HEAD
 
     # Remove last value
-    assert instance.call().remove(address1).lower() == address1
+    assert instance.call().remove(address1).lower() == address1.lower()
     tx = instance.transact().remove(address1)
     chain.wait.for_receipt(tx)
     assert instance.call().sizeOf() == 0
@@ -84,15 +84,15 @@ def test_linked_list(web3, chain):
 
     # Check nodes
     node = instance.call().getLinks(address3)
-    assert node[0].lower() == address2
+    assert node[0].lower() == address2.lower()
     assert node[1] == HEAD
     node = instance.call().getLinks(address1)
     assert node[0] == HEAD
-    assert node[1].lower() == address2
+    assert node[1].lower() == address2.lower()
 
     # Pop values
-    assert instance.call().pop(NEXT).lower() == address1
-    assert instance.call().pop(PREV).lower() == address3
+    assert instance.call().pop(NEXT).lower() == address1.lower()
+    assert instance.call().pop(PREV).lower() == address3.lower()
     tx = instance.transact().pop(NEXT)
     chain.wait.for_receipt(tx)
     tx = instance.transact().pop(PREV)

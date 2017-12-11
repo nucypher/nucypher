@@ -20,37 +20,43 @@ contract Escrow is Miner, Ownable {
     struct TokenInfo {
         uint256 value;
         uint256 lockedValue;
+        uint256 lockedBlock;
         uint256 releaseBlock;
-        uint256 lastMintedBlock;
         uint256 decimals;
+        uint256[] confirmedPeriods;
+        uint256 numberConfirmedPeriods;
     }
+
+    struct PeriodInfo {
+        uint256 totalLockedValue;
+        uint256 numberOwnersToBeRewarded;
+    }
+
+    uint256 constant MAX_PERIODS = 100;
 
     HumanStandardToken token;
     mapping (address => TokenInfo) public tokenInfo;
     LinkedList.Data tokenOwners;
-    uint256 miningCoefficient;
 
-    /**
-    * @dev Throws if not locked tokens less then _value.
-    * @param _owner Owner of tokens
-    * @param _value Amount of tokens to check
-    **/
-    modifier whenNotLocked(address _owner, uint256 _value) {
-        require(_value <= token.balanceOf(address(this)));
-        require(_value <= tokenInfo[_owner].value - getLockedTokens(_owner));
-        _;
-    }
+    uint256 public blocksPerPeriod;
+    mapping (uint256 => PeriodInfo) public lockedPerPeriod;
 
     /**
     * @notice The Escrow constructor sets address of token contract and coefficients for mining
     * @param _token Token contract
-    * @param _rate Curve growing rate
-    * @param _fractions Coefficient for fractions
+    * @param _miningCoefficient Mining coefficient
+    * @param _blocksPerPeriod Size of one period in blocks
     **/
-    function Escrow(HumanStandardToken _token, uint256 _rate, uint256 _fractions)
-        Miner(_token, _rate, _fractions)
+    function Escrow(
+        HumanStandardToken _token,
+        uint256 _miningCoefficient,
+        uint256 _blocksPerPeriod
+    )
+        Miner(_token, _miningCoefficient)
     {
+        require(_blocksPerPeriod != 0);
         token = _token;
+        blocksPerPeriod = _blocksPerPeriod;
     }
 
     /**
@@ -75,26 +81,26 @@ contract Escrow is Miner, Ownable {
     **/
     function lock(uint256 _value, uint256 _blocks) returns (bool success) {
         require(_value != 0 || _blocks != 0);
-        uint256 lastLockedTokens = getLastLockedTokens();
-        require(_value <= token.balanceOf(address(this)) &&
-            _value <= tokenInfo[msg.sender].value.sub(lastLockedTokens));
-        // Checks if tokens are not locked or lock can be increased
-        require(
-            lastLockedTokens == 0 &&
-            !isEmptyReward(_value, _blocks) ||
-            lastLockedTokens != 0 &&
-            tokenInfo[msg.sender].releaseBlock >= block.number &&
-            !isEmptyReward(_value + tokenInfo[msg.sender].lockedValue,
-                _blocks + tokenInfo[msg.sender].releaseBlock - tokenInfo[msg.sender].lastMintedBlock)
-        );
-        if (lastLockedTokens == 0) {
-            tokenInfo[msg.sender].lockedValue = _value;
-            tokenInfo[msg.sender].releaseBlock = block.number.add(_blocks);
-            tokenInfo[msg.sender].lastMintedBlock = block.number;
-        } else {
-            tokenInfo[msg.sender].lockedValue = tokenInfo[msg.sender].lockedValue.add(_value);
-            tokenInfo[msg.sender].releaseBlock = tokenInfo[msg.sender].releaseBlock.add(_blocks);
+        var info = tokenInfo[msg.sender];
+        uint256 lockedTokens = 0;
+        if (!allTokensMinted()) {
+            lockedTokens = info.lockedValue;
         }
+        require(_value <= token.balanceOf(address(this)) &&
+            _value <= info.value.sub(lockedTokens));
+        // Checks if tokens are not locked or lock can be increased
+        // TODO add checking reward
+        require(lockedTokens == 0 ||
+            info.releaseBlock >= block.number);
+        if (lockedTokens == 0) {
+            info.lockedValue = _value;
+            info.releaseBlock = block.number.add(_blocks);
+            info.lockedBlock = block.number;
+        } else {
+            info.lockedValue = info.lockedValue.add(_value);
+            info.releaseBlock = info.releaseBlock.add(_blocks);
+        }
+        confirmActivity();
         return true;
     }
 
@@ -103,9 +109,11 @@ contract Escrow is Miner, Ownable {
     * @param _value Amount of token to withdraw
     **/
     function withdraw(uint256 _value)
-        whenNotLocked(msg.sender, _value)
+//        whenNotLocked(msg.sender, _value)
         returns (bool success)
     {
+        require(_value <= token.balanceOf(address(this)) &&
+            _value <= tokenInfo[msg.sender].value - getLockedTokens(msg.sender));
         tokenInfo[msg.sender].value -= _value;
         token.safeTransfer(msg.sender, _value);
         return true;
@@ -122,8 +130,7 @@ contract Escrow is Miner, Ownable {
             return true;
         }
         uint256 value = tokenInfo[msg.sender].value;
-        require(value <= token.balanceOf(address(this)));
-        require(getLastLockedTokens() == 0);
+        require(value <= token.balanceOf(address(this)) && allTokensMinted());
         tokenOwners.remove(msg.sender);
         delete tokenInfo[msg.sender];
         token.safeTransfer(msg.sender, value);
@@ -227,12 +234,19 @@ contract Escrow is Miner, Ownable {
     }
 
     /**
-    * @notice Get locked tokens value for sender at the time of the last minted block
+    * @notice Checks if sender has locked tokens which have not yet used in minting
     **/
-    function getLastLockedTokens()
-        internal constant returns (uint256)
+    function allTokensMinted()
+        internal constant returns (bool)
     {
-        return getLockedTokens(msg.sender, tokenInfo[msg.sender].lastMintedBlock);
+        var info = tokenInfo[msg.sender];
+        if (info.lockedValue == 0) {
+            return true;
+        }
+        var releasePeriod = info.releaseBlock / blocksPerPeriod + 1;
+        return block.number >= releasePeriod * blocksPerPeriod &&
+            (info.numberConfirmedPeriods == 0 ||
+	        info.confirmedPeriods[info.numberConfirmedPeriods - 1] > releasePeriod);
     }
 
     /**
@@ -242,24 +256,6 @@ contract Escrow is Miner, Ownable {
         public constant returns (uint256 result)
     {
         return getAllLockedTokens(block.number);
-    }
-
-    /**
-    * @notice Mint tokens for sender if he locked his tokens
-    **/
-    function mint() {
-        require(getLastLockedTokens() != 0);
-        var lockedBlocks = Math.min256(block.number, tokenInfo[msg.sender].releaseBlock) -
-            tokenInfo[msg.sender].lastMintedBlock;
-        var (amount, decimals) = mint(
-            msg.sender,
-            tokenInfo[msg.sender].lockedValue,
-            lockedBlocks,
-            tokenInfo[msg.sender].decimals);
-        if (amount != 0) {
-            tokenInfo[msg.sender].lastMintedBlock = block.number;
-            tokenInfo[msg.sender].decimals = decimals;
-        }
     }
 
     /**
@@ -276,5 +272,73 @@ contract Escrow is Miner, Ownable {
         tokenInfo[_user].lockedValue = tokenInfo[_user].lockedValue.sub(_value);
         token.burn(_value);
         return true;
+    }
+
+    /**
+    * @notice Confirm activity for future period
+    **/
+    function confirmActivity() {
+        require(!allTokensMinted());
+
+        var info = tokenInfo[msg.sender];
+        uint256 currentPeriod = block.number / blocksPerPeriod;
+        if (info.numberConfirmedPeriods > 0 &&
+            info.confirmedPeriods[info.numberConfirmedPeriods - 1] >= currentPeriod) {
+           return;
+        }
+        require(info.numberConfirmedPeriods < MAX_PERIODS);
+        lockedPerPeriod[currentPeriod].totalLockedValue += info.lockedValue;
+        lockedPerPeriod[currentPeriod].numberOwnersToBeRewarded++;
+        if (info.numberConfirmedPeriods < info.confirmedPeriods.length) {
+            info.confirmedPeriods[info.numberConfirmedPeriods] = currentPeriod;
+        } else {
+            info.confirmedPeriods.push(currentPeriod);
+        }
+        info.numberConfirmedPeriods++;
+//        cumsums[currentPeriod][lockedPerPeriod[nextPeriod]] = msg.sender;
+    }
+
+    /**
+    * @notice Mint tokens for sender for previous periods if he locked his tokens and confirmed activity
+    **/
+    function mint() {
+        require(!allTokensMinted());
+
+        var previousPeriod = block.number / blocksPerPeriod - 1;
+        var info = tokenInfo[msg.sender];
+        var numberPeriodsForMinting = info.numberConfirmedPeriods;
+        require(numberPeriodsForMinting > 0 &&
+            info.confirmedPeriods[0] <= previousPeriod);
+
+        var decimals = info.decimals;
+        if (info.confirmedPeriods[numberPeriodsForMinting - 1] > previousPeriod) {
+            numberPeriodsForMinting--;
+        }
+
+        for(uint i = 0; i < numberPeriodsForMinting; ++i) {
+            var period = info.confirmedPeriods[i];
+            var periodFirstBlock = period * blocksPerPeriod;
+            var periodLastBlock = (period + 1) * blocksPerPeriod - 1;
+            var lockedBlocks = Math.min256(periodLastBlock, info.releaseBlock) -
+                Math.max256(info.lockedBlock, periodFirstBlock);
+            (, decimals) = mint(
+                msg.sender,
+                info.lockedValue,
+                lockedPerPeriod[period].totalLockedValue,
+                lockedBlocks,
+                decimals);
+            if (lockedPerPeriod[period].numberOwnersToBeRewarded > 1) {
+                lockedPerPeriod[period].numberOwnersToBeRewarded--;
+            } else {
+                delete lockedPerPeriod[period];
+            }
+        }
+        info.decimals = decimals;
+        if (info.numberConfirmedPeriods > numberPeriodsForMinting) {
+            info.confirmedPeriods[0] = info.confirmedPeriods[info.numberConfirmedPeriods - 1];
+            info.numberConfirmedPeriods = 1;
+        } else {
+            info.numberConfirmedPeriods = 0;
+        }
     }
 }

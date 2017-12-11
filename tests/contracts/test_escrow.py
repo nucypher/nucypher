@@ -18,7 +18,7 @@ def escrow(web3, chain, token):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
     escrow, _ = chain.provider.get_or_deploy_contract(
-        'Escrow', deploy_args=[token.address, 10 ** 5, 10 ** 7],
+        'Escrow', deploy_args=[token.address, 10 ** 9, 50],
         deploy_transaction={'from': creator})
     return escrow
 
@@ -60,9 +60,10 @@ def test_escrow(web3, chain, token, escrow):
     assert escrow.call().getAllLockedTokens() == 0
 
     # Ursula can't lock too low value
-    with pytest.raises(TransactionFailed):
-        tx = escrow.transact({'from': ursula}).deposit(1000, 10)
-        chain.wait.for_receipt(tx)
+    # TODO uncomment
+    # with pytest.raises(TransactionFailed):
+    #     tx = escrow.transact({'from': ursula}).deposit(1000, 10)
+    #     chain.wait.for_receipt(tx)
 
     # Ursula and Alice transfer some tokens to the escrow and lock them
     tx = escrow.transact({'from': ursula}).deposit(1000, 100)
@@ -202,16 +203,16 @@ def test_locked_distribution(web3, chain, token, escrow):
     assert n_locked > 0
 
     address_stop, shift = escrow.call().findCumSum(NULL_ADDR, n_locked // 3)
-    assert address_stop.lower() == web3.eth.accounts[1]
+    assert address_stop.lower() == web3.eth.accounts[1].lower()
     assert shift == n_locked // 3
 
     address_stop, shift = escrow.call().findCumSum(NULL_ADDR, largest_locked)
-    assert address_stop.lower() == web3.eth.accounts[2]
+    assert address_stop.lower() == web3.eth.accounts[2].lower()
     assert shift == 0
 
     address_stop, shift = escrow.call().findCumSum(
             web3.eth.accounts[2], largest_locked // 2 + 1)
-    assert address_stop.lower() == web3.eth.accounts[3]
+    assert address_stop.lower() == web3.eth.accounts[3].lower()
     assert shift == 1
 
 
@@ -226,9 +227,12 @@ def test_mining(web3, chain, token, escrow):
     tx = token.transact({'from': creator}).transfer(alice, 10000)
     chain.wait.for_receipt(tx)
 
-    # Ursula can't mint because no locked tokens
+    # Ursula can't confirm and mint because no locked tokens
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula}).mint()
+        chain.wait.for_receipt(tx)
+    with pytest.raises(TransactionFailed):
+        tx = escrow.transact({'from': ursula}).confirmActivity()
         chain.wait.for_receipt(tx)
 
     # Ursula and Alice give Escrow rights to transfer
@@ -250,27 +254,64 @@ def test_mining(web3, chain, token, escrow):
 
     # Ursula can't use method from Miner contract
     with pytest.raises(TypeError):
-        tx = escrow.transact({'from': ursula}).mint(ursula, 1000, 1000, 1000)
+        tx = escrow.transact({'from': ursula}).mint(ursula, 1000, 1000, 1000, 1000)
         chain.wait.for_receipt(tx)
 
-    # Wait 150 blocks and mint tokens
-    chain.wait.for_block(web3.eth.blockNumber + 150)
+    # Ursula and Alice confirm 1 period and mint tokens
+    chain.wait.for_block(web3.eth.blockNumber + 50)
+    tx = escrow.transact({'from': ursula}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    # Checks that no error
+    tx = escrow.transact({'from': ursula}).confirmActivity()
+    chain.wait.for_receipt(tx)
     tx = escrow.transact({'from': ursula}).mint()
     chain.wait.for_receipt(tx)
     tx = escrow.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(ursula) == 9099
-    assert token.call().balanceOf(alice) == 9500
-    assert escrow.call().getAllLockedTokens() == 500
+    assert token.call().balanceOf(ursula) > 9000
+    assert token.call().balanceOf(alice) > 9500
+    assert escrow.call().getAllLockedTokens() == 1500
 
-    # Wait 100 blocks and mint tokens
-    chain.wait.for_block(web3.eth.blockNumber + 100)
+    # Ursula and Alice confirm 2 periods and mint tokens
+    tx = escrow.transact({'from': alice}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    chain.wait.for_block(web3.eth.blockNumber + 50)
+    tx = escrow.transact({'from': ursula}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    tx = escrow.transact({'from': alice}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    chain.wait.for_block(web3.eth.blockNumber + 50)
+    tx = escrow.transact({'from': alice}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    tx = escrow.transact({'from': ursula}).mint()
+    chain.wait.for_receipt(tx)
     tx = escrow.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(ursula) == 9099
+    assert token.call().balanceOf(ursula) == 9066
+    assert token.call().balanceOf(alice) == 9546
+    assert escrow.call().getAllLockedTokens() == 500
+
+    # Alice confirm 2 periods and mint tokens
+    chain.wait.for_block(web3.eth.blockNumber + 50)
+    tx = escrow.transact({'from': alice}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    chain.wait.for_block(web3.eth.blockNumber + 50)
+    tx = escrow.transact({'from': alice}).mint()
+    chain.wait.for_receipt(tx)
+    assert token.call().balanceOf(ursula) == 9066
     # Problem with accuracy
-    assert token.call().balanceOf(alice) == 9600
+    alice_tokens = token.call().balanceOf(alice)
+    assert alice_tokens < 9633  # max minted tokens
+    assert alice_tokens > 9583  # min minted tokens
     assert escrow.call().getAllLockedTokens() == 0
+
+    # Ursula can't confirm and mint because no locked tokens
+    with pytest.raises(TransactionFailed):
+        tx = escrow.transact({'from': ursula}).mint()
+        chain.wait.for_receipt(tx)
+    with pytest.raises(TransactionFailed):
+        tx = escrow.transact({'from': ursula}).confirmActivity()
+        chain.wait.for_receipt(tx)
 
     # Ursula can lock some tokens again
     tx = escrow.transact({'from': ursula}).lock(500, 200)
@@ -298,4 +339,6 @@ def test_mining(web3, chain, token, escrow):
     # Alice can withdraw all
     tx = escrow.transact({'from': alice}).withdrawAll()
     chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(alice) == 10100
+    assert token.call().balanceOf(alice) == alice_tokens + 500
+
+    # TODO test max confirmed periods

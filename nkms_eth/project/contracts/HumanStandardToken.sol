@@ -30,6 +30,7 @@ contract HumanStandardToken is MineableToken, BurnableToken {
         uint8 _decimalUnits,
         string _tokenSymbol
         ) {
+        require(_maxAmount >= _initialAmount);
         balances[msg.sender] = _initialAmount;               // Give the creator all initial tokens
         totalSupply = _initialAmount;                        // Update total supply
         name = _tokenName;                                   // Set the name for display purposes
