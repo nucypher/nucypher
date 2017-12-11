@@ -231,7 +231,7 @@ class Alice(Character):
         setter = self.server.set(dht_key, b"trmap" + dht_value)
         return setter, encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
 
-    def grant(self, bob, uri, networky_stuff, m=None, n=None, expiration=None, deposit=NON_PAYMENT):
+    def grant(self, bob, uri, networky_stuff, m=None, n=None, expiration=None, deposit=None):
         if not m:
             # TODO: get m from config
             raise NotImplementedError
@@ -241,6 +241,12 @@ class Alice(Character):
         if not expiration:
             # TODO: check default duration in config
             raise NotImplementedError
+        if not deposit:
+            default_deposit = None # TODO: Check default deposit in config.
+            if not default_deposit:
+                deposit = networky_stuff.get_competitive_rate()
+                if deposit == NotImplemented:
+                    deposit = NON_PAYMENT
 
         policy_group = self.policy_manager.create_policy_group(bob, uri, m, n)
         offer = policy_group.craft_offer(deposit, expiration)
