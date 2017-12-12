@@ -281,9 +281,9 @@ class Bob(Character):
         self.learn_about_actor(alice_object)
         self._alice = alice_object
 
-    def follow_treasure_map(self, treasure_map):
-        # TODO: perform this part concurrently.
-        for ursula_interface_id in treasure_map:
+    def follow_treasure_map(self, pfrag):
+        for ursula_interface_id in self.treasure_maps[pfrag]:
+            # TODO: perform this part concurrently.
             getter = self.server.get(ursula_interface_id)
             loop = asyncio.get_event_loop()
             value = loop.run_until_complete(getter)
