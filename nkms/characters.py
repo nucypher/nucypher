@@ -323,17 +323,22 @@ class Bob(Character):
 
         generated_work_orders = {}
 
-        for ursula_dht_key, ursula in self._ursulas.items():
+        if not treasure_map_to_use:
+            raise ValueError("Bob doesn't have a TreasureMap to match any of these pfrags: {}".format(pfrags))
+
+        for ursula_dht_key in treasure_map_to_use:
+            ursula = self._ursulas[ursula_dht_key]
 
             completed_work_orders_for_this_ursula = self._saved_work_orders.setdefault(ursula_dht_key, [])
 
             pfrags_to_include = []
             for pfrag in pfrags:
-                if not pfrag in sum([wo.pfrags for wo in completed_work_orders_for_this_ursula], []):  # TODO: This is inane - probably push it down into a WorkOrderHistory concept.
+                if not pfrag in sum([wo.pfrags for wo in completed_work_orders_for_this_ursula],
+                                    []):  # TODO: This is inane - probably push it down into a WorkOrderHistory concept.
                     pfrags_to_include.append(pfrag)
 
             if pfrags_to_include:
-                work_order = WorkOrder.constructed_by_bob(policy_group.hrac(), pfrags_to_include, ursula_dht_key, self)
+                work_order = WorkOrder.constructed_by_bob(kfrag_hrac, pfrags_to_include, ursula_dht_key, self)
                 generated_work_orders[ursula_dht_key] = work_order
 
             if num_ursulas is not None:
