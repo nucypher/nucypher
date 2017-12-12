@@ -39,3 +39,6 @@ class NetworkyStuff(object):
         cfrags = RepeatingBytestringSplitter(CFrag)(ursula_rest_response.content)
         work_order.complete(cfrags)  # TODO: We'll do verification of Ursula's signature here.  #141
         return cfrags
+
+    def get_competitive_rate(self):
+        return NotImplemented

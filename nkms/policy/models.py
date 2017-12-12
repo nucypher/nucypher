@@ -121,6 +121,9 @@ class PolicyGroup(object):
         """
         return self.hash(bytes(self.alice.seal) + bytes(self.bob.seal) + self.uri)
 
+    def craft_offer(self, deposit, expiration):
+        return PolicyOffer(self.n, deposit, expiration)
+
     def treasure_map_dht_key(self):
         """
         We need a key that Bob can glean from knowledge he already has *and* which Ursula can verify came from us.

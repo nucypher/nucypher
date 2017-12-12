@@ -4,14 +4,14 @@ from binascii import hexlify
 from logging import getLogger
 
 import msgpack
-from sqlalchemy.exc import IntegrityError
-
 from apistar import http
 from apistar.core import Route
 from apistar.frameworks.wsgi import WSGIApp as App
 from apistar.http import Response
 from kademlia.network import Server
 from kademlia.utils import digest
+from sqlalchemy.exc import IntegrityError
+
 from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
@@ -22,7 +22,7 @@ from nkms.keystore.keypairs import Keypair
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
-from nkms.policy.constants import NOT_FROM_ALICE
+from nkms.policy.constants import NOT_FROM_ALICE, NON_PAYMENT
 
 
 class Character(object):
@@ -192,6 +192,11 @@ class Alice(Character):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from nkms.policy.models import PolicyManagerForAlice  # Avoid circular import
+        self.policy_manager = PolicyManagerForAlice(self)
+
     def find_best_ursula(self):
         # TODO: This just finds *some* Ursula - let's have it find a particularly good one.
         return list_all_ursulas()[1]
@@ -225,6 +230,31 @@ class Alice(Character):
 
         setter = self.server.set(dht_key, b"trmap" + dht_value)
         return setter, encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
+
+    def grant(self, bob, uri, networky_stuff, m=None, n=None, expiration=None, deposit=None):
+        if not m:
+            # TODO: get m from config
+            raise NotImplementedError
+        if not n:
+            # TODO: get n from config
+            raise NotImplementedError
+        if not expiration:
+            # TODO: check default duration in config
+            raise NotImplementedError
+        if not deposit:
+            default_deposit = None # TODO: Check default deposit in config.
+            if not default_deposit:
+                deposit = networky_stuff.get_competitive_rate()
+                if deposit == NotImplemented:
+                    deposit = NON_PAYMENT
+
+        policy_group = self.policy_manager.create_policy_group(bob, uri, m, n)
+        offer = policy_group.craft_offer(deposit, expiration)
+
+        policy_group.find_n_ursulas(networky_stuff, offer)
+        policy_group.enact_policies(networky_stuff)  # REST call happens here, as does population of TreasureMap.
+
+        return policy_group
 
 
 class Bob(Character):
