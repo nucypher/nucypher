@@ -316,6 +316,11 @@ class Bob(Character):
     def generate_work_orders(self, kfrag_hrac, *pfrags, num_ursulas=None):
         from nkms.policy.models import WorkOrder  # Prevent circular import
 
+        try:
+            treasure_map_to_use = self.treasure_maps[kfrag_hrac]
+        except KeyError:
+            raise KeyError("Bob doesn't have a TreasureMap matching the hrac {}".format(kfrag_hrac))
+
         generated_work_orders = {}
 
         for ursula_dht_key, ursula in self._ursulas.items():
