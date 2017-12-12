@@ -242,7 +242,7 @@ class Alice(Character):
             # TODO: check default duration in config
             raise NotImplementedError
         if not deposit:
-            default_deposit = None # TODO: Check default deposit in config.
+            default_deposit = None  # TODO: Check default deposit in config.
             if not default_deposit:
                 deposit = networky_stuff.get_competitive_rate()
                 if deposit == NotImplemented:
@@ -264,6 +264,7 @@ class Bob(Character):
     def __init__(self, alice=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._ursulas = {}
+        self.treasure_maps = {}
         if alice:
             self.alice = alice
         self._saved_work_orders = {}
