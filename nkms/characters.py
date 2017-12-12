@@ -242,7 +242,7 @@ class Alice(Character):
             # TODO: check default duration in config
             raise NotImplementedError
         if not deposit:
-            default_deposit = None # TODO: Check default deposit in config.
+            default_deposit = None  # TODO: Check default deposit in config.
             if not default_deposit:
                 deposit = networky_stuff.get_competitive_rate()
                 if deposit == NotImplemented:
@@ -264,6 +264,7 @@ class Bob(Character):
     def __init__(self, alice=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._ursulas = {}
+        self.treasure_maps = {}
         if alice:
             self.alice = alice
         self._saved_work_orders = {}
@@ -280,9 +281,9 @@ class Bob(Character):
         self.learn_about_actor(alice_object)
         self._alice = alice_object
 
-    def follow_treasure_map(self, treasure_map):
-        # TODO: perform this part concurrently.
-        for ursula_interface_id in treasure_map:
+    def follow_treasure_map(self, pfrag):
+        for ursula_interface_id in self.treasure_maps[pfrag]:
+            # TODO: perform this part concurrently.
             getter = self.server.get(ursula_interface_id)
             loop = asyncio.get_event_loop()
             value = loop.run_until_complete(getter)
@@ -309,25 +310,35 @@ class Bob(Character):
             return NOT_FROM_ALICE
         else:
             from nkms.policy.models import TreasureMap
-            return TreasureMap(msgpack.loads(packed_node_list))
+            self.treasure_maps[policy_group.hrac] = TreasureMap(msgpack.loads(packed_node_list))
+            return self.treasure_maps[policy_group.hrac]
 
-    def generate_work_orders(self, policy_group, *pfrags, num_ursulas=None):
-        # TODO: Perhaps instead of taking a policy_group, it makes more sense for Bob to reconstruct one with the TreasureMap.  See #140.
+    def generate_work_orders(self, kfrag_hrac, *pfrags, num_ursulas=None):
         from nkms.policy.models import WorkOrder  # Prevent circular import
+
+        try:
+            treasure_map_to_use = self.treasure_maps[kfrag_hrac]
+        except KeyError:
+            raise KeyError("Bob doesn't have a TreasureMap matching the hrac {}".format(kfrag_hrac))
 
         generated_work_orders = {}
 
-        for ursula_dht_key, ursula in self._ursulas.items():
+        if not treasure_map_to_use:
+            raise ValueError("Bob doesn't have a TreasureMap to match any of these pfrags: {}".format(pfrags))
+
+        for ursula_dht_key in treasure_map_to_use:
+            ursula = self._ursulas[ursula_dht_key]
 
             completed_work_orders_for_this_ursula = self._saved_work_orders.setdefault(ursula_dht_key, [])
 
             pfrags_to_include = []
             for pfrag in pfrags:
-                if not pfrag in sum([wo.pfrags for wo in completed_work_orders_for_this_ursula], []):  # TODO: This is inane - probably push it down into a WorkOrderHistory concept.
+                if not pfrag in sum([wo.pfrags for wo in completed_work_orders_for_this_ursula],
+                                    []):  # TODO: This is inane - probably push it down into a WorkOrderHistory concept.
                     pfrags_to_include.append(pfrag)
 
             if pfrags_to_include:
-                work_order = WorkOrder.constructed_by_bob(policy_group.hrac(), pfrags_to_include, ursula_dht_key, self)
+                work_order = WorkOrder.constructed_by_bob(kfrag_hrac, pfrags_to_include, ursula_dht_key, self)
                 generated_work_orders[ursula_dht_key] = work_order
 
             if num_ursulas is not None:
@@ -383,7 +394,8 @@ class Ursula(Character):
                       *args, **kwargs):
 
         if not id:
-            id = digest(secure_random(32))  # TODO: Network-wide deterministic ID generation (ie, auction or whatever)  #136.
+            id = digest(
+                secure_random(32))  # TODO: Network-wide deterministic ID generation (ie, auction or whatever)  #136.
 
         super().attach_server(ksize, alpha, id, storage)
 

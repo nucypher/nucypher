@@ -293,6 +293,9 @@ class TreasureMap(object):
     def __iter__(self):
         return iter(self.ids)
 
+    def __len__(self):
+        return len(self.ids)
+
 
 class WorkOrder(object):
     def __init__(self, bob, kfrag_hrac, pfrags, receipt_bytes, receipt_signature, ursula_id=None):
