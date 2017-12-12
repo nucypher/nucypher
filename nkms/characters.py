@@ -310,7 +310,8 @@ class Bob(Character):
             return NOT_FROM_ALICE
         else:
             from nkms.policy.models import TreasureMap
-            return TreasureMap(msgpack.loads(packed_node_list))
+            self.treasure_maps[policy_group.hrac] = TreasureMap(msgpack.loads(packed_node_list))
+            return self.treasure_maps[policy_group.hrac]
 
     def generate_work_orders(self, policy_group, *pfrags, num_ursulas=None):
         # TODO: Perhaps instead of taking a policy_group, it makes more sense for Bob to reconstruct one with the TreasureMap.  See #140.
