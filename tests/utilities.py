@@ -74,7 +74,6 @@ class MockNetworkyStuff(NetworkyStuff):
         return True, ursula.interface_dht_key()
 
     def get_ursula_by_id(self, ursula_id):
-        print(self._ursulas)
         try:
             ursula = self._ursulas[ursula_id]
         except KeyError:

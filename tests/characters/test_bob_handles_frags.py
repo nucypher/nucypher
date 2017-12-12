@@ -6,9 +6,20 @@ def test_bob_can_follow_treasure_map(enacted_policy_group, ursulas, alice, bob):
     """
     Upon receiving a TreasureMap, Bob populates his list of Ursulas with the correct number.
     """
+
+    # Simulate Bob finding a TreasureMap on the DHT.
+    # A test to show that Bob can do this can be found in test_network_actors.
+    hrac, treasure_map = enacted_policy_group.hrac(), enacted_policy_group.treasure_map
+    bob.treasure_maps[hrac] = treasure_map
+
+    # Bob knows of no Ursulas.
     assert len(bob._ursulas) == 0
-    bob.follow_treasure_map(enacted_policy_group.treasure_map)
-    assert len(bob._ursulas) == len(ursulas)
+
+    # ...until he follows the TreasureMap.
+    bob.follow_treasure_map(hrac)
+
+    # Now he knows of all the Ursulas.
+    assert len(bob._ursulas) == len(treasure_map)
 
 
 def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy_group, alice, bob, ursulas):
@@ -24,12 +35,13 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy_group, a
     assert len(bob._ursulas) == len(ursulas)
 
     the_pfrag = enacted_policy_group.pfrag
+    the_hrac = enacted_policy_group.hrac()
 
     # Bob has no saved work orders yet, ever.
     assert len(bob._saved_work_orders) == 0
 
     # We'll test against just a single Ursula - here, we make a WorkOrder for just one.
-    work_orders = bob.generate_work_orders(enacted_policy_group, the_pfrag, num_ursulas=1)
+    work_orders = bob.generate_work_orders(the_hrac, the_pfrag, num_ursulas=1)
     assert len(work_orders) == 1
 
     # Bob has saved the WorkOrder, but since he hasn't used it for reencryption yet, it's empty.
@@ -75,7 +87,7 @@ def test_bob_remember_that_he_has_cfrags_for_a_particular_pfrag(enacted_policy_g
 
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
 
-    generated_work_order_map = bob.generate_work_orders(enacted_policy_group, enacted_policy_group.pfrag, num_ursulas=1)
+    generated_work_order_map = bob.generate_work_orders(enacted_policy_group.hrac(), enacted_policy_group.pfrag, num_ursulas=1)
     id_of_this_new_ursula, new_work_order = list(generated_work_order_map.items())[0]
 
     # This new Ursula isn't the same one to whom we've already issued a WorkOrder.
