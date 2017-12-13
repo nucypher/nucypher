@@ -1,6 +1,7 @@
 import binascii
 
 import msgpack
+import asyncio
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
@@ -79,7 +80,7 @@ class PolicyGroup(object):
 
     _id = None
 
-    def __init__(self, uri: bytes, alice: Alice, bob: Bob, pfrag, policies=None) -> None:
+    def __init__(self, uri: bytes, alice: Alice, bob: Bob, pfrag=None, policies=None) -> None:
         self.policies = policies or []
         self.alice = alice
         self.bob = bob
@@ -91,7 +92,8 @@ class PolicyGroup(object):
     def n(self):
         return len(self.policies)
 
-    def hash(self, message):
+    @staticmethod
+    def hash(message):
         return keccak_digest(message)
 
     def find_n_ursulas(self, networky_stuff, offer: PolicyOffer):
@@ -109,6 +111,14 @@ class PolicyGroup(object):
 
     def hrac(self):
         """
+        A convenience method for generating an hrac for this instance.
+        """
+        return self.hrac_for(self.alice, self.bob, self.uri)
+
+    @staticmethod
+    def hrac_for(alice, bob, uri):
+
+        """
         The "hashed resource authentication code".
 
         A hash of:
@@ -119,7 +129,7 @@ class PolicyGroup(object):
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
         """
-        return self.hash(bytes(self.alice.seal) + bytes(self.bob.seal) + self.uri)
+        return PolicyGroup.hash(bytes(alice.seal) + bytes(bob.seal) + uri)
 
     def craft_offer(self, deposit, expiration):
         return PolicyOffer(self.n, deposit, expiration)
@@ -151,6 +161,22 @@ class PolicyGroup(object):
         if not self._id:
             self._id = api.keccak_digest(bytes(self.alice.seal), api.keccak_digest(self.uri))
         return self._id
+
+    def publish_treasure_map(self):
+        encrypted_treasure_map, signature_for_bob = self.alice.encrypt_for(self.bob,
+                                                                     self.treasure_map.packed_payload())
+        signature_for_ursula = self.alice.seal(self.hrac())  # TODO: Great use-case for Ciphertext class
+
+        # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
+        # and, reasons explained in treasure_map_dht_key above, the uri_hash.
+        dht_value = signature_for_ursula + self.alice.seal + self.hrac() + msgpack.dumps(
+            encrypted_treasure_map)  # TODO: Ideally, this is a Ciphertext object instead of msgpack (see #112)
+        dht_key = self.treasure_map_dht_key()
+
+        setter = self.alice.server.set(dht_key, b"trmap" + dht_value)
+        event_loop = asyncio.get_event_loop()
+        event_loop.run_until_complete(setter)
+        return encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
 
 
 class Policy(object):
@@ -239,7 +265,7 @@ class Policy(object):
         return policy
 
     def payload(self):
-        return bytes(self.kfrag) + msgpack.dumps(self.encrypted_treasure_map)
+        return bytes(self.kfrag) + msgpack.dumps(self.encrypted_challenge_pack)
 
     def activate(self, ursula, negotiation_result):
         self.ursula = ursula
@@ -253,10 +279,6 @@ class Policy(object):
             else:
                 self._encrypted_challenge_pack = self.alice.encrypt_for(self.bob, msgpack.dumps(self.challenge_pack))
         return self._encrypted_challenge_pack
-
-    @encrypted_challenge_pack.setter
-    def encrypted_treasure_map(self, ecp):
-        self._encrypted_challenge_pack = ecp
 
     def generate_challenge_pack(self):
         if self.kfrag == UNKNOWN_KFRAG:

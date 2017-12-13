@@ -107,15 +107,11 @@ def test_alice_creates_policy_group_with_correct_hrac(alices_policy_group):
         bytes(alice.seal) + bytes(bob.seal) + alice.__resource_id)
 
 
-@pytest.mark.usefixtures("treasure_map_is_set_on_dht")
 def test_alice_sets_treasure_map_on_network(enacted_policy_group, ursulas):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
     """
-    alice = enacted_policy_group.alice
-    setter, encrypted_treasure_map, packed_encrypted_treasure_map, signature_for_bob, signature_for_ursula = alice.publish_treasure_map(
-        enacted_policy_group)
-    _set_event = EVENT_LOOP.run_until_complete(setter)
+    _, packed_encrypted_treasure_map, _, _ = enacted_policy_group.publish_treasure_map()
 
     treasure_map_as_set_on_network = ursulas[0].server.storage[
         digest(enacted_policy_group.treasure_map_dht_key())]

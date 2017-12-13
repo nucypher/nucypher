@@ -72,5 +72,4 @@ def ursulas():
 
 @pytest.fixture(scope="session")
 def treasure_map_is_set_on_dht(alice, enacted_policy_group):
-    setter, _, _, _, _ = alice.publish_treasure_map(enacted_policy_group)
-    _set_event = EVENT_LOOP.run_until_complete(setter)
+    _, _, _, _ = enacted_policy_group.publish_treasure_map()
