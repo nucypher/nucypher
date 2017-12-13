@@ -92,7 +92,8 @@ class PolicyGroup(object):
     def n(self):
         return len(self.policies)
 
-    def hash(self, message):
+    @staticmethod
+    def hash(message):
         return keccak_digest(message)
 
     def find_n_ursulas(self, networky_stuff, offer: PolicyOffer):
