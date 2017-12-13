@@ -212,20 +212,6 @@ class Alice(Character):
             alice_privkey, bytes(bob.seal.without_metabytes()), m, n)
         return (kfrags, eph_key_data)
 
-    def publish_treasure_map(self, policy_group):
-        encrypted_treasure_map, signature_for_bob = self.encrypt_for(policy_group.bob,
-                                                                     policy_group.treasure_map.packed_payload())
-        signature_for_ursula = self.seal(policy_group.hrac())  # TODO: Great use-case for Ciphertext class
-
-        # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
-        # and, reasons explained in treasure_map_dht_key above, the uri_hash.
-        dht_value = signature_for_ursula + self.seal + policy_group.hrac() + msgpack.dumps(
-            encrypted_treasure_map)  # TODO: Ideally, this is a Ciphertext object instead of msgpack (see #112)
-        dht_key = policy_group.treasure_map_dht_key()
-
-        setter = self.server.set(dht_key, b"trmap" + dht_value)
-        return setter, encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
-
 
 class Bob(Character):
     _server_class = NuCypherSeedOnlyDHTServer

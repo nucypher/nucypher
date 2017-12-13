@@ -149,6 +149,22 @@ class PolicyGroup(object):
             self._id = api.keccak_digest(bytes(self.alice.seal), api.keccak_digest(self.uri))
         return self._id
 
+    def publish_treasure_map(self):
+        encrypted_treasure_map, signature_for_bob = self.alice.encrypt_for(self.bob,
+                                                                     self.treasure_map.packed_payload())
+        signature_for_ursula = self.alice.seal(self.hrac())  # TODO: Great use-case for Ciphertext class
+
+        # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
+        # and, reasons explained in treasure_map_dht_key above, the uri_hash.
+        dht_value = signature_for_ursula + self.alice.seal + self.hrac() + msgpack.dumps(
+            encrypted_treasure_map)  # TODO: Ideally, this is a Ciphertext object instead of msgpack (see #112)
+        dht_key = self.treasure_map_dht_key()
+
+        setter = self.alice.server.set(dht_key, b"trmap" + dht_value)
+        event_loop = asyncio.get_event_loop()
+        event_loop.run_until_complete(setter)
+        return encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
+
 
 class Policy(object):
     """
