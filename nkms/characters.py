@@ -249,8 +249,9 @@ class Bob(Character):
             self._ursulas[ursula_interface_id] = Ursula.as_discovered_on_network(port=port, interface=interface,
                                                                                  pubkey_sig_bytes=ursula_pubkey_sig)
 
-    def get_treasure_map(self, policy_group):
+    def get_treasure_map(self, alice, uri):
 
+        policy_group = self.reconstitue_policy_group(alice, uri)
         dht_key = policy_group.treasure_map_dht_key()
 
         ursula_coro = self.server.get(dht_key)
@@ -294,6 +295,11 @@ class Bob(Character):
 
     def get_ursula(self, ursula_id):
         return self._ursulas[ursula_id]
+
+    def reconstitue_policy_group(self, alice, uri):
+        from nkms.policy.models import PolicyGroup
+        return PolicyGroup(alice=alice, uri=uri, bob=self)
+
 
 
 class Ursula(Character):
