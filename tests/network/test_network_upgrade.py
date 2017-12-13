@@ -18,9 +18,7 @@ def test_bob_can_follow_treasure_map(enacted_policy_group, ursulas, alice, bob):
     """
     assert len(bob._ursulas) == 0
 
-    setter, encrypted_treasure_map, packed_encrypted_treasure_map, signature_for_bob, signature_for_ursula = alice.publish_treasure_map(
-        enacted_policy_group)
-    _set_event = EVENT_LOOP.run_until_complete(setter)
+    enacted_policy_group.publish_treasure_map()
 
     bob.follow_treasure_map(enacted_policy_group.treasure_map)
     assert len(bob._ursulas) == len(ursulas)
@@ -36,8 +34,11 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy_group, a
     """
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
+    enacted_policy_group.publish_treasure_map()
+    bob.follow_treasure_map(enacted_policy_group.treasure_map)
     assert len(bob._ursulas) == len(ursulas)
 
+    # Now we assume Bob has received the pFrag through a side-channel:
     the_pfrag = enacted_policy_group.pfrag
 
     # We'll test against just a single Ursula - here, we made a WorkOrder for just one.

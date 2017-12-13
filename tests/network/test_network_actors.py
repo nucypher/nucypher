@@ -112,9 +112,7 @@ def test_alice_sets_treasure_map_on_network(enacted_policy_group, ursulas):
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
     """
     alice = enacted_policy_group.alice
-    setter, encrypted_treasure_map, packed_encrypted_treasure_map, signature_for_bob, signature_for_ursula = alice.publish_treasure_map(
-        enacted_policy_group)
-    _set_event = EVENT_LOOP.run_until_complete(setter)
+    _, packed_encrypted_treasure_map, _, _ = enacted_policy_group.publish_treasure_map()
 
     treasure_map_as_set_on_network = ursulas[0].server.storage[
         digest(enacted_policy_group.treasure_map_dht_key())]
@@ -144,34 +142,39 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ur
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
-    treasure_map_as_set_on_network = ursulas[0].server.storage[
-        digest(enacted_policy_group.treasure_map_dht_key())]
+    # treasure_map_as_set_on_network = ursulas[0].server.storage[
+    #     digest(enacted_policy_group.treasure_map_dht_key())]
 
-    _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
-        treasure_map_as_set_on_network[5::], msgpack_remainder=True)  # 5:: to account for prepended "trmap"
+    # _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
+    #     treasure_map_as_set_on_network[5::], msgpack_remainder=True)  # 5:: to account for prepended "trmap"
+
+    encrypted_treasure_map, _, _, _ = enacted_policy_group.publish_treasure_map()
 
     verified, cleartext = treasure_map_as_decrypted_by_bob = bob.verify_from(alice,
-                                                                 encrypted_treasure_map,
-                                                                 decrypt=True,
-                                                                 signature_is_on_cleartext=True,
-                                                                 )
-    _alices_signature, treasure_map_as_decrypted_by_bob = BytestringSplitter(Signature)(cleartext, return_remainder=True)
+                                                                             encrypted_treasure_map,
+                                                                             decrypt=True,
+                                                                             signature_is_on_cleartext=True,
+                                                                             )
+    _alices_signature, treasure_map_as_decrypted_by_bob = BytestringSplitter(Signature)(cleartext,
+                                                                                        return_remainder=True)
 
     assert treasure_map_as_decrypted_by_bob == enacted_policy_group.treasure_map.packed_payload()
     assert verified is True
 
 
-def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy_group, ursulas):
+def test_bob_can_retreive_the_treasure_map_and_decrypt_it(bob, ursulas, enacted_policy_group):
     """
     Above, we showed that the TreasureMap saved on the network is the correct one for Bob.  Here, we show
     that Bob can retrieve it with only the information about which he is privy pursuant to the PolicyGroup.
     """
-    bob = enacted_policy_group.bob
     networky_stuff = MockNetworkyStuff(ursulas)
+    encrypted_treasure_map, _, _, _ = enacted_policy_group.publish_treasure_map()
 
-    # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume,
-    # through a side-channel with Alice.
-    treasure_map_from_wire = bob.get_treasure_map(enacted_policy_group)
+    # Let's imagine that Bob doesn't have access to the instantiated PolicyGroup.
+    alice, uri = enacted_policy_group.alice, enacted_policy_group.uri
+
+    # However, he can still get the TreasureMap by knowing the alice and uri.
+    treasure_map_from_wire = bob.get_treasure_map(alice, uri)
 
     assert enacted_policy_group.treasure_map == treasure_map_from_wire
 
