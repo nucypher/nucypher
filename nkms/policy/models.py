@@ -277,10 +277,6 @@ class Policy(object):
                 self._encrypted_challenge_pack = self.alice.encrypt_for(self.bob, msgpack.dumps(self.challenge_pack))
         return self._encrypted_challenge_pack
 
-    @encrypted_challenge_pack.setter
-    def encrypted_treasure_map(self, ecp):
-        self._encrypted_challenge_pack = ecp
-
     def generate_challenge_pack(self):
         if self.kfrag == UNKNOWN_KFRAG:
             # TODO: Test this branch
