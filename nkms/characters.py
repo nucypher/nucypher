@@ -336,7 +336,8 @@ class Ursula(Character):
                       *args, **kwargs):
 
         if not id:
-            id = digest(secure_random(32))  # TODO: Network-wide deterministic ID generation (ie, auction or whatever)  #136.
+            id = digest(
+                secure_random(32))  # TODO: Network-wide deterministic ID generation (ie, auction or whatever)  #136.
 
         super().attach_server(ksize, alpha, id, storage)
 

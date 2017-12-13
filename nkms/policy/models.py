@@ -1,6 +1,7 @@
 import binascii
 
 import msgpack
+import asyncio
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
@@ -79,7 +80,7 @@ class PolicyGroup(object):
 
     _id = None
 
-    def __init__(self, uri: bytes, alice: Alice, bob: Bob, pfrag, policies=None) -> None:
+    def __init__(self, uri: bytes, alice: Alice, bob: Bob, pfrag=None, policies=None) -> None:
         self.policies = policies or []
         self.alice = alice
         self.bob = bob
