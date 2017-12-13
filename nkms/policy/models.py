@@ -262,7 +262,7 @@ class Policy(object):
         return policy
 
     def payload(self):
-        return bytes(self.kfrag) + msgpack.dumps(self.encrypted_treasure_map)
+        return bytes(self.kfrag) + msgpack.dumps(self.encrypted_challenge_pack)
 
     def activate(self, ursula, negotiation_result):
         self.ursula = ursula
