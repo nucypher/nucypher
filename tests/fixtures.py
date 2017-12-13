@@ -9,7 +9,7 @@ from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, mak
     URSULA_PORT, EVENT_LOOP
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def alices_policy_group(alice, bob):
     """
     Creates a PolicyGroup, in a manner typical of how Alice might do it, with a unique uri.
@@ -27,7 +27,8 @@ def alices_policy_group(alice, bob):
     )
     return policy_group
 
-@pytest.fixture(scope="session")
+
+@pytest.fixture()
 def enacted_policy_group(alices_policy_group, ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = NON_PAYMENT
@@ -50,7 +51,7 @@ def alice():
     return ALICE
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def bob(alice, ursulas):
     BOB = Bob(alice=alice)
     BOB.attach_server()
@@ -60,7 +61,7 @@ def bob(alice, ursulas):
     return BOB
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def ursulas():
     URSULAS = make_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT)
     yield URSULAS
