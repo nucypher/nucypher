@@ -1,7 +1,7 @@
+import asyncio
 import binascii
 
 import msgpack
-import asyncio
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
@@ -59,19 +59,17 @@ class PolicyManagerForAlice(PolicyManager):
 
         ##### Temporary until we decide on an API for private key access
         alice_priv_enc = self.owner._crypto_power._power_ups[EncryptingPower].priv_key
-        re_enc_keys, pfrag = self.owner.generate_rekey_frags(alice_priv_enc, bob, m,
-                                                                     n)  # TODO: Access Alice's private key inside this method.
-        policies = []
-        for kfrag_id, kfrag in enumerate(re_enc_keys):
-            policy = Policy.from_alice(
-                alice=self.owner,
-                bob=bob,
-                kfrag=kfrag,
-                pfrag=pfrag,
-            )
-            policies.append(policy)
+        kfrags, pfrag = self.owner.generate_rekey_frags(alice_priv_enc, bob, m,
+                                                             n)  # TODO: Access Alice's private key inside this method.
+        policy = Policy.from_alice(
+            alice=self.owner,
+            bob=bob,
+            kfrags=kfrags,
+            pfrag=pfrag,
+            uri=uri,
+        )
 
-        return PolicyGroup(uri, self.owner, bob, policies)
+        return policy
 
 
 class PolicyGroup(object):
