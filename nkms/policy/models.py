@@ -202,8 +202,9 @@ class Policy(object):
         self.alice = alice
         self.bob = bob
         self.alices_signature = alices_signature
-        self.kfrag = kfrag
+        self.kfrags = kfrags
         self.pfrag = pfrag
+        self.uri = uri
         self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
         self.challenge_size = challenge_size
         self.treasure_map = []
@@ -235,13 +236,13 @@ class Policy(object):
         self._ursula = ursula_object
 
     @staticmethod
-    def from_alice(kfrag,
+    def from_alice(kfrags,
                    pfrag,
                    alice,
                    bob,
+                   uri,
                    ):
-        policy = Policy(alice, bob, kfrag, pfrag)
-        policy.generate_challenge_pack()
+        policy = Policy(alice, bob, kfrags, pfrag, uri)
 
         return policy
 
@@ -323,8 +324,8 @@ class WorkOrder(object):
 
     def __repr__(self):
         return "WorkOrder (pfrags: {}) {} for {}".format([binascii.hexlify(bytes(p))[:6] for p in self.pfrags],
-        binascii.hexlify(self.receipt_bytes)[:6],
-        binascii.hexlify(self.ursula_id)[:6])
+                                                         binascii.hexlify(self.receipt_bytes)[:6],
+                                                         binascii.hexlify(self.ursula_id)[:6])
 
     def __eq__(self, other):
         return (self.receipt_bytes, self.receipt_signature) == (other.receipt_bytes, other.receipt_signature)
