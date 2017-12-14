@@ -86,10 +86,6 @@ class PolicyGroup(object):
         self.uri = uri
         self.treasure_map = TreasureMap()
 
-    @property
-    def n(self):
-        return len(self.policies)
-
     @staticmethod
     def hash(message):
         return keccak_digest(message)
@@ -217,6 +213,10 @@ class Policy(object):
         self.challenge_pack = []
 
         self._encrypted_challenge_pack = encrypted_challenge_pack
+
+    @property
+    def n(self):
+        return len(self.kfrags)
 
     @property
     def id(self):
