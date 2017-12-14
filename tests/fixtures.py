@@ -5,7 +5,7 @@ import pytest
 from nkms.characters import congregate, Alice, Bob
 from nkms.network import blockchain_client
 from nkms.policy.constants import NON_PAYMENT
-from nkms.policy.models import PolicyManagerForAlice, PolicyOffer
+from nkms.policy.models import PolicyManagerForAlice
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
 

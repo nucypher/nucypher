@@ -137,18 +137,6 @@ class PolicyGroup(object):
         """
         return self.hash(bytes(self.alice.seal) + self.hrac())
 
-    def enact_policies(self, networky_stuff):
-
-        for policy in self.policies:
-            policy_payload = policy.encrypt_payload_for_ursula()
-            full_payload = self.alice.seal + msgpack.dumps(policy_payload)
-            response = networky_stuff.enact_policy(policy.ursula,
-                                                   self.hrac(),
-                                                   full_payload)  # TODO: Parse response for confirmation.
-
-            # Assuming response is what we hope for
-            self.treasure_map.add_ursula(policy.ursula)
-
     @property
     def id(self):
         if not self._id:
@@ -260,6 +248,19 @@ class Policy(object):
 
     def payload(self):
         return bytes(self.kfrag) + msgpack.dumps(self.encrypted_challenge_pack)
+
+    def enact(self, networky_stuff):
+
+        for kfrag in self.kfrags:
+            offer = self._active_contracts[kfrag]
+            policy_payload = offer.encrypt_payload_for_ursula()
+            full_payload = self.alice.seal + msgpack.dumps(policy_payload)
+            response = networky_stuff.enact_policy(policy.ursula,
+                                                   self.hrac(),
+                                                   full_payload)  # TODO: Parse response for confirmation.
+
+            # Assuming response is what we hope for
+            self.treasure_map.add_ursula(policy.ursula)
 
     @property
     def encrypted_challenge_pack(self):
