@@ -59,7 +59,7 @@ class PolicyManagerForAlice(PolicyManager):
 
         ##### Temporary until we decide on an API for private key access
         alice_priv_enc = self.owner._crypto_power._power_ups[EncryptingPower].priv_key
-        re_enc_keys, encrypted_key = self.owner.generate_rekey_frags(alice_priv_enc, bob, m,
+        re_enc_keys, pfrag = self.owner.generate_rekey_frags(alice_priv_enc, bob, m,
                                                                      n)  # TODO: Access Alice's private key inside this method.
         policies = []
         for kfrag_id, kfrag in enumerate(re_enc_keys):
@@ -70,7 +70,7 @@ class PolicyManagerForAlice(PolicyManager):
             )
             policies.append(policy)
 
-        return PolicyGroup(uri, self.owner, bob, encrypted_key, policies)
+        return PolicyGroup(uri, self.owner, bob, pfrag, policies)
 
 
 class PolicyGroup(object):
