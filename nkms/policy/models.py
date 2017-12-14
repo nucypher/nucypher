@@ -160,7 +160,7 @@ class PolicyGroup(object):
 
     def publish_treasure_map(self):
         encrypted_treasure_map, signature_for_bob = self.alice.encrypt_for(self.bob,
-                                                                     self.treasure_map.packed_payload())
+                                                                           self.treasure_map.packed_payload())
         signature_for_ursula = self.alice.seal(self.hrac())  # TODO: Great use-case for Ciphertext class
 
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
@@ -189,7 +189,7 @@ class Policy(object):
     hashed_part = None
     _id = None
 
-    def __init__(self, alice, bob=None, kfrag=UNKNOWN_KFRAG, pfrag=None, alices_signature=NOT_SIGNED, challenge_size=20,
+    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), pfrag=None, uri=None, alices_signature=NOT_SIGNED, challenge_size=20,
                  set_id=True, encrypted_challenge_pack=None):
         """
         :param kfrag:
