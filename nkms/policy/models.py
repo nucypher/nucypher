@@ -130,28 +130,6 @@ class PolicyGroup(object):
     def pfrag(self):
         return self.policies[0].pfrag
 
-    def hrac(self):
-        """
-        A convenience method for generating an hrac for this instance.
-        """
-        return self.hrac_for(self.alice, self.bob, self.uri)
-
-    @staticmethod
-    def hrac_for(alice, bob, uri):
-
-        """
-        The "hashed resource authentication code".
-
-        A hash of:
-        * Alice's public key
-        * Bob's public key
-        * the uri
-
-        Alice and Bob have all the information they need to construct this.
-        Ursula does not, so we share it with her.
-        """
-        return PolicyGroup.hash(bytes(alice.seal) + bytes(bob.seal) + uri)
-
     def treasure_map_dht_key(self):
         """
         We need a key that Bob can glean from knowledge he already has *and* which Ursula can verify came from us.
@@ -250,29 +228,27 @@ class Policy(object):
 
         return policy
 
+    def hrac(self):
+        """
+        A convenience method for generating an hrac for this instance.
+        """
+        return self.hrac_for(self.alice, self.bob, self.uri)
+
     @staticmethod
-    def from_ursula(group_payload, ursula):
-        alice_pubkey_sig, payload_encrypted_for_ursula = group_payload_splitter(group_payload,
-                                                                                msgpack_remainder=True)
-        alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
-        ursula.learn_about_actor(alice)
-        verified, cleartext = ursula.verify_from(alice, payload_encrypted_for_ursula,
-                                                 decrypt=True, signature_is_on_cleartext=True)
+    def hrac_for(alice, bob, uri):
 
-        if not verified:
-            # TODO: What do we do if it's not signed properly?
-            pass
+        """
+        The "hashed resource authentication code".
 
-        alices_signature, policy_payload = BytestringSplitter(Signature)(cleartext, return_remainder=True)
+        A hash of:
+        * Alice's public key
+        * Bob's public key
+        * the uri
 
-        kfrag, encrypted_challenge_pack = policy_payload_splitter(policy_payload, return_remainder=True)
-        policy = Policy(alice=alice, alices_signature=alices_signature, kfrag=kfrag,
-                        encrypted_challenge_pack=encrypted_challenge_pack)
-
-        return policy
-
-    def payload(self):
-        return bytes(self.kfrag) + msgpack.dumps(self.encrypted_challenge_pack)
+        Alice and Bob have all the information they need to construct this.
+        Ursula does not, so we share it with her.
+        """
+        return PolicyGroup.hash(bytes(alice.seal) + bytes(bob.seal) + uri)
 
     def enact(self, networky_stuff):
 
