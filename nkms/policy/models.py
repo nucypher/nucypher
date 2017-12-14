@@ -179,10 +179,10 @@ class Policy(object):
     """
     _ursula = None
     hashed_part = None
-    _id = None
 
-    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), pfrag=None, uri=None, alices_signature=NOT_SIGNED, challenge_size=20,
-                 set_id=True, encrypted_challenge_pack=None):
+    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), pfrag=None, uri=None, alices_signature=NOT_SIGNED,
+                 challenge_size=20,
+                 encrypted_challenge_pack=None):
         """
         :param kfrag:
             The kFrag obviously, but defaults to UNKNOWN_KFRAG in case the user wants to set it later.
@@ -208,13 +208,6 @@ class Policy(object):
     @property
     def n(self):
         return len(self.kfrags)
-
-    @property
-    def id(self):
-        if self._id:
-            return self._id
-        else:
-            raise RuntimeError("No implemented way to get id yet.")
 
     @property
     def ursula(self):

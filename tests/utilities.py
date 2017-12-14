@@ -59,14 +59,14 @@ class MockNetworkyStuff(NetworkyStuff):
     def go_live_with_policy(self, ursula, policy_offer):
         return
 
-    def find_ursula(self, id, offer=None):
+    def find_ursula(self, offer=None):
         if offer:
             try:
                 return next(self.ursulas), MockPolicyOfferResponse()
             except StopIteration:
                 raise self.NotEnoughQualifiedUrsulas
         else:
-            return super().find_ursula(id)
+            return super().find_ursula()
 
     def enact_policy(self, ursula, hrac, payload):
         mock_client = TestClient(ursula.rest_app)
