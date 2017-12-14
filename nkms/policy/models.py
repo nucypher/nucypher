@@ -253,10 +253,10 @@ class Policy(object):
     def enact(self, networky_stuff):
 
         for kfrag in self.kfrags:
-            offer = self._active_contracts[kfrag]
-            policy_payload = offer.encrypt_payload_for_ursula()
+            contract = self._active_contracts[kfrag]
+            policy_payload = contract.encrypt_payload_for_ursula()
             full_payload = self.alice.seal + msgpack.dumps(policy_payload)
-            response = networky_stuff.enact_policy(policy.ursula,
+            response = networky_stuff.enact_policy(contract.ursula,
                                                    self.hrac(),
                                                    full_payload)  # TODO: Parse response for confirmation.
 
