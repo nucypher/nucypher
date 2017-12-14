@@ -238,7 +238,7 @@ class Alice(Character):
         offer = policy_group.craft_offer(deposit, expiration)
 
         policy_group.find_n_ursulas(networky_stuff, offer)
-        policy_group.enact_policies(networky_stuff)  # REST call happens here, as does population of TreasureMap.
+        policy_group.enact(networky_stuff)  # REST call happens here, as does population of TreasureMap.
 
         return policy_group
 
