@@ -427,9 +427,9 @@ class Ursula(Character):
         TODO: Instead of taking a Request, use the apistar typing system to type a payload and validate / split it.
         TODO: Validate that the kfrag being saved is pursuant to an approved Policy (see #121).
         """
-        from nkms.policy.models import Policy  # Avoid circular import
+        from nkms.policy.models import Contract  # Avoid circular import
         hrac = binascii.unhexlify(hrac_as_hex)
-        policy = Policy.from_ursula(request.body, self)
+        contract = Contract.from_ursula(request.body, self)
 
         try:
             self.keystore.add_kfrag(hrac, policy.kfrag, policy.alices_signature)
