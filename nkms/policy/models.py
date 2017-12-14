@@ -67,10 +67,11 @@ class PolicyManagerForAlice(PolicyManager):
                 alice=self.owner,
                 bob=bob,
                 kfrag=kfrag,
+                pfrag=pfrag,
             )
             policies.append(policy)
 
-        return PolicyGroup(uri, self.owner, bob, pfrag, policies)
+        return PolicyGroup(uri, self.owner, bob, policies)
 
 
 class PolicyGroup(object):
@@ -80,11 +81,10 @@ class PolicyGroup(object):
 
     _id = None
 
-    def __init__(self, uri: bytes, alice: Alice, bob: Bob, pfrag=None, policies=None) -> None:
+    def __init__(self, uri: bytes, alice: Alice, bob: Bob, policies=None) -> None:
         self.policies = policies or []
         self.alice = alice
         self.bob = bob
-        self.pfrag = pfrag
         self.uri = uri
         self.treasure_map = TreasureMap()
 
@@ -95,6 +95,11 @@ class PolicyGroup(object):
     @staticmethod
     def hash(message):
         return keccak_digest(message)
+
+    # TODO: This is a stand-in; remove it.
+    @property
+    def pfrag(self):
+        return self.policies[0].pfrag
 
     def find_n_ursulas(self, networky_stuff, offer: PolicyOffer):
         """
@@ -193,7 +198,7 @@ class Policy(object):
     hashed_part = None
     _id = None
 
-    def __init__(self, alice, bob=None, kfrag=UNKNOWN_KFRAG, alices_signature=NOT_SIGNED, challenge_size=20,
+    def __init__(self, alice, bob=None, kfrag=UNKNOWN_KFRAG, pfrag=None, alices_signature=NOT_SIGNED, challenge_size=20,
                  set_id=True, encrypted_challenge_pack=None):
         """
         :param kfrag:
@@ -207,6 +212,7 @@ class Policy(object):
         self.bob = bob
         self.alices_signature = alices_signature
         self.kfrag = kfrag
+        self.pfrag = pfrag
         self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
         self.challenge_size = challenge_size
         self.treasure_map = []
@@ -235,10 +241,11 @@ class Policy(object):
 
     @staticmethod
     def from_alice(kfrag,
+                   pfrag,
                    alice,
                    bob,
                    ):
-        policy = Policy(alice, bob, kfrag)
+        policy = Policy(alice, bob, kfrag, pfrag)
         policy.generate_challenge_pack()
 
         return policy
