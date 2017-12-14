@@ -100,19 +100,6 @@ class PolicyGroup(object):
     def pfrag(self):
         return self.policies[0].pfrag
 
-    def find_n_ursulas(self, networky_stuff, offer: PolicyOffer):
-        """
-        :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
-        """
-        for policy in self.policies:
-            try:
-                ursula, result = networky_stuff.find_ursula(self.id, offer)
-                # TODO: Here, we need to assess the result and see if we're actually good to go.
-                if result.was_accepted:
-                    policy.activate(ursula, result)
-            except networky_stuff.NotEnoughQualifiedUrsulas:
-                pass  # Tell Alice to either wait or lower the value of n.
-
     def hrac(self):
         """
         A convenience method for generating an hrac for this instance.
@@ -293,6 +280,20 @@ class Policy(object):
 
     def craft_offer(self, deposit, expiration):
         return PolicyOffer(self.n, deposit, expiration)
+
+    def find_n_ursulas(self, networky_stuff, offer: PolicyOffer):
+        """
+        :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
+        """
+        for kfrag in self.kfrags:
+            try:
+                ursula, result = networky_stuff.find_ursula(offer)
+                # TODO: Here, we need to assess the result and see if we're actually good to go.
+                if result.was_accepted:
+                    offer.activate(kfrag, ursula, result)
+                    self._active_ursulas[kfrag] = offer
+            except networky_stuff.NotEnoughQualifiedUrsulas:
+                pass  # TODO: Tell Alice to either wait or lower the value of n.
 
 
 class TreasureMap(object):
