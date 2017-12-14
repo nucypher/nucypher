@@ -18,26 +18,31 @@ group_payload_splitter = BytestringSplitter(PublicKey)
 policy_payload_splitter = BytestringSplitter(KFrag)
 
 
-class PolicyOffer(object):
+class Contract(object):
     """
-    An offer from Alice to Ursula to enter into a contract for Re-Encryption services.
+    A Policy must be implemented by agreement with n Ursulas.  This class tracks the status of that implementation.
     """
 
-    def __init__(self, n, deposit, contract_end_datetime):
+    def __init__(self, policy, deposit, expiration):
         """
-        :param n: The total number of Policies which Alice wishes to create.
-        :param deposit: Funds which will pay for the timeframe  of the contract (not the actual re-encryptions);
+        :param deposit: Funds which will pay for the timeframe  of this Contract (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
-        :param contract_end_datetime: The moment which Alice wants the contract to end.
+        :param expiration: The moment which Alice wants the Contract to end.
         """
-        self.n = n
+        self.policy = policy
         self.deposit = deposit
-        self.contract_end_datetime = contract_end_datetime
+        self.expiration = expiration
 
     def activate(self, kfrag, ursula, negotiation_result):
         self.kfrag = kfrag
         self.ursula = ursula
         self.negotiation_result = negotiation_result
+
+    def encrypt_payload_for_ursula(self):
+        """
+        Craft an offer to send to Ursula.
+        """
+        return self.alice.encrypt_for(self.ursula, self.payload())[0]  # We don't need the signature separately.
 
 
 class PolicyOfferResponse(object):
@@ -201,7 +206,7 @@ class Policy(object):
         self.challenge_size = challenge_size
         self.treasure_map = []
         self.challenge_pack = []
-        self._active_ursulas = {}
+        self._active_contracts = {}
 
         self._encrypted_challenge_pack = encrypted_challenge_pack
 
@@ -265,26 +270,20 @@ class Policy(object):
                 self._encrypted_challenge_pack = self.alice.encrypt_for(self.bob, msgpack.dumps(self.challenge_pack))
         return self._encrypted_challenge_pack
 
-    def encrypt_payload_for_ursula(self):
-        """
-        Craft an offer to send to Ursula.
-        """
-        return self.alice.encrypt_for(self.ursula, self.payload())[0]  # We don't need the signature separately.
-
     def craft_offer(self, deposit, expiration):
-        return PolicyOffer(self.n, deposit, expiration)
+        return Contract(self, deposit, expiration)
 
-    def find_n_ursulas(self, networky_stuff, offer: PolicyOffer):
+    def find_n_ursulas(self, networky_stuff, contract: Contract):
         """
         :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
         """
         for kfrag in self.kfrags:
             try:
-                ursula, result = networky_stuff.find_ursula(offer)
+                ursula, result = networky_stuff.find_ursula(contract)
                 # TODO: Here, we need to assess the result and see if we're actually good to go.
                 if result.was_accepted:
-                    offer.activate(kfrag, ursula, result)
-                    self._active_ursulas[kfrag] = offer
+                    contract.activate(kfrag, ursula, result)
+                    self._active_contracts[kfrag] = contract
             except networky_stuff.NotEnoughQualifiedUrsulas:
                 pass  # TODO: Tell Alice to either wait or lower the value of n.
 
