@@ -130,9 +130,6 @@ class PolicyGroup(object):
         """
         return PolicyGroup.hash(bytes(alice.seal) + bytes(bob.seal) + uri)
 
-    def craft_offer(self, deposit, expiration):
-        return PolicyOffer(self.n, deposit, expiration)
-
     def treasure_map_dht_key(self):
         """
         We need a key that Bob can glean from knowledge he already has *and* which Ursula can verify came from us.
@@ -285,23 +282,14 @@ class Policy(object):
                 self._encrypted_challenge_pack = self.alice.encrypt_for(self.bob, msgpack.dumps(self.challenge_pack))
         return self._encrypted_challenge_pack
 
-    def generate_challenge_pack(self):
-        if self.kfrag == UNKNOWN_KFRAG:
-            # TODO: Test this branch
-            raise TypeError(
-                "Can't generate a challenge pack unless we know the kfrag.  Are you Alice?")
-
-        # TODO: make this work instead of being random.  See #46.
-        import random
-        self._challenge_pack = [(random.getrandbits(32), random.getrandbits(32)) for x in
-                                range(self.challenge_size)]
-        return True
-
     def encrypt_payload_for_ursula(self):
         """
         Craft an offer to send to Ursula.
         """
         return self.alice.encrypt_for(self.ursula, self.payload())[0]  # We don't need the signature separately.
+
+    def craft_offer(self, deposit, expiration):
+        return PolicyOffer(self.n, deposit, expiration)
 
 
 class TreasureMap(object):
