@@ -209,6 +209,7 @@ class Policy(object):
         self.challenge_size = challenge_size
         self.treasure_map = []
         self.challenge_pack = []
+        self._active_ursulas = {}
 
         self._encrypted_challenge_pack = encrypted_challenge_pack
 
