@@ -34,6 +34,11 @@ class PolicyOffer(object):
         self.deposit = deposit
         self.contract_end_datetime = contract_end_datetime
 
+    def activate(self, kfrag, ursula, negotiation_result):
+        self.kfrag = kfrag
+        self.ursula = ursula
+        self.negotiation_result = negotiation_result
+
 
 class PolicyOfferResponse(object):
     pass
@@ -60,7 +65,7 @@ class PolicyManagerForAlice(PolicyManager):
         ##### Temporary until we decide on an API for private key access
         alice_priv_enc = self.owner._crypto_power._power_ups[EncryptingPower].priv_key
         kfrags, pfrag = self.owner.generate_rekey_frags(alice_priv_enc, bob, m,
-                                                             n)  # TODO: Access Alice's private key inside this method.
+                                                        n)  # TODO: Access Alice's private key inside this method.
         policy = Policy.from_alice(
             alice=self.owner,
             bob=bob,
@@ -270,10 +275,6 @@ class Policy(object):
 
     def payload(self):
         return bytes(self.kfrag) + msgpack.dumps(self.encrypted_challenge_pack)
-
-    def activate(self, ursula, negotiation_result):
-        self.ursula = ursula
-        self.negotiation_result = negotiation_result
 
     @property
     def encrypted_challenge_pack(self):
