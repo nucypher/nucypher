@@ -127,7 +127,7 @@ class PolicyGroup(object):
         self.alice = alice
         self.bob = bob
         self.uri = uri
-        self.treasure_map = TreasureMap()
+
 
     @staticmethod
     def hash(message):
@@ -203,7 +203,7 @@ class Policy(object):
         self.uri = uri
         self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
         self.challenge_size = challenge_size
-        self.treasure_map = []
+        self.treasure_map = TreasureMap()
         self.challenge_pack = []
         self._active_contracts = {}
 
