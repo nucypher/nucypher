@@ -481,9 +481,9 @@ class Ursula(Character):
 
     def consider_contract(self, contract):
         # TODO: This actually needs to be a REST endpoint, with the payload carrying the kfrag hash separately.
-        self._contracts[self.hash(bytes(contract.kfrag))] = contract
 
-        # TODO: Make the rest of this logic actually work.
+        # TODO: Make the rest of this logic actually work - do something here to decide if this Contract is worth accepting.
+        self._contracts[contract.hrac] = contract
         from tests.utilities import MockPolicyOfferResponse
         return MockPolicyOfferResponse()
 
