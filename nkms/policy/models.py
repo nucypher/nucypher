@@ -46,7 +46,7 @@ class Contract(object):
         """
         Craft an offer to send to Ursula.
         """
-        return self.policy.alice.encrypt_for(self.ursula, self.payload())[0]  # We don't need the signature separately.
+        return self.alice.encrypt_for(self.ursula, self.payload())[0]  # We don't need the signature separately.
 
     def payload(self):
         # TODO: Ship the expiration again?  Or some other way of alerting Ursula to recall her previous dialogue regarding this Contract.
