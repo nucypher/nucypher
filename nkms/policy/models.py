@@ -53,8 +53,7 @@ class Contract(object):
         # TODO: Ship the expiration again?  Or some other way of alerting Ursula to recall her previous dialogue regarding this Contract.
         return bytes(self.kfrag) + b"This might be a ChallengePack"  # TODO: come to a decision re: #146
 
-    @classmethod
-    def from_ursula(cls, group_payload, ursula):
+    def add_details_from_rest_payload(self, group_payload, ursula):
         alice_pubkey_sig, payload_encrypted_for_ursula = group_payload_splitter(group_payload,
                                                                                 msgpack_remainder=True)
         alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
@@ -72,10 +71,11 @@ class Contract(object):
 
         # TODO: Query stored Contract and reconstitute
 
-        contract = cls(alice=alice, alices_signature=alices_signature, kfrag=kfrag,
-                       encrypted_challenge_pack=encrypted_challenge_pack)
+        self.alice = alice
+        self.alices_signature = alices_signature
+        self.kfrag = kfrag
+        self.encrypted_challenge_pack = encrypted_challenge_pack
 
-        return contract
 
 
 class PolicyOfferResponse(object):
