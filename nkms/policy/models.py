@@ -310,6 +310,14 @@ class Policy(object):
                 pass  # TODO: Tell Alice to either wait or lower the value of num_ursulas.
         return found_ursulas
 
+    def assign_kfrag_to_contract(self, contract):
+        for kfrag in self.kfrags:
+            if not kfrag in self._active_contracts:
+                contract.kfrag = kfrag
+                self._active_contracts[kfrag] = contract
+                return kfrag
+        if not contract.kfrag:
+            raise self.MoreContractsThanKFrags  # TODO: Perhaps in a future version, we consider allowing Alice to assign *the same* KFrag to multiple Ursulas?
 
 class TreasureMap(object):
     def __init__(self, ursula_interface_ids=None):
