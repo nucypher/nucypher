@@ -209,6 +209,12 @@ class Policy(object):
 
         self._encrypted_challenge_pack = encrypted_challenge_pack
 
+    class MoreContractsThanKFrags(TypeError):
+        """
+        Raised when a Policy has been used to generate Contracts with Ursulas in sufficient number
+        such that we don't have enough KFrags to give to each Ursula.
+        """
+
     @property
     def n(self):
         return len(self.kfrags)
