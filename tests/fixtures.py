@@ -5,12 +5,12 @@ import pytest
 from nkms.characters import congregate, Alice, Bob
 from nkms.network import blockchain_client
 from nkms.policy.constants import NON_PAYMENT
-from nkms.policy.models import PolicyManagerForAlice, Contract
+from nkms.policy.models import PolicyManagerForAlice
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def idle_policy(alice, bob):
     """
     Creates a PolicyGroup, in a manner typical of how Alice might do it, with a unique uri.
@@ -29,22 +29,22 @@ def idle_policy(alice, bob):
     return policy_group
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def enacted_policy(idle_policy, ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = NON_PAYMENT
     contract_end_datetime = datetime.datetime.now() + datetime.timedelta(days=5)
-    contract = Contract(idle_policy.n, deposit, contract_end_datetime)
+    # contract = Contract(idle_policy.n, deposit, contract_end_datetime)
 
     networky_stuff = MockNetworkyStuff(ursulas)
-    idle_policy.find_ursulas(networky_stuff, deposit,
-                                     expiration=datetime.datetime.now() + datetime.timedelta(days=5))
+    found_ursulas = idle_policy.find_ursulas(networky_stuff, deposit, expiration=contract_end_datetime)
+    idle_policy.match_kfrags_to_found_ursulas(found_ursulas)
     idle_policy.enact(networky_stuff)  # REST call happens here, as does population of TreasureMap.
 
     return idle_policy
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def alice(ursulas):
     ALICE = Alice()
     ALICE.attach_server()
@@ -54,7 +54,7 @@ def alice(ursulas):
     return ALICE
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def bob(alice, ursulas):
     BOB = Bob(alice=alice)
     BOB.attach_server()
@@ -64,13 +64,13 @@ def bob(alice, ursulas):
     return BOB
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def ursulas():
     URSULAS = make_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT)
     yield URSULAS
     blockchain_client._ursulas_on_blockchain.clear()
 
 
-@pytest.fixture(scope="session")
-def treasure_map_is_set_on_dht(alice, enacted_policy_group):
-    _, _, _, _ = enacted_policy_group.publish_treasure_map()
+@pytest.fixture(scope="module")
+def treasure_map_is_set_on_dht(alice, enacted_policy):
+    enacted_policy.publish_treasure_map()
