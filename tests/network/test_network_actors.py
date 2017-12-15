@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 
 import msgpack
 import pytest
@@ -9,8 +10,19 @@ from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
-from nkms.policy.models import Policy
+from nkms.policy.models import Policy, Contract
 from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
+
+
+def test_alice_cannot_offer_policy_without_first_finding_ursula(alice, ursulas):
+    """
+    Alice can't just make a deal out of thin air if she doesn't know whether any Ursulas are available (she gets Ursula.NotFound).
+    """
+    networky_stuff = MockNetworkyStuff(ursulas)
+    contract = Contract(alice, "some_hrac,", datetime.datetime.now() + datetime.timedelta(days=5), ursula=ursulas[0])
+
+    with pytest.raises(Ursula.NotFound):
+        policy_offer = contract.encrypt_payload_for_ursula()
 
 
 def test_all_ursulas_know_about_all_other_ursulas(ursulas):
@@ -48,17 +60,6 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
 
     # Now Ursula has seen an illegal key.
     assert digest(illegal_key) in ursula.server.protocol.illegal_keys_seen
-
-
-def test_alice_cannot_offer_policy_without_first_finding_ursula(alice, bob, ursulas):
-    """
-    Alice can't just offer a Policy if she doesn't know whether any Ursulas are available (she gets Ursula.NotFound).
-    """
-    networky_stuff = MockNetworkyStuff(ursulas)
-    policy = Policy(alice, bob)
-
-    with pytest.raises(Ursula.NotFound):
-        policy_offer = policy.encrypt_payload_for_ursula()
 
 
 def test_trying_to_find_unknown_actor_raises_not_found(alice):
