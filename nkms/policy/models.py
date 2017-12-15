@@ -278,7 +278,7 @@ class Policy(object):
                                                    full_payload)  # TODO: Parse response for confirmation.
 
             # Assuming response is what we hope for
-            self.treasure_map.add_ursula(policy.ursula)
+            self.treasure_map.add_ursula(contract.ursula)
 
     @property
     def encrypted_challenge_pack(self):
