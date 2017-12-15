@@ -149,7 +149,7 @@ class Policy(object):
         self.challenge_size = challenge_size
         self.treasure_map = TreasureMap()
         self.challenge_pack = []
-        self._active_contracts = {}
+        self._accepted_contracts = {}
 
         self._encrypted_challenge_pack = encrypted_challenge_pack
 
@@ -210,11 +210,7 @@ class Policy(object):
 
     def enact(self, networky_stuff):
 
-        for kfrag in self.kfrags:
-            try:
-                contract = self._active_contracts[kfrag]
-            except KeyError:
-                raise KeyError("This contract isn't marked as active.  Can't enact it.")
+        for contract in self._accepted_contracts.values():
             policy_payload = contract.encrypt_payload_for_ursula()
             full_payload = self.alice.seal + msgpack.dumps(policy_payload)
             response = networky_stuff.enact_policy(contract.ursula,
@@ -256,12 +252,21 @@ class Policy(object):
 
     def assign_kfrag_to_contract(self, contract):
         for kfrag in self.kfrags:
-            if not kfrag in self._active_contracts:
+            if not kfrag in self._accepted_contracts:
                 contract.kfrag = kfrag
-                self._active_contracts[kfrag] = contract
+                self._accepted_contracts[kfrag] = contract
                 return kfrag
         if not contract.kfrag:
             raise self.MoreContractsThanKFrags  # TODO: Perhaps in a future version, we consider allowing Alice to assign *the same* KFrag to multiple Ursulas?
+
+    def match_kfrags_to_found_ursulas(self, found_ursulas):
+        for ursula, contract, result in found_ursulas:
+            if result.was_accepted:  # TODO: Here, we need to assess the result and see if we're actually good to go.
+                kfrag = self.assign_kfrag_to_contract(contract)
+                contract.activate(kfrag, ursula, result)
+        # TODO: What if there weren't enough Contracts approved to distribute n kfrags?  We need to raise NotEnoughQualifiedUrsulas.
+
+
 
 class TreasureMap(object):
     def __init__(self, ursula_interface_ids=None):
