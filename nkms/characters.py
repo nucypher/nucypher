@@ -440,10 +440,11 @@ class Ursula(Character):
         """
         from nkms.policy.models import Contract  # Avoid circular import
         hrac = binascii.unhexlify(hrac_as_hex)
-        contract = Contract.from_ursula(request.body, self)
+        contract = self._contracts[hrac]
+        contract.add_details_from_rest_payload(request.body, self)
 
         try:
-            self.keystore.add_kfrag(hrac, policy.kfrag, policy.alices_signature)
+            self.keystore.add_kfrag(hrac, contract.kfrag, contract.alices_signature)
         except IntegrityError:
             raise
             # Do something appropriately RESTful (ie, 4xx).
