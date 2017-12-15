@@ -2,6 +2,7 @@ import asyncio
 import binascii
 
 import msgpack
+from npre.constants import UNKNOWN_KFRAG
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
@@ -12,7 +13,6 @@ from nkms.crypto.powers import EncryptingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 from nkms.keystore.keypairs import PublicKey
-from npre.constants import UNKNOWN_KFRAG
 
 group_payload_splitter = BytestringSplitter(PublicKey)
 policy_payload_splitter = BytestringSplitter(KFrag)
@@ -23,8 +23,7 @@ class Contract(object):
     A Policy must be implemented by agreement with n Ursulas.  This class tracks the status of that implementation.
     """
 
-    def __init__(self, alice, hrac, expiration, deposit=None, ursula=None, kfrag=UNKNOWN_KFRAG, alices_signature=None,
-                 encrypted_challenge_pack=None):
+    def __init__(self, alice, hrac, expiration, deposit=None, ursula=None, kfrag=UNKNOWN_KFRAG, alices_signature=None):
         """
         :param deposit: Funds which will pay for the timeframe  of this Contract (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
@@ -34,9 +33,10 @@ class Contract(object):
         self.alice = alice
         self.expiration = expiration
         self.deposit = deposit
-        self.ursula = ursula
         self.kfrag = kfrag
-        self.encrypted_challenge_pack = encrypted_challenge_pack
+
+        self.alices_signature = None
+        self.ursula = ursula
 
     def activate(self, kfrag, ursula, negotiation_result):
         self.kfrag = kfrag
@@ -75,7 +75,6 @@ class Contract(object):
         self.alices_signature = alices_signature
         self.kfrag = kfrag
         self.encrypted_challenge_pack = encrypted_challenge_pack
-
 
 
 class PolicyOfferResponse(object):
@@ -128,9 +127,7 @@ class Policy(object):
     _ursula = None
     hashed_part = None
 
-    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), pfrag=None, uri=None, alices_signature=NOT_SIGNED,
-                 challenge_size=20,
-                 encrypted_challenge_pack=None):
+    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), pfrag=None, uri=None, alices_signature=NOT_SIGNED):
         """
         :param kfrag:
             The kFrag obviously, but defaults to UNKNOWN_KFRAG in case the user wants to set it later.
@@ -151,7 +148,6 @@ class Policy(object):
         self.challenge_pack = []
         self._accepted_contracts = {}
 
-        self._encrypted_challenge_pack = encrypted_challenge_pack
 
     class MoreContractsThanKFrags(TypeError):
         """
@@ -182,6 +178,7 @@ class Policy(object):
                    bob,
                    uri,
                    ):
+        # TODO: What happened to Alice's signature - don't we include it here?
         policy = Policy(alice, bob, kfrags, pfrag, uri)
 
         return policy
@@ -237,7 +234,6 @@ class Policy(object):
         event_loop = asyncio.get_event_loop()
         event_loop.run_until_complete(setter)
         return encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
-
 
     def enact(self, networky_stuff):
 
@@ -295,8 +291,7 @@ class Policy(object):
             if result.was_accepted:  # TODO: Here, we need to assess the result and see if we're actually good to go.
                 kfrag = self.assign_kfrag_to_contract(contract)
                 contract.activate(kfrag, ursula, result)
-        # TODO: What if there weren't enough Contracts approved to distribute n kfrags?  We need to raise NotEnoughQualifiedUrsulas.
-
+                # TODO: What if there weren't enough Contracts approved to distribute n kfrags?  We need to raise NotEnoughQualifiedUrsulas.
 
 
 class TreasureMap(object):
