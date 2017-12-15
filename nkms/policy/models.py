@@ -289,8 +289,8 @@ class Policy(object):
                 self._encrypted_challenge_pack = self.alice.encrypt_for(self.bob, msgpack.dumps(self.challenge_pack))
         return self._encrypted_challenge_pack
 
-    def craft_offer(self, deposit, expiration):
-        return Contract(self.alice, deposit, expiration)
+    def draw_up_contract(self, deposit, expiration):
+        return Contract(self.alice, self.hrac(), deposit, expiration)
 
     def find_n_ursulas(self, networky_stuff, contract: Contract):
         # TODO: This is a number mismatch - we need not one contract, but n contracts.
