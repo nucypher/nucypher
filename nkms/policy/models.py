@@ -23,13 +23,14 @@ class Contract(object):
     A Policy must be implemented by agreement with n Ursulas.  This class tracks the status of that implementation.
     """
 
-    def __init__(self, alice, expiration, deposit=None, ursula=None, kfrag=UNKNOWN_KFRAG, alices_signature=None,
+    def __init__(self, alice, hrac, expiration, deposit=None, ursula=None, kfrag=UNKNOWN_KFRAG, alices_signature=None,
                  encrypted_challenge_pack=None):
         """
         :param deposit: Funds which will pay for the timeframe  of this Contract (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
         :param expiration: The moment which Alice wants the Contract to end.
         """
+        self.hrac = hrac
         self.alice = alice
         self.expiration = expiration
         self.deposit = deposit
