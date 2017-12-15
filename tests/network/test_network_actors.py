@@ -97,36 +97,36 @@ def test_alice_finds_ursula(alice, ursulas):
     assert port == URSULA_PORT + ursula_index
 
 
-def test_alice_creates_policy_group_with_correct_hrac(alices_policy_group):
+def test_alice_creates_policy_group_with_correct_hrac(idle_policy):
     """
     Alice creates a PolicyGroup.  It has the proper HRAC, unique per her, Bob, and the uri (resource_id).
     """
-    alice = alices_policy_group.alice
-    bob = alices_policy_group.bob
+    alice = idle_policy.alice
+    bob = idle_policy.bob
 
-    assert alices_policy_group.hrac() == alices_policy_group.hash(
+    assert idle_policy.hrac() == idle_policy.hash(
         bytes(alice.seal) + bytes(bob.seal) + alice.__resource_id)
 
 
-def test_alice_sets_treasure_map_on_network(enacted_policy_group, ursulas):
+def test_alice_sets_treasure_map_on_network(enacted_policy, ursulas):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
     """
-    _, packed_encrypted_treasure_map, _, _ = enacted_policy_group.publish_treasure_map()
+    _, packed_encrypted_treasure_map, _, _ = enacted_policy.publish_treasure_map()
 
     treasure_map_as_set_on_network = ursulas[0].server.storage[
-        digest(enacted_policy_group.treasure_map_dht_key())]
+        digest(enacted_policy.treasure_map_dht_key())]
     assert treasure_map_as_set_on_network == b"trmap" + packed_encrypted_treasure_map
 
 
-def test_treasure_map_with_bad_id_does_not_propagate(alices_policy_group, ursulas):
+def test_treasure_map_with_bad_id_does_not_propagate(idle_policy, ursulas):
     """
     In order to prevent spam attacks, Ursula refuses to propagate a TreasureMap whose PolicyGroup ID does not comport to convention.
     """
     illegal_policygroup_id = "This is not a conventional policygroup id"
-    alice = alices_policy_group.alice
-    bob = alices_policy_group.bob
-    treasure_map = alices_policy_group.treasure_map
+    alice = idle_policy.alice
+    bob = idle_policy.bob
+    treasure_map = idle_policy.treasure_map
 
     encrypted_treasure_map, signature = alice.encrypt_for(bob, treasure_map.packed_payload())
     packed_encrypted_treasure_map = msgpack.dumps(encrypted_treasure_map)  # TODO: #114?  Do we even need to pack here?
@@ -139,12 +139,12 @@ def test_treasure_map_with_bad_id_does_not_propagate(alices_policy_group, ursula
 
 
 @pytest.mark.usefixtures("treasure_map_is_set_on_dht")
-def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ursulas, enacted_policy_group):
+def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ursulas, enacted_policy):
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
     treasure_map_as_set_on_network = ursulas[0].server.storage[
-        digest(enacted_policy_group.treasure_map_dht_key())]
+        digest(enacted_policy.treasure_map_dht_key())]
 
     _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
         treasure_map_as_set_on_network[5::], msgpack_remainder=True)  # 5:: to account for prepended "trmap"
@@ -156,32 +156,32 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ur
                                                                  )
     _alices_signature, treasure_map_as_decrypted_by_bob = BytestringSplitter(Signature)(cleartext, return_remainder=True)
 
-    assert treasure_map_as_decrypted_by_bob == enacted_policy_group.treasure_map.packed_payload()
+    assert treasure_map_as_decrypted_by_bob == enacted_policy.treasure_map.packed_payload()
     assert verified is True
 
 
 @pytest.mark.usefixtures("treasure_map_is_set_on_dht")
-def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy_group, ursulas):
+def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy, ursulas):
     """
     Above, we showed that the TreasureMap saved on the network is the correct one for Bob.  Here, we show
     that Bob can retrieve it with only the information about which he is privy pursuant to the PolicyGroup.
     """
-    bob = enacted_policy_group.bob
+    bob = enacted_policy.bob
     networky_stuff = MockNetworkyStuff(ursulas)
 
     # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume,
     # through a side-channel with Alice.
-    treasure_map_from_wire = bob.get_treasure_map(enacted_policy_group)
+    treasure_map_from_wire = bob.get_treasure_map(enacted_policy)
 
-    assert enacted_policy_group.treasure_map == treasure_map_from_wire
+    assert enacted_policy.treasure_map == treasure_map_from_wire
 
 
-def test_treaure_map_is_legit(enacted_policy_group):
+def test_treaure_map_is_legit(enacted_policy):
     """
     Sure, the TreasureMap can get to Bob, but we also need to know that each Ursula in the TreasureMap is on the network.
     """
-    alice = enacted_policy_group.alice
-    for ursula_interface_id in enacted_policy_group.treasure_map:
+    alice = enacted_policy.alice
+    for ursula_interface_id in enacted_policy.treasure_map:
         getter = alice.server.get(ursula_interface_id)
         loop = asyncio.get_event_loop()
         value = loop.run_until_complete(getter)
