@@ -206,7 +206,38 @@ class Policy(object):
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
         """
-        return PolicyGroup.hash(bytes(alice.seal) + bytes(bob.seal) + uri)
+        return Policy.hash(bytes(alice.seal) + bytes(bob.seal) + uri)
+
+    @staticmethod
+    def hash(message):
+        return keccak_digest(message)
+
+    def treasure_map_dht_key(self):
+        """
+        We need a key that Bob can glean from knowledge he already has *and* which Ursula can verify came from us.
+        Ursula will refuse to propagate this key if it she can't prove that our public key, which is included in it,
+        was used to sign the payload.
+
+        Our public key (which everybody knows) and the hrac above.
+        """
+        return self.hash(bytes(self.alice.seal) + self.hrac())
+
+    def publish_treasure_map(self):
+        encrypted_treasure_map, signature_for_bob = self.alice.encrypt_for(self.bob,
+                                                                           self.treasure_map.packed_payload())
+        signature_for_ursula = self.alice.seal(self.hrac())  # TODO: Great use-case for Ciphertext class
+
+        # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
+        # and, reasons explained in treasure_map_dht_key above, the uri_hash.
+        dht_value = signature_for_ursula + self.alice.seal + self.hrac() + msgpack.dumps(
+            encrypted_treasure_map)  # TODO: Ideally, this is a Ciphertext object instead of msgpack (see #112)
+        dht_key = self.treasure_map_dht_key()
+
+        setter = self.alice.server.set(dht_key, b"trmap" + dht_value)
+        event_loop = asyncio.get_event_loop()
+        event_loop.run_until_complete(setter)
+        return encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
+
 
     def enact(self, networky_stuff):
 
