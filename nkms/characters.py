@@ -360,6 +360,7 @@ class Ursula(Character):
 
         self._rest_app = None
         self._work_orders = []
+        self._contracts = {}  # TODO: This needs to actually be a persistent data store.  See #127.
 
     @property
     def rest_app(self):
@@ -466,6 +467,14 @@ class Ursula(Character):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
+
+    def consider_contract(self, contract):
+        # TODO: This actually needs to be a REST endpoint, with the payload carrying the kfrag hash separately.
+        self._contracts[self.hash(bytes(contract.kfrag))] = contract
+
+        # TODO: Make the rest of this logic actually work.
+        from tests.utilities import MockPolicyOfferResponse
+        return MockPolicyOfferResponse()
 
 
 class Seal(object):
