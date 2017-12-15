@@ -13,10 +13,10 @@ def test_grant(alice, bob, ursulas):
                 expiration=policy_end_datetime)
 
     # The number of policies is equal to the number of Ursulas we're using (n)
-    assert len(policy._active_contracts) == n
+    assert len(policy._accepted_contracts) == n
 
     # Let's look at the first Ursula.
-    ursula = list(policy._active_contracts.values())[0].ursula
+    ursula = list(policy._accepted_contracts.values())[0].ursula
 
     # Get the kfrag, based in the hrac.
     proper_hrac = keccak_digest(bytes(alice.seal) + bytes(bob.seal) + uri)
