@@ -5,13 +5,13 @@ import pytest
 from nkms.characters import congregate, Alice, Bob
 from nkms.network import blockchain_client
 from nkms.policy.constants import NON_PAYMENT
-from nkms.policy.models import PolicyManagerForAlice
+from nkms.policy.models import PolicyManagerForAlice, Contract
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
 
 
 @pytest.fixture(scope="session")
-def alices_policy_group(alice, bob):
+def idle_policy(alice, bob):
     """
     Creates a PolicyGroup, in a manner typical of how Alice might do it, with a unique uri.
     """
@@ -30,17 +30,18 @@ def alices_policy_group(alice, bob):
 
 
 @pytest.fixture(scope="session")
-def enacted_policy_group(alices_policy_group, ursulas):
+def enacted_policy(idle_policy, ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = NON_PAYMENT
     contract_end_datetime = datetime.datetime.now() + datetime.timedelta(days=5)
-    offer = PolicyOffer(alices_policy_group.n, deposit, contract_end_datetime)
+    contract = Contract(idle_policy.n, deposit, contract_end_datetime)
 
     networky_stuff = MockNetworkyStuff(ursulas)
-    alices_policy_group.find_n_ursulas(networky_stuff, offer)
-    alices_policy_group.enact_policies(networky_stuff)  # REST call happens here, as does population of TreasureMap.
+    idle_policy.find_ursulas(networky_stuff, deposit,
+                                     expiration=datetime.datetime.now() + datetime.timedelta(days=5))
+    idle_policy.enact(networky_stuff)  # REST call happens here, as does population of TreasureMap.
 
-    return alices_policy_group
+    return idle_policy
 
 
 @pytest.fixture(scope="session")

@@ -2,7 +2,7 @@ from nkms.crypto import api
 from tests.utilities import EVENT_LOOP, MockNetworkyStuff
 
 
-def test_bob_can_follow_treasure_map(enacted_policy_group, ursulas, alice, bob):
+def test_bob_can_follow_treasure_map(enacted_policy, ursulas, alice, bob):
     """
     Upon receiving a TreasureMap, Bob populates his list of Ursulas with the correct number.
     """
@@ -22,7 +22,7 @@ def test_bob_can_follow_treasure_map(enacted_policy_group, ursulas, alice, bob):
     assert len(bob._ursulas) == len(treasure_map)
 
 
-def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy_group, alice, bob, ursulas):
+def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, bob, ursulas):
     """
     Now that Bob has his list of Ursulas, he can issue a WorkOrder to one.  Upon receiving the WorkOrder, Ursula
     saves it and responds by re-encrypting and giving Bob a cFrag.
@@ -72,7 +72,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy_group, a
     assert work_orders_from_bob[0] == work_order
 
 
-def test_bob_remember_that_he_has_cfrags_for_a_particular_pfrag(enacted_policy_group, alice, bob, ursulas):
+def test_bob_remember_that_he_has_cfrags_for_a_particular_pfrag(enacted_policy, alice, bob, ursulas):
 
     # In our last episode, Bob obtained a cFrag from Ursula.
     bobs_saved_work_order_map = list(bob._saved_work_orders.items())
