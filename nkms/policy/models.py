@@ -297,15 +297,18 @@ class Policy(object):
         """
         :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
         """
-        for kfrag in self.kfrags:
+        if num_ursulas is None:
+            num_ursulas = self.n
+
+        found_ursulas = []
+        while len(found_ursulas) < num_ursulas:
+            contract = self.draw_up_contract(deposit, expiration)
             try:
                 ursula, result = networky_stuff.find_ursula(contract)
-                # TODO: Here, we need to assess the result and see if we're actually good to go.
-                if result.was_accepted:
-                    contract.activate(kfrag, ursula, result)
-                    self._active_contracts[kfrag] = contract
+                found_ursulas.append((ursula, contract, result))
             except networky_stuff.NotEnoughQualifiedUrsulas:
-                pass  # TODO: Tell Alice to either wait or lower the value of n.
+                pass  # TODO: Tell Alice to either wait or lower the value of num_ursulas.
+        return found_ursulas
 
 
 class TreasureMap(object):
