@@ -234,13 +234,23 @@ class Alice(Character):
                 if deposit == NotImplemented:
                     deposit = NON_PAYMENT
 
-        policy_group = self.policy_manager.create_policy_group(bob, uri, m, n)
-        offer = policy_group.craft_offer(deposit, expiration)
+        policy = self.policy_manager.create_policy_group(bob, uri, m, n)
 
-        policy_group.find_n_ursulas(networky_stuff, offer)
-        policy_group.enact(networky_stuff)  # REST call happens here, as does population of TreasureMap.
+        # We'll find n Ursulas by default.  It's possible to "play the field" by trying differet
+        # deposits and expirations on a limited number of Ursulas.
+        # Users may decide to inject some market strategies here.
+        found_ursulas = policy.find_ursulas(networky_stuff, deposit, expiration, num_ursulas=n)
 
-        return policy_group
+        for ursula, contract, result in found_ursulas:
+            if result.was_accepted:  # TODO: Here, we need to assess the result and see if we're actually good to go.
+                kfrag = policy.assign_kfrag_to_contract(contract)
+                contract.activate(kfrag, ursula, result)
+
+        # TODO: What if there weren't enough Contracts approved to distribute n kfrags?  We need to raise NotEnoughQualifiedUrsulas.
+
+        policy.enact(networky_stuff)  # REST call happens here, as does population of TreasureMap.
+
+        return policy
 
 
 class Bob(Character):
