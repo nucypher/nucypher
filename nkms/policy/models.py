@@ -292,7 +292,7 @@ class Policy(object):
     def draw_up_contract(self, deposit, expiration):
         return Contract(self.alice, self.hrac(), deposit, expiration)
 
-    def find_n_ursulas(self, networky_stuff, contract: Contract):
+    def find_ursulas(self, networky_stuff, deposit, expiration, num_ursulas=None):
         # TODO: This is a number mismatch - we need not one contract, but n contracts.
         """
         :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
