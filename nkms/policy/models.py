@@ -267,7 +267,10 @@ class Policy(object):
     def enact(self, networky_stuff):
 
         for kfrag in self.kfrags:
-            contract = self._active_contracts[kfrag]
+            try:
+                contract = self._active_contracts[kfrag]
+            except KeyError:
+                raise KeyError("This contract isn't marked as active.  Can't enact it.")
             policy_payload = contract.encrypt_payload_for_ursula()
             full_payload = self.alice.seal + msgpack.dumps(policy_payload)
             response = networky_stuff.enact_policy(contract.ursula,
