@@ -68,8 +68,11 @@ class Contract(object):
         alices_signature, policy_payload = BytestringSplitter(Signature)(cleartext, return_remainder=True)
 
         kfrag, encrypted_challenge_pack = policy_payload_splitter(policy_payload, return_remainder=True)
+
+        # TODO: Query stored Contract and reconstitute
+
         contract = cls(alice=alice, alices_signature=alices_signature, kfrag=kfrag,
-                        encrypted_challenge_pack=encrypted_challenge_pack)
+                       encrypted_challenge_pack=encrypted_challenge_pack)
 
         return contract
 
@@ -277,9 +280,10 @@ class Policy(object):
         return self._encrypted_challenge_pack
 
     def craft_offer(self, deposit, expiration):
-        return Contract(self, deposit, expiration)
+        return Contract(self.alice, deposit, expiration)
 
     def find_n_ursulas(self, networky_stuff, contract: Contract):
+        # TODO: This is a number mismatch - we need not one contract, but n contracts.
         """
         :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
         """
