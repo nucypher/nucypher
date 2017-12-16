@@ -453,16 +453,41 @@ class Ursula(Character):
         """
         from nkms.policy.models import Contract  # Avoid circular import
         hrac = binascii.unhexlify(hrac_as_hex)
-        contract = self._contracts[hrac]
-        contract.add_details_from_rest_payload(request.body, self)
+
+        group_payload_splitter = BytestringSplitter(PublicKey)
+        policy_payload_splitter = BytestringSplitter(KFrag)
+
+        alice_pubkey_sig, payload_encrypted_for_ursula = group_payload_splitter(request.body, msgpack_remainder=True)
+        alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
+        self.learn_about_actor(alice)
+
+        verified, cleartext = self.verify_from(alice, payload_encrypted_for_ursula,
+                                                 decrypt=True, signature_is_on_cleartext=True)
+
+        if not verified:
+            # TODO: What do we do if the Policy isn't signed properly?
+            pass
+
+        alices_signature, policy_payload = BytestringSplitter(Signature)(cleartext, return_remainder=True)
+
+        kfrag = policy_payload_splitter(policy_payload)[0]  # TODO: If we're not adding anything else in the payload, stop using the splitter here.
+
+        # TODO: Query stored Contract and reconstitute
+        contract_details = self._contracts[hrac]
+        stored_alice_pubkey_sig = contract_details.pop("alice_pubkey_sig")
+
+        if stored_alice_pubkey_sig != alice_pubkey_sig:
+            raise Alice.SuspiciousActivity
+
+        contract = Contract(alice=alice, hrac=hrac, kfrag=kfrag, **contract_details)
 
         try:
-            self.keystore.add_kfrag(hrac, contract.kfrag, contract.alices_signature)
+            self.keystore.add_kfrag(hrac, contract.kfrag, alices_signature)
         except IntegrityError:
             raise
             # Do something appropriately RESTful (ie, 4xx).
 
-        return  # A 200, with whatever policy metadata.
+        return  # TODO: Return A 200, with whatever policy metadata.
 
     def reencrypt_via_rest(self, hrac_as_hex, request: http.Request):
         from nkms.policy.models import WorkOrder  # Avoid circular import
