@@ -52,35 +52,8 @@ class Contract(object):
         return self.alice.encrypt_for(self.ursula, self.payload())[0]  # We don't need the signature separately.
 
     def payload(self):
-        # TODO: Ship the expiration again?  Or some other way of alerting Ursula to recall her previous dialogue regarding this Contract.
-        return bytes(self.kfrag) + b"This might be a ChallengePack"  # TODO: come to a decision re: #146
-
-    def add_details_from_rest_payload(self, group_payload, ursula):
-        alice_pubkey_sig, payload_encrypted_for_ursula = group_payload_splitter(group_payload,
-                                                                                msgpack_remainder=True)
-        alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
-        ursula.learn_about_actor(alice)
-        verified, cleartext = ursula.verify_from(alice, payload_encrypted_for_ursula,
-                                                 decrypt=True, signature_is_on_cleartext=True)
-
-        if not verified:
-            # TODO: What do we do if it's not signed properly?
-            pass
-
-        alices_signature, policy_payload = BytestringSplitter(Signature)(cleartext, return_remainder=True)
-
-        kfrag, encrypted_challenge_pack = policy_payload_splitter(policy_payload, return_remainder=True)
-
-        # TODO: Query stored Contract and reconstitute
-
-        self.alice = alice
-        self.alices_signature = alices_signature
-        self.kfrag = kfrag
-        self.encrypted_challenge_pack = encrypted_challenge_pack
-
-
-class PolicyOfferResponse(object):
-    pass
+        # TODO: Ship the expiration again?  Or some other way of alerting Ursula to recall her previous dialogue regarding this Contract.  Update: We'll probably have her store the Contract by hrac.  See #127.
+        return bytes(self.kfrag)
 
 
 class ContractResponse(object):
