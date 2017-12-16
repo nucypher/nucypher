@@ -520,10 +520,16 @@ class Ursula(Character):
     def consider_contract(self, contract):
         # TODO: This actually needs to be a REST endpoint, with the payload carrying the kfrag hash separately.
 
+        contract_to_store = { # TODO: This needs to be a datastore - see #127.
+            "alice_pubkey_sig": bytes(contract.alice.seal),
+            "deposit": contract.deposit,  # TODO: Whatever type "deposit" ends up being, we'll need to serialize it here.  See #148.
+            "expiration": contract.expiration,
+        }
+        self._contracts[contract.hrac] = contract_to_store
+
         # TODO: Make the rest of this logic actually work - do something here to decide if this Contract is worth accepting.
-        self._contracts[contract.hrac] = contract
-        from tests.utilities import MockPolicyOfferResponse
-        return MockPolicyOfferResponse()
+        from tests.utilities import MockContractResponse
+        return MockContractResponse()
 
 
 class Seal(object):
