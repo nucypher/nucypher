@@ -75,24 +75,19 @@ class Policy(object):
 
     def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), pfrag=None, uri=None, alices_signature=NOT_SIGNED):
         """
-        :param kfrag:
-            The kFrag obviously, but defaults to UNKNOWN_KFRAG in case the user wants to set it later.
-        :param deterministic_id_portion:  Probably the fingerprint of Alice's public key.
-            Any part that Ursula can use to verify that Alice is the rightful setter of this ID.
-            If it's not included, the Policy ID will be completely random.
-        :param challenge_size:  The number of challenges to create in the ChallengePack.
+        :param kfrags:  A list of KFrags to distribute per this Policy.
+        :param pfrag: The input ciphertext which Bob will give to Ursula to re-encrypt.
+        :param uri: The identity of the resource to which Bob is granted access.
         """
         self.alice = alice
         self.bob = bob
-        self.alices_signature = alices_signature
         self.kfrags = kfrags
         self.pfrag = pfrag
         self.uri = uri
-        self.random_id_portion = api.secure_random(32)  # TOOD: Where do we actually want this to live?
-        self.challenge_size = challenge_size
         self.treasure_map = TreasureMap()
-        self.challenge_pack = []
         self._accepted_contracts = {}
+
+        self.alices_signature = alices_signature
 
 
     class MoreContractsThanKFrags(TypeError):
