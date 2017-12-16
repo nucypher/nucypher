@@ -188,15 +188,6 @@ class Policy(object):
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(contract.ursula)
 
-    @property
-    def encrypted_challenge_pack(self):
-        if not self._encrypted_challenge_pack:
-            if not self.bob:
-                raise TypeError("This Policy doesn't have a Bob, so there's no way to encrypt a ChallengePack for Bob.")
-            else:
-                self._encrypted_challenge_pack = self.alice.encrypt_for(self.bob, msgpack.dumps(self.challenge_pack))
-        return self._encrypted_challenge_pack
-
     def draw_up_contract(self, deposit, expiration):
         return Contract(self.alice, self.hrac(), deposit, expiration)
 
