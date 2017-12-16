@@ -81,37 +81,8 @@ class PolicyOfferResponse(object):
     pass
 
 
-class PolicyManager(object):
+class ContractResponse(object):
     pass
-
-
-class PolicyManagerForAlice(PolicyManager):
-    def __init__(self, owner: Alice) -> None:
-        self.owner = owner
-
-    def create_policy_group(self,
-                            bob: Bob,
-                            uri: bytes,
-                            m: int,
-                            n: int,
-                            ):
-        """
-        Alice dictates a new group of policies.
-        """
-
-        ##### Temporary until we decide on an API for private key access
-        alice_priv_enc = self.owner._crypto_power._power_ups[EncryptingPower].priv_key
-        kfrags, pfrag = self.owner.generate_rekey_frags(alice_priv_enc, bob, m,
-                                                        n)  # TODO: Access Alice's private key inside this method.
-        policy = Policy.from_alice(
-            alice=self.owner,
-            bob=bob,
-            kfrags=kfrags,
-            pfrag=pfrag,
-            uri=uri,
-        )
-
-        return policy
 
 
 class Policy(object):

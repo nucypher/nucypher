@@ -196,15 +196,6 @@ class Alice(Character):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from nkms.policy.models import PolicyManagerForAlice  # Avoid circular import
-        self.policy_manager = PolicyManagerForAlice(self)
-
-    def find_best_ursula(self):
-        # TODO: This just finds *some* Ursula - let's have it find a particularly good one.
-        return list_all_ursulas()[1]
-
     def generate_rekey_frags(self, alice_privkey, bob, m, n):
         """
         Generates re-encryption key frags and returns the frags and encrypted
@@ -220,6 +211,31 @@ class Alice(Character):
         kfrags, eph_key_data = API.ecies_ephemeral_split_rekey(
             alice_privkey, bytes(bob.seal.without_metabytes()), m, n)
         return (kfrags, eph_key_data)
+
+    def create_policy(self,
+                        bob: "Bob",
+                        uri: bytes,
+                        m: int,
+                        n: int,
+                        ):
+        """
+        Alice dictates a new group of policies.
+        """
+
+        ##### Temporary until we decide on an API for private key access
+        alice_priv_enc = self._crypto_power._power_ups[EncryptingPower].priv_key
+        kfrags, pfrag = self.generate_rekey_frags(alice_priv_enc, bob, m,
+                                                        n)  # TODO: Access Alice's private key inside this method.
+        from nkms.policy.models import Policy
+        policy = Policy.from_alice(
+            alice=self,
+            bob=bob,
+            kfrags=kfrags,
+            pfrag=pfrag,
+            uri=uri,
+        )
+
+        return policy
 
     def grant(self, bob, uri, networky_stuff, m=None, n=None, expiration=None, deposit=None):
         if not m:
@@ -238,7 +254,7 @@ class Alice(Character):
                 if deposit == NotImplemented:
                     deposit = NON_PAYMENT
 
-        policy = self.policy_manager.create_policy_group(bob, uri, m, n)
+        policy = self.create_policy(bob, uri, m, n)
 
         # We'll find n Ursulas by default.  It's possible to "play the field" by trying differet
         # deposits and expirations on a limited number of Ursulas.
