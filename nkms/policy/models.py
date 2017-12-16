@@ -25,14 +25,19 @@ class Contract(object):
         :param deposit: Funds which will pay for the timeframe  of this Contract (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
         :param expiration: The moment which Alice wants the Contract to end.
+
+        Other params are hopefully self-evident.
         """
-        self.hrac = hrac
-        self.alice = alice
         self.expiration = expiration
         self.deposit = deposit
-        self.kfrag = kfrag
+        self.hrac = hrac
+        self.alice = alice
 
-        self.alices_signature = None
+        """
+        These will normally not be set if Alice is drawing up this contract - she hasn't assigned a kfrag yet
+        (because she doesn't know if this Contract will be accepted).  She doesn't have an Ursula, for the same reason.
+        """
+        self.kfrag = kfrag
         self.ursula = ursula
 
     def activate(self, kfrag, ursula, negotiation_result):
