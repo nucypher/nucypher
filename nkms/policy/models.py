@@ -14,9 +14,6 @@ from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 from nkms.keystore.keypairs import PublicKey
 
-group_payload_splitter = BytestringSplitter(PublicKey)
-policy_payload_splitter = BytestringSplitter(KFrag)
-
 
 class Contract(object):
     """
