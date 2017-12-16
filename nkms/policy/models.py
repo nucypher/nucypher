@@ -189,7 +189,7 @@ class Policy(object):
             self.treasure_map.add_ursula(contract.ursula)
 
     def draw_up_contract(self, deposit, expiration):
-        return Contract(self.alice, self.hrac(), deposit, expiration)
+        return Contract(self.alice, self.hrac(), expiration=expiration, deposit=deposit)
 
     def find_ursulas(self, networky_stuff, deposit, expiration, num_ursulas=None):
         # TODO: This is a number mismatch - we need not one contract, but n contracts.
