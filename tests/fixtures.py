@@ -5,7 +5,6 @@ import pytest
 from nkms.characters import congregate, Alice, Bob
 from nkms.network import blockchain_client
 from nkms.policy.constants import NON_PAYMENT
-from nkms.policy.models import PolicyManagerForAlice
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
 
@@ -18,9 +17,7 @@ def idle_policy(alice, bob):
     alice.__resource_id += b"/unique-again"  # A unique name each time, like a path.
     n = NUMBER_OF_URSULAS_IN_NETWORK
 
-    policy_manager = PolicyManagerForAlice(alice)
-
-    policy_group = policy_manager.create_policy_group(
+    policy_group = alice.create_policy(
         bob,
         alice.__resource_id,
         m=3,

@@ -10,6 +10,7 @@ from nkms.crypto.utils import RepeatingBytestringSplitter
 from nkms.keystore import keystore
 from nkms.keystore.db import Base
 from nkms.network.node import NetworkyStuff
+from nkms.policy.models import ContractResponse
 
 NUMBER_OF_URSULAS_IN_NETWORK = 6
 
@@ -47,7 +48,7 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
     return URSULAS
 
 
-class MockPolicyOfferResponse(object):
+class MockContractResponse(ContractResponse):
     was_accepted = True
 
 
@@ -67,10 +68,9 @@ class MockNetworkyStuff(NetworkyStuff):
                 raise self.NotEnoughQualifiedUrsulas
 
             contract_response = ursula.consider_contract(contract)
-            return ursula, MockPolicyOfferResponse()
+            return ursula, MockContractResponse()
         else:
             self
-
 
     def enact_policy(self, ursula, hrac, payload):
         mock_client = TestClient(ursula.rest_app)
