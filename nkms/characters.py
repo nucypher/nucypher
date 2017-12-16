@@ -15,10 +15,11 @@ from sqlalchemy.exc import IntegrityError
 from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
+from nkms.crypto.fragments import KFrag
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
-from nkms.keystore.keypairs import Keypair
+from nkms.keystore.keypairs import Keypair, PublicKey
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
@@ -80,6 +81,9 @@ class Character(object):
 
     class NotFound(KeyError):
         """raised when we try to interact with an actor of whom we haven't learned yet."""
+
+    class SuspiciousActivity(RuntimeError):
+        """raised when an action appears to amount to malicious conduct."""
 
     @classmethod
     def from_pubkey_sig_bytes(cls, pubkey_sig_bytes):
