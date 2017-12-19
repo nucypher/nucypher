@@ -27,7 +27,7 @@ contract Dispatcher is Upgradeable {
     **/
     function upgrade(address _target) onlyOwner public {
         verifyState(_target);
-        require(verifyUpgradeableState(target, _target));
+        verifyUpgradeableState(target, _target);
         previousTarget = target;
         target = _target;
         TargetChanged(previousTarget, _target, owner);
@@ -45,7 +45,7 @@ contract Dispatcher is Upgradeable {
     **/
     function rollback() onlyOwner public {
         require(previousTarget != 0x0);
-        require(verifyUpgradeableState(previousTarget, target));
+        verifyUpgradeableState(previousTarget, target);
         target = previousTarget;
         previousTarget = 0x0;
     }
@@ -53,8 +53,8 @@ contract Dispatcher is Upgradeable {
     /**
     * @dev Call verifyState method for Upgradeable contract
     **/
-    function verifyUpgradeableState(address from, address to) internal returns (bool){
-        return from.delegatecall(bytes4(keccak256("verifyState(address)")), to);
+    function verifyUpgradeableState(address from, address to) internal {
+        require(from.delegatecall(bytes4(keccak256("verifyState(address)")), to));
     }
 
     /**
@@ -79,6 +79,7 @@ contract Dispatcher is Upgradeable {
                 }
                 default {
 //                    returndatacopy(0x0, 0x0, returndatasize)
+//                    return(0x0, returndatasize)
                     return(0x0, size)
                 }
         }

@@ -6,7 +6,7 @@ import "./zeppelin/ownership/Ownable.sol";
 import "./zeppelin/math/Math.sol";
 import "./lib/LinkedList.sol";
 import "./Miner.sol";
-import "./HumanStandardToken.sol";
+import "./NuCypherKMSToken.sol";
 
 
 /**
@@ -15,7 +15,7 @@ Each client that lock his tokens will receive some compensation
 **/
 contract Escrow is Miner, Ownable {
     using LinkedList for LinkedList.Data;
-    using SafeERC20 for HumanStandardToken;
+    using SafeERC20 for NuCypherKMSToken;
 
     struct TokenInfo {
         uint256 value;
@@ -34,7 +34,7 @@ contract Escrow is Miner, Ownable {
 
     uint256 constant MAX_PERIODS = 100;
 
-    HumanStandardToken token;
+    NuCypherKMSToken token;
     mapping (address => TokenInfo) public tokenInfo;
     LinkedList.Data tokenOwners;
 
@@ -48,7 +48,7 @@ contract Escrow is Miner, Ownable {
     * @param _blocksPerPeriod Size of one period in blocks
     **/
     function Escrow(
-        HumanStandardToken _token,
+        NuCypherKMSToken _token,
         uint256 _miningCoefficient,
         uint256 _blocksPerPeriod
     )

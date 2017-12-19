@@ -17,26 +17,22 @@ import "./zeppelin/token/BurnableToken.sol";
 import "./MineableToken.sol";
 
 
-contract HumanStandardToken is MineableToken, BurnableToken {
-    string public name = 'NuCypher key management system';
-    uint8 public decimals = 6;
+contract NuCypherKMSToken is MineableToken, BurnableToken {
+    string public name = 'NuCypher KMS';
+    uint8 public decimals = 18;
     string public symbol = 'KMS';
     string public version = '0.1';
 
-    function HumanStandardToken(
-        uint256 _initialAmount,
-        uint256 _maxAmount,
-        string _tokenName,
-        uint8 _decimalUnits,
-        string _tokenSymbol
-        ) {
+    /**
+    * @notice Set amount of tokens
+    * @param _initialAmount Initial amount of tokens
+    * @param _maxAmount Max amount of tokens
+    **/
+    function NuCypherKMSToken (uint256 _initialAmount, uint256 _maxAmount) {
         require(_maxAmount >= _initialAmount);
-        balances[msg.sender] = _initialAmount;               // Give the creator all initial tokens
-        totalSupply = _initialAmount;                        // Update total supply
-        name = _tokenName;                                   // Set the name for display purposes
-        decimals = _decimalUnits;                            // Amount of decimals for display purposes
-        symbol = _tokenSymbol;                               // Set the symbol for display purposes
-        futureSupply = _maxAmount;                           // Update max supply
+        balances[msg.sender] = _initialAmount;
+        totalSupply = _initialAmount;
+        futureSupply = _maxAmount;
     }
 
     /* Approves and then calls the receiving contract */

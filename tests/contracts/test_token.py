@@ -15,8 +15,7 @@ def test_create_token(web3, chain):
 
     # Create an ERC20 token
     token, txhash = chain.provider.get_or_deploy_contract(
-            'HumanStandardToken', deploy_args=[
-                10 ** 9, 10 ** 10, 'NuCypher KMS', 6, 'KMS'],
+            'NuCypherKMSToken', deploy_args=[10 ** 9, 10 ** 10],
             deploy_transaction={
                 'from': creator})
     assert txhash is not None
@@ -27,7 +26,7 @@ def test_create_token(web3, chain):
 
     # Basic properties
     assert token.call().name() == 'NuCypher KMS'
-    assert token.call().decimals() == 6
+    assert token.call().decimals() == 18
     assert token.call().symbol() == 'KMS'
 
     # Cannot send ethers to the contract

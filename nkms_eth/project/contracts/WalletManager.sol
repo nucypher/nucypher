@@ -5,7 +5,7 @@ import "./zeppelin/token/SafeERC20.sol";
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
 import "./zeppelin/ownership/Ownable.sol";
-import "./HumanStandardToken.sol";
+import "./NuCypherKMSToken.sol";
 import "./lib/LinkedList.sol";
 import "./Miner.sol";
 import "./Wallet.sol";
@@ -16,7 +16,7 @@ import "./Wallet.sol";
 **/
 contract WalletManager is Miner, Ownable {
     using LinkedList for LinkedList.Data;
-    using SafeERC20 for HumanStandardToken;
+    using SafeERC20 for NuCypherKMSToken;
 
     struct PeriodInfo {
         uint256 totalLockedValue;
@@ -25,7 +25,7 @@ contract WalletManager is Miner, Ownable {
 
     uint256 constant MAX_PERIODS = 100;
 
-    HumanStandardToken token;
+    NuCypherKMSToken token;
     mapping (address => Wallet) public wallets;
     LinkedList.Data walletOwners;
 
@@ -38,7 +38,7 @@ contract WalletManager is Miner, Ownable {
     * @param _miningCoefficient Mining coefficient
     **/
     function WalletManager(
-        HumanStandardToken _token,
+        NuCypherKMSToken _token,
         uint256 _miningCoefficient,
         uint256 _blocksPerPeriod
     )

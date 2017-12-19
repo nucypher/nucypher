@@ -1,7 +1,7 @@
 from nkms_eth import blockchain
 
-CONTRACT_NAME = 'HumanStandardToken'  # TODO this should be NuCypher's class
-SUBDIGITS = 6
+CONTRACT_NAME = 'NuCypherKMSToken'  # TODO this should be NuCypher's class
+SUBDIGITS = 18
 M = 10 ** SUBDIGITS
 PREMINE = int(1e9) * M
 SATURATION = int(1e10) * M
@@ -19,10 +19,8 @@ def create():
     creator = web3.eth.accounts[0]  # TODO: make it possible to override
 
     token, tx = chain.provider.get_or_deploy_contract(
-        CONTRACT_NAME, deploy_args=[
-            PREMINE, SATURATION, 'NuCypher KMS', SUBDIGITS, 'KMS'],
-        deploy_transaction={
-            'from': creator})
+        CONTRACT_NAME, deploy_args=[PREMINE, SATURATION],
+        deploy_transaction={'from': creator})
     if tx:
         chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
 
