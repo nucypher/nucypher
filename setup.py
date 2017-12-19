@@ -4,7 +4,8 @@ version = '0.1'
 
 INSTALL_REQUIRES = [
         'appdirs',
-        'populus'
+        'populus',
+        'cytoolz==0.8.2'  # XXX temporary!
 ]
 
 TESTS_REQUIRE = [

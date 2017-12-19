@@ -19,7 +19,7 @@ def project():
     # It will read user-specific configs also which may override it
     if not hasattr(_project, 'project'):
         project_dir = join(dirname(abspath(nkms_eth.__file__)), 'project')
-        project = populus.Project(project_dir, create_config_file=False)
+        project = populus.Project(project_dir)
         project.config['chains.mainnetrpc']['contracts']['backends']['JSONFile']['settings']['file_path'] = REGISTRAR_PATH
         _project.project = project
     return _project.project
