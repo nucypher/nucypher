@@ -15,10 +15,11 @@ from sqlalchemy.exc import IntegrityError
 from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
+from nkms.crypto.fragments import KFrag
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
-from nkms.keystore.keypairs import Keypair
+from nkms.keystore.keypairs import Keypair, PublicKey
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
@@ -80,6 +81,9 @@ class Character(object):
 
     class NotFound(KeyError):
         """raised when we try to interact with an actor of whom we haven't learned yet."""
+
+    class SuspiciousActivity(RuntimeError):
+        """raised when an action appears to amount to malicious conduct."""
 
     @classmethod
     def from_pubkey_sig_bytes(cls, pubkey_sig_bytes):
@@ -192,15 +196,6 @@ class Alice(Character):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from nkms.policy.models import PolicyManagerForAlice  # Avoid circular import
-        self.policy_manager = PolicyManagerForAlice(self)
-
-    def find_best_ursula(self):
-        # TODO: This just finds *some* Ursula - let's have it find a particularly good one.
-        return list_all_ursulas()[1]
-
     def generate_rekey_frags(self, alice_privkey, bob, m, n):
         """
         Generates re-encryption key frags and returns the frags and encrypted
@@ -217,19 +212,30 @@ class Alice(Character):
             alice_privkey, bytes(bob.seal.without_metabytes()), m, n)
         return (kfrags, eph_key_data)
 
-    def publish_treasure_map(self, policy_group):
-        encrypted_treasure_map, signature_for_bob = self.encrypt_for(policy_group.bob,
-                                                                     policy_group.treasure_map.packed_payload())
-        signature_for_ursula = self.seal(policy_group.hrac())  # TODO: Great use-case for Ciphertext class
+    def create_policy(self,
+                        bob: "Bob",
+                        uri: bytes,
+                        m: int,
+                        n: int,
+                        ):
+        """
+        Alice dictates a new group of policies.
+        """
 
-        # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
-        # and, reasons explained in treasure_map_dht_key above, the uri_hash.
-        dht_value = signature_for_ursula + self.seal + policy_group.hrac() + msgpack.dumps(
-            encrypted_treasure_map)  # TODO: Ideally, this is a Ciphertext object instead of msgpack (see #112)
-        dht_key = policy_group.treasure_map_dht_key()
+        ##### Temporary until we decide on an API for private key access
+        alice_priv_enc = self._crypto_power._power_ups[EncryptingPower].priv_key
+        kfrags, pfrag = self.generate_rekey_frags(alice_priv_enc, bob, m,
+                                                        n)  # TODO: Access Alice's private key inside this method.
+        from nkms.policy.models import Policy
+        policy = Policy.from_alice(
+            alice=self,
+            bob=bob,
+            kfrags=kfrags,
+            pfrag=pfrag,
+            uri=uri,
+        )
 
-        setter = self.server.set(dht_key, b"trmap" + dht_value)
-        return setter, encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
+        return policy
 
     def grant(self, bob, uri, networky_stuff, m=None, n=None, expiration=None, deposit=None):
         if not m:
@@ -248,13 +254,16 @@ class Alice(Character):
                 if deposit == NotImplemented:
                     deposit = NON_PAYMENT
 
-        policy_group = self.policy_manager.create_policy_group(bob, uri, m, n)
-        offer = policy_group.craft_offer(deposit, expiration)
+        policy = self.create_policy(bob, uri, m, n)
 
-        policy_group.find_n_ursulas(networky_stuff, offer)
-        policy_group.enact_policies(networky_stuff)  # REST call happens here, as does population of TreasureMap.
+        # We'll find n Ursulas by default.  It's possible to "play the field" by trying differet
+        # deposits and expirations on a limited number of Ursulas.
+        # Users may decide to inject some market strategies here.
+        found_ursulas = policy.find_ursulas(networky_stuff, deposit, expiration, num_ursulas=n)
+        policy.match_kfrags_to_found_ursulas(found_ursulas)
+        policy.enact(networky_stuff)  # REST call happens here, as does population of TreasureMap.
 
-        return policy_group
+        return policy
 
 
 class Bob(Character):
@@ -281,8 +290,8 @@ class Bob(Character):
         self.learn_about_actor(alice_object)
         self._alice = alice_object
 
-    def follow_treasure_map(self, pfrag):
-        for ursula_interface_id in self.treasure_maps[pfrag]:
+    def follow_treasure_map(self, hrac):
+        for ursula_interface_id in self.treasure_maps[hrac]:
             # TODO: perform this part concurrently.
             getter = self.server.get(ursula_interface_id)
             loop = asyncio.get_event_loop()
@@ -374,6 +383,7 @@ class Ursula(Character):
 
         self._rest_app = None
         self._work_orders = []
+        self._contracts = {}  # TODO: This needs to actually be a persistent data store.  See #127.
 
     @property
     def rest_app(self):
@@ -441,17 +451,43 @@ class Ursula(Character):
         TODO: Instead of taking a Request, use the apistar typing system to type a payload and validate / split it.
         TODO: Validate that the kfrag being saved is pursuant to an approved Policy (see #121).
         """
-        from nkms.policy.models import Policy  # Avoid circular import
+        from nkms.policy.models import Contract  # Avoid circular import
         hrac = binascii.unhexlify(hrac_as_hex)
-        policy = Policy.from_ursula(request.body, self)
+
+        group_payload_splitter = BytestringSplitter(PublicKey)
+        policy_payload_splitter = BytestringSplitter(KFrag)
+
+        alice_pubkey_sig, payload_encrypted_for_ursula = group_payload_splitter(request.body, msgpack_remainder=True)
+        alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
+        self.learn_about_actor(alice)
+
+        verified, cleartext = self.verify_from(alice, payload_encrypted_for_ursula,
+                                                 decrypt=True, signature_is_on_cleartext=True)
+
+        if not verified:
+            # TODO: What do we do if the Policy isn't signed properly?
+            pass
+
+        alices_signature, policy_payload = BytestringSplitter(Signature)(cleartext, return_remainder=True)
+
+        kfrag = policy_payload_splitter(policy_payload)[0]  # TODO: If we're not adding anything else in the payload, stop using the splitter here.
+
+        # TODO: Query stored Contract and reconstitute
+        contract_details = self._contracts[hrac]
+        stored_alice_pubkey_sig = contract_details.pop("alice_pubkey_sig")
+
+        if stored_alice_pubkey_sig != alice_pubkey_sig:
+            raise Alice.SuspiciousActivity
+
+        contract = Contract(alice=alice, hrac=hrac, kfrag=kfrag, **contract_details)
 
         try:
-            self.keystore.add_kfrag(hrac, policy.kfrag, policy.alices_signature)
+            self.keystore.add_kfrag(hrac, contract.kfrag, alices_signature)
         except IntegrityError:
             raise
             # Do something appropriately RESTful (ie, 4xx).
 
-        return  # A 200, with whatever policy metadata.
+        return  # TODO: Return A 200, with whatever policy metadata.
 
     def reencrypt_via_rest(self, hrac_as_hex, request: http.Request):
         from nkms.policy.models import WorkOrder  # Avoid circular import
@@ -480,6 +516,20 @@ class Ursula(Character):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
+
+    def consider_contract(self, contract):
+        # TODO: This actually needs to be a REST endpoint, with the payload carrying the kfrag hash separately.
+
+        contract_to_store = { # TODO: This needs to be a datastore - see #127.
+            "alice_pubkey_sig": bytes(contract.alice.seal),
+            "deposit": contract.deposit,  # TODO: Whatever type "deposit" ends up being, we'll need to serialize it here.  See #148.
+            "expiration": contract.expiration,
+        }
+        self._contracts[contract.hrac] = contract_to_store
+
+        # TODO: Make the rest of this logic actually work - do something here to decide if this Contract is worth accepting.
+        from tests.utilities import MockContractResponse
+        return MockContractResponse()
 
 
 class Seal(object):

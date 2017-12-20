@@ -1,3 +1,5 @@
+import sha3
+
 from nkms.crypto.utils import BytestringSplitter
 from npre.constants import UNKNOWN_KFRAG
 from npre.umbral import RekeyFrag, EncryptedKey
@@ -36,7 +38,6 @@ class PFrag(object):
 
 
 class KFrag(object):
-
     _EXPECTED_LENGTH = 66
     _is_unknown_kfrag = False
 
@@ -67,6 +68,9 @@ class KFrag(object):
 
     def __getitem__(self, slice):
         return bytes(self)[slice]
+
+    def __hash__(self):
+        return int.from_bytes(self, byteorder="big")
 
     @property
     def key(self):
@@ -102,7 +106,8 @@ class CFrag(object):
         from nkms.crypto.api import PRE  # Avoid circular import
         as_bytes = PRE.save_key(self.encrypted_key.ekey) + PRE.save_key(self.encrypted_key.re_id)
         if len(as_bytes) != self._EXPECTED_LENGTH:
-            raise TypeError("Something went crazy wrong here.  This CFrag serialized to {} bytes.".format(len(as_bytes)))
+            raise TypeError(
+                "Something went crazy wrong here.  This CFrag serialized to {} bytes.".format(len(as_bytes)))
         else:
             return as_bytes
 

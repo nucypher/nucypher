@@ -24,11 +24,11 @@ class NuCypherNode(Node):
                 return False
         return True
 
-    class NotEnoughQualifiedUrsulas(Exception):
-        pass
-
 
 class NetworkyStuff(object):
+
+    class NotEnoughQualifiedUrsulas(Exception):
+        pass
 
     def find_ursula(self, id, offer=None):
         pass

@@ -2,14 +2,14 @@ from nkms.crypto import api
 from tests.utilities import EVENT_LOOP, MockNetworkyStuff
 
 
-def test_bob_can_follow_treasure_map(enacted_policy_group, ursulas, alice, bob):
+def test_bob_can_follow_treasure_map(enacted_policy, ursulas, alice, bob):
     """
     Upon receiving a TreasureMap, Bob populates his list of Ursulas with the correct number.
     """
 
     # Simulate Bob finding a TreasureMap on the DHT.
     # A test to show that Bob can do this can be found in test_network_actors.
-    hrac, treasure_map = enacted_policy_group.hrac(), enacted_policy_group.treasure_map
+    hrac, treasure_map = enacted_policy.hrac(), enacted_policy.treasure_map
     bob.treasure_maps[hrac] = treasure_map
 
     # Bob knows of no Ursulas.
@@ -22,7 +22,7 @@ def test_bob_can_follow_treasure_map(enacted_policy_group, ursulas, alice, bob):
     assert len(bob._ursulas) == len(treasure_map)
 
 
-def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy_group, alice, bob, ursulas):
+def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, bob, ursulas):
     """
     Now that Bob has his list of Ursulas, he can issue a WorkOrder to one.  Upon receiving the WorkOrder, Ursula
     saves it and responds by re-encrypting and giving Bob a cFrag.
@@ -32,10 +32,13 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy_group, a
     """
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
+    hrac, treasure_map = enacted_policy.hrac(), enacted_policy.treasure_map
+    bob.treasure_maps[hrac] = treasure_map
+    bob.follow_treasure_map(hrac)
     assert len(bob._ursulas) == len(ursulas)
 
-    the_pfrag = enacted_policy_group.pfrag
-    the_hrac = enacted_policy_group.hrac()
+    the_pfrag = enacted_policy.pfrag
+    the_hrac = enacted_policy.hrac()
 
     # Bob has no saved work orders yet, ever.
     assert len(bob._saved_work_orders) == 0
@@ -72,7 +75,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy_group, a
     assert work_orders_from_bob[0] == work_order
 
 
-def test_bob_remember_that_he_has_cfrags_for_a_particular_pfrag(enacted_policy_group, alice, bob, ursulas):
+def test_bob_remember_that_he_has_cfrags_for_a_particular_pfrag(enacted_policy, alice, bob, ursulas):
 
     # In our last episode, Bob obtained a cFrag from Ursula.
     bobs_saved_work_order_map = list(bob._saved_work_orders.items())
@@ -87,7 +90,7 @@ def test_bob_remember_that_he_has_cfrags_for_a_particular_pfrag(enacted_policy_g
 
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
 
-    generated_work_order_map = bob.generate_work_orders(enacted_policy_group.hrac(), enacted_policy_group.pfrag, num_ursulas=1)
+    generated_work_order_map = bob.generate_work_orders(enacted_policy.hrac(), enacted_policy.pfrag, num_ursulas=1)
     id_of_this_new_ursula, new_work_order = list(generated_work_order_map.items())[0]
 
     # This new Ursula isn't the same one to whom we've already issued a WorkOrder.
