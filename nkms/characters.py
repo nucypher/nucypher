@@ -471,6 +471,9 @@ class Bob(Character):
     def get_ursula(self, ursula_id):
         return self._ursulas[ursula_id]
 
+    def combine_cfrags(self):
+        assert False
+
 
 class Ursula(Character):
     _server_class = NuCypherDHTServer

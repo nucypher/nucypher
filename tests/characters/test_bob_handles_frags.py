@@ -107,3 +107,7 @@ def test_bob_remember_that_he_has_cfrags_for_a_particular_capsule(enacted_policy
 
     # ...it's not the same WorkOrder.
     assert new_work_order not in saved_work_orders
+
+
+def test_bob_gathers_and_combines(enacted_policy, alice, bob, ursulas):
+    assert False

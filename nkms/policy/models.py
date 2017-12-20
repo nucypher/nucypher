@@ -4,16 +4,17 @@ import binascii
 import maya
 import msgpack
 
-from nkms.characters import Alice, Bob, Ursula
+from nkms.characters import Alice
+from nkms.characters import Bob, Ursula
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import NOT_SIGNED, KECCAK_DIGEST_LENGTH, \
-    PUBLIC_KEY_LENGTH, UNKNOWN_KFRAG
+from nkms.crypto.constants import KECCAK_DIGEST_LENGTH, \
+    UNKNOWN_KFRAG
+from nkms.crypto.constants import NOT_SIGNED
 from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import key_splitter
 from nkms.crypto.utils import BytestringSplitter
 from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP
-from umbral.keys import UmbralPublicKey
 from umbral.umbral import Capsule
 
 
@@ -52,7 +53,7 @@ class Contract(object):
     @classmethod
     def from_bytes(cls, contract_as_bytes):
         contract_splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
-            (bytes, 26))
+                                                              (bytes, 26))
         alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = contract_splitter(
             contract_as_bytes, return_remainder=True)
         expiration = maya.parse(expiration_bytes.decode())
@@ -283,7 +284,7 @@ class WorkOrder(object):
 
     def __eq__(self, other):
         return (self.receipt_bytes, self.receipt_signature) == (
-        other.receipt_bytes, other.receipt_signature)
+            other.receipt_bytes, other.receipt_signature)
 
     def __len__(self):
         return len(self.capsules)
@@ -299,7 +300,7 @@ class WorkOrder(object):
     def from_rest_payload(cls, kfrag_hrac, rest_payload):
         payload_splitter = BytestringSplitter(Signature) + key_splitter
         signature, bob_pubkey_sig, (receipt_bytes, packed_capsules) = payload_splitter(rest_payload,
-                                                         msgpack_remainder=True)
+                                                                                       msgpack_remainder=True)
         capsules = [Capsule.from_bytes(p) for p in msgpack.loads(packed_capsules)]
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
