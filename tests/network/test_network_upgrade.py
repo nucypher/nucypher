@@ -1,17 +1,8 @@
-from tests.utilities import EVENT_LOOP
-
-
-def test_bob_can_follow_treasure_map(enacted_policy_group, ursulas):
+def test_alice_enacts_policies_in_policy_group_via_rest(enacted_policy):
     """
-    Upon receiving a TreasureMap, Bob populates his list of Ursulas with the correct number.
+    Now that Alice has made a PolicyGroup, she can enact its policies, using Ursula's Public Key to encrypt each offer
+    and transmitting them via REST.
     """
-    alice = enacted_policy_group.alice
-    bob = enacted_policy_group.bob
-    assert len(bob._ursulas) == 0
-
-    setter, encrypted_treasure_map, packed_encrypted_treasure_map, signature_for_bob, signature_for_ursula = alice.publish_treasure_map(
-        enacted_policy_group)
-    _set_event = EVENT_LOOP.run_until_complete(setter)
-
-    bob.follow_treasure_map(enacted_policy_group.treasure_map)
-    assert len(bob._ursulas) == len(ursulas)
+    ursula = list(enacted_policy._accepted_contracts.values())[0].ursula
+    kfrag_that_was_set = ursula.keystore.get_kfrag(enacted_policy.hrac())
+    assert bool(kfrag_that_was_set)  # TODO: This can be a more poignant assertion.

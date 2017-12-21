@@ -45,3 +45,15 @@ class BytestringSplitter(object):
     @staticmethod
     def get_message_meta(message_type):
         return message_type if isinstance(message_type, tuple) else (message_type, message_type._EXPECTED_LENGTH)
+
+
+class RepeatingBytestringSplitter(BytestringSplitter):
+
+    def __call__(self, splittable):
+        remainder = True
+        messages = []
+        while remainder:
+            message, remainder = super().__call__(splittable, return_remainder=True)
+            messages.append(message)
+            splittable = remainder
+        return messages
