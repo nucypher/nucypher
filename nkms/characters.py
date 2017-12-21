@@ -442,13 +442,11 @@ class Bob(Character):
         for ursula_dht_key in treasure_map_to_use:
             ursula = self._ursulas[ursula_dht_key]
 
-            completed_work_orders_for_this_ursula =\
-                    self._saved_work_orders.setdefault(ursula_dht_key, [])
+            completed_work_orders_for_this_ursula = self._saved_work_orders.setdefault(ursula_dht_key, [])
 
             capsules_to_include = []
             for capsule in capsules:
-                if not capsule in sum([wo.capsules for wo in completed_work_orders_for_this_ursula],
-                                    []):  # TODO: This is inane - probably push it down into a WorkOrderHistory concept.
+                if not capsule in self._saved_work_orders.by_ursula(ursula_dht_key):
                     capsules_to_include.append(capsule)
 
             if capsules_to_include:

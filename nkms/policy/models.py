@@ -321,3 +321,23 @@ class WorkOrder(object):
         # TODO: Verify that this is in fact complete - right of CFrags and properly signed.
         # TODO: Mark it complete with datetime.
         self
+
+
+class WorkOrderHistory:
+
+    def __contains__(self, item):
+        assert False
+
+    def __getitem__(self, item):
+        assert False
+
+    def __setitem__(self, key, value):
+        assert False
+
+    def __len__(self):
+        assert False
+
+    def by_ursula(self, ursula_dht_key):
+        pfrags_for_this_ursula = self.setdefault(ursula_dht_key, self.ByUrsula())
+        pfrags_for_this_ursula
+        return pfrags_for_this_ursula
