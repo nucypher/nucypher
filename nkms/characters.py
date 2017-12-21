@@ -447,7 +447,7 @@ class Bob(Character):
 
             capsules_to_include = []
             for capsule in capsules:
-                if not capsule in self._saved_work_orders.by_ursula(ursula_dht_key):
+                if not capsule in self._saved_work_orders[ursula_dht_key]:
                     capsules_to_include.append(capsule)
 
             if capsules_to_include:
