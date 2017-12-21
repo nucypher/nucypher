@@ -561,8 +561,17 @@ class Ursula(Character):
     def dht_interface_info(self):
         return self.dht_port, self.dht_interface, self.dht_ttl
 
+    class InterfaceDHTKey:
+
+        def __init__(self, seal, interface_hrac):
+            self.pubkey_sig_bytes = bytes(seal)
+            self.interface_hrac = interface_hrac
+
+        def __bytes__(self):
+            return Ursula.hash(self.pubkey_sig_bytes + self.interface_hrac)
+
     def interface_dht_key(self):
-        return self.hash(self.seal + self.interface_hrac())
+        return self.InterfaceDHTKey(self.seal, self.interface_hrac())
 
     def interface_dht_value(self):
         signature = self.seal(self.interface_hrac())
