@@ -570,6 +570,18 @@ class Ursula(Character):
         def __bytes__(self):
             return Ursula.hash(self.pubkey_sig_bytes + self.interface_hrac)
 
+        def __add__(self, other):
+            return bytes(self) + other
+
+        def __radd__(self, other):
+            return other + bytes(self)
+
+        def __hash__(self):
+            return int.from_bytes(self, byteorder="big")
+
+        def __eq__(self, other):
+            return bytes(self) == bytes(other)
+
     def interface_dht_key(self):
         return self.InterfaceDHTKey(self.seal, self.interface_hrac())
 
