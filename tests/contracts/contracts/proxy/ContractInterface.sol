@@ -15,4 +15,11 @@ contract ContractInterface {
 
     function setDynamicallySizedValue(string dynamicValue) public;
     function getDynamicallySizedValue() public constant returns (string);
+
+    function pushArrayValue(uint value) public;
+    function getArrayValue(uint index) public constant returns (uint);
+    function getArrayValueLength() public constant returns (uint);
+
+    function setMappingValue(uint index, uint value) public;
+    function getMappingValue(uint index) public constant returns (uint);
 }

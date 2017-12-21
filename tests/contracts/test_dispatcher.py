@@ -20,6 +20,7 @@ def test_dispatcher(web3, chain):
     # Deploy contracts and dispatcher for them
     contract1_lib, _ = chain.provider.get_or_deploy_contract('ContractV1')
     contract2_lib, _ = chain.provider.get_or_deploy_contract('ContractV2')
+    contract3_lib, _ = chain.provider.get_or_deploy_contract('ContractV3')
     contract2_bad_lib, _ = chain.provider.get_or_deploy_contract('ContractV2Bad')
     dispatcher, _ = chain.provider.get_or_deploy_contract(
             'Dispatcher', deploy_args=[contract1_lib.address],
@@ -37,26 +38,43 @@ def test_dispatcher(web3, chain):
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': account}).upgrade(contract2_lib.address)
         chain.wait.for_receipt(tx)
-    assert dispatcher.call().target().lower() == contract1_lib.address
+    assert dispatcher.call().target().lower() == contract1_lib.address.lower()
+
+    # Check values before upgrade
+    assert contract_instance.call().returnValue() == 10
+    tx = contract_instance.transact().pushArrayValue(12)
+    chain.wait.for_receipt(tx)
+    assert contract_instance.call().getArrayValueLength() == 1
+    assert contract_instance.call().getArrayValue(0) == 12
+    tx = contract_instance.transact().pushArrayValue(232)
+    chain.wait.for_receipt(tx)
+    assert contract_instance.call().getArrayValueLength() == 2
+    assert contract_instance.call().getArrayValue(1) == 232
+    tx = contract_instance.transact().setMappingValue(14, 41)
+    chain.wait.for_receipt(tx)
+    assert contract_instance.call().getMappingValue(14) == 41
 
     # Can't upgrade to bad version
-    # TODO uncomment after fixing dispatcher
-    # with pytest.raises(TransactionFailed):
-    #     tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
-    #     chain.wait.for_receipt(tx)
-    # assert dispatcher.call().target().lower() == contract1_lib.address
+    with pytest.raises(TransactionFailed):
+        tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
+        chain.wait.for_receipt(tx)
+    assert dispatcher.call().target().lower() == contract1_lib.address
 
-    # Check return value before and after upgrade
-    assert contract_instance.call().returnValue() == 10
+    # Check values after upgrade
     tx = dispatcher.transact({'from': creator}).upgrade(contract2_lib.address)
     chain.wait.for_receipt(tx)
-    assert dispatcher.call().target().lower() == contract2_lib.address
+    assert dispatcher.call().target().lower() == contract2_lib.address.lower()
     assert contract_instance.call().returnValue() == 20
+    assert contract_instance.call().getArrayValueLength() == 2
+    assert contract_instance.call().getArrayValue(0) == 12
+    assert contract_instance.call().getArrayValue(1) == 232
+    tx = contract_instance.transact().setMappingValue(13, 31)
+    chain.wait.for_receipt(tx)
+    assert contract_instance.call().getMappingValue(14) == 41
+    assert contract_instance.call().getMappingValue(13) == 31
 
     # Check storage value
     tx = contract_instance.transact().setStorageValue(5)
-    chain.wait.for_receipt(tx)
-    tx = contract_instance.transact().getStorageValue()
     chain.wait.for_receipt(tx)
     assert contract_instance.call().getStorageValue() == 10
 
@@ -69,12 +87,15 @@ def test_dispatcher(web3, chain):
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
         chain.wait.for_receipt(tx)
-    assert dispatcher.call().target().lower() == contract2_lib.address
+    assert dispatcher.call().target().lower() == contract2_lib.address.lower()
 
     # But can rollback
     tx = dispatcher.transact({'from': creator}).rollback()
     chain.wait.for_receipt(tx)
     assert dispatcher.call().target().lower() == contract1_lib.address
+    assert contract_instance.call().getArrayValueLength() == 2
+    assert contract_instance.call().getArrayValue(0) == 12
+    assert contract_instance.call().getArrayValue(1) == 232
     assert contract_instance.call().getStorageValue() == 10
     tx = contract_instance.transact().setStorageValue(5)
     chain.wait.for_receipt(tx)
@@ -84,10 +105,23 @@ def test_dispatcher(web3, chain):
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
         chain.wait.for_receipt(tx)
-    assert dispatcher.call().target().lower() == contract1_lib.address
+    assert dispatcher.call().target().lower() == contract1_lib.address.lower()
 
     # Check dynamically sized value
     # TODO uncomment after fixing dispatcher
     # tx = contract_instance.transact().setDynamicallySizedValue('Hola')
     # chain.wait.for_receipt(tx)
     # assert contract_instance.call().getDynamicallySizedValue() == 'Hola'
+
+    # Upgrade to version 3
+    tx = dispatcher.transact({'from': creator}).upgrade(contract2_lib.address)
+    chain.wait.for_receipt(tx)
+    tx = dispatcher.transact({'from': creator}).upgrade(contract3_lib.address)
+    chain.wait.for_receipt(tx)
+    assert dispatcher.call().target().lower() == contract3_lib.address.lower()
+    assert contract_instance.call().getArrayValueLength() == 2
+    assert contract_instance.call().getArrayValue(0) == 12
+    assert contract_instance.call().getArrayValue(1) == 232
+    assert contract_instance.call().getMappingValue(14) == 41
+    assert contract_instance.call().getMappingValue(13) == 31
+    assert contract_instance.call().getStorageValue() == 5

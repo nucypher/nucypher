@@ -15,6 +15,9 @@ contract ContractV1 is ContractInterface, Upgradeable {
     // any increase in cost because of this.
     uint public storageValue;
     string public dynamicallySizedValue;
+    uint[] public arrayValues;
+    mapping (uint => uint) public mappingValues;
+    uint[] public mappingIndices;
 
     function returnValue() public constant returns (uint) {
         return 10;
@@ -38,10 +41,42 @@ contract ContractV1 is ContractInterface, Upgradeable {
         return dynamicallySizedValue;
     }
 
+    function pushArrayValue(uint value) public {
+        arrayValues.push(value);
+    }
+
+    function getArrayValue(uint index) public constant returns (uint) {
+        return arrayValues[index];
+    }
+
+    function getArrayValueLength() public constant returns (uint) {
+        return arrayValues.length;
+    }
+
+    function setMappingValue(uint index, uint value) public {
+        mappingIndices.push(index);
+        mappingValues[index] = value;
+    }
+
+    function getMappingValue(uint index) public constant returns (uint) {
+        return mappingValues[index];
+    }
+
     function verifyState(address testTarget) public {
         require(uint(delegateGet(testTarget, "storageValue()")) == storageValue);
         //TODO uncomment after fixing return size
 //        require(address(delegateGet(testTarget, "dynamicallySizedValue()")) == owner);
+
+        require(uint(delegateGet(testTarget, "getArrayValueLength()")) == arrayValues.length);
+        for (uint i = 0; i < arrayValues.length; i++) {
+            require(uint(delegateGet(testTarget, "getArrayValue(uint256)", bytes32(i))) ==
+                arrayValues[i]);
+        }
+        for (uint j = 0; j < mappingIndices.length; j++) {
+            var index = mappingIndices[j];
+            require(uint(delegateGet(testTarget, "getMappingValue(uint256)", bytes32(index))) ==
+                mappingValues[index]);
+        }
     }
 
 }
