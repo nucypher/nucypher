@@ -95,8 +95,9 @@ class Policy(object):
     """
     _ursula = None
 
-    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), uri=None,
-                 alices_signature=NOT_SIGNED):
+
+    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), uri=None, m=None, alices_signature=NOT_SIGNED):
+
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.
         :param uri: The identity of the resource to which Bob is granted access.
@@ -105,6 +106,7 @@ class Policy(object):
         self.bob = bob
         self.kfrags = kfrags
         self.uri = uri
+        self.m = m
         self.treasure_map = TreasureMap()
         self._accepted_contracts = {}
 
@@ -137,9 +139,10 @@ class Policy(object):
                    alice,
                    bob,
                    uri,
+                   m,
                    ):
         # TODO: What happened to Alice's signature - don't we include it here?
-        policy = Policy(alice, bob, kfrags, uri)
+        policy = Policy(alice, bob, kfrags, uri, m)
 
         return policy
 

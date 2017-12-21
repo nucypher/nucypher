@@ -110,4 +110,12 @@ def test_bob_remember_that_he_has_cfrags_for_a_particular_capsule(enacted_policy
 
 
 def test_bob_gathers_and_combines(enacted_policy, alice, bob, ursulas):
+    # Bob saved one work order last time.
+    work_orders = list(bob._saved_work_orders.values())[0]
+    assert len(work_orders) == 1
+
+    # ...but the policy requires us to collect more cfrags.
+    assert len(work_orders) < enacted_policy.m
+
+    new_work_orders = bob.generate_work_orders(enacted_policy.hrac(), enacted_policy.pfrag, num_ursulas=1)
     assert False
