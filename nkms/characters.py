@@ -148,7 +148,8 @@ class Character(object):
     def name(self):
         return self.__class__.__name__
 
-    def hash(self, message):
+    @staticmethod
+    def hash(message):
         return keccak_digest(message)
 
     def learn_about_actor(self, actor):
