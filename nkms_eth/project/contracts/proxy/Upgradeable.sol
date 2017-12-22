@@ -60,10 +60,42 @@ contract Upgradeable is Ownable {
             mstore(in_pos, targetCall)
             mstore(add(in_pos, 0x04), argument)
             switch delegatecall(gas, testTarget, in_pos, 0x24, in_pos, 32)
-                case 0 { revert(0x0, 0) }
+                case 0 {
+                    revert(0x0, 0)
+                }
                 default {
                    result := mload(in_pos)
                    mstore(0x40, add(in_pos, 0x24))
+                }
+        }
+    }
+
+    /**
+    * @dev Simple method for call function with two parameters.
+    * Result should not exceed 32 bytes
+    **/
+    //TODO fix return size
+    function delegateGet(
+        address testTarget,
+        string signature,
+        bytes32 argument1,
+        bytes32 argument2
+    )
+        internal returns (bytes32 result)
+    {
+        bytes4 targetCall = bytes4(keccak256(signature));
+        assembly {
+            let in_pos := mload(0x40)
+            mstore(in_pos, targetCall)
+            mstore(add(in_pos, 0x04), argument1)
+            mstore(add(in_pos, 0x24), argument2)
+            switch delegatecall(gas, testTarget, in_pos, 0x44, in_pos, 32)
+                case 0 {
+                    revert(0x0, 0)
+                }
+                default {
+                   result := mload(in_pos)
+                   mstore(0x40, add(in_pos, 0x44))
                 }
         }
     }

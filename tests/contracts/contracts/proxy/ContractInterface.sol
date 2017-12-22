@@ -22,4 +22,11 @@ contract ContractInterface {
 
     function setMappingValue(uint index, uint value) public;
     function getMappingValue(uint index) public constant returns (uint);
+
+    function getStructureLength() public constant returns (uint);
+    function pushStructureValue(uint value) public;
+    function getStructureValue(uint index) public constant returns (uint);
+    function getStructureArrayLength(uint index) public constant returns (uint);
+    function pushStructureArrayValue(uint index, uint value) public;
+    function getStructureArrayValue(uint index, uint arrayIndex) public constant returns (uint);
 }

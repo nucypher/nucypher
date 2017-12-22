@@ -16,8 +16,14 @@ contract ContractV2 is ContractInterface, Upgradeable {
     mapping (uint => uint) mappingValues;
     uint[] public mappingIndices;
 
+    struct Structure {
+        uint value;
+        uint[] arrayValues;
+//        uint valueToCheck; // rollback does not work
+    }
+    Structure[] public structures;
+
     uint[] public updatedDynamicallySizedValue;
-    //TODO delete after fixing return size
     uint public storageValueToCheck;
 
     function returnValue() public constant returns (uint) {
@@ -74,6 +80,32 @@ contract ContractV2 is ContractInterface, Upgradeable {
         return updatedDynamicallySizedValue;
     }
 
+    function getStructureLength() public constant returns (uint) {
+        return structures.length;
+    }
+
+    function pushStructureValue(uint value) public {
+        Structure memory structure;
+        structures.push(structure);
+        structures[structures.length - 1].value = value;
+    }
+
+    function getStructureValue(uint index) public constant returns (uint) {
+        return structures[index].value;
+    }
+
+    function getStructureArrayLength(uint index) public constant returns (uint) {
+        return structures[index].arrayValues.length;
+    }
+
+    function pushStructureArrayValue(uint index, uint value) public {
+        structures[index].arrayValues.push(value);
+    }
+
+    function getStructureArrayValue(uint index, uint arrayIndex) public constant returns (uint) {
+        return structures[index].arrayValues[arrayIndex];
+    }
+
     function verifyState(address testTarget) public {
         require(uint(delegateGet(testTarget, "storageValue()")) == storageValue);
         //TODO uncomment after fixing return size
@@ -84,12 +116,25 @@ contract ContractV2 is ContractInterface, Upgradeable {
             require(
                 uint(delegateGet(testTarget, "getArrayValue(uint256)", bytes32(i))) == arrayValues[i]);
         }
-        for (uint j = 0; j < mappingIndices.length; j++) {
-            var index = mappingIndices[j];
+        for (i = 0; i < mappingIndices.length; i++) {
+            var index = mappingIndices[i];
             require(uint(delegateGet(testTarget, "getMappingValue(uint256)", bytes32(index))) ==
                 mappingValues[index]);
         }
-        //TODO delete after fixing return size
+
+        require(uint(delegateGet(testTarget, "getStructureLength()")) == structures.length);
+        for (i = 0; i < structures.length; i++) {
+            require(uint(delegateGet(testTarget, "getStructureValue(uint256)", bytes32(i))) ==
+                structures[i].value);
+            require(uint(delegateGet(testTarget, "getStructureArrayLength(uint256)", bytes32(i))) ==
+                structures[i].arrayValues.length);
+            for (uint j = 0; j < structures[i].arrayValues.length; j++) {
+                require(uint(delegateGet(
+                        testTarget, "getStructureArrayValue(uint256,uint256)", bytes32(i), bytes32(j))) ==
+                    structures[i].arrayValues[j]);
+            }
+        }
+
         require(uint(delegateGet(testTarget, "storageValueToCheck()")) == storageValueToCheck);
     }
 }

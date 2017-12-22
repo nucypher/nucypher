@@ -53,6 +53,12 @@ def test_dispatcher(web3, chain):
     tx = contract_instance.transact().setMappingValue(14, 41)
     chain.wait.for_receipt(tx)
     assert contract_instance.call().getMappingValue(14) == 41
+    tx = contract_instance.transact().pushStructureValue(3)
+    chain.wait.for_receipt(tx)
+    assert contract_instance.call().getStructureValue(0) == 3
+    tx = contract_instance.transact().pushStructureArrayValue(0, 11)
+    chain.wait.for_receipt(tx)
+    assert contract_instance.call().getStructureArrayValue(0, 0) == 11
 
     # Can't upgrade to bad version
     with pytest.raises(TransactionFailed):
@@ -72,6 +78,14 @@ def test_dispatcher(web3, chain):
     chain.wait.for_receipt(tx)
     assert contract_instance.call().getMappingValue(14) == 41
     assert contract_instance.call().getMappingValue(13) == 31
+    tx = contract_instance.transact().pushStructureValue(4)
+    chain.wait.for_receipt(tx)
+    assert contract_instance.call().getStructureValue(0) == 3
+    assert contract_instance.call().getStructureValue(1) == 4
+    tx = contract_instance.transact().pushStructureArrayValue(0, 12)
+    chain.wait.for_receipt(tx)
+    assert contract_instance.call().getStructureArrayValue(0, 0) == 11
+    assert contract_instance.call().getStructureArrayValue(0, 1) == 12
 
     # Check storage value
     tx = contract_instance.transact().setStorageValue(5)
@@ -125,3 +139,7 @@ def test_dispatcher(web3, chain):
     assert contract_instance.call().getMappingValue(14) == 41
     assert contract_instance.call().getMappingValue(13) == 31
     assert contract_instance.call().getStorageValue() == 5
+    assert contract_instance.call().getStructureValue(0) == 3
+    assert contract_instance.call().getStructureValue(1) == 4
+    assert contract_instance.call().getStructureArrayValue(0, 0) == 11
+    assert contract_instance.call().getStructureArrayValue(0, 1) == 12
