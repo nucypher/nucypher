@@ -1,6 +1,8 @@
 import pytest
 
+from nkms.crypto import api
 from nkms.crypto.api import secure_random
+from nkms.crypto.fragments import KFrag
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 
@@ -22,8 +24,20 @@ def test_split_signature_from_arbitrary_bytes():
     some_bytes = secure_random(how_many_bytes)
     splitter = BytestringSplitter(Signature, (bytes, how_many_bytes))
 
-
     rebuilt_signature, rebuilt_bytes = splitter(signature + some_bytes)
+
+
+def test_split_kfrag_from_arbitrary_bytes():
+    rand_id = b'\x00' + api.secure_random(32)
+    rand_key = b'\x00' + api.secure_random(32)
+    kfrag = KFrag(rand_id + rand_key)
+
+    how_many_bytes = 10
+    some_bytes = secure_random(how_many_bytes)
+
+    splitter = BytestringSplitter(KFrag, (bytes, how_many_bytes))
+    rebuilt_kfrag, rebuilt_bytes = splitter(kfrag + some_bytes)
+    assert kfrag == rebuilt_kfrag
 
 
 def test_trying_to_extract_too_many_bytes_raises_typeerror():

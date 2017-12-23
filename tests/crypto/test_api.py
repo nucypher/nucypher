@@ -5,6 +5,7 @@ import sha3
 from nacl.utils import EncryptedMessage
 
 from nkms.crypto import api
+from nkms.crypto.fragments import PFrag
 from nkms.keystore.keypairs import PublicKey
 from npre import elliptic_curve as ec
 from npre import umbral
@@ -297,10 +298,9 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(list, type(frags))
         self.assertEqual(4, len(frags))
 
-        self.assertEqual(tuple, type(enc_eph_data))
-        self.assertEqual(2, len(enc_eph_data))
-        self.assertEqual(umbral.EncryptedKey, type(enc_eph_data[0]))
-        self.assertEqual(EncryptedMessage, type(enc_eph_data[1]))
+        self.assertEqual(PFrag._EXPECTED_LENGTH, len(enc_eph_data))
+        self.assertEqual(umbral.EncryptedKey, type(enc_eph_data.deserialized()[0]))
+        self.assertEqual(EncryptedMessage, type(enc_eph_data.deserialized()[1]))
 
     def test_ecies_combine(self):
         eph_priv = self.pre.gen_priv()
@@ -320,7 +320,6 @@ class TestCrypto(unittest.TestCase):
         shares = [api.ecies_reencrypt(rk_frag, enc_key) for rk_frag in rk_selected]
         self.assertEqual(list, type(shares))
         self.assertEqual(6, len(shares))
-        [self.assertEqual(umbral.EncryptedKey, type(share)) for share in shares]
 
         e_b = api.ecies_combine(shares)
         self.assertEqual(umbral.EncryptedKey, type(e_b))
@@ -345,6 +344,6 @@ class TestCrypto(unittest.TestCase):
         self.assertEqual(umbral.RekeyFrag, type(rk_eb))
         self.assertEqual(ec.ec_element, type(rk_eb.key))
 
-        reenc_key = api.ecies_reencrypt(rk_eb, enc_key)
-        dec_key = api.ecies_decapsulate(self.privkey_b, reenc_key)
+        cfrag = api.ecies_reencrypt(rk_eb, enc_key)
+        dec_key = api.ecies_decapsulate(self.privkey_b, cfrag.encrypted_key)
         self.assertEqual(plain_key, dec_key)

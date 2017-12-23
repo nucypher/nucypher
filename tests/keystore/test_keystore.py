@@ -1,6 +1,8 @@
 import unittest
 import sha3
 from sqlalchemy import create_engine
+
+from nkms.crypto.fragments import KFrag
 from nkms.keystore.db import Base
 from nkms.keystore import keystore, keypairs
 from npre.umbral import RekeyFrag
@@ -72,19 +74,24 @@ class TestKeyStore(unittest.TestCase):
             key = self.ks.get_key(fingerprint_priv)
 
     def test_keyfrag_sqlite(self):
+        kfrag_component_length = 32
         rand_sig = API.secure_random(65)
-        rand_id = b'\x00' + API.secure_random(32)
-        rand_key = b'\x00' + API.secure_random(32)
+        rand_id = b'\x00' + API.secure_random(kfrag_component_length)
+        rand_key = b'\x00' + API.secure_random(kfrag_component_length)
         rand_hrac = API.secure_random(32)
 
-        kfrag = RekeyFrag.from_bytes(rand_id+rand_key)
+        kfrag = KFrag(rand_id+rand_key)
         self.ks.add_kfrag(rand_hrac, kfrag, sig=rand_sig)
 
         # Check that kfrag was added
-        kfrag, signature = self.ks.get_kfrag(rand_hrac, get_sig=True)
+        kfrag_from_datastore, signature = self.ks.get_kfrag(rand_hrac, get_sig=True)
         self.assertEqual(rand_sig, signature)
-        self.assertEqual(kfrag.id, rand_id)
-        self.assertEqual(kfrag.key, rand_key)
+
+        # De/serialization happens here, by dint of the slicing interface, which casts the kfrag to bytes.
+        # The +1 is to account for the metabyte.
+        self.assertEqual(kfrag_from_datastore[:kfrag_component_length + 1], rand_id)
+        self.assertEqual(kfrag_from_datastore[kfrag_component_length + 1:], rand_key)
+        self.assertEqual(kfrag_from_datastore, kfrag)
 
         # Check that kfrag gets deleted
         self.ks.del_kfrag(rand_hrac)

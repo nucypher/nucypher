@@ -1,4 +1,6 @@
 import sha3
+
+from nkms.crypto.fragments import KFrag
 from nkms.keystore import keypairs, constants
 from nkms.keystore.db.models import Key, KeyFrag
 from nkms.crypto.utils import BytestringSplitter
@@ -20,11 +22,7 @@ class KeyStore(object):
     A storage class of cryptographic keys.
     """
 
-    kFrag_splitter = BytestringSplitter(
-            Signature,
-            (bytes, constants.REKEY_FRAG_ID_LEN),
-            (bytes, constants.REKEY_FRAG_KEY_LEN)
-    )
+    kfrag_splitter = BytestringSplitter(Signature, KFrag)
 
     def __init__(self, sqlalchemy_engine=None):
         """
@@ -105,12 +103,11 @@ class KeyStore(object):
                 .format(hrac)
             )
         # TODO: Make this use a class
-        sig, id, key = self.kFrag_splitter(kfrag.key_frag)
+        sig, kfrag = self.kfrag_splitter(kfrag.key_frag)
 
-        kFrag = RekeyFrag(id=id, key=key)
         if get_sig:
-            return (kFrag, sig)
-        return kFrag
+            return (kfrag, sig)
+        return kfrag
 
     def add_key(self,
                 keypair: Union[keypairs.EncryptingKeypair,
