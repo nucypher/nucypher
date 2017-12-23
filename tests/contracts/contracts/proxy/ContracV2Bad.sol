@@ -13,11 +13,20 @@ contract ContractV2Bad is ContractInterface, Upgradeable {
     mapping (uint => uint) mappingValues;
     uint[] public mappingIndices;
 
-    struct Structure {
+    // Test struct which used in arrays
+    struct Structure1 {
         uint value;
         uint[] arrayValues;
     }
-    Structure[] public structures;
+    Structure1[] public arrayStructures;
+
+    // Test struct which used in mappings
+    struct Structure2 {
+        uint value;
+        uint[] arrayValues;
+    }
+    mapping (uint => Structure2) public mappingStructures;
+    uint public mappingStructuresLength;
 
     function returnValue() public constant returns (uint) {}
 
@@ -42,20 +51,37 @@ contract ContractV2Bad is ContractInterface, Upgradeable {
         return mappingValues[index];
     }
 
-    function getStructureLength() public constant returns (uint) {
-        return structures.length;
+    function getStructureLength1() public constant returns (uint) {
+        return arrayStructures.length;
     }
-    function pushStructureValue(uint value) public {}
-    function getStructureValue(uint index) public constant returns (uint) {
-        return structures[index].value;
+    function pushStructureValue1(uint value) public {}
+    function getStructureValue1(uint index) public constant returns (uint) {
+        return arrayStructures[index].value;
     }
-    function getStructureArrayLength(uint index) public constant returns (uint) {
-        return structures[index].arrayValues.length;
+    function getStructureArrayLength1(uint index) public constant returns (uint) {
+        return arrayStructures[index].arrayValues.length;
     }
-    function pushStructureArrayValue(uint index, uint value) public {}
-    function getStructureArrayValue(uint index, uint arrayIndex) public constant returns (uint) {
-        return structures[index].arrayValues[arrayIndex];
+    function pushStructureArrayValue1(uint index, uint value) public {}
+    function getStructureArrayValue1(uint index, uint arrayIndex) public constant returns (uint) {
+        return arrayStructures[index].arrayValues[arrayIndex];
     }
+
+    function getStructureLength2() public constant returns (uint) {
+        return mappingStructuresLength;
+    }
+    function pushStructureValue2(uint value) public {}
+    function getStructureValue2(uint index) public constant returns (uint) {
+        return mappingStructures[index].value;
+    }
+    function getStructureArrayLength2(uint index) public constant returns (uint) {
+        return mappingStructures[index].arrayValues.length;
+    }
+    function pushStructureArrayValue2(uint index, uint value) public {}
+    function getStructureArrayValue2(uint index, uint arrayIndex) public constant returns (uint) {
+        return mappingStructures[index].arrayValues[arrayIndex];
+    }
+
+
 
     function verifyState(address testTarget) public {}
 

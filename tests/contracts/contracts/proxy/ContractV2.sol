@@ -16,12 +16,20 @@ contract ContractV2 is ContractInterface, Upgradeable {
     mapping (uint => uint) mappingValues;
     uint[] public mappingIndices;
 
-    struct Structure {
+    struct Structure1 {
         uint value;
         uint[] arrayValues;
 //        uint valueToCheck; // rollback does not work
     }
-    Structure[] public structures;
+    Structure1[] public arrayStructures;
+
+    struct Structure2 {
+        uint value;
+        uint[] arrayValues;
+        uint valueToCheck;
+    }
+    mapping (uint => Structure2) public mappingStructures;
+    uint public mappingStructuresLength;
 
     uint[] public updatedDynamicallySizedValue;
     uint public storageValueToCheck;
@@ -33,23 +41,19 @@ contract ContractV2 is ContractInterface, Upgradeable {
     function setStorageValue(uint value) public {
         storageValue = value * 2;
     }
-
     function getStorageValue() public constant returns (uint) {
         return storageValue;
     }
 
     function setDynamicallySizedValue(string dynamicValue) public {}
-
     function getDynamicallySizedValue() public constant returns (string) {}
 
     function pushArrayValue(uint value) public {
         arrayValues.push(2 * value);
     }
-
     function getArrayValue(uint index) public constant returns (uint) {
         return arrayValues[index];
     }
-
     function getArrayValueLength() public constant returns (uint) {
         return arrayValues.length;
     }
@@ -58,7 +62,6 @@ contract ContractV2 is ContractInterface, Upgradeable {
         mappingIndices.push(index);
         mappingValues[index] = value;
     }
-
     function getMappingValue(uint index) public constant returns (uint) {
         return mappingValues[index];
     }
@@ -71,7 +74,6 @@ contract ContractV2 is ContractInterface, Upgradeable {
     function setDynamicallySizedValue(uint[] _updatedDynamicallySizedValue) public {
         updatedDynamicallySizedValue = _updatedDynamicallySizedValue;
     }
-
     /**
      * @notice This new function signature must be different than the one in the interface.
      *         Note the return value does not contribute to the signature.
@@ -80,30 +82,54 @@ contract ContractV2 is ContractInterface, Upgradeable {
         return updatedDynamicallySizedValue;
     }
 
-    function getStructureLength() public constant returns (uint) {
-        return structures.length;
+    function getStructureLength1() public constant returns (uint) {
+        return arrayStructures.length;
+    }
+    function pushStructureValue1(uint value) public {
+        Structure1 memory structure;
+        arrayStructures.push(structure);
+        arrayStructures[arrayStructures.length - 1].value = value;
+    }
+    function getStructureValue1(uint index) public constant returns (uint) {
+        return arrayStructures[index].value;
+    }
+    function getStructureArrayLength1(uint index) public constant returns (uint) {
+        return arrayStructures[index].arrayValues.length;
+    }
+    function pushStructureArrayValue1(uint index, uint value) public {
+        arrayStructures[index].arrayValues.push(value);
+    }
+    function getStructureArrayValue1(uint index, uint arrayIndex) public constant returns (uint) {
+        return arrayStructures[index].arrayValues[arrayIndex];
     }
 
-    function pushStructureValue(uint value) public {
-        Structure memory structure;
-        structures.push(structure);
-        structures[structures.length - 1].value = value;
+    function getStructureLength2() public constant returns (uint) {
+        return mappingStructuresLength;
+    }
+    function pushStructureValue2(uint value) public {
+        mappingStructuresLength++;
+        Structure2 memory structure;
+        mappingStructures[mappingStructuresLength - 1] = structure;
+        mappingStructures[mappingStructuresLength - 1].value = value;
+    }
+    function getStructureValue2(uint index) public constant returns (uint) {
+        return mappingStructures[index].value;
+    }
+    function getStructureArrayLength2(uint index) public constant returns (uint) {
+        return mappingStructures[index].arrayValues.length;
+    }
+    function pushStructureArrayValue2(uint index, uint value) public {
+        mappingStructures[index].arrayValues.push(value);
+    }
+    function getStructureArrayValue2(uint index, uint arrayIndex) public constant returns (uint) {
+        return mappingStructures[index].arrayValues[arrayIndex];
     }
 
-    function getStructureValue(uint index) public constant returns (uint) {
-        return structures[index].value;
+    function setStructureValueToCheck2(uint index, uint value) public {
+        mappingStructures[index].valueToCheck = value;
     }
-
-    function getStructureArrayLength(uint index) public constant returns (uint) {
-        return structures[index].arrayValues.length;
-    }
-
-    function pushStructureArrayValue(uint index, uint value) public {
-        structures[index].arrayValues.push(value);
-    }
-
-    function getStructureArrayValue(uint index, uint arrayIndex) public constant returns (uint) {
-        return structures[index].arrayValues[arrayIndex];
+    function getStructureValueToCheck2(uint index) public constant returns (uint) {
+        return mappingStructures[index].valueToCheck;
     }
 
     function verifyState(address testTarget) public {
@@ -122,17 +148,32 @@ contract ContractV2 is ContractInterface, Upgradeable {
                 mappingValues[index]);
         }
 
-        require(uint(delegateGet(testTarget, "getStructureLength()")) == structures.length);
-        for (i = 0; i < structures.length; i++) {
-            require(uint(delegateGet(testTarget, "getStructureValue(uint256)", bytes32(i))) ==
-                structures[i].value);
-            require(uint(delegateGet(testTarget, "getStructureArrayLength(uint256)", bytes32(i))) ==
-                structures[i].arrayValues.length);
-            for (uint j = 0; j < structures[i].arrayValues.length; j++) {
+        require(uint(delegateGet(testTarget, "getStructureLength1()")) == arrayStructures.length);
+        for (i = 0; i < arrayStructures.length; i++) {
+            require(uint(delegateGet(testTarget, "getStructureValue1(uint256)", bytes32(i))) ==
+                arrayStructures[i].value);
+            require(uint(delegateGet(testTarget, "getStructureArrayLength1(uint256)", bytes32(i))) ==
+                arrayStructures[i].arrayValues.length);
+            for (uint j = 0; j < arrayStructures[i].arrayValues.length; j++) {
                 require(uint(delegateGet(
-                        testTarget, "getStructureArrayValue(uint256,uint256)", bytes32(i), bytes32(j))) ==
-                    structures[i].arrayValues[j]);
+                        testTarget, "getStructureArrayValue1(uint256,uint256)", bytes32(i), bytes32(j))) ==
+                    arrayStructures[i].arrayValues[j]);
             }
+        }
+
+        require(uint(delegateGet(testTarget, "getStructureLength2()")) == mappingStructuresLength);
+        for (i = 0; i < mappingStructuresLength; i++) {
+            require(uint(delegateGet(testTarget, "getStructureValue2(uint256)", bytes32(i))) ==
+                mappingStructures[i].value);
+            require(uint(delegateGet(testTarget, "getStructureArrayLength2(uint256)", bytes32(i))) ==
+                mappingStructures[i].arrayValues.length);
+            for (j = 0; j < mappingStructures[i].arrayValues.length; j++) {
+                require(uint(delegateGet(
+                        testTarget, "getStructureArrayValue2(uint256,uint256)", bytes32(i), bytes32(j))) ==
+                    mappingStructures[i].arrayValues[j]);
+            }
+            require(uint(delegateGet(testTarget, "getStructureValueToCheck2(uint256)", bytes32(i))) ==
+                mappingStructures[i].valueToCheck);
         }
 
         require(uint(delegateGet(testTarget, "storageValueToCheck()")) == storageValueToCheck);
