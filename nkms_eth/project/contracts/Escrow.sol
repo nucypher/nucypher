@@ -174,27 +174,29 @@ contract Escrow is Miner, Ownable {
         return getLockedTokens(_owner, block.number);
     }
 
-    /**
-    * @notice Get locked tokens value for all owners in a specified moment in time
-    * @param _blockNumber Block number for checking
-    **/
-    function getAllLockedTokens(uint256 _blockNumber)
-        public constant returns (uint256 result)
-    {
-        var current = tokenOwners.step(0x0, true);
-        while (current != 0x0) {
-            result += getLockedTokens(current, _blockNumber);
-            current = tokenOwners.step(current, true);
-        }
-    }
+//    /**
+//    * @notice Get locked tokens value for all owners in a specified moment in time
+//    * @param _blockNumber Block number for checking
+//    **/
+//    function getAllLockedTokens(uint256 _blockNumber)
+//        public constant returns (uint256 result)
+//    {
+//        var current = tokenOwners.step(0x0, true);
+//        while (current != 0x0) {
+//            result += getLockedTokens(current, _blockNumber);
+//            current = tokenOwners.step(current, true);
+//        }
+//    }
 
     /**
-    * @notice Get locked tokens value for all owners
+    * @notice Get locked tokens value for all owners in current period
     **/
+    // TODO use confirmed periods
     function getAllLockedTokens()
         public constant returns (uint256 result)
     {
-        return getAllLockedTokens(block.number);
+        var currentPeriod = block.number / blocksPerPeriod;
+        return lockedPerPeriod[currentPeriod].totalLockedValue;
     }
 
     /**
@@ -214,21 +216,21 @@ contract Escrow is Miner, Ownable {
 //	        info.confirmedPeriods[info.numberConfirmedPeriods - 1] > releasePeriod);
     }
 
-    /**
-    * @notice Penalize token owner
-    * @param _user Token owner
-    * @param _value Amount of tokens that will be confiscated
-    **/
-    function penalize(address _user, uint256 _value)
-        onlyOwner
-        public returns (bool success)
-    {
-        require(getLockedTokens(_user) >= _value);
-        tokenInfo[_user].value = tokenInfo[_user].value.sub(_value);
-        tokenInfo[_user].lockedValue = tokenInfo[_user].lockedValue.sub(_value);
-        token.burn(_value);
-        return true;
-    }
+//    /**
+//    * @notice Penalize token owner
+//    * @param _user Token owner
+//    * @param _value Amount of tokens that will be confiscated
+//    **/
+//    function penalize(address _user, uint256 _value)
+//        onlyOwner
+//        public returns (bool success)
+//    {
+//        require(getLockedTokens(_user) >= _value);
+//        tokenInfo[_user].value = tokenInfo[_user].value.sub(_value);
+//        tokenInfo[_user].lockedValue = tokenInfo[_user].lockedValue.sub(_value);
+//        token.burn(_value);
+//        return true;
+//    }
 
     /**
     * @notice Confirm activity for future period
@@ -319,6 +321,7 @@ contract Escrow is Miner, Ownable {
     function findCumSum(address _start, uint256 _delta)
         public constant returns (address o_stop, uint256 o_shift)
     {
+        var currentPeriod = block.number / blocksPerPeriod;
         uint256 distance = 0;
         uint256 lockedTokens = 0;
         var current = _start;
@@ -326,8 +329,17 @@ contract Escrow is Miner, Ownable {
         if (current == 0x0)
             current = tokenOwners.step(current, true);
 
-        while (true) {
-            lockedTokens = getLockedTokens(current);
+        while (current != 0x0) {
+            var info = tokenInfo[current];
+            var numberConfirmedPeriods = info.numberConfirmedPeriods;
+            if (numberConfirmedPeriods == 0 ||
+                info.confirmedPeriods[numberConfirmedPeriods - 1] != currentPeriod &&
+                (numberConfirmedPeriods == 1 ||
+                info.confirmedPeriods[numberConfirmedPeriods - 2] != currentPeriod)) {
+                current = tokenOwners.step(current, true);
+                continue;
+            }
+            lockedTokens = info.lockedValue;
             if (_delta < distance + lockedTokens) {
                 o_stop = current;
                 o_shift = _delta - distance;
