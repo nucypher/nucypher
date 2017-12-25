@@ -167,46 +167,6 @@ contract WalletManager is Miner, Ownable {
         return getAllLockedTokens(block.number);
     }
 
-    /*
-       Fixedstep in cumsum
-       @start   Starting point
-       @delta   How much to step
-
-      |-------->*--------------->*---->*------------->|
-                |                      ^
-                |                      o_stop
-                |
-                |       _delta
-                |---------------------------->|
-                |
-                |                       o_shift
-                |                      |----->|
-       */
-      // _blockNumber?
-    function findCumSum(address _start, uint256 _delta)
-        public constant returns (address o_stop, uint256 o_shift)
-    {
-        require(walletOwners.valueExists(_start));
-        uint256 distance = 0;
-        uint256 lockedTokens = 0;
-        var current = _start;
-
-        if (current == 0x0)
-            current = walletOwners.step(current, true);
-
-        while (true) {
-            lockedTokens = getLockedTokens(current);
-            if (_delta < distance + lockedTokens) {
-                o_stop = current;
-                o_shift = _delta - distance;
-                break;
-            } else {
-                distance += lockedTokens;
-                current = walletOwners.step(current, true);
-            }
-        }
-    }
-
     /**
     * @notice Penalize token owner
     * @param _user Token owner
@@ -235,28 +195,28 @@ contract WalletManager is Miner, Ownable {
         var releasePeriod = wallet.releaseBlock() / blocksPerPeriod + 1;
         uint256 numberConfirmedPeriods = wallet.numberConfirmedPeriods();
         return block.number >= releasePeriod * blocksPerPeriod &&
-            (numberConfirmedPeriods == 0 ||
-	        wallet.confirmedPeriods(numberConfirmedPeriods - 1) > releasePeriod);
+            numberConfirmedPeriods == 0;
+//            (numberConfirmedPeriods == 0 ||
+//	        wallet.confirmedPeriods(numberConfirmedPeriods - 1) > releasePeriod);
     }
 
     /**
     * @notice Confirm activity for future period
     **/
     function confirmActivity() walletExists {
-        require(!allTokensMinted());
-
         var wallet = wallets[msg.sender];
-        uint256 currentPeriod = block.number / blocksPerPeriod;
+        uint256 nextPeriod = block.number / blocksPerPeriod + 1;
+        require(nextPeriod <= wallet.releaseBlock() / blocksPerPeriod);
+
         uint256 numberConfirmedPeriods = wallet.numberConfirmedPeriods();
         if (numberConfirmedPeriods > 0 &&
-            wallet.confirmedPeriods(numberConfirmedPeriods - 1) >= currentPeriod) {
+            wallet.confirmedPeriods(numberConfirmedPeriods - 1) >= nextPeriod) {
            return;
         }
         require(numberConfirmedPeriods < MAX_PERIODS);
-        lockedPerPeriod[currentPeriod].totalLockedValue += wallet.lockedValue();
-        lockedPerPeriod[currentPeriod].numberOwnersToBeRewarded++;
-        wallet.addConfirmedPeriod(currentPeriod);
-//        cumsums[currentPeriod][lockedPerPeriod[nextPeriod]] = msg.sender;
+        lockedPerPeriod[nextPeriod].totalLockedValue += wallet.lockedValue();
+        lockedPerPeriod[nextPeriod].numberOwnersToBeRewarded++;
+        wallet.addConfirmedPeriod(nextPeriod);
     }
 
     /**
@@ -272,6 +232,9 @@ contract WalletManager is Miner, Ownable {
             wallet.confirmedPeriods(0) <= previousPeriod);
 
         var decimals = wallet.decimals();
+        if (wallet.confirmedPeriods(numberPeriodsForMinting - 1) > previousPeriod) {
+            numberPeriodsForMinting--;
+        }
         if (wallet.confirmedPeriods(numberPeriodsForMinting - 1) > previousPeriod) {
             numberPeriodsForMinting--;
         }
@@ -295,7 +258,46 @@ contract WalletManager is Miner, Ownable {
             }
         }
         wallet.setDecimals(decimals);
-        wallet.deleteConfirmedPeriod(
-            wallet.numberConfirmedPeriods() == numberPeriodsForMinting);
+        wallet.deleteConfirmedPeriod(numberPeriodsForMinting);
+    }
+
+    /**
+    * @notice Fixedstep in cumsum
+    * @param _start Starting point
+    * @param _delta How much to step
+    * @dev
+      |-------->*--------------->*---->*------------->|
+                |                      ^
+                |                      o_stop
+                |
+                |       _delta
+                |---------------------------->|
+                |
+                |                       o_shift
+                |                      |----->|
+    **/
+      // _blockNumber?
+    function findCumSum(address _start, uint256 _delta)
+        public constant returns (address o_stop, uint256 o_shift)
+    {
+        require(walletOwners.valueExists(_start));
+        uint256 distance = 0;
+        uint256 lockedTokens = 0;
+        var current = _start;
+
+        if (current == 0x0)
+            current = walletOwners.step(current, true);
+
+        while (true) {
+            lockedTokens = getLockedTokens(current);
+            if (_delta < distance + lockedTokens) {
+                o_stop = current;
+                o_shift = _delta - distance;
+                break;
+            } else {
+                distance += lockedTokens;
+                current = walletOwners.step(current, true);
+            }
+        }
     }
 }

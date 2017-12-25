@@ -128,14 +128,13 @@ contract Wallet is Ownable {
 
     /**
     * @notice Clear periods array
-    * @param _deleteAll Delete all if true or save last period
+    * @param _number Number of periods to delete
     **/
-    function deleteConfirmedPeriod(bool _deleteAll) onlyManager {
-        if (_deleteAll) {
-            numberConfirmedPeriods = 0;
-        } else {
-            confirmedPeriods[0] = confirmedPeriods[numberConfirmedPeriods - 1];
-            numberConfirmedPeriods = 1;
+    function deleteConfirmedPeriod(uint256 _number) onlyManager {
+        var newNumberConfirmedPeriods = numberConfirmedPeriods - _number;
+        for (uint256 i = 0; i < newNumberConfirmedPeriods; i++) {
+            confirmedPeriods[i] = confirmedPeriods[_number + i];
         }
+        numberConfirmedPeriods = newNumberConfirmedPeriods;
     }
 }

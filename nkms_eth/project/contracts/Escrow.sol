@@ -108,10 +108,7 @@ contract Escrow is Miner, Ownable {
     * @notice Withdraw available amount of tokens back to owner
     * @param _value Amount of token to withdraw
     **/
-    function withdraw(uint256 _value)
-//        whenNotLocked(msg.sender, _value)
-        returns (bool success)
-    {
+    function withdraw(uint256 _value) returns (bool success) {
         require(_value <= token.balanceOf(address(this)) &&
             _value <= tokenInfo[msg.sender].value - getLockedTokens(msg.sender));
         tokenInfo[msg.sender].value -= _value;
@@ -122,10 +119,7 @@ contract Escrow is Miner, Ownable {
     /**
     * @notice Withdraw all amount of tokens back to owner (only if no locked)
     **/
-    function withdrawAll()
-//        whenNotLocked(msg.sender, tokenInfo[msg.sender].value)
-        returns (bool success)
-    {
+    function withdrawAll() returns (bool success) {
         if (!tokenOwners.valueExists(msg.sender)) {
             return true;
         }
@@ -171,6 +165,16 @@ contract Escrow is Miner, Ownable {
     }
 
     /**
+    * @notice Get locked tokens value for owner
+    * @param _owner Tokens owner
+    **/
+    function getLockedTokens(address _owner)
+        public constant returns (uint256)
+    {
+        return getLockedTokens(_owner, block.number);
+    }
+
+    /**
     * @notice Get locked tokens value for all owners in a specified moment in time
     * @param _blockNumber Block number for checking
     **/
@@ -185,52 +189,12 @@ contract Escrow is Miner, Ownable {
     }
 
     /**
-    * @notice Get locked tokens value for owner
-    * @param _owner Tokens owner
+    * @notice Get locked tokens value for all owners
     **/
-    function getLockedTokens(address _owner)
-        public constant returns (uint256)
+    function getAllLockedTokens()
+        public constant returns (uint256 result)
     {
-        return getLockedTokens(_owner, block.number);
-    }
-
-    /*
-       Fixedstep in cumsum
-       @start   Starting point
-       @delta   How much to step
-
-      |-------->*--------------->*---->*------------->|
-                |                      ^
-                |                      o_stop
-                |
-                |       _delta
-                |---------------------------->|
-                |
-                |                       o_shift
-                |                      |----->|
-       */
-      // _blockNumber?
-    function findCumSum(address _start, uint256 _delta)
-        public constant returns (address o_stop, uint256 o_shift)
-    {
-        uint256 distance = 0;
-        uint256 lockedTokens = 0;
-        var current = _start;
-
-        if (current == 0x0)
-            current = tokenOwners.step(current, true);
-
-        while (true) {
-            lockedTokens = getLockedTokens(current);
-            if (_delta < distance + lockedTokens) {
-                o_stop = current;
-                o_shift = _delta - distance;
-                break;
-            } else {
-                distance += lockedTokens;
-                current = tokenOwners.step(current, true);
-            }
-        }
+        return getAllLockedTokens(block.number);
     }
 
     /**
@@ -245,17 +209,9 @@ contract Escrow is Miner, Ownable {
         }
         var releasePeriod = info.releaseBlock / blocksPerPeriod + 1;
         return block.number >= releasePeriod * blocksPerPeriod &&
-            (info.numberConfirmedPeriods == 0 ||
-	        info.confirmedPeriods[info.numberConfirmedPeriods - 1] > releasePeriod);
-    }
-
-    /**
-    * @notice Get locked tokens value for all owners
-    **/
-    function getAllLockedTokens()
-        public constant returns (uint256 result)
-    {
-        return getAllLockedTokens(block.number);
+            info.numberConfirmedPeriods == 0;
+//            (info.numberConfirmedPeriods == 0 ||
+//	        info.confirmedPeriods[info.numberConfirmedPeriods - 1] > releasePeriod);
     }
 
     /**
@@ -278,24 +234,23 @@ contract Escrow is Miner, Ownable {
     * @notice Confirm activity for future period
     **/
     function confirmActivity() {
-        require(!allTokensMinted());
-
         var info = tokenInfo[msg.sender];
-        uint256 currentPeriod = block.number / blocksPerPeriod;
+        uint256 nextPeriod = block.number / blocksPerPeriod + 1;
+        require(nextPeriod <= info.releaseBlock / blocksPerPeriod);
+
         if (info.numberConfirmedPeriods > 0 &&
-            info.confirmedPeriods[info.numberConfirmedPeriods - 1] >= currentPeriod) {
+            info.confirmedPeriods[info.numberConfirmedPeriods - 1] >= nextPeriod) {
            return;
         }
         require(info.numberConfirmedPeriods < MAX_PERIODS);
-        lockedPerPeriod[currentPeriod].totalLockedValue += info.lockedValue;
-        lockedPerPeriod[currentPeriod].numberOwnersToBeRewarded++;
+        lockedPerPeriod[nextPeriod].totalLockedValue += info.lockedValue;
+        lockedPerPeriod[nextPeriod].numberOwnersToBeRewarded++;
         if (info.numberConfirmedPeriods < info.confirmedPeriods.length) {
-            info.confirmedPeriods[info.numberConfirmedPeriods] = currentPeriod;
+            info.confirmedPeriods[info.numberConfirmedPeriods] = nextPeriod;
         } else {
-            info.confirmedPeriods.push(currentPeriod);
+            info.confirmedPeriods.push(nextPeriod);
         }
         info.numberConfirmedPeriods++;
-//        cumsums[currentPeriod][lockedPerPeriod[nextPeriod]] = msg.sender;
     }
 
     /**
@@ -311,6 +266,9 @@ contract Escrow is Miner, Ownable {
             info.confirmedPeriods[0] <= previousPeriod);
 
         var decimals = info.decimals;
+        if (info.confirmedPeriods[numberPeriodsForMinting - 1] > previousPeriod) {
+            numberPeriodsForMinting--;
+        }
         if (info.confirmedPeriods[numberPeriodsForMinting - 1] > previousPeriod) {
             numberPeriodsForMinting--;
         }
@@ -334,11 +292,50 @@ contract Escrow is Miner, Ownable {
             }
         }
         info.decimals = decimals;
-        if (info.numberConfirmedPeriods > numberPeriodsForMinting) {
-            info.confirmedPeriods[0] = info.confirmedPeriods[info.numberConfirmedPeriods - 1];
-            info.numberConfirmedPeriods = 1;
-        } else {
-            info.numberConfirmedPeriods = 0;
+        // Copy not minted periods
+        var newNumberConfirmedPeriods = info.numberConfirmedPeriods - numberPeriodsForMinting;
+        for (i = 0; i < newNumberConfirmedPeriods; i++) {
+            info.confirmedPeriods[i] = info.confirmedPeriods[numberPeriodsForMinting + i];
+        }
+        info.numberConfirmedPeriods = newNumberConfirmedPeriods;
+    }
+
+    /**
+    * @notice Fixedstep in cumsum
+    * @param _start Starting point
+    * @param _delta How much to step
+    * @dev
+      |-------->*--------------->*---->*------------->|
+                |                      ^
+                |                      o_stop
+                |
+                |       _delta
+                |---------------------------->|
+                |
+                |                       o_shift
+                |                      |----->|
+    **/
+      // _blockNumber?
+    function findCumSum(address _start, uint256 _delta)
+        public constant returns (address o_stop, uint256 o_shift)
+    {
+        uint256 distance = 0;
+        uint256 lockedTokens = 0;
+        var current = _start;
+
+        if (current == 0x0)
+            current = tokenOwners.step(current, true);
+
+        while (true) {
+            lockedTokens = getLockedTokens(current);
+            if (_delta < distance + lockedTokens) {
+                o_stop = current;
+                o_shift = _delta - distance;
+                break;
+            } else {
+                distance += lockedTokens;
+                current = tokenOwners.step(current, true);
+            }
         }
     }
 }
