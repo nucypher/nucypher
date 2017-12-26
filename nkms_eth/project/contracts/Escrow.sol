@@ -89,7 +89,7 @@ contract Escrow is Miner, Ownable {
         require(_value <= token.balanceOf(address(this)) &&
             _value <= info.value.sub(lockedTokens));
         // Checks if tokens are not locked or lock can be increased
-        // TODO add checking reward
+        // TODO add checking amount of reward
         require(lockedTokens == 0 ||
             info.releaseBlock >= block.number);
         if (lockedTokens == 0) {
@@ -174,24 +174,9 @@ contract Escrow is Miner, Ownable {
         return getLockedTokens(_owner, block.number);
     }
 
-//    /**
-//    * @notice Get locked tokens value for all owners in a specified moment in time
-//    * @param _blockNumber Block number for checking
-//    **/
-//    function getAllLockedTokens(uint256 _blockNumber)
-//        public constant returns (uint256 result)
-//    {
-//        var current = tokenOwners.step(0x0, true);
-//        while (current != 0x0) {
-//            result += getLockedTokens(current, _blockNumber);
-//            current = tokenOwners.step(current, true);
-//        }
-//    }
-
     /**
     * @notice Get locked tokens value for all owners in current period
     **/
-    // TODO use confirmed periods
     function getAllLockedTokens()
         public constant returns (uint256 result)
     {
@@ -212,25 +197,7 @@ contract Escrow is Miner, Ownable {
         var releasePeriod = info.releaseBlock / blocksPerPeriod + 1;
         return block.number >= releasePeriod * blocksPerPeriod &&
             info.numberConfirmedPeriods == 0;
-//            (info.numberConfirmedPeriods == 0 ||
-//	        info.confirmedPeriods[info.numberConfirmedPeriods - 1] > releasePeriod);
     }
-
-//    /**
-//    * @notice Penalize token owner
-//    * @param _user Token owner
-//    * @param _value Amount of tokens that will be confiscated
-//    **/
-//    function penalize(address _user, uint256 _value)
-//        onlyOwner
-//        public returns (bool success)
-//    {
-//        require(getLockedTokens(_user) >= _value);
-//        tokenInfo[_user].value = tokenInfo[_user].value.sub(_value);
-//        tokenInfo[_user].lockedValue = tokenInfo[_user].lockedValue.sub(_value);
-//        token.burn(_value);
-//        return true;
-//    }
 
     /**
     * @notice Confirm activity for future period

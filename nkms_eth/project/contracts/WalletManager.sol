@@ -88,7 +88,7 @@ contract WalletManager is Miner, Ownable {
         }
         require(_value <= token.balanceOf(wallet).sub(lockedTokens));
         // Checks if tokens are not locked or lock can be increased
-        // TODO add checking reward
+        // TODO add checking amount of reward
         require(lockedTokens == 0 ||
             wallet.releaseBlock() >= block.number);
         if (lockedTokens == 0) {
@@ -135,20 +135,6 @@ contract WalletManager is Miner, Ownable {
     }
 
     /**
-    * @notice Get locked tokens value for all owners in a specified moment in time
-    * @param _blockNumber Block number for checking
-    **/
-    function getAllLockedTokens(uint256 _blockNumber)
-        public constant returns (uint256 result)
-    {
-        var current = walletOwners.step(0x0, true);
-        while (current != 0x0) {
-            result += getLockedTokens(current, _blockNumber);
-            current = walletOwners.step(current, true);
-        }
-    }
-
-    /**
     * @notice Get locked tokens value for owner
     * @param _owner Tokens owner
     **/
@@ -159,27 +145,13 @@ contract WalletManager is Miner, Ownable {
     }
 
     /**
-    * @notice Get locked tokens value for all owners
+    * @notice Get locked tokens value for all owners in current period
     **/
     function getAllLockedTokens()
         public constant returns (uint256 result)
     {
-        return getAllLockedTokens(block.number);
-    }
-
-    /**
-    * @notice Penalize token owner
-    * @param _user Token owner
-    * @param _value Amount of tokens that will be confiscated
-    **/
-    function penalize(address _user, uint256 _value)
-        onlyOwner
-        public returns (bool success)
-    {
-        require(walletOwners.valueExists(_user));
-//        require(getLockedTokens(_user) >= _value);
-        wallets[_user].burn(_value);
-        return true;
+        var currentPeriod = block.number / blocksPerPeriod;
+        return lockedPerPeriod[currentPeriod].totalLockedValue;
     }
 
     /**
@@ -196,8 +168,6 @@ contract WalletManager is Miner, Ownable {
         uint256 numberConfirmedPeriods = wallet.numberConfirmedPeriods();
         return block.number >= releasePeriod * blocksPerPeriod &&
             numberConfirmedPeriods == 0;
-//            (numberConfirmedPeriods == 0 ||
-//	        wallet.confirmedPeriods(numberConfirmedPeriods - 1) > releasePeriod);
     }
 
     /**
@@ -281,6 +251,7 @@ contract WalletManager is Miner, Ownable {
         public constant returns (address o_stop, uint256 o_shift)
     {
         require(walletOwners.valueExists(_start));
+        var currentPeriod = block.number / blocksPerPeriod;
         uint256 distance = 0;
         uint256 lockedTokens = 0;
         var current = _start;
@@ -288,8 +259,17 @@ contract WalletManager is Miner, Ownable {
         if (current == 0x0)
             current = walletOwners.step(current, true);
 
-        while (true) {
-            lockedTokens = getLockedTokens(current);
+        while (current != 0x0) {
+            var wallet = wallets[current];
+            var numberConfirmedPeriods = wallet.numberConfirmedPeriods();
+            if (numberConfirmedPeriods == 0 ||
+                wallet.confirmedPeriods(numberConfirmedPeriods - 1) != currentPeriod &&
+                (numberConfirmedPeriods == 1 ||
+                wallet.confirmedPeriods(numberConfirmedPeriods - 2) != currentPeriod)) {
+                current = walletOwners.step(current, true);
+                continue;
+            }
+            lockedTokens = wallet.lockedValue();
             if (_delta < distance + lockedTokens) {
                 o_stop = current;
                 o_shift = _delta - distance;

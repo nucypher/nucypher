@@ -32,8 +32,8 @@ def test_escrow(web3, chain, token, wallet_manager):
     chain.wait.for_receipt(tx)
     tx = token.transact({'from': creator}).transfer(alice, 10000)
     chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(ursula) == 10000
-    assert token.call().balanceOf(alice) == 10000
+    assert 10000 == token.call().balanceOf(ursula)
+    assert 10000 == token.call().balanceOf(alice)
 
     # Ursula and Alice create wallets
     contract_factory = chain.provider.get_contract_factory("Wallet")
@@ -62,17 +62,17 @@ def test_escrow(web3, chain, token, wallet_manager):
     # Ursula and Alice transfer some money to wallets
     tx = token.transact({'from': ursula}).transfer(ursula_wallet.address, 1500)
     chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(ursula_wallet.address) == 1500
+    assert 1500 == token.call().balanceOf(ursula_wallet.address)
     tx = token.transact({'from': alice}).transfer(alice_wallet.address, 500)
     chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(alice_wallet.address) == 500
+    assert 500 == token.call().balanceOf(alice_wallet.address)
 
     # Ursula asks for refund
     tx = ursula_wallet.transact({'from': ursula}).withdraw(500)
     chain.wait.for_receipt(tx)
     # and it works
-    assert token.call().balanceOf(ursula_wallet.address) == 1000
-    assert token.call().balanceOf(ursula) == 9000
+    assert 1000 == token.call().balanceOf(ursula_wallet.address)
+    assert 9000 == token.call().balanceOf(ursula)
 
     # Alice can't withdraw from Ursula's wallet
     with pytest.raises(TransactionFailed):
@@ -80,9 +80,8 @@ def test_escrow(web3, chain, token, wallet_manager):
         chain.wait.for_receipt(tx)
 
     # Check that nothing is locked
-    assert ursula_wallet.call().getLockedTokens() == 0
-    assert alice_wallet.call().getLockedTokens() == 0
-    assert wallet_manager.call().getAllLockedTokens() == 0
+    assert 0 == ursula_wallet.call().getLockedTokens()
+    assert 0 == alice_wallet.call().getLockedTokens()
 
     # Ursula can't lock too low value (less then rate)
     # TODO uncomment
@@ -93,51 +92,31 @@ def test_escrow(web3, chain, token, wallet_manager):
     # Ursula and Alice lock some tokens for 100 and 200 blocks
     tx = wallet_manager.transact({'from': ursula}).lock(1000, 100)
     chain.wait.for_receipt(tx)
-    assert ursula_wallet.call().getLockedTokens() == 1000
-    assert alice_wallet.call().getLockedTokens() == 0
-    assert wallet_manager.call().getLockedTokens(ursula) == 1000
-    assert wallet_manager.call().getAllLockedTokens() == 1000
     tx = wallet_manager.transact({'from': alice}).lock(500, 200)
     chain.wait.for_receipt(tx)
-    assert ursula_wallet.call().getLockedTokens() == 1000
-    assert alice_wallet.call().getLockedTokens() == 500
-    assert wallet_manager.call().getLockedTokens(alice) == 500
-    assert wallet_manager.call().getAllLockedTokens() == 1500
+
+    # Checks locked tokens in next period
+    chain.wait.for_block(web3.eth.blockNumber + 50)
+    assert 1000 == ursula_wallet.call().getLockedTokens()
+    assert 500 == alice_wallet.call().getLockedTokens()
+    assert 1500 == wallet_manager.call().getAllLockedTokens()
 
     # Ursula's withdrawal attempt won't succeed
     with pytest.raises(TransactionFailed):
         tx = ursula_wallet.transact({'from': ursula}).withdraw(100)
         chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(ursula_wallet.address) == 1000
-    assert token.call().balanceOf(ursula) == 9000
-
-    # And Ursula can't penalize anyone
-    with pytest.raises(TransactionFailed):
-        tx = wallet_manager.transact({'from': ursula}).penalize(ursula, 100)
-        chain.wait.for_receipt(tx)
-
-    # Creator can't penalize Ursula by burning tokens which exceeded her locked value
-    with pytest.raises(TransactionFailed):
-        tx = wallet_manager.transact({'from': creator}).penalize(ursula, 2000)
-        chain.wait.for_receipt(tx)
-
-    # But can penalize Ursula by burning some locked tokens
-    tx = wallet_manager.transact({'from': creator}).penalize(ursula, 100)
-    chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(ursula_wallet.address) == 900
-    assert ursula_wallet.call().getLockedTokens() == 900
-    assert wallet_manager.call().getAllLockedTokens() == 1400
+    assert 1000 == token.call().balanceOf(ursula_wallet.address)
+    assert 9000 == token.call().balanceOf(ursula)
 
     # Wait 100 blocks
     chain.wait.for_block(web3.eth.blockNumber + 100)
-    assert ursula_wallet.call().getLockedTokens() == 0
-    assert wallet_manager.call().getAllLockedTokens() == 500
+    assert 0 == ursula_wallet.call().getLockedTokens()
 
     # And Ursula can withdraw some tokens
     tx = ursula_wallet.transact({'from': ursula}).withdraw(100)
     chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(ursula_wallet.address) == 800
-    assert token.call().balanceOf(ursula) == 9100
+    assert 900 == token.call().balanceOf(ursula_wallet.address)
+    assert 9100 == token.call().balanceOf(ursula)
 
     # But Ursula can't lock some of tokens again without mining for locked value
     with pytest.raises(TransactionFailed):
@@ -149,14 +128,14 @@ def test_escrow(web3, chain, token, wallet_manager):
     chain.wait.for_receipt(tx)
     tx = wallet_manager.transact({'from': alice}).lock(500, 0)
     chain.wait.for_receipt(tx)
-    assert wallet_manager.call().getLockedTokens(alice) == 1000
-    assert wallet_manager.call().getLockedTokens(alice, web3.eth.blockNumber + 100) == 0
+    assert 1000 == wallet_manager.call().getLockedTokens(alice)
+    assert 0 == wallet_manager.call().getLockedTokens(alice, web3.eth.blockNumber + 100)
     # And increases locked blocks
     tx = wallet_manager.transact({'from': alice}).lock(0, 100)
     chain.wait.for_receipt(tx)
-    assert wallet_manager.call().getLockedTokens(alice) == 1000
-    assert wallet_manager.call().getLockedTokens(alice, web3.eth.blockNumber + 100) == 1000
-    assert wallet_manager.call().getLockedTokens(alice, web3.eth.blockNumber + 200) == 0
+    assert 1000 == wallet_manager.call().getLockedTokens(alice)
+    assert 1000 == wallet_manager.call().getLockedTokens(alice, web3.eth.blockNumber + 100)
+    assert 0 == wallet_manager.call().getLockedTokens(alice, web3.eth.blockNumber + 200)
 
     # # Ursula can't destroy contract
     # TODO fix bug
@@ -197,6 +176,7 @@ def test_locked_distribution(web3, chain, token, wallet_manager):
         tx = wallet_manager.transact({'from': addr}).lock(balance, 100)
         chain.wait.for_receipt(tx)
 
+    chain.wait.for_block(web3.eth.blockNumber + 50)
     n_locked = wallet_manager.call().getAllLockedTokens()
     assert n_locked > 0
 
@@ -256,6 +236,9 @@ def test_mining(web3, chain, token, wallet_manager):
     tx = wallet_manager.transact({'from': alice}).lock(500, 200)
     chain.wait.for_receipt(tx)
 
+    # Using locked tokens starts from next period
+    assert 0 == wallet_manager.call().getAllLockedTokens()
+
     # Ursula can't use method from Miner contract
     with pytest.raises(TypeError):
         tx = wallet_manager.transact({'from': ursula}).mint(ursula, 1000, 1000, 1000, 1000)
@@ -263,6 +246,7 @@ def test_mining(web3, chain, token, wallet_manager):
 
     # Ursula and Alice confirm next period
     chain.wait.for_block(web3.eth.blockNumber + 50)
+    assert 1500 == wallet_manager.call().getAllLockedTokens()
     tx = wallet_manager.transact({'from': ursula}).confirmActivity()
     chain.wait.for_receipt(tx)
     tx = wallet_manager.transact({'from': alice}).confirmActivity()
@@ -279,6 +263,7 @@ def test_mining(web3, chain, token, wallet_manager):
         chain.wait.for_receipt(tx)
 
     # But Alice can
+    # TODO test situation when only one confirmed
     tx = wallet_manager.transact({'from': alice}).confirmActivity()
     chain.wait.for_receipt(tx)
 
@@ -289,24 +274,22 @@ def test_mining(web3, chain, token, wallet_manager):
     chain.wait.for_receipt(tx)
     assert 1033 == token.call().balanceOf(ursula_wallet.address)
     assert 516 == token.call().balanceOf(alice_wallet.address)
-    # TODO fix
-    # assert 1500 == escrow.call().getAllLockedTokens()
 
     # Ursula and Alice mint tokens for next period
     chain.wait.for_block(web3.eth.blockNumber + 50)
+    assert 500 == wallet_manager.call().getAllLockedTokens()
     tx = wallet_manager.transact({'from': ursula}).mint()
     chain.wait.for_receipt(tx)
     tx = wallet_manager.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
     assert 1040 == token.call().balanceOf(ursula_wallet.address)
     assert 532 == token.call().balanceOf(alice_wallet.address)
-    # TODO fix
-    # assert 500 == escrow.call().getAllLockedTokens()
 
     # Alice confirm 2 periods and mint tokens
     tx = wallet_manager.transact({'from': alice}).confirmActivity()
     chain.wait.for_receipt(tx)
     chain.wait.for_block(web3.eth.blockNumber + 100)
+    assert 0 == wallet_manager.call().getAllLockedTokens()
     tx = wallet_manager.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
     assert 1040 == token.call().balanceOf(ursula_wallet.address)
@@ -314,8 +297,6 @@ def test_mining(web3, chain, token, wallet_manager):
     alice_tokens = token.call().balanceOf(alice_wallet.address)
     assert alice_tokens < 633  # max minted tokens
     assert alice_tokens > 583  # min minted tokens
-    # TODO fix
-    # assert 0 == escrow.call().getAllLockedTokens()
 
     # Ursula can't confirm and mint because no locked tokens
     with pytest.raises(TransactionFailed):
