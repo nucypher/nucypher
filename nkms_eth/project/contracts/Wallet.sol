@@ -14,13 +14,18 @@ contract Wallet is Ownable {
     using SafeERC20 for BurnableToken;
     using SafeMath for uint256;
 
+    struct PeriodInfo {
+        uint256 period;
+        uint256 lockedValue;
+    }
+
     address manager;
     BurnableToken token;
     uint256 public lockedValue;
     uint256 public lockedBlock;
     uint256 public releaseBlock;
     uint256 public decimals;
-    uint256[] public confirmedPeriods;
+    PeriodInfo[] public confirmedPeriods;
     uint256 public numberConfirmedPeriods;
 
     /**
@@ -41,7 +46,7 @@ contract Wallet is Ownable {
     }
 
     /**
-    * @notice Sets locked tokens
+    * @notice Sets locked tokens and time interval of locking
     * @param _value Amount of tokens which should lock
     * @param _releaseBlock Release block number
     * @param _lockedBlock Initial lock block number
@@ -52,6 +57,14 @@ contract Wallet is Ownable {
         lockedValue = _value;
         releaseBlock = _releaseBlock;
         lockedBlock = _lockedBlock;
+    }
+
+    /**
+    * @notice Sets locked tokens
+    * @param _value Amount of tokens which should lock
+    **/
+    function setLock(uint256 _value) onlyManager {
+        lockedValue = _value;
     }
 
     /**
@@ -104,13 +117,11 @@ contract Wallet is Ownable {
     }
 
     /**
-    * @notice Burn locked tokens
-    * @param _value Amount of tokens that will be confiscated
+    * @notice Get confirmed period
+    * @param _index Index of period
     **/
-    function burn(uint256 _value) onlyManager {
-        require(getLockedTokens() >= _value);
-        lockedValue = lockedValue.sub(_value);
-        token.burn(_value);
+    function getConfirmedPeriod(uint256 _index) public constant returns (uint256) {
+        return confirmedPeriods[_index].period;
     }
 
     /**
@@ -119,9 +130,10 @@ contract Wallet is Ownable {
     **/
     function addConfirmedPeriod(uint256 _period) onlyManager {
         if (numberConfirmedPeriods < confirmedPeriods.length) {
-            confirmedPeriods[numberConfirmedPeriods] = _period;
+            confirmedPeriods[numberConfirmedPeriods].period = _period;
+            confirmedPeriods[numberConfirmedPeriods].lockedValue = lockedValue;
         } else {
-            confirmedPeriods.push(_period);
+            confirmedPeriods.push(PeriodInfo(_period, lockedValue));
         }
         numberConfirmedPeriods++;
     }

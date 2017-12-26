@@ -180,8 +180,8 @@ contract WalletManager is Miner, Ownable {
 
         uint256 numberConfirmedPeriods = wallet.numberConfirmedPeriods();
         if (numberConfirmedPeriods > 0 &&
-            wallet.confirmedPeriods(numberConfirmedPeriods - 1) >= nextPeriod) {
-           return;
+            wallet.getConfirmedPeriod(numberConfirmedPeriods - 1) >= nextPeriod) {
+            return;
         }
         require(numberConfirmedPeriods < MAX_PERIODS);
         lockedPerPeriod[nextPeriod].totalLockedValue += wallet.lockedValue();
@@ -199,25 +199,25 @@ contract WalletManager is Miner, Ownable {
         Wallet wallet = wallets[msg.sender];
         var numberPeriodsForMinting = wallet.numberConfirmedPeriods();
         require(numberPeriodsForMinting > 0 &&
-            wallet.confirmedPeriods(0) <= previousPeriod);
+            wallet.getConfirmedPeriod(0) <= previousPeriod);
 
         var decimals = wallet.decimals();
-        if (wallet.confirmedPeriods(numberPeriodsForMinting - 1) > previousPeriod) {
+        if (wallet.getConfirmedPeriod(numberPeriodsForMinting - 1) > previousPeriod) {
             numberPeriodsForMinting--;
         }
-        if (wallet.confirmedPeriods(numberPeriodsForMinting - 1) > previousPeriod) {
+        if (wallet.getConfirmedPeriod(numberPeriodsForMinting - 1) > previousPeriod) {
             numberPeriodsForMinting--;
         }
 
         for(uint i = 0; i < numberPeriodsForMinting; ++i) {
-            var period = wallet.confirmedPeriods(i);
+            var (period, lockedValue) = wallet.confirmedPeriods(i);
             var periodFirstBlock = period * blocksPerPeriod;
             var periodLastBlock = (period + 1) * blocksPerPeriod - 1;
             var lockedBlocks = Math.min256(periodLastBlock, wallet.releaseBlock()) -
                 Math.max256(wallet.lockedBlock(), periodFirstBlock);
             (, decimals) = mint(
                 wallet,
-                wallet.lockedValue(),
+                lockedValue,
                 lockedPerPeriod[period].totalLockedValue,
                 lockedBlocks,
                 decimals);
@@ -256,16 +256,17 @@ contract WalletManager is Miner, Ownable {
         uint256 lockedTokens = 0;
         var current = _start;
 
-        if (current == 0x0)
+        if (current == 0x0) {
             current = walletOwners.step(current, true);
+        }
 
         while (current != 0x0) {
             var wallet = wallets[current];
             var numberConfirmedPeriods = wallet.numberConfirmedPeriods();
             if (numberConfirmedPeriods == 0 ||
-                wallet.confirmedPeriods(numberConfirmedPeriods - 1) != currentPeriod &&
+                wallet.getConfirmedPeriod(numberConfirmedPeriods - 1) != currentPeriod &&
                 (numberConfirmedPeriods == 1 ||
-                wallet.confirmedPeriods(numberConfirmedPeriods - 2) != currentPeriod)) {
+                wallet.getConfirmedPeriod(numberConfirmedPeriods - 2) != currentPeriod)) {
                 current = walletOwners.step(current, true);
                 continue;
             }

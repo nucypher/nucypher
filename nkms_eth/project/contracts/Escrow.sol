@@ -17,13 +17,18 @@ contract Escrow is Miner, Ownable {
     using LinkedList for LinkedList.Data;
     using SafeERC20 for NuCypherKMSToken;
 
+    struct ConfirmedPeriodInfo {
+        uint256 period;
+        uint256 lockedValue;
+    }
+
     struct TokenInfo {
         uint256 value;
         uint256 lockedValue;
         uint256 lockedBlock;
         uint256 releaseBlock;
         uint256 decimals;
-        uint256[] confirmedPeriods;
+        ConfirmedPeriodInfo[] confirmedPeriods;
         uint256 numberConfirmedPeriods;
     }
 
@@ -208,16 +213,17 @@ contract Escrow is Miner, Ownable {
         require(nextPeriod <= info.releaseBlock / blocksPerPeriod);
 
         if (info.numberConfirmedPeriods > 0 &&
-            info.confirmedPeriods[info.numberConfirmedPeriods - 1] >= nextPeriod) {
+            info.confirmedPeriods[info.numberConfirmedPeriods - 1].period >= nextPeriod) {
            return;
         }
         require(info.numberConfirmedPeriods < MAX_PERIODS);
         lockedPerPeriod[nextPeriod].totalLockedValue += info.lockedValue;
         lockedPerPeriod[nextPeriod].numberOwnersToBeRewarded++;
         if (info.numberConfirmedPeriods < info.confirmedPeriods.length) {
-            info.confirmedPeriods[info.numberConfirmedPeriods] = nextPeriod;
+            info.confirmedPeriods[info.numberConfirmedPeriods].period = nextPeriod;
+            info.confirmedPeriods[info.numberConfirmedPeriods].lockedValue = info.lockedValue;
         } else {
-            info.confirmedPeriods.push(nextPeriod);
+            info.confirmedPeriods.push(ConfirmedPeriodInfo(nextPeriod, info.lockedValue));
         }
         info.numberConfirmedPeriods++;
     }
@@ -232,25 +238,26 @@ contract Escrow is Miner, Ownable {
         var info = tokenInfo[msg.sender];
         var numberPeriodsForMinting = info.numberConfirmedPeriods;
         require(numberPeriodsForMinting > 0 &&
-            info.confirmedPeriods[0] <= previousPeriod);
+            info.confirmedPeriods[0].period <= previousPeriod);
 
         var decimals = info.decimals;
-        if (info.confirmedPeriods[numberPeriodsForMinting - 1] > previousPeriod) {
+        if (info.confirmedPeriods[numberPeriodsForMinting - 1].period > previousPeriod) {
             numberPeriodsForMinting--;
         }
-        if (info.confirmedPeriods[numberPeriodsForMinting - 1] > previousPeriod) {
+        if (info.confirmedPeriods[numberPeriodsForMinting - 1].period > previousPeriod) {
             numberPeriodsForMinting--;
         }
 
         for(uint i = 0; i < numberPeriodsForMinting; ++i) {
-            var period = info.confirmedPeriods[i];
+            var period = info.confirmedPeriods[i].period;
             var periodFirstBlock = period * blocksPerPeriod;
             var periodLastBlock = (period + 1) * blocksPerPeriod - 1;
             var lockedBlocks = Math.min256(periodLastBlock, info.releaseBlock) -
                 Math.max256(info.lockedBlock, periodFirstBlock);
+            var lockedValue = info.confirmedPeriods[i].lockedValue;
             (, decimals) = mint(
                 msg.sender,
-                info.lockedValue,
+                lockedValue,
                 lockedPerPeriod[period].totalLockedValue,
                 lockedBlocks,
                 decimals);
@@ -300,9 +307,9 @@ contract Escrow is Miner, Ownable {
             var info = tokenInfo[current];
             var numberConfirmedPeriods = info.numberConfirmedPeriods;
             if (numberConfirmedPeriods == 0 ||
-                info.confirmedPeriods[numberConfirmedPeriods - 1] != currentPeriod &&
+                info.confirmedPeriods[numberConfirmedPeriods - 1].period != currentPeriod &&
                 (numberConfirmedPeriods == 1 ||
-                info.confirmedPeriods[numberConfirmedPeriods - 2] != currentPeriod)) {
+                info.confirmedPeriods[numberConfirmedPeriods - 2].period != currentPeriod)) {
                 current = tokenOwners.step(current, true);
                 continue;
             }
