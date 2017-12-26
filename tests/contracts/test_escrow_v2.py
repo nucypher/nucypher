@@ -244,12 +244,10 @@ def test_mining(web3, chain, token, wallet_manager):
         tx = wallet_manager.transact({'from': ursula}).mint(ursula, 1000, 1000, 1000, 1000)
         chain.wait.for_receipt(tx)
 
-    # Ursula and Alice confirm next period
+    # Only Ursula confirm next period
     chain.wait.for_block(web3.eth.blockNumber + 50)
     assert 1500 == wallet_manager.call().getAllLockedTokens()
     tx = wallet_manager.transact({'from': ursula}).confirmActivity()
-    chain.wait.for_receipt(tx)
-    tx = wallet_manager.transact({'from': alice}).confirmActivity()
     chain.wait.for_receipt(tx)
 
     # Checks that no error
@@ -258,12 +256,12 @@ def test_mining(web3, chain, token, wallet_manager):
 
     # Ursula can't confirm next period because end of locking
     chain.wait.for_block(web3.eth.blockNumber + 50)
+    assert 1000 == wallet_manager.call().getAllLockedTokens()
     with pytest.raises(TransactionFailed):
         tx = wallet_manager.transact({'from': ursula}).confirmActivity()
         chain.wait.for_receipt(tx)
 
     # But Alice can
-    # TODO test situation when only one confirmed
     tx = wallet_manager.transact({'from': alice}).confirmActivity()
     chain.wait.for_receipt(tx)
 
@@ -280,10 +278,12 @@ def test_mining(web3, chain, token, wallet_manager):
     assert 500 == wallet_manager.call().getAllLockedTokens()
     tx = wallet_manager.transact({'from': ursula}).mint()
     chain.wait.for_receipt(tx)
-    tx = wallet_manager.transact({'from': alice}).mint()
-    chain.wait.for_receipt(tx)
-    assert 1040 == token.call().balanceOf(ursula_wallet.address)
-    assert 532 == token.call().balanceOf(alice_wallet.address)
+    # But Alice can't mining because she did not confirmed activity
+    with pytest.raises(TransactionFailed):
+        tx = wallet_manager.transact({'from': alice}).mint()
+        chain.wait.for_receipt(tx)
+    assert 1043 == token.call().balanceOf(ursula_wallet.address)
+    assert 516 == token.call().balanceOf(alice_wallet.address)
 
     # Alice confirm 2 periods and mint tokens
     tx = wallet_manager.transact({'from': alice}).confirmActivity()
@@ -292,11 +292,11 @@ def test_mining(web3, chain, token, wallet_manager):
     assert 0 == wallet_manager.call().getAllLockedTokens()
     tx = wallet_manager.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
-    assert 1040 == token.call().balanceOf(ursula_wallet.address)
+    assert 1043 == token.call().balanceOf(ursula_wallet.address)
     # Problem with accuracy
     alice_tokens = token.call().balanceOf(alice_wallet.address)
-    assert alice_tokens < 633  # max minted tokens
-    assert alice_tokens > 583  # min minted tokens
+    assert alice_tokens < 616  # max minted tokens
+    assert alice_tokens > 567  # min minted tokens
 
     # Ursula can't confirm and mint because no locked tokens
     with pytest.raises(TransactionFailed):
