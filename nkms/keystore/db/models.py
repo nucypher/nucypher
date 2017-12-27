@@ -1,7 +1,8 @@
 import sha3
 
 from nkms.keystore.db import Base
-from sqlalchemy import Column, Integer, LargeBinary, relationship, ForeignKey
+from sqlalchemy import Column, Integer, LargeBinary, ForeignKey
+from sqlalchemy.orm import relationship
 
 
 class Key(Base):
@@ -10,7 +11,8 @@ class Key(Base):
     id = Column(Integer, primary_key=True)
     fingerprint = Column(LargeBinary, unique=True)
     key_data = Column(LargeBinary, unique=True)
-    policy = relationship("Policy", uselist=False, back_populates="keys")
+
+    policy = relationship("Policy", uselist=False, back_populates="policies")
 
     def __init__(self, key_data):
         self.key_data = key_data
@@ -31,12 +33,11 @@ class KeyFrag(Base):
     __tablename__ = 'keyfrags'
 
     id = Column(Integer, primary_key=True)
-    hrac = Column(LargeBinary, unique=True)
     key_frag = Column(LargeBinary, unique=True)
+
     policy = relationship("Policy", uselist=False, back_populates="policies")
 
-    def __init__(self, hrac, key_frag):
-        self.hrac = hrac
+    def __init__(self, key_frag):
         self.key_frag = key_frag
 
 
@@ -51,3 +52,9 @@ class Policy(Base):
 
     keyfrag = relationship("KeyFrag", back_populates="policies")
     alice_pubkey = relationship("KeyFrag", back_populates="policies")
+
+    def __init__(self, hrac, alice_sig, keyfrag, alice_pubkey):
+        self.hrac = hrac
+        self.alice_sig = alice_sig
+        self.keyfrag_id = keyfrag.id
+        self.alice_pubkey_id = alice_pubkey.id
