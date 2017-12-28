@@ -9,7 +9,7 @@ def lock(amount: int, locktime: int, address: str = None):
 
     :param amount:      Amount of coins to lock (in smallest  indivisible
                             units)
-    :param locktime:    Locktime in blocks
+    :param locktime:    Locktime in periods
     :param address:     Optional address to get coins from (accounts[0] by
                         default)
     """

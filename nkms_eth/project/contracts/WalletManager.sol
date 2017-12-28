@@ -193,8 +193,6 @@ contract WalletManager is Miner, Ownable {
     * @notice Mint tokens for sender for previous periods if he locked his tokens and confirmed activity
     **/
     function mint() walletExists {
-        require(!allTokensMinted());
-
         var previousPeriod = block.number / blocksPerPeriod - 1;
         Wallet wallet = wallets[msg.sender];
         var numberPeriodsForMinting = wallet.numberConfirmedPeriods();
