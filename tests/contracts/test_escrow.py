@@ -58,7 +58,7 @@ def test_escrow(web3, chain, token, escrow):
     assert 0 == escrow.call().getLockedTokens(alice)
 
     # Ursula can't lock too low value
-    # TODO uncomment
+    # TODO uncomment after completing logic
     # with pytest.raises(TransactionFailed):
     #     tx = escrow.transact({'from': ursula}).deposit(1000, 10)
     #     chain.wait.for_receipt(tx)
@@ -69,7 +69,7 @@ def test_escrow(web3, chain, token, escrow):
     assert 1000 == token.call().balanceOf(escrow.address)
     assert 9000 == token.call().balanceOf(ursula)
     assert 1000 == escrow.call().getLockedTokens(ursula)
-    tx = escrow.transact({'from': alice}).deposit(500, 4)
+    tx = escrow.transact({'from': alice}).deposit(500, 6)
     chain.wait.for_receipt(tx)
     assert 500 == escrow.call().getLockedTokens(alice)
     assert 1500 == token.call().balanceOf(escrow.address)
@@ -81,25 +81,6 @@ def test_escrow(web3, chain, token, escrow):
     assert 500 == escrow.call().getLockedTokens(alice)
     assert 1500 == escrow.call().getAllLockedTokens()
 
-    # # Ursula asks for refund
-    # tx = escrow.transact({'from': ursula}).withdraw(500)
-    # chain.wait.for_receipt(tx)
-    # # and it works
-    # assert token.call().balanceOf(escrow.address) == 1500
-    # assert token.call().balanceOf(ursula) == 9000
-
-    # # Ursula and Alice lock some tokens for 100 and 200 blocks
-    # tx = escrow.transact({'from': ursula}).lock(1000, 100)
-    # chain.wait.for_receipt(tx)
-    # assert escrow.call().getLockedTokens(ursula) == 1000
-    # assert escrow.call().getLockedTokens(alice) == 0
-    # assert escrow.call().getAllLockedTokens() == 1000
-    # tx = escrow.transact({'from': alice}).lock(500, 200)
-    # chain.wait.for_receipt(tx)
-    # assert escrow.call().getLockedTokens(ursula) == 1000
-    # assert escrow.call().getLockedTokens(alice) == 500
-    # assert escrow.call().getAllLockedTokens() == 1500
-
     # Ursula's withdrawal attempt won't succeed
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula}).withdraw(100)
@@ -107,34 +88,56 @@ def test_escrow(web3, chain, token, escrow):
     assert 1500 == token.call().balanceOf(escrow.address)
     assert 9000 == token.call().balanceOf(ursula)
 
+    # Ursula can deposit more tokens
+    tx = escrow.transact({'from': alice}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    tx = escrow.transact({'from': ursula}).deposit(500, 0)
+    chain.wait.for_receipt(tx)
+    assert 2000 == token.call().balanceOf(escrow.address)
+    assert 8500 == token.call().balanceOf(ursula)
+
+    # Wait 50 blocks and checks locking
+    chain.wait.for_block(web3.eth.blockNumber + 50)
+    assert 1500 == escrow.call().getLockedTokens(ursula)
+
     # Wait 100 blocks
-    chain.wait.for_block(web3.eth.blockNumber + 100)
+    chain.wait.for_block(web3.eth.blockNumber + 50)
     assert 0 == escrow.call().getLockedTokens(ursula)
 
     # And Ursula can withdraw some tokens
     tx = escrow.transact({'from': ursula}).withdraw(100)
     chain.wait.for_receipt(tx)
-    assert 1400 == token.call().balanceOf(escrow.address)
-    assert 9100 == token.call().balanceOf(ursula)
+    assert 1900 == token.call().balanceOf(escrow.address)
+    assert 8600 == token.call().balanceOf(ursula)
 
     # But Ursula can't withdraw all without mining for locked value
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula}).withdrawAll()
         chain.wait.for_receipt(tx)
 
-    # Ursula can't deposit more tokens without mining for already locked value
-    with pytest.raises(TransactionFailed):
-        tx = escrow.transact({'from': ursula}).deposit(1000, 0)
-        chain.wait.for_receipt(tx)
-    assert 1400 == token.call().balanceOf(escrow.address)
-    # And can't lock some of them
-    # TODO check logic
-    # with pytest.raises(TransactionFailed):
-    #     tx = escrow.transact({'from': ursula}).lock(500, 100)
-    #     chain.wait.for_receipt(tx)
+    # Ursula can deposit more tokens
+    tx = escrow.transact({'from': ursula}).deposit(500, 0)
+    chain.wait.for_receipt(tx)
+    assert 2400 == token.call().balanceOf(escrow.address)
+
+    # Locked tokens will be updated in next period
+    assert 1500 == escrow.call().getLockedTokens(ursula)
+    # assert 1000 == escrow.call().getLockedTokens(ursula, web3.eth.blockNumber + 50)
+    # assert 0 == escrow.call().getLockedTokens(ursula, web3.eth.blockNumber + 100)
+    chain.wait.for_block(web3.eth.blockNumber + 50)
+    assert 500 == escrow.call().getLockedTokens(ursula)
+
+    # And can increase lock
+    tx = escrow.transact({'from': ursula}).lock(500, 2)
+    chain.wait.for_receipt(tx)
+    assert 500 == escrow.call().getLockedTokens(ursula)
+    # assert 1500 == escrow.call().getLockedTokens(ursula, web3.eth.blockNumber + 50)
+    # assert 0 == escrow.call().getLockedTokens(ursula, web3.eth.blockNumber + 200)
+    chain.wait.for_block(web3.eth.blockNumber + 50)
+    assert 1000 == escrow.call().getLockedTokens(ursula)
 
     # Alice can't deposit too low value (less then rate)
-    # TODO check logic
+    # TODO uncomment after completing logic
     # with pytest.raises(TransactionFailed):
     #     tx = escrow.transact({'from': ursula}).deposit(100, 100)
     #     chain.wait.for_receipt(tx)
@@ -143,10 +146,11 @@ def test_escrow(web3, chain, token, escrow):
     tx = escrow.transact({'from': alice}).deposit(500, 0)
     chain.wait.for_receipt(tx)
     assert 500 == escrow.call().getLockedTokens(alice)
-    chain.wait.for_block(web3.eth.blockNumber + 50)
-    assert 1000 == escrow.call().getLockedTokens(alice)
     # TODO complete method
     # assert escrow.call().getLockedTokens(alice, web3.eth.blockNumber + 100) == 0
+    chain.wait.for_block(web3.eth.blockNumber + 50)
+    assert 1000 == escrow.call().getLockedTokens(alice)
+
     # And increases locked blocks
     tx = escrow.transact({'from': alice}).lock(0, 2)
     chain.wait.for_receipt(tx)

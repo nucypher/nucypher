@@ -28,20 +28,6 @@ contract Miner {
         miningCoefficient = _miningCoefficient;
     }
 
-//    /**
-//    * @dev Check reward.
-//    * @param _lockedBlocks The amount of blocks during which tokens were locked.
-//    * @return Reward is empty or not
-//    **/
-//    // TODO complete
-//    function isEmptyReward(uint256 _lockedBlocks)
-//        constant returns (bool)
-//    {
-//        return token.totalSupply() == token.futureSupply() ||
-//            (token.futureSupply().mul(_lockedBlocks).div(miningCoefficient) -
-//            token.totalSupply().mul(_lockedBlocks).div(miningCoefficient)) == 0;
-//    }
-
     /**
     * @notice Function to mint tokens for sender
     * @param _to The address that will receive the minted tokens.
