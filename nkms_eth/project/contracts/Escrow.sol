@@ -85,7 +85,7 @@ contract Escrow is Miner, Ownable {
     * @param _periods Amount of periods during which tokens will be locked
     **/
     function lock(uint256 _value, uint256 _periods) returns (bool success) {
-        // TODO add checking min reward
+        // TODO add checking min _value
         require(_value != 0 || _periods != 0);
 
         var lockedTokens = getLockedTokens(msg.sender);
@@ -154,13 +154,16 @@ contract Escrow is Miner, Ownable {
     }
 
     /**
-    * @notice Get locked tokens value for owner in current period
+    * @notice Get locked tokens value for owner in current or future period
     * @param _owner Tokens owner
+    * @param _block Current or future block number
     **/
-    function getLockedTokens(address _owner)
+    function getLockedTokens(address _owner, uint256 _block)
         public constant returns (uint256)
     {
-        var currentPeriod = block.number.div(blocksPerPeriod);
+        require(_block >= block.number);
+
+        var period = _block.div(blocksPerPeriod);
         var info = tokenInfo[_owner];
         var numberConfirmedPeriods = info.numberConfirmedPeriods;
 
@@ -169,12 +172,12 @@ contract Escrow is Miner, Ownable {
             var lockedValue = info.lockedValue;
         } else {
             var i = numberConfirmedPeriods - 1;
-            var period = info.confirmedPeriods[i].period;
+            var confirmedPeriod = info.confirmedPeriods[i].period;
             // last confirmed period is current period
-            if (period == currentPeriod) {
+            if (confirmedPeriod == period) {
                 return info.confirmedPeriods[i].lockedValue;
             // last confirmed period is previous periods, so current period may be release period
-            } else if (period < currentPeriod) {
+            } else if (confirmedPeriod < period) {
                 lockedValue = info.confirmedPeriods[i].lockedValue;
             // penultimate confirmed period is previous or current period, so get its lockedValue
             } else if (numberConfirmedPeriods > 1) {
@@ -185,7 +188,7 @@ contract Escrow is Miner, Ownable {
             }
         }
         // checks if owner can mine more tokens (before or after release period)
-        if (calculateLockedTokens(_owner, lockedValue) == 0) {
+        if (calculateLockedTokens(_owner, period, lockedValue) == 0) {
             return 0;
         } else {
             return lockedValue;
@@ -193,24 +196,49 @@ contract Escrow is Miner, Ownable {
     }
 
     /**
+    * @notice Get locked tokens value for owner in current period
+    * @param _owner Tokens owner
+    **/
+    function getLockedTokens(address _owner)
+        public constant returns (uint256)
+    {
+        return getLockedTokens(_owner, block.number);
+    }
+
+    /**
+    * @notice Get locked tokens value for all owners in current or future period
+    * @param _block Current or future block number
+    **/
+    function getAllLockedTokens(uint256 _block)
+        public constant returns (uint256)
+    {
+        var period = _block.div(blocksPerPeriod);
+        return lockedPerPeriod[period].totalLockedValue;
+    }
+
+    /**
     * @notice Get locked tokens value for all owners in current period
     **/
     function getAllLockedTokens()
-        public constant returns (uint256 result)
+        public constant returns (uint256)
     {
-        var currentPeriod = block.number.div(blocksPerPeriod);
-        return lockedPerPeriod[currentPeriod].totalLockedValue;
+        return getAllLockedTokens(block.number);
     }
 
     /**
     * @notice Calculate locked tokens value for owner in next period
     * @param _owner Tokens owner
+    * @param _period Current or future period
     * @param _currentLockedToken Current locked tokens
     **/
-    function calculateLockedTokens(address _owner, uint256 _currentLockedToken)
+    function calculateLockedTokens(
+        address _owner,
+        uint256 _period,
+        uint256 _currentLockedToken
+    )
         public constant returns (uint256)
     {
-        var nextPeriod = block.number.div(blocksPerPeriod) + 1;
+        var nextPeriod = _period + 1;
         var info = tokenInfo[_owner];
         if (info.releasePeriod <= nextPeriod) {
             return 0;
@@ -226,7 +254,8 @@ contract Escrow is Miner, Ownable {
     function calculateLockedTokens(address _owner)
         public constant returns (uint256)
     {
-        return calculateLockedTokens(_owner, getLockedTokens(_owner));
+        var period = block.number.div(blocksPerPeriod);
+        return calculateLockedTokens(_owner, period, getLockedTokens(_owner));
     }
 
     /**
