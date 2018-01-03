@@ -89,7 +89,7 @@ def test_escrow(web3, chain, token, escrow):
     assert 9000 == token.call().balanceOf(ursula)
 
     # Ursula can deposit more tokens
-    tx = escrow.transact({'from': alice}).confirmActivity()
+    tx = escrow.transact({'from': ursula}).confirmActivity()
     chain.wait.for_receipt(tx)
     tx = escrow.transact({'from': ursula}).deposit(500, 0)
     chain.wait.for_receipt(tx)

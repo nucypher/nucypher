@@ -2,7 +2,6 @@ pragma solidity ^0.4.8;
 
 
 import "./zeppelin/token/SafeERC20.sol";
-import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
 import "./zeppelin/ownership/Ownable.sol";
 import "./NuCypherKMSToken.sol";
@@ -36,6 +35,7 @@ contract WalletManager is Miner, Ownable {
     * @notice The WalletManager constructor sets address of token contract and coefficients for mining
     * @param _token Token contract
     * @param _miningCoefficient Mining coefficient
+    * @param _blocksPerPeriod Size of one period in blocks
     **/
     function WalletManager(
         NuCypherKMSToken _token,
@@ -63,7 +63,7 @@ contract WalletManager is Miner, Ownable {
     **/
     function createWallet() returns (address) {
         require(!walletOwners.valueExists(msg.sender));
-        Wallet wallet = new Wallet(token);
+        Wallet wallet = new Wallet(token, blocksPerPeriod);
         wallet.transferOwnership(msg.sender);
         wallets[msg.sender] = wallet;
         walletOwners.push(msg.sender, true);
@@ -73,65 +73,45 @@ contract WalletManager is Miner, Ownable {
     /**
     * @notice Lock some tokens
     * @param _value Amount of tokens which should lock
-    * @param _blocks Amount of blocks during which tokens will be locked
+    * @param _periods Amount of periods during which tokens will be locked
     **/
-    function lock(uint256 _value, uint256 _blocks)
-        walletExists
-        returns (bool success)
-    {
-        require(_value != 0 || _blocks != 0);
+    function lock(uint256 _value, uint256 _periods) walletExists external {
+        // TODO add checking min _value
         Wallet wallet = wallets[msg.sender];
-
-        uint256 lockedTokens = 0;
-        if (!allTokensMinted()) {
-            lockedTokens = wallet.lockedValue();
-        }
-        require(_value <= token.balanceOf(wallet).sub(lockedTokens));
-        // Checks if tokens are not locked or lock can be increased
-        // TODO add checking amount of reward
-        require(lockedTokens == 0 ||
-            wallet.releaseBlock() >= block.number);
-        if (lockedTokens == 0) {
-            wallet.setLock(_value, block.number.add(_blocks), block.number);
-        } else {
-            wallet.setLock(
-                wallet.lockedValue().add(_value),
-                wallet.releaseBlock().add(_blocks),
-                wallet.lockedBlock()
-            );
-        }
-        confirmActivity();
-        return true;
+        wallet.lock(_value, _periods);
+        confirmActivity(wallet.lockedValue());
     }
 
     // FIXME bug with big file size. Can't deploy contract even with maximum gas if uncomment
-//    /**
-//    * @notice Terminate contract and refund to owners
-//    * @dev The called token contracts could try to re-enter this contract.
-//    Only supply token contracts you trust.
-//    **/
-//    function destroy() onlyOwner public {
-//        // Transfer tokens to owners
-//        var current = walletOwners.step(0x0, true);
-//        while (current != 0x0) {
-//            wallets[current].destroy();
-//            current = walletOwners.step(current, true);
-//        }
-//        token.safeTransfer(owner, token.balanceOf(address(this)));
-//
-//        // Transfer Eth to owner and terminate contract
-//        selfdestruct(owner);
-//    }
+    /**
+    * @notice Terminate contract and refund to owners
+    * @dev The called token contracts could try to re-enter this contract.
+    Only supply token contracts you trust.
+    **/
+    function destroy() onlyOwner external {
+        // Transfer tokens to owners
+        var current = walletOwners.step(0x0, true);
+        while (current != 0x0) {
+            wallets[current].destroy();
+            current = walletOwners.step(current, true);
+        }
+        token.safeTransfer(owner, token.balanceOf(address(this)));
+
+        // Transfer Eth to owner and terminate contract
+        selfdestruct(owner);
+    }
 
     /**
-    * @notice Get locked tokens value in a specified moment in time
+    * @notice Get locked tokens value for owner in current or future period
     * @param _owner Tokens owner
-    * @param _blockNumber Block number for checking
+    * @param _block Current or future block number
     **/
-    function getLockedTokens(address _owner, uint256 _blockNumber)
+    function getLockedTokens(address _owner, uint256 _block)
+        walletExists
         public constant returns (uint256)
     {
-        return wallets[_owner].getLockedTokens(_blockNumber);
+        Wallet wallet = wallets[_owner];
+        return wallet.getLockedTokens(_block);
     }
 
     /**
@@ -145,44 +125,44 @@ contract WalletManager is Miner, Ownable {
     }
 
     /**
-    * @notice Get locked tokens value for all owners in current period
+    * @notice Get locked tokens value for all owners in current or future period
+    * @param _block Current or future block number
     **/
-    function getAllLockedTokens()
-        public constant returns (uint256 result)
+    function getAllLockedTokens(uint256 _block)
+        public constant returns (uint256)
     {
-        var currentPeriod = block.number / blocksPerPeriod;
-        return lockedPerPeriod[currentPeriod].totalLockedValue;
+        var period = _block.div(blocksPerPeriod);
+        return lockedPerPeriod[period].totalLockedValue;
     }
 
     /**
-    * @notice Checks if sender has locked tokens which have not yet used in minting
+    * @notice Get locked tokens value for all owners in current period
     **/
-    function allTokensMinted()
-        internal constant returns (bool)
+    function getAllLockedTokens()
+        public constant returns (uint256)
     {
-        var wallet = wallets[msg.sender];
-        if (wallet.lockedValue() == 0) {
-            return true;
-        }
-        var releasePeriod = wallet.releaseBlock() / blocksPerPeriod + 1;
-        uint256 numberConfirmedPeriods = wallet.numberConfirmedPeriods();
-        return block.number >= releasePeriod * blocksPerPeriod &&
-            numberConfirmedPeriods == 0;
+        return getAllLockedTokens(block.number);
     }
 
     /**
     * @notice Confirm activity for future period
+    * @param _lockedValue Locked tokens in future period
     **/
-    function confirmActivity() walletExists {
+    function confirmActivity(uint256 _lockedValue) internal {
+        require(_lockedValue > 0);
         var wallet = wallets[msg.sender];
-        uint256 nextPeriod = block.number / blocksPerPeriod + 1;
-        require(nextPeriod <= wallet.releaseBlock() / blocksPerPeriod);
+        var nextPeriod = block.number.div(blocksPerPeriod) + 1;
+        var numberConfirmedPeriods = wallet.numberConfirmedPeriods();
 
-        uint256 numberConfirmedPeriods = wallet.numberConfirmedPeriods();
         if (numberConfirmedPeriods > 0 &&
-            wallet.getConfirmedPeriod(numberConfirmedPeriods - 1) >= nextPeriod) {
+            wallet.getConfirmedPeriod(numberConfirmedPeriods - 1) == nextPeriod) {
+            var confirmedPeriodValue = wallet.getConfirmedPeriodValue(numberConfirmedPeriods - 1);
+            lockedPerPeriod[nextPeriod].totalLockedValue = lockedPerPeriod[nextPeriod].totalLockedValue
+                .add(_lockedValue.sub(confirmedPeriodValue));
+            wallet.setConfirmedPeriodValue(numberConfirmedPeriods - 1, _lockedValue);
             return;
         }
+
         require(numberConfirmedPeriods < MAX_PERIODS);
         lockedPerPeriod[nextPeriod].totalLockedValue += wallet.lockedValue();
         lockedPerPeriod[nextPeriod].numberOwnersToBeRewarded++;
@@ -190,14 +170,32 @@ contract WalletManager is Miner, Ownable {
     }
 
     /**
+    * @notice Confirm activity for future period
+    **/
+    function confirmActivity() walletExists external {
+        var wallet = wallets[msg.sender];
+        var nextPeriod = block.number.div(blocksPerPeriod) + 1;
+
+        var numberConfirmedPeriods = wallet.numberConfirmedPeriods();
+        if (numberConfirmedPeriods > 0 &&
+            wallet.getConfirmedPeriod(numberConfirmedPeriods - 1) >= nextPeriod) {
+            return;
+        }
+
+        var lockedTokens = wallet.calculateLockedTokens();
+        confirmActivity(lockedTokens);
+    }
+
+    /**
     * @notice Mint tokens for sender for previous periods if he locked his tokens and confirmed activity
     **/
-    function mint() walletExists {
+    function mint() walletExists external {
         var previousPeriod = block.number / blocksPerPeriod - 1;
-        Wallet wallet = wallets[msg.sender];
+        var wallet = wallets[msg.sender];
         var numberPeriodsForMinting = wallet.numberConfirmedPeriods();
         require(numberPeriodsForMinting > 0 &&
             wallet.getConfirmedPeriod(0) <= previousPeriod);
+        var currentLockedValue = getLockedTokens(msg.sender);
 
         var decimals = wallet.decimals();
         if (wallet.getConfirmedPeriod(numberPeriodsForMinting - 1) > previousPeriod) {
@@ -209,15 +207,11 @@ contract WalletManager is Miner, Ownable {
 
         for(uint i = 0; i < numberPeriodsForMinting; ++i) {
             var (period, lockedValue) = wallet.confirmedPeriods(i);
-            var periodFirstBlock = period * blocksPerPeriod;
-            var periodLastBlock = (period + 1) * blocksPerPeriod - 1;
-            var lockedBlocks = Math.min256(periodLastBlock, wallet.releaseBlock()) -
-                Math.max256(wallet.lockedBlock(), periodFirstBlock);
             (, decimals) = mint(
                 wallet,
                 lockedValue,
                 lockedPerPeriod[period].totalLockedValue,
-                lockedBlocks,
+                blocksPerPeriod,
                 decimals);
             if (lockedPerPeriod[period].numberOwnersToBeRewarded > 1) {
                 lockedPerPeriod[period].numberOwnersToBeRewarded--;
@@ -226,7 +220,10 @@ contract WalletManager is Miner, Ownable {
             }
         }
         wallet.setDecimals(decimals);
-        wallet.deleteConfirmedPeriod(numberPeriodsForMinting);
+        wallet.deleteConfirmedPeriods(numberPeriodsForMinting);
+
+        // Update lockedValue for current period
+        wallet.setLock(currentLockedValue);
     }
 
     /**

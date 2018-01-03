@@ -26,7 +26,6 @@ contract Escrow is Miner, Ownable {
         uint256 value;
         uint256 decimals;
         uint256 lockedValue;
-//        uint256 lockedBlock;
         uint256 releasePeriod;
         ConfirmedPeriodInfo[] confirmedPeriods;
         uint256 numberConfirmedPeriods;
@@ -69,14 +68,14 @@ contract Escrow is Miner, Ownable {
     * @param _value Amount of token to deposit
     * @param _periods Amount of periods during which tokens will be locked
     **/
-    function deposit(uint256 _value, uint256 _periods) returns (bool success) {
+    function deposit(uint256 _value, uint256 _periods) {
         require(_value != 0);
         if (!tokenOwners.valueExists(msg.sender)) {
             tokenOwners.push(msg.sender, true);
         }
         tokenInfo[msg.sender].value = tokenInfo[msg.sender].value.add(_value);
         token.safeTransferFrom(msg.sender, address(this), _value);
-        return lock(_value, _periods);
+        lock(_value, _periods);
     }
 
     /**
@@ -84,7 +83,7 @@ contract Escrow is Miner, Ownable {
     * @param _value Amount of tokens which should lock
     * @param _periods Amount of periods during which tokens will be locked
     **/
-    function lock(uint256 _value, uint256 _periods) returns (bool success) {
+    function lock(uint256 _value, uint256 _periods) {
         // TODO add checking min _value
         require(_value != 0 || _periods != 0);
 
@@ -102,20 +101,18 @@ contract Escrow is Miner, Ownable {
         }
 
         confirmActivity(info.lockedValue);
-        return true;
     }
 
     /**
     * @notice Withdraw available amount of tokens back to owner
     * @param _value Amount of token to withdraw
     **/
-    function withdraw(uint256 _value) returns (bool success) {
+    function withdraw(uint256 _value) {
         var info = tokenInfo[msg.sender];
         require(_value <= token.balanceOf(address(this)) &&
             _value <= info.value.sub(getLockedTokens(msg.sender)));
         info.value -= _value;
         token.safeTransfer(msg.sender, _value);
-        return true;
     }
 
     /**
@@ -230,6 +227,7 @@ contract Escrow is Miner, Ownable {
     * @param _owner Tokens owner
     * @param _period Current or future period
     * @param _currentLockedToken Current locked tokens
+    * @return Calculated locked tokens in next period
     **/
     function calculateLockedTokens(
         address _owner,
@@ -250,6 +248,7 @@ contract Escrow is Miner, Ownable {
     /**
     * @notice Calculate locked tokens value for owner in next period
     * @param _owner Tokens owner
+    * @return Calculated locked tokens in next period
     **/
     function calculateLockedTokens(address _owner)
         public constant returns (uint256)
@@ -292,7 +291,7 @@ contract Escrow is Miner, Ownable {
     /**
     * @notice Confirm activity for future period
     **/
-    function confirmActivity() {
+    function confirmActivity() external {
         var info = tokenInfo[msg.sender];
         var nextPeriod = block.number.div(blocksPerPeriod) + 1;
         if (info.numberConfirmedPeriods > 0 &&
@@ -307,7 +306,7 @@ contract Escrow is Miner, Ownable {
     /**
     * @notice Mint tokens for sender for previous periods if he locked his tokens and confirmed activity
     **/
-    function mint() {
+    function mint() external {
         var previousPeriod = block.number.div(blocksPerPeriod).sub(1);
         var info = tokenInfo[msg.sender];
         var numberPeriodsForMinting = info.numberConfirmedPeriods;
@@ -348,18 +347,6 @@ contract Escrow is Miner, Ownable {
 
         // Update lockedValue for current period
         info.lockedValue = currentLockedValue;
-
-        // Update lockedValue for current period
-//        if (newNumberConfirmedPeriods > 0 &&
-//            info.confirmedPeriods[0].period == previousPeriod + 1) {
-//            info.lockedValue = info.confirmedPeriods[i].lockedValue;
-//        } else if (newNumberConfirmedPeriods > 0 &&
-//            info.lockedValue != lockedValue) {
-//            info.lockedValue = lockedValue;
-//        } else if (newNumberConfirmedPeriods == 0 &&
-//            calculateLockedTokens(msg.sender) == 0) {
-//            info.lockedValue = 0;
-//        }
     }
 
     /**
