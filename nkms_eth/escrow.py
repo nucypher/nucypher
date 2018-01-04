@@ -4,7 +4,7 @@ from nkms_eth import blockchain
 from nkms_eth import token
 
 ESCROW_NAME = 'Escrow'
-MINING_COEFF = [10 ** 9, 50]
+MINING_COEFF = [10 ** 9, 50, 30]
 NULL_ADDR = '0x' + '0' * 40
 
 
@@ -40,6 +40,7 @@ def sample(n: int = 10)-> List[str]:
     escrow = get()
     n_select = int(n * 1.7)  # Select more ursulas
     n_tokens = escrow.call().getAllLockedTokens()
+    duration = 10
 
     for _ in range(5):  # number of tries
         points = [0] + sorted(random.randrange(n_tokens) for _ in
@@ -50,7 +51,7 @@ def sample(n: int = 10)-> List[str]:
         shift = 0
 
         for delta in deltas:
-            addr, shift = escrow.call().findCumSum(addr, delta + shift)
+            addr, shift = escrow.call().findCumSum(addr, delta + shift, duration)
             addrs.add(addr)
 
         if len(addrs) >= n:

@@ -27,6 +27,7 @@ contract Escrow is Miner, Ownable {
         uint256 decimals;
         uint256 lockedValue;
         uint256 releasePeriod;
+        uint256 releaseRate;
         ConfirmedPeriodInfo[] confirmedPeriods;
         uint256 numberConfirmedPeriods;
     }
@@ -37,6 +38,7 @@ contract Escrow is Miner, Ownable {
     }
 
     uint256 constant MAX_PERIODS = 100;
+    uint256 constant MAX_OWNERS = 50000;
 
     NuCypherKMSToken token;
     mapping (address => TokenInfo) public tokenInfo;
@@ -44,23 +46,27 @@ contract Escrow is Miner, Ownable {
 
     uint256 public blocksPerPeriod;
     mapping (uint256 => PeriodInfo) public lockedPerPeriod;
+    uint256 public releasePeriods;
 
     /**
     * @notice The Escrow constructor sets address of token contract and coefficients for mining
     * @param _token Token contract
     * @param _miningCoefficient Mining coefficient
     * @param _blocksPerPeriod Size of one period in blocks
+    * @param _releasePeriods Amount of periods during which tokens will be released
     **/
     function Escrow(
         NuCypherKMSToken _token,
         uint256 _miningCoefficient,
-        uint256 _blocksPerPeriod
+        uint256 _blocksPerPeriod,
+        uint256 _releasePeriods
     )
         Miner(_token, _miningCoefficient)
     {
         require(_blocksPerPeriod != 0);
         token = _token;
         blocksPerPeriod = _blocksPerPeriod;
+        releasePeriods = _releasePeriods;
     }
 
     /**
@@ -71,6 +77,7 @@ contract Escrow is Miner, Ownable {
     function deposit(uint256 _value, uint256 _periods) {
         require(_value != 0);
         if (!tokenOwners.valueExists(msg.sender)) {
+            require(tokenOwners.sizeOf() < MAX_OWNERS);
             tokenOwners.push(msg.sender, true);
         }
         tokenInfo[msg.sender].value = tokenInfo[msg.sender].value.add(_value);
@@ -185,7 +192,7 @@ contract Escrow is Miner, Ownable {
             }
         }
         // checks if owner can mine more tokens (before or after release period)
-        if (calculateLockedTokens(_owner, period, lockedValue) == 0) {
+        if (calculateLockedTokens(_owner, period, lockedValue, 1) == 0) {
             return 0;
         } else {
             return lockedValue;
@@ -226,22 +233,24 @@ contract Escrow is Miner, Ownable {
     * @notice Calculate locked tokens value for owner in next period
     * @param _owner Tokens owner
     * @param _period Current or future period
-    * @param _currentLockedToken Current locked tokens
+    * @param _lockedTokens Locked tokens in specified period
+    * @param _periods Number of periods after _period that need to calculate
     * @return Calculated locked tokens in next period
     **/
     function calculateLockedTokens(
         address _owner,
         uint256 _period,
-        uint256 _currentLockedToken
+        uint256 _lockedTokens,
+        uint256 _periods
     )
         public constant returns (uint256)
     {
-        var nextPeriod = _period + 1;
+        var nextPeriod = _period + _periods;
         var info = tokenInfo[_owner];
         if (info.releasePeriod <= nextPeriod) {
             return 0;
         } else {
-            return _currentLockedToken;
+            return _lockedTokens;
         }
     }
 
@@ -254,7 +263,8 @@ contract Escrow is Miner, Ownable {
         public constant returns (uint256)
     {
         var period = block.number.div(blocksPerPeriod);
-        return calculateLockedTokens(_owner, period, getLockedTokens(_owner));
+        return calculateLockedTokens(
+            _owner, period, getLockedTokens(_owner), 1);
     }
 
     /**
@@ -350,46 +360,55 @@ contract Escrow is Miner, Ownable {
     }
 
     /**
-    * @notice Fixedstep in cumsum
+    * @notice Fixed-step in cumulative sum
     * @param _start Starting point
     * @param _delta How much to step
+    * @param _periods Amount of periods to get locked tokens
     * @dev
+             _start
+                v
       |-------->*--------------->*---->*------------->|
                 |                      ^
-                |                      o_stop
+                |                      stop
                 |
                 |       _delta
                 |---------------------------->|
                 |
-                |                       o_shift
+                |                       shift
                 |                      |----->|
     **/
-      // _blockNumber?
-    function findCumSum(address _start, uint256 _delta)
-        public constant returns (address o_stop, uint256 o_shift)
+    function findCumSum(address _start, uint256 _delta, uint256 _periods)
+        public constant returns (address stop, uint256 shift)
     {
-        var currentPeriod = block.number / blocksPerPeriod;
+        require(_periods > 0);
+        var currentPeriod = block.number.div(blocksPerPeriod);
         uint256 distance = 0;
-        uint256 lockedTokens = 0;
         var current = _start;
 
-        if (current == 0x0)
+        if (current == 0x0) {
             current = tokenOwners.step(current, true);
+        }
 
         while (current != 0x0) {
             var info = tokenInfo[current];
             var numberConfirmedPeriods = info.numberConfirmedPeriods;
-            if (numberConfirmedPeriods == 0 ||
-                info.confirmedPeriods[numberConfirmedPeriods - 1].period != currentPeriod &&
-                (numberConfirmedPeriods == 1 ||
-                info.confirmedPeriods[numberConfirmedPeriods - 2].period != currentPeriod)) {
+            uint256 lockedTokens = 0;
+            if (numberConfirmedPeriods > 0 &&
+                info.confirmedPeriods[numberConfirmedPeriods - 1].period == currentPeriod) {
+                lockedTokens = info.confirmedPeriods[numberConfirmedPeriods - 1].lockedValue;
+            } else if (numberConfirmedPeriods > 1 &&
+                info.confirmedPeriods[numberConfirmedPeriods - 2].period == currentPeriod) {
+                lockedTokens = info.confirmedPeriods[numberConfirmedPeriods - 2].lockedValue;
+            }
+            if (lockedTokens == 0) {
                 current = tokenOwners.step(current, true);
                 continue;
             }
-            lockedTokens = info.lockedValue;
+
+            lockedTokens = calculateLockedTokens(current, currentPeriod, lockedTokens, _periods);
             if (_delta < distance + lockedTokens) {
-                o_stop = current;
-                o_shift = _delta - distance;
+                stop = current;
+                shift = _delta - distance;
                 break;
             } else {
                 distance += lockedTokens;

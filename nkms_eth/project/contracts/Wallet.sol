@@ -50,20 +50,22 @@ contract Wallet is Ownable {
     /**
     * @notice Calculate locked tokens value in next period
     * @param _period Current or future period
-    * @param _currentLockedToken Current locked tokens
+    * @param _lockedTokens Locked tokens in specified period
+    * @param _periods Number of periods after _period that need to calculate
     * @return Calculated locked tokens in next period
     **/
     function calculateLockedTokens(
         uint256 _period,
-        uint256 _currentLockedToken
+        uint256 _lockedTokens,
+        uint256 _periods
     )
         public constant returns (uint256)
     {
-        var nextPeriod = _period + 1;
+        var nextPeriod = _period + _periods;
         if (releasePeriod <= nextPeriod) {
             return 0;
         } else {
-            return _currentLockedToken;
+            return _lockedTokens;
         }
     }
 
@@ -72,7 +74,7 @@ contract Wallet is Ownable {
     **/
     function calculateLockedTokens() public constant returns (uint256) {
         var period = block.number.div(blocksPerPeriod);
-        return calculateLockedTokens(period, getLockedTokens());
+        return calculateLockedTokens(period, getLockedTokens(), 1);
     }
 
     /**
@@ -127,7 +129,7 @@ contract Wallet is Ownable {
             }
         }
         // checks if owner can mine more tokens (before or after release period)
-        if (calculateLockedTokens(period, lockedValueToCheck) == 0) {
+        if (calculateLockedTokens(period, lockedValueToCheck, 1) == 0) {
             return 0;
         } else {
             return lockedValueToCheck;

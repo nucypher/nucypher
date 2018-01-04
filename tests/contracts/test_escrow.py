@@ -17,7 +17,7 @@ def escrow(web3, chain, token):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
     escrow, _ = chain.provider.get_or_deploy_contract(
-        'Escrow', deploy_args=[token.address, 10 ** 9, 50],
+        'Escrow', deploy_args=[token.address, 10 ** 9, 50, 2],
         deploy_transaction={'from': creator})
     return escrow
 
@@ -175,40 +175,55 @@ def test_escrow(web3, chain, token, escrow):
 def test_locked_distribution(web3, chain, token, escrow):
     NULL_ADDR = '0x' + '0' * 40
     creator = web3.eth.accounts[0]
+    miners = web3.eth.accounts[1:]
     amount = token.call().balanceOf(creator) // 2
     largest_locked = amount
 
     # Airdrop
-    for miner in web3.eth.accounts[1:]:
+    for miner in miners:
         tx = token.transact({'from': creator}).transfer(miner, amount)
         chain.wait.for_receipt(tx)
         amount = amount // 2
 
     # Lock
-    for addr in web3.eth.accounts[1:][::-1]:
-        balance = token.call().balanceOf(addr)
-        tx = token.transact({'from': addr}).approve(escrow.address, balance)
+    for index, miner in enumerate(miners[::-1]):
+        balance = token.call().balanceOf(miner)
+        tx = token.transact({'from': miner}).approve(escrow.address, balance)
         chain.wait.for_receipt(tx)
-        tx = escrow.transact({'from': addr}).deposit(balance, 100)
+        tx = escrow.transact({'from': miner}).deposit(balance, len(miners) - index + 1)
         chain.wait.for_receipt(tx)
+
+    # Check current period
+    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, 1, 1)
+    assert NULL_ADDR == address_stop.lower()
+    assert 0 == shift
 
     # Wait next period
     chain.wait.for_block(web3.eth.blockNumber + 50)
     n_locked = escrow.call().getAllLockedTokens()
     assert n_locked > 0
 
-    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, n_locked // 3)
-    assert address_stop.lower() == web3.eth.accounts[1].lower()
-    assert shift == n_locked // 3
+    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, n_locked // 3, 1)
+    assert miners[0].lower() == address_stop.lower()
+    assert n_locked // 3 == shift
 
-    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, largest_locked)
-    assert address_stop.lower() == web3.eth.accounts[2].lower()
-    assert shift == 0
+    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, largest_locked, 1)
+    assert miners[1].lower() == address_stop.lower()
+    assert 0 == shift
 
     address_stop, shift = escrow.call().findCumSum(
-            web3.eth.accounts[2], largest_locked // 2 + 1)
-    assert address_stop.lower() == web3.eth.accounts[3].lower()
-    assert shift == 1
+        miners[1], largest_locked // 2 + 1, 1)
+    assert miners[2].lower() == address_stop.lower()
+    assert 1 == shift
+
+    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, 1, 10)
+    assert NULL_ADDR == address_stop.lower()
+    assert 0 == shift
+
+    for index, _ in enumerate(miners[:-1]):
+        address_stop, shift = escrow.call().findCumSum(NULL_ADDR, 1, index + 2)
+        assert miners[index + 1].lower() == address_stop.lower()
+        assert 1 == shift
 
 
 def test_mining(web3, chain, token, escrow):

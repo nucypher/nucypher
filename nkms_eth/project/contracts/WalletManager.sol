@@ -13,6 +13,7 @@ import "./Wallet.sol";
 /**
 * @notice Contract creates wallets and manage mining for that wallets
 **/
+// FIXME bug with big file size. Can't deploy contract even with maximum gas if uncomment
 contract WalletManager is Miner, Ownable {
     using LinkedList for LinkedList.Data;
     using SafeERC20 for NuCypherKMSToken;
@@ -82,7 +83,6 @@ contract WalletManager is Miner, Ownable {
         confirmActivity(wallet.lockedValue());
     }
 
-    // FIXME bug with big file size. Can't deploy contract even with maximum gas if uncomment
     /**
     * @notice Terminate contract and refund to owners
     * @dev The called token contracts could try to re-enter this contract.
@@ -227,28 +227,29 @@ contract WalletManager is Miner, Ownable {
     }
 
     /**
-    * @notice Fixedstep in cumsum
+    * @notice Fixed-step in cumulative sum
     * @param _start Starting point
     * @param _delta How much to step
+    * @param _periods Amount of periods to get locked tokens
     * @dev
+             _start
+                v
       |-------->*--------------->*---->*------------->|
                 |                      ^
-                |                      o_stop
+                |                      stop
                 |
                 |       _delta
                 |---------------------------->|
                 |
-                |                       o_shift
+                |                       shift
                 |                      |----->|
     **/
-      // _blockNumber?
-    function findCumSum(address _start, uint256 _delta)
-        public constant returns (address o_stop, uint256 o_shift)
+    function findCumSum(address _start, uint256 _delta, uint256 _periods)
+        public constant returns (address stop, uint256 shift)
     {
-        require(walletOwners.valueExists(_start));
-        var currentPeriod = block.number / blocksPerPeriod;
+        require(walletOwners.valueExists(_start) && _periods > 0);
+        var currentPeriod = block.number.div(blocksPerPeriod);
         uint256 distance = 0;
-        uint256 lockedTokens = 0;
         var current = _start;
 
         if (current == 0x0) {
@@ -258,17 +259,23 @@ contract WalletManager is Miner, Ownable {
         while (current != 0x0) {
             var wallet = wallets[current];
             var numberConfirmedPeriods = wallet.numberConfirmedPeriods();
-            if (numberConfirmedPeriods == 0 ||
-                wallet.getConfirmedPeriod(numberConfirmedPeriods - 1) != currentPeriod &&
-                (numberConfirmedPeriods == 1 ||
-                wallet.getConfirmedPeriod(numberConfirmedPeriods - 2) != currentPeriod)) {
+            uint256 lockedTokens = 0;
+            if (numberConfirmedPeriods > 0 &&
+                wallet.getConfirmedPeriod(numberConfirmedPeriods - 1) == currentPeriod) {
+                lockedTokens = wallet.getConfirmedPeriodValue(numberConfirmedPeriods - 1);
+            } else if (numberConfirmedPeriods > 1 &&
+                wallet.getConfirmedPeriod(numberConfirmedPeriods - 2) == currentPeriod) {
+                lockedTokens = wallet.getConfirmedPeriodValue(numberConfirmedPeriods - 2);
+            }
+            if (lockedTokens == 0) {
                 current = walletOwners.step(current, true);
                 continue;
             }
-            lockedTokens = wallet.lockedValue();
+
+            lockedTokens = wallet.calculateLockedTokens(currentPeriod, lockedTokens, _periods);
             if (_delta < distance + lockedTokens) {
-                o_stop = current;
-                o_shift = _delta - distance;
+                stop = current;
+                shift = _delta - distance;
                 break;
             } else {
                 distance += lockedTokens;
