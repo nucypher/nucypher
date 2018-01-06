@@ -123,7 +123,7 @@ def test_escrow(web3, chain, token, wallet_manager):
     chain.wait.for_block(web3.eth.blockNumber + 50)
     assert 1500 == wallet_manager.call().getLockedTokens(ursula)
 
-    # Wait 100 blocks
+    # Wait 50 blocks
     chain.wait.for_block(web3.eth.blockNumber + 50)
     assert 0 == wallet_manager.call().getLockedTokens(ursula)
 

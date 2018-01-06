@@ -4,7 +4,7 @@ from nkms_eth import blockchain
 from nkms_eth import token
 
 ESCROW_NAME = 'Escrow'
-MINING_COEFF = [10 ** 9, 50, 30]
+MINING_COEFF = [10 ** 9, 50, 1]
 NULL_ADDR = '0x' + '0' * 40
 
 
