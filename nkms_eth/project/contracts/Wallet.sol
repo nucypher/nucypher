@@ -4,6 +4,7 @@ pragma solidity ^0.4.8;
 import "./NuCypherKMSToken.sol";
 import "./zeppelin/token/SafeERC20.sol";
 import "./zeppelin/math/SafeMath.sol";
+import "./zeppelin/math/Math.sol";
 import "./zeppelin/ownership/Ownable.sol";
 
 
@@ -22,9 +23,13 @@ contract Wallet is Ownable {
     address public manager;
     NuCypherKMSToken public token;
     uint256 public blocksPerPeriod;
+    uint256 public minReleasePeriods;
+
     uint256 public lockedValue;
     uint256 public decimals;
-    uint256 public releasePeriod;
+    // last period before the tokens begin to unlock
+    uint256 releasePeriod;
+    uint256 releaseRate;
     PeriodInfo[] public confirmedPeriods;
     uint256 public numberConfirmedPeriods;
 
@@ -40,73 +45,25 @@ contract Wallet is Ownable {
     * @notice Wallet constructor set token contract
     * @param _token Token contract
     * @param _blocksPerPeriod Size of one period in blocks
+    * @param _minReleasePeriods Min amount of periods during which tokens will be released
     **/
-    function Wallet(NuCypherKMSToken _token, uint256 _blocksPerPeriod) {
+    function Wallet(NuCypherKMSToken _token,
+        uint256 _blocksPerPeriod,
+        uint256 _minReleasePeriods
+    ) {
         token = _token;
         manager = msg.sender;
         blocksPerPeriod = _blocksPerPeriod;
+        minReleasePeriods = _minReleasePeriods;
     }
 
     /**
-    * @notice Calculate locked tokens value in next period
-    * @param _period Current or future period
-    * @param _lockedTokens Locked tokens in specified period
-    * @param _periods Number of periods after _period that need to calculate
-    * @return Calculated locked tokens in next period
+    * @notice Get locked tokens value in current period
     **/
-    function calculateLockedTokens(
-        uint256 _period,
-        uint256 _lockedTokens,
-        uint256 _periods
-    )
+    function getLockedTokens()
         public constant returns (uint256)
     {
-        var nextPeriod = _period + _periods;
-        if (releasePeriod <= nextPeriod) {
-            return 0;
-        } else {
-            return _lockedTokens;
-        }
-    }
-
-    /**
-    * @notice Calculate locked tokens value in next period
-    **/
-    function calculateLockedTokens() public constant returns (uint256) {
         var period = block.number.div(blocksPerPeriod);
-        return calculateLockedTokens(period, getLockedTokens(), 1);
-    }
-
-    /**
-    * @notice Lock some tokens
-    * @param _value Amount of tokens which should lock
-    * @param _periods Amount of periods during which tokens will be locked
-    **/
-    function lock(uint256 _value, uint256 _periods) onlyManager {
-        require(_value != 0 || _periods != 0);
-
-        var lockedTokens = getLockedTokens();
-        require(_value <= token.balanceOf(address(this)).sub(lockedTokens));
-
-        if (lockedTokens == 0) {
-            lockedValue = _value;
-            releasePeriod = block.number.div(blocksPerPeriod).add(_periods).add(1);
-        } else {
-            lockedValue = lockedValue.add(_value);
-            releasePeriod = releasePeriod.add(_periods);
-        }
-    }
-
-    /**
-    * @notice Get locked tokens value in current or future period
-    * @param _block Current or future block number
-    **/
-    function getLockedTokens(uint256 _block)
-        public constant returns (uint256)
-    {
-        require(_block >= block.number);
-
-        var period = _block.div(blocksPerPeriod);
 
         // no confirmed periods, so current period may be release period
         if (numberConfirmedPeriods == 0) {
@@ -137,17 +94,82 @@ contract Wallet is Ownable {
     }
 
     /**
-    * @notice Get locked tokens value
+    * @notice Calculate locked tokens value in next period
+    * @param _period Current or future period number
+    * @param _lockedTokens Locked tokens in specified period
+    * @param _periods Number of periods after _period that need to calculate
+    * @return Calculated locked tokens in next period
     **/
-    function getLockedTokens() public constant returns (uint256) {
-        return getLockedTokens(block.number);
+    function calculateLockedTokens(
+        uint256 _period,
+        uint256 _lockedTokens,
+        uint256 _periods
+    )
+        public constant returns (uint256)
+    {
+        var nextPeriod = _period.add(_periods);
+        if (releasePeriod != 0 && releasePeriod < nextPeriod) {
+            var period = Math.max256(_period, releasePeriod);
+            var unlockedTokens = nextPeriod.sub(period).mul(releaseRate);
+            return unlockedTokens <= _lockedTokens ? _lockedTokens.sub(unlockedTokens) : 0;
+        } else {
+            return _lockedTokens;
+        }
+    }
+
+    /**
+    * @notice Calculate locked tokens value in next period
+    * @param _periods Number of periods after current that need to calculate
+    * @return Calculated locked tokens in next period
+    **/
+    function calculateLockedTokens(uint256 _periods)
+        public constant returns (uint256)
+    {
+        require(_periods > 0);
+        var currentPeriod = block.number.div(blocksPerPeriod);
+        var nextPeriod = currentPeriod.add(_periods);
+
+        if (numberConfirmedPeriods > 0 &&
+            confirmedPeriods[numberConfirmedPeriods - 1].period >= currentPeriod) {
+            var lockedTokens = confirmedPeriods[numberConfirmedPeriods - 1].lockedValue;
+            var period = confirmedPeriods[numberConfirmedPeriods - 1].period;
+        } else {
+            lockedTokens = getLockedTokens();
+            period = currentPeriod;
+        }
+        var periods = nextPeriod.sub(period);
+
+        return calculateLockedTokens(period, lockedTokens, periods);
+    }
+
+    /**
+    * @notice Lock some tokens
+    * @param _value Amount of tokens which should lock
+    * @param _periods Amount of periods during which tokens will be locked
+    **/
+    function lock(uint256 _value, uint256 _periods) onlyManager public {
+        require(_value != 0 || _periods != 0);
+
+        var lockedTokens = calculateLockedTokens(1);
+        require(_value <= token.balanceOf(address(this)).sub(lockedTokens));
+
+        var currentPeriod = block.number.div(blocksPerPeriod);
+        if (lockedTokens == 0) {
+            lockedValue = _value;
+            releasePeriod = currentPeriod.add(_periods);
+            releaseRate = _value.div(minReleasePeriods);
+        } else {
+            lockedValue = lockedTokens.add(_value);
+            var period = Math.max256(releasePeriod, currentPeriod);
+            releasePeriod = period.add(_periods);
+        }
     }
 
     /**
     * @notice Sets locked tokens
     * @param _value Amount of tokens which should lock
     **/
-    function setLock(uint256 _value) onlyManager {
+    function updateLock(uint256 _value) onlyManager public {
         lockedValue = _value;
     }
 
@@ -155,8 +177,8 @@ contract Wallet is Ownable {
     * @notice Withdraw available amount of tokens back to owner
     * @param _value Amount of token to withdraw
     **/
-    function withdraw(uint256 _value) onlyOwner {
-        require(_value <= token.balanceOf(address(this)) - getLockedTokens());
+    function withdraw(uint256 _value) onlyOwner public {
+        require(_value <= token.balanceOf(address(this)).sub(getLockedTokens()));
         token.safeTransfer(msg.sender, _value);
     }
 
@@ -205,13 +227,14 @@ contract Wallet is Ownable {
     /**
     * @notice Add period as confirmed
     * @param _period Period to add
+    * @param _lockedValue Locked tokens for period
     **/
-    function addConfirmedPeriod(uint256 _period) onlyManager {
+    function addConfirmedPeriod(uint256 _period, uint256 _lockedValue) onlyManager {
         if (numberConfirmedPeriods < confirmedPeriods.length) {
             confirmedPeriods[numberConfirmedPeriods].period = _period;
-            confirmedPeriods[numberConfirmedPeriods].lockedValue = lockedValue;
+            confirmedPeriods[numberConfirmedPeriods].lockedValue = _lockedValue;
         } else {
-            confirmedPeriods.push(PeriodInfo(_period, lockedValue));
+            confirmedPeriods.push(PeriodInfo(_period, _lockedValue));
         }
         numberConfirmedPeriods++;
     }

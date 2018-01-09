@@ -127,7 +127,16 @@
     ],
     "import_remappings": [
       "contracts=nkms_eth/project/contracts"
-    ]
+    ],
+    "backend": {
+      "settings": {
+        "stdin": {
+          "optimizer": {
+            "enabled": true
+          }
+        }
+      }
+    }
   },
   "version": "7"
 }

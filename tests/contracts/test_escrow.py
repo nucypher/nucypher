@@ -79,7 +79,7 @@ def test_escrow(web3, chain, token, escrow):
     chain.wait.for_block(web3.eth.blockNumber + 50)
     assert 1000 == escrow.call().getLockedTokens(ursula)
     assert 500 == escrow.call().getLockedTokens(alice)
-    # assert 1500 == escrow.call().getAllLockedTokens()
+    assert 1500 == escrow.call().getAllLockedTokens()
 
     # Ursula's withdrawal attempt won't succeed
     with pytest.raises(TransactionFailed):

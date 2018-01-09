@@ -64,7 +64,7 @@ contract Escrow is Miner, Ownable {
     )
         Miner(_token, _miningCoefficient)
     {
-        require(_blocksPerPeriod != 0);
+        require(_blocksPerPeriod != 0 && _minReleasePeriods != 0);
         token = _token;
         blocksPerPeriod = _blocksPerPeriod;
         minReleasePeriods = _minReleasePeriods;
@@ -124,7 +124,7 @@ contract Escrow is Miner, Ownable {
     * @param _owner Tokens owner
     * @param _period Current or future period number
     * @param _lockedTokens Locked tokens in specified period
-    * @param _periods Number of periods after current that need to calculate
+    * @param _periods Number of periods after _period that need to calculate
     * @return Calculated locked tokens in next period
     **/
     function calculateLockedTokens(
@@ -137,8 +137,9 @@ contract Escrow is Miner, Ownable {
     {
         var nextPeriod = _period.add(_periods);
         var info = tokenInfo[_owner];
-        if (info.releasePeriod < nextPeriod) {
-            var period = Math.max256(_period, info.releasePeriod);
+        var releasePeriod = info.releasePeriod;
+        if (releasePeriod != 0 && releasePeriod < nextPeriod) {
+            var period = Math.max256(_period, releasePeriod);
             var unlockedTokens = nextPeriod.sub(period).mul(info.releaseRate);
             return unlockedTokens <= _lockedTokens ? _lockedTokens.sub(unlockedTokens) : 0;
         } else {
@@ -302,6 +303,7 @@ contract Escrow is Miner, Ownable {
     function confirmActivity() external {
         var info = tokenInfo[msg.sender];
         var nextPeriod = block.number.div(blocksPerPeriod) + 1;
+
         if (info.numberConfirmedPeriods > 0 &&
             info.confirmedPeriods[info.numberConfirmedPeriods - 1].period >= nextPeriod) {
            return;
