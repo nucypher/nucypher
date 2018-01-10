@@ -162,6 +162,8 @@ contract Wallet is Ownable {
             lockedValue = lockedTokens.add(_value);
             var period = Math.max256(releasePeriod, currentPeriod);
             releasePeriod = period.add(_periods);
+            releaseRate = Math.max256(
+                releaseRate, lockedValue.div(minReleasePeriods));
         }
     }
 

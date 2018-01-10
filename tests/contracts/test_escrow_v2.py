@@ -121,19 +121,19 @@ def test_escrow(web3, chain, token, wallet_manager):
     # Wait 50 blocks and checks locking
     chain.wait.for_block(web3.eth.blockNumber + 50)
     assert 1500 == ursula_wallet.call().getLockedTokens()
-    assert 1000 == ursula_wallet.call().calculateLockedTokens(web3.eth.blockNumber // 50, 1500, 1)
-    assert 1000 == ursula_wallet.call().calculateLockedTokens(1)
-    assert 500 == ursula_wallet.call().calculateLockedTokens(2)
+    assert 750 == ursula_wallet.call().calculateLockedTokens(web3.eth.blockNumber // 50, 1500, 1)
+    assert 750 == ursula_wallet.call().calculateLockedTokens(1)
+    assert 0 == ursula_wallet.call().calculateLockedTokens(2)
 
     # Confirm activity and wait 50 blocks
     tx = wallet_manager.transact({'from': ursula}).confirmActivity()
     chain.wait.for_receipt(tx)
     assert 1500 == ursula_wallet.call().getLockedTokens()
-    assert 1000 == ursula_wallet.call().calculateLockedTokens(1)
-    assert 500 == ursula_wallet.call().calculateLockedTokens(2)
+    assert 750 == ursula_wallet.call().calculateLockedTokens(1)
+    assert 0 == ursula_wallet.call().calculateLockedTokens(2)
     chain.wait.for_block(web3.eth.blockNumber + 50)
-    assert 1000 == ursula_wallet.call().getLockedTokens()
-    assert 500 == ursula_wallet.call().calculateLockedTokens(1)
+    assert 750 == ursula_wallet.call().getLockedTokens()
+    assert 0 == ursula_wallet.call().calculateLockedTokens(1)
 
     # And Ursula can withdraw some tokens
     tx = ursula_wallet.transact({'from': ursula}).withdraw(100)
@@ -157,24 +157,25 @@ def test_escrow(web3, chain, token, wallet_manager):
     chain.wait.for_receipt(tx)
 
     # Locked tokens will be updated in next period
-    assert 1000 == ursula_wallet.call().getLockedTokens()
-    assert 1100 == ursula_wallet.call().calculateLockedTokens(1)
-    assert 100 == ursula_wallet.call().calculateLockedTokens(3)
-    assert 0 == ursula_wallet.call().calculateLockedTokens(4)
-    chain.wait.for_block(web3.eth.blockNumber + 50)
-    assert 1100 == ursula_wallet.call().getLockedTokens()
+    assert 750 == ursula_wallet.call().getLockedTokens()
+    assert 600 == ursula_wallet.call().calculateLockedTokens(1)
+    assert 300 == ursula_wallet.call().calculateLockedTokens(2)
     assert 0 == ursula_wallet.call().calculateLockedTokens(3)
+    chain.wait.for_block(web3.eth.blockNumber + 50)
+    assert 600 == ursula_wallet.call().getLockedTokens()
+    assert 300 == ursula_wallet.call().calculateLockedTokens(1)
+    assert 0 == ursula_wallet.call().calculateLockedTokens(2)
 
     # Ursula can increase lock
     tx = wallet_manager.transact({'from': ursula}).lock(500, 2)
     chain.wait.for_receipt(tx)
-    assert 1100 == ursula_wallet.call().getLockedTokens()
-    assert 1100 == ursula_wallet.call().calculateLockedTokens(1)
-    assert 1100 == ursula_wallet.call().calculateLockedTokens(2)
-    assert 600 == ursula_wallet.call().calculateLockedTokens(3)
-    assert 0 == ursula_wallet.call().calculateLockedTokens(5)
+    assert 600 == ursula_wallet.call().getLockedTokens()
+    assert 800 == ursula_wallet.call().calculateLockedTokens(1)
+    assert 800 == ursula_wallet.call().calculateLockedTokens(2)
+    assert 400 == ursula_wallet.call().calculateLockedTokens(3)
+    assert 0 == ursula_wallet.call().calculateLockedTokens(4)
     chain.wait.for_block(web3.eth.blockNumber + 50)
-    assert 1100 == ursula_wallet.call().getLockedTokens()
+    assert 800 == ursula_wallet.call().getLockedTokens()
 
     # Alice can't deposit too low value (less then rate)
     # TODO uncomment after completing logic
@@ -189,8 +190,8 @@ def test_escrow(web3, chain, token, wallet_manager):
     chain.wait.for_receipt(tx)
     assert 500 == alice_wallet.call().getLockedTokens()
     assert 1000 == alice_wallet.call().calculateLockedTokens(1)
-    assert 750 == alice_wallet.call().calculateLockedTokens(2)
-    assert 0 == alice_wallet.call().calculateLockedTokens(5)
+    assert 500 == alice_wallet.call().calculateLockedTokens(2)
+    assert 0 == alice_wallet.call().calculateLockedTokens(3)
     chain.wait.for_block(web3.eth.blockNumber + 50)
     assert 1000 == alice_wallet.call().getLockedTokens()
 
@@ -198,10 +199,17 @@ def test_escrow(web3, chain, token, wallet_manager):
     tx = wallet_manager.transact({'from': alice}).lock(0, 2)
     chain.wait.for_receipt(tx)
     assert 1000 == alice_wallet.call().getLockedTokens()
-    assert 750 == alice_wallet.call().calculateLockedTokens(1)
-    assert 750 == alice_wallet.call().calculateLockedTokens(2)
-    assert 250 == alice_wallet.call().calculateLockedTokens(4)
-    assert 0 == alice_wallet.call().calculateLockedTokens(5)
+    assert 500 == alice_wallet.call().calculateLockedTokens(1)
+    assert 500 == alice_wallet.call().calculateLockedTokens(2)
+    assert 0 == alice_wallet.call().calculateLockedTokens(3)
+
+    # Alice increases lock by small amount of tokens
+    tx = wallet_manager.transact({'from': alice}).lock(100, 0)
+    chain.wait.for_receipt(tx)
+    assert 600 == alice_wallet.call().calculateLockedTokens(1)
+    assert 600 == alice_wallet.call().calculateLockedTokens(2)
+    assert 100 == alice_wallet.call().calculateLockedTokens(3)
+    assert 0 == alice_wallet.call().calculateLockedTokens(4)
 
     # Ursula can't destroy contract
     with pytest.raises(TransactionFailed):
@@ -409,23 +417,20 @@ def test_mining(web3, chain, token, wallet_manager):
     chain.wait.for_receipt(tx)
     assert 600 == ursula_wallet.call().getLockedTokens()
     assert 600 == ursula_wallet.call().calculateLockedTokens(2)
-    assert 350 == ursula_wallet.call().calculateLockedTokens(5)
-    assert 100 == ursula_wallet.call().calculateLockedTokens(6)
-    assert 0 == ursula_wallet.call().calculateLockedTokens(7)
+    assert 300 == ursula_wallet.call().calculateLockedTokens(5)
+    assert 0 == ursula_wallet.call().calculateLockedTokens(6)
     tx = wallet_manager.transact({'from': ursula}).lock(0, 2)
     chain.wait.for_receipt(tx)
     assert 600 == ursula_wallet.call().getLockedTokens()
     assert 600 == ursula_wallet.call().calculateLockedTokens(5)
-    assert 350 == ursula_wallet.call().calculateLockedTokens(7)
-    assert 100 == ursula_wallet.call().calculateLockedTokens(8)
-    assert 0 == ursula_wallet.call().calculateLockedTokens(9)
+    assert 300 == ursula_wallet.call().calculateLockedTokens(7)
+    assert 0 == ursula_wallet.call().calculateLockedTokens(8)
     tx = wallet_manager.transact({'from': ursula}).lock(100, 1)
     chain.wait.for_receipt(tx)
     assert 700 == ursula_wallet.call().getLockedTokens()
     assert 700 == ursula_wallet.call().calculateLockedTokens(6)
-    assert 450 == ursula_wallet.call().calculateLockedTokens(8)
-    assert 200 == ursula_wallet.call().calculateLockedTokens(9)
-    assert 0 == ursula_wallet.call().calculateLockedTokens(10)
+    assert 350 == ursula_wallet.call().calculateLockedTokens(8)
+    assert 0 == ursula_wallet.call().calculateLockedTokens(9)
 
     # Alice can withdraw all
     # TODO complete method

@@ -186,7 +186,8 @@ contract Escrow is Miner, Ownable {
             require(tokenOwners.sizeOf() < MAX_OWNERS);
             tokenOwners.push(msg.sender, true);
         }
-        tokenInfo[msg.sender].value = tokenInfo[msg.sender].value.add(_value);
+        var info = tokenInfo[msg.sender];
+        info.value = info.value.add(_value);
         token.safeTransferFrom(msg.sender, address(this), _value);
         lock(_value, _periods);
     }
@@ -214,6 +215,8 @@ contract Escrow is Miner, Ownable {
             info.lockedValue = lockedTokens.add(_value);
             var period = Math.max256(info.releasePeriod, currentPeriod);
             info.releasePeriod = period.add(_periods);
+            info.releaseRate = Math.max256(
+                info.releaseRate, info.lockedValue.div(minReleasePeriods));
         }
 
         confirmActivity(info.lockedValue);
