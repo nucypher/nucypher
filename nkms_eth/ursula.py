@@ -21,6 +21,8 @@ def lock(amount: int, locktime: int, address: str = None):
     chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
     tx = escrow.transact({'from': address}).deposit(amount, locktime)
     chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
+    tx = escrow.transact({'from': address}).switchLock()
+    chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
 
 
 def mine(address: str = None):

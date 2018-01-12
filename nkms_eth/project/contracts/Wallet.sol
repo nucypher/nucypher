@@ -6,6 +6,7 @@ import "./zeppelin/token/SafeERC20.sol";
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
 import "./zeppelin/ownership/Ownable.sol";
+import "./lib/AdditionalMath.sol";
 
 
 /**
@@ -14,6 +15,7 @@ import "./zeppelin/ownership/Ownable.sol";
 contract Wallet is Ownable {
     using SafeERC20 for NuCypherKMSToken;
     using SafeMath for uint256;
+    using AdditionalMath for uint256;
 
     struct PeriodInfo {
         uint256 period;
@@ -21,15 +23,16 @@ contract Wallet is Ownable {
     }
 
     address public manager;
+    // TODO maybe get from manager
     NuCypherKMSToken public token;
     uint256 public blocksPerPeriod;
     uint256 public minReleasePeriods;
 
     uint256 public lockedValue;
     uint256 public decimals;
-    // last period before the tokens begin to unlock
-    uint256 releasePeriod;
-    uint256 releaseRate;
+    bool public release;
+    uint256 public maxReleasePeriods;
+    uint256 public releaseRate;
     PeriodInfo[] public confirmedPeriods;
     uint256 public numberConfirmedPeriods;
 
@@ -86,7 +89,7 @@ contract Wallet is Ownable {
             }
         }
         // checks if owner can mine more tokens (before or after release period)
-        if (calculateLockedTokens(period, lockedValueToCheck, 1) == 0) {
+        if (calculateLockedTokens(false, lockedValueToCheck, 1) == 0) {
             return 0;
         } else {
             return lockedValueToCheck;
@@ -94,23 +97,21 @@ contract Wallet is Ownable {
     }
 
     /**
-    * @notice Calculate locked tokens value in next period
-    * @param _period Current or future period number
+    * @notice Calculate locked tokens value for owner in next period
+    * @param _forceRelease Force unlocking period calculation
     * @param _lockedTokens Locked tokens in specified period
-    * @param _periods Number of periods after _period that need to calculate
+    * @param _periods Number of periods that need to calculate
     * @return Calculated locked tokens in next period
     **/
     function calculateLockedTokens(
-        uint256 _period,
+        bool _forceRelease,
         uint256 _lockedTokens,
         uint256 _periods
     )
         public constant returns (uint256)
     {
-        var nextPeriod = _period.add(_periods);
-        if (releasePeriod != 0 && releasePeriod < nextPeriod) {
-            var period = Math.max256(_period, releasePeriod);
-            var unlockedTokens = nextPeriod.sub(period).mul(releaseRate);
+        if ((_forceRelease || release) && _periods != 0) {
+            var unlockedTokens = _periods.mul(releaseRate);
             return unlockedTokens <= _lockedTokens ? _lockedTokens.sub(unlockedTokens) : 0;
         } else {
             return _lockedTokens;
@@ -139,7 +140,18 @@ contract Wallet is Ownable {
         }
         var periods = nextPeriod.sub(period);
 
-        return calculateLockedTokens(period, lockedTokens, periods);
+        return calculateLockedTokens(false, lockedTokens, periods);
+    }
+
+    /**
+    * @notice Calculate locked periods from start period
+    * @param _lockedTokens Locked tokens in start period
+    * @return Calculated locked periods
+    **/
+    function calculateLockedPeriods(uint256 _lockedTokens)
+        public constant returns (uint256)
+    {
+        return _lockedTokens.div(releaseRate);
     }
 
     /**
@@ -156,14 +168,14 @@ contract Wallet is Ownable {
         var currentPeriod = block.number.div(blocksPerPeriod);
         if (lockedTokens == 0) {
             lockedValue = _value;
-            releasePeriod = currentPeriod.add(_periods);
-            releaseRate = _value.div(minReleasePeriods);
+            maxReleasePeriods = Math.max256(_periods, minReleasePeriods);
+            releaseRate = Math.max256(_value.divCeil(maxReleasePeriods), 1);
+            release = false;
         } else {
             lockedValue = lockedTokens.add(_value);
-            var period = Math.max256(releasePeriod, currentPeriod);
-            releasePeriod = period.add(_periods);
+            maxReleasePeriods = maxReleasePeriods.add(_periods);
             releaseRate = Math.max256(
-                releaseRate, lockedValue.div(minReleasePeriods));
+                lockedValue.divCeil(maxReleasePeriods), releaseRate);
         }
     }
 
@@ -171,8 +183,15 @@ contract Wallet is Ownable {
     * @notice Sets locked tokens
     * @param _value Amount of tokens which should lock
     **/
-    function updateLock(uint256 _value) onlyManager public {
+    function updateLockedTokens(uint256 _value) onlyManager public {
         lockedValue = _value;
+    }
+
+    /**
+    * @notice Switch lock
+    **/
+    function switchLock() onlyOwner public {
+        release = !release;
     }
 
     /**
@@ -180,7 +199,10 @@ contract Wallet is Ownable {
     * @param _value Amount of token to withdraw
     **/
     function withdraw(uint256 _value) onlyOwner public {
-        require(_value <= token.balanceOf(address(this)).sub(getLockedTokens()));
+        // TODO optimize
+        var lockedTokens = Math.max256(calculateLockedTokens(1),
+            getLockedTokens());
+        require(_value <= token.balanceOf(address(this)).sub(lockedTokens));
         token.safeTransfer(msg.sender, _value);
     }
 

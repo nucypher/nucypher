@@ -39,14 +39,18 @@ contract WalletManager is Miner, Ownable {
     * @param _miningCoefficient Mining coefficient
     * @param _blocksPerPeriod Size of one period in blocks
     * @param _minReleasePeriods Min amount of periods during which tokens will be released
+    * @param _lockedBlocksCoefficient Locked blocks coefficient
+    * @param _awardedPeriods Max periods that will be additionally awarded
     **/
     function WalletManager(
         NuCypherKMSToken _token,
         uint256 _miningCoefficient,
         uint256 _blocksPerPeriod,
-        uint256 _minReleasePeriods
+        uint256 _minReleasePeriods,
+        uint256 _lockedBlocksCoefficient,
+        uint256 _awardedPeriods
     )
-        Miner(_token, _miningCoefficient)
+        Miner(_token, _miningCoefficient, _lockedBlocksCoefficient, _awardedPeriods * _blocksPerPeriod)
     {
         require(_blocksPerPeriod != 0 && _minReleasePeriods != 0);
         token = _token;
@@ -66,7 +70,7 @@ contract WalletManager is Miner, Ownable {
     * @notice Create wallet for user
     * @return Address of created wallet
     **/
-    function createWallet() returns (address) {
+    function createWallet() public returns (address) {
         require(!walletOwners.valueExists(msg.sender) &&
             walletOwners.sizeOf() < MAX_OWNERS);
         Wallet wallet = new Wallet(token, blocksPerPeriod, minReleasePeriods);
@@ -156,7 +160,7 @@ contract WalletManager is Miner, Ownable {
 
         var currentPeriod = nextPeriod - 1;
         var lockedTokens = wallet.calculateLockedTokens(
-            currentPeriod, wallet.getLockedTokens(), 1);
+            false, wallet.getLockedTokens(), 1);
         confirmActivity(lockedTokens);
     }
 
@@ -164,14 +168,18 @@ contract WalletManager is Miner, Ownable {
     * @notice Mint tokens for sender for previous periods if he locked his tokens and confirmed activity
     **/
     function mint() walletExists external {
-        var previousPeriod = block.number / blocksPerPeriod - 1;
+        var previousPeriod = block.number.div(blocksPerPeriod).sub(1);
         var wallet = wallets[msg.sender];
         var numberPeriodsForMinting = wallet.numberConfirmedPeriods();
         require(numberPeriodsForMinting > 0 &&
             wallet.getConfirmedPeriod(0) <= previousPeriod);
         var currentLockedValue = wallet.getLockedTokens();
-
+        var allLockedBlocks = wallet.calculateLockedPeriods(
+            wallet.getConfirmedPeriodValue(numberPeriodsForMinting - 1))
+            .add(numberPeriodsForMinting)
+            .mul(blocksPerPeriod);
         var decimals = wallet.decimals();
+
         if (wallet.getConfirmedPeriod(numberPeriodsForMinting - 1) > previousPeriod) {
             numberPeriodsForMinting--;
         }
@@ -186,7 +194,9 @@ contract WalletManager is Miner, Ownable {
                 lockedValue,
                 lockedPerPeriod[period].totalLockedValue,
                 blocksPerPeriod,
+                allLockedBlocks,
                 decimals);
+            allLockedBlocks = allLockedBlocks.sub(blocksPerPeriod);
             if (lockedPerPeriod[period].numberOwnersToBeRewarded > 1) {
                 lockedPerPeriod[period].numberOwnersToBeRewarded--;
             } else {
@@ -197,7 +207,7 @@ contract WalletManager is Miner, Ownable {
         wallet.deleteConfirmedPeriods(numberPeriodsForMinting);
 
         // Update lockedValue for current period
-        wallet.updateLock(currentLockedValue);
+        wallet.updateLockedTokens(currentLockedValue);
     }
 
     /**
@@ -237,13 +247,13 @@ contract WalletManager is Miner, Ownable {
             if (numberConfirmedPeriods > 0 &&
                 wallet.getConfirmedPeriod(numberConfirmedPeriods - 1) == currentPeriod) {
                 var lockedTokens = wallet.calculateLockedTokens(
-                    currentPeriod,
+                    true,
                     wallet.getConfirmedPeriodValue(numberConfirmedPeriods - 1),
                     _periods);
             } else if (numberConfirmedPeriods > 1 &&
                 wallet.getConfirmedPeriod(numberConfirmedPeriods - 2) == currentPeriod) {
                 lockedTokens = wallet.calculateLockedTokens(
-                    currentPeriod + 1,
+                    true,
                     wallet.getConfirmedPeriodValue(numberConfirmedPeriods - 1),
                     _periods - 1);
             } else {

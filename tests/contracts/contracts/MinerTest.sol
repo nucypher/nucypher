@@ -12,9 +12,11 @@ contract MinerTest is Miner {
 
     function MinerTest(
         MineableToken _token,
-        uint256 _miningCoefficient
+        uint256 _miningCoefficient,
+        uint256 _lockedBlocksCoefficient,
+        uint256 _awardedLockedBlocks
     )
-        Miner(_token, _miningCoefficient)
+        Miner(_token, _miningCoefficient, _lockedBlocksCoefficient, _awardedLockedBlocks)
     {
     }
 
@@ -23,11 +25,18 @@ contract MinerTest is Miner {
         uint256 _lockedValue,
         uint256 _totalLockedValue,
         uint256 _lockedBlocks,
+        uint256 _allLockedBlocks,
         uint256 _decimals
     )
         public returns (uint256 amount, uint256 decimals)
     {
-        return mint(_to, _lockedValue, _totalLockedValue, _lockedBlocks, _decimals);
+        return mint(
+            _to,
+            _lockedValue,
+            _totalLockedValue,
+            _lockedBlocks,
+            _allLockedBlocks,
+            _decimals);
     }
 
 }

@@ -55,7 +55,7 @@ def test_mine_withdraw(chain):
 
     # Create a random set of miners (we have 9 in total)
     for u in chain.web3.eth.accounts[1:]:
-        ursula.lock((10 + random.randrange(9000)) * M, 2, u)
+        ursula.lock((10 + random.randrange(9000)) * M, 1, u)
 
     chain.wait.for_block(chain.web3.eth.blockNumber + 100)
 
