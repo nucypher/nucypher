@@ -17,7 +17,7 @@ def wallet_manager(web3, chain, token):
     creator = web3.eth.accounts[0]
     # Creator deploys the wallet manager
     wallet_manager_contract, _ = chain.provider.get_or_deploy_contract(
-            'WalletManager', deploy_args=[token.address, 10 ** 9, 50, 2, 1, 1],
+            'WalletManager', deploy_args=[token.address, 4 * 50 * 10 ** 9, 50, 2, 4 * 50, 4],
             deploy_transaction={'from': creator, 'gas': 4000000})
     return wallet_manager_contract
 
@@ -374,8 +374,8 @@ def test_mining(web3, chain, token, wallet_manager):
     chain.wait.for_receipt(tx)
     tx = wallet_manager.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
-    assert 1033 == token.call().balanceOf(ursula_wallet.address)
-    assert 517 == token.call().balanceOf(alice_wallet.address)
+    assert 1050 == token.call().balanceOf(ursula_wallet.address)
+    assert 521 == token.call().balanceOf(alice_wallet.address)
 
     # Only Ursula confirm activity for next period
     tx = ursula_wallet.transact({'from': ursula}).switchLock()
@@ -403,8 +403,8 @@ def test_mining(web3, chain, token, wallet_manager):
     with pytest.raises(TransactionFailed):
         tx = wallet_manager.transact({'from': alice}).mint()
         chain.wait.for_receipt(tx)
-    assert 1133 == token.call().balanceOf(ursula_wallet.address)
-    assert 517 == token.call().balanceOf(alice_wallet.address)
+    assert 1163 == token.call().balanceOf(ursula_wallet.address)
+    assert 521 == token.call().balanceOf(alice_wallet.address)
 
     # Alice confirm next period and mint tokens
     tx = alice_wallet.transact({'from': alice}).switchLock()
@@ -415,8 +415,8 @@ def test_mining(web3, chain, token, wallet_manager):
     assert 0 == wallet_manager.call().getAllLockedTokens()
     tx = wallet_manager.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
-    assert 1133 == token.call().balanceOf(ursula_wallet.address)
-    assert 617 == token.call().balanceOf(alice_wallet.address)
+    assert 1163 == token.call().balanceOf(ursula_wallet.address)
+    assert 634 == token.call().balanceOf(alice_wallet.address)
 
     # Ursula can't confirm and mint because no locked tokens
     with pytest.raises(TransactionFailed):
@@ -471,8 +471,8 @@ def test_mining(web3, chain, token, wallet_manager):
     # TODO complete method
     # tx = wallet_manager.transact({'from': alice}).withdrawAll()
     # chain.wait.for_receipt(tx)
-    tx = alice_wallet.transact({'from': alice}).withdraw(617)
+    tx = alice_wallet.transact({'from': alice}).withdraw(634)
     chain.wait.for_receipt(tx)
-    assert 10117 == token.call().balanceOf(alice)
+    assert 10134 == token.call().balanceOf(alice)
 
     # TODO test max confirmed periods

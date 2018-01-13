@@ -17,7 +17,7 @@ def escrow(web3, chain, token):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
     escrow, _ = chain.provider.get_or_deploy_contract(
-        'Escrow', deploy_args=[token.address, 10 ** 9, 50, 2, 1, 1],
+        'Escrow', deploy_args=[token.address, 4 * 50 * 10 ** 9, 50, 2, 4 * 50, 4],
         deploy_transaction={'from': creator})
     return escrow
 
@@ -331,8 +331,8 @@ def test_mining(web3, chain, token, escrow):
     chain.wait.for_receipt(tx)
     tx = escrow.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
-    assert 9033 == token.call().balanceOf(ursula)
-    assert 9517 == token.call().balanceOf(alice)
+    assert 9050 == token.call().balanceOf(ursula)
+    assert 9521 == token.call().balanceOf(alice)
 
     # Only Ursula confirm activity for next period
     tx = escrow.transact({'from': ursula}).switchLock()
@@ -360,8 +360,8 @@ def test_mining(web3, chain, token, escrow):
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': alice}).mint()
         chain.wait.for_receipt(tx)
-    assert 9133 == token.call().balanceOf(ursula)
-    assert 9517 == token.call().balanceOf(alice)
+    assert 9163 == token.call().balanceOf(ursula)
+    assert 9521 == token.call().balanceOf(alice)
 
     # Alice confirm next period and mint tokens
     tx = escrow.transact({'from': alice}).switchLock()
@@ -372,8 +372,8 @@ def test_mining(web3, chain, token, escrow):
     assert 0 == escrow.call().getAllLockedTokens()
     tx = escrow.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
-    assert 9133 == token.call().balanceOf(ursula)
-    assert 9617 == token.call().balanceOf(alice)
+    assert 9163 == token.call().balanceOf(ursula)
+    assert 9634 == token.call().balanceOf(alice)
 
     # Ursula can't confirm and mint because no locked tokens
     with pytest.raises(TransactionFailed):
@@ -417,6 +417,6 @@ def test_mining(web3, chain, token, escrow):
     # Alice can withdraw all
     tx = escrow.transact({'from': alice}).withdrawAll()
     chain.wait.for_receipt(tx)
-    assert 10117 == token.call().balanceOf(alice)
+    assert 10134 == token.call().balanceOf(alice)
 
     # TODO test max confirmed periods

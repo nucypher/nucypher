@@ -191,7 +191,7 @@ contract Escrow is Miner, Ownable {
         internal constant returns (uint256)
     {
         var info = tokenInfo[_owner];
-        return _lockedTokens.div(info.releaseRate);
+        return _lockedTokens.divCeil(info.releaseRate).sub(1);
     }
 
     /**
@@ -376,6 +376,7 @@ contract Escrow is Miner, Ownable {
         for(uint i = 0; i < numberPeriodsForMinting; ++i) {
             var period = info.confirmedPeriods[i].period;
             var lockedValue = info.confirmedPeriods[i].lockedValue;
+            allLockedBlocks = allLockedBlocks.sub(blocksPerPeriod);
             (, decimals) = mint(
                 msg.sender,
                 lockedValue,
@@ -383,7 +384,6 @@ contract Escrow is Miner, Ownable {
                 blocksPerPeriod,
                 allLockedBlocks,
                 decimals);
-            allLockedBlocks = allLockedBlocks.sub(blocksPerPeriod);
             if (lockedPerPeriod[period].numberOwnersToBeRewarded > 1) {
                 lockedPerPeriod[period].numberOwnersToBeRewarded--;
             } else {

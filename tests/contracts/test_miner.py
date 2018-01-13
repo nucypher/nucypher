@@ -18,7 +18,7 @@ def test_miner(web3, chain, token):
 
     # Creator deploys the miner
     miner, _ = chain.provider.get_or_deploy_contract(
-        'MinerTest', deploy_args=[token.address, 10 ** 41, 1, 1],
+        'MinerTest', deploy_args=[token.address, 10 ** 48, 10 ** 7, 10 ** 7],
         deploy_transaction={'from': creator})
 
     # Give rights for mining
@@ -50,3 +50,13 @@ def test_miner(web3, chain, token):
     chain.wait.for_receipt(tx)
     assert 50 == token.call().balanceOf(ursula)
     assert 10 ** 30 + 50 == token.call().totalSupply()
+
+    tx = miner.transact().testMint(ursula, 500, 500, 200, 10 ** 7, 0)
+    chain.wait.for_receipt(tx)
+    assert 130 == token.call().balanceOf(ursula)
+    assert 10 ** 30 + 130 == token.call().totalSupply()
+
+    tx = miner.transact().testMint(ursula, 500, 500, 200, 2 * 10 ** 7, 0)
+    chain.wait.for_receipt(tx)
+    assert 210 == token.call().balanceOf(ursula)
+    assert 10 ** 30 + 210 == token.call().totalSupply()

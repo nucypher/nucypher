@@ -189,6 +189,7 @@ contract WalletManager is Miner, Ownable {
 
         for(uint i = 0; i < numberPeriodsForMinting; ++i) {
             var (period, lockedValue) = wallet.confirmedPeriods(i);
+            allLockedBlocks = allLockedBlocks.sub(blocksPerPeriod);
             (, decimals) = mint(
                 wallet,
                 lockedValue,
@@ -196,7 +197,6 @@ contract WalletManager is Miner, Ownable {
                 blocksPerPeriod,
                 allLockedBlocks,
                 decimals);
-            allLockedBlocks = allLockedBlocks.sub(blocksPerPeriod);
             if (lockedPerPeriod[period].numberOwnersToBeRewarded > 1) {
                 lockedPerPeriod[period].numberOwnersToBeRewarded--;
             } else {

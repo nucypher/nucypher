@@ -151,7 +151,7 @@ contract Wallet is Ownable {
     function calculateLockedPeriods(uint256 _lockedTokens)
         public constant returns (uint256)
     {
-        return _lockedTokens.div(releaseRate);
+        return _lockedTokens.divCeil(releaseRate).sub(1);
     }
 
     /**

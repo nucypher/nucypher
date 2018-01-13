@@ -70,12 +70,12 @@ contract Miner {
         var maxValue = token.futureSupply()
             .mul(_currentLockedBlocks)
             .mul(_lockedValue)
-//            .mul(allLockedBlocks)
+            .mul(allLockedBlocks)
             .div(denominator);
         var value = token.totalSupply()
             .mul(_currentLockedBlocks)
             .mul(_lockedValue)
-//            .mul(allLockedBlocks)
+            .mul(allLockedBlocks)
             .div(denominator);
         amount = maxValue.sub(value);
         token.mint(_to, amount);
