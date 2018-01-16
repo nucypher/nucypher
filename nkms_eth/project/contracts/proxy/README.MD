@@ -18,7 +18,7 @@ More examples:
 * https://github.com/0v1se/contracts-upgradeable - almost the same but also have code for verifying upgrade
 
 # Interaction scheme
-![Interaction scheme](Dispatcher.png)
+![Interaction scheme](pics/Dispatcher.png)
 * Dispatcher - proxy contract that redirects requests to target address.
 Also it clearly holds own values (owner and target address) and stores the values of the target contract but not explicitly.
 Client should use result contract or interface ABI while sending request to the Dispatcher address.
