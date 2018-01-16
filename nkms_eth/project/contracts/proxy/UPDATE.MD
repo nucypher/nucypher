@@ -3,7 +3,7 @@
 * Nodes can rollback contract if new version has bugs.
 # Approaches
 * "Hard-fork"  
-![Hard-fork](pics/hard-fork.png)  
+![Hard-fork](pics/Hard-fork.png)  
 Each version is a new contract with separate address and storage.
 Nodes should change contract address that they use.
     - Advantages:
@@ -25,7 +25,7 @@ Updating is changing only one library address in proxy contract.
 # Implementation
 * "Hard-fork"
     *	Soft updating with two contracts  
-![Hard-fork-impl1](pics/hard-fork2.png)  
+![Hard-fork-impl1](pics/Hard-fork2.png)  
 Updating contracts should contain methods for transfer data (amount of locked tokens, balance etc.).
 For example, change manager address from old to new in Wallet contract.
 Also both version should interact for correct mining
@@ -33,7 +33,7 @@ Also both version should interact for correct mining
 For rollback will be enough to move data from the new version back to the previous.
 In some moment, new version have to disable previous contract and move remaining data to the new version.  
     *	Full update from one contract to another  
-![Hard-fork-impl2](pics/hard-fork3.png)  
+![Hard-fork-impl2](pics/Hard-fork3.png)  
 All nodes vote for updating using additional contract.
 After the end of voting old contract should be blocked and new version is activated (or created).
 And then data will be copied from old version to new, for example, by new contract.
