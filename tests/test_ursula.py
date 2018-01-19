@@ -20,6 +20,14 @@ def airdrop(chain):
         chain.wait.for_receipt(tx, timeout=10)
 
 
+def wait_time(chain, wait_hours):
+    web3 = chain.web3
+    step = 50
+    end_timestamp = web3.eth.getBlock(web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
+    while web3.eth.getBlock(web3.eth.blockNumber).timestamp < end_timestamp:
+        chain.wait.for_block(web3.eth.blockNumber + step)
+
+
 def test_deposit(chain):
     token.create()
     escrow.create()
@@ -35,7 +43,7 @@ def test_select_ursulas(chain):
     # Create a random set of miners (we have 9 in total)
     for u in chain.web3.eth.accounts[1:]:
         ursula.lock((10 + random.randrange(9000)) * M, 100, u)
-    chain.wait.for_block(chain.web3.eth.blockNumber + escrow.BLOCKS_PER_PERIOD)
+    wait_time(chain, escrow.HOURS_PER_PERIOD)
 
     miners = escrow.sample(3)
     assert len(miners) == 3
@@ -57,8 +65,7 @@ def test_mine_withdraw(chain):
     for u in chain.web3.eth.accounts[1:]:
         ursula.lock((10 + random.randrange(9000)) * M, 1, u)
 
-    chain.wait.for_block(chain.web3.eth.blockNumber + 2 * escrow.BLOCKS_PER_PERIOD)
-
+    wait_time(chain, 2 * escrow.HOURS_PER_PERIOD)
     ursula.mine(addr)
     ursula.withdraw(addr)
     final_balance = token.balance(addr)

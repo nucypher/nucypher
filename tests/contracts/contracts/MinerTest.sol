@@ -2,7 +2,7 @@ pragma solidity ^0.4.11;
 
 
 import "contracts/Miner.sol";
-import "contracts/MineableToken.sol";
+import "contracts/NuCypherKMSToken.sol";
 
 
 /**
@@ -11,31 +11,38 @@ import "contracts/MineableToken.sol";
 contract MinerTest is Miner {
 
     function MinerTest(
-        MineableToken _token,
+        NuCypherKMSToken _token,
+        uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,
-        uint256 _lockedBlocksCoefficient,
-        uint256 _awardedLockedBlocks
+        uint256 _lockedPeriodsCoefficient,
+        uint256 _awardedPeriods
     )
-        Miner(_token, _miningCoefficient, _lockedBlocksCoefficient, _awardedLockedBlocks)
+        Miner(
+            _token,
+            _hoursPerPeriod,
+            _miningCoefficient,
+            _lockedPeriodsCoefficient,
+            _awardedPeriods
+        )
     {
     }
 
     function testMint(
         address _to,
+        uint256 _period,
         uint256 _lockedValue,
         uint256 _totalLockedValue,
-        uint256 _lockedBlocks,
-        uint256 _allLockedBlocks,
+        uint256 _allLockedPeriods,
         uint256 _decimals
     )
         public returns (uint256 amount, uint256 decimals)
     {
         return mint(
             _to,
+            _period,
             _lockedValue,
             _totalLockedValue,
-            _lockedBlocks,
-            _allLockedBlocks,
+            _allLockedPeriods,
             _decimals);
     }
 

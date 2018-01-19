@@ -43,36 +43,38 @@ contract Escrow is Miner, Ownable {
     uint256 constant MAX_PERIODS = 100;
     uint256 constant MAX_OWNERS = 50000;
 
-    NuCypherKMSToken token;
     mapping (address => TokenInfo) public tokenInfo;
     LinkedList.Data tokenOwners;
 
-    uint256 public blocksPerPeriod;
     mapping (uint256 => PeriodInfo) public lockedPerPeriod;
     uint256 public minReleasePeriods;
 
     /**
     * @notice The Escrow constructor sets address of token contract and coefficients for mining
     * @param _token Token contract
+    * @param _hoursPerPeriod Size of period in hours
     * @param _miningCoefficient Mining coefficient
-    * @param _blocksPerPeriod Size of one period in blocks
     * @param _minReleasePeriods Min amount of periods during which tokens will be released
-    * @param _lockedBlocksCoefficient Locked blocks coefficient
+    * @param _lockedPeriodsCoefficient Locked blocks coefficient
     * @param _awardedPeriods Max periods that will be additionally awarded
     **/
     function Escrow(
         NuCypherKMSToken _token,
+        uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,
-        uint256 _blocksPerPeriod,
-        uint256 _minReleasePeriods,
-        uint256 _lockedBlocksCoefficient,
-        uint256 _awardedPeriods
+        uint256 _lockedPeriodsCoefficient,
+        uint256 _awardedPeriods,
+        uint256 _minReleasePeriods
     )
-        Miner(_token, _miningCoefficient, _lockedBlocksCoefficient, _awardedPeriods * _blocksPerPeriod)
+        Miner(
+            _token,
+            _hoursPerPeriod,
+            _miningCoefficient,
+            _lockedPeriodsCoefficient,
+            _awardedPeriods
+        )
     {
-        require(_blocksPerPeriod != 0 && _minReleasePeriods != 0);
-        token = _token;
-        blocksPerPeriod = _blocksPerPeriod;
+        require(_minReleasePeriods != 0);
         minReleasePeriods = _minReleasePeriods;
     }
 
@@ -83,7 +85,7 @@ contract Escrow is Miner, Ownable {
     function getLockedTokens(address _owner)
         public constant returns (uint256)
     {
-        var currentPeriod = block.number.div(blocksPerPeriod);
+        var currentPeriod = getCurrentPeriod();
         var info = tokenInfo[_owner];
         var numberConfirmedPeriods = info.numberConfirmedPeriods;
 
@@ -121,8 +123,7 @@ contract Escrow is Miner, Ownable {
     function getAllLockedTokens()
         public constant returns (uint256)
     {
-        var period = block.number.div(blocksPerPeriod);
-        return lockedPerPeriod[period].totalLockedValue;
+        return lockedPerPeriod[getCurrentPeriod()].totalLockedValue;
     }
 
     /**
@@ -160,7 +161,7 @@ contract Escrow is Miner, Ownable {
         public constant returns (uint256)
     {
         require(_periods > 0);
-        var currentPeriod = block.number.div(blocksPerPeriod);
+        var currentPeriod = getCurrentPeriod();
         var nextPeriod = currentPeriod.add(_periods);
 
         var info = tokenInfo[_owner];
@@ -225,7 +226,7 @@ contract Escrow is Miner, Ownable {
         require(_value <= token.balanceOf(address(this)) &&
             _value <= info.value.sub(lockedTokens));
 
-        var currentPeriod = block.number.div(blocksPerPeriod);
+        var currentPeriod = getCurrentPeriod();
         if (lockedTokens == 0) {
             info.lockedValue = _value;
             info.maxReleasePeriods = Math.max256(_periods, minReleasePeriods);
@@ -305,7 +306,7 @@ contract Escrow is Miner, Ownable {
     function confirmActivity(uint256 _lockedValue) internal {
         require(_lockedValue > 0);
         var info = tokenInfo[msg.sender];
-        var nextPeriod = block.number.div(blocksPerPeriod) + 1;
+        var nextPeriod = getCurrentPeriod() + 1;
 
         var numberConfirmedPeriods = info.numberConfirmedPeriods;
         if (numberConfirmedPeriods > 0 &&
@@ -335,14 +336,14 @@ contract Escrow is Miner, Ownable {
     **/
     function confirmActivity() external {
         var info = tokenInfo[msg.sender];
-        var nextPeriod = block.number.div(blocksPerPeriod) + 1;
+        var currentPeriod = getCurrentPeriod();
+        var nextPeriod = currentPeriod + 1;
 
         if (info.numberConfirmedPeriods > 0 &&
             info.confirmedPeriods[info.numberConfirmedPeriods - 1].period >= nextPeriod) {
            return;
         }
 
-        var currentPeriod = nextPeriod - 1;
         var lockedTokens = calculateLockedTokens(
             msg.sender, false, getLockedTokens(msg.sender), 1);
         confirmActivity(lockedTokens);
@@ -352,18 +353,17 @@ contract Escrow is Miner, Ownable {
     * @notice Mint tokens for sender for previous periods if he locked his tokens and confirmed activity
     **/
     function mint() external {
-        var previousPeriod = block.number.div(blocksPerPeriod).sub(1);
+        var previousPeriod = getCurrentPeriod().sub(1);
         var info = tokenInfo[msg.sender];
         var numberPeriodsForMinting = info.numberConfirmedPeriods;
         require(numberPeriodsForMinting > 0 &&
             info.confirmedPeriods[0].period <= previousPeriod);
 
         var currentLockedValue = getLockedTokens(msg.sender);
-        var allLockedBlocks = calculateLockedPeriods(
+        var allLockedPeriods = calculateLockedPeriods(
             msg.sender,
             info.confirmedPeriods[numberPeriodsForMinting - 1].lockedValue)
-            .add(numberPeriodsForMinting)
-            .mul(blocksPerPeriod);
+            .add(numberPeriodsForMinting);
         var decimals = info.decimals;
 
         if (info.confirmedPeriods[numberPeriodsForMinting - 1].period > previousPeriod) {
@@ -376,13 +376,13 @@ contract Escrow is Miner, Ownable {
         for(uint i = 0; i < numberPeriodsForMinting; ++i) {
             var period = info.confirmedPeriods[i].period;
             var lockedValue = info.confirmedPeriods[i].lockedValue;
-            allLockedBlocks = allLockedBlocks.sub(blocksPerPeriod);
+            allLockedPeriods--;
             (, decimals) = mint(
                 msg.sender,
+                previousPeriod,
                 lockedValue,
                 lockedPerPeriod[period].totalLockedValue,
-                blocksPerPeriod,
-                allLockedBlocks,
+                allLockedPeriods,
                 decimals);
             if (lockedPerPeriod[period].numberOwnersToBeRewarded > 1) {
                 lockedPerPeriod[period].numberOwnersToBeRewarded--;
@@ -424,7 +424,7 @@ contract Escrow is Miner, Ownable {
         public constant returns (address stop, uint256 shift)
     {
         require(_periods > 0);
-        var currentPeriod = block.number.div(blocksPerPeriod);
+        var currentPeriod = getCurrentPeriod();
         uint256 distance = 0;
         var current = _start;
 
