@@ -11,8 +11,8 @@ import "./NuCypherKMSToken.sol";
 
 
 /**
-* @notice Contract holds and locks client tokens.
-Each client that lock his tokens will receive some compensation
+* @notice Contract holds and locks nodes tokens.
+Each node that lock his tokens will receive some compensation
 **/
 contract Escrow is Miner, Ownable {
     using LinkedList for LinkedList.Data;

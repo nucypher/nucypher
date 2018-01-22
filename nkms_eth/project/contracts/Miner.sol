@@ -77,6 +77,7 @@ contract Miner {
     )
         internal returns (uint256 amount, uint256 decimals)
     {
+        // TODO end of mining before calculation
         if (_period > lastMintedPeriod) {
             lastTotalSupply = token.totalSupply();
             lastMintedPeriod = _period;
