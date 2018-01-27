@@ -8,6 +8,7 @@ import "./lib/AdditionalMath.sol";
 import "./lib/LinkedList.sol";
 import "./Miner.sol";
 import "./NuCypherKMSToken.sol";
+import "./PolicyManager.sol";
 
 
 /**
@@ -24,6 +25,11 @@ contract Escrow is Miner, Ownable {
         uint256 lockedValue;
     }
 
+    struct Downtime {
+        uint256 startPeriod;
+        uint256 endPeriod;
+    }
+
     struct TokenInfo {
         uint256 value;
         uint256 decimals;
@@ -31,23 +37,23 @@ contract Escrow is Miner, Ownable {
         bool release;
         uint256 maxReleasePeriods;
         uint256 releaseRate;
+        // periods that confirmed but not yet mined
         ConfirmedPeriodInfo[] confirmedPeriods;
         uint256 numberConfirmedPeriods;
+        // downtime
+        uint256 lastActivePeriod;
+        Downtime[] downtime;
     }
 
-    struct PeriodInfo {
-        uint256 totalLockedValue;
-        uint256 numberOwnersToBeRewarded;
-    }
-
-    uint256 constant MAX_PERIODS = 100;
+    uint256 constant MAX_PERIODS = 10;
     uint256 constant MAX_OWNERS = 50000;
 
     mapping (address => TokenInfo) public tokenInfo;
     LinkedList.Data tokenOwners;
 
-    mapping (uint256 => PeriodInfo) public lockedPerPeriod;
+    mapping (uint256 => uint256) public lockedPerPeriod;
     uint256 public minReleasePeriods;
+    PolicyManager policyManager;
 
     /**
     * @notice The Escrow constructor sets address of token contract and coefficients for mining
@@ -123,7 +129,7 @@ contract Escrow is Miner, Ownable {
     function getAllLockedTokens()
         public constant returns (uint256)
     {
-        return lockedPerPeriod[getCurrentPeriod()].totalLockedValue;
+        return lockedPerPeriod[getCurrentPeriod()];
     }
 
     /**
@@ -202,11 +208,12 @@ contract Escrow is Miner, Ownable {
     **/
     function deposit(uint256 _value, uint256 _periods) public {
         require(_value != 0);
+        var info = tokenInfo[msg.sender];
         if (!tokenOwners.valueExists(msg.sender)) {
             require(tokenOwners.sizeOf() < MAX_OWNERS);
             tokenOwners.push(msg.sender, true);
+            info.lastActivePeriod = getCurrentPeriod();
         }
-        var info = tokenInfo[msg.sender];
         info.value = info.value.add(_value);
         token.safeTransferFrom(msg.sender, address(this), _value);
         lock(_value, _periods);
@@ -281,23 +288,24 @@ contract Escrow is Miner, Ownable {
         token.safeTransfer(msg.sender, value);
     }
 
-    /**
-    * @notice Terminate contract and refund to owners
-    * @dev The called token contracts could try to re-enter this contract.
-    Only supply token contracts you trust.
-    **/
-    function destroy() onlyOwner public {
-        // Transfer tokens to owners
-        var current = tokenOwners.step(0x0, true);
-        while (current != 0x0) {
-            token.safeTransfer(current, tokenInfo[current].value);
-            current = tokenOwners.step(current, true);
-        }
-        token.safeTransfer(owner, token.balanceOf(address(this)));
-
-        // Transfer Eth to owner and terminate contract
-        selfdestruct(owner);
-    }
+    // TODO change to upgrade
+//    /**
+//    * @notice Terminate contract and refund to owners
+//    * @dev The called token contracts could try to re-enter this contract.
+//    Only supply token contracts you trust.
+//    **/
+//    function destroy() onlyOwner public {
+//        // Transfer tokens to owners
+//        var current = tokenOwners.step(0x0, true);
+//        while (current != 0x0) {
+//            token.safeTransfer(current, tokenInfo[current].value);
+//            current = tokenOwners.step(current, true);
+//        }
+//        token.safeTransfer(owner, token.balanceOf(address(this)));
+//
+//        // Transfer Eth to owner and terminate contract
+//        selfdestruct(owner);
+//    }
 
     /**
     * @notice Confirm activity for future period
@@ -312,16 +320,15 @@ contract Escrow is Miner, Ownable {
         if (numberConfirmedPeriods > 0 &&
             info.confirmedPeriods[numberConfirmedPeriods - 1].period == nextPeriod) {
             var confirmedPeriod = info.confirmedPeriods[numberConfirmedPeriods - 1];
-            lockedPerPeriod[nextPeriod].totalLockedValue = lockedPerPeriod[nextPeriod].totalLockedValue
+            lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod]
                 .add(_lockedValue.sub(confirmedPeriod.lockedValue));
             confirmedPeriod.lockedValue = _lockedValue;
             return;
         }
 
         require(numberConfirmedPeriods < MAX_PERIODS);
-        lockedPerPeriod[nextPeriod].totalLockedValue =
-            lockedPerPeriod[nextPeriod].totalLockedValue.add(_lockedValue);
-        lockedPerPeriod[nextPeriod].numberOwnersToBeRewarded++;
+        lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod]
+            .add(_lockedValue);
         if (numberConfirmedPeriods < info.confirmedPeriods.length) {
             info.confirmedPeriods[numberConfirmedPeriods].period = nextPeriod;
             info.confirmedPeriods[numberConfirmedPeriods].lockedValue = _lockedValue;
@@ -329,6 +336,12 @@ contract Escrow is Miner, Ownable {
             info.confirmedPeriods.push(ConfirmedPeriodInfo(nextPeriod, _lockedValue));
         }
         info.numberConfirmedPeriods++;
+
+        var currentPeriod = nextPeriod - 1;
+        if (info.lastActivePeriod < currentPeriod) {
+            info.downtime.push(Downtime(info.lastActivePeriod + 1, currentPeriod));
+        }
+        info.lastActivePeriod = nextPeriod;
     }
 
     /**
@@ -381,13 +394,12 @@ contract Escrow is Miner, Ownable {
                 msg.sender,
                 previousPeriod,
                 lockedValue,
-                lockedPerPeriod[period].totalLockedValue,
+                lockedPerPeriod[period],
                 allLockedPeriods,
                 decimals);
-            if (lockedPerPeriod[period].numberOwnersToBeRewarded > 1) {
-                lockedPerPeriod[period].numberOwnersToBeRewarded--;
-            } else {
-                delete lockedPerPeriod[period];
+            // TODO remove
+            if (address(policyManager) != 0x0) {
+                policyManager.updateReward(msg.sender, previousPeriod);
             }
         }
         info.decimals = decimals;
@@ -421,7 +433,7 @@ contract Escrow is Miner, Ownable {
                 |                      |----->|
     **/
     function findCumSum(address _start, uint256 _delta, uint256 _periods)
-        public constant returns (address stop, uint256 shift)
+        external constant returns (address stop, uint256 shift)
     {
         require(_periods > 0);
         var currentPeriod = getCurrentPeriod();
@@ -464,5 +476,44 @@ contract Escrow is Miner, Ownable {
                 current = tokenOwners.step(current, true);
             }
         }
+    }
+
+    /**
+    * @notice Set policy manager address
+    **/
+    function setPolicyManager(PolicyManager _policyManager) onlyOwner {
+        require(_policyManager.escrow() == address(this));
+        policyManager = _policyManager;
+    }
+
+    /**
+    * @dev Get info about downtime periods
+    * @param _owner Tokens owner
+    * @param _index Index in array of downtime periods
+    **/
+    function getDowntimePeriods(address _owner, uint256 _index)
+        public constant returns (uint256 startPeriod, uint256 endPeriod)
+    {
+        var period = tokenInfo[msg.sender].downtime[_index];
+        startPeriod = period.startPeriod;
+        endPeriod = period.endPeriod;
+    }
+
+    /**
+    * @dev Get size of downtime periods array
+    **/
+    function getDowntimePeriodsLength(address _owner)
+        public constant returns (uint256)
+    {
+        return tokenInfo[msg.sender].downtime.length;
+    }
+
+    /**
+    * @dev Get last active period
+    **/
+    function getLastActivePeriod(address _owner)
+        public constant returns (uint256)
+    {
+        return tokenInfo[msg.sender].lastActivePeriod;
     }
 }

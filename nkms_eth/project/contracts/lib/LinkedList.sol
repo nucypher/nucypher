@@ -14,6 +14,7 @@ library LinkedList {
 
     struct Data {
         mapping (address => mapping (bool => address)) data;
+        uint256 count;
     }
 
     /// @notice Return existential state of a list.
@@ -29,12 +30,7 @@ library LinkedList {
     function sizeOf(Data storage self)
         internal constant returns (uint result)
     {
-        var current = step(self, HEAD, NEXT);
-        while (current != HEAD) {
-            current = step(self, current, NEXT);
-            result++;
-        }
-        return;
+        return self.count;
     }
 
     /**
@@ -42,8 +38,7 @@ library LinkedList {
     * @param value Value to search for
     **/
     function valueExists(Data storage self, address value)
-        internal
-        constant returns (bool)
+        internal constant returns (bool)
     {
         if (self.data[value][PREV] == HEAD && self.data[value][NEXT] == HEAD) {
             if (self.data[HEAD][NEXT] == value) {
@@ -95,6 +90,7 @@ library LinkedList {
         address to = self.data[from][direction];
         createLinks(self, from, value, direction);
         createLinks(self, value, to, direction);
+        self.count++;
     }
 
     /// @notice Remove value from the list.
@@ -108,6 +104,7 @@ library LinkedList {
         createLinks(self, self.data[value][PREV], self.data[value][NEXT], NEXT);
         delete self.data[value][PREV];
         delete self.data[value][NEXT];
+        self.count--;
         return value;
     }
 

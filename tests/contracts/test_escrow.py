@@ -203,17 +203,17 @@ def test_escrow(web3, chain, token, escrow):
     assert 100 == escrow.call().calculateLockedTokens(alice, 2)
     assert 0 == escrow.call().calculateLockedTokens(alice, 3)
 
-    # Ursula can't destroy contract
-    with pytest.raises(TransactionFailed):
-        tx = escrow.transact({'from': ursula}).destroy()
-        chain.wait.for_receipt(tx)
-
-    # Destroy contract from creator and refund all to Ursula and Alice
-    tx = escrow.transact({'from': creator}).destroy()
-    chain.wait.for_receipt(tx)
-    assert 0 == token.call().balanceOf(escrow.address)
-    assert 10000 == token.call().balanceOf(ursula)
-    assert 10000 == token.call().balanceOf(alice)
+    # # Ursula can't destroy contract
+    # with pytest.raises(TransactionFailed):
+    #     tx = escrow.transact({'from': ursula}).destroy()
+    #     chain.wait.for_receipt(tx)
+    #
+    # # Destroy contract from creator and refund all to Ursula and Alice
+    # tx = escrow.transact({'from': creator}).destroy()
+    # chain.wait.for_receipt(tx)
+    # assert 0 == token.call().balanceOf(escrow.address)
+    # assert 10000 == token.call().balanceOf(ursula)
+    # assert 10000 == token.call().balanceOf(alice)
 
 
 def test_locked_distribution(web3, chain, token, escrow):
@@ -282,6 +282,13 @@ def test_mining(web3, chain, token, escrow):
     creator = web3.eth.accounts[0]
     ursula = web3.eth.accounts[1]
     alice = web3.eth.accounts[2]
+
+    # TODO test setPolicyManager
+    policy_manager, _ = chain.provider.get_or_deploy_contract(
+        'PolicyManager', deploy_args=[token.address, escrow.address],
+        deploy_transaction={'from': creator})
+    tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)
+    chain.wait.for_receipt(tx)
 
     # Give Ursula and Alice some coins
     tx = token.transact({'from': creator}).transfer(ursula, 10000)

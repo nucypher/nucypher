@@ -67,6 +67,7 @@ contract Miner {
     * @param _decimals The amount of locked tokens and blocks in decimals.
     * @return Amount of minted tokens.
     */
+    // TODO decimals
     function mint(
         address _to,
         uint256 _period,
@@ -78,6 +79,7 @@ contract Miner {
         internal returns (uint256 amount, uint256 decimals)
     {
         // TODO end of mining before calculation
+        // FIXME execution for first owner is more expensive
         if (_period > lastMintedPeriod) {
             lastTotalSupply = token.totalSupply();
             lastMintedPeriod = _period;
