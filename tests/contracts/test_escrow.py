@@ -22,6 +22,7 @@ def escrow(web3, chain, token):
     return escrow
 
 
+# TODO extract method
 def wait_time(chain, wait_hours):
     web3 = chain.web3
     step = 50
@@ -283,9 +284,8 @@ def test_mining(web3, chain, token, escrow):
     ursula = web3.eth.accounts[1]
     alice = web3.eth.accounts[2]
 
-    # TODO test setPolicyManager
     policy_manager, _ = chain.provider.get_or_deploy_contract(
-        'PolicyManager', deploy_args=[token.address, escrow.address],
+        'PolicyManagerTest', deploy_args=[token.address, escrow.address],
         deploy_transaction={'from': creator})
     tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)
     chain.wait.for_receipt(tx)
@@ -349,6 +349,12 @@ def test_mining(web3, chain, token, escrow):
     assert 9050 == token.call().balanceOf(ursula)
     assert 9521 == token.call().balanceOf(alice)
 
+    assert 1 == policy_manager.call().getPeriodsLength(ursula)
+    assert 1 == policy_manager.call().getPeriodsLength(alice)
+    period = escrow.call().getCurrentPeriod() - 1
+    assert period == policy_manager.call().getPeriod(ursula, 0)
+    assert period == policy_manager.call().getPeriod(alice, 0)
+
     # Only Ursula confirm activity for next period
     tx = escrow.transact({'from': ursula}).switchLock()
     chain.wait.for_receipt(tx)
@@ -378,6 +384,11 @@ def test_mining(web3, chain, token, escrow):
     assert 9163 == token.call().balanceOf(ursula)
     assert 9521 == token.call().balanceOf(alice)
 
+    assert 3 == policy_manager.call().getPeriodsLength(ursula)
+    assert 1 == policy_manager.call().getPeriodsLength(alice)
+    assert period + 1 == policy_manager.call().getPeriod(ursula, 1)
+    assert period + 2 == policy_manager.call().getPeriod(ursula, 2)
+
     # Alice confirm next period and mint tokens
     tx = escrow.transact({'from': alice}).switchLock()
     chain.wait.for_receipt(tx)
@@ -389,6 +400,11 @@ def test_mining(web3, chain, token, escrow):
     chain.wait.for_receipt(tx)
     assert 9163 == token.call().balanceOf(ursula)
     assert 9634 == token.call().balanceOf(alice)
+
+    assert 3 == policy_manager.call().getPeriodsLength(ursula)
+    assert 3 == policy_manager.call().getPeriodsLength(alice)
+    assert period + 3 == policy_manager.call().getPeriod(alice, 1)
+    assert period + 4 == policy_manager.call().getPeriod(alice, 2)
 
     # Ursula can't confirm and mint because no locked tokens
     with pytest.raises(TransactionFailed):

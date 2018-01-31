@@ -31,16 +31,14 @@ contract PolicyManager {
     }
 
     struct NodeInfo {
-        mapping (uint256 => uint256) rewardByPeriod;
         uint256 reward;
+        mapping (uint256 => uint256) rewardByPeriod;
     }
 
     NuCypherKMSToken public token;
     Escrow public escrow;
     mapping (bytes20 => Policy) public policies;
     mapping (address => NodeInfo) public nodes;
-//    mapping (address => byte20[]) nodePolicies;
-//    mapping (address => byte20[]) clientPolicies;
 
     /**
     * @notice The PolicyManager constructor sets addresses of token and escrow contracts
@@ -51,7 +49,8 @@ contract PolicyManager {
         NuCypherKMSToken _token,
         Escrow _escrow
     ) {
-        require(address(_token) != 0x0);
+        require(address(_token) != 0x0 &&
+            address(_escrow) != 0x0);
         token = _token;
         escrow = _escrow;
     }
@@ -60,14 +59,14 @@ contract PolicyManager {
     * @notice Create policy by client
     * @dev Generate policy id before creation
     * @param _policyId Policy id
-    * @param _feeByPeriod Amount of node reward by period
     * @param _node Node that will handle policy
+    * @param _feeByPeriod Amount of node reward by period
     * @param _numberOfPeriods Duration of the policy in periods
     **/
     function createPolicy(
         bytes20 _policyId,
-        uint256 _feeByPeriod,
         address _node,
+        uint256 _feeByPeriod,
         uint256 _numberOfPeriods
     )
         public
@@ -137,7 +136,7 @@ contract PolicyManager {
     function revokePolicy(bytes20 _policyId) public {
         var policy = policies[_policyId];
         require(policy.client == msg.sender);
-        var refund = calculateRefund(policy);
+        var refund = calculateRefund(_policyId);
         var node = nodes[policy.node];
         for (var i = policy.startPeriod; i <= policy.lastPeriod; i++) {
             node.rewardByPeriod[i] = node.rewardByPeriod[i].sub(policy.rate);
@@ -157,27 +156,27 @@ contract PolicyManager {
 //            msg.sender == policy.client);
         require(msg.sender == policy.client);
 
-        var refund = calculateRefund(policy);
+        var refund = calculateRefund(_policyId);
+        var client = policy.client;
         if (policy.startPeriod > policy.lastPeriod) {
             delete policies[_policyId];
         }
         if (refund > 0) {
-            token.safeTransfer(policy.client, refund);
+            token.safeTransfer(client, refund);
         }
     }
 
     /**
     * @notice Calculate amount of refund
-    * @param policy Policy
+    * @param _policyId Policy id
     **/
-    function calculateRefund(Policy policy) internal returns (uint256) {
+    function calculateRefund(bytes20 _policyId) internal returns (uint256) {
+        var policy = policies[_policyId];
         var currentPeriod = escrow.getCurrentPeriod();
         var maxPeriod = Math.min256(currentPeriod, policy.lastPeriod);
         var minPeriod = policy.startPeriod;
-        var max = maxPeriod;
-        var activePeriods = maxPeriod.add(1).sub(minPeriod);
+        uint256 downtimePeriods = 0;
         var length = escrow.getDowntimePeriodsLength(policy.node);
-        // TODO complete
         for (var i = policy.indexOfDowntimePeriods; i < length; i++) {
             var (startPeriod, endPeriod) = escrow.getDowntimePeriods(policy.node, i);
             if (startPeriod > maxPeriod) {
@@ -185,10 +184,9 @@ contract PolicyManager {
             } else if (endPeriod < minPeriod) {
                 continue;
             }
-            max = Math.min256(maxPeriod, endPeriod);
+            var max = Math.min256(maxPeriod, endPeriod);
             var min = Math.max256(minPeriod, startPeriod);
-            // TODO safe math
-            activePeriods -= max - min + 1;
+            downtimePeriods = downtimePeriods.add(max.sub(min).add(1));
             if (maxPeriod <= endPeriod) {
                 break;
             }
@@ -196,13 +194,12 @@ contract PolicyManager {
         policy.indexOfDowntimePeriods = i;
         var lastActivePeriod = escrow.getLastActivePeriod(policy.node);
         if (i == length && lastActivePeriod < maxPeriod) {
-            min = Math.max256(minPeriod, lastActivePeriod);
-            // TODO safe math
-            activePeriods -= max - min + 1;
+            min = Math.max256(minPeriod.sub(1), lastActivePeriod);
+            downtimePeriods = downtimePeriods.add(maxPeriod.sub(min));
         }
-        policy.startPeriod = max.add(1);
+        policy.startPeriod = maxPeriod.add(1);
 
-        return policy.rate.mul(activePeriods);
+        return policy.rate.mul(downtimePeriods);
     }
 
 }

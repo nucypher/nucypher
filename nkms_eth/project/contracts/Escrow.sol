@@ -399,7 +399,7 @@ contract Escrow is Miner, Ownable {
                 decimals);
             // TODO remove
             if (address(policyManager) != 0x0) {
-                policyManager.updateReward(msg.sender, previousPeriod);
+                policyManager.updateReward(msg.sender, period);
             }
         }
         info.decimals = decimals;
