@@ -1,0 +1,20 @@
+[[source]]
+
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+
+[packages]
+
+pdbpp = "*"
+ipython = "*"
+populus = "*"
+cytoolz = "*"
+appdirs = "*"
+
+
+[dev-packages]
+
+pytest = "*"
+pdbpp = "*"
