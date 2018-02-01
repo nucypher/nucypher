@@ -18,7 +18,9 @@ contract Miner {
     uint256 public awardedPeriods;
 
     uint256 public lastMintedPeriod;
-    uint256 public lastTotalSupply;
+    mapping (bool => uint256) public totalSupply;
+    bool public currentIndex;
+    uint256 futureSupply;
 
     /**
     * @notice The Miner constructor sets address of token contract and coefficients for mining
@@ -48,6 +50,11 @@ contract Miner {
         secondsPerPeriod = _hoursPerPeriod.mul(1 hours);
         lockedPeriodsCoefficient = _lockedPeriodsCoefficient;
         awardedPeriods = _awardedPeriods;
+
+        var currentTotalSupply = token.totalSupply();
+        totalSupply[currentIndex] = currentTotalSupply;
+        totalSupply[!currentIndex] = currentTotalSupply;
+        futureSupply = token.futureSupply();
     }
 
     /**
@@ -81,9 +88,10 @@ contract Miner {
         // TODO end of mining before calculation
         // FIXME execution for first owner is more expensive
         if (_period > lastMintedPeriod) {
-            lastTotalSupply = token.totalSupply();
+            currentIndex != currentIndex;
             lastMintedPeriod = _period;
         }
+        var currentTotalSupply = totalSupply[currentIndex];
 
         //futureSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2) -
         //currentSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
@@ -91,15 +99,17 @@ contract Miner {
             _allLockedPeriods : awardedPeriods)
             .add(lockedPeriodsCoefficient);
         var denominator = _totalLockedValue.mul(miningCoefficient);
-        var maxValue = token.futureSupply()
+        var maxValue = futureSupply
             .mul(_lockedValue)
             .mul(allLockedPeriods)
             .div(denominator);
-        var value = lastTotalSupply
+        var value = currentTotalSupply
             .mul(_lockedValue)
             .mul(allLockedPeriods)
             .div(denominator);
         amount = maxValue.sub(value);
         token.mint(_to, amount);
+
+        totalSupply[!currentIndex] += amount;
     }
 }
