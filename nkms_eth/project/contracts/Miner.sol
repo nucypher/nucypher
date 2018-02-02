@@ -88,6 +88,7 @@ contract Miner {
         // TODO end of mining before calculation
         // FIXME execution for first owner is more expensive
         if (_period > lastMintedPeriod) {
+            totalSupply[currentIndex] = totalSupply[!currentIndex];
             currentIndex != currentIndex;
             lastMintedPeriod = _period;
         }
