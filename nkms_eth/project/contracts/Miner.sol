@@ -18,9 +18,11 @@ contract Miner {
     uint256 public awardedPeriods;
 
     uint256 public lastMintedPeriod;
-    mapping (bool => uint256) public totalSupply;
-    bool public currentIndex;
+    mapping (byte => uint256) public totalSupply;
+    byte public currentIndex;
     uint256 futureSupply;
+
+    byte NEGATION = 0xF0;
 
     /**
     * @notice The Miner constructor sets address of token contract and coefficients for mining
@@ -51,9 +53,11 @@ contract Miner {
         lockedPeriodsCoefficient = _lockedPeriodsCoefficient;
         awardedPeriods = _awardedPeriods;
 
+        lastMintedPeriod = getCurrentPeriod();
+        currentIndex = 0x01;
         var currentTotalSupply = token.totalSupply();
         totalSupply[currentIndex] = currentTotalSupply;
-        totalSupply[!currentIndex] = currentTotalSupply;
+        totalSupply[currentIndex ^ NEGATION] = currentTotalSupply;
         futureSupply = token.futureSupply();
     }
 
@@ -86,13 +90,11 @@ contract Miner {
         internal returns (uint256 amount, uint256 decimals)
     {
         // TODO end of mining before calculation
-        // FIXME execution for first owner is more expensive
+        var nextTotalSupply = totalSupply[currentIndex ^ NEGATION];
         if (_period > lastMintedPeriod) {
-            totalSupply[currentIndex] = totalSupply[!currentIndex];
-            currentIndex != currentIndex;
-            lastMintedPeriod = _period;
+            currentIndex = currentIndex ^ NEGATION;
         }
-        var currentTotalSupply = totalSupply[currentIndex];
+        lastMintedPeriod = _period;
 
         //futureSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2) -
         //currentSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
@@ -100,17 +102,17 @@ contract Miner {
             _allLockedPeriods : awardedPeriods)
             .add(lockedPeriodsCoefficient);
         var denominator = _totalLockedValue.mul(miningCoefficient);
-        var maxValue = futureSupply
-            .mul(_lockedValue)
-            .mul(allLockedPeriods)
-            .div(denominator);
-        var value = currentTotalSupply
-            .mul(_lockedValue)
-            .mul(allLockedPeriods)
-            .div(denominator);
-        amount = maxValue.sub(value);
+        amount =
+            futureSupply
+                .mul(_lockedValue)
+                .mul(allLockedPeriods)
+                .div(denominator).sub(
+            totalSupply[currentIndex]
+                .mul(_lockedValue)
+                .mul(allLockedPeriods)
+                .div(denominator));
         token.mint(_to, amount);
 
-        totalSupply[!currentIndex] += amount;
+        totalSupply[currentIndex ^ NEGATION] = nextTotalSupply.add(amount);
     }
 }

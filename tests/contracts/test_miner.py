@@ -75,3 +75,9 @@ def test_inflation_rate(web3, chain, token):
     tx = miner.transact().testMint(ursula, 2, 1, 1, 0, 0)
     chain.wait.for_receipt(tx)
     assert 3 * one_period > token.call().balanceOf(ursula)
+    minted_amount = token.call().balanceOf(ursula) - 2 * one_period
+
+    # Mint tokens in the next period
+    tx = miner.transact().testMint(ursula, 3, 1, 1, 0, 0)
+    chain.wait.for_receipt(tx)
+    assert 2 * one_period + 2 * minted_amount > token.call().balanceOf(ursula)
