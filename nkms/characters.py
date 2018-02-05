@@ -300,7 +300,7 @@ class Bob(Character):
                                                                                             msgpack_remainder=True)
 
             # TODO: If we're going to implement TTL, it will be here.
-            self._ursulas[ursula_interface_id] = Ursula.as_discovered_on_network(port=port, interface=interface,
+            self._ursulas[ursula_interface_id] = Ursula.as_discovered_on_network(dht_port=port, dht_interface=interface,
                                                                                  pubkey_sig_bytes=ursula_pubkey_sig)
 
     def get_treasure_map(self, policy_group):
@@ -373,9 +373,11 @@ class Ursula(Character):
     _server_class = NuCypherDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    port = None
-    interface = None
-    interface_ttl = 0
+    dht_port = None
+    dht_interface = None
+    dht_ttl = 0
+    rest_address = None
+    rest_port = None
 
     def __init__(self, urulsas_keystore=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -393,11 +395,13 @@ class Ursula(Character):
         else:
             return self._rest_app
 
-    @staticmethod
-    def as_discovered_on_network(port, interface, pubkey_sig_bytes):
-        ursula = Ursula.from_pubkey_sig_bytes(pubkey_sig_bytes)
-        ursula.port = port
-        ursula.interface = interface
+    @classmethod
+    def as_discovered_on_network(cls, dht_port, dht_interface, pubkey_sig_bytes, rest_address=None, rest_port=None):
+        ursula = cls.from_pubkey_sig_bytes(pubkey_sig_bytes)
+        ursula.dht_port = dht_port
+        ursula.dht_interface = dht_interface
+        ursula.rest_address = rest_address
+        ursula.rest_port = rest_port
         return ursula
 
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
@@ -422,7 +426,7 @@ class Ursula(Character):
         return self.server.listen(port, interface)
 
     def dht_interface_info(self):
-        return self.port, self.interface, self.interface_ttl
+        return self.port, self.interface, self.dht_ttl
 
     def interface_dht_key(self):
         return self.hash(self.seal + self.interface_hrac())
