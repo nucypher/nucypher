@@ -56,13 +56,6 @@ class Character(object):
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
 
-        if crypto_power:
-            self._crypto_power = crypto_power
-        elif crypto_power_ups:
-            self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
-        else:
-            self._crypto_power = CryptoPower(self._default_crypto_powerups)
-
         if is_me:
             self._actor_mapping = {}
 
@@ -72,6 +65,13 @@ class Character(object):
                 self.attach_server()
         else:
             self._seal = StrangerSeal(self)
+
+        if crypto_power:
+            self._crypto_power = crypto_power
+        elif crypto_power_ups:
+            self._crypto_power = CryptoPower(power_ups=crypto_power_ups, generate_keys_if_needed=is_me)
+        else:
+            self._crypto_power = CryptoPower(self._default_crypto_powerups, generate_keys_if_needed=is_me)
 
     def __eq__(self, other):
         return bytes(self.seal) == bytes(other.seal)
