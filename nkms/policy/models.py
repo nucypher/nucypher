@@ -281,7 +281,7 @@ class WorkOrder(object):
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
             raise ValueError("This doesn't appear to be from Bob.")
-        bob = Bob.from_pubkey_sig_bytes(bob_pubkey_sig)
+        bob = Bob.from_public_keys(signing=bob_pubkey_sig)
         return cls(bob, kfrag_hrac, pfrags, receipt_bytes, signature)
 
     def payload(self):

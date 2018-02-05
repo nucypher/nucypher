@@ -86,8 +86,20 @@ class Character(object):
         """raised when an action appears to amount to malicious conduct."""
 
     @classmethod
-    def from_pubkey_sig_bytes(cls, pubkey_sig_bytes):
-        return cls(is_me=False, crypto_power_ups=[SigningPower(keypair=Keypair.deserialize_key(pubkey_sig_bytes))])
+    def from_public_keys(cls, **public_keys):
+        if not public_keys:
+            raise ValueError("A Character needs either a signing or encrypting public key, or both, to be created with this method.")
+        crypto_power = CryptoPower()
+        for key_type, pubkey_bytes in public_keys.items():
+            if key_type == "signing":
+                power_up = SigningPower
+            elif key_type == "encrypting":
+                power_up = EncryptingPower
+            else:
+                raise NotImplementedError("Characters can only be created from public keys for signing or encrypting, or both.")
+            power_up_with_public_key = power_up(pubkey_bytes=pubkey_bytes)
+            crypto_power.consume_power_up(power_up_with_public_key)
+        return cls(is_me=False, crypto_power=crypto_power)
 
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs) -> None:
@@ -213,11 +225,11 @@ class Alice(Character):
         return (kfrags, eph_key_data)
 
     def create_policy(self,
-                        bob: "Bob",
-                        uri: bytes,
-                        m: int,
-                        n: int,
-                        ):
+                      bob: "Bob",
+                      uri: bytes,
+                      m: int,
+                      n: int,
+                      ):
         """
         Alice dictates a new group of policies.
         """
@@ -225,7 +237,7 @@ class Alice(Character):
         ##### Temporary until we decide on an API for private key access
         alice_priv_enc = self._crypto_power._power_ups[EncryptingPower].priv_key
         kfrags, pfrag = self.generate_rekey_frags(alice_priv_enc, bob, m,
-                                                        n)  # TODO: Access Alice's private key inside this method.
+                                                  n)  # TODO: Access Alice's private key inside this method.
         from nkms.policy.models import Policy
         policy = Policy.from_alice(
             alice=self,
@@ -397,7 +409,8 @@ class Ursula(Character):
 
     @classmethod
     def as_discovered_on_network(cls, dht_port, dht_interface, pubkey_sig_bytes, rest_address=None, rest_port=None):
-        ursula = cls.from_pubkey_sig_bytes(pubkey_sig_bytes)
+        # TODO: We also need the encrypting public key here.
+        ursula = cls.from_public_keys(signing=pubkey_sig_bytes)
         ursula.dht_port = dht_port
         ursula.dht_interface = dht_interface
         ursula.rest_address = rest_address
@@ -462,11 +475,11 @@ class Ursula(Character):
         policy_payload_splitter = BytestringSplitter(KFrag)
 
         alice_pubkey_sig, payload_encrypted_for_ursula = group_payload_splitter(request.body, msgpack_remainder=True)
-        alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
+        alice = Alice.from_public_keys(signing=alice_pubkey_sig)
         self.learn_about_actor(alice)
 
         verified, cleartext = self.verify_from(alice, payload_encrypted_for_ursula,
-                                                 decrypt=True, signature_is_on_cleartext=True)
+                                               decrypt=True, signature_is_on_cleartext=True)
 
         if not verified:
             # TODO: What do we do if the Policy isn't signed properly?

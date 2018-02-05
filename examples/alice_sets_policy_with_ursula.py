@@ -9,8 +9,8 @@ from nkms.network.node import NetworkyStuff
 from nkms.policy.models import ContractResponse
 
 ALICE = Alice()
-BOB = Bob()
-URSULA = Ursula()
+BOB = Bob(is_me=False)
+URSULA = Ursula(is_me=False)
 
 congregate(ALICE, BOB, URSULA)
 
