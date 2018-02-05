@@ -93,8 +93,8 @@ contract Miner {
         var nextTotalSupply = totalSupply[currentIndex ^ NEGATION];
         if (_period > lastMintedPeriod) {
             currentIndex = currentIndex ^ NEGATION;
+            lastMintedPeriod = _period;
         }
-        lastMintedPeriod = _period;
 
         //futureSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2) -
         //currentSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
