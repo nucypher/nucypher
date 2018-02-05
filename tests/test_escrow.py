@@ -5,8 +5,8 @@ from nkms_eth.escrow import Escrow
 from nkms_eth.token import NuCypherKMSToken
 
 
-def test_create_escrow(testerchain):
-    token = NuCypherKMSToken(blockchain=testerchain)
+def test_create_escrow(testerchain, token):
+    # token = NuCypherKMSToken(blockchain=testerchain)
 
     with raises(NoKnownAddress):
         Escrow.get(blockchain=testerchain, token=token)

@@ -1,4 +1,4 @@
 
-def test_chain_network(testerchain):
-    with testerchain as blockchain:
-        assert blockchain.web3.eth.blockNumber >= 0
+def test_testerchain_create(testerchain):
+    with testerchain as chain:
+        assert chain.web3.eth.blockNumber >= 0

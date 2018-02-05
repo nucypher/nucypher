@@ -7,7 +7,7 @@ sudo pip3 install pipenv
 pipenv --three
 VENV="$(pipenv --venv)"
 
-# Sol
+# Sol - TODO: integrity
 wget https://github.com/ethereum/solidity/releases/download/v0.4.19/solc-static-linux -O "${VENV}/bin/solc"
 chmod +x "${VENV}/bin/solc"
 

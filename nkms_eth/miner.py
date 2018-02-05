@@ -1,20 +1,16 @@
-from nkms_eth.token import NuCypherKMSToken
-from nkms_eth.blockchain import Blockchain
-from nkms_eth.escrow import Escrow
-
 
 class Miner:
     """Practically carrying a pickaxe"""
 
-    def __init__(self, blockchain, escrow=None):
+    def __init__(self, blockchain, token, escrow):
         self.blockchain = blockchain
-        if not escrow:
-            escrow = Escrow.get(blockchain=blockchain)
         self.escrow = escrow
+        self.token = token
 
     def lock(self, amount: int, locktime: int, address: str=None):
         """
-        Deposit and lock coins for mining. Creating coins starts after it is done
+        Deposit and lock coins for mining.
+        Creating coins starts after it is done.
 
         :param amount:      Amount of coins to lock (in smallest  indivisible units)
         :param locktime:    Locktime in periods
@@ -36,14 +32,16 @@ class Miner:
 
     def mine(self, address: str=None):
         with self.blockchain as chain:
-            address = address or chain.web3.eth.accounts[0]
+            if not address:
+                address = chain.web3.eth.accounts[0]
 
             tx = self.escrow.contract.transact({'from': address}).mint()
             chain.wait.for_receipt(tx, timeout=self.blockchain.timeout)
 
     def withdraw(self, address: str=None):
         with self.blockchain as chain:
-            address = address or chain.web3.eth.accounts[0]
+            if not address:
+                address = chain.web3.eth.accounts[0]
 
             tx = self.escrow.contract.transact({'from': address}).withdrawAll()
             chain.wait.for_receipt(tx, timeout=self.blockchain.timeout)

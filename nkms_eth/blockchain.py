@@ -6,6 +6,17 @@ from os.path import dirname, join, abspath
 
 
 class Blockchain:
+    """
+    http://populus.readthedocs.io/en/latest/config.html#chains
+
+    mainnet: Connects to the public ethereum mainnet via geth.
+    ropsten: Connects to the public ethereum ropsten testnet via geth.
+    tester: Uses an ephemeral in-memory chain backed by pyethereum.
+    testrpc: Uses an ephemeral in-memory chain backed by pyethereum.
+    temp: Local private chain whos data directory is removed when the chain is shutdown. Runs via geth.
+
+    """
+
     network = 'mainnetrpc'
     project_name = 'nucypher-kms'
     _project = threading.local()
@@ -21,7 +32,7 @@ class Blockchain:
         # Populus project config
         project_dir = join(dirname(abspath(nkms_eth.__file__)), 'project')
         project = populus.Project(project_dir)
-        project.config['chains.mainnetrpc']['contracts']['backends']['JSONFile']['settings']['file_path'] = self.registrar_path
+        project.config['chains.mainnetrpc.contracts.backends.JSONFile.settings.file_path'] = self.registrar_path
 
         self.project_dir = project_dir
         self._project.project = project

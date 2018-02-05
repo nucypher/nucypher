@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-"""Deploy contracts in tester.
+"""
+Deploy contracts in tester.
 
 A simple Python script to deploy contracts and then estimate gas for different methods.
 """
 import random
-from nkms_eth.blockchain import project
+from nkms_eth.blockchain import Blockchain
+
 
 TIMEOUT = 10
 MINING_COEFF = [10 ** 5, 10 ** 7]
@@ -29,9 +31,7 @@ def main():
         # Create an ERC20 token
         token, tx = chain.provider.get_or_deploy_contract(
             'HumanStandardToken', deploy_args=[
-                int(1e9) * M, int(1e10) * M, 'NuCypher KMS', 6, 'KMS'],
-            deploy_transaction={
-                'from': creator})
+                int(1e9) * M, int(1e10) * M, 'NuCypher KMS', 6, 'KMS'],deploy_transaction={'from': creator})
         chain.wait.for_receipt(tx, timeout=TIMEOUT)
         print("Deployed HumanStandardToken, tx hash is", tx)
 

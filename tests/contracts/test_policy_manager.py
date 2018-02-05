@@ -3,13 +3,14 @@ from ethereum.tester import TransactionFailed
 
 
 @pytest.fixture()
-def token(web3, chain):
-    creator = web3.eth.accounts[0]
-    # Create an ERC20 token
-    token, _ = chain.provider.get_or_deploy_contract(
-        'NuCypherKMSToken', deploy_args=[2 * 10 ** 9],
-        deploy_transaction={'from': creator})
-    return token
+def token(web3, testerchain):
+    with testerchain as chain:
+        creator = web3.eth.accounts[0]
+        # Create an ERC20 token
+        token, _ = chain.provider.get_or_deploy_contract(
+            'NuCypherKMSToken', deploy_args=[10 ** 9, 2 * 10 ** 9],
+            deploy_transaction={'from': creator})
+        return token
 
 
 @pytest.fixture()
@@ -18,7 +19,7 @@ def escrow(web3, chain):
     node = web3.eth.accounts[1]
     # Creator deploys the escrow
     escrow, _ = chain.provider.get_or_deploy_contract(
-        'MinersEscrowForPolicyTest', deploy_args=[node, MINUTES_IN_PERIOD],
+        'EscrowTest', deploy_args=[node, MINUTES_IN_PERIOD],
         deploy_transaction={'from': creator})
     return escrow
 
@@ -61,58 +62,60 @@ rate = 20
 number_of_periods = 10
 
 
-def test_create_revoke(web3, chain, token, escrow, policy_manager):
-    creator = web3.eth.accounts[0]
-    node = web3.eth.accounts[1]
-    client = web3.eth.accounts[2]
-    bad_node = web3.eth.accounts[3]
+def test_create_revoke(web3, testerchain, token, escrow, policy_manager):
+    with testerchain as chain:
 
-    # Try create policy for bad node
-    with pytest.raises(TransactionFailed):
-        tx = policy_manager.transact({'from': client}).createPolicy(policy_id, bad_node, 1, 1)
-        chain.wait.for_receipt(tx)
+        creator = web3.eth.accounts[0]
+        node = web3.eth.accounts[1]
+        client = web3.eth.accounts[2]
+        bad_node = web3.eth.accounts[3]
 
-    # Create policy
-    period = escrow.call().getCurrentPeriod()
-    tx = policy_manager.transact({'from': client}).createPolicy(policy_id, node, rate, number_of_periods)
-    chain.wait.for_receipt(tx)
-    policy = policy_manager.call().policies(policy_id)
-    assert 200 == token.call().balanceOf(policy_manager.address)
-    assert 9800 == token.call().balanceOf(client)
-    assert client == policy[0]
-    assert node == policy[1]
-    assert rate == policy[2]
-    assert period + 1 == policy[3]
-    assert period + 10 == policy[4]
+        # Try create policy for bad node
+        with pytest.raises(TransactionFailed):
+            tx = policy_manager.transact({'from': client}).createPolicy(policy_id, bad_node, 1, 1)
+            chain.wait.for_receipt(tx)
 
-    # Try to create policy again
-    with pytest.raises(TransactionFailed):
+        # Create policy
+        period = escrow.call().getCurrentPeriod()
         tx = policy_manager.transact({'from': client}).createPolicy(policy_id, node, rate, number_of_periods)
         chain.wait.for_receipt(tx)
+        policy = policy_manager.call().policies(policy_id)
+        assert 200 == token.call().balanceOf(policy_manager.address)
+        assert 9800 == token.call().balanceOf(client)
+        assert client == policy[0]
+        assert node == policy[1]
+        assert rate == policy[2]
+        assert period + 1 == policy[3]
+        assert period + 10 == policy[4]
 
-    # Not client try to revoke policy
-    with pytest.raises(TransactionFailed):
-        tx = policy_manager.transact({'from': creator}).revokePolicy(policy_id)
+        # Try to create policy again
+        with pytest.raises(TransactionFailed):
+            tx = policy_manager.transact({'from': client}).createPolicy(policy_id, node, rate, number_of_periods)
+            chain.wait.for_receipt(tx)
+
+        # Not client try to revoke policy
+        with pytest.raises(TransactionFailed):
+            tx = policy_manager.transact({'from': creator}).revokePolicy(policy_id)
+            chain.wait.for_receipt(tx)
+
+        # Client try to revoke policy
+        tx = policy_manager.transact({'from': client}).revokePolicy(policy_id)
         chain.wait.for_receipt(tx)
+        policy = policy_manager.call().policies(policy_id)
+        assert '0x' + '0' * 40 == policy[0]
 
-    # Client try to revoke policy
-    tx = policy_manager.transact({'from': client}).revokePolicy(policy_id)
-    chain.wait.for_receipt(tx)
-    policy = policy_manager.call().policies(policy_id)
-    assert '0x' + '0' * 40 == policy[0]
-
-    # Create another policy
-    period = escrow.call().getCurrentPeriod()
-    tx = policy_manager.transact({'from': client}).createPolicy(policy_id_2, node, rate, number_of_periods)
-    chain.wait.for_receipt(tx)
-    policy = policy_manager.call().policies(policy_id_2)
-    assert 200 == token.call().balanceOf(policy_manager.address)
-    assert 9800 == token.call().balanceOf(client)
-    assert client == policy[0]
-    assert node == policy[1]
-    assert rate == policy[2]
-    assert period + 1 == policy[3]
-    assert period + 10 == policy[4]
+        # Create another policy
+        period = escrow.call().getCurrentPeriod()
+        tx = policy_manager.transact({'from': client}).createPolicy(policy_id_2, node, rate, number_of_periods)
+        chain.wait.for_receipt(tx)
+        policy = policy_manager.call().policies(policy_id_2)
+        assert 200 == token.call().balanceOf(policy_manager.address)
+        assert 9800 == token.call().balanceOf(client)
+        assert client == policy[0]
+        assert node == policy[1]
+        assert rate == policy[2]
+        assert period + 1 == policy[3]
+        assert period + 10 == policy[4]
 
 
 def test_reward(web3, chain, token, escrow, policy_manager):
