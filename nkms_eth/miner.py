@@ -3,7 +3,7 @@ from nkms_eth.blockchain import Blockchain
 from nkms_eth.escrow import Escrow
 
 
-class Miner(object):
+class Miner:
     """Practically carrying a pickaxe"""
 
     def __init__(self, blockchain, escrow=None):

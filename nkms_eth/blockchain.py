@@ -18,6 +18,7 @@ class Blockchain:
         self.project_name = project_name
         self.timeout = timeout
 
+        # Populus project config
         project_dir = join(dirname(abspath(nkms_eth.__file__)), 'project')
         project = populus.Project(project_dir)
         project.config['chains.mainnetrpc']['contracts']['backends']['JSONFile']['settings']['file_path'] = self.registrar_path
