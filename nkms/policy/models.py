@@ -75,13 +75,15 @@ class ContractResponse(object):
 
 class Policy(object):
     """
-    An individual contract between Alice and Ursula.  Together, all of the Policies by which
-    Ursula nodes which enter into an contract regarding the same series of kFrags constitute
-    a PolicyGroup.
+        An edict by Alice, contracted with n Ursulas, to perform re-encryption for a specific Bob
+    for a specific path.
 
-    A Policy has a unique ID, which includes a fingerprint of Alice's public key so that
-    only she can set a policy with that ID.  Ursula must verify this; otherwise a collision
-    attack is possible.
+    Once Alice is ready to enact a Policy, she generates KFrags, which become part of the Policy.
+
+    Each Ursula is offered a Contract (see above) for a given Policy by Alice.
+
+    Once Alice has secured agreement with n Ursulas to enact a Policy, she sends each a KFrag,
+    and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
     """
     _ursula = None
     hashed_part = None
