@@ -4,6 +4,7 @@ from binascii import hexlify
 from logging import getLogger
 
 import msgpack
+import requests
 from apistar import http
 from apistar.core import Route
 from apistar.frameworks.wsgi import WSGIApp as App
@@ -19,7 +20,7 @@ from nkms.crypto.fragments import KFrag
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
-from nkms.keystore.keypairs import Keypair, PublicKey
+from nkms.keystore.keypairs import PublicKey
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
@@ -88,7 +89,8 @@ class Character(object):
     @classmethod
     def from_public_keys(cls, **public_keys):
         if not public_keys:
-            raise ValueError("A Character needs either a signing or encrypting public key, or both, to be created with this method.")
+            raise ValueError(
+                "A Character needs either a signing or encrypting public key, or both, to be created with this method.")
         crypto_power = CryptoPower()
         for key_type, pubkey_bytes in public_keys.items():
             if key_type == "signing":
@@ -96,7 +98,8 @@ class Character(object):
             elif key_type == "encrypting":
                 power_up = EncryptingPower
             else:
-                raise NotImplementedError("Characters can only be created from public keys for signing or encrypting, or both.")
+                raise NotImplementedError(
+                    "Characters can only be created from public keys for signing or encrypting, or both.")
             power_up_with_public_key = power_up(pubkey_bytes=pubkey_bytes)
             crypto_power.consume_power_up(power_up_with_public_key)
         return cls(is_me=False, crypto_power=crypto_power)
