@@ -1,5 +1,6 @@
 import asyncio
 import binascii
+import maya
 
 import msgpack
 from npre.constants import UNKNOWN_KFRAG
@@ -7,7 +8,7 @@ from npre.constants import UNKNOWN_KFRAG
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import NOT_SIGNED
+from nkms.crypto.constants import NOT_SIGNED, HASH_DIGEST_LENGTH
 from nkms.crypto.fragments import KFrag, PFrag
 from nkms.crypto.powers import EncryptingPower
 from nkms.crypto.signature import Signature
@@ -19,6 +20,7 @@ class Contract(object):
     """
     A Policy must be implemented by contract with n Ursulas.  This class tracks the status of that implementation.
     """
+    _EXPECTED_LENGTH = 124
 
     def __init__(self, alice, hrac, expiration, deposit=None, ursula=None, kfrag=UNKNOWN_KFRAG, alices_signature=None):
         """
@@ -39,6 +41,17 @@ class Contract(object):
         """
         self.kfrag = kfrag
         self.ursula = ursula
+
+    def __bytes__(self):
+        return bytes(self.alice.seal) + bytes(self.hrac) + self.expiration.isoformat().encode() + bytes(self.deposit)
+
+    @classmethod
+    def from_bytes(cls, contract_as_bytes):
+        contract_splitter = BytestringSplitter(PublicKey, (bytes, HASH_DIGEST_LENGTH), (bytes, 26))
+        alice_pubkey_sig, hrac, expiration_bytes = contract_splitter(contract_as_bytes)
+        expiration = maya.parse(expiration_bytes.decode())
+        alice = Alice.from_public_keys(signing=alice_pubkey_sig)
+        return cls(alice=alice, hrac=hrac, expiration=expiration)
 
     def activate(self, kfrag, ursula, negotiation_result):
         self.kfrag = kfrag
