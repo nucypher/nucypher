@@ -18,10 +18,10 @@ class Miner:
         """
 
         with self.blockchain as chain:
-            address = address or chain.web3.eth.accounts[0]
-            token = self.escrow
+            if not address:
+                address = chain.web3.eth.accounts[0]
 
-            tx = token.contract.transact({'from': address}).approve(self.escrow.contract.address, amount)
+            tx = self.token.contract.transact({'from': address}).approve(self.escrow.contract.address, amount)
             chain.wait.for_receipt(tx, timeout=chain.timeout)
 
             tx = self.escrow.contract.transact({'from': address}).deposit(amount, locktime)
