@@ -477,6 +477,31 @@ class Ursula(Character):
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 
+    def get_signing_and_encrypting_public_keys(self):
+        """
+        REST endpoint for getting both signing and encrypting public keys.
+        """
+        return Response(content=bytes(self.seal) + bytes(self.public_key(EncryptingPower)),
+                        content_type="application/octet-stream")
+
+    def consider_contract(self, hrac_as_hex, request: http.Request):
+        # TODO: This actually needs to be a REST endpoint, with the payload carrying the kfrag hash separately.
+        from nkms.policy.models import Contract
+        contract, deposit_as_bytes = BytestringSplitter(Contract)(request.body, return_remainder=True)
+        contract.deposit = deposit_as_bytes
+
+        contract_to_store = {  # TODO: This needs to be a datastore - see #127.
+            "alice_pubkey_sig": bytes(contract.alice.seal),
+            "deposit": contract.deposit,
+            # TODO: Whatever type "deposit" ends up being, we'll need to serialize it here.  See #148.
+            "expiration": contract.expiration,
+        }
+        self._contracts[contract.hrac] = contract_to_store
+
+        # TODO: Make the rest of this logic actually work - do something here to decide if this Contract is worth accepting.
+        from tests.utilities import MockContractResponse
+        return Response(bytes(MockContractResponse()), content_type="application/octet-stream")
+
     def set_policy(self, hrac_as_hex, request: http.Request):
         """
         REST endpoint for setting a kFrag.
@@ -548,20 +573,6 @@ class Ursula(Character):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
-
-    def consider_contract(self, contract):
-        # TODO: This actually needs to be a REST endpoint, with the payload carrying the kfrag hash separately.
-
-        contract_to_store = { # TODO: This needs to be a datastore - see #127.
-            "alice_pubkey_sig": bytes(contract.alice.seal),
-            "deposit": contract.deposit,  # TODO: Whatever type "deposit" ends up being, we'll need to serialize it here.  See #148.
-            "expiration": contract.expiration,
-        }
-        self._contracts[contract.hrac] = contract_to_store
-
-        # TODO: Make the rest of this logic actually work - do something here to decide if this Contract is worth accepting.
-        from tests.utilities import MockContractResponse
-        return MockContractResponse()
 
 
 class Seal(object):
