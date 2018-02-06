@@ -420,6 +420,16 @@ class Ursula(Character):
         ursula.rest_port = rest_port
         return ursula
 
+    @classmethod
+    def from_rest_url(cls, url):
+        response = requests.get(url)
+        if not response.status_code == 200:
+            raise RuntimeError("Got a bad response: {}".format(response))
+        signing_key_bytes, encrypting_key_bytes = BytestringSplitter(PublicKey)(response.content, return_remainder=True)
+        stranger_ursula_from_public_keys = cls.from_public_keys(signing=signing_key_bytes,
+                                                                   encrypting=encrypting_key_bytes)
+        return stranger_ursula_from_public_keys
+
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs):
 
@@ -432,6 +442,8 @@ class Ursula(Character):
         routes = [
             Route('/kFrag/{hrac_as_hex}', 'POST', self.set_policy),
             Route('/kFrag/{hrac_as_hex}/reencrypt', 'POST', self.reencrypt_via_rest),
+            Route('/public_keys', 'GET', self.get_signing_and_encrypting_public_keys),
+            Route('/consider_contract', 'POST', self.consider_contract),
         ]
 
         self._rest_app = App(routes=routes)

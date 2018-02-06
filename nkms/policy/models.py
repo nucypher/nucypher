@@ -17,7 +17,7 @@ from nkms.keystore.keypairs import PublicKey
 
 class Contract(object):
     """
-    A Policy must be implemented by agreement with n Ursulas.  This class tracks the status of that implementation.
+    A Policy must be implemented by contract with n Ursulas.  This class tracks the status of that implementation.
     """
 
     def __init__(self, alice, hrac, expiration, deposit=None, ursula=None, kfrag=UNKNOWN_KFRAG, alices_signature=None):
@@ -62,8 +62,8 @@ class ContractResponse(object):
 
 class Policy(object):
     """
-    An individual agreement between Alice and Ursula.  Together, all of the Policies by which
-    Ursula nodes which enter into an agreement regarding the same series of kFrags constitute
+    An individual contract between Alice and Ursula.  Together, all of the Policies by which
+    Ursula nodes which enter into an contract regarding the same series of kFrags constitute
     a PolicyGroup.
 
     A Policy has a unique ID, which includes a fingerprint of Alice's public key so that

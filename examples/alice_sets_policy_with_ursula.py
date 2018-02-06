@@ -6,7 +6,7 @@ import requests
 
 from nkms.characters import Alice, Bob, Ursula, congregate
 from nkms.network.node import NetworkyStuff
-from nkms.policy.models import AgreementResponse
+from nkms.policy.models import ContractResponse
 
 ALICE = Alice()
 BOB = Bob()
@@ -16,10 +16,10 @@ ALICE.learn_about_actor(URSULA)
 
 
 class SandboxNetworkyStuff(NetworkyStuff):
-    def find_ursula(self, agreement=None):
+    def find_ursula(self, contract=None):
         ursula = Ursula.as_discovered_on_network(None, None, pubkey_sig_bytes=bytes(URSULA.seal),
                                                  rest_address="localhost", rest_port=3500)
-        response = ursula.consider_agreement(agreement)  # TODO: This needs to be a REST call.
+        response = ursula.consider_contract(contract)  # TODO: This needs to be a REST call.
         response.was_accepted = True
         return ursula, response
 
