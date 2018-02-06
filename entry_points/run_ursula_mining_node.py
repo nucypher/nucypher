@@ -1,4 +1,11 @@
+# This is not an actual mining script.  Don't use this to mine - you won't
+# perform any re-encryptions, and you won't get paid.
+# It might be (but might not be) useful for determining whether you have
+# the proper depedencies and configuration to run an actual mining node.
+
 # WIP w/ hendrix@8227c4abcb37ee6d27528a13ec22d55ee106107f
+
+
 
 from sqlalchemy.engine import create_engine
 
