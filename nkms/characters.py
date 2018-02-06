@@ -454,7 +454,7 @@ class Ursula(Character):
         return self.server.listen(port, interface)
 
     def dht_interface_info(self):
-        return self.port, self.interface, self.dht_ttl
+        return self.dht_port, self.dht_interface, self.dht_ttl
 
     def interface_dht_key(self):
         return self.hash(self.seal + self.interface_hrac())
@@ -499,8 +499,7 @@ class Ursula(Character):
         self._contracts[contract.hrac] = contract_to_store
 
         # TODO: Make the rest of this logic actually work - do something here to decide if this Contract is worth accepting.
-        from tests.utilities import MockContractResponse
-        return Response(bytes(MockContractResponse()), content_type="application/octet-stream")
+        return Response(b"This will eventually be an actual acceptance of the contract.", content_type="application/octet-stream")
 
     def set_policy(self, hrac_as_hex, request: http.Request):
         """

@@ -19,13 +19,15 @@ class SandboxNetworkyStuff(NetworkyStuff):
     def find_ursula(self, contract=None):
         ursula = Ursula.as_discovered_on_network(None, None, pubkey_sig_bytes=bytes(URSULA.seal),
                                                  rest_address="localhost", rest_port=3500)
-        response = ursula.consider_contract(contract)  # TODO: This needs to be a REST call.
+        response = requests.post("http://localhost:3500/consider_contract", bytes(contract))
         response.was_accepted = True
         return ursula, response
 
     def enact_policy(self, ursula, hrac, payload):
         response = requests.post('http://{}:{}/kFrag/{}'.format(ursula.rest_address, ursula.rest_port, hrac.hex()), payload)
-        return True, ursula.interface_dht_key()  # TODO: Something useful here and it's probably ready to go down into NetworkyStuff.
+        # TODO: Something useful here and it's probably ready to go down into NetworkyStuff.
+        return response.status_code == 200
+
 
 networky_stuff = SandboxNetworkyStuff()
 

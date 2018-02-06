@@ -70,7 +70,6 @@ class MockNetworkyStuff(NetworkyStuff):
             except StopIteration:
                 raise self.NotEnoughQualifiedUrsulas
             mock_client = TestClient(ursula.rest_app)
-            # contract_response = ursula.consider_contract(contract)
             response = mock_client.post("http://localhost/consider_contract", bytes(contract))
             return ursula, MockContractResponse()
         else:
