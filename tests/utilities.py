@@ -51,6 +51,9 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
 class MockContractResponse(ContractResponse):
     was_accepted = True
 
+    def __bytes__(self):
+        return b"This is a contract response; we have no idea what the bytes repr will be."
+
 
 class MockNetworkyStuff(NetworkyStuff):
     def __init__(self, ursulas):
@@ -66,8 +69,9 @@ class MockNetworkyStuff(NetworkyStuff):
                 ursula = next(self.ursulas)
             except StopIteration:
                 raise self.NotEnoughQualifiedUrsulas
-
-            contract_response = ursula.consider_contract(contract)
+            mock_client = TestClient(ursula.rest_app)
+            # contract_response = ursula.consider_contract(contract)
+            response = mock_client.post("http://localhost/consider_agreement", bytes(contract))
             return ursula, MockContractResponse()
         else:
             self
