@@ -2,57 +2,56 @@ import pytest
 from ethereum.tester import TransactionFailed
 
 
-@pytest.fixture()
-def token(web3, testerchain):
-    with testerchain as chain:
-        creator = web3.eth.accounts[0]
-        # Create an ERC20 token
-        token, _ = chain.provider.get_or_deploy_contract(
-            'NuCypherKMSToken', deploy_args=[10 ** 9, 2 * 10 ** 9],
-            deploy_transaction={'from': creator})
-        return token
+# @pytest.fixture()
+# def token(testerchain):
+#     creator = testerchain.web3.eth.accounts[0]
+#     # Create an ERC20 token
+#     token, _ = testerchain.chain.provider.get_or_deploy_contract(
+#         'NuCypherKMSToken', deploy_args=[10 ** 9, 2 * 10 ** 9],
+#         deploy_transaction={'from': creator})
+#     return token
+#
+#
+# @pytest.fixture()
+# def escrow(web3, chain):
+#     creator = web3.eth.accounts[0]
+#     node = web3.eth.accounts[1]
+#     # Creator deploys the escrow
+#     escrow, _ = chain.provider.get_or_deploy_contract(
+#         'EscrowTest', deploy_args=[node, MINUTES_IN_PERIOD],
+#         deploy_transaction={'from': creator})
+#     return escrow
 
 
 @pytest.fixture()
-def escrow(web3, chain):
-    creator = web3.eth.accounts[0]
-    node = web3.eth.accounts[1]
-    # Creator deploys the escrow
-    escrow, _ = chain.provider.get_or_deploy_contract(
-        'EscrowTest', deploy_args=[node, MINUTES_IN_PERIOD],
-        deploy_transaction={'from': creator})
-    return escrow
-
-
-@pytest.fixture()
-def policy_manager(web3, chain, token, escrow):
-    creator = web3.eth.accounts[0]
-    client = web3.eth.accounts[2]
+def policy_manager(testerchain, token, escrow):
+    creator = testerchain.web3.eth.accounts[0]
+    client = testerchain.web3.eth.accounts[2]
 
     # Creator deploys the policy manager
-    policy_manager, _ = chain.provider.get_or_deploy_contract(
-        'PolicyManager', deploy_args=[token.address, escrow.address],
+    policy_manager, _ = testerchain.chain.provider.get_or_deploy_contract(
+        'PolicyManager', deploy_args=[token.contract.address, escrow.contract.address],
         deploy_transaction={'from': creator})
     tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)
-    chain.wait.for_receipt(tx)
+    testerchain.chain.wait.for_receipt(tx)
 
     # Give client some coins
     tx = token.transact({'from': creator}).transfer(client, 10000)
-    chain.wait.for_receipt(tx)
+    testerchain.chain.wait.for_receipt(tx)
 
     # Client give rights for policy manager to transfer coins
     tx = token.transact({'from': client}).approve(policy_manager.address, 1000)
-    chain.wait.for_receipt(tx)
+    testerchain.chain.wait.for_receipt(tx)
 
     return policy_manager
 
 
-def wait_time(chain, wait_periods):
-    web3 = chain.web3
+def wait_time(testerchain, wait_periods):
+    web3 = testerchain.web3
     step = 1
     end_timestamp = web3.eth.getBlock(web3.eth.blockNumber).timestamp + wait_periods * 60 * MINUTES_IN_PERIOD
-    while web3.eth.getBlock(web3.eth.blockNumber).timestamp < end_timestamp:
-        chain.wait.for_block(web3.eth.blockNumber + step)
+    while web3.eth.getBlock(web3.eth.blockNumber).timestamp<end_timestamp:
+        testerchain.wait.for_block(web3.eth.blockNumber+step)
 
 
 MINUTES_IN_PERIOD = 10

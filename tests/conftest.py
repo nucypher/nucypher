@@ -7,7 +7,9 @@ from nkms_eth.miner import Miner
 
 @pytest.fixture()
 def testerchain():
-    return TesterBlockchain()
+    chain = TesterBlockchain()
+    yield chain
+    del chain
 
 
 @pytest.fixture()
@@ -21,5 +23,5 @@ def escrow(testerchain, token):
 
 
 @pytest.fixture()
-def miner(testerchain, escrow):
-    return Miner(blockchain=testerchain, escrow=escrow)
+def miner(testerchain, escrow, token):
+    return Miner(blockchain=testerchain, token=token, escrow=escrow)
