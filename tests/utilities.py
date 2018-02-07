@@ -5,7 +5,6 @@ from sqlalchemy.engine import create_engine
 
 from apistar.test import TestClient
 from nkms.characters import Ursula
-from nkms.crypto.fragments import CFrag
 from nkms.crypto.utils import RepeatingBytestringSplitter
 from nkms.keystore import keystore
 from nkms.keystore.db import Base

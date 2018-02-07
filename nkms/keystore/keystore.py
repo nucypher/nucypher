@@ -1,13 +1,14 @@
 import sha3
 
-from nkms.crypto.fragments import KFrag
-from nkms.keystore import keypairs, constants
+from nkms.crypto.constants import KFRAG_LENGTH
 from nkms.keystore.db.models import Key, KeyFrag
 from nkms.crypto.utils import BytestringSplitter
 from nkms.crypto.signature import Signature
 from sqlalchemy.orm import sessionmaker
 from typing import Union
-from npre.umbral import RekeyFrag
+
+from umbral.umbral import KFrag
+from . import keypairs
 
 
 class KeyNotFound(KeyError):
@@ -22,7 +23,7 @@ class KeyStore(object):
     A storage class of cryptographic keys.
     """
 
-    kfrag_splitter = BytestringSplitter(Signature, KFrag)
+    kfrag_splitter = BytestringSplitter(Signature, (KFrag, KFRAG_LENGTH))
 
     def __init__(self, sqlalchemy_engine=None):
         """
@@ -88,7 +89,7 @@ class KeyStore(object):
                     "No key with fingerprint {} found.".format(fingerprint))
         return keypairs.Keypair.deserialize_key(key.key_data)
 
-    def get_kfrag(self, hrac: bytes, get_sig: bool=False) -> RekeyFrag:
+    def get_kfrag(self, hrac: bytes, get_sig: bool=False):
         """
         Returns a RekeyFrag from the KeyStore.
 
@@ -132,7 +133,7 @@ class KeyStore(object):
         self.session.commit()
         return fingerprint
 
-    def add_kfrag(self, hrac: bytes, kfrag: RekeyFrag, sig: bytes=None):
+    def add_kfrag(self, hrac: bytes, kfrag, sig: bytes=None):
         """
         Adds a RekeyFrag to sqlite.
 
