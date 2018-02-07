@@ -87,21 +87,20 @@ class Character(object):
         """raised when an action appears to amount to malicious conduct."""
 
     @classmethod
-    def from_public_keys(cls, **public_keys):
-        if not public_keys:
-            raise ValueError(
-                "A Character needs either a signing or encrypting public key, or both, to be created with this method.")
+    def from_public_keys(cls, *powers_and_key_bytes):
+        """
+        Sometimes we discover a Character and, at the same moment, learn one or more of their public keys.
+        Here, we take a collection of tuples (powers_and_key_bytes) in the following format:
+        (CryptoPowerUp class, public_key_bytes)
+
+        Each item in the collection will have the CryptoPowerUp instantiated with the public_key_bytes, and the resulting
+        CryptoPowerUp instance consumed by the Character.
+        """
         crypto_power = CryptoPower()
-        for key_type, pubkey_bytes in public_keys.items():
-            if key_type == "signing":
-                power_up = SigningPower
-            elif key_type == "encrypting":
-                power_up = EncryptingPower
-            else:
-                raise NotImplementedError(
-                    "Characters can only be created from public keys for signing or encrypting, or both.")
-            power_up_with_public_key = power_up(pubkey_bytes=pubkey_bytes)
-            crypto_power.consume_power_up(power_up_with_public_key)
+
+        for power_up, public_key_bytes in powers_and_key_bytes:
+            crypto_power.consume_power_up(power_up(pubkey_bytes=public_key_bytes))
+
         return cls(is_me=False, crypto_power=crypto_power)
 
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
@@ -413,7 +412,7 @@ class Ursula(Character):
     @classmethod
     def as_discovered_on_network(cls, dht_port, dht_interface, pubkey_sig_bytes, rest_address=None, rest_port=None):
         # TODO: We also need the encrypting public key here.
-        ursula = cls.from_public_keys(signing=pubkey_sig_bytes)
+        ursula = cls.from_public_keys((SigningPower, pubkey_sig_bytes))
         ursula.dht_port = dht_port
         ursula.dht_interface = dht_interface
         ursula.rest_address = rest_address
@@ -514,7 +513,7 @@ class Ursula(Character):
         policy_payload_splitter = BytestringSplitter(KFrag)
 
         alice_pubkey_sig, payload_encrypted_for_ursula = group_payload_splitter(request.body, msgpack_remainder=True)
-        alice = Alice.from_public_keys(signing=alice_pubkey_sig)
+        alice = Alice.from_public_keys((SigningPower, alice_pubkey_sig))
         self.learn_about_actor(alice)
 
         verified, cleartext = self.verify_from(alice, payload_encrypted_for_ursula,

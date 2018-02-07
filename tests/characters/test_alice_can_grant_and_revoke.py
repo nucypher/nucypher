@@ -2,6 +2,7 @@ import datetime
 
 from nkms.characters import Ursula
 from nkms.crypto.api import keccak_digest
+from nkms.crypto.powers import SigningPower, EncryptingPower
 from nkms.crypto.utils import BytestringSplitter
 from nkms.keystore.keypairs import PublicKey
 from tests.utilities import MockNetworkyStuff
@@ -31,5 +32,5 @@ def test_alice_can_get_ursulas_keys_via_rest(alice, ursulas):
     mock_client = TestClient(ursulas[0].rest_app)
     response = mock_client.get('http://localhost/public_keys')
     signing_key_bytes, encrypting_key_bytes = BytestringSplitter(PublicKey)(response.content, return_remainder=True)
-    stranger_ursula_from_public_keys = Ursula.from_public_keys(signing=signing_key_bytes, encrypting=encrypting_key_bytes)
+    stranger_ursula_from_public_keys = Ursula.from_public_keys((SigningPower, signing_key_bytes), (EncryptingPower, encrypting_key_bytes))
     assert stranger_ursula_from_public_keys == ursulas[0]

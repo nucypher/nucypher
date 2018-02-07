@@ -10,7 +10,7 @@ from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, HASH_DIGEST_LENGTH
 from nkms.crypto.fragments import KFrag, PFrag
-from nkms.crypto.powers import EncryptingPower
+from nkms.crypto.powers import EncryptingPower, SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 from nkms.keystore.keypairs import PublicKey
@@ -50,7 +50,7 @@ class Contract(object):
         contract_splitter = BytestringSplitter(PublicKey, (bytes, HASH_DIGEST_LENGTH), (bytes, 26))
         alice_pubkey_sig, hrac, expiration_bytes = contract_splitter(contract_as_bytes)
         expiration = maya.parse(expiration_bytes.decode())
-        alice = Alice.from_public_keys(signing=alice_pubkey_sig)
+        alice = Alice.from_public_keys((SigningPower, alice_pubkey_sig))
         return cls(alice=alice, hrac=hrac, expiration=expiration)
 
     def activate(self, kfrag, ursula, negotiation_result):
@@ -296,7 +296,7 @@ class WorkOrder(object):
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
             raise ValueError("This doesn't appear to be from Bob.")
-        bob = Bob.from_public_keys(signing=bob_pubkey_sig)
+        bob = Bob.from_public_keys((SigningPower, bob_pubkey_sig))
         return cls(bob, kfrag_hrac, pfrags, receipt_bytes, signature)
 
     def payload(self):
