@@ -6,7 +6,6 @@ from random import SystemRandom
 
 from nkms.keystore.constants import SIG_KEYPAIR_BYTE, PUB_KEY_BYTE
 
-PRE = umbral.PRE()
 SYSTEM_RAND = SystemRandom()
 
 
