@@ -47,11 +47,8 @@ class Blockchain:
         class_name = self.__class__.__name__
         return "{} {}:{}".format(class_name, self.network, self.project_name)
 
-    def __del__(self):
+    def disconnect(self):
         self._project.chain.__exit__(None, None, None)
-        for attr in ('project', 'chain', 'w3'):
-            if hasattr(self._project, attr):
-                delattr(self._project, attr)
 
     @property
     def chain(self):
@@ -64,6 +61,11 @@ class Blockchain:
     def get_contract(self, name):
         """ Gets an existing contract or returns an error """
         return self._project.chain.provider.get_contract(name)
+
+    def wait_time(self, wait_hours, step=50):
+        end_timestamp = self.web3.eth.getBlock(self.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
+        while self.web3.eth.getBlock(self.web3.eth.blockNumber).timestamp < end_timestamp:
+            self.chain.wait.for_block(self.web3.eth.blockNumber + step)
 
 
 class TesterBlockchain(Blockchain):

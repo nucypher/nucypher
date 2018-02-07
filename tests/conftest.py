@@ -9,8 +9,6 @@ from nkms_eth.miner import Miner
 def testerchain():
     chain = TesterBlockchain()
     yield chain
-    del chain
-
 
 @pytest.fixture()
 def token(testerchain):

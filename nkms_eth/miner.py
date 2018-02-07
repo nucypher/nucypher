@@ -25,11 +25,11 @@ class Miner:
         tx = self.escrow.contract.transact({'from': address}).deposit(amount, locktime)
         self.blockchain.chain.wait.for_receipt(tx, timeout=self.blockchain.timeout)
 
-    # def unlock(self, address: str=None):
-    #         if not address:
-    #             address = chain.web3.eth.accounts[0]
-    #         tx = self.escrow.contract.transact({'from': address}).switchLock()
-    #         chain.wait.for_receipt(tx, timeout=chain.timeout)
+    def unlock(self, address: str=None):
+        if not address:
+            address = self.blockchain.chain.web3.eth.accounts[0]
+        tx = self.escrow.contract.transact({'from': address}).switchLock()
+        self.blockchain.chain.wait.for_receipt(tx, timeout=self.blockchain.chain.timeout)
 
     def mine(self, address: str=None):
         if not address:

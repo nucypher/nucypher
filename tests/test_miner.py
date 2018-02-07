@@ -13,10 +13,7 @@ def test_deposit(testerchain, miner, token):
     miner.lock(amount=1000*M, locktime=100, address=testerchain.web3.eth.accounts[1])
 
 
-def test_select_ursulas(testerchain):
-    token = NuCypherKMSToken(blockchain=testerchain)
-    escrow = Escrow(blockchain=testerchain, token=token)
-    miner = Miner(blockchain=testerchain)
+def test_select_ursulas(testerchain, token, escrow, miner):
 
     token.airdrop()
     # Create a random set of miners (we have 9 in total)

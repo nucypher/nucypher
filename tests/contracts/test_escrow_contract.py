@@ -2,11 +2,7 @@ import pytest
 from ethereum.tester import TransactionFailed
 
 
-# TODO extract method
-def wait_time(testerchain, wait_hours, step=50):
-        end_timestamp = testerchain.web3.eth.getBlock(testerchain.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
-        while testerchain.web3.eth.getBlock(testerchain.web3.eth.blockNumber).timestamp<end_timestamp:
-            testerchain.chain.wait.for_block(testerchain.web3.eth.blockNumber+step)
+
 
 
 def test_escrow(testerchain, token, escrow):
@@ -75,7 +71,7 @@ def test_escrow(testerchain, token, escrow):
     assert 500 == escrow().calculateLockedTokens(alice, 1)
 
     # Checks locked tokens in next period
-    wait_time(chain, 1)
+    testerchain.wait_time(1)
     assert 1000 == escrow().getLockedTokens(ursula)
     assert 500 == escrow().getLockedTokens(alice)
     assert 1500 == escrow().getAllLockedTokens()
@@ -101,13 +97,13 @@ def test_escrow(testerchain, token, escrow):
     assert 750 == escrow().calculateLockedTokens(ursula, 2)
 
     # Wait 1 period and checks locking
-    wait_time(chain, 1)
+    testerchain.wait_time(1)
     assert 1500 == escrow().getLockedTokens(ursula)
 
     # Confirm activity and wait 1 period
     tx = escrow.transact({'from': ursula}).confirmActivity()
     chain.wait.for_receipt(tx)
-    wait_time(chain, 1)
+    testerchain.wait_time(1)
     assert 750 == escrow().getLockedTokens(ursula)
     assert 0 == escrow().calculateLockedTokens(ursula, 1)
 
@@ -137,7 +133,7 @@ def test_escrow(testerchain, token, escrow):
     chain.wait.for_receipt(tx)
     assert 300 == escrow().calculateLockedTokens(ursula, 2)
     assert 0 == escrow().calculateLockedTokens(ursula, 3)
-    wait_time(chain, 1)
+    testerchain.wait_time(1)
     assert 600 == escrow().getLockedTokens(ursula)
     assert 300 == escrow().calculateLockedTokens(ursula, 1)
     assert 0 == escrow().calculateLockedTokens(ursula, 2)
@@ -150,7 +146,7 @@ def test_escrow(testerchain, token, escrow):
     assert 500 == escrow().calculateLockedTokens(ursula, 2)
     assert 200 == escrow().calculateLockedTokens(ursula, 3)
     assert 0 == escrow().calculateLockedTokens(ursula, 4)
-    wait_time(chain, 1)
+    testerchain.wait_time(1)
     assert 800 == escrow().getLockedTokens(ursula)
 
     # Alice can't deposit too low value (less then rate)
@@ -168,7 +164,7 @@ def test_escrow(testerchain, token, escrow):
     assert 1000 == escrow().calculateLockedTokens(alice, 1)
     assert 500 == escrow().calculateLockedTokens(alice, 2)
     assert 0 == escrow().calculateLockedTokens(alice, 3)
-    wait_time(chain, 1)
+    testerchain.wait_time(1)
     assert 1000 == escrow().getLockedTokens(alice)
 
     # And increases locked time
@@ -199,8 +195,7 @@ def test_escrow(testerchain, token, escrow):
 
 
 def test_locked_distribution(testerchain, token, escrow):
-    chain = testerchain.chain
-    web3 = testerchain.web3
+    chain, web3 = testerchain.chain, testerchain.web3
 
     NULL_ADDR = '0x' + '0' * 40
     creator = web3.eth.accounts[0]
@@ -228,7 +223,7 @@ def test_locked_distribution(testerchain, token, escrow):
     assert 0 == shift
 
     # Wait next period
-    wait_time(chain, 1)
+    testerchain.wait_time(1)
     n_locked = escrow().getAllLockedTokens()
     assert n_locked > 0
 
@@ -317,7 +312,7 @@ def test_mining(testerchain, token, escrow):
         chain.wait.for_receipt(tx)
 
     # Only Ursula confirm next period
-    wait_time(chain, 1)
+    testerchain.wait_time(1)
     assert 1500 == escrow().getAllLockedTokens()
     tx = escrow.transact({'from': ursula}).confirmActivity()
     chain.wait.for_receipt(tx)
@@ -327,7 +322,7 @@ def test_mining(testerchain, token, escrow):
     chain.wait.for_receipt(tx)
 
     # Ursula and Alice mint tokens for last periods
-    wait_time(chain, 1)
+    testerchain.wait_time(1)
     assert 1000 == escrow().getAllLockedTokens()
     tx = escrow.transact({'from': ursula}).mint()
     chain.wait.for_receipt(tx)
@@ -349,7 +344,7 @@ def test_mining(testerchain, token, escrow):
     chain.wait.for_receipt(tx)
 
     # Ursula can't confirm next period because end of locking
-    wait_time(chain, 1)
+    testerchain.wait_time(1)
     assert 500 == escrow().getAllLockedTokens()
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula}).confirmActivity()
@@ -360,7 +355,7 @@ def test_mining(testerchain, token, escrow):
     chain.wait.for_receipt(tx)
 
     # Ursula mint tokens for next period
-    wait_time(chain, 1)
+    testerchain.wait_time(1)
     assert 500 == escrow().getAllLockedTokens()
     tx = escrow.transact({'from': ursula}).mint()
     chain.wait.for_receipt(tx)
@@ -381,7 +376,7 @@ def test_mining(testerchain, token, escrow):
     chain.wait.for_receipt(tx)
     tx = escrow.transact({'from': alice}).confirmActivity()
     chain.wait.for_receipt(tx)
-    wait_time(chain, 2)
+    testerchain.wait_time(2)
     assert 0 == escrow().getAllLockedTokens()
     tx = escrow.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
