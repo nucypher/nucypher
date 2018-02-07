@@ -2,7 +2,6 @@ import pytest
 
 from nkms.crypto import api
 from nkms.crypto.api import secure_random
-from nkms.crypto.fragments import KFrag
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 

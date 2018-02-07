@@ -1,16 +1,14 @@
 import asyncio
 import binascii
-import maya
 
+import maya
 import msgpack
 from npre.constants import UNKNOWN_KFRAG
 
 from nkms.characters import Alice, Bob, Ursula
-from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, HASH_DIGEST_LENGTH
-from nkms.crypto.fragments import KFrag, PFrag
-from nkms.crypto.powers import EncryptingPower, SigningPower
+from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 from nkms.keystore.keypairs import PublicKey
