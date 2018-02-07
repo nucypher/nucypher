@@ -39,10 +39,10 @@ def test_actor_with_signing_power_can_sign():
     """
     message = b"Llamas."
 
-    signer = Character(crypto_power_ups=[SigningPower])
+    signer = Character(crypto_power_ups=[SigningPower], is_me=True)
     seal_of_the_signer = signer.seal
 
-    # We can use the signer's seal to sign a message...
+    # We can use the signer's seal to sign a message (since the signer is_me)...
     signature = seal_of_the_signer(message)
 
     # ...or to get the signer's public key for verification purposes.

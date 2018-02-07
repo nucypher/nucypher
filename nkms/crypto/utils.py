@@ -25,7 +25,10 @@ class BytestringSplitter(object):
             message_class, message_length = self.get_message_meta(message_type)
             expected_end_of_object_bytes = cursor + message_length
             bytes_for_this_object = splittable[cursor:expected_end_of_object_bytes]
-            message = message_class(bytes_for_this_object)
+            try:
+                message = message_class.from_bytes(bytes_for_this_object)
+            except AttributeError:
+                message = message_class(bytes_for_this_object)
 
             message_objects.append(message)
             cursor = expected_end_of_object_bytes

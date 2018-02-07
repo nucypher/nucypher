@@ -43,13 +43,16 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
     for _counter, ursula in enumerate(URSULAS):
         event_loop.run_until_complete(
             ursula.server.bootstrap([("127.0.0.1", ursula_starting_port + _c) for _c in range(how_many_ursulas)]))
-        ursula.publish_interface_information()
+        ursula.publish_dht_information()
 
     return URSULAS
 
 
 class MockContractResponse(ContractResponse):
     was_accepted = True
+
+    def __bytes__(self):
+        return b"This is a contract response; we have no idea what the bytes repr will be."
 
 
 class MockNetworkyStuff(NetworkyStuff):
@@ -66,8 +69,8 @@ class MockNetworkyStuff(NetworkyStuff):
                 ursula = next(self.ursulas)
             except StopIteration:
                 raise self.NotEnoughQualifiedUrsulas
-
-            contract_response = ursula.consider_contract(contract)
+            mock_client = TestClient(ursula.rest_app)
+            response = mock_client.post("http://localhost/consider_contract", bytes(contract))
             return ursula, MockContractResponse()
         else:
             self
