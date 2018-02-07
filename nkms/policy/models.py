@@ -102,7 +102,6 @@ class Policy(object):
 
         self.alices_signature = alices_signature
 
-
     class MoreContractsThanKFrags(TypeError):
         """
         Raised when a Policy has been used to generate Contracts with Ursulas in sufficient number

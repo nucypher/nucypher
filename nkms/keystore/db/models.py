@@ -1,7 +1,8 @@
 import sha3
 
 from nkms.keystore.db import Base
-from sqlalchemy import Column, Integer, LargeBinary, relationship, ForeignKey
+from sqlalchemy import Column, Integer, LargeBinary, ForeignKey
+from sqlalchemy.orm import relationship
 
 
 class Key(Base):

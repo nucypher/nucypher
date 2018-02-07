@@ -2,10 +2,10 @@ from io import BytesIO
 
 import msgpack
 
-from nkms.crypto import (default_algorithm, pre_from_algorithm,
-                         symmetric_from_algorithm)
+# from nkms.crypto import (default_algorithm, pre_from_algorithm,
+#                          symmetric_from_algorithm)
 from nkms.keystore.keystore import KeyStore
-from nkms.network import dummy
+
 
 
 class Client(object):
@@ -147,7 +147,7 @@ class Client(object):
         Returns an EncryptedFile object from a file_path and header_path.
 
         :param bytes file_path: Path of the encrypted file
-        :param bytes 
+        :param bytes
         """
         pass
 

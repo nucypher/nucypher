@@ -1,6 +1,5 @@
 import unittest
 from nacl.utils import EncryptedMessage
-from nkms.crypto import _internal
 from nkms.crypto import api
 from npre import elliptic_curve as ec
 from npre import umbral
