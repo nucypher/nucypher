@@ -47,7 +47,7 @@ def alice(ursulas):
     ALICE.attach_server()
     ALICE.server.listen(8471)
     ALICE.__resource_id = b"some_resource_id"
-    EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", u.port) for u in ursulas]))
+    EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", u.dht_port) for u in ursulas]))
     return ALICE
 
 

@@ -4,6 +4,7 @@ from binascii import hexlify
 from logging import getLogger
 
 import msgpack
+import requests
 from apistar import http
 from apistar.core import Route
 from apistar.frameworks.wsgi import WSGIApp as App
@@ -19,7 +20,7 @@ from nkms.crypto.fragments import KFrag
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
-from nkms.keystore.keypairs import Keypair, PublicKey
+from nkms.keystore.keypairs import PublicKey
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
@@ -56,13 +57,6 @@ class Character(object):
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
 
-        if crypto_power:
-            self._crypto_power = crypto_power
-        elif crypto_power_ups:
-            self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
-        else:
-            self._crypto_power = CryptoPower(self._default_crypto_powerups)
-
         if is_me:
             self._actor_mapping = {}
 
@@ -72,6 +66,13 @@ class Character(object):
                 self.attach_server()
         else:
             self._seal = StrangerSeal(self)
+
+        if crypto_power:
+            self._crypto_power = crypto_power
+        elif crypto_power_ups:
+            self._crypto_power = CryptoPower(power_ups=crypto_power_ups, generate_keys_if_needed=is_me)
+        else:
+            self._crypto_power = CryptoPower(self._default_crypto_powerups, generate_keys_if_needed=is_me)
 
     def __eq__(self, other):
         return bytes(self.seal) == bytes(other.seal)
@@ -86,8 +87,21 @@ class Character(object):
         """raised when an action appears to amount to malicious conduct."""
 
     @classmethod
-    def from_pubkey_sig_bytes(cls, pubkey_sig_bytes):
-        return cls(is_me=False, crypto_power_ups=[SigningPower(keypair=Keypair.deserialize_key(pubkey_sig_bytes))])
+    def from_public_keys(cls, *powers_and_key_bytes):
+        """
+        Sometimes we discover a Character and, at the same moment, learn one or more of their public keys.
+        Here, we take a collection of tuples (powers_and_key_bytes) in the following format:
+        (CryptoPowerUp class, public_key_bytes)
+
+        Each item in the collection will have the CryptoPowerUp instantiated with the public_key_bytes, and the resulting
+        CryptoPowerUp instance consumed by the Character.
+        """
+        crypto_power = CryptoPower()
+
+        for power_up, public_key_bytes in powers_and_key_bytes:
+            crypto_power.consume_power_up(power_up(pubkey_bytes=public_key_bytes))
+
+        return cls(is_me=False, crypto_power=crypto_power)
 
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs) -> None:
@@ -213,11 +227,11 @@ class Alice(Character):
         return (kfrags, eph_key_data)
 
     def create_policy(self,
-                        bob: "Bob",
-                        uri: bytes,
-                        m: int,
-                        n: int,
-                        ):
+                      bob: "Bob",
+                      uri: bytes,
+                      m: int,
+                      n: int,
+                      ):
         """
         Alice dictates a new group of policies.
         """
@@ -225,7 +239,7 @@ class Alice(Character):
         ##### Temporary until we decide on an API for private key access
         alice_priv_enc = self._crypto_power._power_ups[EncryptingPower].priv_key
         kfrags, pfrag = self.generate_rekey_frags(alice_priv_enc, bob, m,
-                                                        n)  # TODO: Access Alice's private key inside this method.
+                                                  n)  # TODO: Access Alice's private key inside this method.
         from nkms.policy.models import Policy
         policy = Policy.from_alice(
             alice=self,
@@ -300,7 +314,7 @@ class Bob(Character):
                                                                                             msgpack_remainder=True)
 
             # TODO: If we're going to implement TTL, it will be here.
-            self._ursulas[ursula_interface_id] = Ursula.as_discovered_on_network(port=port, interface=interface,
+            self._ursulas[ursula_interface_id] = Ursula.as_discovered_on_network(dht_port=port, dht_interface=interface,
                                                                                  pubkey_sig_bytes=ursula_pubkey_sig)
 
     def get_treasure_map(self, policy_group):
@@ -373,9 +387,11 @@ class Ursula(Character):
     _server_class = NuCypherDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    port = None
-    interface = None
-    interface_ttl = 0
+    dht_port = None
+    dht_interface = None
+    dht_ttl = 0
+    rest_address = None
+    rest_port = None
 
     def __init__(self, urulsas_keystore=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -393,12 +409,25 @@ class Ursula(Character):
         else:
             return self._rest_app
 
-    @staticmethod
-    def as_discovered_on_network(port, interface, pubkey_sig_bytes):
-        ursula = Ursula.from_pubkey_sig_bytes(pubkey_sig_bytes)
-        ursula.port = port
-        ursula.interface = interface
+    @classmethod
+    def as_discovered_on_network(cls, dht_port, dht_interface, pubkey_sig_bytes, rest_address=None, rest_port=None):
+        # TODO: We also need the encrypting public key here.
+        ursula = cls.from_public_keys((SigningPower, pubkey_sig_bytes))
+        ursula.dht_port = dht_port
+        ursula.dht_interface = dht_interface
+        ursula.rest_address = rest_address
+        ursula.rest_port = rest_port
         return ursula
+
+    @classmethod
+    def from_rest_url(cls, url):
+        response = requests.get(url)
+        if not response.status_code == 200:
+            raise RuntimeError("Got a bad response: {}".format(response))
+        signing_key_bytes, encrypting_key_bytes = BytestringSplitter(PublicKey)(response.content, return_remainder=True)
+        stranger_ursula_from_public_keys = cls.from_public_keys(signing=signing_key_bytes,
+                                                                   encrypting=encrypting_key_bytes)
+        return stranger_ursula_from_public_keys
 
     def attach_server(self, ksize=20, alpha=3, id=None, storage=None,
                       *args, **kwargs):
@@ -412,17 +441,19 @@ class Ursula(Character):
         routes = [
             Route('/kFrag/{hrac_as_hex}', 'POST', self.set_policy),
             Route('/kFrag/{hrac_as_hex}/reencrypt', 'POST', self.reencrypt_via_rest),
+            Route('/public_keys', 'GET', self.get_signing_and_encrypting_public_keys),
+            Route('/consider_contract', 'POST', self.consider_contract),
         ]
 
         self._rest_app = App(routes=routes)
 
     def listen(self, port, interface):
-        self.port = port
-        self.interface = interface
+        self.dht_port = port
+        self.dht_interface = interface
         return self.server.listen(port, interface)
 
     def dht_interface_info(self):
-        return self.port, self.interface, self.interface_ttl
+        return self.dht_port, self.dht_interface, self.dht_ttl
 
     def interface_dht_key(self):
         return self.hash(self.seal + self.interface_hrac())
@@ -434,8 +465,8 @@ class Ursula(Character):
     def interface_hrac(self):
         return self.hash(msgpack.dumps(self.dht_interface_info()))
 
-    def publish_interface_information(self):
-        if not self.port and self.interface:
+    def publish_dht_information(self):
+        if not self.dht_port and self.dht_interface:
             raise RuntimeError("Must listen before publishing interface information.")
 
         dht_key = self.interface_dht_key()
@@ -444,6 +475,30 @@ class Ursula(Character):
         blockchain_client._ursulas_on_blockchain.append(dht_key)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
+
+    def get_signing_and_encrypting_public_keys(self):
+        """
+        REST endpoint for getting both signing and encrypting public keys.
+        """
+        return Response(content=bytes(self.seal) + bytes(self.public_key(EncryptingPower)),
+                        content_type="application/octet-stream")
+
+    def consider_contract(self, hrac_as_hex, request: http.Request):
+        # TODO: This actually needs to be a REST endpoint, with the payload carrying the kfrag hash separately.
+        from nkms.policy.models import Contract
+        contract, deposit_as_bytes = BytestringSplitter(Contract)(request.body, return_remainder=True)
+        contract.deposit = deposit_as_bytes
+
+        contract_to_store = {  # TODO: This needs to be a datastore - see #127.
+            "alice_pubkey_sig": bytes(contract.alice.seal),
+            "deposit": contract.deposit,
+            # TODO: Whatever type "deposit" ends up being, we'll need to serialize it here.  See #148.
+            "expiration": contract.expiration,
+        }
+        self._contracts[contract.hrac] = contract_to_store
+
+        # TODO: Make the rest of this logic actually work - do something here to decide if this Contract is worth accepting.
+        return Response(b"This will eventually be an actual acceptance of the contract.", content_type="application/octet-stream")
 
     def set_policy(self, hrac_as_hex, request: http.Request):
         """
@@ -458,11 +513,11 @@ class Ursula(Character):
         policy_payload_splitter = BytestringSplitter(KFrag)
 
         alice_pubkey_sig, payload_encrypted_for_ursula = group_payload_splitter(request.body, msgpack_remainder=True)
-        alice = Alice.from_pubkey_sig_bytes(alice_pubkey_sig)
+        alice = Alice.from_public_keys((SigningPower, alice_pubkey_sig))
         self.learn_about_actor(alice)
 
         verified, cleartext = self.verify_from(alice, payload_encrypted_for_ursula,
-                                                 decrypt=True, signature_is_on_cleartext=True)
+                                               decrypt=True, signature_is_on_cleartext=True)
 
         if not verified:
             # TODO: What do we do if the Policy isn't signed properly?
@@ -516,20 +571,6 @@ class Ursula(Character):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
-
-    def consider_contract(self, contract):
-        # TODO: This actually needs to be a REST endpoint, with the payload carrying the kfrag hash separately.
-
-        contract_to_store = { # TODO: This needs to be a datastore - see #127.
-            "alice_pubkey_sig": bytes(contract.alice.seal),
-            "deposit": contract.deposit,  # TODO: Whatever type "deposit" ends up being, we'll need to serialize it here.  See #148.
-            "expiration": contract.expiration,
-        }
-        self._contracts[contract.hrac] = contract_to_store
-
-        # TODO: Make the rest of this logic actually work - do something here to decide if this Contract is worth accepting.
-        from tests.utilities import MockContractResponse
-        return MockContractResponse()
 
 
 class Seal(object):

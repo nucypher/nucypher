@@ -1,5 +1,6 @@
 import asyncio
 import binascii
+import maya
 
 import msgpack
 from npre.constants import UNKNOWN_KFRAG
@@ -7,9 +8,9 @@ from npre.constants import UNKNOWN_KFRAG
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import NOT_SIGNED
+from nkms.crypto.constants import NOT_SIGNED, HASH_DIGEST_LENGTH
 from nkms.crypto.fragments import KFrag, PFrag
-from nkms.crypto.powers import EncryptingPower
+from nkms.crypto.powers import EncryptingPower, SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 from nkms.keystore.keypairs import PublicKey
@@ -17,8 +18,9 @@ from nkms.keystore.keypairs import PublicKey
 
 class Contract(object):
     """
-    A Policy must be implemented by agreement with n Ursulas.  This class tracks the status of that implementation.
+    A Policy must be implemented by contract with n Ursulas.  This class tracks the status of that implementation.
     """
+    _EXPECTED_LENGTH = 124
 
     def __init__(self, alice, hrac, expiration, deposit=None, ursula=None, kfrag=UNKNOWN_KFRAG, alices_signature=None):
         """
@@ -39,6 +41,17 @@ class Contract(object):
         """
         self.kfrag = kfrag
         self.ursula = ursula
+
+    def __bytes__(self):
+        return bytes(self.alice.seal) + bytes(self.hrac) + self.expiration.isoformat().encode() + bytes(self.deposit)
+
+    @classmethod
+    def from_bytes(cls, contract_as_bytes):
+        contract_splitter = BytestringSplitter(PublicKey, (bytes, HASH_DIGEST_LENGTH), (bytes, 26))
+        alice_pubkey_sig, hrac, expiration_bytes = contract_splitter(contract_as_bytes)
+        expiration = maya.parse(expiration_bytes.decode())
+        alice = Alice.from_public_keys((SigningPower, alice_pubkey_sig))
+        return cls(alice=alice, hrac=hrac, expiration=expiration)
 
     def activate(self, kfrag, ursula, negotiation_result):
         self.kfrag = kfrag
@@ -62,13 +75,15 @@ class ContractResponse(object):
 
 class Policy(object):
     """
-    An individual agreement between Alice and Ursula.  Together, all of the Policies by which
-    Ursula nodes which enter into an agreement regarding the same series of kFrags constitute
-    a PolicyGroup.
+        An edict by Alice, contracted with n Ursulas, to perform re-encryption for a specific Bob
+    for a specific path.
 
-    A Policy has a unique ID, which includes a fingerprint of Alice's public key so that
-    only she can set a policy with that ID.  Ursula must verify this; otherwise a collision
-    attack is possible.
+    Once Alice is ready to enact a Policy, she generates KFrags, which become part of the Policy.
+
+    Each Ursula is offered a Contract (see above) for a given Policy by Alice.
+
+    Once Alice has secured agreement with n Ursulas to enact a Policy, she sends each a KFrag,
+    and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
     """
     _ursula = None
     hashed_part = None
@@ -281,7 +296,7 @@ class WorkOrder(object):
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
             raise ValueError("This doesn't appear to be from Bob.")
-        bob = Bob.from_pubkey_sig_bytes(bob_pubkey_sig)
+        bob = Bob.from_public_keys((SigningPower, bob_pubkey_sig))
         return cls(bob, kfrag_hrac, pfrags, receipt_bytes, signature)
 
     def payload(self):

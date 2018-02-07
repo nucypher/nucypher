@@ -21,10 +21,12 @@ class NoEncryptingPower(PowerUpError):
 
 
 class CryptoPower(object):
-    def __init__(self, power_ups=[]):
+
+    def __init__(self, power_ups=[], generate_keys_if_needed=False):
         self._power_ups = {}
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
         self.public_keys = {}
+        self.generate_keys = generate_keys_if_needed
 
         if power_ups:
             for power_up in power_ups:
@@ -36,7 +38,7 @@ class CryptoPower(object):
             power_up_instance = power_up
         elif CryptoPowerUp in inspect.getmro(power_up):
             power_up_class = power_up
-            power_up_instance = power_up()
+            power_up_instance = power_up(generate_keys_if_needed=self.generate_keys)
         else:
             raise TypeError(
                 ("power_up must be a subclass of CryptoPowerUp or an instance "
@@ -106,15 +108,15 @@ class KeyPairBasedPower(CryptoPowerUp):
 
     _keypair_class = keypairs.Keypair
 
-    def __init__(self, keypair: keypairs.Keypair=None, pubkey_bytes: bytes=None) -> None:
+    def __init__(self, keypair: keypairs.Keypair=None, pubkey_bytes: bytes=None, generate_keys_if_needed=True) -> None:
         if keypair and pubkey_bytes:
             raise ValueError("Pass keypair or pubkey_bytes (or neither), but not both.")
         elif keypair:
             self.keypair = keypair
         elif pubkey_bytes:
-            self.keypair = keypair or KeyStore.reconstruct_keypair(pubkey_bytes)
+            self.keypair = self._keypair_class(pubkey=pubkey_bytes)
         else:
-            self.keypair = self._keypair_class()
+            self.keypair = self._keypair_class(generate_keys_if_needed=generate_keys_if_needed)
 
     @property
     def priv_key(self):
