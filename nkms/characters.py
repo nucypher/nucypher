@@ -13,10 +13,12 @@ from kademlia.network import Server
 from kademlia.utils import digest
 from sqlalchemy.exc import IntegrityError
 
+from umbral.umbral import KFrag
+from umbral.keys import UmbralPublicKey
+
 from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
-from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
-from nkms.crypto.fragments import KFrag
+from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED, KFRAG_LENGTH
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
@@ -510,7 +512,7 @@ class Ursula(Character):
         hrac = binascii.unhexlify(hrac_as_hex)
 
         group_payload_splitter = BytestringSplitter(PublicKey)
-        policy_payload_splitter = BytestringSplitter(KFrag)
+        policy_payload_splitter = BytestringSplitter((KFrag, KFRAG_LENGTH))
 
         alice_pubkey_sig, payload_encrypted_for_ursula = group_payload_splitter(request.body, msgpack_remainder=True)
         alice = Alice.from_public_keys((SigningPower, alice_pubkey_sig))
