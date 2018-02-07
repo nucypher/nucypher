@@ -1,3 +1,6 @@
+# This is an example of Alice setting a Policy on the NuCypher network.
+# In this example, Alice uses n=1, which is almost always a bad idea.  Don't do it.
+
 # WIP w/ hendrix@8227c4abcb37ee6d27528a13ec22d55ee106107f
 
 import datetime
