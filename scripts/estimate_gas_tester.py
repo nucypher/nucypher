@@ -1,7 +1,9 @@
-"""Deploy contracts in tester.
+"""
+Deploy contracts in tester.
 
 A simple Python script to deploy contracts and then estimate gas for different methods.
 """
+
 from nkms_eth.blockchain import project
 
 

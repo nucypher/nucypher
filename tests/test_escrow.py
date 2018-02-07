@@ -5,14 +5,19 @@ from nkms_eth.escrow import Escrow
 from nkms_eth.token import NuCypherKMSToken
 
 
-def test_create_escrow(testerchain, token):
-    # token = NuCypherKMSToken(blockchain=testerchain)
+def test_create_escrow(testerchain):
+    with raises(NoKnownAddress):
+        NuCypherKMSToken.get(blockchain=testerchain)
+    token = NuCypherKMSToken(blockchain=testerchain)
+    same_token = NuCypherKMSToken.get(blockchain=testerchain)
+
+    assert len(token.contract.address) == 42
+    assert token.contract.address == same_token.contract.address
 
     with raises(NoKnownAddress):
         Escrow.get(blockchain=testerchain, token=token)
+    escrow = Escrow(blockchain=testerchain, token=token)
+    same_escrow = Escrow.get(blockchain=testerchain, token=token)
 
-    e1 = Escrow(blockchain=testerchain, token=token)
-    e2 = Escrow.get(blockchain=testerchain, token=token)
-
-    assert len(e1.contract.address) == 42
-    assert e1.contract.address == e2.contract.addresst.address == e2.contract.address
+    assert len(escrow.contract.address) == 42
+    assert escrow.contract.address == same_escrow.contract.address
