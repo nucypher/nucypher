@@ -30,7 +30,7 @@ def main():
 
         # Create an ERC20 token
         token, _ = chain.provider.get_or_deploy_contract(
-            'NuCypherKMSToken', deploy_args=[10 ** 9, 2 * 10 ** 9],
+            'NuCypherKMSToken', deploy_args=[2 * 10 ** 9],
             deploy_transaction={'from': creator})
 
         # Creator deploys the escrow
@@ -45,13 +45,13 @@ def main():
         tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)
         chain.wait.for_receipt(tx)
 
-        print("Estimate gas:")
-
-        # Give rights for mining
-        print("Giving rights for mining = " +
-              str(token.estimateGas({'from': creator}).addMiner(escrow.address)))
-        tx = token.transact({'from': creator}).addMiner(escrow.address)
+        # Give Escrow tokens for reward and initialize contract
+        tx = token.transact({'from': creator}).transfer(escrow.address, 10 ** 9)
         chain.wait.for_receipt(tx)
+        tx = escrow.transact().initialize()
+        chain.wait.for_receipt(tx)
+
+        print("Estimate gas:")
 
         # Give Ursula and Alice some coins
         print("Transfer tokens = " +

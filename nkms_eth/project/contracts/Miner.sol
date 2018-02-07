@@ -54,11 +54,16 @@ contract Miner {
         awardedPeriods = _awardedPeriods;
 
         lastMintedPeriod = getCurrentPeriod();
-        currentIndex = 0x01;
-        var currentTotalSupply = token.totalSupply();
-        totalSupply[currentIndex] = currentTotalSupply;
-        totalSupply[currentIndex ^ NEGATION] = currentTotalSupply;
-        futureSupply = token.futureSupply();
+        futureSupply = token.totalSupply();
+    }
+
+    /**
+    * @dev Checks miner initialization
+    **/
+    modifier isInitialized()
+    {
+        require(currentIndex != 0x00);
+        _;
     }
 
     /**
@@ -69,8 +74,18 @@ contract Miner {
     }
 
     /**
-    * @notice Function to mint tokens for sender for one period.
-    * @param _to The address that will receive the minted tokens.
+    * @notice Initialize reserved tokens for reward
+    **/
+    function initialize() public {
+        require(currentIndex == 0x00);
+        currentIndex = 0x01;
+        var currentTotalSupply = futureSupply.sub(token.balanceOf(address(this)));
+        totalSupply[currentIndex] = currentTotalSupply;
+        totalSupply[currentIndex ^ NEGATION] = currentTotalSupply;
+    }
+
+    /**
+    * @notice Function to mint tokens for one period.
     * @param _period Period number.
     * @param _lockedValue The amount of tokens that were locked by user in specified period.
     * @param _totalLockedValue The amount of tokens that were locked by all users in specified period.
@@ -80,7 +95,6 @@ contract Miner {
     */
     // TODO decimals
     function mint(
-        address _to,
         uint256 _period,
         uint256 _lockedValue,
         uint256 _totalLockedValue,
@@ -111,7 +125,6 @@ contract Miner {
                 .mul(_lockedValue)
                 .mul(allLockedPeriods)
                 .div(denominator));
-        token.mint(_to, amount);
 
         totalSupply[currentIndex ^ NEGATION] = nextTotalSupply.add(amount);
     }

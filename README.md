@@ -12,9 +12,9 @@ Period is calculating using block.timestamp in getCurrentPeriod() function (`Min
 
 # Main contracts
 * Token contract  
-`NuCypherKMSToken` contract is ERC20 token with additional functions: burn own tokens (only for owners) and minting new tokens (for `Escrow` contract)
+`NuCypherKMSToken` contract is ERC20 token with additional function - burn own tokens (only for owners)
 * Miner contract  
-`Escrow` contract holds stake from miners, store information about miners activity and assigns a reward for participating in NuCypher network
+`Escrow` contract holds stake from miners, store information about miners activity and assigns a reward for participating in NuCypher KMS network
 * Client contract  
 `PolicyManager` contract holds policies fee and distributes fee by periods
 

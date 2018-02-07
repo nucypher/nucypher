@@ -14,10 +14,9 @@ pragma solidity ^0.4.8;
 
 
 import "./zeppelin/token/BurnableToken.sol";
-import "./MineableToken.sol";
 
 
-contract NuCypherKMSToken is MineableToken, BurnableToken {
+contract NuCypherKMSToken is BurnableToken {
     string public name = 'NuCypher KMS';
     uint8 public decimals = 18;
     string public symbol = 'KMS';
@@ -26,13 +25,10 @@ contract NuCypherKMSToken is MineableToken, BurnableToken {
     /**
     * @notice Set amount of tokens
     * @param _initialAmount Initial amount of tokens
-    * @param _maxAmount Max amount of tokens
     **/
-    function NuCypherKMSToken (uint256 _initialAmount, uint256 _maxAmount) {
-        require(_maxAmount >= _initialAmount);
+    function NuCypherKMSToken (uint256 _initialAmount) {
         balances[msg.sender] = _initialAmount;
         totalSupply = _initialAmount;
-        futureSupply = _maxAmount;
     }
 
     /* Approves and then calls the receiving contract */

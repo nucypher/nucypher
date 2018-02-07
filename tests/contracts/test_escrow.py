@@ -7,7 +7,7 @@ def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
     token, _ = chain.provider.get_or_deploy_contract(
-        'NuCypherKMSToken', deploy_args=[10 ** 9, 2 * 10 ** 9],
+        'NuCypherKMSToken', deploy_args=[2 * 10 ** 9],
         deploy_transaction={'from': creator})
     return token
 
@@ -71,6 +71,15 @@ def test_escrow(web3, chain, token, escrow):
     # with pytest.raises(TransactionFailed):
     #     tx = escrow.transact({'from': ursula}).deposit(1000, 10)
     #     chain.wait.for_receipt(tx)
+
+    # Ursula can't deposit tokens before Escrow initialization
+    with pytest.raises(TransactionFailed):
+        tx = escrow.transact({'from': ursula}).deposit(1, 1)
+        chain.wait.for_receipt(tx)
+
+    # Initialize Escrow contract
+    tx = escrow.transact().initialize()
+    chain.wait.for_receipt(tx)
 
     # Ursula and Alice transfer some tokens to the escrow and lock them
     tx = escrow.transact({'from': ursula}).deposit(1000, 1)
@@ -220,6 +229,13 @@ def test_escrow(web3, chain, token, escrow):
 def test_locked_distribution(web3, chain, token, escrow):
     NULL_ADDR = '0x' + '0' * 40
     creator = web3.eth.accounts[0]
+
+    # Give Escrow tokens for reward and initialize contract
+    tx = token.transact({'from': creator}).transfer(escrow.address, 10 ** 9)
+    chain.wait.for_receipt(tx)
+    tx = escrow.transact().initialize()
+    chain.wait.for_receipt(tx)
+
     miners = web3.eth.accounts[1:]
     amount = token.call().balanceOf(creator) // 2
     largest_locked = amount
@@ -284,6 +300,12 @@ def test_mining(web3, chain, token, escrow):
     ursula = web3.eth.accounts[1]
     alice = web3.eth.accounts[2]
 
+    # Give Escrow tokens for reward and initialize contract
+    tx = token.transact({'from': creator}).transfer(escrow.address, 10 ** 9)
+    chain.wait.for_receipt(tx)
+    tx = escrow.transact().initialize()
+    chain.wait.for_receipt(tx)
+
     policy_manager, _ = chain.provider.get_or_deploy_contract(
         'PolicyManagerTest', deploy_args=[token.address, escrow.address],
         deploy_transaction={'from': creator})
@@ -319,11 +341,6 @@ def test_mining(web3, chain, token, escrow):
     # Using locked tokens starts from next period
     assert 0 == escrow.call().getAllLockedTokens()
 
-    # Give rights for mining
-    tx = token.transact({'from': creator}).addMiner(escrow.address)
-    chain.wait.for_receipt(tx)
-    assert token.call().isMiner(escrow.address)
-
     # Ursula can't use method from Miner contract
     with pytest.raises(TypeError):
         tx = escrow.transact({'from': ursula}).mint(ursula, 1, 1, 1, 1, 1)
@@ -346,8 +363,8 @@ def test_mining(web3, chain, token, escrow):
     chain.wait.for_receipt(tx)
     tx = escrow.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
-    assert 9050 == token.call().balanceOf(ursula)
-    assert 9521 == token.call().balanceOf(alice)
+    assert 1050 == escrow.call().getTokens(ursula)
+    assert 521 == escrow.call().getTokens(alice)
 
     assert 1 == policy_manager.call().getPeriodsLength(ursula)
     assert 1 == policy_manager.call().getPeriodsLength(alice)
@@ -381,8 +398,8 @@ def test_mining(web3, chain, token, escrow):
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': alice}).mint()
         chain.wait.for_receipt(tx)
-    assert 9163 == token.call().balanceOf(ursula)
-    assert 9521 == token.call().balanceOf(alice)
+    assert 1163 == escrow.call().getTokens(ursula)
+    assert 521 == escrow.call().getTokens(alice)
 
     assert 3 == policy_manager.call().getPeriodsLength(ursula)
     assert 1 == policy_manager.call().getPeriodsLength(alice)
@@ -398,8 +415,8 @@ def test_mining(web3, chain, token, escrow):
     assert 0 == escrow.call().getAllLockedTokens()
     tx = escrow.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
-    assert 9163 == token.call().balanceOf(ursula)
-    assert 9634 == token.call().balanceOf(alice)
+    assert 1163 == escrow.call().getTokens(ursula)
+    assert 634 == escrow.call().getTokens(alice)
 
     assert 3 == policy_manager.call().getPeriodsLength(ursula)
     assert 3 == policy_manager.call().getPeriodsLength(alice)

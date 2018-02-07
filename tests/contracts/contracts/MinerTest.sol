@@ -28,7 +28,6 @@ contract MinerTest is Miner {
     }
 
     function testMint(
-        address _to,
         uint256 _period,
         uint256 _lockedValue,
         uint256 _totalLockedValue,
@@ -37,13 +36,13 @@ contract MinerTest is Miner {
     )
         public returns (uint256 amount, uint256 decimals)
     {
-        return mint(
-            _to,
+        (amount, decimals) = mint(
             _period,
             _lockedValue,
             _totalLockedValue,
             _allLockedPeriods,
             _decimals);
+        token.transfer(msg.sender, amount);
     }
 
 }

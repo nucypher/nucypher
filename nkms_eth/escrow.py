@@ -4,6 +4,8 @@ from nkms_eth import blockchain
 from nkms_eth import token
 
 ESCROW_NAME = 'Escrow'
+PREMINE = int(1e9) * token.M
+REWARD = token.SATURATION - PREMINE
 HOURS_PER_PERIOD = 1  # 24
 MIN_RELEASE_PERIODS = 1  # 30
 MAX_AWARDED_PERIODS = 365
@@ -28,7 +30,9 @@ def create():
         ESCROW_NAME, deploy_args=[token.get().address] + MINING_COEFF,
         deploy_transaction={'from': creator})
     chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
-    tx = tok.transact({'from': creator}).addMiner(escrow.address)
+    tx = tok.transact({'from': creator}).transfer(escrow.address, REWARD)
+    chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
+    tx = escrow.transact({'from': creator}).initialize()
     chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
     return escrow
 

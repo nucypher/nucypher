@@ -7,7 +7,7 @@ def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
     token, _ = chain.provider.get_or_deploy_contract(
-        'NuCypherKMSToken', deploy_args=[10 ** 9, 2 * 10 ** 9],
+        'NuCypherKMSToken', deploy_args=[2 * 10 ** 9],
         deploy_transaction={'from': creator})
     return token
 

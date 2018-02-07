@@ -15,7 +15,7 @@ def test_create_token(web3, chain):
 
     # Create an ERC20 token
     token, txhash = chain.provider.get_or_deploy_contract(
-            'NuCypherKMSToken', deploy_args=[10 ** 9, 10 ** 10],
+            'NuCypherKMSToken', deploy_args=[10 ** 9],
             deploy_transaction={
                 'from': creator})
     assert txhash is not None
@@ -50,37 +50,8 @@ def test_create_token(web3, chain):
     chain.wait.for_receipt(tx)
     assert token.call().balanceOf(token.address) == 10
 
-    # Can't mint tokens without rights
-    with pytest.raises(TransactionFailed):
-        tx = token.transact({'from': account1}).mint(account2, 10000)
-        chain.wait.for_receipt(tx)
-
-    # Can't change rights not from owner
-    with pytest.raises(TransactionFailed):
-        tx = token.transact({'from': account1}).addMiner(account1)
-        chain.wait.for_receipt(tx)
-    with pytest.raises(TransactionFailed):
-        tx = token.transact({'from': account1}).removeMiner(account1)
-        chain.wait.for_receipt(tx)
-
-    # Give rights for mining
-    tx = token.transact({'from': creator}).addMiner(account1)
-    chain.wait.for_receipt(tx)
-    assert token.call().isMiner(account1)
-
-    # And try again
-    tx = token.transact({'from': account1}).mint(account2, 10000)
-    chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(account2) == 10010
-    assert token.call().totalSupply() == 10 ** 9 + 10000
-
-    # Remove rights for mining
-    tx = token.transact({'from': creator}).removeMiner(account1)
-    chain.wait.for_receipt(tx)
-    assert not token.call().isMiner(account1)
-
     # Can burn own tokens
-    tx = token.transact({'from': account2}).burn(10000)
+    tx = token.transact({'from': account2}).burn(1)
     chain.wait.for_receipt(tx)
-    assert token.call().balanceOf(account2) == 10
-    assert token.call().totalSupply() == 10 ** 9
+    assert token.call().balanceOf(account2) == 9
+    assert token.call().totalSupply() == 10 ** 9 - 1

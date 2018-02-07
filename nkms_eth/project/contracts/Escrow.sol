@@ -85,6 +85,16 @@ contract Escrow is Miner, Ownable {
     }
 
     /**
+    * @notice Get tokens value for owner
+    * @param _owner Tokens owner
+    **/
+    function getTokens(address _owner)
+        public constant returns (uint256)
+    {
+        return tokenInfo[_owner].value;
+    }
+
+    /**
     * @notice Get locked tokens value for owner in current period
     * @param _owner Tokens owner
     **/
@@ -206,7 +216,7 @@ contract Escrow is Miner, Ownable {
     * @param _value Amount of token to deposit
     * @param _periods Amount of periods during which tokens will be unlocked
     **/
-    function deposit(uint256 _value, uint256 _periods) public {
+    function deposit(uint256 _value, uint256 _periods) public isInitialized() {
         require(_value != 0);
         var info = tokenInfo[msg.sender];
         if (!tokenOwners.valueExists(msg.sender)) {
@@ -386,22 +396,25 @@ contract Escrow is Miner, Ownable {
             numberPeriodsForMinting--;
         }
 
+        uint256 reward = 0;
+        uint256 amount = 0;
         for(uint i = 0; i < numberPeriodsForMinting; ++i) {
             var period = info.confirmedPeriods[i].period;
             var lockedValue = info.confirmedPeriods[i].lockedValue;
             allLockedPeriods--;
-            (, decimals) = mint(
-                msg.sender,
+            (amount, decimals) = mint(
                 previousPeriod,
                 lockedValue,
                 lockedPerPeriod[period],
                 allLockedPeriods,
                 decimals);
+            reward = reward.add(amount);
             // TODO remove
             if (address(policyManager) != 0x0) {
                 policyManager.updateReward(msg.sender, period);
             }
         }
+        info.value = info.value.add(reward);
         info.decimals = decimals;
         // Copy not minted periods
         var newNumberConfirmedPeriods = info.numberConfirmedPeriods - numberPeriodsForMinting;
