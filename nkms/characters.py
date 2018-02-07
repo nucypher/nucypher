@@ -448,8 +448,8 @@ class Ursula(Character):
         self._rest_app = App(routes=routes)
 
     def listen(self, port, interface):
-        self.port = port
-        self.interface = interface
+        self.dht_port = port
+        self.dht_interface = interface
         return self.server.listen(port, interface)
 
     def dht_interface_info(self):
@@ -465,8 +465,8 @@ class Ursula(Character):
     def interface_hrac(self):
         return self.hash(msgpack.dumps(self.dht_interface_info()))
 
-    def publish_interface_information(self):
-        if not self.port and self.interface:
+    def publish_dht_information(self):
+        if not self.dht_port and self.dht_interface:
             raise RuntimeError("Must listen before publishing interface information.")
 
         dht_key = self.interface_dht_key()

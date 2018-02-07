@@ -43,7 +43,7 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
     for _counter, ursula in enumerate(URSULAS):
         event_loop.run_until_complete(
             ursula.server.bootstrap([("127.0.0.1", ursula_starting_port + _c) for _c in range(how_many_ursulas)]))
-        ursula.publish_interface_information()
+        ursula.publish_dht_information()
 
     return URSULAS
 
