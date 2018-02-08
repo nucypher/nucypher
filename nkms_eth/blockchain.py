@@ -64,8 +64,9 @@ class Blockchain:
 
     def wait_time(self, wait_hours, step=50):
         end_timestamp = self.web3.eth.getBlock(self.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
-        while self.web3.eth.getBlock(self.web3.eth.blockNumber).timestamp < end_timestamp:
-            self.chain.wait.for_block(self.web3.eth.blockNumber + step)
+        time_yet = self.web3.eth.getBlock(self.web3.eth.blockNumber).timestamp < end_timestamp
+        while not time_yet:
+            self.chain.wait.for_block(self.web3.eth.blockNumber+step)
 
 
 class TesterBlockchain(Blockchain):

@@ -10,6 +10,7 @@ def testerchain():
     chain = TesterBlockchain()
     yield chain
 
+
 @pytest.fixture()
 def token(testerchain):
     return NuCypherKMSToken(blockchain=testerchain)
