@@ -35,7 +35,7 @@ def main():
 
         # Creator deploys the escrow
         escrow, _ = chain.provider.get_or_deploy_contract(
-            'Escrow', deploy_args=[token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 1],
+            'Escrow', deploy_args=[token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 1, 0],
             deploy_transaction={'from': creator})
 
         # Creator deploys the policy manager
@@ -52,8 +52,14 @@ def main():
         chain.wait.for_receipt(tx)
 
         print("Estimate gas:")
+        # Pre deposit tokens
+        tx = token.transact({'from': creator}).approve(escrow.address, 10000)
+        chain.wait.for_receipt(tx)
+        print("Pre-deposit tokens fro 5 owners = " +
+              str(escrow.estimateGas({'from': creator}).preDeposit(
+                  web3.eth.accounts[4:9], [1000] * 5, 1)))
 
-        # Give Ursula and Alice some coins
+        # Give some coins
         print("Transfer tokens = " +
               str(token.estimateGas({'from': creator}).transfer(ursula1, 10000)))
         tx = token.transact({'from': creator}).transfer(ursula1, 10000)
@@ -63,7 +69,7 @@ def main():
         tx = token.transact({'from': creator}).transfer(ursula3, 10000)
         chain.wait.for_receipt(tx)
 
-        # Ursula and Alice give Escrow rights to transfer
+        # Give Escrow rights to transfer
         print("Approving transfer = " +
               str(token.estimateGas({'from': ursula1}).approve(escrow.address, 1001)))
         tx = token.transact({'from': ursula1}).approve(escrow.address, 1001)
@@ -73,7 +79,7 @@ def main():
         tx = token.transact({'from': ursula3}).approve(escrow.address, 501)
         chain.wait.for_receipt(tx)
 
-        # Ursula and Alice transfer some tokens to the escrow and lock them
+        # Transfer some tokens to the escrow and lock them
         print("First deposit tokens = " +
               str(escrow.estimateGas({'from': ursula1}).deposit(1000, 1)))
         tx = escrow.transact({'from': ursula1}).deposit(1000, 1)

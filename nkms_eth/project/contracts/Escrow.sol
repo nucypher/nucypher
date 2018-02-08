@@ -225,6 +225,42 @@ contract Escrow is Miner, Ownable {
     }
 
     /**
+    * @notice Pre-deposit tokens
+    * @param _owners Tokens owners
+    * @param _values Amount of token to deposit for owners
+    * @param _periods Amount of periods during which tokens will be unlocked
+    **/
+    function preDeposit(address[] _owners, uint256[] _values, uint256 _periods)
+        public isInitialized onlyOwner
+    {
+        require(_owners.length != 0 &&
+            tokenOwners.sizeOf().add(_owners.length) <= MAX_OWNERS &&
+            _owners.length == _values.length &&
+            _periods >= minReleasePeriods);
+        var currentPeriod = getCurrentPeriod();
+        uint256 allValue = 0;
+
+        for (uint256 i = 0; i < _owners.length; i++) {
+            var owner = _owners[i];
+            var value = _values[i];
+            require(!tokenOwners.valueExists(owner) &&
+                value >= minAllowableLockedTokens);
+            // TODO optimize
+            tokenOwners.push(owner, true);
+            var info = tokenInfo[owner];
+            info.lastActivePeriod = currentPeriod;
+            info.value = value;
+            info.lockedValue = value;
+            info.maxReleasePeriods = _periods;
+            info.releaseRate = Math.max256(value.divCeil(_periods), 1);
+            info.release = false;
+            allValue = allValue.add(value);
+        }
+
+        token.safeTransferFrom(msg.sender, address(this), allValue);
+    }
+
+    /**
     * @notice Deposit tokens
     * @param _value Amount of token to deposit
     * @param _periods Amount of periods during which tokens will be unlocked
