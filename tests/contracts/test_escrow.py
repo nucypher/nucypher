@@ -17,7 +17,7 @@ def escrow(web3, chain, token):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
     escrow, _ = chain.provider.get_or_deploy_contract(
-        'Escrow', deploy_args=[token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2],
+        'Escrow', deploy_args=[token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100],
         deploy_transaction={'from': creator})
     return escrow
 
@@ -65,12 +65,12 @@ def test_escrow(web3, chain, token, escrow):
     # Check that nothing is locked
     assert 0 == escrow.call().getLockedTokens(ursula)
     assert 0 == escrow.call().getLockedTokens(alice)
+    assert 0 == escrow.call().getLockedTokens(web3.eth.accounts[3])
 
-    # Ursula can't lock too low value
-    # TODO uncomment after completing logic
-    # with pytest.raises(TransactionFailed):
-    #     tx = escrow.transact({'from': ursula}).deposit(1000, 10)
-    #     chain.wait.for_receipt(tx)
+    # Ursula can't deposit and lock too low value
+    with pytest.raises(TransactionFailed):
+        tx = escrow.transact({'from': ursula}).deposit(1, 1)
+        chain.wait.for_receipt(tx)
 
     # Ursula can't deposit tokens before Escrow initialization
     with pytest.raises(TransactionFailed):
@@ -150,6 +150,11 @@ def test_escrow(web3, chain, token, escrow):
         tx = escrow.transact({'from': ursula}).withdrawAll()
         chain.wait.for_receipt(tx)
 
+    # And Ursula can't lock again too low value
+    with pytest.raises(TransactionFailed):
+        tx = escrow.transact({'from': ursula}).lock(1, 1)
+        chain.wait.for_receipt(tx)
+
     # Ursula can deposit and lock more tokens
     tx = escrow.transact({'from': ursula}).deposit(500, 0)
     chain.wait.for_receipt(tx)
@@ -180,12 +185,6 @@ def test_escrow(web3, chain, token, escrow):
     assert 0 == escrow.call().calculateLockedTokens(ursula, 4)
     wait_time(chain, 1)
     assert 800 == escrow.call().getLockedTokens(ursula)
-
-    # Alice can't deposit too low value (less then rate)
-    # TODO uncomment after completing logic
-    # with pytest.raises(TransactionFailed):
-    #     tx = escrow.transact({'from': ursula}).deposit(100, 100)
-    #     chain.wait.for_receipt(tx)
 
     # Alice starts unlocking and increases lock by deposit more tokens
     tx = escrow.transact({'from': alice}).deposit(500, 0)

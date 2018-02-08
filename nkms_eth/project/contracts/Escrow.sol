@@ -53,6 +53,7 @@ contract Escrow is Miner, Ownable {
 
     mapping (uint256 => uint256) public lockedPerPeriod;
     uint256 public minReleasePeriods;
+    uint256 public minAllowableLockedTokens;
     PolicyManager policyManager;
 
     /**
@@ -63,6 +64,7 @@ contract Escrow is Miner, Ownable {
     * @param _minReleasePeriods Min amount of periods during which tokens will be released
     * @param _lockedPeriodsCoefficient Locked blocks coefficient
     * @param _awardedPeriods Max periods that will be additionally awarded
+    * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     **/
     function Escrow(
         NuCypherKMSToken _token,
@@ -70,7 +72,8 @@ contract Escrow is Miner, Ownable {
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,
         uint256 _awardedPeriods,
-        uint256 _minReleasePeriods
+        uint256 _minReleasePeriods,
+        uint256 _minAllowableLockedTokens
     )
         Miner(
             _token,
@@ -82,6 +85,16 @@ contract Escrow is Miner, Ownable {
     {
         require(_minReleasePeriods != 0);
         minReleasePeriods = _minReleasePeriods;
+        minAllowableLockedTokens = _minAllowableLockedTokens;
+    }
+
+    /**
+    * @dev Checks that sender exists in contract
+    **/
+    modifier onlyTokenOwner()
+    {
+        require(tokenOwners.valueExists(msg.sender));
+        _;
     }
 
     /**
@@ -216,7 +229,7 @@ contract Escrow is Miner, Ownable {
     * @param _value Amount of token to deposit
     * @param _periods Amount of periods during which tokens will be unlocked
     **/
-    function deposit(uint256 _value, uint256 _periods) public isInitialized() {
+    function deposit(uint256 _value, uint256 _periods) public isInitialized {
         require(_value != 0);
         var info = tokenInfo[msg.sender];
         if (!tokenOwners.valueExists(msg.sender)) {
@@ -234,8 +247,7 @@ contract Escrow is Miner, Ownable {
     * @param _value Amount of tokens which should lock
     * @param _periods Amount of periods during which tokens will be unlocked
     **/
-    function lock(uint256 _value, uint256 _periods) public {
-        // TODO add checking min _value
+    function lock(uint256 _value, uint256 _periods) public onlyTokenOwner {
         require(_value != 0 || _periods != 0);
 
         var lockedTokens = calculateLockedTokens(msg.sender, 1);
@@ -245,6 +257,7 @@ contract Escrow is Miner, Ownable {
 
         var currentPeriod = getCurrentPeriod();
         if (lockedTokens == 0) {
+            require(_value >= minAllowableLockedTokens);
             info.lockedValue = _value;
             info.maxReleasePeriods = Math.max256(_periods, minReleasePeriods);
             info.releaseRate = Math.max256(_value.divCeil(info.maxReleasePeriods), 1);
@@ -262,7 +275,7 @@ contract Escrow is Miner, Ownable {
     /**
     * @notice Switch lock
     **/
-    function switchLock() public {
+    function switchLock() public onlyTokenOwner {
         var info = tokenInfo[msg.sender];
         info.release = !info.release;
     }
@@ -271,7 +284,7 @@ contract Escrow is Miner, Ownable {
     * @notice Withdraw available amount of tokens back to owner
     * @param _value Amount of token to withdraw
     **/
-    function withdraw(uint256 _value) public {
+    function withdraw(uint256 _value) public onlyTokenOwner {
         var info = tokenInfo[msg.sender];
         // TODO optimize
         var lockedTokens = Math.max256(calculateLockedTokens(msg.sender, 1),
@@ -285,9 +298,7 @@ contract Escrow is Miner, Ownable {
     /**
     * @notice Withdraw all amount of tokens back to owner (only if no locked)
     **/
-    function withdrawAll() public {
-        // TODO extract modifier
-        require(tokenOwners.valueExists(msg.sender));
+    function withdrawAll() public onlyTokenOwner {
         var info = tokenInfo[msg.sender];
         var value = info.value;
         require(value <= token.balanceOf(address(this)) &&
@@ -357,7 +368,7 @@ contract Escrow is Miner, Ownable {
     /**
     * @notice Confirm activity for future period
     **/
-    function confirmActivity() external {
+    function confirmActivity() external onlyTokenOwner {
         var info = tokenInfo[msg.sender];
         var currentPeriod = getCurrentPeriod();
         var nextPeriod = currentPeriod + 1;
@@ -375,7 +386,7 @@ contract Escrow is Miner, Ownable {
     /**
     * @notice Mint tokens for sender for previous periods if he locked his tokens and confirmed activity
     **/
-    function mint() external {
+    function mint() external onlyTokenOwner {
         var previousPeriod = getCurrentPeriod().sub(1);
         var info = tokenInfo[msg.sender];
         var numberPeriodsForMinting = info.numberConfirmedPeriods;
