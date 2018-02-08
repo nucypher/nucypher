@@ -15,12 +15,18 @@ def test_deposit(testerchain, miner, token):
 
 
 def test_select_ursulas(testerchain, token, escrow, miner):
+    def wait_time(chain, wait_hours):
+        web3 = chain.web3
+        step = 50
+        end_timestamp = web3.eth.getBlock(web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
+        while web3.eth.getBlock(web3.eth.blockNumber).timestamp < end_timestamp:
+            chain.wait.for_block(web3.eth.blockNumber + step)
 
     token._airdrop()
     # Create a random set of miners (we have 9 in total)
     for u in testerchain.web3.eth.accounts[1:]:
         miner.lock((10 + random.randrange(9000))*M, 100, u)
-    testerchain.chain.wait.for_block(testerchain.web3.eth.blockNumber+escrow.hours_per_period)
+    testerchain.wait_time(escrow.hours_per_period)
 
     miners = escrow.sample(quantity=3)
     assert len(miners) == 3
