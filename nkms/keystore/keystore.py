@@ -7,7 +7,7 @@ from nkms.crypto.signature import Signature
 from sqlalchemy.orm import sessionmaker
 from typing import Union
 
-from umbral.umbral import KFrag
+from umbral.fragments import KFrag
 from . import keypairs
 
 

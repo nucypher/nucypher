@@ -4,6 +4,9 @@ from nkms.crypto import api
 from nkms.crypto.api import secure_random
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
+from umbral.bignum import BigNum
+from umbral.fragments import KFrag
+from umbral.point import Point
 
 
 def test_split_two_signatures():
@@ -29,8 +32,12 @@ def test_split_signature_from_arbitrary_bytes():
 def test_split_kfrag_from_arbitrary_bytes():
     rand_id = b'\x00' + api.secure_random(32)
     rand_key = b'\x00' + api.secure_random(32)
-    kfrag = KFrag(rand_id + rand_key)
 
+    KFrag(id_=BigNum.gen_rand(), key=BigNum.gen_rand(), x=Point.gen_rand(), u1=Point.gen_rand(), z1=BigNum.gen_rand(),
+          z2=BigNum.gen_rand())
+
+
+    # TODO: The rest of this test no longer makes sense with the new KFrag class.
     how_many_bytes = 10
     some_bytes = secure_random(how_many_bytes)
 

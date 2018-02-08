@@ -13,7 +13,7 @@ from kademlia.network import Server
 from kademlia.utils import digest
 from sqlalchemy.exc import IntegrityError
 
-from umbral.umbral import KFrag
+from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
 
 from nkms.crypto import api as API
