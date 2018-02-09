@@ -1,5 +1,5 @@
-from umbral.keys import UmbralPublicKey
 from nkms.crypto import api as API
+from umbral.keys import UmbralPublicKey
 
 
 class Signature(bytes):
@@ -35,4 +35,4 @@ class Signature(bytes):
         Implements the __bytes__ call for Signature to transform into a
         transportable mode.
         """
-        return sig_as_bytes
+        return self.sig_as_bytes

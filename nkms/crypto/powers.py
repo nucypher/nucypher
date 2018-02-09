@@ -184,7 +184,7 @@ class EncryptingPower(KeyPairBasedPower):
     def _encrypt_key(
             self,
             key: bytes,
-            pubkey: UmbralPublicKey = None
+            pubkey: UmbralPublicKey=None
     ) -> Tuple[bytes, bytes]:
         """
         Encrypts the `key` provided for the provided `pubkey` using the ECIES
