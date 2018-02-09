@@ -21,7 +21,7 @@ class Signature(bytes):
         self.sig_as_bytes = sig_as_bytes
 
     def __repr__(self):
-        return "{}".format(sig_as_bytes.decode())
+        return "ECDSA Signature: {}".format(sig_as_bytes.decode())
 
     def verify(self, message: bytes, pubkey: UmbralPublicKey) -> bool:
         """
