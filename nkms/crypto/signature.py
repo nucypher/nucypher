@@ -1,9 +1,5 @@
 from umbral.keys import UmbralPublicKey
-
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import ec, utils
-from cryptography.hazmat.backends import backend
-from cryptography.exceptions import InvalidSignature
+from nkms.crypto import api as API
 
 
 class Signature(bytes):
@@ -32,22 +28,7 @@ class Signature(bytes):
 
         :return: True if valid, False if invalid
         """
-        crypto_pubkey = pubkey.point_key.to_cryptography_pub_key()
-
-        hasher = hashes.Hash(hashes.blake2b(), backend=backend)
-        hasher.update(message)
-        hash_digest = hasher.finalize()
-
-        try:
-            crypto_pubkey.verify(
-                self.sig_as_bytes,
-                hash_digest,
-                ec.ECDSA(utils.Prehashed(hashes.blake2b()))
-            )
-        except InvalidSignature:
-            return False
-        else:
-            return True
+        return API.ecdsa_verify(message, self.sig_as_bytes, pubkey)
 
     def __bytes__(self):
         """
