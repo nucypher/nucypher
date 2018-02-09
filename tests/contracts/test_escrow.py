@@ -13,13 +13,17 @@ def token(web3, chain):
 
 
 @pytest.fixture()
-def escrow(web3, chain, token):
-    creator = web3.eth.accounts[0]
-    # Creator deploys the escrow
-    escrow, _ = chain.provider.get_or_deploy_contract(
-        'Escrow', deploy_args=[token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100],
-        deploy_transaction={'from': creator})
-    return escrow
+def escrow_contract(web3, chain, token):
+    def make_escrow(max_allowed_locked_tokens):
+        creator = web3.eth.accounts[0]
+        # Creator deploys the escrow
+        escrow, _ = chain.provider.get_or_deploy_contract(
+            'Escrow', deploy_args=[
+                token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, max_allowed_locked_tokens],
+            deploy_transaction={'from': creator})
+        return escrow
+
+    return make_escrow
 
 
 # TODO extract method
@@ -31,7 +35,8 @@ def wait_time(chain, wait_hours):
         chain.wait.for_block(web3.eth.blockNumber + step)
 
 
-def test_escrow(web3, chain, token, escrow):
+def test_escrow(web3, chain, token, escrow_contract):
+    escrow = escrow_contract(1500)
     creator = web3.eth.accounts[0]
     ursula = web3.eth.accounts[1]
     alice = web3.eth.accounts[2]
@@ -45,9 +50,9 @@ def test_escrow(web3, chain, token, escrow):
     assert 10000 == token.call().balanceOf(alice)
 
     # Ursula and Alice give Escrow rights to transfer
-    tx = token.transact({'from': ursula}).approve(escrow.address, 2500)
+    tx = token.transact({'from': ursula}).approve(escrow.address, 3000)
     chain.wait.for_receipt(tx)
-    assert 2500 == token.call().allowance(ursula, escrow.address)
+    assert 3000 == token.call().allowance(ursula, escrow.address)
     tx = token.transact({'from': alice}).approve(escrow.address, 1100)
     chain.wait.for_receipt(tx)
     assert 1100 == token.call().allowance(alice, escrow.address)
@@ -79,6 +84,11 @@ def test_escrow(web3, chain, token, escrow):
     # Ursula can't deposit and lock too low value
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula}).deposit(1, 1)
+        chain.wait.for_receipt(tx)
+
+    # And can't deposit and lock too high value
+    with pytest.raises(TransactionFailed):
+        tx = escrow.transact({'from': ursula}).deposit(1501, 1)
         chain.wait.for_receipt(tx)
 
     # Ursula and Alice transfer some tokens to the escrow and lock them
@@ -122,6 +132,11 @@ def test_escrow(web3, chain, token, escrow):
     chain.wait.for_receipt(tx)
     assert 2000 == token.call().balanceOf(escrow.address)
     assert 8500 == token.call().balanceOf(ursula)
+
+    # But can't deposit too high value
+    with pytest.raises(TransactionFailed):
+        tx = escrow.transact({'from': ursula}).deposit(1, 0)
+        chain.wait.for_receipt(tx)
 
     # Ursula starts unlocking
     tx = escrow.transact({'from': ursula}).switchLock()
@@ -225,7 +240,8 @@ def test_escrow(web3, chain, token, escrow):
     # assert 10000 == token.call().balanceOf(alice)
 
 
-def test_locked_distribution(web3, chain, token, escrow):
+def test_locked_distribution(web3, chain, token, escrow_contract):
+    escrow = escrow_contract(5 * 10 ** 8)
     NULL_ADDR = '0x' + '0' * 40
     creator = web3.eth.accounts[0]
 
@@ -294,7 +310,8 @@ def test_locked_distribution(web3, chain, token, escrow):
         assert 1 == shift
 
 
-def test_mining(web3, chain, token, escrow):
+def test_mining(web3, chain, token, escrow_contract):
+    escrow = escrow_contract(1500)
     creator = web3.eth.accounts[0]
     ursula = web3.eth.accounts[1]
     alice = web3.eth.accounts[2]
@@ -469,7 +486,8 @@ def test_mining(web3, chain, token, escrow):
     # TODO test max confirmed periods and miners
 
 
-def test_pre_deposit(web3, chain, token, escrow):
+def test_pre_deposit(web3, chain, token, escrow_contract):
+    escrow = escrow_contract(1500)
     creator = web3.eth.accounts[0]
 
     # Initialize Escrow contract
@@ -493,6 +511,20 @@ def test_pre_deposit(web3, chain, token, escrow):
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[1]], [1000], [10])
+        chain.wait.for_receipt(tx)
+
+    # Can't pre-deposit tokens with too low or too high value
+    with pytest.raises(TransactionFailed):
+        tx = escrow.transact({'from': creator}).preDeposit(
+            [web3.eth.accounts[2]], [1], [10])
+        chain.wait.for_receipt(tx)
+    with pytest.raises(TransactionFailed):
+        tx = escrow.transact({'from': creator}).preDeposit(
+            [web3.eth.accounts[2]], [1501], [10])
+        chain.wait.for_receipt(tx)
+    with pytest.raises(TransactionFailed):
+        tx = escrow.transact({'from': creator}).preDeposit(
+            [web3.eth.accounts[2]], [500], [1])
         chain.wait.for_receipt(tx)
 
     # Deposit tokens for multiple owners

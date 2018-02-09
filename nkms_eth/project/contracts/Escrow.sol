@@ -54,6 +54,7 @@ contract Escrow is Miner, Ownable {
     mapping (uint256 => uint256) public lockedPerPeriod;
     uint256 public minReleasePeriods;
     uint256 public minAllowableLockedTokens;
+    uint256 public maxAllowableLockedTokens;
     PolicyManager policyManager;
 
     /**
@@ -65,6 +66,7 @@ contract Escrow is Miner, Ownable {
     * @param _lockedPeriodsCoefficient Locked blocks coefficient
     * @param _awardedPeriods Max periods that will be additionally awarded
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
+    * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     **/
     function Escrow(
         NuCypherKMSToken _token,
@@ -73,7 +75,8 @@ contract Escrow is Miner, Ownable {
         uint256 _lockedPeriodsCoefficient,
         uint256 _awardedPeriods,
         uint256 _minReleasePeriods,
-        uint256 _minAllowableLockedTokens
+        uint256 _minAllowableLockedTokens,
+        uint256 _maxAllowableLockedTokens
     )
         Miner(
             _token,
@@ -86,6 +89,7 @@ contract Escrow is Miner, Ownable {
         require(_minReleasePeriods != 0);
         minReleasePeriods = _minReleasePeriods;
         minAllowableLockedTokens = _minAllowableLockedTokens;
+        maxAllowableLockedTokens = _maxAllowableLockedTokens;
     }
 
     /**
@@ -246,6 +250,7 @@ contract Escrow is Miner, Ownable {
             var periods = _periods[i];
             require(!tokenOwners.valueExists(owner) &&
                 value >= minAllowableLockedTokens &&
+                value <= maxAllowableLockedTokens &&
                 periods >= minReleasePeriods);
             // TODO optimize
             tokenOwners.push(owner, true);
@@ -306,6 +311,7 @@ contract Escrow is Miner, Ownable {
             info.releaseRate = Math.max256(
                 info.lockedValue.divCeil(info.maxReleasePeriods), info.releaseRate);
         }
+        require(info.lockedValue <= maxAllowableLockedTokens);
 
         confirmActivity(info.lockedValue);
     }
@@ -544,7 +550,8 @@ contract Escrow is Miner, Ownable {
     * @notice Set policy manager address
     **/
     function setPolicyManager(PolicyManager _policyManager) onlyOwner {
-        require(_policyManager.escrow() == address(this));
+        require(address(policyManager) == 0x0 &&
+            _policyManager.escrow() == address(this));
         policyManager = _policyManager;
     }
 
