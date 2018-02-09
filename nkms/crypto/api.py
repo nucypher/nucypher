@@ -104,5 +104,4 @@ def ecdsa_verify(
         )
     except InvalidSignature:
         return False
-    else:
-        return True
+    return True

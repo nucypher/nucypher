@@ -1,10 +1,11 @@
-from typing import Tuple
+from typing import Tuple, Union
 
 from nacl.secret import SecretBox
 
 from nkms.crypto import api as API
 from nkms.keystore import constants
 import umbral
+from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
 
 class Keypair(object):
@@ -14,22 +15,23 @@ class Keypair(object):
     # TODO: Throw error if a key is called and it doesn't exist
     # TODO: Maybe write a custome error ofr ^?
 
-    def __init__(self, privkey: bytes = None, pubkey: "PublicKey" = None, generate_keys_if_needed=True) -> None:
-        if privkey and pubkey:
-            self.privkey, self.pubkey = privkey, pubkey
-        elif not privkey and not pubkey:
-            if not generate_keys_if_needed:
-                raise TypeError("This Keypair was not given keys, and it is set not to generate them.")
-            # Neither key is provided; we'll generate.
-            self.gen_privkey(create_pubkey=True)
-        elif privkey and not pubkey:
-            # We have the privkey; use it to generate the pubkey.
-            self.privkey = privkey
-            self._gen_pubkey()
-        elif pubkey and not privkey:
-            # We have only the pubkey; this is a public-only pair.
-            self.pubkey = PublicKey(pubkey)
-            self.public_only = True
+    def __init__(self, umbral_key: Union[UmbralPrivateKey, UmbralPublicKey],
+                 generate_keys_if_needed=True)
+        """
+        Initalizes a Keypair object with an Umbral key object.
+        """
+        try:
+            self.pub_key = umbral_key.get_pub_key()
+            self.priv_key = umbral_key
+        except NotImplementedError:
+            self.pub_key = umbral_key
+        except AttributeError:
+            # They didn't pass anything we recognize as a valid key.
+            if generate_keys_if_needed:
+                self.priv_key = UmbralPrivateKey.gen_key()
+                self.pub_key = self.priv_key.get_pub_key()
+            else:
+                raise ValueError("Either pass a valid key as umbral_key or, if you want to generate keys, set generate_keys_if_needed to True.")
 
     @staticmethod
     def deserialize_key(key_data: bytes) -> 'Keypair':
