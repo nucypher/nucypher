@@ -1,4 +1,3 @@
-import nkms.db
 import shutil
 import os
 import appdirs

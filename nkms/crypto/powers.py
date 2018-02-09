@@ -7,7 +7,7 @@ from nkms.keystore import keypairs
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
 from nkms.keystore.keystore import KeyStore
 
-from umbral import keys
+from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
 
 class PowerUpError(TypeError):
@@ -107,24 +107,26 @@ class CryptoPowerUp(object):
 
 class KeyPairBasedPower(CryptoPowerUp):
     def __init__(self,
-                 key_class: Union[keys.UmbralPrivateKey, keys.UmbralPublicKey],
-                 key_bytes: bytes=None,
-                 generate_keys_if_needed=True
+                 umbral_key: Union[UmbralPrivateKey, UmbralPublicKey]=None,
+                 generate_keys_if_needed=True,
                  ) -> None:
 
-        priv_or_pub_key = key_class.load_key(key_bytes)
-        # Attmept to get pubkey from private key. If it's a pubkey, use it.
         try:
-            self.pub_key = priv_or_pub_key.get_pub_key()
+            # Attmept to get pubkey from private key. If it's a pubkey, use it.
+            self.pub_key = umbral_key.get_pub_key()
+            self.priv_key = umbral_key
+        except NotImplementedError:
+            self.pub_key = umbral_key
         except AttributeError:
-            self.pub_key = priv_or_pub_key
+            # They didn't pass anything we recognize as a valid key.
+            if generate_keys_if_needed:
+                # Let's generate.
+                self.priv_key = UmbralPrivateKey.gen_key()
+                self.pub_key = self.priv_key.gen_key()
+            else:
+                raise ValueError("Either pass a valid key as umbral_key or, if you want to generate keys, set generate_keys_if_needed to True.")
         else:
-            self.priv_key = priv_or_pub_key
-
-        if generate_keys_if_needed and :
-            self.priv_key = keys.UmbralPrivateKey.gen_key()
-            self.pub_key = self.priv_key.get_pub_key()
-
+            raise
 
 class SigningPower(KeyPairBasedPower):
     confers_public_key = True
@@ -182,7 +184,7 @@ class EncryptingPower(KeyPairBasedPower):
     def _encrypt_key(
             self,
             key: bytes,
-            pubkey: UmbralPublicKey = None
+            pubkey: UmbralPublicKey=None
     ) -> Tuple[bytes, bytes]:
         """
         Encrypts the `key` provided for the provided `pubkey` using the ECIES
