@@ -1,57 +1,57 @@
-from nkms.crypto import api as API
-from nkms.keystore.keypairs import PublicKey
+from umbral.keys import UmbralPublicKey
+
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec, utils
+from cryptography.hazmat.backends import backend
+from cryptography.exceptions import InvalidSignature
 
 
 class Signature(bytes):
     """
     The Signature object allows signatures to be made and verified.
     """
-    _EXPECTED_LENGTH = 65
+    _EXPECTED_LENGTH = 70
 
-    def __init__(self, sig_as_bytes: bytes=None, v: int=None, r: int=None, s: int=None):
+    def __init__(self, sig_as_bytes: bytes):
         """
         Initializes a Signature object.
-
-        :param v: V param of signature
-        :param r: R param of signature
-        :param s: S param of signature
-
+        :param sig_as_bytes: Cryptography.io signature as bytes.
         :return: Signature object
         """
-        if sig_as_bytes and any((v, r, s)):
-            raise ValueError("Pass *either* sig_as_bytes *or* v, r, and s - don't pass both.")
-        if not any ((sig_as_bytes, v, r, s)):
-            raise ValueError("Pass either sig_as_bytes or v, r, and s.")
-
-        if sig_as_bytes:
-            if not len(sig_as_bytes) == self._EXPECTED_LENGTH:
-                raise ValueError("{} must be {} bytes.".format(self.__class__.__name__, self._EXPECTED_LENGTH))
-            v, r, s = API.ecdsa_load_sig(sig_as_bytes)
-
-        self._v = v
-        self._r = r
-        self._s = s
+        self.sig_as_bytes = sig_as_bytes
 
     def __repr__(self):
-        return "{} v{}: {} - {}".format(__class__.__name__, self._v, self._r, self._s)
+        return "{}".format(sig_as_bytes.decode())
 
-    def verify(self, message: bytes, pubkey: PublicKey) -> bool:
+    def verify(self, message: bytes, pubkey: UmbralPublicKey) -> bool:
         """
         Verifies that a message's signature was valid.
 
         :param message: The message to verify
-        :param pubkey: Pubkey of the signer
+        :param pubkey: UmbralPublicKey of the signer
 
         :return: True if valid, False if invalid
         """
-        if not len(pubkey) == PublicKey._EXPECTED_LENGTH:
-            raise TypeError("Need a PublicKey of {} bytes to verify - got {}.".format(PublicKey._EXPECTED_LENGTH, len(pubkey)))
-        msg_digest = API.keccak_digest(message)
-        return API.ecdsa_verify(self._v, self._r, self._s, msg_digest, pubkey.without_metabytes())
+        crypto_pubkey = pubkey.point_key.to_cryptography_pub_key()
+
+        hasher = hashes.Hash(hashes.blake2b(), backend=backend)
+        hasher.update(message)
+        hash_digest = hasher.finalize()
+
+        try:
+            crypto_pubkey.verify(
+                self.sig_as_bytes,
+                hash_digest,
+                ec.ECDSA(utils.Prehashed(hashes.blake2b()))
+            )
+        except InvalidSignature:
+            return False
+        else:
+            return True
 
     def __bytes__(self):
         """
         Implements the __bytes__ call for Signature to transform into a
         transportable mode.
         """
-        return API.ecdsa_gen_sig(self._v, self._r, self._s)
+        return sig_as_bytes
