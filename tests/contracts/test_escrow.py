@@ -482,7 +482,7 @@ def test_pre_deposit(web3, chain, token, escrow):
 
     # Deposit tokens for 1 owner
     owner = web3.eth.accounts[1]
-    tx = escrow.transact({'from': creator}).preDeposit([owner], [1000], 10)
+    tx = escrow.transact({'from': creator}).preDeposit([owner], [1000], [10])
     chain.wait.for_receipt(tx)
     assert 1000 == token.call().balanceOf(escrow.address)
     assert 1000 == escrow.call().getTokens(owner)
@@ -492,15 +492,16 @@ def test_pre_deposit(web3, chain, token, escrow):
     # Can't pre-deposit tokens again for same owner
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': creator}).preDeposit(
-            [web3.eth.accounts[1]], [1000], 10)
+            [web3.eth.accounts[1]], [1000], [10])
         chain.wait.for_receipt(tx)
 
     # Deposit tokens for multiple owners
     owners = web3.eth.accounts[2:7]
-    tx = escrow.transact({'from': creator}).preDeposit(owners, [100] * 5, 100)
+    tx = escrow.transact({'from': creator}).preDeposit(
+        owners, [100, 200, 300, 400, 500], [50, 100, 150, 200, 250])
     chain.wait.for_receipt(tx)
-    assert 1500 == token.call().balanceOf(escrow.address)
-    for owner in owners:
-        assert 100 == escrow.call().getTokens(owner)
-        assert 100 == escrow.call().getLockedTokens(owner)
-        assert 100 == escrow.call().tokenInfo(owner)[4]
+    assert 2500 == token.call().balanceOf(escrow.address)
+    for index, owner in enumerate(owners):
+        assert 100 * (index + 1) == escrow.call().getTokens(owner)
+        assert 100 * (index + 1) == escrow.call().getLockedTokens(owner)
+        assert 50 * (index + 1) == escrow.call().tokenInfo(owner)[4]

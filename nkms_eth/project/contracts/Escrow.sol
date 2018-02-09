@@ -227,32 +227,34 @@ contract Escrow is Miner, Ownable {
     /**
     * @notice Pre-deposit tokens
     * @param _owners Tokens owners
-    * @param _values Amount of token to deposit for owners
-    * @param _periods Amount of periods during which tokens will be unlocked
+    * @param _values Amount of token to deposit for each owner
+    * @param _periods Amount of periods during which tokens will be unlocked for each owner
     **/
-    function preDeposit(address[] _owners, uint256[] _values, uint256 _periods)
+    function preDeposit(address[] _owners, uint256[] _values, uint256[] _periods)
         public isInitialized onlyOwner
     {
         require(_owners.length != 0 &&
             tokenOwners.sizeOf().add(_owners.length) <= MAX_OWNERS &&
             _owners.length == _values.length &&
-            _periods >= minReleasePeriods);
+            _owners.length == _periods.length);
         var currentPeriod = getCurrentPeriod();
         uint256 allValue = 0;
 
         for (uint256 i = 0; i < _owners.length; i++) {
             var owner = _owners[i];
             var value = _values[i];
+            var periods = _periods[i];
             require(!tokenOwners.valueExists(owner) &&
-                value >= minAllowableLockedTokens);
+                value >= minAllowableLockedTokens &&
+                periods >= minReleasePeriods);
             // TODO optimize
             tokenOwners.push(owner, true);
             var info = tokenInfo[owner];
             info.lastActivePeriod = currentPeriod;
             info.value = value;
             info.lockedValue = value;
-            info.maxReleasePeriods = _periods;
-            info.releaseRate = Math.max256(value.divCeil(_periods), 1);
+            info.maxReleasePeriods = periods;
+            info.releaseRate = Math.max256(value.divCeil(periods), 1);
             info.release = false;
             allValue = allValue.add(value);
         }
