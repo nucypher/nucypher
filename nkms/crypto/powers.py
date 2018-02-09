@@ -1,11 +1,13 @@
 import inspect
-from typing import Iterable, List, Tuple, Type
+from typing import Iterable, List, Tuple, Type, Union
 
 from nkms.crypto import api as API
 from nkms.crypto.signature import Signature
 from nkms.keystore import keypairs
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
 from nkms.keystore.keystore import KeyStore
+
+from umbral import keys
 
 
 class PowerUpError(TypeError):
@@ -21,7 +23,6 @@ class NoEncryptingPower(PowerUpError):
 
 
 class CryptoPower(object):
-
     def __init__(self, power_ups=[], generate_keys_if_needed=False):
         self._power_ups = {}
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
@@ -105,26 +106,24 @@ class CryptoPowerUp(object):
 
 
 class KeyPairBasedPower(CryptoPowerUp):
+    def __init__(self,
+                 key_class: Union[keys.UmbralPrivateKey, keys.UmbralPublicKey],
+                 key_bytes: bytes=None,
+                 generate_keys_if_needed=True
+                 ) -> None:
 
-    _keypair_class = keypairs.Keypair
-
-    def __init__(self, keypair: keypairs.Keypair=None, pubkey_bytes: bytes=None, generate_keys_if_needed=True) -> None:
-        if keypair and pubkey_bytes:
-            raise ValueError("Pass keypair or pubkey_bytes (or neither), but not both.")
-        elif keypair:
-            self.keypair = keypair
-        elif pubkey_bytes:
-            self.keypair = self._keypair_class(pubkey=pubkey_bytes)
+        priv_or_pub_key = key_class.load_key(key_bytes)
+        # Attmept to get pubkey from private key. If it's a pubkey, use it.
+        try:
+            self.pub_key = priv_or_pub_key.get_pub_key()
+        except AttributeError:
+            self.pub_key = priv_or_pub_key
         else:
-            self.keypair = self._keypair_class(generate_keys_if_needed=generate_keys_if_needed)
+            self.priv_key = priv_or_pub_key
 
-    @property
-    def priv_key(self):
-        return self.keypair.privkey
-
-    @property
-    def pub_key(self):
-        return self.keypair.pubkey
+        if generate_keys_if_needed and :
+            self.priv_key = keys.UmbralPrivateKey.gen_key()
+            self.pub_key = self.priv_key.get_pub_key()
 
 
 class SigningPower(KeyPairBasedPower):
@@ -183,7 +182,7 @@ class EncryptingPower(KeyPairBasedPower):
     def _encrypt_key(
             self,
             key: bytes,
-            pubkey: bytes = None
+            pubkey: UmbralPublicKey = None
     ) -> Tuple[bytes, bytes]:
         """
         Encrypts the `key` provided for the provided `pubkey` using the ECIES
@@ -192,7 +191,7 @@ class EncryptingPower(KeyPairBasedPower):
         :param key: Key to encrypt
         :param pubkey: Public Key to encrypt the `key` for
 
-        :return (encrypted key, encapsulated ECIES key)
+        :return (encrypted key, Umbral Capsule)
         """
         pubkey = pubkey or self.pub_key
 
