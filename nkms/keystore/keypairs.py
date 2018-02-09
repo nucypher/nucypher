@@ -4,8 +4,7 @@ from nacl.secret import SecretBox
 
 from nkms.crypto import api as API
 from nkms.keystore import constants
-from npre import umbral
-from npre import elliptic_curve as ec
+import umbral
 
 
 class Keypair(object):
@@ -164,14 +163,15 @@ class SigningKeypair(Keypair):
 
         :param create_pubkey: Create the pubkey or not?
         """
-        self.privkey = API.ecdsa_gen_priv()
+        self.privkey = umbral.keys.UmbralPrivateKey.gen_key()
+
         if create_pubkey:
-            self._gen_pubkey()
+            self.pubkey = self.privkey.get_pub_key()
 
     def _gen_pubkey(self):
         self.pubkey = PublicKey(API.ecdsa_priv2pub(self.privkey))
 
-    def sign(self, msghash: bytes) -> bytes:
+    def sign(self, message: bytes) -> bytes:
         """
         Signs a hashed message and returns a signature.
 
@@ -179,8 +179,8 @@ class SigningKeypair(Keypair):
 
         :return: Signature in bytes
         """
-        v, r, s = API.ecdsa_sign(msghash, self.privkey)
-        return API.ecdsa_gen_sig(v, r, s)
+        signature = API.ecdsa_sign(message, self.privkey)
+        return signature
 
     def verify(self, msghash: bytes, signature: bytes) -> bool:
         """

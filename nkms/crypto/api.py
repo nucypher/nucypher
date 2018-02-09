@@ -1,10 +1,13 @@
-from typing import Tuple, Union, List
+from random import SystemRandom
+from typing import Tuple, Union
 
 import sha3
-from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_recover, ecdsa_raw_sign
-from random import SystemRandom
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from py_ecc.secp256k1 import ecdsa_raw_recover
 
-from nkms.keystore.constants import SIG_KEYPAIR_BYTE, PUB_KEY_BYTE
+import umbral
+from nkms.crypto.signature import Signature
 
 SYSTEM_RAND = SystemRandom()
 
@@ -91,34 +94,6 @@ def ecdsa_bytes2pub(
     return (x, y)
 
 
-def ecdsa_gen_priv() -> bytes:
-    """
-    Generates an ECDSA Private Key.
-
-    :return: Byte encoded ECDSA privkey
-    """
-    privkey = secure_random_range(1, N)
-    return privkey.to_bytes(32, byteorder='big')  # TODO: Add metabytes.
-
-
-def ecdsa_priv2pub(
-        privkey: bytes,
-        to_bytes: bool = True
-) -> Union[bytes, Tuple[int]]:
-    """
-    Returns the public component of an ECDSA private key.
-
-    :param privkey: Private key as an int or bytestring
-    :param to_bytes: Serialize to bytes or not?
-
-    :return: Byte encoded or Tuple[int] ECDSA pubkey
-    """
-    pubkey = privtopub(privkey)
-    if to_bytes:
-        return SIG_KEYPAIR_BYTE + PUB_KEY_BYTE + ecdsa_pub2bytes(pubkey)
-    return pubkey
-
-
 def ecdsa_gen_sig(
         v: int,
         r: int,
@@ -155,20 +130,18 @@ def ecdsa_load_sig(
     return (v, r, s)
 
 
-def ecdsa_sign(
-        msghash: bytes,
-        privkey: bytes
-) -> Tuple[int, int, int]:
+def ecdsa_sign(message: bytes, privkey: umbral.keys.UmbralPrivateKey) -> bytes:
     """
     Accepts a hashed message and signs it with the private key given.
 
-    :param msghash: Hashed message to sign
+    :param message: Message to hash and sign
     :param privkey: Private key to sign with
 
-    :return: Tuple(v, r, s)
+    :return: signature
     """
-    v, r, s = ecdsa_raw_sign(msghash, privkey)
-    return (v, r, s)
+    cryptography_priv_key = privkey.bn_key.to_cryptography_priv_key()
+    signature_bytes = cryptography_priv_key.sign(message, ec.ECDSA(hashes.BLAKE2b(64)))
+    return Signature(signature_bytes)
 
 
 def ecdsa_verify(
