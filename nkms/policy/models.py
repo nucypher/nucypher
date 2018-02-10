@@ -11,7 +11,6 @@ from nkms.crypto.constants import NOT_SIGNED, HASH_DIGEST_LENGTH
 from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
-from nkms.keystore.keypairs import PublicKey
 
 
 class Contract(object):

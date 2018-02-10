@@ -1,13 +1,11 @@
 import inspect
-from typing import Iterable, List, Tuple, Type, Union
+from typing import Iterable, List, Tuple
 
 from nkms.crypto import api as API
 from nkms.crypto.signature import Signature
 from nkms.keystore import keypairs
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
-from nkms.keystore.keystore import KeyStore
-
-from umbral.keys import UmbralPrivateKey, UmbralPublicKey
+from umbral.keys import UmbralPublicKey
 
 
 class PowerUpError(TypeError):
@@ -39,7 +37,8 @@ class CryptoPower(object):
             power_up_instance = power_up
         elif CryptoPowerUp in inspect.getmro(power_up):
             power_up_class = power_up
-            power_up_instance = power_up(generate_keys_if_needed=self.generate_keys)
+            power_up_instance = power_up(
+                generate_keys_if_needed=self.generate_keys)
         else:
             raise TypeError(
                 ("power_up must be a subclass of CryptoPowerUp or an instance "
@@ -106,27 +105,23 @@ class CryptoPowerUp(object):
 
 
 class KeyPairBasedPower(CryptoPowerUp):
-    def __init__(self,
-                 umbral_key: Union[UmbralPrivateKey, UmbralPublicKey]=None,
-                 generate_keys_if_needed=True,
-                 ) -> None:
+    _keypair_class = keypairs.Keypair
 
-        try:
-            # Attmept to get pubkey from private key. If it's a pubkey, use it.
-            self.pub_key = umbral_key.get_pub_key()
-            self.priv_key = umbral_key
-        except NotImplementedError:
-            self.pub_key = umbral_key
-        except AttributeError:
-            # They didn't pass anything we recognize as a valid key.
-            if generate_keys_if_needed:
-                # Let's generate.
-                self.priv_key = UmbralPrivateKey.gen_key()
-                self.pub_key = self.priv_key.gen_key()
-            else:
-                raise ValueError("Either pass a valid key as umbral_key or, if you want to generate keys, set generate_keys_if_needed to True.")
+    def __init__(self, keypair: keypairs.Keypair = None,
+                 pubkey_bytes: bytes = None,
+                 generate_keys_if_needed=True) -> None:
+        if keypair and pubkey_bytes:
+            raise ValueError(
+                "Pass keypair or pubkey_bytes (or neither), but not both.")
+        elif keypair:
+            self.keypair = keypair
         else:
-            raise
+            # They didn't pass a keypair; we'll make one with the bytes (if any)
+            # they provided.
+            self.keypair = self._keypair_class.load_key(
+                UmbralPublicKey(pubkey_bytes),
+                generate_keys_if_needed=generate_keys_if_needed)
+
 
 class SigningPower(KeyPairBasedPower):
     confers_public_key = True
@@ -143,7 +138,7 @@ class SigningPower(KeyPairBasedPower):
         return self.keypair.sign(msghash)
 
     def public_key(self):
-        return self.pub_key
+        return self.keypair.pubkey
 
 
 class EncryptingPower(KeyPairBasedPower):

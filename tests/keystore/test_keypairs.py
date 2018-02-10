@@ -1,7 +1,6 @@
 import unittest
 from nkms.crypto import api as API
 from nkms.keystore import keypairs
-from nkms.keystore.keypairs import PublicKey
 
 
 class TestKeypairs(unittest.TestCase):

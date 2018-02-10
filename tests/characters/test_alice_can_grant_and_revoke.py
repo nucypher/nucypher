@@ -4,7 +4,6 @@ from nkms.characters import Ursula
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.powers import SigningPower, EncryptingPower
 from nkms.crypto.utils import BytestringSplitter
-from nkms.keystore.keypairs import PublicKey
 from tests.utilities import MockNetworkyStuff
 from apistar.test import TestClient
 
