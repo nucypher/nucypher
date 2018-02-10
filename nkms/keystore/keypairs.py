@@ -1,3 +1,5 @@
+import sha3
+
 from typing import Union
 
 from nkms.crypto import api as API
@@ -44,6 +46,14 @@ class Keypair(object):
         if as_bytes:
             return bytes(self.pubkey)
         return self.pubkey.save_key()
+
+    def get_fingerprint(self):
+        """
+        Hashes the key using keccak-256 and returns the hexdigest in bytes.
+
+        :return: Hexdigest fingerprint of key (keccak-256) in bytes
+        """
+        return sha3.keccak_256(bytes(self.pubkey)).hex_digest().encode()
 
 
 class EncryptingKeypair(Keypair):
