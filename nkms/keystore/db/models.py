@@ -1,8 +1,12 @@
 import sha3
 
+from datetime import datetime
 from nkms.keystore.db import Base
-from sqlalchemy import Column, Integer, LargeBinary, ForeignKey
 from sqlalchemy.orm import relationship
+
+from sqlalchemy import (
+    Column, Integer, LargeBinary, ForeignKey, Boolean, DateTime
+)
 
 
 class Key(Base):
@@ -11,44 +15,51 @@ class Key(Base):
     id = Column(Integer, primary_key=True)
     fingerprint = Column(LargeBinary, unique=True)
     key_data = Column(LargeBinary, unique=True)
-    policy = relationship("Policy", uselist=False, back_populates="keys")
+    is_signing = Column(Boolean, unique=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-    def __init__(self, key_data):
+    def __init__(self, key_data, is_signing):
         self.key_data = key_data
         self.fingerprint = self.get_fingerprint()
-
-    def get_fingerprint(self) -> bytes:
-        """
-        Hashes the key with keccak_256 and returns the hexdigest as a String.
-
-        :param key_data: Actual key data to hash
-
-        :return: Fingerprint of key as a string
-        """
-        return sha3.keccak_256(self.key_data[2:]).hexdigest().encode()
+        self.is_signing = is_signing
 
 
-class KeyFrag(Base):
-    __tablename__ = 'keyfrags'
+class PolicyContract(Base):
+    __tablename__ = 'policycontracts'
 
     id = Column(Integer, primary_key=True)
+    expiration = Column(DateTime)
+    deposit = Column(LargeBinary)
     hrac = Column(LargeBinary, unique=True)
     key_frag = Column(LargeBinary, unique=True)
-    policy = relationship("Policy", uselist=False, back_populates="policies")
+    alice_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
+    alice_pubkey_enc_id = Column(Integer, ForeignKey('keys.id'))
+    bob_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
+    alice_signature = Column(LargeBinary, unique=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-    def __init__(self, hrac, key_frag):
+    def __init__(self, expiration, deposit, hrac,
+                 key_frag, alice_pubkey_sig_id,
+                 alice_pubkey_enc_id, bob_pubkey_sig_id,
+                 alice_signature, policy):
+        self.expiration = expiration
+        self.deposit = deposit
         self.hrac = hrac
         self.key_frag = key_frag
+        self.alice_pubkey_sig_id = alice_pubkey_sig_id
+        self.alice_pubkey_enc_id = alice_pubkey_enc_id
+        self.bob_pubkey_sig_id = bob_pubkey_sig_id
+        self.alice_signature = alice_signature
 
 
-class Policy(Base):
-    __tablename__ = 'policies'
+class Workorder(Base):
+    __tablename__ = 'workorders'
 
     id = Column(Integer, primary_key=True)
-    hrac = Column(LargeBinary, unique=True)
-    alice_sig = Column(LargeBinary)
-    keyfrag_id = Column(Integer, ForeignKey('keyfrags.id'))
-    alice_pubkey_id = Column(Integer, ForeignKey('keys.id'))
+    bob_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
+    hrac = Column(LargeBinary, unique=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
-    keyfrag = relationship("KeyFrag", back_populates="policies")
-    alice_pubkey = relationship("KeyFrag", back_populates="policies")
+    def __init__(self, bob_pubkey_sig_id, hrac):
+        self.bob_pubkey_sig_id = bob_pubkey_sig_id
+        self.hrac = hrac
