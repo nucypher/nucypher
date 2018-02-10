@@ -1,178 +1,74 @@
 from typing import Tuple, Union
 
-from nacl.secret import SecretBox
-
 from nkms.crypto import api as API
-from nkms.keystore import constants
-import umbral
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
+from umbral import umbral
 
 
 class Keypair(object):
-
-    public_only = False
-
-    # TODO: Throw error if a key is called and it doesn't exist
-    # TODO: Maybe write a custome error ofr ^?
-
-    def __init__(self, umbral_key: Union[UmbralPrivateKey, UmbralPublicKey],
-                 generate_keys_if_needed=True)
+    """
+    A parent Keypair class for all types of Keypairs.
+    """
+    def __init__(self,
+                umbral_key: Union[UmbralPrivateKey, UmbralPublicKey]=None,
+                generate_keys_if_needed=True)
         """
         Initalizes a Keypair object with an Umbral key object.
+
+        :param umbral_key: An UmbralPrivateKey or UmbralPublicKey
+        :param generate_keys_if_needed: Generate keys or not?
         """
         try:
-            self.pub_key = umbral_key.get_pub_key()
-            self.priv_key = umbral_key
+            self.pubkey = umbral_key.get_pub_key()
+            self.privkey = umbral_key
         except NotImplementedError:
-            self.pub_key = umbral_key
+            self.pubkey = umbral_key
         except AttributeError:
             # They didn't pass anything we recognize as a valid key.
             if generate_keys_if_needed:
-                self.priv_key = UmbralPrivateKey.gen_key()
-                self.pub_key = self.priv_key.get_pub_key()
+                self.privkey = UmbralPrivateKey.gen_key()
+                self.pubkey = self.priv_key.get_pub_key()
             else:
                 raise ValueError("Either pass a valid key as umbral_key or, if you want to generate keys, set generate_keys_if_needed to True.")
 
-    @staticmethod
-    def deserialize_key(key_data: bytes) -> 'Keypair':
+    def serialize_pubkey(self, as_bytes=True) -> Union[bytes, str]:
         """
-        Deserialize the key_data into a Keypair object.
+        Serializes the pubkey for storage/transport in either urlsafe base64
+        or as a bytestring.
 
-        :param key_data: Serialized key data from a keypair object
+        :param as_bytes: Return the pubkey as bytes?
 
-        :return: Keypair object
+        :return: The serialized pubkey in bytes
         """
-        keypair_byte = key_data[0].to_bytes(1, 'big')
-        key_type_byte = key_data[1].to_bytes(1, 'big')
-        key = key_data[2:]
-
-        if keypair_byte == constants.ENC_KEYPAIR_BYTE:
-            if key_type_byte == constants.PUB_KEY_BYTE:
-                return EncryptingKeypair(pubkey=key)
-
-            elif key_type_byte == constants.PRIV_KEY_BYTE:
-                return EncryptingKeypair(privkey=key)
-
-        elif keypair_byte == constants.SIG_KEYPAIR_BYTE:
-            if key_type_byte == constants.PUB_KEY_BYTE:
-                return SigningKeypair(pubkey=key_data)  # Kinda weird for the moment - we're using all 66 bytes here.  TODO: Decide whether to make this the norm.
-
-            elif key_type_byte == constants.PRIV_KEY_BYTE:
-                return SigningKeypair(privkey=key)
-        else:
-            raise ValueError("Unable to determine which type of keypair this is - keypair_byte was {}".format(keypair_byte))
-        assert False
-
-    def gen_privkey(self):
-        """
-        Generate the private key of the pair.
-        """
-        return NotImplemented
-
-    def _gen_pubkey(self):
-        """
-        Generate the public key of the pair.
-        """
-        return NotImplemented
+        if as_bytes:
+            return bytes(self.pubkey)
+        return self.pubkey.save_key()
 
 
 class EncryptingKeypair(Keypair):
     """
-    An EncryptingKeypair that uses ECIES.
+    A keypair for Umbral
     """
-
-    def gen_privkey(self, create_pubkey: bool = True):
+    def decrypt(self, message_kit: MessageKit) -> bytes:
         """
-        Generates an ECIES secp256k1 private key.
+        Decrypt data encrypted with Umbral.
 
-        TODO: Throw an error if generating a privkey on a keypair that already
-              has a privkey.
+        :param message_kit: A KMS MessageKit.
 
-        :param create_pubkey: Create the pubkey or not?
+        :return: bytes
         """
-        self.privkey = API.ecies_gen_priv()
-        if create_pubkey:
-            self._gen_pubkey()
-
-    def _gen_pubkey(self):
-        self.pubkey = API.ecies_priv2pub(self.privkey)
-
-    def decrypt(self,
-                edata: Tuple[bytes, bytes],
-                privkey: bytes = None) -> bytes:
-        """
-        Decrypt data encrypted by ECIES
-        edata = (ekey, edata)
-            ekey is needed to reconstruct a DH secret
-            edata encrypted by the block cipher
-            privkey is optional private key if we want to use something else
-            than what keypair uses
-        """
-        if isinstance(edata[0], tuple) and isinstance(edata[1], tuple):
-            # In case it was re-encrypted data
-            return self.decrypt_reencrypted(edata)
-
-        ekey, edata = edata
-        # When it comes to decrypt(), ekey[1] is always None
-        # we could use that and save 2 bytes,
-        # but it makes the code less readable
-        ekey = umbral.EncryptedKey(
-                ekey=ec.deserialize(API.PRE.ecgroup, ekey[0]), re_id=ekey[1])
-        if privkey is None:
-            privkey = self._priv_key
-        else:
-            privkey = ec.deserialize(API.PRE.ecgroup, privkey)
-
-        key = self.pre.decapsulate(privkey, ekey)
-        cipher = SecretBox(key)
-        return cipher.decrypt(edata)
-
-    def serialize_pubkey(self) -> bytes:
-        """
-        Serializes the pubkey for storage.
-
-        :return: The serialized pubkey in bytes
-        """
-        serialized_key = (constants.ENC_KEYPAIR_BYTE +
-                          constants.PUB_KEY_BYTE +
-                          self.pubkey)
-        return serialized_key
-
-    def serialize_privkey(self) -> bytes:
-        """
-        Serializes the privkey for storage.
-
-        :return: The serialized privkey in bytes
-        """
-        serialized_key = (constants.ENC_KEYPAIR_BYTE +
-                          constants.PRIV_KEY_BYTE +
-                          self.privkey)
-        return serialized_key
+        return umbral.decrypt(
+            message_kit.capsule,
+            self.privkey,
+            message_kit.ciphertext,
+            message_kit.alice_pubkey
+        )
 
 
 class SigningKeypair(Keypair):
     """
     A SigningKeypair that uses ECDSA.
     """
-
-    def gen_privkey(self, create_pubkey: bool = True):
-        """
-        Generates an ECDSA secp256k1 private key.
-
-        TODO: Throw an error if generating a privkey on a keypair that already
-              has a privkey.
-        TODO: See issue #77 on Github.
-
-        :param create_pubkey: Create the pubkey or not?
-        """
-        self.privkey = umbral.keys.UmbralPrivateKey.gen_key()
-
-        if create_pubkey:
-            self.pubkey = self.privkey.get_pub_key()
-
-    def _gen_pubkey(self):
-        self.pubkey = PublicKey(API.ecdsa_priv2pub(self.privkey))
-
     def sign(self, message: bytes) -> bytes:
         """
         Signs a hashed message and returns a signature.
@@ -181,47 +77,4 @@ class SigningKeypair(Keypair):
 
         :return: Signature in bytes
         """
-        signature = API.ecdsa_sign(message, self.privkey)
-        return signature
-
-    def verify(self, msghash: bytes, signature: bytes) -> bool:
-        """
-        Verifies that a signature came from this keypair.
-
-        :param msghash: Hashed message used in the signature
-        :param signature: Signature of the hashed message
-
-        :return: Boolean if the signature is valid
-        """
-        v, r, s = API.ecdsa_load_sig(signature)
-        return API.ecdsa_verify(v, r, s, msghash, self.pubkey.without_metabytes())
-
-    def serialize_pubkey(self) -> bytes:
-        """
-        Serializes the pubkey for storage.
-
-        :return: The serialized pubkey in bytes
-        """
-        serialized_key = (constants.SIG_KEYPAIR_BYTE +
-                          constants.PUB_KEY_BYTE +
-                          self.pubkey)
-        return serialized_key
-
-    def serialize_privkey(self) -> bytes:
-        """
-        Serializes the privkey for storage.
-
-        :return: The serialized privkey in bytes
-        """
-        serialized_key = (constants.SIG_KEYPAIR_BYTE +
-                          constants.PRIV_KEY_BYTE +
-                          self.privkey)
-        return serialized_key
-
-
-class PublicKey(bytes):
-    _EXPECTED_LENGTH = 66
-    _METABYTES_LENGTH = 2
-
-    def without_metabytes(self):
-        return self[self._METABYTES_LENGTH::]
+        return API.ecdsa_sign(message, self.privkey)
