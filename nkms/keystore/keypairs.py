@@ -1,8 +1,9 @@
-from typing import Tuple, Union
+from typing import Union
 
 from nkms.crypto import api as API
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral import umbral
+from nkms.crypto.kits import MessageKit
 
 
 class Keypair(object):
@@ -11,7 +12,7 @@ class Keypair(object):
     """
     def __init__(self,
                 umbral_key: Union[UmbralPrivateKey, UmbralPublicKey]=None,
-                generate_keys_if_needed=True)
+                generate_keys_if_needed=True):
         """
         Initalizes a Keypair object with an Umbral key object.
 
@@ -57,12 +58,7 @@ class EncryptingKeypair(Keypair):
 
         :return: bytes
         """
-        return umbral.decrypt(
-            message_kit.capsule,
-            self.privkey,
-            message_kit.ciphertext,
-            message_kit.alice_pubkey
-        )
+        return message_kit.decypt(self.privkey)
 
 
 class SigningKeypair(Keypair):

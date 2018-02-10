@@ -2,15 +2,15 @@ from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import HASH_DIGEST_LENGTH
+from nkms.crypto.constants import HASH_DIGEST_LENGTH, PUBLIC_KEY_LENGTH
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
-from nkms.keystore.keypairs import PublicKey
 from nkms.network.constants import NODE_HAS_NO_STORAGE
 from nkms.network.node import NuCypherNode
 from nkms.network.routing import NuCypherRoutingTable
+from umbral.keys import UmbralPublicKey
 
-dht_value_splitter = BytestringSplitter(Signature, PublicKey, (bytes, HASH_DIGEST_LENGTH))
+dht_value_splitter = BytestringSplitter(Signature, (UmbralPublicKey, PUBLIC_KEY_LENGTH), (bytes, HASH_DIGEST_LENGTH))
 
 
 class NuCypherHashProtocol(KademliaProtocol):
