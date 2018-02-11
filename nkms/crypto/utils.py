@@ -11,24 +11,26 @@ class BytestringSplitter(object):
     def __call__(self, splittable, return_remainder=False, msgpack_remainder=False):
         if not any((return_remainder, msgpack_remainder)) and len(self) != len(splittable):
             raise ValueError(
-                "Wrong number of bytes to constitute message types {} - need {}, got {} \n Did you mean to return the remainder?".format(
+                """"Wrong number of bytes to constitute message types {} - 
+                need {}, got {} \n Did you mean to return the remainder?""".format(
                     self.message_types, len(self), len(splittable)))
         if len(self) > len(splittable):
             raise ValueError(
-                "Not enough bytes to constitute message types {} - need {}, got {}".format(self.message_types,
-                                                                                           len(self),
-                                                                                           len(splittable)))
+                """Not enough bytes to constitute
+                message types {} - need {}, got {}""".format(self.message_types,
+                                                           len(self),
+                                                           len(splittable)))
         cursor = 0
         message_objects = []
 
         for message_type in self.message_types:
-            message_class, message_length = self.get_message_meta(message_type)
+            message_class, message_length, kwargs = self.get_message_meta(message_type)
             expected_end_of_object_bytes = cursor + message_length
             bytes_for_this_object = splittable[cursor:expected_end_of_object_bytes]
             try:
-                message = message_class.from_bytes(bytes_for_this_object)
+                message = message_class.from_bytes(bytes_for_this_object, **kwargs)
             except AttributeError:
-                message = message_class(bytes_for_this_object)
+                message = message_class(bytes_for_this_object, **kwargs)
 
             message_objects.append(message)
             cursor = expected_end_of_object_bytes
