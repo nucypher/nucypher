@@ -8,7 +8,7 @@ from cryptography.exceptions import InvalidSignature
 from py_ecc.secp256k1 import ecdsa_raw_recover
 
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
-from nkms.crypto.signature import Signature
+
 
 SYSTEM_RAND = SystemRandom()
 
@@ -75,8 +75,8 @@ def ecdsa_sign(message: bytes, privkey: UmbralPrivateKey) -> bytes:
     :return: signature
     """
     cryptography_priv_key = privkey.bn_key.to_cryptography_priv_key()
-    signature_bytes = cryptography_priv_key.sign(message, ec.ECDSA(hashes.BLAKE2b(64)))
-    return Signature(signature_bytes)
+    signature_der_bytes = cryptography_priv_key.sign(message, ec.ECDSA(hashes.BLAKE2b(64)))
+    return signature_der_bytes
 
 
 def ecdsa_verify(
