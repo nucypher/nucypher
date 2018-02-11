@@ -29,7 +29,8 @@ class NuCypherHashProtocol(KademliaProtocol):
             return True
 
     def rpc_ping(self, sender, nodeid, node_capabilities=[]):
-        source = NuCypherNode(nodeid, sender[0], sender[1], capabilities_as_strings=node_capabilities)
+        source = NuCypherNode(nodeid, sender[0], sender[1],
+                              capabilities_as_strings=node_capabilities)
         self.welcomeIfNewNode(source)
         return self.sourceNode.id
 
@@ -45,13 +46,17 @@ class NuCypherHashProtocol(KademliaProtocol):
         else:
             return NODE_HAS_NO_STORAGE, False
 
-    def determine_legality_of_dht_key(self, signature, sender_pubkey_sig, message, hrac, dht_key, dht_value):
-        proper_key = digest(keccak_digest(bytes(sender_pubkey_sig) + bytes(hrac)))
+    def determine_legality_of_dht_key(self, signature, sender_pubkey_sig,
+                                      message, hrac, dht_key, dht_value):
+        proper_key = digest(
+            keccak_digest(bytes(sender_pubkey_sig) + bytes(hrac)))
 
         verified = signature.verify(hrac, sender_pubkey_sig)
 
         if not verified or not proper_key == dht_key:
-            self.log.warning("Got request to store illegal k/v: {} / {}".format(dht_key, dht_value))
+            self.log.warning(
+                "Got request to store illegal k/v: {} / {}".format(dht_key,
+                                                                   dht_value))
             self.illegal_keys_seen.append(dht_key)
             return False
         else:
@@ -63,13 +68,18 @@ class NuCypherHashProtocol(KademliaProtocol):
         self.log.debug("got a store request from %s" % str(sender))
 
         if value.startswith(b"uaddr") or value.startswith(b"trmap"):
-            signature, sender_pubkey_sig, hrac, message = dht_value_splitter(value[5::], return_remainder=True)
+            signature, sender_pubkey_sig, hrac, message = dht_value_splitter(
+                value[5::], return_remainder=True)
 
             # extra_info is a hash of the policy_group.id in the case of a treasure map, or a TTL in the case
             # of an Ursula interface.  TODO: Decide whether to keep this notion and, if so, use the TTL.
-            do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig, message, hrac, key, value)
+            do_store = self.determine_legality_of_dht_key(signature,
+                                                          sender_pubkey_sig,
+                                                          message, hrac, key,
+                                                          value)
         else:
-            self.log.info("Got request to store bad k/v: {} / {}".format(key, value))
+            self.log.info(
+                "Got request to store bad k/v: {} / {}".format(key, value))
             do_store = False
 
         if do_store:
