@@ -31,6 +31,12 @@ class MessageKit(CryptoKit):
             self.alice_pubkey
         )
 
+    def __bytes__(self):
+        as_bytes = bytes(self.capsule)
+        if self.alice_pubkey:
+            as_bytes += bytes(self.alice_pubkey)
+        as_bytes += self.ciphertext
+        return as_bytes
 
 class MapKit(MessageKit):
 
