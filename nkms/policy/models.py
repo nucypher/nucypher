@@ -7,10 +7,12 @@ from npre.constants import UNKNOWN_KFRAG
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import NOT_SIGNED, HASH_DIGEST_LENGTH
+from nkms.crypto.constants import NOT_SIGNED, KECCAK_DIGEST_LENGTH, \
+    PUBLIC_KEY_LENGTH
 from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
+from umbral.keys import UmbralPublicKey
 
 
 class Contract(object):
@@ -19,7 +21,8 @@ class Contract(object):
     """
     _EXPECTED_LENGTH = 124
 
-    def __init__(self, alice, hrac, expiration, deposit=None, ursula=None, kfrag=UNKNOWN_KFRAG, alices_signature=None):
+    def __init__(self, alice, hrac, expiration, deposit=None, ursula=None,
+                 kfrag=UNKNOWN_KFRAG, alices_signature=None):
         """
         :param deposit: Funds which will pay for the timeframe  of this Contract (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
@@ -40,12 +43,17 @@ class Contract(object):
         self.ursula = ursula
 
     def __bytes__(self):
-        return bytes(self.alice.seal) + bytes(self.hrac) + self.expiration.isoformat().encode() + bytes(self.deposit)
+        return bytes(self.alice.seal) + bytes(
+            self.hrac) + self.expiration.isoformat().encode() + bytes(
+            self.deposit)
 
     @classmethod
     def from_bytes(cls, contract_as_bytes):
-        contract_splitter = BytestringSplitter(PublicKey, (bytes, HASH_DIGEST_LENGTH), (bytes, 26))
-        alice_pubkey_sig, hrac, expiration_bytes = contract_splitter(contract_as_bytes)
+        contract_splitter = BytestringSplitter(
+            (UmbralPublicKey, PUBLIC_KEY_LENGTH), (bytes, KECCAK_DIGEST_LENGTH),
+            (bytes, 26))
+        alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = contract_splitter(
+            contract_as_bytes, return_remainder=True)
         expiration = maya.parse(expiration_bytes.decode())
         alice = Alice.from_public_keys((SigningPower, alice_pubkey_sig))
         return cls(alice=alice, hrac=hrac, expiration=expiration)
