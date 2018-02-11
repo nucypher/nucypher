@@ -13,6 +13,7 @@ from kademlia.network import Server
 from kademlia.utils import digest
 from sqlalchemy.exc import IntegrityError
 
+from nkms.crypto.kits import MessageKit
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
 import umbral
@@ -185,9 +186,9 @@ class Character(object):
         return message_kit, signature
 
     def verify_from(self,
-            actor_whom_sender_claims_to_be: "Character", message: bytes,
-            signature: Signature=None, decrypt=False,
-            signature_is_on_cleartext=False) -> tuple:
+                actor_whom_sender_claims_to_be: "Character", message_kit: MessageKit,
+                signature: Signature=None, decrypt=False,
+                signature_is_on_cleartext=False) -> tuple:
         """
         Inverse of encrypt_for.
 
@@ -210,17 +211,17 @@ class Character(object):
 
         if signature_is_on_cleartext:
             if decrypt:
-                cleartext = self._crypto_power.decrypt(message)
-                signature, message = BytestringSplitter(Signature)(cleartext,
-                                                        return_remainder=True)
+                cleartext_with_sig = self._crypto_power.decrypt(message_kit)
+                signature, cleartext = BytestringSplitter(Signature)(cleartext_with_sig,
+                                                                       return_remainder=True)
             else:
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not \
                      decrypting.")
 
-        actor = self._lookup_actor(actor_whom_sender_claims_to_be)
+        # actor = self._lookup_actor(actor_whom_sender_claims_to_be)
 
-        return signature.verify(message, actor.seal), cleartext
+        return signature.verify(message_kit.ciphertext, message_kit.alice_pubkey), cleartext
 
     def _lookup_actor(self, actor: "Character"):
         try:
