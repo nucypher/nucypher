@@ -50,14 +50,13 @@ class CryptoPower(object):
 
         if power_up.confers_public_key:
             # TODO: Make this an ID for later lookup on a KeyStore.
-            self.public_keys[
-                power_up_class] = power_up_instance.public_key()
+            self.public_keys[power_up_class] = power_up_instance.public_key()
 
     def pubkey_sig_bytes(self):
         try:
             # TODO: Turn this into an ID lookup on a KeyStore.
-            return self._power_ups[
-                SigningPower].pub_key
+            pubkey_sig = self._power_ups[SigningPower].public_key()
+            return bytes(pubkey_sig)
         except KeyError:
             raise NoSigningPower
 
