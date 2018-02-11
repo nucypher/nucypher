@@ -1,12 +1,28 @@
+from nkms.crypto.splitters import key_splitter, capsule_splitter
 from umbral import umbral
 
 
-class MessageKit:
+class CryptoKit:
+    return_remainder_when_splitting = True
 
-    def __init__(self, ciphertext, capsule, alice_pubkey=None):
+    @classmethod
+    def split_bytes(cls, some_bytes):
+        return cls.splitter(some_bytes,
+                            return_remainder=cls.return_remainder_when_splitting)
+
+    @classmethod
+    def from_bytes(cls, some_bytes):
+        constituents = cls.split_bytes(some_bytes)
+        return cls(*constituents)
+
+
+class MessageKit(CryptoKit):
+    splitter = capsule_splitter + key_splitter
+
+    def __init__(self, capsule, alice_pubkey, ciphertext):
         self.ciphertext = ciphertext
         self.capsule = capsule
-        self.alice_pub_key = alice_pubkey
+        self.alice_pubkey = alice_pubkey
 
     def decrypt(self, privkey):
         return umbral.decrypt(
