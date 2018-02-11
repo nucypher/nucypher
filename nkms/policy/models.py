@@ -3,7 +3,6 @@ import binascii
 
 import maya
 import msgpack
-from npre.constants import UNKNOWN_KFRAG
 
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto.api import keccak_digest
