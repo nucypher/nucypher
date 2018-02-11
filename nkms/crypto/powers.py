@@ -1,11 +1,12 @@
 import inspect
 from typing import Iterable, List, Tuple
 
+import umbral
 from nkms.crypto import api as API
-from nkms.crypto.signature import Signature
+from nkms.crypto.kits import MessageKit
 from nkms.keystore import keypairs
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
-from umbral.keys import UmbralPublicKey
+from umbral.keys import UmbralPublicKey, UmbralPrivateKey
 
 
 class PowerUpError(TypeError):
@@ -22,7 +23,6 @@ class NoEncryptingPower(PowerUpError):
 
 class CryptoPower(object):
     def __init__(self, power_ups=None, generate_keys_if_needed=False):
-
         self._power_ups = {}
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
         self.public_keys = {}

@@ -38,8 +38,8 @@ class MessageKit(CryptoKit):
         as_bytes += self.ciphertext
         return as_bytes
 
-class MapKit(MessageKit):
 
+class MapKit(MessageKit):
     def __init__(self, ciphertext, capsule, treasure_map, alice_pubkey=None):
         super().__init__(ciphertext, capsule, alice_pubkey)
         self.treasure_map = treasure_map
