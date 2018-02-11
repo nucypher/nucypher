@@ -98,7 +98,7 @@ class Character(object):
         """raised when an action appears to amount to malicious conduct."""
 
     @classmethod
-    def from_public_keys(cls, *powers_and_key_bytes):
+    def from_public_keys(cls, *powers_and_keys):
         """
         Sometimes we discover a Character and, at the same moment, learn one or
         more of their public keys. Here, we take a collection of tuples
@@ -111,8 +111,13 @@ class Character(object):
         """
         crypto_power = CryptoPower()
 
-        for power_up, public_key_bytes in powers_and_key_bytes:
-            crypto_power.consume_power_up(power_up(pubkey_bytes=public_key_bytes))
+        for power_up, public_key in powers_and_keys:
+            try:
+                umbral_key = UmbralPublicKey(public_key)
+            except TypeError:
+                umbral_key = public_key
+
+            crypto_power.consume_power_up(power_up(pubkey=umbral_key))
 
         return cls(is_me=False, crypto_power=crypto_power)
 
