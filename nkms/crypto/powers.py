@@ -21,15 +21,18 @@ class NoEncryptingPower(PowerUpError):
 
 
 class CryptoPower(object):
-    def __init__(self, power_ups=[], generate_keys_if_needed=False):
+    def __init__(self, power_ups=None, generate_keys_if_needed=False):
+
         self._power_ups = {}
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
         self.public_keys = {}
         self.generate_keys = generate_keys_if_needed
 
-        if power_ups:
+        if power_ups is not None:
             for power_up in power_ups:
                 self.consume_power_up(power_up)
+        else:
+            power_ups = []  # default
 
     def consume_power_up(self, power_up):
         if isinstance(power_up, CryptoPowerUp):
