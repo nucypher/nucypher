@@ -126,7 +126,7 @@ class KeyStore(object):
         self.session.commit()
         return new_workorder
 
-    def get_workorder(self, hrac: bytes) -> Workorder:
+    def get_workorders(self, hrac: bytes) -> Workorder:
         """
         Returns a list of Workorders by HRAC.
         """
@@ -135,7 +135,7 @@ class KeyStore(object):
             raise NotFound("No Workorders with {} HRAC found.".format(hrac))
         return workorders
 
-    def del_workorder(self, hrac: bytes):
+    def del_workorders(self, hrac: bytes):
         """
         Deletes a Workorder from the Keystore.
         """
