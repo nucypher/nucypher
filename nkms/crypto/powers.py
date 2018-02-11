@@ -233,49 +233,14 @@ class EncryptingPower(KeyPairBasedPower):
             keys.append((path_priv, path_pub))
         return keys
 
-    def encrypt(
-            self,
-            data: bytes,
-            pubkey: bytes = None
-    ) -> Tuple[bytes, bytes]:
-        """
-        Encrypts data with Public key encryption
-
-        :param data: Data to encrypt
-        :param pubkey: publc key to encrypt for
-
-        :return: (Encrypted Key, Encrypted data)
-        """
-        pubkey = pubkey or self.pub_key
-
-        key, enc_key = API.ecies_encapsulate(pubkey)
-        enc_data = API.symm_encrypt(key, data)
-
-        return (enc_data, API.elliptic_curve.serialize(enc_key.ekey))
-
     def decrypt(
             self,
-            enc_data: Tuple[bytes, bytes],
-            privkey: bytes = None
+            message_kit: MessageKit,
     ) -> bytes:
-        """
-        Decrypts data using ECIES PKE. If no `privkey` is provided, it uses
-        `self.priv_key`.
+        cleartext = umbral.umbral.decrypt(message_kit.capsule, self.keypair.privkey,
+                              message_kit.ciphertext, message_kit.alice_pubkey)
 
-        :param enc_data: Tuple: (encrypted data, ECIES encapsulated key)
-        :param privkey: Private key to decapsulate with
-
-        :return: Decrypted data
-        """
-        privkey = privkey or self.priv_key
-        ciphertext, enc_key = enc_data
-
-        enc_key = API.elliptic_curve.deserialize(API.PRE.ecgroup, enc_key)
-        enc_key = API.umbral.EncryptedKey(ekey=enc_key, re_id=None)
-
-        dec_key = API.ecies_decapsulate(privkey, enc_key)
-
-        return API.symm_decrypt(dec_key, ciphertext)
+        return cleartext
 
     def public_key(self):
         return self.keypair.pubkey
