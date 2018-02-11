@@ -150,7 +150,7 @@ class Character(object):
     def learn_about_actor(self, actor):
         self._actor_mapping[actor.id()] = actor
 
-    def encrypt_for(self, recipient: "Character", cleartext: bytes,
+    def encrypt_for(self, recipient: "Character", plaintext: bytes,
                     sign: bool=True, sign_cleartext=True) -> tuple:
         """
         Looks up recipient actor, finds that actor's pubkey_enc on our keyring,
@@ -158,7 +158,7 @@ class Character(object):
 
         :param recipient: The character whose public key will be used to encrypt
             cleartext.
-        :param cleartext: The secret to be encrypted.
+        :param plaintext: The secret to be encrypted.
         :param sign: Whether or not to sign the message.
         :param sign_cleartext: When signing, the cleartext is signed if this is
             True,  Otherwise, the resulting ciphertext is signed.
@@ -170,19 +170,19 @@ class Character(object):
 
         if sign:
             if sign_cleartext:
-                signature = self.seal(cleartext)
-                ciphertext = self._crypto_power.encrypt_for(
-                        actor.public_key(EncryptingPower), signature + cleartext)
+                signature = self.seal(plaintext)
+                message_kit = self._crypto_power.encrypt_for(
+                        actor.public_key(EncryptingPower), signature + plaintext)
             else:
-                ciphertext = self._crypto_power.encrypt_for(
-                        actor.public_key(EncryptingPower), cleartext)
-                signature = self.seal(ciphertext)
+                message_kit = self._crypto_power.encrypt_for(
+                        actor.public_key(EncryptingPower), plaintext)
+                signature = self.seal(message_kit)
         else:
             signature = NOT_SIGNED
-            ciphertext = self._crypto_power.encrypt_for(
-                            actor.public_key(EncryptingPower), cleartext)
+            message_kit = self._crypto_power.encrypt_for(
+                            actor.public_key(EncryptingPower), plaintext)
 
-        return ciphertext, signature
+        return message_kit, signature
 
     def verify_from(self,
             actor_whom_sender_claims_to_be: "Character", message: bytes,
