@@ -2,10 +2,13 @@ import datetime
 
 from nkms.characters import Ursula
 from nkms.crypto.api import keccak_digest
+from nkms.crypto.constants import PUBLIC_KEY_LENGTH
 from nkms.crypto.powers import SigningPower, EncryptingPower
 from nkms.crypto.utils import BytestringSplitter
 from tests.utilities import MockNetworkyStuff
 from apistar.test import TestClient
+
+from umbral.keys import UmbralPublicKey
 
 
 def test_grant(alice, bob, ursulas):
@@ -30,6 +33,7 @@ def test_grant(alice, bob, ursulas):
 def test_alice_can_get_ursulas_keys_via_rest(alice, ursulas):
     mock_client = TestClient(ursulas[0].rest_app)
     response = mock_client.get('http://localhost/public_keys')
-    signing_key_bytes, encrypting_key_bytes = BytestringSplitter(PublicKey)(response.content, return_remainder=True)
+    splitter = BytestringSplitter((UmbralPublicKey, PUBLIC_KEY_LENGTH))
+    signing_key_bytes, encrypting_key_bytes = splitter(response.content, return_remainder=True)
     stranger_ursula_from_public_keys = Ursula.from_public_keys((SigningPower, signing_key_bytes), (EncryptingPower, encrypting_key_bytes))
     assert stranger_ursula_from_public_keys == ursulas[0]
