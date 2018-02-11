@@ -587,17 +587,15 @@ class Ursula(Character):
         """
         from nkms.policy.models import Contract  # Avoid circular import
         hrac = binascii.unhexlify(hrac_as_hex)
+        policy_message_kit = MessageKit.from_bytes(request.body)
+        # group_payload_splitter = BytestringSplitter(PublicKey)
+        # policy_payload_splitter = BytestringSplitter((KFrag, KFRAG_LENGTH))
 
-        group_payload_splitter = BytestringSplitter(PublicKey)
-        policy_payload_splitter = BytestringSplitter((KFrag, KFRAG_LENGTH))
-
-        alice_pubkey_sig, payload_encrypted_for_ursula =\
-            group_payload_splitter(request.body, msgpack_remainder=True)
-        alice = Alice.from_public_keys((SigningPower, alice_pubkey_sig))
+        alice = Alice.from_public_keys((SigningPower, policy_message_kit.alice_pubkey))
         self.learn_about_actor(alice)
 
         verified, cleartext = self.verify_from(
-                alice, payload_encrypted_for_ursula,
+                alice, policy_message_kit,
                 decrypt=True, signature_is_on_cleartext=True)
 
         if not verified:
