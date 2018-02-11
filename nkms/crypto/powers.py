@@ -105,10 +105,10 @@ class CryptoPowerUp(object):
 class KeyPairBasedPower(CryptoPowerUp):
     _keypair_class = keypairs.Keypair
 
-    def __init__(self, keypair: keypairs.Keypair = None,
-                 pubkey_bytes: bytes = None,
+    def __init__(self, keypair: keypairs.Keypair=None,
+                 pubkey: UmbralPublicKey=None,
                  generate_keys_if_needed=True) -> None:
-        if keypair and pubkey_bytes:
+        if keypair and pubkey:
             raise ValueError(
                 "Pass keypair or pubkey_bytes (or neither), but not both.")
         elif keypair:
@@ -116,9 +116,13 @@ class KeyPairBasedPower(CryptoPowerUp):
         else:
             # They didn't pass a keypair; we'll make one with the bytes (if any)
             # they provided.
+            if pubkey:
+                key_to_pass_to_keypair = pubkey
+            else:
+                # They didn't even pass pubkey_bytes.  We'll generate a keypair.
+                key_to_pass_to_keypair = UmbralPrivateKey.gen_key()
             self.keypair = self._keypair_class(
-                UmbralPublicKey.from_bytes(pubkey_bytes),
-                generate_keys_if_needed=generate_keys_if_needed)
+                umbral_key=key_to_pass_to_keypair)
 
 
 class SigningPower(KeyPairBasedPower):
