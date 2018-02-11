@@ -6,6 +6,7 @@ from nkms.crypto import api as API
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral import umbral
 from nkms.crypto.kits import MessageKit
+from nkms.crypto.signature import Signature
 
 
 class Keypair(object):
@@ -22,7 +23,7 @@ class Keypair(object):
         :param generate_keys_if_needed: Generate keys or not?
         """
         try:
-            self.pubkey = umbral_key.get_pub_key()
+            self.pubkey = umbral_key.get_pubkey()
             self.privkey = umbral_key
         except NotImplementedError:
             self.pubkey = umbral_key
@@ -30,7 +31,7 @@ class Keypair(object):
             # They didn't pass anything we recognize as a valid key.
             if generate_keys_if_needed:
                 self.privkey = UmbralPrivateKey.gen_key()
-                self.pubkey = self.priv_key.get_pub_key()
+                self.pubkey = self.privkey.get_pub_key()
             else:
                 raise ValueError("Either pass a valid key as umbral_key or, if you want to generate keys, set generate_keys_if_needed to True.")
 
@@ -79,8 +80,9 @@ class SigningKeypair(Keypair):
         """
         Signs a hashed message and returns a signature.
 
-        :param msghash: The hashed message to sign
+        :param message: The message to sign
 
         :return: Signature in bytes
         """
-        return API.ecdsa_sign(message, self.privkey)
+        signature_der_bytes = API.ecdsa_sign(message, self.privkey)
+        return Signature.from_bytes(signature_der_bytes, der_encoded=True)

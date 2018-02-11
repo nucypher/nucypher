@@ -47,7 +47,15 @@ class BytestringSplitter(object):
 
     @staticmethod
     def get_message_meta(message_type):
-        return message_type if isinstance(message_type, tuple) else (message_type, message_type._EXPECTED_LENGTH)
+        if isinstance(message_type, tuple):
+            message_meta = message_type
+        else:
+            try:
+                message_meta = message_type, message_type._EXPECTED_LENGTH
+            except AttributeError:
+                raise TypeError("No way to know the expected length.  Either pass it as the second member of a tuple or set _EXPECTED_LENGTH on the class you're passing.")
+
+        return message_meta
 
 
 class RepeatingBytestringSplitter(BytestringSplitter):

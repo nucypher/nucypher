@@ -21,15 +21,18 @@ class NoEncryptingPower(PowerUpError):
 
 
 class CryptoPower(object):
-    def __init__(self, power_ups=[], generate_keys_if_needed=False):
+    def __init__(self, power_ups=None, generate_keys_if_needed=False):
+
         self._power_ups = {}
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
         self.public_keys = {}
         self.generate_keys = generate_keys_if_needed
 
-        if power_ups:
+        if power_ups is not None:
             for power_up in power_ups:
                 self.consume_power_up(power_up)
+        else:
+            power_ups = []  # default
 
     def consume_power_up(self, power_up):
         if isinstance(power_up, CryptoPowerUp):
@@ -47,14 +50,13 @@ class CryptoPower(object):
 
         if power_up.confers_public_key:
             # TODO: Make this an ID for later lookup on a KeyStore.
-            self.public_keys[
-                power_up_class] = power_up_instance.public_key()
+            self.public_keys[power_up_class] = power_up_instance.public_key()
 
     def pubkey_sig_bytes(self):
         try:
             # TODO: Turn this into an ID lookup on a KeyStore.
-            return self._power_ups[
-                SigningPower].pub_key
+            pubkey_sig = self._power_ups[SigningPower].public_key()
+            return bytes(pubkey_sig)
         except KeyError:
             raise NoSigningPower
 
@@ -78,8 +80,7 @@ class CryptoPower(object):
         except KeyError as e:
             raise NoSigningPower(e)
         msg_digest = b"".join(API.keccak_digest(m) for m in messages)
-
-        return Signature(sig_keypair.sign(msg_digest))
+        return sig_keypair.sign(msg_digest)
 
     def decrypt(self, ciphertext):
         try:
@@ -118,8 +119,8 @@ class KeyPairBasedPower(CryptoPowerUp):
         else:
             # They didn't pass a keypair; we'll make one with the bytes (if any)
             # they provided.
-            self.keypair = self._keypair_class.load_key(
-                UmbralPublicKey(pubkey_bytes),
+            self.keypair = self._keypair_class(
+                UmbralPublicKey.from_bytes(pubkey_bytes),
                 generate_keys_if_needed=generate_keys_if_needed)
 
 
@@ -127,15 +128,11 @@ class SigningPower(KeyPairBasedPower):
     confers_public_key = True
     _keypair_class = SigningKeypair
 
-    def sign(self, msghash):
+    def sign(self, message):
         """
-        Signs a hashed message and returns a signature.
-
-        :param msghash: The hashed message to sign
-
-        :return: Signature in bytes
+        Signs a message message and returns a Signature.
         """
-        return self.keypair.sign(msghash)
+        return self.keypair.sign(message)
 
     def public_key(self):
         return self.keypair.pubkey

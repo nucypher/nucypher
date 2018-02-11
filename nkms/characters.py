@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
+import umbral
 
 from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
@@ -238,7 +239,7 @@ class Alice(Character):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def generate_rekey_frags(self, alice_privkey, bob, m, n):
+    def generate_kfrags(self, bob, m, n):
         """
         Generates re-encryption key frags and returns the frags and encrypted
         ephemeral key data.
@@ -250,9 +251,10 @@ class Alice(Character):
 
         :return: Tuple(kfrags, eph_key_data)
         """
-        kfrags, eph_key_data = API.ecies_ephemeral_split_rekey(
-            alice_privkey, bytes(bob.seal.without_metabytes()), m, n)
-        return (kfrags, eph_key_data)
+        # TODO: Is this how we want to access Alice's private key?
+        alice_priv_enc = self._crypto_power._power_ups[EncryptingPower].keypair.privkey
+        k_frags, _v_keys = umbral.umbral.split_rekey(alice_priv_enc, bob.public_key(EncryptingPower), m, n)
+        return k_frags
 
     def create_policy(self,
                       bob: "Bob",
@@ -263,17 +265,13 @@ class Alice(Character):
         """
         Alice dictates a new group of policies.
         """
-
-        ##### Temporary until we decide on an API for private key access
-        alice_priv_enc = self._crypto_power._power_ups[EncryptingPower].priv_key
-        kfrags, pfrag = self.generate_rekey_frags(alice_priv_enc, bob, m, n)
+        kfrags = self.generate_kfrags(bob, m, n)
         # TODO: Access Alice's private key inside this method.
         from nkms.policy.models import Policy
         policy = Policy.from_alice(
             alice=self,
             bob=bob,
             kfrags=kfrags,
-            pfrag=pfrag,
             uri=uri,
         )
 
