@@ -13,6 +13,7 @@ from kademlia.network import Server
 from kademlia.utils import digest
 from sqlalchemy.exc import IntegrityError
 
+from nkms.crypto.kits import MessageKit
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
 import umbral
@@ -98,7 +99,7 @@ class Character(object):
         """raised when an action appears to amount to malicious conduct."""
 
     @classmethod
-    def from_public_keys(cls, *powers_and_key_bytes):
+    def from_public_keys(cls, *powers_and_keys):
         """
         Sometimes we discover a Character and, at the same moment, learn one or
         more of their public keys. Here, we take a collection of tuples
@@ -111,8 +112,13 @@ class Character(object):
         """
         crypto_power = CryptoPower()
 
-        for power_up, public_key_bytes in powers_and_key_bytes:
-            crypto_power.consume_power_up(power_up(pubkey_bytes=public_key_bytes))
+        for power_up, public_key in powers_and_keys:
+            try:
+                umbral_key = UmbralPublicKey(public_key)
+            except TypeError:
+                umbral_key = public_key
+
+            crypto_power.consume_power_up(power_up(pubkey=umbral_key))
 
         return cls(is_me=False, crypto_power=crypto_power)
 
@@ -145,7 +151,7 @@ class Character(object):
     def learn_about_actor(self, actor):
         self._actor_mapping[actor.id()] = actor
 
-    def encrypt_for(self, recipient: "Character", cleartext: bytes,
+    def encrypt_for(self, recipient: "Character", plaintext: bytes,
                     sign: bool=True, sign_cleartext=True) -> tuple:
         """
         Looks up recipient actor, finds that actor's pubkey_enc on our keyring,
@@ -153,7 +159,7 @@ class Character(object):
 
         :param recipient: The character whose public key will be used to encrypt
             cleartext.
-        :param cleartext: The secret to be encrypted.
+        :param plaintext: The secret to be encrypted.
         :param sign: Whether or not to sign the message.
         :param sign_cleartext: When signing, the cleartext is signed if this is
             True,  Otherwise, the resulting ciphertext is signed.
@@ -165,24 +171,24 @@ class Character(object):
 
         if sign:
             if sign_cleartext:
-                signature = self.seal(cleartext)
-                ciphertext = self._crypto_power.encrypt_for(
-                        actor.public_key(EncryptingPower), signature + cleartext)
+                signature = self.seal(plaintext)
+                message_kit = self._crypto_power.encrypt_for(
+                        actor.public_key(EncryptingPower), signature + plaintext)
             else:
-                ciphertext = self._crypto_power.encrypt_for(
-                        actor.public_key(EncryptingPower), cleartext)
-                signature = self.seal(ciphertext)
+                message_kit = self._crypto_power.encrypt_for(
+                        actor.public_key(EncryptingPower), plaintext)
+                signature = self.seal(message_kit)
         else:
             signature = NOT_SIGNED
-            ciphertext = self._crypto_power.encrypt_for(
-                            actor.public_key(EncryptingPower), cleartext)
+            message_kit = self._crypto_power.encrypt_for(
+                            actor.public_key(EncryptingPower), plaintext)
 
-        return ciphertext, signature
+        return message_kit, signature
 
     def verify_from(self,
-            actor_whom_sender_claims_to_be: "Character", message: bytes,
-            signature: Signature=None, decrypt=False,
-            signature_is_on_cleartext=False) -> tuple:
+                actor_whom_sender_claims_to_be: "Character", message_kit: MessageKit,
+                signature: Signature=None, decrypt=False,
+                signature_is_on_cleartext=False) -> tuple:
         """
         Inverse of encrypt_for.
 
@@ -205,17 +211,17 @@ class Character(object):
 
         if signature_is_on_cleartext:
             if decrypt:
-                cleartext = self._crypto_power.decrypt(message)
-                signature, message = BytestringSplitter(Signature)(cleartext,
-                                                        return_remainder=True)
+                cleartext_with_sig = self._crypto_power.decrypt(message_kit)
+                signature, cleartext = BytestringSplitter(Signature)(cleartext_with_sig,
+                                                                       return_remainder=True)
             else:
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not \
                      decrypting.")
 
-        actor = self._lookup_actor(actor_whom_sender_claims_to_be)
+        # actor = self._lookup_actor(actor_whom_sender_claims_to_be)
 
-        return signature.verify(message, actor.seal), cleartext
+        return signature.verify(message_kit.ciphertext, message_kit.alice_pubkey), cleartext
 
     def _lookup_actor(self, actor: "Character"):
         try:
@@ -581,17 +587,15 @@ class Ursula(Character):
         """
         from nkms.policy.models import Contract  # Avoid circular import
         hrac = binascii.unhexlify(hrac_as_hex)
+        policy_message_kit = MessageKit.from_bytes(request.body)
+        # group_payload_splitter = BytestringSplitter(PublicKey)
+        # policy_payload_splitter = BytestringSplitter((KFrag, KFRAG_LENGTH))
 
-        group_payload_splitter = BytestringSplitter(PublicKey)
-        policy_payload_splitter = BytestringSplitter((KFrag, KFRAG_LENGTH))
-
-        alice_pubkey_sig, payload_encrypted_for_ursula =\
-            group_payload_splitter(request.body, msgpack_remainder=True)
-        alice = Alice.from_public_keys((SigningPower, alice_pubkey_sig))
+        alice = Alice.from_public_keys((SigningPower, policy_message_kit.alice_pubkey))
         self.learn_about_actor(alice)
 
         verified, cleartext = self.verify_from(
-                alice, payload_encrypted_for_ursula,
+                alice, policy_message_kit,
                 decrypt=True, signature_is_on_cleartext=True)
 
         if not verified:

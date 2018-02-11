@@ -1,11 +1,12 @@
 import inspect
 from typing import Iterable, List, Tuple
 
+import umbral
 from nkms.crypto import api as API
-from nkms.crypto.signature import Signature
+from nkms.crypto.kits import MessageKit
 from nkms.keystore import keypairs
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
-from umbral.keys import UmbralPublicKey
+from umbral.keys import UmbralPublicKey, UmbralPrivateKey
 
 
 class PowerUpError(TypeError):
@@ -22,7 +23,6 @@ class NoEncryptingPower(PowerUpError):
 
 class CryptoPower(object):
     def __init__(self, power_ups=None, generate_keys_if_needed=False):
-
         self._power_ups = {}
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
         self.public_keys = {}
@@ -89,13 +89,10 @@ class CryptoPower(object):
         except KeyError:
             raise NoEncryptingPower
 
-    def encrypt_for(self, pubkey, cleartext):
-        try:
-            encrypting_power = self._power_ups[EncryptingPower]
-            ciphertext = encrypting_power.encrypt(cleartext, bytes(pubkey))
-            return ciphertext
-        except KeyError:
-            raise NoEncryptingPower
+    def encrypt_for(self, pubkey, plaintext):
+        ciphertext, capsule = umbral.umbral.encrypt(pubkey, plaintext)
+        return MessageKit(ciphertext=ciphertext, capsule=capsule,
+                          alice_pubkey=pubkey)
 
 
 class CryptoPowerUp(object):
@@ -108,10 +105,10 @@ class CryptoPowerUp(object):
 class KeyPairBasedPower(CryptoPowerUp):
     _keypair_class = keypairs.Keypair
 
-    def __init__(self, keypair: keypairs.Keypair = None,
-                 pubkey_bytes: bytes = None,
+    def __init__(self, keypair: keypairs.Keypair=None,
+                 pubkey: UmbralPublicKey=None,
                  generate_keys_if_needed=True) -> None:
-        if keypair and pubkey_bytes:
+        if keypair and pubkey:
             raise ValueError(
                 "Pass keypair or pubkey_bytes (or neither), but not both.")
         elif keypair:
@@ -119,9 +116,13 @@ class KeyPairBasedPower(CryptoPowerUp):
         else:
             # They didn't pass a keypair; we'll make one with the bytes (if any)
             # they provided.
+            if pubkey:
+                key_to_pass_to_keypair = pubkey
+            else:
+                # They didn't even pass pubkey_bytes.  We'll generate a keypair.
+                key_to_pass_to_keypair = UmbralPrivateKey.gen_key()
             self.keypair = self._keypair_class(
-                UmbralPublicKey.from_bytes(pubkey_bytes),
-                generate_keys_if_needed=generate_keys_if_needed)
+                umbral_key=key_to_pass_to_keypair)
 
 
 class SigningPower(KeyPairBasedPower):
@@ -232,49 +233,14 @@ class EncryptingPower(KeyPairBasedPower):
             keys.append((path_priv, path_pub))
         return keys
 
-    def encrypt(
-            self,
-            data: bytes,
-            pubkey: bytes = None
-    ) -> Tuple[bytes, bytes]:
-        """
-        Encrypts data with Public key encryption
-
-        :param data: Data to encrypt
-        :param pubkey: publc key to encrypt for
-
-        :return: (Encrypted Key, Encrypted data)
-        """
-        pubkey = pubkey or self.pub_key
-
-        key, enc_key = API.ecies_encapsulate(pubkey)
-        enc_data = API.symm_encrypt(key, data)
-
-        return (enc_data, API.elliptic_curve.serialize(enc_key.ekey))
-
     def decrypt(
             self,
-            enc_data: Tuple[bytes, bytes],
-            privkey: bytes = None
+            message_kit: MessageKit,
     ) -> bytes:
-        """
-        Decrypts data using ECIES PKE. If no `privkey` is provided, it uses
-        `self.priv_key`.
+        cleartext = umbral.umbral.decrypt(message_kit.capsule, self.keypair.privkey,
+                              message_kit.ciphertext, message_kit.alice_pubkey)
 
-        :param enc_data: Tuple: (encrypted data, ECIES encapsulated key)
-        :param privkey: Private key to decapsulate with
-
-        :return: Decrypted data
-        """
-        privkey = privkey or self.priv_key
-        ciphertext, enc_key = enc_data
-
-        enc_key = API.elliptic_curve.deserialize(API.PRE.ecgroup, enc_key)
-        enc_key = API.umbral.EncryptedKey(ekey=enc_key, re_id=None)
-
-        dec_key = API.ecies_decapsulate(privkey, enc_key)
-
-        return API.symm_decrypt(dec_key, ciphertext)
+        return cleartext
 
     def public_key(self):
         return self.keypair.pubkey
