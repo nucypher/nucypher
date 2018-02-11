@@ -128,15 +128,11 @@ class SigningPower(KeyPairBasedPower):
     confers_public_key = True
     _keypair_class = SigningKeypair
 
-    def sign(self, msghash):
+    def sign(self, message):
         """
-        Signs a hashed message and returns a signature.
-
-        :param msghash: The hashed message to sign
-
-        :return: Signature in bytes
+        Signs a message message and returns a Signature.
         """
-        return self.keypair.sign(msghash)
+        return self.keypair.sign(message)
 
     def public_key(self):
         return self.keypair.pubkey
