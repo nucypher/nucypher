@@ -32,7 +32,7 @@ class KeyStore(object):
         self.session = sessionmaker(bind=sqlalchemy_engine)()
 
     def add_key(self,
-                keypair: Union[keypairs.EncryptingKeypair
+                keypair: Union[keypairs.EncryptingKeypair,
                                keypairs.SigningKeypair]) -> Key:
         """
         :param keypair: Keypair object to store in the keystore.
