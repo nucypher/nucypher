@@ -25,7 +25,22 @@ class Signature(object):
 
         :return: True if valid, False if invalid
         """
-        return API.ecdsa_verify(message, self.sig_as_bytes, pubkey)
+        return API.ecdsa_verify(message, self._der_encoded_bytes(), pubkey)
+
+    @classmethod
+    def from_bytes(cls, signature_as_bytes, der_encoded=False):
+        if der_encoded:
+            r, s = decode_dss_signature(signature_as_bytes)
+        else:
+            if not len(signature_as_bytes) == 64:
+                raise ValueError("Looking for exactly 64 bytes if you call from_bytes with der_encoded=False.")
+            else:
+                r = int.from_bytes(signature_as_bytes[:32], "big")
+                s = int.from_bytes(signature_as_bytes[32:], "big")
+        return cls(r, s)
+
+    def _der_encoded_bytes(self):
+        return encode_dss_signature(self.r, self.s)
 
     def __bytes__(self):
         """
