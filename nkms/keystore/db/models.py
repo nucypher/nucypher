@@ -18,9 +18,9 @@ class Key(Base):
     is_signing = Column(Boolean, unique=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    def __init__(self, key_data, is_signing):
+    def __init__(self, fingerprint, key_data, is_signing):
+        self.fingerprint = fingerprint
         self.key_data = key_data
-        self.fingerprint = self.get_fingerprint()
         self.is_signing = is_signing
 
 
@@ -57,9 +57,11 @@ class Workorder(Base):
 
     id = Column(Integer, primary_key=True)
     bob_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
+    bob_signature = Column(LargeBinary, unique=True)
     hrac = Column(LargeBinary, unique=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    def __init__(self, bob_pubkey_sig_id, hrac):
+    def __init__(self, bob_pubkey_sig_id, bob_signature, hrac):
         self.bob_pubkey_sig_id = bob_pubkey_sig_id
+        self.bob_signature = bob_signature
         self.hrac = hrac

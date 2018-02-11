@@ -34,7 +34,7 @@ class Keypair(object):
             else:
                 raise ValueError("Either pass a valid key as umbral_key or, if you want to generate keys, set generate_keys_if_needed to True.")
 
-    def serialize_pubkey(self, as_bytes=True) -> Union[bytes, str]:
+    def serialize_pubkey(self, as_b64=False) -> bytes:
         """
         Serializes the pubkey for storage/transport in either urlsafe base64
         or as a bytestring.
@@ -43,9 +43,9 @@ class Keypair(object):
 
         :return: The serialized pubkey in bytes
         """
-        if as_bytes:
-            return bytes(self.pubkey)
-        return self.pubkey.save_key()
+        if as_b64:
+            return self.pubkey.save_key()
+        return bytes(self.pubkey)
 
     def get_fingerprint(self):
         """
