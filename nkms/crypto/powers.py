@@ -80,8 +80,7 @@ class CryptoPower(object):
         except KeyError as e:
             raise NoSigningPower(e)
         msg_digest = b"".join(API.keccak_digest(m) for m in messages)
-
-        return Signature(sig_keypair.sign(msg_digest))
+        return sig_keypair.sign(msg_digest)
 
     def decrypt(self, ciphertext):
         try:
