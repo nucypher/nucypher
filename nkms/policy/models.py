@@ -11,6 +11,7 @@ from nkms.crypto.constants import NOT_SIGNED, KECCAK_DIGEST_LENGTH, \
     PUBLIC_KEY_LENGTH
 from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
+from nkms.crypto.splitters import key_splitter
 from nkms.crypto.utils import BytestringSplitter
 from umbral.keys import UmbralPublicKey
 
@@ -49,8 +50,7 @@ class Contract(object):
 
     @classmethod
     def from_bytes(cls, contract_as_bytes):
-        contract_splitter = BytestringSplitter(
-            (UmbralPublicKey, PUBLIC_KEY_LENGTH), (bytes, KECCAK_DIGEST_LENGTH),
+        contract_splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
             (bytes, 26))
         alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = contract_splitter(
             contract_as_bytes, return_remainder=True)
@@ -195,11 +195,12 @@ class Policy(object):
 
     def enact(self, networky_stuff):
         for contract in self._accepted_contracts.values():
-            policy_payload = contract.encrypt_payload_for_ursula()
-            full_payload = self.alice.seal + msgpack.dumps(policy_payload)
+            full_payload = contract.encrypt_payload_for_ursula()
             response = networky_stuff.enact_policy(contract.ursula,
                                                    self.hrac(),
-                                                   full_payload)  # TODO: Parse response for confirmation.
+                                                   bytes(full_payload))
+            # TODO: Parse response for confirmation.
+            response
 
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(contract.ursula)
@@ -291,13 +292,14 @@ class WorkOrder(object):
     def constructed_by_bob(cls, kfrag_hrac, pfrags, ursula_dht_key, bob):
         receipt_bytes = b"wo:" + ursula_dht_key  # TODO: represent the pfrags as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(pfrags))  - See #137
         receipt_signature = bob.seal(receipt_bytes)
-        return cls(bob, kfrag_hrac, pfrags, receipt_bytes, receipt_signature, ursula_dht_key)
+        return cls(bob, kfrag_hrac, pfrags, receipt_bytes, receipt_signature,
+                   ursula_dht_key)
 
     @classmethod
     def from_rest_payload(cls, kfrag_hrac, rest_payload):
         payload_splitter = BytestringSplitter(Signature, PublicKey)
         signature, bob_pubkey_sig, (receipt_bytes, packed_pfrags) = payload_splitter(rest_payload,
-                                                                                     msgpack_remainder=True)
+                                                         msgpack_remainder=True)
         pfrags = [PFrag(p) for p in msgpack.loads(packed_pfrags)]
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
@@ -307,7 +309,8 @@ class WorkOrder(object):
 
     def payload(self):
         pfrags_as_bytes = [bytes(p) for p in self.pfrags]
-        packed_receipt_and_pfrags = msgpack.dumps((self.receipt_bytes, msgpack.dumps(pfrags_as_bytes)))
+        packed_receipt_and_pfrags = msgpack.dumps(
+            (self.receipt_bytes, msgpack.dumps(pfrags_as_bytes)))
         return bytes(self.receipt_signature) + self.bob.seal + packed_receipt_and_pfrags
 
     def complete(self, cfrags):
