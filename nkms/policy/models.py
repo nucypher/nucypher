@@ -67,7 +67,8 @@ class Contract(object):
         """
         Craft an offer to send to Ursula.
         """
-        return self.alice.encrypt_for(self.ursula, self.payload())[0]  # We don't need the signature separately.
+        # We don't need the signature separately.
+        return self.alice.encrypt_for(self.ursula, self.payload())[0]
 
     def payload(self):
         # TODO: Ship the expiration again?  Or some other way of alerting Ursula to recall her previous dialogue regarding this Contract.  Update: We'll probably have her store the Contract by hrac.  See #127.
@@ -90,10 +91,9 @@ class Policy(object):
     Once Alice has secured agreement with n Ursulas to enact a Policy, she sends each a KFrag,
     and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
     """
-    _ursula = None
-    hashed_part = None
 
-    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), pfrag=None, uri=None, alices_signature=NOT_SIGNED):
+    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), uri=None,
+                 alices_signature=NOT_SIGNED):
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.
         :param pfrag: The input ciphertext which Bob will give to Ursula to re-encrypt.
@@ -102,7 +102,6 @@ class Policy(object):
         self.alice = alice
         self.bob = bob
         self.kfrags = kfrags
-        self.pfrag = pfrag
         self.uri = uri
         self.treasure_map = TreasureMap()
         self._accepted_contracts = {}
@@ -133,13 +132,12 @@ class Policy(object):
 
     @staticmethod
     def from_alice(kfrags,
-                   pfrag,
                    alice,
                    bob,
                    uri,
                    ):
         # TODO: What happened to Alice's signature - don't we include it here?
-        policy = Policy(alice, bob, kfrags, pfrag, uri)
+        policy = Policy(alice, bob, kfrags, uri)
 
         return policy
 
