@@ -119,7 +119,7 @@ class KeyPairBasedPower(CryptoPowerUp):
         else:
             # They didn't pass a keypair; we'll make one with the bytes (if any)
             # they provided.
-            self.keypair = self._keypair_class.load_key(
+            self.keypair = self._keypair_class(
                 UmbralPublicKey(pubkey_bytes),
                 generate_keys_if_needed=generate_keys_if_needed)
 
