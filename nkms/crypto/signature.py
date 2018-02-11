@@ -1,23 +1,20 @@
 from nkms.crypto import api as API
 from umbral.keys import UmbralPublicKey
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature, encode_dss_signature
 
 
-class Signature(bytes):
+class Signature(object):
     """
     The Signature object allows signatures to be made and verified.
     """
-    _EXPECTED_LENGTH = 70
+    _EXPECTED_LENGTH = 64  # With secp256k1 and BLAKE2b(64).
 
-    def __init__(self, sig_as_bytes: bytes):
-        """
-        Initializes a Signature object.
-        :param sig_as_bytes: Cryptography.io signature as bytes.
-        :return: Signature object
-        """
-        self.sig_as_bytes = sig_as_bytes
+    def __init__(self, r: int, s: int):
+        self.r = r
+        self.s = s
 
     def __repr__(self):
-        return "ECDSA Signature: {}".format(sig_as_bytes.decode())
+        return "ECDSA Signature: {}".format(bytes(self).hex()[:15])
 
     def verify(self, message: bytes, pubkey: UmbralPublicKey) -> bool:
         """
