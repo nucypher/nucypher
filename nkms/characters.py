@@ -265,17 +265,13 @@ class Alice(Character):
         """
         Alice dictates a new group of policies.
         """
-
-        ##### Temporary until we decide on an API for private key access
-        alice_priv_enc = self._crypto_power._power_ups[EncryptingPower].priv_key
-        kfrags, pfrag = self.generate_rekey_frags(alice_priv_enc, bob, m, n)
+        kfrags = self.generate_kfrags(bob, m, n)
         # TODO: Access Alice's private key inside this method.
         from nkms.policy.models import Policy
         policy = Policy.from_alice(
             alice=self,
             bob=bob,
             kfrags=kfrags,
-            pfrag=pfrag,
             uri=uri,
         )
 
