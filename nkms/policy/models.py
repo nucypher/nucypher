@@ -149,7 +149,6 @@ class Policy(object):
 
     @staticmethod
     def hrac_for(alice, bob, uri):
-
         """
         The "hashed resource authentication code".
 
@@ -178,9 +177,10 @@ class Policy(object):
         return self.hash(bytes(self.alice.seal) + self.hrac())
 
     def publish_treasure_map(self):
-        encrypted_treasure_map, signature_for_bob = self.alice.encrypt_for(self.bob,
-                                                                           self.treasure_map.packed_payload())
-        signature_for_ursula = self.alice.seal(self.hrac())  # TODO: Great use-case for Ciphertext class
+        encrypted_treasure_map, signature_for_bob = self.alice.encrypt_for(
+            self.bob,
+            self.treasure_map.packed_payload())
+        signature_for_ursula = self.alice.seal(self.hrac())
 
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
@@ -194,7 +194,6 @@ class Policy(object):
         return encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
 
     def enact(self, networky_stuff):
-
         for contract in self._accepted_contracts.values():
             policy_payload = contract.encrypt_payload_for_ursula()
             full_payload = self.alice.seal + msgpack.dumps(policy_payload)
@@ -206,9 +205,11 @@ class Policy(object):
             self.treasure_map.add_ursula(contract.ursula)
 
     def draw_up_contract(self, deposit, expiration):
-        return Contract(self.alice, self.hrac(), expiration=expiration, deposit=deposit)
+        return Contract(self.alice, self.hrac(), expiration=expiration,
+                        deposit=deposit)
 
-    def find_ursulas(self, networky_stuff, deposit, expiration, num_ursulas=None):
+    def find_ursulas(self, networky_stuff, deposit, expiration,
+                     num_ursulas=None):
         # TODO: This is a number mismatch - we need not one contract, but n contracts.
         """
         :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
@@ -264,7 +265,8 @@ class TreasureMap(object):
 
 
 class WorkOrder(object):
-    def __init__(self, bob, kfrag_hrac, pfrags, receipt_bytes, receipt_signature, ursula_id=None):
+    def __init__(self, bob, kfrag_hrac, pfrags, receipt_bytes,
+                 receipt_signature, ursula_id=None):
         self.bob = bob
         self.kfrag_hrac = kfrag_hrac
         self.pfrags = pfrags
@@ -273,12 +275,14 @@ class WorkOrder(object):
         self.ursula_id = ursula_id  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
 
     def __repr__(self):
-        return "WorkOrder (pfrags: {}) {} for {}".format([binascii.hexlify(bytes(p))[:6] for p in self.pfrags],
-                                                         binascii.hexlify(self.receipt_bytes)[:6],
-                                                         binascii.hexlify(self.ursula_id)[:6])
+        return "WorkOrder (pfrags: {}) {} for {}".format(
+            [binascii.hexlify(bytes(p))[:6] for p in self.pfrags],
+            binascii.hexlify(self.receipt_bytes)[:6],
+            binascii.hexlify(self.ursula_id)[:6])
 
     def __eq__(self, other):
-        return (self.receipt_bytes, self.receipt_signature) == (other.receipt_bytes, other.receipt_signature)
+        return (self.receipt_bytes, self.receipt_signature) == (
+        other.receipt_bytes, other.receipt_signature)
 
     def __len__(self):
         return len(self.pfrags)
