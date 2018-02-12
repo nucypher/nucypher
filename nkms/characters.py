@@ -178,6 +178,7 @@ class Character(object):
                 message_kit = self._crypto_power.encrypt_for(
                         actor.public_key(EncryptingPower), plaintext)
                 signature = self.seal(message_kit)
+            message_kit.alice_pubkey = self.public_key(SigningPower)
         else:
             signature = NOT_SIGNED
             message_kit = self._crypto_power.encrypt_for(
@@ -214,6 +215,7 @@ class Character(object):
                 cleartext_with_sig = self._crypto_power.decrypt(message_kit)
                 signature, cleartext = BytestringSplitter(Signature)(cleartext_with_sig,
                                                                        return_remainder=True)
+                message_kit.signature = signature  # TODO: Obviously this is the wrong way to do this.  Let's make signature a property.
             else:
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not \
@@ -235,10 +237,7 @@ class Character(object):
 
     def public_key(self, key_class):
         # TODO: Does it make sense to have a specialized exception here? Probably.
-        try:
-            return self._crypto_power.public_keys[key_class]
-        except KeyError:
-            raise  
+        return self._crypto_power.public_keys[key_class]
 
 
 class Alice(Character):
