@@ -695,6 +695,14 @@ class Seal(object):
     def without_metabytes(self):
         return self.character._crypto_power.pubkey_sig_bytes().without_metabytes()
 
+    def fingerprint(self):
+        """
+        Hashes the key using keccak-256 and returns the hexdigest in bytes.
+
+        :return: Hexdigest fingerprint of key (keccak-256) in bytes
+        """
+        return keccak_digest(bytes(self)).hex().encode()
+
 
 class StrangerSeal(Seal):
     """
