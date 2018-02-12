@@ -194,10 +194,10 @@ class Policy(object):
 
     def enact(self, networky_stuff):
         for contract in self._accepted_contracts.values():
-            full_payload = contract.encrypt_payload_for_ursula()
+            policy_message_kit = contract.encrypt_payload_for_ursula()
             response = networky_stuff.enact_policy(contract.ursula,
                                                    self.hrac(),
-                                                   bytes(full_payload))
+                                                   bytes(policy_message_kit))
             # TODO: Parse response for confirmation.
             response
 
