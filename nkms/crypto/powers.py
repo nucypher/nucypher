@@ -89,10 +89,9 @@ class CryptoPower(object):
         except KeyError:
             raise NoEncryptingPower
 
-    def encrypt_for(self, pubkey, plaintext):
-        ciphertext, capsule = umbral.umbral.encrypt(pubkey, plaintext)
-        return MessageKit(ciphertext=ciphertext, capsule=capsule,
-                          alice_pubkey=pubkey)
+    def encrypt_for(self, enc_pubkey, plaintext):
+        ciphertext, capsule = umbral.umbral.encrypt(enc_pubkey, plaintext)
+        return MessageKit(ciphertext=ciphertext, capsule=capsule)
 
 
 class CryptoPowerUp(object):

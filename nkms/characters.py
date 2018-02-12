@@ -178,6 +178,7 @@ class Character(object):
                 message_kit = self._crypto_power.encrypt_for(
                         actor.public_key(EncryptingPower), plaintext)
                 signature = self.seal(message_kit)
+            message_kit.alice_pubkey = self.public_key(SigningPower)
         else:
             signature = NOT_SIGNED
             message_kit = self._crypto_power.encrypt_for(
@@ -214,6 +215,7 @@ class Character(object):
                 cleartext_with_sig = self._crypto_power.decrypt(message_kit)
                 signature, cleartext = BytestringSplitter(Signature)(cleartext_with_sig,
                                                                        return_remainder=True)
+                message_kit.signature = signature  # TODO: Obviously this is the wrong way to do this.  Let's make signature a property.
             else:
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not \
@@ -235,10 +237,7 @@ class Character(object):
 
     def public_key(self, key_class):
         # TODO: Does it make sense to have a specialized exception here? Probably.
-        try:
-            return self._crypto_power.public_keys[key_class]
-        except KeyError:
-            raise  
+        return self._crypto_power.public_keys[key_class]
 
 
 class Alice(Character):
@@ -601,26 +600,31 @@ class Ursula(Character):
         if not verified:
             # TODO: What do we do if the Policy isn't signed properly?
             pass
-
-        alices_signature, policy_payload =\
-            BytestringSplitter(Signature)(cleartext, return_remainder=True)
+        #
+        # alices_signature, policy_payload =\
+        #     BytestringSplitter(Signature)(cleartext, return_remainder=True)
 
         # TODO: If we're not adding anything else in the payload, stop using the
         # splitter here.
-        kfrag = policy_payload_splitter(policy_payload)[0]  
+        # kfrag = policy_payload_splitter(policy_payload)[0]
+        kfrag = KFrag.from_bytes(cleartext)
 
         # TODO: Query stored Contract and reconstitute
         contract_details = self._contracts[hrac]
         stored_alice_pubkey_sig = contract_details.pop("alice_pubkey_sig")
 
-        if stored_alice_pubkey_sig != alice_pubkey_sig:
+        if stored_alice_pubkey_sig != alice.seal:
             raise Alice.SuspiciousActivity
 
         contract = Contract(alice=alice, hrac=hrac,
                             kfrag=kfrag, **contract_details)
 
         try:
-            self.keystore.add_kfrag(hrac, contract.kfrag, alices_signature)
+            self.keystore.add_policy_contract(
+                expiration=contract_details['expiration'].datetime(),
+                deposit=contract_details['deposit'], hrac=hrac, kfrag=kfrag,
+                alice_pubkey_sig=alice.seal,
+                alice_signature=policy_message_kit.signature)
         except IntegrityError:
             raise
             # Do something appropriately RESTful (ie, 4xx).
@@ -670,9 +674,6 @@ class Seal(object):
     def __call__(self, *args, **kwargs):
         return self.character._crypto_power.sign(*args, **kwargs)
 
-    def _as_tuple(self):
-        return self.character._crypto_power.pubkey_sig_tuple()
-
     def __iter__(seal):
         yield from seal._as_tuple()
 
@@ -680,7 +681,7 @@ class Seal(object):
         return self.character._crypto_power.pubkey_sig_bytes()
 
     def __eq__(self, other):
-        return other == self._as_tuple() or other == bytes(self)
+        return other == bytes(self)
 
     def __add__(self, other):
         return bytes(self) + other
@@ -693,6 +694,14 @@ class Seal(object):
 
     def without_metabytes(self):
         return self.character._crypto_power.pubkey_sig_bytes().without_metabytes()
+
+    def fingerprint(self):
+        """
+        Hashes the key using keccak-256 and returns the hexdigest in bytes.
+
+        :return: Hexdigest fingerprint of key (keccak-256) in bytes
+        """
+        return keccak_digest(bytes(self)).hex().encode()
 
 
 class StrangerSeal(Seal):

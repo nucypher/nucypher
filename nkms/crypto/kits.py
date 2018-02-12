@@ -19,7 +19,7 @@ class CryptoKit:
 class MessageKit(CryptoKit):
     splitter = capsule_splitter + key_splitter
 
-    def __init__(self, capsule, alice_pubkey, ciphertext):
+    def __init__(self, capsule, alice_pubkey=None, ciphertext=None):
         self.ciphertext = ciphertext
         self.capsule = capsule
         self.alice_pubkey = alice_pubkey

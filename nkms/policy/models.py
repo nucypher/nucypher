@@ -7,7 +7,7 @@ import msgpack
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, KECCAK_DIGEST_LENGTH, \
-    PUBLIC_KEY_LENGTH
+    PUBLIC_KEY_LENGTH, UNKNOWN_KFRAG
 from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import key_splitter
@@ -194,10 +194,10 @@ class Policy(object):
 
     def enact(self, networky_stuff):
         for contract in self._accepted_contracts.values():
-            full_payload = contract.encrypt_payload_for_ursula()
+            policy_message_kit = contract.encrypt_payload_for_ursula()
             response = networky_stuff.enact_policy(contract.ursula,
                                                    self.hrac(),
-                                                   bytes(full_payload))
+                                                   bytes(policy_message_kit))
             # TODO: Parse response for confirmation.
             response
 
