@@ -8,6 +8,7 @@ from nkms.crypto.constants import PUBLIC_KEY_LENGTH
 from nkms.crypto.powers import SigningPower, EncryptingPower
 from nkms.crypto.utils import BytestringSplitter
 from tests.utilities import MockNetworkyStuff
+from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
 
 
@@ -27,8 +28,17 @@ def test_grant(alice, bob, ursulas):
 
     # Get the Policy from Ursula's datastore, looking up by hrac.
     proper_hrac = keccak_digest(bytes(alice.seal) + bytes(bob.seal) + uri)
-    kfrag_that_was_set = ursula.keystore.get_policy_contract(proper_hrac)
-    assert kfrag_that_was_set
+    retrieved_policy = ursula.keystore.get_policy_contract(proper_hrac)
+
+    # TODO: Make this a legit KFrag, not bytes.
+    retrieved_k_frag = KFrag.from_bytes(retrieved_policy.k_frag)
+
+    # TODO: Implement KFrag.__eq__
+    found = False
+    for k_frag in policy.kfrags:
+        if bytes(k_frag) == bytes(retrieved_k_frag):
+            found = True
+    assert found
 
 
 def test_alice_can_get_ursulas_keys_via_rest(alice, ursulas):
