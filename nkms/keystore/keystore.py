@@ -79,19 +79,23 @@ def del_key(self, fingerprint: bytes):
     self.session.query(Key).filter_by(fingerprint=fingerprint).delete()
     self.session.commit()
 
+    def add_policy_contract(self, expiration, deposit, hrac, kfrag,
+                            alice_pubkey_sig, # alice_pubkey_enc,
+                            alice_signature) -> PolicyContract:
+        """
+        Creates a PolicyContract to the Keystore.
 
-def add_policy_contract(self, expiration, deposit, hrac,
-                        alice_pubkey_sig, alice_pubkey_enc,
-                        bob_pubkey_sig, alice_signature) -> PolicyContract:
-    """
-    Creates a PolicyContract to the Keystore.
+        :return: The newly added PolicyContract object
+        """
+        # TODO: This can be optimized to one commit/write.
+        alice_pubkey_sig = self.add_key(alice_pubkey_sig, is_signing=True)
+        # alice_pubkey_enc = self.add_key(alice_pubkey_enc)
+        # bob_pubkey_sig = self.add_key(bob_pubkey_sig)
 
-    :return: The newly added PolicyContract object
-    """
-    # TODO: This can be optimized to one commit/write.
-    alice_pubkey_sig = self.add_key(alice_pubkey_sig)
-    alice_pubkey_enc = self.add_key(alice_pubkey_enc)
-    bob_pubkey_sig = self.add_key(bob_pubkey_sig)
+        new_policy_contract = PolicyContract(
+            expiration, deposit, hrac, alice_pubkey_sig.id, kfrag,
+            alice_signature, # bob_pubkey_sig.id
+        )
 
     new_policy_contract = PolicyContract(
         expiration, deposit, hrac, alice_pubkey_sig.id,
