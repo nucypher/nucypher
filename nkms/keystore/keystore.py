@@ -32,18 +32,15 @@ class KeyStore(object):
         """
         self.session = sessionmaker(bind=sqlalchemy_engine)()
 
-    def add_key(self,
-                keypair: Union[keypairs.EncryptingKeypair,
-                               keypairs.SigningKeypair]) -> Key:
+    def add_key(self, key, is_signing=True) -> Key:
 
         """
         :param keypair: Keypair object to store in the keystore.
 
         :return: The newly added key object.
         """
-        fingerprint = keypair.get_fingerprint()
-        key_data = keypair.serialize_pubkey(as_b64=True)
-        is_signing = isinstance(keypair, keypairs.SigningKeypair)
+        fingerprint = key.fingerprint()
+        key_data = bytes(key)
 
         new_key = Key(fingerprint, key_data, is_signing)
 
@@ -52,32 +49,32 @@ class KeyStore(object):
         return new_key
 
 
-def get_key(self, fingerprint: bytes) -> Union[keypairs.EncryptingKeypair,
-                                               keypairs.SigningKeypair]:
-    """
-    Returns a key from the KeyStore.
+    def get_key(self, fingerprint: bytes) -> Union[keypairs.EncryptingKeypair,
+                                                   keypairs.SigningKeypair]:
+        """
+        Returns a key from the KeyStore.
 
-    :param fingerprint: Fingerprint, in bytes, of key to return
+        :param fingerprint: Fingerprint, in bytes, of key to return
 
-    :return: Keypair of the returned key.
-    """
-    key = self.session.query(Key).filter_by(fingerprint=fingerprint).first()
-    if not key:
-        raise NotFound(
-            "No key with fingerprint {} found.".format(fingerprint))
-    if key.is_signing:
-        pubkey = UmbralPublicKey(key.key_data, as_b64=True)
-        return keypairs.SigningKeypair(pubkey)
+        :return: Keypair of the returned key.
+        """
+        key = self.session.query(Key).filter_by(fingerprint=fingerprint).first()
+        if not key:
+            raise NotFound(
+                "No key with fingerprint {} found.".format(fingerprint))
+        if key.is_signing:
+            pubkey = UmbralPublicKey(key.key_data, as_b64=True)
+            return keypairs.SigningKeypair(pubkey)
 
 
-def del_key(self, fingerprint: bytes):
-    """
-    Deletes a key from the KeyStore.
+    def del_key(self, fingerprint: bytes):
+        """
+        Deletes a key from the KeyStore.
 
-    :param fingerprint: Fingerprint of key to delete
-    """
-    self.session.query(Key).filter_by(fingerprint=fingerprint).delete()
-    self.session.commit()
+        :param fingerprint: Fingerprint of key to delete
+        """
+        self.session.query(Key).filter_by(fingerprint=fingerprint).delete()
+        self.session.commit()
 
     def add_policy_contract(self, expiration, deposit, hrac, kfrag,
                             alice_pubkey_sig, # alice_pubkey_enc,
@@ -97,16 +94,40 @@ def del_key(self, fingerprint: bytes):
             alice_signature, # bob_pubkey_sig.id
         )
 
-    new_policy_contract = PolicyContract(
-        expiration, deposit, hrac, alice_pubkey_sig.id,
-        alice_pubkey_enc.id, bob_pubkey_sig.id, alice_signature
-    )
+        self.session.add(new_policy_contract)
 
-    self.session.add(new_policy_contract)
+        return new_policy_contract
 
-    return new_policy_contract
+    def get_policy_contract(self, hrac: bytes) -> PolicyContract:
+        """
+        Returns the PolicyContract by its HRAC.
 
-    def get_workorders(self, hrac: bytes) -> Workorder:
+        :return: The PolicyContract object
+        """
+        policy_contract = self.session.query(PolicyContract).filter_by(hrac=hrac).first()
+        if not policy_contract:
+            raise NotFound("No PolicyContract with {} HRAC found.".format(hrac))
+        return policy_contract
+
+    def del_policy_contract(self, hrac: bytes):
+        """
+        Deletes a PolicyContract from the Keystore.
+        """
+        self.session.query(PolicyContract).filter_by(hrac=hrac).delete()
+        self.session.commit()
+
+    def add_workorder(self, bob_pubkey_sig, bob_signature, hrac) -> Workorder:
+        """
+        Adds a Workorder to the keystore.
+        """
+        bob_pubkey_sig = self.add_key(bob_pubkey_sig)
+        new_workorder = Workorder(bob_pubkey_sig.id, bob_signature, hrac)
+
+        self.session.add(new_workorder)
+        self.session.commit()
+        return new_workorder
+
+    def get_workorder(self, hrac: bytes) -> Workorder:
         """
         Returns a list of Workorders by HRAC.
         """

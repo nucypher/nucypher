@@ -7,7 +7,7 @@ import msgpack
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, KECCAK_DIGEST_LENGTH, \
-    PUBLIC_KEY_LENGTH
+    PUBLIC_KEY_LENGTH, UNKNOWN_KFRAG
 from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import key_splitter
