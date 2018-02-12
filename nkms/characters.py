@@ -674,9 +674,6 @@ class Seal(object):
     def __call__(self, *args, **kwargs):
         return self.character._crypto_power.sign(*args, **kwargs)
 
-    def _as_tuple(self):
-        return self.character._crypto_power.pubkey_sig_tuple()
-
     def __iter__(seal):
         yield from seal._as_tuple()
 
@@ -684,7 +681,7 @@ class Seal(object):
         return self.character._crypto_power.pubkey_sig_bytes()
 
     def __eq__(self, other):
-        return other == self._as_tuple() or other == bytes(self)
+        return other == bytes(self)
 
     def __add__(self, other):
         return bytes(self) + other
