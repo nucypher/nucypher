@@ -25,9 +25,9 @@ def test_grant(alice, bob, ursulas):
     # Let's look at the first Ursula.
     ursula = list(policy._accepted_contracts.values())[0].ursula
 
-    # Get the kfrag, based in the hrac.
+    # Get the Policy from Ursula's datastore, looking up by hrac.
     proper_hrac = keccak_digest(bytes(alice.seal) + bytes(bob.seal) + uri)
-    kfrag_that_was_set = ursula.keystore.get_kfrag(proper_hrac)
+    kfrag_that_was_set = ursula.keystore.get_policy_contract(proper_hrac)
     assert kfrag_that_was_set
 
 
