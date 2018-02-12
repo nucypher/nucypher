@@ -90,11 +90,12 @@ class KeyStore(object):
         # bob_pubkey_sig = self.add_key(bob_pubkey_sig)
 
         new_policy_contract = PolicyContract(
-            expiration, deposit, hrac, alice_pubkey_sig.id, kfrag,
-            alice_signature, # bob_pubkey_sig.id
+            expiration, deposit, hrac, bytes(kfrag), alice_pubkey_sig.id,
+            bytes(alice_signature), # bob_pubkey_sig.id
         )
 
         self.session.add(new_policy_contract)
+        self.session.commit()
 
         return new_policy_contract
 
