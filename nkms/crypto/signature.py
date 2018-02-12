@@ -56,3 +56,7 @@ class Signature(object):
 
     def __radd__(self, other):
         return other + bytes(self)
+
+    def __eq__(self, other):
+        # TODO: Consider constant time
+        return bytes(self) == bytes(other) or self._der_encoded_bytes() == other
