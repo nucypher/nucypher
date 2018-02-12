@@ -600,26 +600,31 @@ class Ursula(Character):
         if not verified:
             # TODO: What do we do if the Policy isn't signed properly?
             pass
-
-        alices_signature, policy_payload =\
-            BytestringSplitter(Signature)(cleartext, return_remainder=True)
+        #
+        # alices_signature, policy_payload =\
+        #     BytestringSplitter(Signature)(cleartext, return_remainder=True)
 
         # TODO: If we're not adding anything else in the payload, stop using the
         # splitter here.
-        kfrag = policy_payload_splitter(policy_payload)[0]  
+        # kfrag = policy_payload_splitter(policy_payload)[0]
+        kfrag = KFrag.from_bytes(cleartext)
 
         # TODO: Query stored Contract and reconstitute
         contract_details = self._contracts[hrac]
         stored_alice_pubkey_sig = contract_details.pop("alice_pubkey_sig")
 
-        if stored_alice_pubkey_sig != alice_pubkey_sig:
+        if stored_alice_pubkey_sig != alice.seal:
             raise Alice.SuspiciousActivity
 
         contract = Contract(alice=alice, hrac=hrac,
                             kfrag=kfrag, **contract_details)
 
         try:
-            self.keystore.add_kfrag(hrac, contract.kfrag, alices_signature)
+            self.keystore.add_policy_contract(
+                expiration=contract_details['expiration'].datetime(),
+                deposit=contract_details['deposit'], hrac=hrac, kfrag=kfrag,
+                alice_pubkey_sig=alice.seal,
+                alice_signature=policy_message_kit.signature)
         except IntegrityError:
             raise
             # Do something appropriately RESTful (ie, 4xx).
