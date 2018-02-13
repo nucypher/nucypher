@@ -28,7 +28,7 @@ def test_grant(alice, bob, ursulas):
 
     # Get the Policy from Ursula's datastore, looking up by hrac.
     proper_hrac = keccak_digest(bytes(alice.seal) + bytes(bob.seal) + uri)
-    retrieved_policy = ursula.keystore.get_policy_contract(proper_hrac)
+    retrieved_policy = ursula.keystore.get_policy_contract(proper_hrac.hex().encode())
 
     # TODO: Make this a legit KFrag, not bytes.
     retrieved_k_frag = KFrag.from_bytes(retrieved_policy.k_frag)
