@@ -33,14 +33,13 @@ class KeyStore(object):
         self.session = sessionmaker(bind=sqlalchemy_engine)()
 
     def add_key(self, key, is_signing=True) -> Key:
-
         """
-        :param keypair: Keypair object to store in the keystore.
+        :param key: Keypair object to store in the keystore.
 
         :return: The newly added key object.
         """
-        fingerprint = key.fingerprint()
-        key_data = bytes(key)
+        fingerprint = key.get_fingerprint()
+        key_data = key.serialize_pubkey()
 
         new_key = Key(fingerprint, key_data, is_signing)
 
@@ -62,9 +61,12 @@ class KeyStore(object):
         if not key:
             raise NotFound(
                 "No key with fingerprint {} found.".format(fingerprint))
+
+        pubkey = UmbralPublicKey.from_bytes(key.key_data, as_b64=False)
         if key.is_signing:
-            pubkey = UmbralPublicKey(key.key_data, as_b64=True)
             return keypairs.SigningKeypair(pubkey)
+        else:
+            return keypairs.EncryptingKeypair(pubkey)
 
 
     def del_key(self, fingerprint: bytes):
@@ -128,7 +130,7 @@ class KeyStore(object):
         self.session.commit()
         return new_workorder
 
-    def get_workorder(self, hrac: bytes) -> Workorder:
+    def get_workorders(self, hrac: bytes) -> Workorder:
         """
         Returns a list of Workorders by HRAC.
         """

@@ -10,16 +10,16 @@ def test_key_sqlite_keystore(test_keystore):
     keypair = keypairs.SigningKeypair(generate_keys_if_needed=True)
 
     # Test add pubkey
-    new_key = test_keystore.add_key(keypair)
+    test_keystore.add_key(keypair)
 
     # Test get pubkey
-    query_key = test_keystore.get_key(keypair.fingerprint)
-    assert new_key == query_key
+    query_key = test_keystore.get_key(keypair.get_fingerprint())
+    assert keypair.serialize_pubkey() == query_key.serialize_pubkey()
 
     # Test del pubkey
-    test_keystore.del_key(keypair.fingerprint)
+    test_keystore.del_key(keypair.get_fingerprint())
     with pytest.raises(keystore.NotFound):
-        del_key = test_keystore.get_key(keypair.fingerprint)
+        del_key = test_keystore.get_key(keypair.get_fingerprint())
 
 
 def test_policy_contract_sqlite_keystore(test_keystore):
@@ -32,7 +32,7 @@ def test_policy_contract_sqlite_keystore(test_keystore):
     # Test add PolicyContract
     new_contract = test_keystore.add_policy_contract(
             datetime.utcnow(), b'test', hrac, alice_keypair_sig,
-            alice_keypair_enc, bob_keypair_sig, b'test'
+            bob_keypair_sig, b'test'
     )
 
     # Test get PolicyContract
