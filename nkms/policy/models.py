@@ -13,6 +13,7 @@ from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import key_splitter
 from nkms.crypto.utils import BytestringSplitter
 from umbral.keys import UmbralPublicKey
+from umbral.umbral import Capsule
 
 
 class Contract(object):
@@ -298,7 +299,7 @@ class WorkOrder(object):
         payload_splitter = BytestringSplitter(Signature) + key_splitter
         signature, bob_pubkey_sig, (receipt_bytes, packed_capsules) = payload_splitter(rest_payload,
                                                          msgpack_remainder=True)
-        capsules = [PFrag(p) for p in msgpack.loads(packed_capsules)]
+        capsules = [Capsule.from_bytes(p) for p in msgpack.loads(packed_capsules)]
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
             raise ValueError("This doesn't appear to be from Bob.")

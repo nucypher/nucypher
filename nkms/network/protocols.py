@@ -11,8 +11,7 @@ from nkms.network.node import NuCypherNode
 from nkms.network.routing import NuCypherRoutingTable
 from umbral.keys import UmbralPublicKey
 
-dht_value_splitter = BytestringSplitter(Signature, (
-UmbralPublicKey, PUBLIC_KEY_LENGTH, {"as_b64": False}),
+dht_value_splitter = BytestringSplitter(Signature, (UmbralPublicKey, PUBLIC_KEY_LENGTH, {"as_b64": False}),
                                         (bytes, KECCAK_DIGEST_LENGTH))
 
 
