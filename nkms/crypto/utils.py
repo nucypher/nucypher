@@ -1,12 +1,46 @@
+from contextlib import suppress
+
 import msgpack
 
 
 class BytestringSplitter(object):
+
     def __init__(self, *message_types):
         """
         :param message_types:  A collection of types of messages to parse.
         """
-        self.message_types = message_types
+        self.message_types = []
+        if not message_types:
+            raise ValueError(
+                "Can't make a BytestringSplitter unless you specify what to split!")
+
+        for counter, message_type in enumerate(message_types):
+        # message_types can be tuples (with length and kwargs) or just classes.
+            if isinstance(message_types, tuple):
+                # Here, it's a tuple - these are our message types.
+                self.message_types.extend(message_types)
+
+                # We're ready to break out of the loop, because we
+                # already have our message type.
+
+                # However, before we do, let's address a possible mis-step
+                # by the user and offer a better error message.
+                with suppress(IndexError):
+                    if isinstance(message_types[counter + 1], int):
+                        raise TypeError("You can't specify the length of the message as a direct argument to the constructor.  Instead, pass it as the second argument in a tuple (with the class as the first argument)")
+                # OK, cool - break.
+                break
+            else:
+                # OK, it's an object.  If it's a tuple, we can just add it.
+                if isinstance(message_type, tuple):
+                    self.message_types.append(message_type)
+                else:
+                    # Otherwise, it's a class - turn it into a tuple for
+                    # compatibility with get_message_meta later.
+                    message_type_tuple = message_type,
+                    self.message_types.append(message_type_tuple)
+
+
 
     def __call__(self, splittable, return_remainder=False, msgpack_remainder=False):
         if not any((return_remainder, msgpack_remainder)) and len(self) != len(splittable):
