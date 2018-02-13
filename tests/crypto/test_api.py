@@ -5,8 +5,6 @@ import sha3
 from nacl.utils import EncryptedMessage
 
 from nkms.crypto import api
-from npre import elliptic_curve as ec
-from npre import umbral
 
 
 class TestCrypto(unittest.TestCase):

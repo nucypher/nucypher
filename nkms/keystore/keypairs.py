@@ -54,13 +54,16 @@ class Keypair(object):
 
         :return: Hexdigest fingerprint of key (keccak-256) in bytes
         """
-        return sha3.keccak_256(bytes(self.pubkey)).hex_digest().encode()
+        return sha3.keccak_256(bytes(self.pubkey)).hexdigest().encode()
 
 
 class EncryptingKeypair(Keypair):
     """
     A keypair for Umbral
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     def decrypt(self, message_kit: MessageKit) -> bytes:
         """
         Decrypt data encrypted with Umbral.
@@ -76,6 +79,9 @@ class SigningKeypair(Keypair):
     """
     A SigningKeypair that uses ECDSA.
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     def sign(self, message: bytes) -> bytes:
         """
         Signs a hashed message and returns a signature.

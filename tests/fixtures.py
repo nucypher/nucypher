@@ -8,6 +8,10 @@ from nkms.policy.constants import NON_PAYMENT
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
 
+from sqlalchemy.engine import create_engine
+from nkms.keystore import keystore
+from nkms.keystore.db import Base
+
 
 @pytest.fixture(scope="module")
 def idle_policy(alice, bob):
@@ -71,3 +75,11 @@ def ursulas():
 @pytest.fixture(scope="module")
 def treasure_map_is_set_on_dht(alice, enacted_policy):
     enacted_policy.publish_treasure_map()
+
+
+@pytest.fixture(scope="module")
+def test_keystore():
+    engine = create_engine('sqlite:///:memory:')
+    Base.metadata.create_all(engine)
+    test_keystore = keystore.KeyStore(engine)
+    yield test_keystore

@@ -43,9 +43,6 @@ class Signature(object):
         return encode_dss_signature(self.r, self.s)
 
     def __bytes__(self):
-        # A couple quick assertions to be sure this is OK.  Remove these at some point.
-        assert self.r.to_bytes(33, "big")[0] == 0, "Is 32 bytes enough?"
-        assert self.s.to_bytes(33, "big")[0] == 0, "Is 32 bytes enough?"
         return self.r.to_bytes(32, "big") + self.s.to_bytes(32, "big")
 
     def __len__(self):
