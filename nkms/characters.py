@@ -703,8 +703,8 @@ class Seal(object):
     def __len__(self):
         return len(bytes(self))
 
-    def without_metabytes(self):
-        return self.character._crypto_power.pubkey_sig_bytes().without_metabytes()
+    def as_umbral_pubkey(self):
+        return self.character.public_key(SigningPower)
 
     def fingerprint(self):
         """
