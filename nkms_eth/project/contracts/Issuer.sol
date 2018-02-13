@@ -6,9 +6,9 @@ import "./zeppelin/math/SafeMath.sol";
 
 
 /**
-* @notice Contract for minting tokens
+* @notice Contract for calculate issued tokens
 **/
-contract Miner {
+contract Issuer {
     using SafeMath for uint256;
 
     NuCypherKMSToken token;
@@ -25,7 +25,7 @@ contract Miner {
     byte NEGATION = 0xF0;
 
     /**
-    * @notice The Miner constructor sets address of token contract and coefficients for mining
+    * @notice Constructor sets address of token contract and coefficients for mining
     * @dev Formula for mining in one period
     (futureSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
     if allLockedPeriods > awardedPeriods then allLockedPeriods = awardedPeriods
@@ -35,7 +35,7 @@ contract Miner {
     * @param _lockedPeriodsCoefficient Locked blocks coefficient (k1)
     * @param _awardedPeriods Max periods that will be additionally awarded
     **/
-    function Miner(
+    function Issuer(
         NuCypherKMSToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,

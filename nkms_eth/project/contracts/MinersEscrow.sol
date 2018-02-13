@@ -6,16 +6,16 @@ import "./zeppelin/ownership/Ownable.sol";
 import "./zeppelin/math/Math.sol";
 import "./lib/AdditionalMath.sol";
 import "./lib/LinkedList.sol";
-import "./Miner.sol";
+import "./Issuer.sol";
 import "./NuCypherKMSToken.sol";
 import "./PolicyManager.sol";
 
 
 /**
 * @notice Contract holds and locks nodes tokens.
-Each node that lock his tokens will receive some compensation
+Each node that lock its tokens will receive some compensation
 **/
-contract Escrow is Miner, Ownable {
+contract MinersEscrow is Issuer, Ownable {
     using LinkedList for LinkedList.Data;
     using SafeERC20 for NuCypherKMSToken;
     using AdditionalMath for uint256;
@@ -58,7 +58,7 @@ contract Escrow is Miner, Ownable {
     PolicyManager policyManager;
 
     /**
-    * @notice The Escrow constructor sets address of token contract and coefficients for mining
+    * @notice Constructor sets address of token contract and coefficients for mining
     * @param _token Token contract
     * @param _hoursPerPeriod Size of period in hours
     * @param _miningCoefficient Mining coefficient
@@ -68,7 +68,7 @@ contract Escrow is Miner, Ownable {
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     **/
-    function Escrow(
+    function MinersEscrow(
         NuCypherKMSToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,
@@ -78,7 +78,7 @@ contract Escrow is Miner, Ownable {
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens
     )
-        Miner(
+        Issuer(
             _token,
             _hoursPerPeriod,
             _miningCoefficient,

@@ -4,7 +4,7 @@ pragma solidity ^0.4.0;
 import "./zeppelin/token/SafeERC20.sol";
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
-import "./Escrow.sol";
+import "./MinersEscrow.sol";
 import "./NuCypherKMSToken.sol";
 
 
@@ -36,7 +36,7 @@ contract PolicyManager {
     }
 
     NuCypherKMSToken public token;
-    Escrow public escrow;
+    MinersEscrow public escrow;
     mapping (bytes20 => Policy) public policies;
     mapping (address => NodeInfo) public nodes;
 
@@ -47,7 +47,7 @@ contract PolicyManager {
     **/
     function PolicyManager(
         NuCypherKMSToken _token,
-        Escrow _escrow
+        MinersEscrow _escrow
     ) {
         require(address(_token) != 0x0 &&
             address(_escrow) != 0x0);

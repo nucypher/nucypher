@@ -3,7 +3,7 @@ from typing import List
 from nkms_eth import blockchain
 from nkms_eth import token
 
-ESCROW_NAME = 'Escrow'
+ESCROW_NAME = 'MinersEscrow'
 PREMINE = int(1e9) * token.M
 REWARD = token.SATURATION - PREMINE
 HOURS_PER_PERIOD = 1  # 24

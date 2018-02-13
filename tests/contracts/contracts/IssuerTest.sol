@@ -1,23 +1,23 @@
 pragma solidity ^0.4.11;
 
 
-import "contracts/Miner.sol";
+import "contracts/Issuer.sol";
 import "contracts/NuCypherKMSToken.sol";
 
 
 /**
-* @dev Contract for testing internal methods in Miner contract
+* @dev Contract for testing internal methods in Issuer contract
 **/
-contract MinerTest is Miner {
+contract IssuerTest is Issuer {
 
-    function MinerTest(
+    function IssuerTest(
         NuCypherKMSToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,
         uint256 _awardedPeriods
     )
-        Miner(
+        Issuer(
             _token,
             _hoursPerPeriod,
             _miningCoefficient,

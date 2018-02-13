@@ -35,7 +35,7 @@ def main():
 
         # Creator deploys the escrow
         escrow, _ = chain.provider.get_or_deploy_contract(
-            'Escrow', deploy_args=[token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 1, 0],
+            'MinersEscrow', deploy_args=[token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 1, 0, 10 ** 9],
             deploy_transaction={'from': creator})
 
         # Creator deploys the policy manager
@@ -57,7 +57,7 @@ def main():
         chain.wait.for_receipt(tx)
         print("Pre-deposit tokens fro 5 owners = " +
               str(escrow.estimateGas({'from': creator}).preDeposit(
-                  web3.eth.accounts[4:9], [1000] * 5, 1)))
+                  web3.eth.accounts[4:9], [1000] * 5, [1] * 5)))
 
         # Give some coins
         print("Transfer tokens = " +

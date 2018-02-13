@@ -1,7 +1,7 @@
 pragma solidity ^0.4.0;
 
 
-import "contracts/Escrow.sol";
+import "contracts/MinersEscrow.sol";
 
 
 /**
@@ -9,10 +9,10 @@ import "contracts/Escrow.sol";
 **/
 contract PolicyManagerTest {
 
-    Escrow public escrow;
+    MinersEscrow public escrow;
     mapping (address => uint256[]) public nodes;
 
-    function PolicyManagerTest(address _token, Escrow _escrow) {
+    function PolicyManagerTest(address _token, MinersEscrow _escrow) {
         escrow = _escrow;
     }
 

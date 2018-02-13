@@ -18,7 +18,7 @@ def escrow_contract(web3, chain, token):
         creator = web3.eth.accounts[0]
         # Creator deploys the escrow
         escrow, _ = chain.provider.get_or_deploy_contract(
-            'Escrow', deploy_args=[
+            'MinersEscrow', deploy_args=[
                 token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, max_allowed_locked_tokens],
             deploy_transaction={'from': creator})
         return escrow
