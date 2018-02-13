@@ -537,7 +537,7 @@ class Ursula(Character):
         contract = Contract(alice=alice, hrac=hrac, kfrag=kfrag, **contract_details)
 
         try:
-            self.keystore.add_kfrag(hrac, contract.kfrag, alices_signature)
+            self.keystore.add_kfrag(hrac, policy)
         except IntegrityError:
             raise
             # Do something appropriately RESTful (ie, 4xx).

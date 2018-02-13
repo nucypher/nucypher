@@ -2,9 +2,10 @@ import sha3
 
 from nkms.crypto.fragments import KFrag
 from nkms.keystore import keypairs, constants
-from nkms.keystore.db.models import Key, KeyFrag
+from nkms.keystore.db.models import Key, KeyFrag, Policy
 from nkms.crypto.utils import BytestringSplitter
 from nkms.crypto.signature import Signature
+from nkms.policy.models import Policy as PolicyModel
 from sqlalchemy.orm import sessionmaker
 from typing import Union
 from npre.umbral import RekeyFrag
@@ -132,7 +133,7 @@ class KeyStore(object):
         self.session.commit()
         return fingerprint
 
-    def add_kfrag(self, hrac: bytes, kfrag: RekeyFrag, sig: bytes=None):
+    def add_kfrag(self, hrac: bytes, policy: PolicyModel):
         """
         Adds a RekeyFrag to sqlite.
 
@@ -140,13 +141,15 @@ class KeyStore(object):
         :param kfrag: RekeyFrag instance to add to sqlite
         :param sig: Signature of kfrag (if exists)
         """
-        kfrag_data = b''
-        if sig:
-            kfrag_data += sig
-        kfrag_data += bytes(kfrag)
+        kfrag_data = policy.alices_signature + bytes(policy.kfrag)
 
-        kfrag = KeyFrag(hrac, kfrag_data)
+        # Create KeyFrag database object
+        kfrag = KeyFrag(kfrag_data)
         self.session.add(kfrag)
+
+        # Create Policy database object
+        #db_policy = Policy(
+
         self.session.commit()
 
     def del_key(self, fingerprint: bytes):
