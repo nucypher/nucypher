@@ -31,22 +31,24 @@ class PolicyContract(Base):
     expiration = Column(DateTime)
     deposit = Column(LargeBinary)
     hrac = Column(LargeBinary, unique=True)
-    k_frag = Column(LargeBinary, unique=True)
+    k_frag = Column(LargeBinary, unique=True, nullable=True)
     alice_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
+    alice_pubkey_sig = relationship(Key, backref="policies")
     # alice_pubkey_enc_id = Column(Integer, ForeignKey('keys.id'))
     # bob_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
-    alice_signature = Column(LargeBinary, unique=True)
+    # TODO: Maybe this will be two signatures - one for the offer, one for the KFrag.
+    alice_signature = Column(LargeBinary, unique=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def __init__(self, expiration, deposit, hrac,
-                 k_frag, alice_pubkey_sig_id,
+                 k_frag=None, alice_pubkey_sig=None,
                  # alice_pubkey_enc_id, bob_pubkey_sig_id,
-                 alice_signature):
+                 alice_signature=None):
         self.expiration = expiration
         self.deposit = deposit
         self.hrac = hrac
         self.k_frag = k_frag
-        self.alice_pubkey_sig_id = alice_pubkey_sig_id
+        self.alice_pubkey_sig = alice_pubkey_sig
         # self.alice_pubkey_enc_id = alice_pubkey_enc_id
         # self.bob_pubkey_sig_id = bob_pubkey_sig_id
         self.alice_signature = alice_signature

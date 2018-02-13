@@ -220,10 +220,15 @@ class Character(object):
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not \
                      decrypting.")
+            message = message_kit.ciphertext
+            alice_pubkey = message_kit.alice_pubkey
+        else:
+            # TODO: Decrypt here is decrypt is True.
+            message = message_kit
+            # TODO: Fully deprecate actor lookup flow?
+            alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
 
-        # actor = self._lookup_actor(actor_whom_sender_claims_to_be)
-
-        return signature.verify(message_kit.ciphertext, message_kit.alice_pubkey), cleartext
+        return signature.verify(message, alice_pubkey), cleartext
 
     def _lookup_actor(self, actor: "Character"):
         try:
@@ -561,14 +566,19 @@ class Ursula(Character):
             BytestringSplitter(Contract)(request.body, return_remainder=True)
         contract.deposit = deposit_as_bytes
 
-        contract_to_store = {  # TODO: This needs to be a datastore - see #127.
-            "alice_pubkey_sig": bytes(contract.alice.seal),
-            "deposit": contract.deposit,
-            # TODO: Whatever type "deposit" ends up being, we'll need to
-            # serialize it here.  See #148.
-            "expiration": contract.expiration,
-        }
-        self._contracts[contract.hrac] = contract_to_store
+        # contract_to_store = {  # TODO: This needs to be a datastore - see #127.
+        #     "alice_pubkey_sig":
+        #     "deposit": contract.deposit,
+        #     # TODO: Whatever type "deposit" ends up being, we'll need to
+        #     # serialize it here.  See #148.
+        #     "expiration": contract.expiration,
+        # }
+        self.keystore.add_policy_contract(contract.expiration.datetime(),
+                                          contract.deposit,
+                                          hrac=contract.hrac.hex().encode(),
+                                          alice_pubkey_sig=contract.alice.seal
+                                          )
+        #self._contracts[contract.hrac.hex()] = contract_to_store
 
         # TODO: Make the rest of this logic actually work - do something here
         # to decide if this Contract is worth accepting.
@@ -610,21 +620,20 @@ class Ursula(Character):
         kfrag = KFrag.from_bytes(cleartext)
 
         # TODO: Query stored Contract and reconstitute
-        contract_details = self._contracts[hrac]
-        stored_alice_pubkey_sig = contract_details.pop("alice_pubkey_sig")
+        policy_contract = self.keystore.get_policy_contract(hrac_as_hex.encode())
+        # contract_details = self._contracts[hrac.hex()]
 
-        if stored_alice_pubkey_sig != alice.seal:
+        if policy_contract.alice_pubkey_sig.key_data != alice.seal:
             raise Alice.SuspiciousActivity
 
-        contract = Contract(alice=alice, hrac=hrac,
-                            kfrag=kfrag, **contract_details)
+        # contract = Contract(alice=alice, hrac=hrac,
+        #                     kfrag=kfrag, expiration=policy_contract.expiration)
 
         try:
-            self.keystore.add_policy_contract(
-                expiration=contract_details['expiration'].datetime(),
-                deposit=contract_details['deposit'], hrac=hrac, kfrag=kfrag,
-                alice_pubkey_sig=alice.seal,
-                alice_signature=policy_message_kit.signature)
+            # TODO: Obviously we do this lower-level.
+            policy_contract.k_frag = bytes(kfrag)
+            self.keystore.session.commit()
+
         except IntegrityError:
             raise
             # Do something appropriately RESTful (ie, 4xx).

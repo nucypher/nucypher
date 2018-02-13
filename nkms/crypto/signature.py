@@ -16,7 +16,7 @@ class Signature(object):
     def __repr__(self):
         return "ECDSA Signature: {}".format(bytes(self).hex()[:15])
 
-    def verify(self, message: bytes, pubkey: UmbralPublicKey=None) -> bool:
+    def verify(self, message: bytes, pubkey: UmbralPublicKey) -> bool:
         """
         Verifies that a message's signature was valid.
 

@@ -176,21 +176,20 @@ class Policy(object):
         return self.hash(bytes(self.alice.seal) + self.hrac())
 
     def publish_treasure_map(self):
-        encrypted_treasure_map, signature_for_bob = self.alice.encrypt_for(
+        tmap_message_kit, signature_for_bob = self.alice.encrypt_for(
             self.bob,
             self.treasure_map.packed_payload())
         signature_for_ursula = self.alice.seal(self.hrac())
 
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
-        dht_value = signature_for_ursula + self.alice.seal + self.hrac() + msgpack.dumps(
-            encrypted_treasure_map)  # TODO: Ideally, this is a Ciphertext object instead of msgpack (see #112)
+        dht_value = signature_for_ursula + self.alice.seal + self.hrac() + bytes(tmap_message_kit)
         dht_key = self.treasure_map_dht_key()
 
         setter = self.alice.server.set(dht_key, b"trmap" + dht_value)
         event_loop = asyncio.get_event_loop()
         event_loop.run_until_complete(setter)
-        return encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
+        return tmap_message_kit, dht_value, signature_for_bob, signature_for_ursula
 
     def enact(self, networky_stuff):
         for contract in self._accepted_contracts.values():
