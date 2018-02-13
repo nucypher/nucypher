@@ -392,7 +392,7 @@ class Bob(Character):
             )
             return self.treasure_maps[policy_group.hrac]
 
-    def generate_work_orders(self, kfrag_hrac, *pfrags, num_ursulas=None):
+    def generate_work_orders(self, kfrag_hrac, *capsules, num_ursulas=None):
         from nkms.policy.models import WorkOrder  # Prevent circular import
 
         try:
@@ -404,7 +404,7 @@ class Bob(Character):
         generated_work_orders = {}
 
         if not treasure_map_to_use:
-            raise ValueError("Bob doesn't have a TreasureMap to match any of these pfrags: {}".format(pfrags))
+            raise ValueError("Bob doesn't have a TreasureMap to match any of these capsules: {}".format(capsules))
 
         for ursula_dht_key in treasure_map_to_use:
             ursula = self._ursulas[ursula_dht_key]
@@ -412,15 +412,15 @@ class Bob(Character):
             completed_work_orders_for_this_ursula =\
                     self._saved_work_orders.setdefault(ursula_dht_key, [])
 
-            pfrags_to_include = []
-            for pfrag in pfrags:
-                if not pfrag in sum([wo.pfrags for wo in completed_work_orders_for_this_ursula],
+            capsules_to_include = []
+            for capsule in capsules:
+                if not capsule in sum([wo.capsules for wo in completed_work_orders_for_this_ursula],
                                     []):  # TODO: This is inane - probably push it down into a WorkOrderHistory concept.
-                    pfrags_to_include.append(pfrag)
+                    capsules_to_include.append(capsule)
 
-            if pfrags_to_include:
+            if capsules_to_include:
                 work_order = WorkOrder.constructed_by_bob(
-                        kfrag_hrac, pfrags_to_include, ursula_dht_key, self)
+                        kfrag_hrac, capsules_to_include, ursula_dht_key, self)
                 generated_work_orders[ursula_dht_key] = work_order
 
             if num_ursulas is not None:
@@ -433,7 +433,7 @@ class Bob(Character):
         cfrags = networky_stuff.reencrypt(work_order)
         if not len(work_order) == len(cfrags):
             raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
-        for counter, pfrag in enumerate(work_order.pfrags):
+        for counter, capsule in enumerate(work_order.capsules):
             # TODO: Ursula is actually supposed to sign this.  See #141.
             self._saved_work_orders[work_order.ursula_id].append(work_order)
         return cfrags
@@ -647,9 +647,9 @@ class Ursula(Character):
         kfrag = self.keystore.get_kfrag(hrac)  # Careful!  :-)
         cfrag_byte_stream = b""
 
-        for pfrag in work_order.pfrags:
+        for capsule in work_order.capsules:
             # TODO: Sign the result of this.  See #141.
-            cfrag_byte_stream += API.ecies_reencrypt(kfrag, pfrag.encrypted_key)
+            cfrag_byte_stream += API.ecies_reencrypt(kfrag, capsule.encrypted_key)
 
         # TODO: Put this in Ursula's datastore
         self._work_orders.append(work_order)  

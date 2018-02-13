@@ -3,10 +3,12 @@ import datetime
 import pytest
 
 from nkms.characters import congregate, Alice, Bob
+from nkms.crypto.powers import SigningPower
 from nkms.network import blockchain_client
 from nkms.policy.constants import NON_PAYMENT
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
+from umbral import umbral
 
 
 @pytest.fixture(scope="module")
@@ -71,3 +73,9 @@ def ursulas():
 @pytest.fixture(scope="module")
 def treasure_map_is_set_on_dht(alice, enacted_policy):
     enacted_policy.publish_treasure_map()
+
+
+@pytest.fixture(scope="module")
+def alicebob_side_channel(alice):
+    plaintext = b"Welcome to the flippering."
+    return umbral.encrypt(alice.public_key(SigningPower), plaintext)
