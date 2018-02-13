@@ -4,7 +4,8 @@ from nkms.characters import Alice, Ursula, Character
 from nkms.crypto import api
 from nkms.crypto.constants import NOT_SIGNED
 from nkms.crypto.constants import NO_DECRYPTION_PERFORMED
-from nkms.crypto.powers import CryptoPower, SigningPower, NoSigningPower, NoEncryptingPower, \
+from nkms.crypto.powers import CryptoPower, SigningPower, NoSigningPower, \
+    NoEncryptingPower, \
     EncryptingPower
 
 """
@@ -46,8 +47,9 @@ def test_actor_with_signing_power_can_sign():
     signature = seal_of_the_signer(message)
 
     # ...or to get the signer's public key for verification purposes.
-    sig = api.ecdsa_load_sig(bytes(signature))
-    verification = api.ecdsa_verify(*sig, api.keccak_digest(message), seal_of_the_signer.without_metabytes())
+    # (note: we use the private _der_encoded_bytes here to test directly against the API, instead of Character)
+    verification = api.ecdsa_verify(message, signature._der_encoded_bytes(),
+                                    seal_of_the_signer.as_umbral_pubkey())
 
     assert verification is True
 
