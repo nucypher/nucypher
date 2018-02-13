@@ -220,10 +220,15 @@ class Character(object):
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not \
                      decrypting.")
+            message = message_kit.ciphertext
+            alice_pubkey = message_kit.alice_pubkey
+        else:
+            # TODO: Decrypt here is decrypt is True.
+            message = message_kit
+            # TODO: Fully deprecate actor lookup flow?
+            alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
 
-        # actor = self._lookup_actor(actor_whom_sender_claims_to_be)
-
-        return signature.verify(message_kit.ciphertext, message_kit.alice_pubkey), cleartext
+        return signature.verify(message, alice_pubkey), cleartext
 
     def _lookup_actor(self, actor: "Character"):
         try:
