@@ -8,11 +8,10 @@ from nkms.network import blockchain_client
 from nkms.policy.constants import NON_PAYMENT
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
-from umbral import umbral
-
 from sqlalchemy.engine import create_engine
 from nkms.keystore import keystore
 from nkms.keystore.db import Base
+from umbral import umbral
 
 
 @pytest.fixture(scope="module")
