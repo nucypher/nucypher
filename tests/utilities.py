@@ -63,16 +63,13 @@ class MockNetworkyStuff(NetworkyStuff):
         return
 
     def find_ursula(self, contract=None):
-        if contract:
-            try:
-                ursula = next(self.ursulas)
-            except StopIteration:
-                raise self.NotEnoughQualifiedUrsulas
-            mock_client = TestClient(ursula.rest_app)
-            response = mock_client.post("http://localhost/consider_contract", bytes(contract))
-            return ursula, MockContractResponse()
-        else:
-            self
+        try:
+            ursula = next(self.ursulas)
+        except StopIteration:
+            raise self.NotEnoughQualifiedUrsulas
+        mock_client = TestClient(ursula.rest_app)
+        response = mock_client.post("http://localhost/consider_contract", bytes(contract))
+        return ursula, MockContractResponse()
 
     def enact_policy(self, ursula, hrac, payload):
         mock_client = TestClient(ursula.rest_app)
