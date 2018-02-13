@@ -3,10 +3,12 @@ import datetime
 import pytest
 
 from nkms.characters import congregate, Alice, Bob
+from nkms.crypto.powers import SigningPower
 from nkms.network import blockchain_client
 from nkms.policy.constants import NON_PAYMENT
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
+from umbral import umbral
 
 from sqlalchemy.engine import create_engine
 from nkms.keystore import keystore
@@ -83,3 +85,9 @@ def test_keystore():
     Base.metadata.create_all(engine)
     test_keystore = keystore.KeyStore(engine)
     yield test_keystore
+
+
+@pytest.fixture(scope="module")
+def alicebob_side_channel(alice):
+    plaintext = b"Welcome to the flippering."
+    return umbral.encrypt(alice.public_key(SigningPower), plaintext)
