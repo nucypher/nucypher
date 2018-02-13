@@ -566,14 +566,19 @@ class Ursula(Character):
             BytestringSplitter(Contract)(request.body, return_remainder=True)
         contract.deposit = deposit_as_bytes
 
-        contract_to_store = {  # TODO: This needs to be a datastore - see #127.
-            "alice_pubkey_sig": bytes(contract.alice.seal),
-            "deposit": contract.deposit,
-            # TODO: Whatever type "deposit" ends up being, we'll need to
-            # serialize it here.  See #148.
-            "expiration": contract.expiration,
-        }
-        self._contracts[contract.hrac.hex()] = contract_to_store
+        # contract_to_store = {  # TODO: This needs to be a datastore - see #127.
+        #     "alice_pubkey_sig":
+        #     "deposit": contract.deposit,
+        #     # TODO: Whatever type "deposit" ends up being, we'll need to
+        #     # serialize it here.  See #148.
+        #     "expiration": contract.expiration,
+        # }
+        self.keystore.add_policy_contract(contract.expiration.datetime(),
+                                          contract.deposit,
+                                          hrac=contract.hrac.hex().encode(),
+                                          alice_pubkey_sig=contract.alice.seal
+                                          )
+        #self._contracts[contract.hrac.hex()] = contract_to_store
 
         # TODO: Make the rest of this logic actually work - do something here
         # to decide if this Contract is worth accepting.
