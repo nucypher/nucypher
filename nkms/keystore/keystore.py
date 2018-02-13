@@ -134,7 +134,7 @@ class KeyStore(object):
         """
         Returns a list of Workorders by HRAC.
         """
-        workorders = self.session.query(Workorder).filter_by(hrac)
+        workorders = self.session.query(Workorder).filter_by(hrac=hrac)
         if not workorders:
             raise NotFound("No Workorders with {} HRAC found.".format(hrac))
         return workorders
@@ -143,5 +143,5 @@ class KeyStore(object):
         """
         Deletes a Workorder from the Keystore.
         """
-        self.session.query(Workorder).filter_by(hrac=hrac).delete()
+        workorders = self.session.query(Workorder).filter_by(hrac=hrac).delete()
         self.session.commit()

@@ -31,8 +31,8 @@ def test_policy_contract_sqlite_keystore(test_keystore):
 
     # Test add PolicyContract
     new_contract = test_keystore.add_policy_contract(
-            datetime.utcnow(), b'test', hrac, alice_keypair_sig,
-            bob_keypair_sig, b'test'
+            datetime.utcnow(), b'test', hrac, alice_pubkey_sig=alice_keypair_sig,
+            alice_signature=b'test'
     )
 
     # Test get PolicyContract
