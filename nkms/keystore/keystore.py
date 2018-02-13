@@ -76,9 +76,9 @@ class KeyStore(object):
         self.session.query(Key).filter_by(fingerprint=fingerprint).delete()
         self.session.commit()
 
-    def add_policy_contract(self, expiration, deposit, hrac, kfrag,
-                            alice_pubkey_sig, # alice_pubkey_enc,
-                            alice_signature) -> PolicyContract:
+    def add_policy_contract(self, expiration, deposit, hrac, kfrag=None,
+                            alice_pubkey_sig=None, # alice_pubkey_enc,
+                            alice_signature=None) -> PolicyContract:
         """
         Creates a PolicyContract to the Keystore.
 
@@ -90,8 +90,8 @@ class KeyStore(object):
         # bob_pubkey_sig = self.add_key(bob_pubkey_sig)
 
         new_policy_contract = PolicyContract(
-            expiration, deposit, hrac, bytes(kfrag), alice_pubkey_sig.id,
-            bytes(alice_signature), # bob_pubkey_sig.id
+            expiration, deposit, hrac, kfrag, alice_pubkey_sig=alice_pubkey_sig,
+            alice_signature=None, # bob_pubkey_sig.id
         )
 
         self.session.add(new_policy_contract)
