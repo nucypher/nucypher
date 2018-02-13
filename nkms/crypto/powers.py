@@ -68,19 +68,15 @@ class CryptoPower(object):
         except KeyError:
             raise NoSigningPower
 
-    def sign(self, *messages):
+    def sign(self, message):
         """
-        Signs a message and returns a signature with the keccak hash.
-        :param Iterable messages: Messages to sign in an iterable of bytes
-        :rtype: bytestring
-        :return: Signature of message
+        TODO: New docstring.
         """
         try:
             sig_keypair = self._power_ups[SigningPower]
         except KeyError as e:
             raise NoSigningPower(e)
-        msg_digest = b"".join(API.keccak_digest(m) for m in messages)
-        return sig_keypair.sign(msg_digest)
+        return sig_keypair.sign(message)
 
     def decrypt(self, ciphertext):
         try:
