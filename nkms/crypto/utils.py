@@ -90,9 +90,11 @@ class BytestringSplitter(object):
             message_class = message_type
 
         try:
+            # If a message length has been passed manually, it will be the second item.
             message_length = message_type[1]
         except TypeError:
-            message_length = message_type._EXPECTED_LENGTH
+            # If not, we expect it to be an attribute on the first item.
+            message_length = message_class._EXPECTED_LENGTH
         except AttributeError:
             raise TypeError("No way to know the expected length.  Either pass it as the second member of a tuple or set _EXPECTED_LENGTH on the class you're passing.")
 
