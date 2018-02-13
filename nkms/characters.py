@@ -568,7 +568,7 @@ class Ursula(Character):
             # serialize it here.  See #148.
             "expiration": contract.expiration,
         }
-        self._contracts[contract.hrac] = contract_to_store
+        self._contracts[contract.hrac.hex()] = contract_to_store
 
         # TODO: Make the rest of this logic actually work - do something here
         # to decide if this Contract is worth accepting.
@@ -610,7 +610,8 @@ class Ursula(Character):
         kfrag = KFrag.from_bytes(cleartext)
 
         # TODO: Query stored Contract and reconstitute
-        contract_details = self._contracts[hrac]
+        # policy_contract = self.keystore.get_policy_contract(hrac_as_hex.encode())
+        contract_details = self._contracts[hrac.hex()]
         stored_alice_pubkey_sig = contract_details.pop("alice_pubkey_sig")
 
         if stored_alice_pubkey_sig != alice.seal:
@@ -622,7 +623,7 @@ class Ursula(Character):
         try:
             self.keystore.add_policy_contract(
                 expiration=contract_details['expiration'].datetime(),
-                deposit=contract_details['deposit'], hrac=hrac, kfrag=kfrag,
+                deposit=contract_details['deposit'], hrac=hrac_as_hex.encode(), kfrag=kfrag,
                 alice_pubkey_sig=alice.seal,
                 alice_signature=policy_message_kit.signature)
         except IntegrityError:
