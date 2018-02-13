@@ -56,20 +56,10 @@ def test_signing():
 
     msg = b'attack at dawn'
     signature = sig_keypair.sign(msg)
+    assert signature.verify(msg, signature, sig_keypair.pubkey) == True
 
-def test_ecdsa_keypair_signing(self):
-    msghash = API.keccak_digest(b'hello world!')
+    bad_msg = b'bad message'
+    assert signature.verify(bad_msg, signature, sig_keypair.pubkey) == False
 
-    sig = self.ecdsa_keypair.sign(msghash)
-    self.assertEqual(bytes, type(sig))
-    self.assertEqual(65, len(sig))
 
-def test_ecdsa_keypair_verification(self):
-    msghash = API.keccak_digest(b'hello world!')
-
-    sig = self.ecdsa_keypair.sign(msghash)
-    self.assertEqual(bytes, type(sig))
-    self.assertEqual(65, len(sig))
-
-    is_valid = self.ecdsa_keypair.verify(msghash, sig)
-    self.assertTrue(is_valid)
+# TODO: Add test for EncryptingKeypair.decrypt
