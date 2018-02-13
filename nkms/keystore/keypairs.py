@@ -31,7 +31,7 @@ class Keypair(object):
             # They didn't pass anything we recognize as a valid key.
             if generate_keys_if_needed:
                 self.privkey = UmbralPrivateKey.gen_key()
-                self.pubkey = self.privkey.get_pub_key()
+                self.pubkey = self.privkey.get_pubkey()
             else:
                 raise ValueError("Either pass a valid key as umbral_key or, if you want to generate keys, set generate_keys_if_needed to True.")
 
@@ -45,7 +45,7 @@ class Keypair(object):
         :return: The serialized pubkey in bytes
         """
         if as_b64:
-            return self.pubkey.save_key()
+            return self.pubkey.to_bytes()
         return bytes(self.pubkey)
 
     def get_fingerprint(self):

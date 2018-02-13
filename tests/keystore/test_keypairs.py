@@ -16,32 +16,32 @@ def test_gen_keypair_if_needed():
 
 def test_keypair_with_umbral_keys():
     umbral_privkey = UmbralPrivateKey.gen_key()
-    umbral_pubkey = umbral_privkey.gen_pubkey()
+    umbral_pubkey = umbral_privkey.get_pubkey()
 
-    new_keypair_from_priv = Keypair(umbral_privkey)
-    assert new_keypair_from_priv.privkey == umbral_privkey
-    assert new_keypair_from_priv.pubkey == umbral_pubkey
+    new_keypair_from_priv = keypairs.Keypair(umbral_privkey)
+    assert new_keypair_from_priv.privkey.bn_key.to_bytes() == umbral_privkey.bn_key.to_bytes()
+    assert new_keypair_from_priv.pubkey.to_bytes() == umbral_pubkey.to_bytes()
 
-    new_keypair_from_pub = Keypair(umbral_pubkey)
-    assert new_keypair_from_pub.pubkey == umbral_pubkey
+    new_keypair_from_pub = keypairs.Keypair(umbral_pubkey)
+    assert new_keypair_from_pub.pubkey.to_bytes() == umbral_pubkey.to_bytes()
     with pytest.raises(AttributeError):
         new_keypair_from_pub.privkey
 
 
 def test_keypair_serialization():
     umbral_pubkey = UmbralPrivateKey.gen_key().get_pubkey()
-    new_keypair = Keypair(umbral_pubkey)
+    new_keypair = keypairs.Keypair(umbral_pubkey)
 
     pubkey_bytes = new_keypair.serialize_pubkey()
     assert pubkey_bytes == bytes(umbral_pubkey)
 
-    pubkey_b64 = new_keypair.serialize_pubkey(as_b64=False)
+    pubkey_b64 = new_keypair.serialize_pubkey(as_b64=True)
     assert pubkey_b64 == umbral_pubkey.to_bytes()
 
 
 def test_keypair_fingerprint():
     umbral_pubkey = UmbralPrivateKey.gen_key().get_pubkey()
-    new_keypair = Keypair(umbral_pubkey)
+    new_keypair = keypairs.Keypair(umbral_pubkey)
 
     fingerprint = new_keypair.get_fingerprint()
     assert fingerprint != None
@@ -52,14 +52,14 @@ def test_keypair_fingerprint():
 
 def test_signing():
     umbral_privkey = UmbralPrivateKey.gen_key()
-    sig_keypair = Keypair(umbral_privkey)
+    sig_keypair = keypairs.SigningKeypair(umbral_privkey)
 
     msg = b'attack at dawn'
     signature = sig_keypair.sign(msg)
-    assert signature.verify(msg, signature, sig_keypair.pubkey) == True
+    assert signature.verify(msg, sig_keypair.pubkey) == True
 
     bad_msg = b'bad message'
-    assert signature.verify(bad_msg, signature, sig_keypair.pubkey) == False
+    assert signature.verify(bad_msg, sig_keypair.pubkey) == False
 
 
 # TODO: Add test for EncryptingKeypair.decrypt
