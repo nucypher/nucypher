@@ -620,22 +620,20 @@ class Ursula(Character):
         kfrag = KFrag.from_bytes(cleartext)
 
         # TODO: Query stored Contract and reconstitute
-        # policy_contract = self.keystore.get_policy_contract(hrac_as_hex.encode())
-        contract_details = self._contracts[hrac.hex()]
-        stored_alice_pubkey_sig = contract_details.pop("alice_pubkey_sig")
+        policy_contract = self.keystore.get_policy_contract(hrac_as_hex.encode())
+        # contract_details = self._contracts[hrac.hex()]
 
-        if stored_alice_pubkey_sig != alice.seal:
+        if policy_contract.alice_pubkey_sig.key_data != alice.seal:
             raise Alice.SuspiciousActivity
 
-        contract = Contract(alice=alice, hrac=hrac,
-                            kfrag=kfrag, **contract_details)
+        # contract = Contract(alice=alice, hrac=hrac,
+        #                     kfrag=kfrag, expiration=policy_contract.expiration)
 
         try:
-            self.keystore.add_policy_contract(
-                expiration=contract_details['expiration'].datetime(),
-                deposit=contract_details['deposit'], hrac=hrac_as_hex.encode(), kfrag=kfrag,
-                alice_pubkey_sig=alice.seal,
-                alice_signature=policy_message_kit.signature)
+            # TODO: Obviously we do this lower-level.
+            policy_contract.k_frag = bytes(kfrag)
+            self.keystore.session.commit()
+
         except IntegrityError:
             raise
             # Do something appropriately RESTful (ie, 4xx).
