@@ -8,7 +8,7 @@ class TestEncryptingPowers(unittest.TestCase):
         self.enc_keypair = EncryptingKeypair()
         self.enc_keypair.gen_privkey()
 
-        self.enc_power = EncryptingPower(self.enc_keypair)
+        self.enc_power = EncryptingPower()
 
     def test_encryption(self):
         data = b'hello world'

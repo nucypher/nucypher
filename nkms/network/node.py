@@ -1,6 +1,5 @@
 from kademlia.node import Node
 
-from nkms.crypto.fragments import CFrag
 from nkms.crypto.utils import RepeatingBytestringSplitter
 from nkms.network.capabilities import ServerCapability
 

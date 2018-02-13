@@ -1,19 +1,18 @@
 import asyncio
 import binascii
-import maya
 
+import maya
 import msgpack
-from npre.constants import UNKNOWN_KFRAG
 
 from nkms.characters import Alice, Bob, Ursula
-from nkms.crypto import api
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import NOT_SIGNED, HASH_DIGEST_LENGTH
-from nkms.crypto.fragments import KFrag, PFrag
-from nkms.crypto.powers import EncryptingPower, SigningPower
+from nkms.crypto.constants import NOT_SIGNED, KECCAK_DIGEST_LENGTH, \
+    PUBLIC_KEY_LENGTH, UNKNOWN_KFRAG
+from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
+from nkms.crypto.splitters import key_splitter
 from nkms.crypto.utils import BytestringSplitter
-from nkms.keystore.keypairs import PublicKey
+from umbral.keys import UmbralPublicKey
 
 
 class Contract(object):
@@ -22,7 +21,8 @@ class Contract(object):
     """
     _EXPECTED_LENGTH = 124
 
-    def __init__(self, alice, hrac, expiration, deposit=None, ursula=None, kfrag=UNKNOWN_KFRAG, alices_signature=None):
+    def __init__(self, alice, hrac, expiration, deposit=None, ursula=None,
+                 kfrag=UNKNOWN_KFRAG, alices_signature=None):
         """
         :param deposit: Funds which will pay for the timeframe  of this Contract (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
@@ -43,12 +43,16 @@ class Contract(object):
         self.ursula = ursula
 
     def __bytes__(self):
-        return bytes(self.alice.seal) + bytes(self.hrac) + self.expiration.isoformat().encode() + bytes(self.deposit)
+        return bytes(self.alice.seal) + bytes(
+            self.hrac) + self.expiration.isoformat().encode() + bytes(
+            self.deposit)
 
     @classmethod
     def from_bytes(cls, contract_as_bytes):
-        contract_splitter = BytestringSplitter(PublicKey, (bytes, HASH_DIGEST_LENGTH), (bytes, 26))
-        alice_pubkey_sig, hrac, expiration_bytes = contract_splitter(contract_as_bytes)
+        contract_splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
+            (bytes, 26))
+        alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = contract_splitter(
+            contract_as_bytes, return_remainder=True)
         expiration = maya.parse(expiration_bytes.decode())
         alice = Alice.from_public_keys((SigningPower, alice_pubkey_sig))
         return cls(alice=alice, hrac=hrac, expiration=expiration)
@@ -62,7 +66,8 @@ class Contract(object):
         """
         Craft an offer to send to Ursula.
         """
-        return self.alice.encrypt_for(self.ursula, self.payload())[0]  # We don't need the signature separately.
+        # We don't need the signature separately.
+        return self.alice.encrypt_for(self.ursula, self.payload())[0]
 
     def payload(self):
         # TODO: Ship the expiration again?  Or some other way of alerting Ursula to recall her previous dialogue regarding this Contract.  Update: We'll probably have her store the Contract by hrac.  See #127.
@@ -85,10 +90,9 @@ class Policy(object):
     Once Alice has secured agreement with n Ursulas to enact a Policy, she sends each a KFrag,
     and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
     """
-    _ursula = None
-    hashed_part = None
 
-    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), pfrag=None, uri=None, alices_signature=NOT_SIGNED):
+    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), uri=None,
+                 alices_signature=NOT_SIGNED):
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.
         :param pfrag: The input ciphertext which Bob will give to Ursula to re-encrypt.
@@ -97,13 +101,11 @@ class Policy(object):
         self.alice = alice
         self.bob = bob
         self.kfrags = kfrags
-        self.pfrag = pfrag
         self.uri = uri
         self.treasure_map = TreasureMap()
         self._accepted_contracts = {}
 
         self.alices_signature = alices_signature
-
 
     class MoreContractsThanKFrags(TypeError):
         """
@@ -129,13 +131,12 @@ class Policy(object):
 
     @staticmethod
     def from_alice(kfrags,
-                   pfrag,
                    alice,
                    bob,
                    uri,
                    ):
         # TODO: What happened to Alice's signature - don't we include it here?
-        policy = Policy(alice, bob, kfrags, pfrag, uri)
+        policy = Policy(alice, bob, kfrags, uri)
 
         return policy
 
@@ -147,7 +148,6 @@ class Policy(object):
 
     @staticmethod
     def hrac_for(alice, bob, uri):
-
         """
         The "hashed resource authentication code".
 
@@ -176,37 +176,39 @@ class Policy(object):
         return self.hash(bytes(self.alice.seal) + self.hrac())
 
     def publish_treasure_map(self):
-        encrypted_treasure_map, signature_for_bob = self.alice.encrypt_for(self.bob,
-                                                                           self.treasure_map.packed_payload())
-        signature_for_ursula = self.alice.seal(self.hrac())  # TODO: Great use-case for Ciphertext class
+        tmap_message_kit, signature_for_bob = self.alice.encrypt_for(
+            self.bob,
+            self.treasure_map.packed_payload())
+        signature_for_ursula = self.alice.seal(self.hrac())
 
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
-        dht_value = signature_for_ursula + self.alice.seal + self.hrac() + msgpack.dumps(
-            encrypted_treasure_map)  # TODO: Ideally, this is a Ciphertext object instead of msgpack (see #112)
+        dht_value = signature_for_ursula + self.alice.seal + self.hrac() + bytes(tmap_message_kit)
         dht_key = self.treasure_map_dht_key()
 
         setter = self.alice.server.set(dht_key, b"trmap" + dht_value)
         event_loop = asyncio.get_event_loop()
         event_loop.run_until_complete(setter)
-        return encrypted_treasure_map, dht_value, signature_for_bob, signature_for_ursula
+        return tmap_message_kit, dht_value, signature_for_bob, signature_for_ursula
 
     def enact(self, networky_stuff):
-
         for contract in self._accepted_contracts.values():
-            policy_payload = contract.encrypt_payload_for_ursula()
-            full_payload = self.alice.seal + msgpack.dumps(policy_payload)
+            policy_message_kit = contract.encrypt_payload_for_ursula()
             response = networky_stuff.enact_policy(contract.ursula,
                                                    self.hrac(),
-                                                   full_payload)  # TODO: Parse response for confirmation.
+                                                   bytes(policy_message_kit))
+            # TODO: Parse response for confirmation.
+            response
 
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(contract.ursula)
 
     def draw_up_contract(self, deposit, expiration):
-        return Contract(self.alice, self.hrac(), expiration=expiration, deposit=deposit)
+        return Contract(self.alice, self.hrac(), expiration=expiration,
+                        deposit=deposit)
 
-    def find_ursulas(self, networky_stuff, deposit, expiration, num_ursulas=None):
+    def find_ursulas(self, networky_stuff, deposit, expiration,
+                     num_ursulas=None):
         # TODO: This is a number mismatch - we need not one contract, but n contracts.
         """
         :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
@@ -262,47 +264,52 @@ class TreasureMap(object):
 
 
 class WorkOrder(object):
-    def __init__(self, bob, kfrag_hrac, pfrags, receipt_bytes, receipt_signature, ursula_id=None):
+    def __init__(self, bob, kfrag_hrac, capsules, receipt_bytes,
+                 receipt_signature, ursula_id=None):
         self.bob = bob
         self.kfrag_hrac = kfrag_hrac
-        self.pfrags = pfrags
+        self.capsules = capsules
         self.receipt_bytes = receipt_bytes
         self.receipt_signature = receipt_signature
         self.ursula_id = ursula_id  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
 
     def __repr__(self):
-        return "WorkOrder (pfrags: {}) {} for {}".format([binascii.hexlify(bytes(p))[:6] for p in self.pfrags],
-                                                         binascii.hexlify(self.receipt_bytes)[:6],
-                                                         binascii.hexlify(self.ursula_id)[:6])
+        return "WorkOrder (capsules: {}) {} for {}".format(
+            [binascii.hexlify(bytes(p))[:6] for p in self.capsules],
+            binascii.hexlify(self.receipt_bytes)[:6],
+            binascii.hexlify(self.ursula_id)[:6])
 
     def __eq__(self, other):
-        return (self.receipt_bytes, self.receipt_signature) == (other.receipt_bytes, other.receipt_signature)
+        return (self.receipt_bytes, self.receipt_signature) == (
+        other.receipt_bytes, other.receipt_signature)
 
     def __len__(self):
-        return len(self.pfrags)
+        return len(self.capsules)
 
     @classmethod
-    def constructed_by_bob(cls, kfrag_hrac, pfrags, ursula_dht_key, bob):
-        receipt_bytes = b"wo:" + ursula_dht_key  # TODO: represent the pfrags as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(pfrags))  - See #137
+    def constructed_by_bob(cls, kfrag_hrac, capsules, ursula_dht_key, bob):
+        receipt_bytes = b"wo:" + ursula_dht_key  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
         receipt_signature = bob.seal(receipt_bytes)
-        return cls(bob, kfrag_hrac, pfrags, receipt_bytes, receipt_signature, ursula_dht_key)
+        return cls(bob, kfrag_hrac, capsules, receipt_bytes, receipt_signature,
+                   ursula_dht_key)
 
     @classmethod
     def from_rest_payload(cls, kfrag_hrac, rest_payload):
-        payload_splitter = BytestringSplitter(Signature, PublicKey)
-        signature, bob_pubkey_sig, (receipt_bytes, packed_pfrags) = payload_splitter(rest_payload,
-                                                                                     msgpack_remainder=True)
-        pfrags = [PFrag(p) for p in msgpack.loads(packed_pfrags)]
+        payload_splitter = BytestringSplitter(Signature) + key_splitter
+        signature, bob_pubkey_sig, (receipt_bytes, packed_capsules) = payload_splitter(rest_payload,
+                                                         msgpack_remainder=True)
+        capsules = [PFrag(p) for p in msgpack.loads(packed_capsules)]
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
             raise ValueError("This doesn't appear to be from Bob.")
         bob = Bob.from_public_keys((SigningPower, bob_pubkey_sig))
-        return cls(bob, kfrag_hrac, pfrags, receipt_bytes, signature)
+        return cls(bob, kfrag_hrac, capsules, receipt_bytes, signature)
 
     def payload(self):
-        pfrags_as_bytes = [bytes(p) for p in self.pfrags]
-        packed_receipt_and_pfrags = msgpack.dumps((self.receipt_bytes, msgpack.dumps(pfrags_as_bytes)))
-        return bytes(self.receipt_signature) + self.bob.seal + packed_receipt_and_pfrags
+        capsules_as_bytes = [bytes(p) for p in self.capsules]
+        packed_receipt_and_capsules = msgpack.dumps(
+            (self.receipt_bytes, msgpack.dumps(capsules_as_bytes)))
+        return bytes(self.receipt_signature) + self.bob.seal + packed_receipt_and_capsules
 
     def complete(self, cfrags):
         # TODO: Verify that this is in fact complete - right of CFrags and properly signed.

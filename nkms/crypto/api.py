@@ -1,17 +1,15 @@
-from typing import Tuple, Union, List
+from random import SystemRandom
+from typing import Tuple, Union
 
 import sha3
-from nacl.secret import SecretBox
-from py_ecc.secp256k1 import N, privtopub, ecdsa_raw_recover, ecdsa_raw_sign
-from random import SystemRandom
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.exceptions import InvalidSignature
+from py_ecc.secp256k1 import ecdsa_raw_recover
 
-from nkms.crypto import _internal
-from nkms.crypto.fragments import KFrag, PFrag, CFrag
-from nkms.keystore.constants import SIG_KEYPAIR_BYTE, PUB_KEY_BYTE
-from npre import elliptic_curve
-from npre import umbral
+from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
-PRE = umbral.PRE()
+
 SYSTEM_RAND = SystemRandom()
 
 
@@ -67,378 +65,43 @@ def keccak_digest(
     return hash.digest()
 
 
-def ecdsa_pub2bytes(
-        pubkey: Tuple[int, int]
-) -> bytes:
-    """
-    Takes an ECDSA public key and converts to bytes.
-
-    :param pubkey: Tuple[int] of Public Key
-
-    :return: bytestring of Public key
-    """
-    x = pubkey[0].to_bytes(32, byteorder='big')
-    y = pubkey[1].to_bytes(32, byteorder='big')
-    return x + y
-
-
-def ecdsa_bytes2pub(
-        pubkey: bytes
-) -> Tuple[int, int]:
-    """
-    Takes a byte encoded ECDSA public key and converts to a Tuple of x, and y
-
-    :param pubkey: Byte encoded public key
-
-    :return: Tuple[int] of Public Key
-    """
-    x = int.from_bytes(pubkey[:32], byteorder='big')
-    y = int.from_bytes(pubkey[32:], byteorder='big')
-    return (x, y)
-
-
-def ecdsa_gen_priv() -> bytes:
-    """
-    Generates an ECDSA Private Key.
-
-    :return: Byte encoded ECDSA privkey
-    """
-    privkey = secure_random_range(1, N)
-    return privkey.to_bytes(32, byteorder='big')  # TODO: Add metabytes.
-
-
-def ecdsa_priv2pub(
-        privkey: bytes,
-        to_bytes: bool = True
-) -> Union[bytes, Tuple[int]]:
-    """
-    Returns the public component of an ECDSA private key.
-
-    :param privkey: Private key as an int or bytestring
-    :param to_bytes: Serialize to bytes or not?
-
-    :return: Byte encoded or Tuple[int] ECDSA pubkey
-    """
-    pubkey = privtopub(privkey)
-    if to_bytes:
-        return SIG_KEYPAIR_BYTE + PUB_KEY_BYTE + ecdsa_pub2bytes(pubkey)
-    return pubkey
-
-
-def ecdsa_gen_sig(
-        v: int,
-        r: int,
-        s: int
-) -> bytes:
-    """
-    Generates an ECDSA signature, in bytes.
-
-    :param v: v of sig
-    :param r: r of sig
-    :param s: s of sig
-
-    :return: bytestring of v, r, and s
-    """
-    _v = v.to_bytes(1, byteorder='big')
-    _r = r.to_bytes(32, byteorder='big')
-    _s = s.to_bytes(32, byteorder='big')
-    return _v + _r + _s
-
-
-def ecdsa_load_sig(
-        signature: bytes
-) -> Tuple[int, int, int]:
-    """
-    Loads an ECDSA signature, from a bytestring, to a tuple.
-
-    :param signature: Signature, as a bytestring, of v, r, and s.
-
-    :return: Tuple(v, r, s)
-    """
-    v = int.from_bytes(signature[:1], byteorder='big')
-    r = int.from_bytes(signature[1:33], byteorder='big')
-    s = int.from_bytes(signature[33:], byteorder='big')
-    return (v, r, s)
-
-
-def ecdsa_sign(
-        msghash: bytes,
-        privkey: bytes
-) -> Tuple[int, int, int]:
+def ecdsa_sign(message: bytes, privkey: UmbralPrivateKey) -> bytes:
     """
     Accepts a hashed message and signs it with the private key given.
 
-    :param msghash: Hashed message to sign
+    :param message: Message to hash and sign
     :param privkey: Private key to sign with
 
-    :return: Tuple(v, r, s)
+    :return: signature
     """
-    v, r, s = ecdsa_raw_sign(msghash, privkey)
-    return (v, r, s)
+    cryptography_priv_key = privkey.bn_key.to_cryptography_priv_key()
+    signature_der_bytes = cryptography_priv_key.sign(message, ec.ECDSA(hashes.BLAKE2b(64)))
+    return signature_der_bytes
 
 
 def ecdsa_verify(
-        v: int,
-        r: int,
-        s: int,
-        msghash: bytes,
-        pubkey: Union[bytes, Tuple[int, int]]
+        message: bytes,
+        signature: bytes,
+        pubkey: UmbralPublicKey
 ) -> bool:
     """
-    Takes a v, r, s, a pubkey, and a hash of a message to verify via ECDSA.
+    Accepts a message and signature and verifies it with the
+    provided public key.
 
-    :param v: V of sig
-    :param r: R of sig
-    :param s: S of sig
-    :param bytes msghash: The hashed message to verify
-    :param bytes pubkey: Pubkey to validate signature for
+    :param message: Message to verify
+    :param signature: Signature to verify
+    :param pubkey: UmbralPublicKey to verify signature with
 
-    :rtype: Boolean
-    :return: Is the signature valid or not?
+    :return: True if valid, False if invalid.
     """
-    if bytes == type(pubkey):
-        pubkey = ecdsa_bytes2pub(pubkey)
+    cryptography_pub_key = pubkey.point_key.to_cryptography_pub_key()
 
-    verify_sig = ecdsa_raw_recover(msghash, (v, r, s))
-    # TODO: Should this equality test be done better?
-    return verify_sig == pubkey
-
-
-def symm_encrypt(
-        key: bytes,
-        plaintext: bytes
-) -> bytes:
-    """
-    Performs symmetric encryption using nacl.SecretBox.
-
-    :param key: Key to encrypt with
-    :param plaintext: Plaintext to encrypt
-
-    :return: Encrypted ciphertext
-    """
-    cipher = SecretBox(key)
-    return cipher.encrypt(plaintext)
-
-
-def symm_decrypt(
-        key: bytes,
-        ciphertext: bytes
-) -> bytes:
-    """
-    Decrypts ciphertext performed with nacl.SecretBox.
-
-    :param key: Key to decrypt with
-    :param ciphertext: Nacl.SecretBox ciphertext to decrypt
-
-    :return: Decrypted Plaintext
-    """
-    cipher = SecretBox(key)
-    return cipher.decrypt(ciphertext)
-
-
-def priv_bytes2ec(
-        privkey: bytes
-) -> elliptic_curve.ec_element:
-    """
-    Turns a private key, in bytes, into an elliptic_curve.ec_element.
-
-    :param privkey: Private key to turn into an elliptic_curve.ec_element.
-
-    :return: elliptic_curve.ec_element
-    """
-    return elliptic_curve.deserialize(PRE.ecgroup, b'\x00' + privkey)
-
-
-def pub_bytes2ec(
-        pubkey: bytes,
-) -> elliptic_curve.ec_element:
-    """
-    Turns a public key, in bytes, into an elliptic_curve.ec_element.
-
-    :param pubkey: Public key to turn into an elliptic_curve.ec_element.
-
-    :return: elliptic_curve.ec_element
-    """
-    return elliptic_curve.deserialize(PRE.ecgroup, b'\x01' + pubkey)
-
-
-def ecies_gen_priv(
-        to_bytes: bool = True
-) -> Union[bytes, elliptic_curve.ec_element]:
-    """
-    Generates an ECIES private key.
-
-    :param to_bytes: Return the byte serialization of the privkey?
-
-    :return: An ECIES private key
-    """
-    privkey = PRE.gen_priv()
-    if to_bytes:
-        return elliptic_curve.serialize(privkey)[1:]
-    return privkey
-
-
-def ecies_priv2pub(
-        privkey: Union[bytes, elliptic_curve.ec_element],
-        to_bytes: bool = True
-) -> Union[bytes, elliptic_curve.ec_element]:
-    """
-    Takes a private key (secret bytes or an elliptic_curve.ec_element) and
-    derives the Public key from it.
-
-    :param privkey: The Private key to derive the public key from
-    :param to_bytes: Return the byte serialization of the pubkey?
-
-    :return: The Public component of the Private key provided
-    """
-    if type(privkey) == bytes:
-        privkey = priv_bytes2ec(privkey)
-
-    pubkey = PRE.priv2pub(privkey)
-    if to_bytes:
-        return elliptic_curve.serialize(pubkey)[1:]
-    return pubkey
-
-
-def ecies_encapsulate(
-        pubkey: Union[bytes, elliptic_curve.ec_element],
-) -> Tuple[bytes, umbral.EncryptedKey]:
-    """
-    Encapsulates an ECIES generated symmetric key for a public key.
-
-    :param pubkey: Pubkey to generate a key for
-
-    :return: Generated key in bytes, and EncryptedKey
-    """
-    if type(pubkey) == bytes:
-        pubkey = pub_bytes2ec(pubkey)
-    return PRE.encapsulate(pubkey)
-
-
-def ecies_decapsulate(
-        privkey: Union[bytes, elliptic_curve.ec_element],
-        enc_key: umbral.EncryptedKey
-) -> bytes:
-    """
-    Decapsulates an ECIES generated encrypted key with a private key.
-
-    :param privkey: Private key to decrypt the key with
-    :param enc_key: Encrypted Key to decrypt
-
-    :return: Decrypted symmetric key
-    """
-    if type(privkey) == bytes:
-        privkey = priv_bytes2ec(privkey)
-    return PRE.decapsulate(privkey, enc_key)
-
-
-def ecies_rekey(
-        privkey_a: Union[bytes, elliptic_curve.ec_element],
-        privkey_b: Union[bytes, elliptic_curve.ec_element],
-        to_bytes: bool = True
-) -> Union[bytes, umbral.RekeyFrag]:
-    """
-    Generates a re-encryption key from privkey_a to privkey_b.
-
-    :param privkey_a: Private key to re-encrypt from
-    :param privkey_b: Private key to re-encrypt to
-    :param to_bytes: Format result as bytes?
-
-    :return: Re-encryption key
-    """
-    if type(privkey_a) == bytes:
-        privkey_a = priv_bytes2ec(privkey_a)
-    if type(privkey_b) == bytes:
-        privkey_b = priv_bytes2ec(privkey_b)
-
-    rk = PRE.rekey(privkey_a, privkey_b)
-    if to_bytes:
-        return elliptic_curve.serialize(rk.key)[1:]
-    return rk
-
-
-def ecies_split_rekey(
-        privkey_a: Union[bytes, elliptic_curve.ec_element],
-        privkey_b: Union[bytes, elliptic_curve.ec_element],
-        min_shares: int,
-        total_shares: int
-) -> List[umbral.RekeyFrag]:
-    """
-    Performs a split-key re-encryption key generation where a minimum
-    number of shares `min_shares` are required to reproduce a rekey.
-    Will split a rekey into `total_shares`.
-
-    :param privkey_a: Privkey to re-encrypt from
-    :param privkey_b: Privkey to re-encrypt to
-    :param min_shares: Minimum shares needed to reproduce rekey
-    :param total_shares: Total shares to generate from split-rekey gen
-
-    :return: A list of RekeyFrags to distribute
-    """
-    if type(privkey_a) == bytes:
-        privkey_a = priv_bytes2ec(privkey_a)
-    if type(privkey_b) == bytes:
-        privkey_b = priv_bytes2ec(privkey_b)
-    umbral_rekeys = PRE.split_rekey(privkey_a, privkey_b,
-                                    min_shares, total_shares)
-    return [KFrag(umbral_kfrag=u) for u in umbral_rekeys]
-
-
-def ecies_ephemeral_split_rekey(
-        privkey_a: Union[bytes, elliptic_curve.ec_element],
-        pubkey_b: Union[bytes, elliptic_curve.ec_element],
-        min_shares: int,
-        total_shares: int
-) -> Tuple[List[umbral.RekeyFrag], Tuple[bytes, bytes]]:
-    """
-    Performs a split-key re-encryption key generation where a minimum
-    number of shares `min_shares` are required to reproduce a rekey.
-    Will split a rekey inot `total_shares`.
-    This also generates an ephemeral keypair for the recipient as `pubkey_b`.
-
-    :param privkey_a: Privkey to re-encrypt from
-    :param pubkey_b: Public key to re-encrypt for (w/ ephemeral key)
-    :param min_shares: Minium shares needed to reproduce a rekey
-    :param total_shares: Total shares to generate from split-rekey gen
-
-    :return: A tuple containing a list of rekey frags, and a tuple of the
-             encrypted ephemeral key data (enc_symm_key, enc_eph_privkey)
-    """
-    eph_privkey, (encrypted_key, encrypted_message) = _internal._ecies_gen_ephemeral_key(pubkey_b)
-    kfrags = ecies_split_rekey(privkey_a, eph_privkey, min_shares, total_shares)
-    pfrag = PFrag(ephemeral_data_as_bytes=None, encrypted_key=encrypted_key, encrypted_message=encrypted_message)
-
-    return (kfrags, pfrag)
-
-
-def ecies_combine(
-        cfrags: List[CFrag]
-) -> umbral.EncryptedKey:
-    """
-    Combines the encrypted keys together to form a rekey from split_rekey.
-
-    :param encrypted_keys: Encrypted keys to combine
-
-    :return: The combined EncryptedKey of the rekey
-    """
-    return PRE.combine([cfrag.encrypted_key for cfrag in cfrags])
-
-
-def ecies_reencrypt(
-        rekey: Union[bytes, umbral.RekeyFrag],
-        enc_key: Union[bytes, umbral.EncryptedKey],
-) -> umbral.EncryptedKey:
-    """
-    Re-encrypts the key provided.
-
-    :param rekey: Re-encryption key to use
-    :param enc_key: Encrypted key to re-encrypt
-
-    :return: The re-encrypted key
-    """
-    if type(rekey) == bytes:
-        rekey = umbral.RekeyFrag(None, priv_bytes2ec(rekey))
-    if type(enc_key) == bytes:
-        enc_key = umbral.EncryptedKey(priv_bytes2ec(enc_key), None)
-    reencrypted_data = PRE.reencrypt(rekey, enc_key)
-    return CFrag(reencrypted_data=reencrypted_data)
+    try:
+        cryptography_pub_key.verify(
+            signature,
+            message,
+            ec.ECDSA(hashes.BLAKE2b(64))
+        )
+    except InvalidSignature:
+        return False
+    return True
