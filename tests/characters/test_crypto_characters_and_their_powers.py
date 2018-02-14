@@ -86,33 +86,9 @@ def test_anybody_can_verify():
 Chapter 2: ENCRYPTION
 """
 
-
-def test_signing_only_power_cannot_encrypt():
+def test_anybody_can_encrypt():
     """
-    Similar to the above with signing, here we show that a Character without the EncryptingKeypair
-    PowerUp can't encrypt.
-    """
-
-    # Here's somebody who can sign but not encrypt.
-    can_sign_but_not_encrypt = Character(crypto_power_ups=[SigningPower])
-
-    # ..and here's Ursula, for whom our Character above wants to encrypt.
-    ursula = Ursula()
-
-    # They meet.
-    can_sign_but_not_encrypt.learn_about_actor(ursula)
-
-    # The Character has the message ready...
-    cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
-
-    # But without the proper PowerUp, no encryption happens.
-    with pytest.raises(NoEncryptingPower) as e_info:
-        can_sign_but_not_encrypt.encrypt_for(ursula, cleartext)
-
-
-def test_character_with_encrypting_power_can_encrypt():
-    """
-    Now, a Character *with* EncryptingKeyPair can encrypt.
+    Similar to anybody_can_verify() above; we show that anybody can encrypt.
     """
     can_sign_and_encrypt = Character(crypto_power_ups=[SigningPower, EncryptingPower])
     ursula = Ursula()
