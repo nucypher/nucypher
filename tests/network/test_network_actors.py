@@ -132,7 +132,7 @@ def test_treasure_map_with_bad_id_does_not_propagate(idle_policy, ursulas):
 
     message_kit, signature = alice.encrypt_for(bob, treasure_map.packed_payload())
 
-    setter = alice.server.set(illegal_policygroup_id, bytes(message_kit))
+    setter = alice.server.set(illegal_policygroup_id, message_kit.to_bytes())
     _set_event = EVENT_LOOP.run_until_complete(setter)
 
     with pytest.raises(KeyError):
