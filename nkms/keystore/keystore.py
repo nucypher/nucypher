@@ -9,6 +9,7 @@ from nkms.keystore.db.models import Key, PolicyContract, Workorder
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
 from . import keypairs
+from nkms.crypto.utils import fingerprint_from_key
 
 
 class NotFound(Exception):
@@ -39,8 +40,9 @@ class KeyStore(object):
 
         :return: The newly added key object.
         """
-        fingerprint = key.fingerprint()
-        key_data = key.serialize_pubkey()
+
+        fingerprint = fingerprint_from_key(key)
+        key_data = bytes(key)
 
         new_key = Key(fingerprint, key_data, is_signing)
 
