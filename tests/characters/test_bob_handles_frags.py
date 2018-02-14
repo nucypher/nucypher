@@ -1,5 +1,7 @@
+import umbral
 from nkms.crypto import api
 from tests.utilities import EVENT_LOOP, MockNetworkyStuff
+from umbral.fragments import KFrag
 
 
 def test_bob_can_follow_treasure_map(enacted_policy, ursulas, alice, bob):
@@ -66,9 +68,11 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
     # the correct cFrag (ie, that Ursula performed reencryption properly).
     ursula = networky_stuff.get_ursula_by_id(work_order.ursula_id)
-    the_kfrag = ursula.keystore.get_kfrag(work_order.kfrag_hrac)
-    the_correct_cfrag = api.ecies_reencrypt(the_kfrag, the_pfrag.encrypted_key)
-    assert the_cfrag == the_correct_cfrag  # It's the correct cfrag!
+    kfrag_bytes = ursula.keystore.get_policy_contract(
+        work_order.kfrag_hrac.hex().encode()).k_frag
+    the_kfrag = KFrag.from_bytes(kfrag_bytes)
+    the_correct_cfrag = umbral.umbral.reencrypt(the_kfrag, capsule)
+    assert bytes(the_cfrag) == bytes(the_correct_cfrag)  # It's the correct cfrag!
 
     # Now we'll show that Ursula saved the correct WorkOrder.
     work_orders_from_bob = ursula.work_orders(bob=bob)
