@@ -68,15 +68,15 @@ class CryptoPower(object):
             raise NoSigningPower(e)
         return sig_keypair.sign(message)
 
-    def decrypt(self, ciphertext):
+    def decrypt(self, message_kit):
         try:
             encrypting_power = self._power_ups[EncryptingPower]
-            return encrypting_power.decrypt(ciphertext)
+            return encrypting_power.decrypt(message_kit)
         except KeyError:
             raise NoEncryptingPower
 
-    def encrypt_for(self, enc_pubkey, plaintext):
-        ciphertext, capsule = umbral.umbral.encrypt(enc_pubkey, plaintext)
+    def encrypt_for(self, recipient_pubkey_enc, plaintext):
+        ciphertext, capsule = umbral.umbral.encrypt(recipient_pubkey_enc, plaintext)
         return MessageKit(ciphertext=ciphertext, capsule=capsule)
 
 
