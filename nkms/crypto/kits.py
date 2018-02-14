@@ -31,13 +31,15 @@ class MessageKit(CryptoKit):
             self.alice_pubkey
         )
 
-    def __bytes__(self):
+    def to_bytes(self, include_alice_pubkey=True):
         as_bytes = bytes(self.capsule)
-        if self.alice_pubkey:
+        if include_alice_pubkey and self.alice_pubkey:
             as_bytes += bytes(self.alice_pubkey)
         as_bytes += self.ciphertext
         return as_bytes
 
+    def __bytes__(self):
+        return self.ciphertext
 
 class MapKit(MessageKit):
     def __init__(self, ciphertext, capsule, treasure_map, alice_pubkey=None):
