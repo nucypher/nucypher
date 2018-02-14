@@ -5,7 +5,6 @@ from nkms.crypto import api
 from nkms.crypto.constants import NOT_SIGNED
 from nkms.crypto.constants import NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, NoSigningPower, \
-    NoEncryptingPower, \
     EncryptingPower
 
 """
@@ -77,14 +76,10 @@ def test_anybody_can_verify():
     assert verification is True
     assert cleartext is NO_DECRYPTION_PERFORMED
 
-    # If we pass the signature and message backwards, we get TypeError.
-    # with pytest.raises(TypeError):
-    #    verification = somebody.verify_from(alice, message, signature)
-
-
 """
 Chapter 2: ENCRYPTION
 """
+
 
 def test_anybody_can_encrypt():
     """
