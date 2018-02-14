@@ -373,9 +373,7 @@ class Bob(Character):
         
         # TODO: Make this prettier
         _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map =\
-        dht_value_splitter(
-            packed_encrypted_treasure_map[5::], msgpack_remainder=True
-        )
+        dht_value_splitter(packed_encrypted_treasure_map[5::])
         verified, cleartext = self.verify_from(
             self.alice, encrypted_treasure_map,
             signature_is_on_cleartext=True, decrypt=True
