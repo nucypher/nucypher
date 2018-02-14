@@ -2,6 +2,7 @@ import asyncio
 import binascii
 from binascii import hexlify
 from logging import getLogger
+from typing import Union
 
 import msgpack
 import requests
@@ -187,8 +188,10 @@ class Character(object):
         return message_kit, signature
 
     def verify_from(self,
-                actor_whom_sender_claims_to_be: "Character", message_kit: MessageKit,
-                signature: Signature=None, decrypt=False,
+                actor_whom_sender_claims_to_be: "Character",
+                message_kit: Union[MessageKit, bytes],
+                signature: Signature=None,
+                decrypt=False,
                 signature_is_on_cleartext=False) -> tuple:
         """
         Inverse of encrypt_for.
