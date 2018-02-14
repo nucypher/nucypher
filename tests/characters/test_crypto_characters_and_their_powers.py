@@ -95,3 +95,60 @@ def test_anybody_can_encrypt():
     assert signature == NOT_SIGNED
 
     assert ciphertext is not None
+
+"""
+What follows are various combinations of signing and encrypting, to match real-world scenarios.
+"""
+
+def test_sign_cleartext_and_encrypt(alice, bob):
+    """
+    Exhibit One: Alice signs the cleartext and encrypts her signature inside the ciphertext.
+    """
+    message = b"Have you accepted my answer on StackOverflow yet?"
+
+    message_kit, _signature = alice.encrypt_for(bob, message, sign_plaintext=True)
+
+    # Notice that our function still returns the signature here, in case Alice wants to do something
+    # else with it, such as post it publicly for later public verifiability.
+
+    # However, we can expressly refrain from passing the Signature, and the verification still works:
+    verified, cleartext = bob.verify_from(alice, message_kit, signature=None, decrypt=True,
+                                          signature_is_on_cleartext=True)
+    assert verified
+    assert cleartext == message
+
+
+def test_encrypt_and_sign_the_ciphertext(alice, bob):
+    """
+    Now, Alice encrypts first and then signs the ciphertext, providing a Signature that is
+    completely separate from the message.
+    This is useful in a scenario in which Bob needs to prove authenticity publicly
+    without disclosing contents.
+    """
+    message = b"We have a reaaall problem."
+    message_kit, signature = alice.encrypt_for(bob, message, sign_plaintext=False)
+    verified, cleartext = bob.verify_from(alice, message_kit, signature,
+                                          signature_is_on_cleartext=False, decrypt=True)
+    assert verified
+    assert cleartext == message
+
+
+def test_encrypt_but_do_not_sign(alice, bob):
+    message = b"If Bonnie comes home and finds an unencrypted private key in her keystore, I'm gonna get divorced."
+
+    # Alice might also want to encrypt a message but *not* sign it, in order to refrain
+    # from creating evidence that can prove she was the original sender.
+    message_kit, not_signature = alice.encrypt_for(bob, message, sign=False)
+
+    # The message is not signed...
+    assert not_signature == NOT_SIGNED
+
+    verified, cleartext = bob.verify_from(alice, message_kit, decrypt=True)
+
+    # ...and thus, the message is not verified.
+    assert cleartext == message
+
+    # However, the message was properly decrypted.
+    assert message == cleartext
+
+
