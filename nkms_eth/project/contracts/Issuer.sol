@@ -11,7 +11,7 @@ import "./zeppelin/math/SafeMath.sol";
 contract Issuer {
     using SafeMath for uint256;
 
-    NuCypherKMSToken token;
+    NuCypherKMSToken public token;
     uint256 public miningCoefficient;
     uint256 public secondsPerPeriod;
     uint256 public lockedPeriodsCoefficient;
@@ -20,9 +20,9 @@ contract Issuer {
     uint256 public lastMintedPeriod;
     mapping (byte => uint256) public totalSupply;
     byte public currentIndex;
-    uint256 futureSupply;
+    uint256 public futureSupply;
 
-    byte NEGATION = 0xF0;
+    byte constant NEGATION = 0xF0;
 
     /**
     * @notice Constructor sets address of token contract and coefficients for mining

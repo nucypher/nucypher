@@ -41,7 +41,7 @@ contract PolicyManager {
     mapping (address => NodeInfo) public nodes;
 
     /**
-    * @notice The PolicyManager constructor sets addresses of token and escrow contracts
+    * @notice Constructor sets addresses of the token and the escrow contracts
     * @param _token Token contract
     * @param _escrow Escrow contract
     **/

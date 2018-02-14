@@ -7,24 +7,24 @@ import "contracts/PolicyManager.sol";
 /**
 * @notice Contract for using in PolicyManager tests
 **/
-contract MinersEscrowTest {
+contract MinersEscrowForPolicyTest {
 
     struct Downtime {
         uint256 startPeriod;
         uint256 endPeriod;
     }
 
-    PolicyManager policyManager;
+    PolicyManager public policyManager;
     uint256 public secondsPerPeriod;
-    address node;
-    uint256 lastActivePeriod;
-    Downtime[] downtime;
+    address public node;
+    uint256 public lastActivePeriod;
+    Downtime[] public downtime;
 
     /**
     * @param _node Address of node that allow to use policy manager
     * @param _minutesPerPeriod Size of period in minutes
     **/
-    function MinersEscrowTest(address _node, uint256 _minutesPerPeriod) {
+    function MinersEscrowForPolicyTest(address _node, uint256 _minutesPerPeriod) {
         node = _node;
         secondsPerPeriod = _minutesPerPeriod * 1 minutes;
     }

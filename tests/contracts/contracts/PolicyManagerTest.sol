@@ -5,7 +5,7 @@ import "contracts/MinersEscrow.sol";
 
 
 /**
-* @notice Contract for testing Escrow contract
+* @notice Contract for testing miners escrow contract
 **/
 contract PolicyManagerTest {
 

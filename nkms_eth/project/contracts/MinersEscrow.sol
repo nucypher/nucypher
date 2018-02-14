@@ -7,7 +7,6 @@ import "./zeppelin/math/Math.sol";
 import "./lib/AdditionalMath.sol";
 import "./lib/LinkedList.sol";
 import "./Issuer.sol";
-import "./NuCypherKMSToken.sol";
 import "./PolicyManager.sol";
 
 
@@ -49,13 +48,13 @@ contract MinersEscrow is Issuer, Ownable {
     uint256 constant MAX_OWNERS = 50000;
 
     mapping (address => TokenInfo) public tokenInfo;
-    LinkedList.Data tokenOwners;
+    LinkedList.Data public tokenOwners;
 
     mapping (uint256 => uint256) public lockedPerPeriod;
     uint256 public minReleasePeriods;
     uint256 public minAllowableLockedTokens;
     uint256 public maxAllowableLockedTokens;
-    PolicyManager policyManager;
+    PolicyManager public policyManager;
 
     /**
     * @notice Constructor sets address of token contract and coefficients for mining
