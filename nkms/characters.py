@@ -211,15 +211,20 @@ class Character(object):
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
         """
-        if not signature and not signature_is_on_cleartext:
-            raise ValueError("You need to either provide the Signature or \
-                              decrypt and find it on the cleartext.")
+        # TODO: In this flow we now essentially have two copies of the public key.
+        # One from the actor (first arg) and one from the MessageKit.
+        # Which do we use in which cases?
+
+        # if not signature and not signature_is_on_cleartext:
+            # TODO: Since a signature can now be in a MessageKit, this might not be accurate anymore.
+            # raise ValueError("You need to either provide the Signature or \
+            #                   decrypt and find it on the cleartext.")
 
         cleartext = NO_DECRYPTION_PERFORMED
 
         if signature_is_on_cleartext:
             if decrypt:
-                cleartext_with_sig = self._crypto_power.decrypt(message_kit)
+                cleartext_with_sig = self.decrypt(message_kit)
                 signature, cleartext = BytestringSplitter(Signature)(cleartext_with_sig,
                                                                        return_remainder=True)
                 message_kit.signature = signature  # TODO: Obviously this is the wrong way to do this.  Let's make signature a property.
@@ -227,12 +232,16 @@ class Character(object):
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not \
                      decrypting.")
-            message = message_kit.ciphertext
+            message = cleartext
             alice_pubkey = message_kit.alice_pubkey
         else:
-            # TODO: Decrypt here is decrypt is True.
-            message = message_kit
-            # TODO: Fully deprecate actor lookup flow?
+            # The signature is on the ciphertext.  We might not even need to decrypt it.
+            if decrypt:
+                message = message_kit.ciphertext
+                cleartext = self.decrypt(message_kit)
+                # TODO: Fully deprecate actor lookup flow?
+            else:
+                message = bytes(message_kit)
             alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
 
         return signature.verify(message, alice_pubkey), cleartext
