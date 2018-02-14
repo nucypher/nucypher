@@ -96,7 +96,6 @@ def test_anybody_can_encrypt():
 
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
-    # TODO: Make encrypt_for actually encrypt.
     ciphertext, signature = can_sign_and_encrypt.encrypt_for(ursula, cleartext, sign=False)
     assert signature == NOT_SIGNED
 
