@@ -80,7 +80,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     assert work_orders_from_bob[0] == work_order
 
 
-def test_bob_remember_that_he_has_cfrags_for_a_particular_pfrag(enacted_policy, alice, bob, ursulas, alicebob_side_channel):
+def test_bob_remember_that_he_has_cfrags_for_a_particular_capsule(enacted_policy, alice, bob, ursulas, alicebob_side_channel):
 
     # In our last episode, Bob obtained a cFrag from Ursula.
     bobs_saved_work_order_map = list(bob._saved_work_orders.items())

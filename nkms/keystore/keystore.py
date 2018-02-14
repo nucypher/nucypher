@@ -65,10 +65,7 @@ class KeyStore(object):
                 "No key with fingerprint {} found.".format(fingerprint))
 
         pubkey = UmbralPublicKey.from_bytes(key.key_data, as_b64=False)
-        if key.is_signing:
-            return keypairs.SigningKeypair(pubkey)
-        else:
-            return keypairs.EncryptingKeypair(pubkey)
+        return pubkey
 
     def del_key(self, fingerprint: bytes):
         """
