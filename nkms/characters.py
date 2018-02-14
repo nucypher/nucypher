@@ -37,7 +37,7 @@ class Character(object):
     _server = None
     _server_class = Server
     _default_crypto_powerups = None
-    _stamp = None
+    _seal = None
 
     def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
                  crypto_power_ups=[], is_me=True) -> None:
