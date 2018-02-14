@@ -398,13 +398,12 @@ class Bob(Character):
         
         # TODO: Make this prettier
         _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map =\
-        dht_value_splitter(packed_encrypted_treasure_map[5::])
-        verified, cleartext = self.verify_from(
-            self.alice, encrypted_treasure_map,
+        dht_value_splitter(packed_encrypted_treasure_map[5::], return_remainder=True)
+        tmap_messaage_kit = MessageKit.from_bytes(encrypted_treasure_map)
+        verified, packed_node_list = self.verify_from(
+            self.alice, tmap_messaage_kit,
             signature_is_on_cleartext=True, decrypt=True
         )
-        alices_signature, packed_node_list =\
-                BytestringSplitter(Signature)(cleartext, return_remainder=True)
 
         if not verified:
             return NOT_FROM_ALICE
