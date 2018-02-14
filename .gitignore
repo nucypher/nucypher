@@ -11,3 +11,4 @@ __pycache__
 .coverage
 _temp_test_datastore
 .mypy_cache
+.pytest_cache/
