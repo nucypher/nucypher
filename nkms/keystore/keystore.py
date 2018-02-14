@@ -30,7 +30,8 @@ class KeyStore(object):
 
         :param sqlalchemy_engine: SQLAlchemy engine object to create session
         """
-        self.session = sessionmaker(bind=sqlalchemy_engine)()
+        Session = sessionmaker(bind=sqlalchemy_engine)
+        self.session = Session()
 
     def add_key(self, key, is_signing=True) -> Key:
         """
@@ -38,7 +39,7 @@ class KeyStore(object):
 
         :return: The newly added key object.
         """
-        fingerprint = key.get_fingerprint()
+        fingerprint = key.fingerprint()
         key_data = key.serialize_pubkey()
 
         new_key = Key(fingerprint, key_data, is_signing)
@@ -46,7 +47,6 @@ class KeyStore(object):
         self.session.add(new_key)
         self.session.commit()
         return new_key
-
 
     def get_key(self, fingerprint: bytes) -> Union[keypairs.EncryptingKeypair,
                                                    keypairs.SigningKeypair]:
@@ -67,7 +67,6 @@ class KeyStore(object):
             return keypairs.SigningKeypair(pubkey)
         else:
             return keypairs.EncryptingKeypair(pubkey)
-
 
     def del_key(self, fingerprint: bytes):
         """
@@ -143,5 +142,7 @@ class KeyStore(object):
         """
         Deletes a Workorder from the Keystore.
         """
-        workorders = self.session.query(Workorder).filter_by(hrac=hrac).delete()
+        workorders = self.session.query(Workorder).filter_by(hrac=hrac)
+        deleted = workorders.delete()
         self.session.commit()
+        return deleted

@@ -13,13 +13,13 @@ def test_key_sqlite_keystore(test_keystore):
     test_keystore.add_key(keypair)
 
     # Test get pubkey
-    query_key = test_keystore.get_key(keypair.get_fingerprint())
+    query_key = test_keystore.get_key(keypair.fingerprint())
     assert keypair.serialize_pubkey() == query_key.serialize_pubkey()
 
     # Test del pubkey
-    test_keystore.del_key(keypair.get_fingerprint())
+    test_keystore.del_key(keypair.fingerprint())
     with pytest.raises(keystore.NotFound):
-        del_key = test_keystore.get_key(keypair.get_fingerprint())
+        del_key = test_keystore.get_key(keypair.fingerprint())
 
 
 def test_policy_contract_sqlite_keystore(test_keystore):
@@ -57,9 +57,9 @@ def test_workorder_sqlite_keystore(test_keystore):
 
     # Test get workorder
     query_workorders = test_keystore.get_workorders(hrac)
-    assert set([new_workorder1, new_workorder2]).issubset(query_workorders)
+    assert {new_workorder1, new_workorder2}.issubset(query_workorders)
 
     # Test del workorder
-    test_keystore.del_workorders(hrac)
-    with pytest.raises(keystore.NotFound):
-        del_key = test_keystore.get_workorders(hrac)
+    deleted = test_keystore.del_workorders(hrac)
+    assert deleted > 0
+    assert test_keystore.get_workorders(hrac).count() == 0
