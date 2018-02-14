@@ -80,7 +80,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     assert work_orders_from_bob[0] == work_order
 
 
-def test_bob_remember_that_he_has_cfrags_for_a_particular_pfrag(enacted_policy, alice, bob, ursulas):
+def test_bob_remember_that_he_has_cfrags_for_a_particular_pfrag(enacted_policy, alice, bob, ursulas, alicebob_side_channel):
 
     # In our last episode, Bob obtained a cFrag from Ursula.
     bobs_saved_work_order_map = list(bob._saved_work_orders.items())
@@ -94,15 +94,16 @@ def test_bob_remember_that_he_has_cfrags_for_a_particular_pfrag(enacted_policy, 
     assert len(saved_work_orders) == 1
 
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
-
-    generated_work_order_map = bob.generate_work_orders(enacted_policy.hrac(), enacted_policy.pfrag, num_ursulas=1)
+    # He has the capsule from his side channel with Alice.
+    _ciphertext, capsule = alicebob_side_channel
+    generated_work_order_map = bob.generate_work_orders(enacted_policy.hrac(), capsule, num_ursulas=1)
     id_of_this_new_ursula, new_work_order = list(generated_work_order_map.items())[0]
 
     # This new Ursula isn't the same one to whom we've already issued a WorkOrder.
     assert id_of_ursula_from_whom_we_already_have_a_cfrag != id_of_this_new_ursula
 
-    # ...and, although this WorkOrder has the same pfrags as the saved one...
-    new_work_order.pfrags == saved_work_orders[0].pfrags
+    # ...and, although this WorkOrder has the same capsules as the saved one...
+    new_work_order.capsules == saved_work_orders[0].capsules
 
     # ...it's not the same WorkOrder.
     assert new_work_order not in saved_work_orders
