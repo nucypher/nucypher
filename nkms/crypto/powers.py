@@ -218,10 +218,7 @@ class EncryptingPower(KeyPairBasedPower):
             keys.append((path_priv, path_pub))
         return keys
 
-    def decrypt(
-            self,
-            message_kit: MessageKit,
-    ) -> bytes:
+    def decrypt(self, message_kit: MessageKit) -> bytes:
         cleartext = umbral.umbral.decrypt(message_kit.capsule, self.keypair.privkey,
                               message_kit.ciphertext, message_kit.alice_pubkey)
 
