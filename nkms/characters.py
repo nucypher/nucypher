@@ -244,7 +244,16 @@ class Character(object):
                 message = bytes(message_kit)
             alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
 
-        return signature.verify(message, alice_pubkey), cleartext
+        if signature:
+            is_valid = signature.verify(message, alice_pubkey)
+        else:
+            # Meh, we didn't even get a signature.  Not much we can do.
+            is_valid = False
+
+        return is_valid, cleartext
+
+    def decrypt(self, message_kit):
+        return self._crypto_power.decrypt(message_kit)
 
     def _lookup_actor(self, actor: "Character"):
         try:
