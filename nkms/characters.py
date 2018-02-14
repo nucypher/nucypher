@@ -644,12 +644,14 @@ class Ursula(Character):
         from nkms.policy.models import WorkOrder  # Avoid circular import
         hrac = binascii.unhexlify(hrac_as_hex)
         work_order = WorkOrder.from_rest_payload(hrac, request.body)
-        kfrag = self.keystore.get_kfrag(hrac)  # Careful!  :-)
+        kfrag_bytes = self.keystore.get_policy_contract(hrac.hex().encode()).k_frag  # Careful!  :-)
+        # TODO: Push this to a lower level.
+        kfrag = KFrag.from_bytes(kfrag_bytes)
         cfrag_byte_stream = b""
 
         for capsule in work_order.capsules:
             # TODO: Sign the result of this.  See #141.
-            cfrag_byte_stream += API.ecies_reencrypt(kfrag, capsule.encrypted_key)
+            cfrag_byte_stream += bytes(umbral.umbral.reencrypt(kfrag, capsule))
 
         # TODO: Put this in Ursula's datastore
         self._work_orders.append(work_order)  
@@ -701,8 +703,8 @@ class Seal(object):
     def __len__(self):
         return len(bytes(self))
 
-    def without_metabytes(self):
-        return self.character._crypto_power.pubkey_sig_bytes().without_metabytes()
+    def as_umbral_pubkey(self):
+        return self.character.public_key(SigningPower)
 
     def fingerprint(self):
         """
