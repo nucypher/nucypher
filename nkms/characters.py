@@ -152,8 +152,12 @@ class Character(object):
     def learn_about_actor(self, actor):
         self._actor_mapping[actor.id()] = actor
 
-    def encrypt_for(self, recipient: "Character", plaintext: bytes,
-                    sign: bool=True, sign_cleartext=True) -> tuple:
+    def encrypt_for(self,
+                    recipient: "Character",
+                    plaintext: bytes,
+                    sign: bool=True,
+                    sign_plaintext=True,
+                    ) -> tuple:
         """
         Looks up recipient actor, finds that actor's pubkey_enc on our keyring,
         and encrypts for them. Optionally signs the message as well.
@@ -162,7 +166,7 @@ class Character(object):
             cleartext.
         :param plaintext: The secret to be encrypted.
         :param sign: Whether or not to sign the message.
-        :param sign_cleartext: When signing, the cleartext is signed if this is
+        :param sign_plaintext: When signing, the cleartext is signed if this is
             True,  Otherwise, the resulting ciphertext is signed.
 
         :return: A tuple, (ciphertext, signature).  If sign==False,
@@ -171,14 +175,14 @@ class Character(object):
         actor = self._lookup_actor(recipient)
 
         if sign:
-            if sign_cleartext:
+            if sign_plaintext:
                 signature = self.seal(plaintext)
                 message_kit = self._crypto_power.encrypt_for(
-                        actor.public_key(EncryptingPower), signature + plaintext)
+                    actor.public_key(EncryptingPower), signature + plaintext)
             else:
                 message_kit = self._crypto_power.encrypt_for(
                         actor.public_key(EncryptingPower), plaintext)
-                signature = self.seal(message_kit)
+                signature = self.seal(message_kit.ciphertext)
             message_kit.alice_pubkey = self.public_key(SigningPower)
         else:
             signature = NOT_SIGNED
