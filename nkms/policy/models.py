@@ -82,7 +82,7 @@ class ContractResponse(object):
 
 class Policy(object):
     """
-        An edict by Alice, contracted with n Ursulas, to perform re-encryption for a specific Bob
+    An edict by Alice, contracted with n Ursulas, to perform re-encryption for a specific Bob
     for a specific path.
 
     Once Alice is ready to enact a Policy, she generates KFrags, which become part of the Policy.
@@ -98,7 +98,6 @@ class Policy(object):
                  alices_signature=NOT_SIGNED):
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.
-        :param pfrag: The input ciphertext which Bob will give to Ursula to re-encrypt.
         :param uri: The identity of the resource to which Bob is granted access.
         """
         self.alice = alice
@@ -290,7 +289,7 @@ class WorkOrder(object):
         return len(self.capsules)
 
     @classmethod
-    def constructed_by_bob(cls, kfrag_hrac, capsules, ursula_dht_key, bob):
+    def construct_by_bob(cls, kfrag_hrac, capsules, ursula_dht_key, bob):
         receipt_bytes = b"wo:" + ursula_dht_key  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
         receipt_signature = bob.seal(receipt_bytes)
         return cls(bob, kfrag_hrac, capsules, receipt_bytes, receipt_signature,

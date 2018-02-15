@@ -7,9 +7,10 @@ class Signature(object):
     """
     The Signature object allows signatures to be made and verified.
     """
-    _EXPECTED_LENGTH = 64  # With secp256k1 and BLAKE2b(64).
+    _EXPECTED_LENGTH = 64  # With secp256k1
 
     def __init__(self, r: int, s: int):
+        #  TODO: Sanity check for proper r and s.
         self.r = r
         self.s = s
 

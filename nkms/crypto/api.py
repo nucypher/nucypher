@@ -1,14 +1,11 @@
 from random import SystemRandom
-from typing import Tuple, Union
 
 import sha3
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.exceptions import InvalidSignature
-from py_ecc.secp256k1 import ecdsa_raw_recover
+from cryptography.hazmat.primitives.asymmetric import ec
 
+from nkms.crypto.constants import BLAKE2B
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
-
 
 SYSTEM_RAND = SystemRandom()
 
@@ -46,6 +43,9 @@ def keccak_digest(*messages: bytes) -> bytes:
     Accepts an iterable containing bytes and digests it returning a
     Keccak digest of 32 bytes (keccak_256).
 
+    Although we use BLAKE2b in many cases, we keep keccak handy in order
+    to provide compatibility with the Ethereum blockchain.
+
     :param bytes *messages: Data to hash
 
     :rtype: bytes
@@ -67,7 +67,7 @@ def ecdsa_sign(message: bytes, privkey: UmbralPrivateKey) -> bytes:
     :return: signature
     """
     cryptography_priv_key = privkey.bn_key.to_cryptography_priv_key()
-    signature_der_bytes = cryptography_priv_key.sign(message, ec.ECDSA(hashes.BLAKE2b(64)))
+    signature_der_bytes = cryptography_priv_key.sign(message, ec.ECDSA(BLAKE2B))
     return signature_der_bytes
 
 
@@ -92,7 +92,7 @@ def ecdsa_verify(
         cryptography_pub_key.verify(
             signature,
             message,
-            ec.ECDSA(hashes.BLAKE2b(64))
+            ec.ECDSA(BLAKE2B)
         )
     except InvalidSignature:
         return False

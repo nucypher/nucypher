@@ -1,3 +1,6 @@
+from cryptography.hazmat.primitives import hashes
+BLAKE2B = hashes.BLAKE2b(64)
+
 BLAKE2B_DIGEST_LENGTH = 64
 KECCAK_DIGEST_LENGTH = 32
 

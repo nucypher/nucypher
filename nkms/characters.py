@@ -449,7 +449,7 @@ class Bob(Character):
                     capsules_to_include.append(capsule)
 
             if capsules_to_include:
-                work_order = WorkOrder.constructed_by_bob(
+                work_order = WorkOrder.construct_by_bob(
                         kfrag_hrac, capsules_to_include, ursula_dht_key, self)
                 generated_work_orders[ursula_dht_key] = work_order
 
