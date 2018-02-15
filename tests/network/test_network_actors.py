@@ -6,6 +6,7 @@ import pytest
 
 from kademlia.utils import digest
 from nkms.characters import Ursula, Character
+from nkms.crypto.kits import MessageKit
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 from nkms.network import blockchain_client
@@ -132,7 +133,7 @@ def test_treasure_map_with_bad_id_does_not_propagate(idle_policy, ursulas):
 
     message_kit, signature = alice.encrypt_for(bob, treasure_map.packed_payload())
 
-    setter = alice.server.set(illegal_policygroup_id, bytes(message_kit))
+    setter = alice.server.set(illegal_policygroup_id, message_kit.to_bytes())
     _set_event = EVENT_LOOP.run_until_complete(setter)
 
     with pytest.raises(KeyError):
@@ -148,14 +149,14 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ur
         digest(enacted_policy.treasure_map_dht_key())]
 
     _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
-        treasure_map_as_set_on_network[5::], msgpack_remainder=True)  # 5:: to account for prepended "trmap"
+        treasure_map_as_set_on_network[5::], return_remainder=True)  # 5:: to account for prepended "trmap"
 
-    verified, cleartext = treasure_map_as_decrypted_by_bob = bob.verify_from(alice,
-                                                                 encrypted_treasure_map,
-                                                                 decrypt=True,
-                                                                 signature_is_on_cleartext=True,
-                                                                 )
-    _alices_signature, treasure_map_as_decrypted_by_bob = BytestringSplitter(Signature)(cleartext, return_remainder=True)
+    tmap_message_kit = MessageKit.from_bytes(encrypted_treasure_map)
+    verified, treasure_map_as_decrypted_by_bob = bob.verify_from(alice,
+                                           tmap_message_kit,
+                                           decrypt=True,
+                                           signature_is_on_cleartext=True,
+                                           )
 
     assert treasure_map_as_decrypted_by_bob == enacted_policy.treasure_map.packed_payload()
     assert verified is True

@@ -49,22 +49,12 @@ class CryptoPower(object):
         self._power_ups[power_up_class] = power_up_instance
 
         if power_up.confers_public_key:
-            # TODO: Make this an ID for later lookup on a KeyStore.
             self.public_keys[power_up_class] = power_up_instance.public_key()
 
     def pubkey_sig_bytes(self):
         try:
-            # TODO: Turn this into an ID lookup on a KeyStore.
             pubkey_sig = self._power_ups[SigningPower].public_key()
             return bytes(pubkey_sig)
-        except KeyError:
-            raise NoSigningPower
-
-    def pubkey_sig_tuple(self):
-        try:
-            # TODO: Turn this into an ID lookup on a KeyStore.
-            return API.ecdsa_bytes2pub(self._power_ups[
-                                           SigningPower].pub_key)
         except KeyError:
             raise NoSigningPower
 
@@ -78,15 +68,15 @@ class CryptoPower(object):
             raise NoSigningPower(e)
         return sig_keypair.sign(message)
 
-    def decrypt(self, ciphertext):
+    def decrypt(self, message_kit):
         try:
             encrypting_power = self._power_ups[EncryptingPower]
-            return encrypting_power.decrypt(ciphertext)
+            return encrypting_power.decrypt(message_kit)
         except KeyError:
             raise NoEncryptingPower
 
-    def encrypt_for(self, enc_pubkey, plaintext):
-        ciphertext, capsule = umbral.umbral.encrypt(enc_pubkey, plaintext)
+    def encrypt_for(self, recipient_pubkey_enc, plaintext):
+        ciphertext, capsule = umbral.umbral.encrypt(recipient_pubkey_enc, plaintext)
         return MessageKit(ciphertext=ciphertext, capsule=capsule)
 
 
@@ -228,10 +218,7 @@ class EncryptingPower(KeyPairBasedPower):
             keys.append((path_priv, path_pub))
         return keys
 
-    def decrypt(
-            self,
-            message_kit: MessageKit,
-    ) -> bytes:
+    def decrypt(self, message_kit: MessageKit) -> bytes:
         cleartext = umbral.umbral.decrypt(message_kit.capsule, self.keypair.privkey,
                               message_kit.ciphertext, message_kit.alice_pubkey)
 

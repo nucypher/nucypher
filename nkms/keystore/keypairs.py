@@ -41,14 +41,13 @@ class Keypair(object):
         or as a bytestring.
 
         :param as_bytes: Return the pubkey as bytes?
-
         :return: The serialized pubkey in bytes
         """
         if as_b64:
             return self.pubkey.to_bytes()
         return bytes(self.pubkey)
 
-    def get_fingerprint(self):
+    def fingerprint(self):
         """
         Hashes the key using keccak-256 and returns the hexdigest in bytes.
 

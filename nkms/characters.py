@@ -2,6 +2,7 @@ import asyncio
 import binascii
 from binascii import hexlify
 from logging import getLogger
+from typing import Union
 
 import msgpack
 import requests
@@ -151,8 +152,12 @@ class Character(object):
     def learn_about_actor(self, actor):
         self._actor_mapping[actor.id()] = actor
 
-    def encrypt_for(self, recipient: "Character", plaintext: bytes,
-                    sign: bool=True, sign_cleartext=True) -> tuple:
+    def encrypt_for(self,
+                    recipient: "Character",
+                    plaintext: bytes,
+                    sign: bool=True,
+                    sign_plaintext=True,
+                    ) -> tuple:
         """
         Looks up recipient actor, finds that actor's pubkey_enc on our keyring,
         and encrypts for them. Optionally signs the message as well.
@@ -161,7 +166,7 @@ class Character(object):
             cleartext.
         :param plaintext: The secret to be encrypted.
         :param sign: Whether or not to sign the message.
-        :param sign_cleartext: When signing, the cleartext is signed if this is
+        :param sign_plaintext: When signing, the cleartext is signed if this is
             True,  Otherwise, the resulting ciphertext is signed.
 
         :return: A tuple, (ciphertext, signature).  If sign==False,
@@ -170,14 +175,14 @@ class Character(object):
         actor = self._lookup_actor(recipient)
 
         if sign:
-            if sign_cleartext:
+            if sign_plaintext:
                 signature = self.seal(plaintext)
                 message_kit = self._crypto_power.encrypt_for(
-                        actor.public_key(EncryptingPower), signature + plaintext)
+                    actor.public_key(EncryptingPower), signature + plaintext)
             else:
                 message_kit = self._crypto_power.encrypt_for(
                         actor.public_key(EncryptingPower), plaintext)
-                signature = self.seal(message_kit)
+                signature = self.seal(message_kit.ciphertext)
             message_kit.alice_pubkey = self.public_key(SigningPower)
         else:
             signature = NOT_SIGNED
@@ -187,8 +192,10 @@ class Character(object):
         return message_kit, signature
 
     def verify_from(self,
-                actor_whom_sender_claims_to_be: "Character", message_kit: MessageKit,
-                signature: Signature=None, decrypt=False,
+                actor_whom_sender_claims_to_be: "Character",
+                message_kit: Union[MessageKit, bytes],
+                signature: Signature=None,
+                decrypt=False,
                 signature_is_on_cleartext=False) -> tuple:
         """
         Inverse of encrypt_for.
@@ -204,15 +211,20 @@ class Character(object):
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
         """
-        if not signature and not signature_is_on_cleartext:
-            raise ValueError("You need to either provide the Signature or \
-                              decrypt and find it on the cleartext.")
+        # TODO: In this flow we now essentially have two copies of the public key.
+        # One from the actor (first arg) and one from the MessageKit.
+        # Which do we use in which cases?
+
+        # if not signature and not signature_is_on_cleartext:
+            # TODO: Since a signature can now be in a MessageKit, this might not be accurate anymore.
+            # raise ValueError("You need to either provide the Signature or \
+            #                   decrypt and find it on the cleartext.")
 
         cleartext = NO_DECRYPTION_PERFORMED
 
         if signature_is_on_cleartext:
             if decrypt:
-                cleartext_with_sig = self._crypto_power.decrypt(message_kit)
+                cleartext_with_sig = self.decrypt(message_kit)
                 signature, cleartext = BytestringSplitter(Signature)(cleartext_with_sig,
                                                                        return_remainder=True)
                 message_kit.signature = signature  # TODO: Obviously this is the wrong way to do this.  Let's make signature a property.
@@ -220,15 +232,28 @@ class Character(object):
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not \
                      decrypting.")
-            message = message_kit.ciphertext
+            message = cleartext
             alice_pubkey = message_kit.alice_pubkey
         else:
-            # TODO: Decrypt here is decrypt is True.
-            message = message_kit
-            # TODO: Fully deprecate actor lookup flow?
+            # The signature is on the ciphertext.  We might not even need to decrypt it.
+            if decrypt:
+                message = message_kit.ciphertext
+                cleartext = self.decrypt(message_kit)
+                # TODO: Fully deprecate actor lookup flow?
+            else:
+                message = bytes(message_kit)
             alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
 
-        return signature.verify(message, alice_pubkey), cleartext
+        if signature:
+            is_valid = signature.verify(message, alice_pubkey)
+        else:
+            # Meh, we didn't even get a signature.  Not much we can do.
+            is_valid = False
+
+        return is_valid, cleartext
+
+    def decrypt(self, message_kit):
+        return self._crypto_power.decrypt(message_kit)
 
     def _lookup_actor(self, actor: "Character"):
         try:
@@ -373,15 +398,12 @@ class Bob(Character):
         
         # TODO: Make this prettier
         _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map =\
-        dht_value_splitter(
-            packed_encrypted_treasure_map[5::], msgpack_remainder=True
-        )
-        verified, cleartext = self.verify_from(
-            self.alice, encrypted_treasure_map,
+        dht_value_splitter(packed_encrypted_treasure_map[5::], return_remainder=True)
+        tmap_messaage_kit = MessageKit.from_bytes(encrypted_treasure_map)
+        verified, packed_node_list = self.verify_from(
+            self.alice, tmap_messaage_kit,
             signature_is_on_cleartext=True, decrypt=True
         )
-        alices_signature, packed_node_list =\
-                BytestringSplitter(Signature)(cleartext, return_remainder=True)
 
         if not verified:
             return NOT_FROM_ALICE

@@ -9,6 +9,7 @@ from nkms.keystore.db.models import Key, PolicyContract, Workorder
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
 from . import keypairs
+from nkms.crypto.utils import fingerprint_from_key
 
 
 class NotFound(Exception):
@@ -30,16 +31,17 @@ class KeyStore(object):
 
         :param sqlalchemy_engine: SQLAlchemy engine object to create session
         """
-        self.session = sessionmaker(bind=sqlalchemy_engine)()
+        Session = sessionmaker(bind=sqlalchemy_engine)
+        self.session = Session()
 
     def add_key(self, key, is_signing=True) -> Key:
-
         """
-        :param keypair: Keypair object to store in the keystore.
+        :param key: Keypair object to store in the keystore.
 
         :return: The newly added key object.
         """
-        fingerprint = key.fingerprint()
+
+        fingerprint = fingerprint_from_key(key)
         key_data = bytes(key)
 
         new_key = Key(fingerprint, key_data, is_signing)
@@ -47,7 +49,6 @@ class KeyStore(object):
         self.session.add(new_key)
         self.session.commit()
         return new_key
-
 
     def get_key(self, fingerprint: bytes) -> Union[keypairs.EncryptingKeypair,
                                                    keypairs.SigningKeypair]:
@@ -62,10 +63,9 @@ class KeyStore(object):
         if not key:
             raise NotFound(
                 "No key with fingerprint {} found.".format(fingerprint))
-        if key.is_signing:
-            pubkey = UmbralPublicKey(key.key_data, as_b64=True)
-            return keypairs.SigningKeypair(pubkey)
 
+        pubkey = UmbralPublicKey.from_bytes(key.key_data, as_b64=False)
+        return pubkey
 
     def del_key(self, fingerprint: bytes):
         """
@@ -128,11 +128,11 @@ class KeyStore(object):
         self.session.commit()
         return new_workorder
 
-    def get_workorder(self, hrac: bytes) -> Workorder:
+    def get_workorders(self, hrac: bytes) -> Workorder:
         """
         Returns a list of Workorders by HRAC.
         """
-        workorders = self.session.query(Workorder).filter_by(hrac)
+        workorders = self.session.query(Workorder).filter_by(hrac=hrac)
         if not workorders:
             raise NotFound("No Workorders with {} HRAC found.".format(hrac))
         return workorders
@@ -141,5 +141,7 @@ class KeyStore(object):
         """
         Deletes a Workorder from the Keystore.
         """
-        self.session.query(Workorder).filter_by(hrac=hrac).delete()
+        workorders = self.session.query(Workorder).filter_by(hrac=hrac)
+        deleted = workorders.delete()
         self.session.commit()
+        return deleted

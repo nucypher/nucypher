@@ -43,7 +43,7 @@ def test_keypair_fingerprint():
     umbral_pubkey = UmbralPrivateKey.gen_key().get_pubkey()
     new_keypair = keypairs.Keypair(umbral_pubkey)
 
-    fingerprint = new_keypair.get_fingerprint()
+    fingerprint = new_keypair.fingerprint()
     assert fingerprint != None
 
     umbral_fingerprint = sha3.keccak_256(bytes(umbral_pubkey)).hexdigest().encode()

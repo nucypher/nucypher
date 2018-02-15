@@ -13,9 +13,7 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 SYSTEM_RAND = SystemRandom()
 
 
-def secure_random(
-        num_bytes: int
-) -> bytes:
+def secure_random(num_bytes: int) -> bytes:
     """
     Returns an amount `num_bytes` of data from the OS's random device.
     If a randomness source isn't found, returns a `NotImplementedError`.
@@ -27,14 +25,10 @@ def secure_random(
     :return: bytes
     """
     # TODO: Should we just use os.urandom or avoid the import w/ this?
-    return SYSTEM_RAND.getrandbits(num_bytes * 8).to_bytes(num_bytes,
-                                                           byteorder='big')
+    return SYSTEM_RAND.getrandbits(num_bytes * 8).to_bytes(num_bytes, byteorder='big')
 
 
-def secure_random_range(
-        min: int,
-        max: int
-) -> int:
+def secure_random_range(min: int, max: int) -> int:
     """
     Returns a number from a secure random source betwee the range of
     `min` and `max` - 1.
@@ -47,9 +41,7 @@ def secure_random_range(
     return SYSTEM_RAND.randrange(min, max)
 
 
-def keccak_digest(
-        *messages: bytes
-) -> bytes:
+def keccak_digest(*messages: bytes) -> bytes:
     """
     Accepts an iterable containing bytes and digests it returning a
     Keccak digest of 32 bytes (keccak_256).

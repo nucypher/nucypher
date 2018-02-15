@@ -184,7 +184,7 @@ class Policy(object):
 
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
-        dht_value = signature_for_ursula + self.alice.seal + self.hrac() + bytes(tmap_message_kit)
+        dht_value = signature_for_ursula + self.alice.seal + self.hrac() + tmap_message_kit.to_bytes()
         dht_key = self.treasure_map_dht_key()
 
         setter = self.alice.server.set(dht_key, b"trmap" + dht_value)
@@ -197,7 +197,7 @@ class Policy(object):
             policy_message_kit = contract.encrypt_payload_for_ursula()
             response = networky_stuff.enact_policy(contract.ursula,
                                                    self.hrac(),
-                                                   bytes(policy_message_kit))
+                                                   policy_message_kit.to_bytes())
             # TODO: Parse response for confirmation.
             response
 
