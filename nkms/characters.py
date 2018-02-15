@@ -15,6 +15,7 @@ from kademlia.utils import digest
 from sqlalchemy.exc import IntegrityError
 
 from nkms.crypto.kits import MessageKit
+from nkms.network.constants import BYTESTRING_IS_URSULA_IFACE_INFO
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
 import umbral
@@ -377,8 +378,8 @@ class Bob(Character):
             value = loop.run_until_complete(getter)
             
             # TODO: Make this much prettier
-            signature, ursula_pubkey_sig, hrac, (port, interface, ttl) =\
-            dht_value_splitter(value.lstrip(b"uaddr"), msgpack_remainder=True)
+            signature, ursula_pubkey_sig, _hrac, (port, interface, ttl) =\
+            dht_value_splitter(value[2::], msgpack_remainder=True)  # 2 to account for header.
 
             # TODO: If we're going to implement TTL, it will be here.
             self._ursulas[ursula_interface_id] =\
@@ -398,7 +399,7 @@ class Bob(Character):
         
         # TODO: Make this prettier
         _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map =\
-        dht_value_splitter(packed_encrypted_treasure_map[5::], return_remainder=True)
+        dht_value_splitter(packed_encrypted_treasure_map[2::], return_remainder=True)
         tmap_messaage_kit = MessageKit.from_bytes(encrypted_treasure_map)
         verified, packed_node_list = self.verify_from(
             self.alice, tmap_messaage_kit,
@@ -554,7 +555,7 @@ class Ursula(Character):
     def interface_dht_value(self):
         signature = self.seal(self.interface_hrac())
         return (
-            b"uaddr" + signature + self.seal + self.interface_hrac()
+            BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.seal + self.interface_hrac()
             + msgpack.dumps(self.dht_interface_info())
         )
 

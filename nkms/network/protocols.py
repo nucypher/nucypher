@@ -6,7 +6,8 @@ from nkms.crypto.api import keccak_digest
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
-from nkms.network.constants import NODE_HAS_NO_STORAGE
+from nkms.network.constants import NODE_HAS_NO_STORAGE, BYTESTRING_IS_URSULA_IFACE_INFO, \
+    BYTESTRING_IS_TREASURE_MAP
 from nkms.network.node import NuCypherNode
 from nkms.network.routing import NuCypherRoutingTable
 from umbral.keys import UmbralPublicKey
@@ -66,9 +67,9 @@ class NuCypherHashProtocol(KademliaProtocol):
         self.welcomeIfNewNode(source)
         self.log.debug("got a store request from %s" % str(sender))
 
-        if value.startswith(b"uaddr") or value.startswith(b"trmap"):
+        if value.startswith(BYTESTRING_IS_URSULA_IFACE_INFO) or value.startswith(BYTESTRING_IS_TREASURE_MAP):
             signature, sender_pubkey_sig, hrac, message = dht_value_splitter(
-                value[5::], return_remainder=True)
+                value[2::], return_remainder=True)
 
             # extra_info is a hash of the policy_group.id in the case of a treasure map, or a TTL in the case
             # of an Ursula interface.  TODO: Decide whether to keep this notion and, if so, use the TTL.
