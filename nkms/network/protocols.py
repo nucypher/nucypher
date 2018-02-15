@@ -6,12 +6,14 @@ from nkms.crypto.api import keccak_digest
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
-from nkms.network.constants import NODE_HAS_NO_STORAGE
+from nkms.network.constants import NODE_HAS_NO_STORAGE, BYTESTRING_IS_URSULA_IFACE_INFO, \
+    BYTESTRING_IS_TREASURE_MAP, DHT_VALUE_HEADER_LENGTH
 from nkms.network.node import NuCypherNode
 from nkms.network.routing import NuCypherRoutingTable
 from umbral.keys import UmbralPublicKey
 
-dht_value_splitter = BytestringSplitter(Signature, (UmbralPublicKey, PUBLIC_KEY_LENGTH, {"as_b64": False}),
+dht_value_splitter = BytestringSplitter((bytes, DHT_VALUE_HEADER_LENGTH), Signature,
+                                        (UmbralPublicKey, PUBLIC_KEY_LENGTH, {"as_b64": False}),
                                         (bytes, KECCAK_DIGEST_LENGTH))
 
 
@@ -66,12 +68,12 @@ class NuCypherHashProtocol(KademliaProtocol):
         self.welcomeIfNewNode(source)
         self.log.debug("got a store request from %s" % str(sender))
 
-        if value.startswith(b"uaddr") or value.startswith(b"trmap"):
-            signature, sender_pubkey_sig, hrac, message = dht_value_splitter(
-                value[5::], return_remainder=True)
+        if value.startswith(BYTESTRING_IS_URSULA_IFACE_INFO) or value.startswith(
+                BYTESTRING_IS_TREASURE_MAP):
+            header, signature, sender_pubkey_sig, hrac, message = dht_value_splitter(
+                value, return_remainder=True)
 
-            # extra_info is a hash of the policy_group.id in the case of a treasure map, or a TTL in the case
-            # of an Ursula interface.  TODO: Decide whether to keep this notion and, if so, use the TTL.
+            # TODO: TTL?
             do_store = self.determine_legality_of_dht_key(signature,
                                                           sender_pubkey_sig,
                                                           message, hrac, key,

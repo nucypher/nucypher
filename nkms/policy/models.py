@@ -12,6 +12,7 @@ from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import key_splitter
 from nkms.crypto.utils import BytestringSplitter
+from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP
 from umbral.keys import UmbralPublicKey
 from umbral.umbral import Capsule
 
@@ -91,6 +92,7 @@ class Policy(object):
     Once Alice has secured agreement with n Ursulas to enact a Policy, she sends each a KFrag,
     and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
     """
+    _ursula = None
 
     def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), uri=None,
                  alices_signature=NOT_SIGNED):
@@ -187,7 +189,7 @@ class Policy(object):
         dht_value = signature_for_ursula + self.alice.seal + self.hrac() + tmap_message_kit.to_bytes()
         dht_key = self.treasure_map_dht_key()
 
-        setter = self.alice.server.set(dht_key, b"trmap" + dht_value)
+        setter = self.alice.server.set(dht_key, BYTESTRING_IS_TREASURE_MAP + dht_value)
         event_loop = asyncio.get_event_loop()
         event_loop.run_until_complete(setter)
         return tmap_message_kit, dht_value, signature_for_bob, signature_for_ursula
