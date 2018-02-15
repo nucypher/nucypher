@@ -10,7 +10,8 @@ from nkms.crypto.kits import MessageKit
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 from nkms.network import blockchain_client
-from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP
+from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP, DHT_VALUE_HEADER_LENGTH, \
+    BYTESTRING_IS_URSULA_IFACE_INFO
 from nkms.network.protocols import dht_value_splitter
 from nkms.policy.models import Policy, Contract
 from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
@@ -95,8 +96,10 @@ def test_alice_finds_ursula(alice, ursulas):
     getter = alice.server.get(all_ursulas[ursula_index])
     loop = asyncio.get_event_loop()
     value = loop.run_until_complete(getter)
-    _signature, _ursula_pubkey_sig, _hrac, interface_info = dht_value_splitter(value[2::],
+    header, _signature, _ursula_pubkey_sig, _hrac, interface_info = dht_value_splitter(value,
                                                                                return_remainder=True)
+
+    assert header == BYTESTRING_IS_URSULA_IFACE_INFO
     port = msgpack.loads(interface_info)[0]
     assert port == URSULA_PORT + ursula_index
 
@@ -149,8 +152,10 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ur
     treasure_map_as_set_on_network = ursulas[0].server.storage[
         digest(enacted_policy.treasure_map_dht_key())]
 
-    _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
-        treasure_map_as_set_on_network[2::], return_remainder=True)  # 2 to account for header.
+    header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
+        treasure_map_as_set_on_network, return_remainder=True)
+
+    assert header == BYTESTRING_IS_TREASURE_MAP
 
     tmap_message_kit = MessageKit.from_bytes(encrypted_treasure_map)
     verified, treasure_map_as_decrypted_by_bob = bob.verify_from(alice,
@@ -188,8 +193,9 @@ def test_treaure_map_is_legit(enacted_policy):
         getter = alice.server.get(ursula_interface_id)
         loop = asyncio.get_event_loop()
         value = loop.run_until_complete(getter)
-        signature, ursula_pubkey_sig, hrac, interface_info = dht_value_splitter(value[2::],
+        header, signature, ursula_pubkey_sig, hrac, interface_info = dht_value_splitter(value,
                                                                                 return_remainder=True)
+        assert header == BYTESTRING_IS_URSULA_IFACE_INFO
         port = msgpack.loads(interface_info)[0]
         legal_ports = range(NUMBER_OF_URSULAS_IN_NETWORK, NUMBER_OF_URSULAS_IN_NETWORK + URSULA_PORT)
         assert port in legal_ports
