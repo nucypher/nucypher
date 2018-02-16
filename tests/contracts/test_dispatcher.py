@@ -17,9 +17,9 @@ def test_dispatcher(web3, chain):
     contract_interface = chain.provider.get_base_contract_factory('ContractInterface')
 
     # Deploy contracts and dispatcher for them
-    contract1_lib, _ = chain.provider.get_or_deploy_contract('ContractV1')
-    contract2_lib, _ = chain.provider.get_or_deploy_contract('ContractV2')
-    contract3_lib, _ = chain.provider.get_or_deploy_contract('ContractV3')
+    contract1_lib, _ = chain.provider.get_or_deploy_contract('ContractV1', deploy_args=[1])
+    contract2_lib, _ = chain.provider.get_or_deploy_contract('ContractV2', deploy_args=[1])
+    contract3_lib, _ = chain.provider.get_or_deploy_contract('ContractV3', deploy_args=[2])
     contract2_bad_lib, _ = chain.provider.get_or_deploy_contract('ContractV2Bad')
     dispatcher, _ = chain.provider.get_or_deploy_contract(
             'Dispatcher', deploy_args=[contract1_lib.address],
@@ -40,6 +40,7 @@ def test_dispatcher(web3, chain):
     assert dispatcher.call().target().lower() == contract1_lib.address.lower()
 
     # Check values before upgrade
+    assert contract_instance.call().getStorageValue() == 1
     assert contract_instance.call().returnValue() == 10
     tx = contract_instance.transact().setStorageValue(5)
     chain.wait.for_receipt(tx)
@@ -115,7 +116,8 @@ def test_dispatcher(web3, chain):
         dispatcher.address,
         ContractFactoryClass=PopulusContract)
 
-    # Check new method
+    # Check new method and finish upgrade method
+    assert contract_instance.call().storageValueToCheck() == 1
     tx = contract_instance.transact().setStructureValueToCheck2(0, 55)
     chain.wait.for_receipt(tx)
     assert contract_instance.call().getStructureValueToCheck2(0) == 55
@@ -178,3 +180,4 @@ def test_dispatcher(web3, chain):
     assert contract_instance.call().getStructureArrayValue2(0, 0) == 12
     assert contract_instance.call().getStructureArrayValue2(0, 1) == 13
     assert contract_instance.call().getStructureValueToCheck2(0) == 55
+    assert contract_instance.call().storageValueToCheck() == 2

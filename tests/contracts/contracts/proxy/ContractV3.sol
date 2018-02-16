@@ -8,6 +8,11 @@ contract ContractV3 is ContractV2 {
 
     uint public anotherStorageValue;
 
+    function ContractV3(uint _storageValueToCheck)
+        ContractV2(_storageValueToCheck)
+    {
+    }
+
     function setAnotherStorageValue(uint value) public {
         anotherStorageValue = value * 2;
     }
@@ -16,7 +21,7 @@ contract ContractV3 is ContractV2 {
         return storageValue;
     }
 
-    function verifyState(address testTarget) public {
+    function verifyState(address testTarget) public constant {
         super.verifyState(testTarget);
         require(uint(delegateGet(testTarget, "anotherStorageValue()")) == anotherStorageValue);
     }

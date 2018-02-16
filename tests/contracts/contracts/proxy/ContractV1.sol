@@ -37,6 +37,10 @@ contract ContractV1 is ContractInterface, Upgradeable {
     mapping (uint => Structure2) public mappingStructures;
     uint public mappingStructuresLength;
 
+    function ContractV1(uint _storageValue) {
+        storageValue = _storageValue;
+    }
+
     function returnValue() public constant returns (uint) {
         return 10;
     }
@@ -118,7 +122,7 @@ contract ContractV1 is ContractInterface, Upgradeable {
         return mappingStructures[index].arrayValues[arrayIndex];
     }
 
-    function verifyState(address testTarget) public {
+    function verifyState(address testTarget) public constant {
         require(uint(delegateGet(testTarget, "storageValue()")) == storageValue);
         //TODO uncomment after fixing return size
 //        require(address(delegateGet(testTarget, "dynamicallySizedValue()")) == owner);
@@ -159,6 +163,10 @@ contract ContractV1 is ContractInterface, Upgradeable {
                     mappingStructures[i].arrayValues[j]);
             }
         }
+    }
+
+    function finishUpgrade(address _target) onlyOwner public {
+        storageValue = ContractV1(_target).storageValue();
     }
 
 }

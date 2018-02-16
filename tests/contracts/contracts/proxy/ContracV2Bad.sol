@@ -81,8 +81,7 @@ contract ContractV2Bad is ContractInterface, Upgradeable {
         return mappingStructures[index].arrayValues[arrayIndex];
     }
 
-
-
-    function verifyState(address testTarget) public {}
+    function verifyState(address testTarget) public constant {}
+    function finishUpgrade(address _target) onlyOwner public {}
 
 }
