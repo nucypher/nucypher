@@ -179,27 +179,6 @@ class EncryptingPower(KeyPairBasedPower):
         enc_key = API.symm_encrypt(symm_key, key)
         return (enc_key, enc_symm_key)
 
-    def _decrypt_key(
-            self,
-            enc_key: bytes,
-            enc_symm_key: bytes,
-            privkey: bytes = None
-    ) -> bytes:
-        """
-        Decrypts the encapsulated `enc_key` with the `privkey`, if provided.
-        If `privkey` is None, then it uses `self.priv_key`.
-
-        :param enc_key: ECIES encapsulated key
-        :param enc_symm_key: Symmetrically encrypted key
-        :param privkey: Private key to decrypt with (if provided)
-
-        :return: Decrypted key
-        """
-        privkey = privkey or self.priv_key
-
-        dec_symm_key = API.ecies_decapsulate(privkey)
-        return API.symm_decrypt(dec_symm_key, enc_symm_key)
-
     def gen_path_keys(
             self,
             path: bytes
