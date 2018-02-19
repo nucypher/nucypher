@@ -44,8 +44,6 @@ class BytestringSplitter(object):
                     message_type_tuple = message_type,
                     self.message_types.append(message_type_tuple)
 
-
-
     def __call__(self, splittable, return_remainder=False, msgpack_remainder=False):
         if not any((return_remainder, msgpack_remainder)) and len(self) != len(splittable):
             raise ValueError(

@@ -280,10 +280,10 @@ class WorkOrder(object):
         self.ursula_id = ursula_id  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
 
     def __repr__(self):
-        return "WorkOrder (capsules: {}) {} for {}".format(
-            [binascii.hexlify(bytes(p))[:6] for p in self.capsules],
-            binascii.hexlify(self.receipt_bytes)[:6],
-            binascii.hexlify(self.ursula_id)[:6])
+        return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for {ursulas}".format(
+            hrac=self.kfrag_hrac.hex()[:6],
+            capsule_bytes=[binascii.hexlify(bytes(cap))[:6] for cap in self.capsules],
+            ursulas=binascii.hexlify(bytes(self.ursula_id))[:6])
 
     def __eq__(self, other):
         return (self.receipt_bytes, self.receipt_signature) == (
