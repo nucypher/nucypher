@@ -1,90 +1,65 @@
-import unittest
-from nkms.crypto import api as API
+import pytest
+import sha3
 from nkms.keystore import keypairs
-from nkms.keystore.keypairs import PublicKey
+from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
 
-class TestKeypairs(unittest.TestCase):
-    def setUp(self):
-        self.ecies_keypair = keypairs.EncryptingKeypair()
-        self.ecdsa_keypair = keypairs.SigningKeypair()
+def test_gen_keypair_if_needed():
+    new_enc_keypair = keypairs.EncryptingKeypair()
+    assert new_enc_keypair.privkey != None
+    assert new_enc_keypair.pubkey != None
 
-    def test_ecies_keypair_generation(self):
-        self.ecies_keypair.gen_privkey()
+    new_sig_keypair = keypairs.SigningKeypair()
+    assert new_sig_keypair.privkey != None
+    assert new_sig_keypair.pubkey != None
 
-        self.assertTrue(self.ecies_keypair.privkey is not None)
-        self.assertEqual(bytes, type(self.ecies_keypair.privkey))
-        self.assertEqual(32, len(self.ecies_keypair.privkey))
 
-        self.assertTrue(self.ecies_keypair.pubkey is not None)
-        self.assertEqual(bytes, type(self.ecies_keypair.pubkey))
-        self.assertEqual(33, len(self.ecies_keypair.pubkey))
+def test_keypair_with_umbral_keys():
+    umbral_privkey = UmbralPrivateKey.gen_key()
+    umbral_pubkey = umbral_privkey.get_pubkey()
 
-    def test_ecdsa_keypair_generation(self):
-        self.ecdsa_keypair.gen_privkey()
+    new_keypair_from_priv = keypairs.Keypair(umbral_privkey)
+    assert new_keypair_from_priv.privkey.bn_key.to_bytes() == umbral_privkey.bn_key.to_bytes()
+    assert new_keypair_from_priv.pubkey.to_bytes() == umbral_pubkey.to_bytes()
 
-        self.assertTrue(self.ecdsa_keypair.privkey is not None)
-        self.assertEqual(bytes, type(self.ecdsa_keypair.privkey))
-        self.assertEqual(32, len(self.ecdsa_keypair.privkey))
+    new_keypair_from_pub = keypairs.Keypair(umbral_pubkey)
+    assert new_keypair_from_pub.pubkey.to_bytes() == umbral_pubkey.to_bytes()
+    with pytest.raises(AttributeError):
+        new_keypair_from_pub.privkey
 
-        self.assertTrue(self.ecdsa_keypair.pubkey is not None)
-        self.assertEqual(PublicKey._EXPECTED_LENGTH, len(self.ecdsa_keypair.pubkey))
 
-    def test_ecdsa_keypair_signing(self):
-        msghash = API.keccak_digest(b'hello world!')
+def test_keypair_serialization():
+    umbral_pubkey = UmbralPrivateKey.gen_key().get_pubkey()
+    new_keypair = keypairs.Keypair(umbral_pubkey)
 
-        sig = self.ecdsa_keypair.sign(msghash)
-        self.assertEqual(bytes, type(sig))
-        self.assertEqual(65, len(sig))
+    pubkey_bytes = new_keypair.serialize_pubkey()
+    assert pubkey_bytes == bytes(umbral_pubkey)
 
-    def test_key_serialization(self):
-        ser_key = self.ecdsa_keypair.serialize_privkey()
-        self.assertEqual(34, len(ser_key))
+    pubkey_b64 = new_keypair.serialize_pubkey(as_b64=True)
+    assert pubkey_b64 == umbral_pubkey.to_bytes()
 
-        deser_key = keypairs.Keypair.deserialize_key(ser_key)
-        self.assertEqual(keypairs.SigningKeypair, type(deser_key))
-        self.assertEqual(self.ecdsa_keypair.privkey, deser_key.privkey)
 
-    def test_ecdsa_keypair_verification(self):
-        msghash = API.keccak_digest(b'hello world!')
+def test_keypair_fingerprint():
+    umbral_pubkey = UmbralPrivateKey.gen_key().get_pubkey()
+    new_keypair = keypairs.Keypair(umbral_pubkey)
 
-        sig = self.ecdsa_keypair.sign(msghash)
-        self.assertEqual(bytes, type(sig))
-        self.assertEqual(65, len(sig))
+    fingerprint = new_keypair.fingerprint()
+    assert fingerprint != None
 
-        is_valid = self.ecdsa_keypair.verify(msghash, sig)
-        self.assertTrue(is_valid)
+    umbral_fingerprint = sha3.keccak_256(bytes(umbral_pubkey)).hexdigest().encode()
+    assert fingerprint == umbral_fingerprint
 
-    def test_keypair_object(self):
-        # Test both keys
-        keypair = keypairs.SigningKeypair(self.ecdsa_keypair.privkey,
-                                          self.ecdsa_keypair.pubkey)
-        self.assertTrue(keypair.public_only is False)
 
-        self.assertEqual(bytes, type(keypair.privkey))
-        self.assertEqual(32, len(keypair.privkey))
+def test_signing():
+    umbral_privkey = UmbralPrivateKey.gen_key()
+    sig_keypair = keypairs.SigningKeypair(umbral_privkey)
 
-        self.assertEqual(PublicKey._EXPECTED_LENGTH, len(keypair.pubkey))
+    msg = b'attack at dawn'
+    signature = sig_keypair.sign(msg)
+    assert signature.verify(msg, sig_keypair.pubkey) == True
 
-        # Test no keys (key generation)
-        keypair = keypairs.SigningKeypair()
-        self.assertTrue(keypair.public_only is False)
+    bad_msg = b'bad message'
+    assert signature.verify(bad_msg, sig_keypair.pubkey) == False
 
-        self.assertEqual(bytes, type(keypair.privkey))
-        self.assertEqual(32, len(keypair.privkey))
 
-        self.assertEqual(PublicKey._EXPECTED_LENGTH, len(keypair.pubkey))
-
-        # Test privkey only
-        keypair = keypairs.SigningKeypair(privkey=self.ecdsa_keypair.privkey)
-        self.assertTrue(keypair.public_only is False)
-
-        self.assertEqual(bytes, type(keypair.privkey))
-        self.assertEqual(32, len(keypair.privkey))
-        self.assertEqual(PublicKey._EXPECTED_LENGTH, len(keypair.pubkey))
-
-        # Test pubkey only
-        keypair = keypairs.SigningKeypair(pubkey=self.ecdsa_keypair.pubkey)
-        self.assertTrue(keypair.public_only is True)
-
-        self.assertEqual(PublicKey._EXPECTED_LENGTH, len(keypair.pubkey))
+# TODO: Add test for EncryptingKeypair.decrypt

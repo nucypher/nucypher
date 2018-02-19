@@ -1,57 +1,60 @@
 from nkms.crypto import api as API
-from nkms.keystore.keypairs import PublicKey
+from umbral.keys import UmbralPublicKey
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature, encode_dss_signature
 
 
-class Signature(bytes):
+class Signature(object):
     """
     The Signature object allows signatures to be made and verified.
     """
-    _EXPECTED_LENGTH = 65
+    _EXPECTED_LENGTH = 64  # With secp256k1
 
-    def __init__(self, sig_as_bytes: bytes=None, v: int=None, r: int=None, s: int=None):
-        """
-        Initializes a Signature object.
-
-        :param v: V param of signature
-        :param r: R param of signature
-        :param s: S param of signature
-
-        :return: Signature object
-        """
-        if sig_as_bytes and any((v, r, s)):
-            raise ValueError("Pass *either* sig_as_bytes *or* v, r, and s - don't pass both.")
-        if not any ((sig_as_bytes, v, r, s)):
-            raise ValueError("Pass either sig_as_bytes or v, r, and s.")
-
-        if sig_as_bytes:
-            if not len(sig_as_bytes) == self._EXPECTED_LENGTH:
-                raise ValueError("{} must be {} bytes.".format(self.__class__.__name__, self._EXPECTED_LENGTH))
-            v, r, s = API.ecdsa_load_sig(sig_as_bytes)
-
-        self._v = v
-        self._r = r
-        self._s = s
+    def __init__(self, r: int, s: int):
+        #  TODO: Sanity check for proper r and s.
+        self.r = r
+        self.s = s
 
     def __repr__(self):
-        return "{} v{}: {} - {}".format(__class__.__name__, self._v, self._r, self._s)
+        return "ECDSA Signature: {}".format(bytes(self).hex()[:15])
 
-    def verify(self, message: bytes, pubkey: PublicKey) -> bool:
+    def verify(self, message: bytes, pubkey: UmbralPublicKey) -> bool:
         """
         Verifies that a message's signature was valid.
 
         :param message: The message to verify
-        :param pubkey: Pubkey of the signer
+        :param pubkey: UmbralPublicKey of the signer
 
         :return: True if valid, False if invalid
         """
-        if not len(pubkey) == PublicKey._EXPECTED_LENGTH:
-            raise TypeError("Need a PublicKey of {} bytes to verify - got {}.".format(PublicKey._EXPECTED_LENGTH, len(pubkey)))
-        msg_digest = API.keccak_digest(message)
-        return API.ecdsa_verify(self._v, self._r, self._s, msg_digest, pubkey.without_metabytes())
+        return API.ecdsa_verify(message, self._der_encoded_bytes(), pubkey)
+
+    @classmethod
+    def from_bytes(cls, signature_as_bytes, der_encoded=False):
+        if der_encoded:
+            r, s = decode_dss_signature(signature_as_bytes)
+        else:
+            if not len(signature_as_bytes) == 64:
+                raise ValueError("Looking for exactly 64 bytes if you call from_bytes with der_encoded=False.")
+            else:
+                r = int.from_bytes(signature_as_bytes[:32], "big")
+                s = int.from_bytes(signature_as_bytes[32:], "big")
+        return cls(r, s)
+
+    def _der_encoded_bytes(self):
+        return encode_dss_signature(self.r, self.s)
 
     def __bytes__(self):
-        """
-        Implements the __bytes__ call for Signature to transform into a
-        transportable mode.
-        """
-        return API.ecdsa_gen_sig(self._v, self._r, self._s)
+        return self.r.to_bytes(32, "big") + self.s.to_bytes(32, "big")
+
+    def __len__(self):
+        return len(bytes(self))
+
+    def __add__(self, other):
+        return bytes(self) + other
+
+    def __radd__(self, other):
+        return other + bytes(self)
+
+    def __eq__(self, other):
+        # TODO: Consider constant time
+        return bytes(self) == bytes(other) or self._der_encoded_bytes() == other

@@ -4,7 +4,7 @@ from nkms.characters import Alice, Ursula, Character
 from nkms.crypto import api
 from nkms.crypto.constants import NOT_SIGNED
 from nkms.crypto.constants import NO_DECRYPTION_PERFORMED
-from nkms.crypto.powers import CryptoPower, SigningPower, NoSigningPower, NoEncryptingPower, \
+from nkms.crypto.powers import CryptoPower, SigningPower, NoSigningPower, \
     EncryptingPower
 
 """
@@ -46,8 +46,9 @@ def test_actor_with_signing_power_can_sign():
     signature = seal_of_the_signer(message)
 
     # ...or to get the signer's public key for verification purposes.
-    sig = api.ecdsa_load_sig(bytes(signature))
-    verification = api.ecdsa_verify(*sig, api.keccak_digest(message), seal_of_the_signer.without_metabytes())
+    # (note: we use the private _der_encoded_bytes here to test directly against the API, instead of Character)
+    verification = api.ecdsa_verify(message, signature._der_encoded_bytes(),
+                                    seal_of_the_signer.as_umbral_pubkey())
 
     assert verification is True
 
@@ -75,42 +76,14 @@ def test_anybody_can_verify():
     assert verification is True
     assert cleartext is NO_DECRYPTION_PERFORMED
 
-    # If we pass the signature and message backwards, we get TypeError.
-    # with pytest.raises(TypeError):
-    #    verification = somebody.verify_from(alice, message, signature)
-
-
 """
 Chapter 2: ENCRYPTION
 """
 
 
-def test_signing_only_power_cannot_encrypt():
+def test_anybody_can_encrypt():
     """
-    Similar to the above with signing, here we show that a Character without the EncryptingKeypair
-    PowerUp can't encrypt.
-    """
-
-    # Here's somebody who can sign but not encrypt.
-    can_sign_but_not_encrypt = Character(crypto_power_ups=[SigningPower])
-
-    # ..and here's Ursula, for whom our Character above wants to encrypt.
-    ursula = Ursula()
-
-    # They meet.
-    can_sign_but_not_encrypt.learn_about_actor(ursula)
-
-    # The Character has the message ready...
-    cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
-
-    # But without the proper PowerUp, no encryption happens.
-    with pytest.raises(NoEncryptingPower) as e_info:
-        can_sign_but_not_encrypt.encrypt_for(ursula, cleartext)
-
-
-def test_character_with_encrypting_power_can_encrypt():
-    """
-    Now, a Character *with* EncryptingKeyPair can encrypt.
+    Similar to anybody_can_verify() above; we show that anybody can encrypt.
     """
     can_sign_and_encrypt = Character(crypto_power_ups=[SigningPower, EncryptingPower])
     ursula = Ursula()
@@ -118,8 +91,64 @@ def test_character_with_encrypting_power_can_encrypt():
 
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
-    # TODO: Make encrypt_for actually encrypt.
     ciphertext, signature = can_sign_and_encrypt.encrypt_for(ursula, cleartext, sign=False)
     assert signature == NOT_SIGNED
 
     assert ciphertext is not None
+
+"""
+What follows are various combinations of signing and encrypting, to match real-world scenarios.
+"""
+
+def test_sign_cleartext_and_encrypt(alice, bob):
+    """
+    Exhibit One: Alice signs the cleartext and encrypts her signature inside the ciphertext.
+    """
+    message = b"Have you accepted my answer on StackOverflow yet?"
+
+    message_kit, _signature = alice.encrypt_for(bob, message, sign_plaintext=True)
+
+    # Notice that our function still returns the signature here, in case Alice wants to do something
+    # else with it, such as post it publicly for later public verifiability.
+
+    # However, we can expressly refrain from passing the Signature, and the verification still works:
+    verified, cleartext = bob.verify_from(alice, message_kit, signature=None, decrypt=True,
+                                          signature_is_on_cleartext=True)
+    assert verified
+    assert cleartext == message
+
+
+def test_encrypt_and_sign_the_ciphertext(alice, bob):
+    """
+    Now, Alice encrypts first and then signs the ciphertext, providing a Signature that is
+    completely separate from the message.
+    This is useful in a scenario in which Bob needs to prove authenticity publicly
+    without disclosing contents.
+    """
+    message = b"We have a reaaall problem."
+    message_kit, signature = alice.encrypt_for(bob, message, sign_plaintext=False)
+    verified, cleartext = bob.verify_from(alice, message_kit, signature,
+                                          signature_is_on_cleartext=False, decrypt=True)
+    assert verified
+    assert cleartext == message
+
+
+def test_encrypt_but_do_not_sign(alice, bob):
+    message = b"If Bonnie comes home and finds an unencrypted private key in her keystore, I'm gonna get divorced."
+
+    # Alice might also want to encrypt a message but *not* sign it, in order to refrain
+    # from creating evidence that can prove she was the original sender.
+    message_kit, not_signature = alice.encrypt_for(bob, message, sign=False)
+
+    # The message is not signed...
+    assert not_signature == NOT_SIGNED
+
+    verified, cleartext = bob.verify_from(alice, message_kit, decrypt=True)
+
+    # ...and thus, the message is not verified.
+    assert cleartext == message
+
+    # However, the message was properly decrypted.
+    assert message == cleartext
+
+

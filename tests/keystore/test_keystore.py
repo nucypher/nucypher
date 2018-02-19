@@ -1,99 +1,64 @@
-import unittest
-import sha3
-from sqlalchemy import create_engine
+import pytest
 
-from nkms.crypto.fragments import KFrag
-from nkms.keystore.db import Base
+from datetime import datetime
 from nkms.keystore import keystore, keypairs
-from npre.umbral import RekeyFrag
 from nkms.crypto import api as API
+from umbral.keys import UmbralPrivateKey
 
 
-class TestKeyStore(unittest.TestCase):
-    def setUp(self):
-        engine = create_engine('sqlite:///:memory:')
-        Base.metadata.create_all(engine)
+def test_key_sqlite_keystore(test_keystore, bob):
 
-        self.ks = keystore.KeyStore(engine)
+    # Test add pubkey
+    test_keystore.add_key(bob.seal, is_signing=True)
 
-    def test_ecies_keypair_generation(self):
-        keypair = self.ks.generate_encrypting_keypair()
-        self.assertEqual(keypairs.EncryptingKeypair, type(keypair))
-        self.assertEqual(bytes, type(keypair.privkey))
-        self.assertEqual(bytes, type(keypair.pubkey))
+    # Test get pubkey
+    query_key = test_keystore.get_key(bob.seal.fingerprint())
+    assert bytes(bob.seal) == bytes(query_key)
 
-    def test_ecdsa_keypair_generation(self):
-        keypair = self.ks.generate_signing_keypair()
-        self.assertEqual(keypairs.SigningKeypair, type(keypair))
-        self.assertEqual(bytes, type(keypair.privkey))
+    # Test del pubkey
+    test_keystore.del_key(bob.seal.fingerprint())
+    with pytest.raises(keystore.NotFound):
+        del_key = test_keystore.get_key(bob.seal.fingerprint())
 
-    def test_key_sqlite_keystore(self):
-        keypair = self.ks.generate_encrypting_keypair()
-        self.assertEqual(keypairs.EncryptingKeypair, type(keypair))
-        self.assertEqual(bytes, type(keypair.privkey))
-        self.assertEqual(bytes, type(keypair.pubkey))
 
-        # Test add pubkey
-        fingerprint_pub = self.ks.add_key(keypair, store_pub=True)
-        self.assertEqual(bytes, type(fingerprint_pub))
-        self.assertEqual(64, len(fingerprint_pub))
+def test_policy_contract_sqlite_keystore(test_keystore):
+    alice_keypair_sig = keypairs.SigningKeypair(generate_keys_if_needed=True)
+    alice_keypair_enc = keypairs.EncryptingKeypair(generate_keys_if_needed=True)
+    bob_keypair_sig = keypairs.SigningKeypair(generate_keys_if_needed=True)
 
-        key_hash = sha3.keccak_256(keypair.pubkey).hexdigest().encode()
-        self.assertEqual(key_hash, fingerprint_pub)
+    hrac = b'test'
 
-        # Test add privkey
-        fingerprint_priv = self.ks.add_key(keypair, store_pub=False)
-        self.assertEqual(bytes, type(fingerprint_priv))
-        self.assertEqual(64, len(fingerprint_priv))
+    # Test add PolicyContract
+    new_contract = test_keystore.add_policy_contract(
+            datetime.utcnow(), b'test', hrac, alice_pubkey_sig=alice_keypair_sig.pubkey,
+            alice_signature=b'test'
+    )
 
-        key_hash = sha3.keccak_256(keypair.privkey).hexdigest().encode()
-        self.assertEqual(key_hash, fingerprint_priv)
+    # Test get PolicyContract
+    query_contract = test_keystore.get_policy_contract(hrac)
+    assert new_contract == query_contract
 
-        # Test get pubkey
-        keypair_pub = self.ks.get_key(fingerprint_pub)
-        self.assertEqual(keypairs.EncryptingKeypair, type(keypair_pub))
-        self.assertTrue(keypair_pub.public_only)
-        self.assertEqual(keypair.pubkey, keypair_pub.pubkey)
+    # Test del PolicyContract
+    test_keystore.del_policy_contract(hrac)
+    with pytest.raises(keystore.NotFound):
+        del_key = test_keystore.get_policy_contract(hrac)
 
-        # Test get privkey
-        keypair_priv = self.ks.get_key(fingerprint_priv)
-        self.assertEqual(keypairs.EncryptingKeypair, type(keypair_priv))
-        self.assertFalse(keypair_priv.public_only)
-        self.assertEqual(keypair.privkey, keypair_priv.privkey)
-        self.assertIsNotNone(keypair_priv.pubkey)
-        self.assertEqual(keypair.pubkey, keypair_priv.pubkey)
 
-        # Test del pubkey
-        self.ks.del_key(fingerprint_pub)
-        with self.assertRaises(keystore.KeyNotFound):
-            key = self.ks.get_key(fingerprint_pub)
+def test_workorder_sqlite_keystore(test_keystore):
+    bob_keypair_sig1 = keypairs.SigningKeypair(generate_keys_if_needed=True)
+    bob_keypair_sig2 = keypairs.SigningKeypair(generate_keys_if_needed=True)
 
-        # Test del privkey
-        self.ks.del_key(fingerprint_priv)
-        with self.assertRaises(keystore.KeyNotFound):
-            key = self.ks.get_key(fingerprint_priv)
+    hrac = b'test'
 
-    def test_keyfrag_sqlite(self):
-        kfrag_component_length = 32
-        rand_sig = API.secure_random(65)
-        rand_id = b'\x00' + API.secure_random(kfrag_component_length)
-        rand_key = b'\x00' + API.secure_random(kfrag_component_length)
-        rand_hrac = API.secure_random(32)
+    # Test add workorder
+    new_workorder1 = test_keystore.add_workorder(bob_keypair_sig1.pubkey, b'test0', hrac)
+    new_workorder2 = test_keystore.add_workorder(bob_keypair_sig2.pubkey, b'test1', hrac)
 
-        kfrag = KFrag(rand_id+rand_key)
-        self.ks.add_kfrag(rand_hrac, kfrag, sig=rand_sig)
+    # Test get workorder
+    query_workorders = test_keystore.get_workorders(hrac)
+    assert {new_workorder1, new_workorder2}.issubset(query_workorders)
 
-        # Check that kfrag was added
-        kfrag_from_datastore, signature = self.ks.get_kfrag(rand_hrac, get_sig=True)
-        self.assertEqual(rand_sig, signature)
-
-        # De/serialization happens here, by dint of the slicing interface, which casts the kfrag to bytes.
-        # The +1 is to account for the metabyte.
-        self.assertEqual(kfrag_from_datastore[:kfrag_component_length + 1], rand_id)
-        self.assertEqual(kfrag_from_datastore[kfrag_component_length + 1:], rand_key)
-        self.assertEqual(kfrag_from_datastore, kfrag)
-
-        # Check that kfrag gets deleted
-        self.ks.del_kfrag(rand_hrac)
-        with self.assertRaises(keystore.KeyNotFound):
-            key = self.ks.get_key(rand_hrac)
+    # Test del workorder
+    deleted = test_keystore.del_workorders(hrac)
+    assert deleted > 0
+    assert test_keystore.get_workorders(hrac).count() == 0
