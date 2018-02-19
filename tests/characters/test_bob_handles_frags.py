@@ -30,7 +30,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     saves it and responds by re-encrypting and giving Bob a cFrag.
 
     This is a multipart test; it shows proper relations between the Characters Ursula and Bob and also proper
-    interchange between a KFrag, PFrag, and CFrag object in the context of REST-driven proxy re-encryption.
+    interchange between a KFrag, Capsule, and CFrag object in the context of REST-driven proxy re-encryption.
     """
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
@@ -60,7 +60,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
 
     # **** RE-ENCRYPTION HAPPENS HERE! ****
     cfrags = bob.get_reencrypted_c_frags(networky_stuff, work_order)
-    the_cfrag = cfrags[0]  # We only gave one pFrag, so we only got one cFrag.
+    the_cfrag = cfrags[0]  # We only gave one Capsule, so we only got one cFrag.
 
     # Having received the cFrag, Bob also saved the WorkOrder as complete.
     assert len(list(bob._saved_work_orders.items())[0][1]) == 1

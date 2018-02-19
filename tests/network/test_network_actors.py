@@ -56,7 +56,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     value = vladimir.interface_dht_value()
 
     # Except he sets an illegal key for his interface.
-    illegal_key = "Not allowed to set arbitrary key for this."
+    illegal_key = b"Not allowed to set arbitrary key for this."
     setter = vladimir.server.set(key=illegal_key, value=value)
     loop = asyncio.get_event_loop()
     loop.run_until_complete(setter)
@@ -130,7 +130,7 @@ def test_treasure_map_with_bad_id_does_not_propagate(idle_policy, ursulas):
     """
     In order to prevent spam attacks, Ursula refuses to propagate a TreasureMap whose PolicyGroup ID does not comport to convention.
     """
-    illegal_policygroup_id = "This is not a conventional policygroup id"
+    illegal_policygroup_id = b"This is not a conventional policygroup id"
     alice = idle_policy.alice
     bob = idle_policy.bob
     treasure_map = idle_policy.treasure_map
