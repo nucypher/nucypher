@@ -50,9 +50,10 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     work_orders = bob.generate_work_orders(the_hrac, capsule, num_ursulas=1)
     assert len(work_orders) == 1
 
-    # Bob has saved the WorkOrder, but since he hasn't used it for reencryption yet, it's empty.
-    assert len(bob._saved_work_orders) == 1
-    assert len(list(bob._saved_work_orders.items())[0][1]) == 0
+    # Even though Bob generated the WorkOrder - and recorded the Ursula as such -
+    # but he doesn't save it yet until he uses it for re-encryption.
+    assert len(bob._saved_work_orders.ursulas) == 1
+    assert len(bob._saved_work_orders) == 0
 
     networky_stuff = MockNetworkyStuff(ursulas)
 
@@ -63,7 +64,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     the_cfrag = cfrags[0]  # We only gave one Capsule, so we only got one cFrag.
 
     # Having received the cFrag, Bob also saved the WorkOrder as complete.
-    assert len(list(bob._saved_work_orders.items())[0][1]) == 1
+    assert len(bob._saved_work_orders) == 1
 
     # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
     # the correct cFrag (ie, that Ursula performed reencryption properly).
@@ -83,12 +84,10 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
 def test_bob_remember_that_he_has_cfrags_for_a_particular_capsule(enacted_policy, alice, bob, ursulas, alicebob_side_channel):
 
     # In our last episode, Bob obtained a cFrag from Ursula.
-    bobs_saved_work_order_map = list(bob._saved_work_orders.items())
-
     # Bob only has a saved WorkOrder from one Ursula.
-    assert len(bobs_saved_work_order_map) == 1
+    assert len(bob._saved_work_orders) == 1
 
-    id_of_ursula_from_whom_we_already_have_a_cfrag, saved_work_orders = bobs_saved_work_order_map[0]
+    ursulas_by_pfrag = bob._saved_work_orders.by_pfrag(enacted_policy.pfrag)
 
     # ...and only one WorkOrder from that 1 Ursula.
     assert len(saved_work_orders) == 1
@@ -111,11 +110,10 @@ def test_bob_remember_that_he_has_cfrags_for_a_particular_capsule(enacted_policy
 
 def test_bob_gathers_and_combines(enacted_policy, alice, bob, ursulas):
     # Bob saved one work order last time.
-    work_orders = list(bob._saved_work_orders.values())[0]
-    assert len(work_orders) == 1
+    assert len(bob._saved_work_orders) == 1
 
     # ...but the policy requires us to collect more cfrags.
-    assert len(work_orders) < enacted_policy.m
+    assert len(bob._saved_work_orders) < enacted_policy.m
 
     new_work_orders = bob.generate_work_orders(enacted_policy.hrac(), enacted_policy.pfrag, num_ursulas=1)
     assert False
