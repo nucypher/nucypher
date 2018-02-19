@@ -55,6 +55,7 @@ class NuCypherHashProtocol(KademliaProtocol):
         verified = signature.verify(hrac, sender_pubkey_sig)
 
         if not verified or not proper_key == dht_key:
+            # Hachidan Kiritsu, it's illegal!
             self.log.warning(
                 "Got request to store illegal k/v: {} / {}".format(dht_key,
                                                                    dht_value))
@@ -74,10 +75,8 @@ class NuCypherHashProtocol(KademliaProtocol):
                 value, return_remainder=True)
 
             # TODO: TTL?
-            do_store = self.determine_legality_of_dht_key(signature,
-                                                          sender_pubkey_sig,
-                                                          message, hrac, key,
-                                                          value)
+            do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig, message,
+                                                          hrac, key, value)
         else:
             self.log.info(
                 "Got request to store bad k/v: {} / {}".format(key, value))

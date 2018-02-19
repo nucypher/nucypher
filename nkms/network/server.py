@@ -62,14 +62,14 @@ class NuCypherDHTServer(Server):
 
     def get_now(self, key):
         loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.get(key))
+        return loop.run_until_complete(self.get(bytes(key)))
 
     async def set(self, key, value):
         """
         Set the given string key to the given value in the network.
         """
         self.log.debug("setting '%s' = '%s' on network" % (key, value))
-        key = digest(key)
+        key = digest(bytes(key))
         return await self.set_digest(key, value)
 
 
