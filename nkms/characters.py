@@ -449,6 +449,7 @@ class Bob(Character):
                 work_order = WorkOrder.construct_by_bob(
                         kfrag_hrac, capsules_to_include, ursula_dht_key, self)
                 generated_work_orders[ursula_dht_key] = work_order
+                self._saved_work_orders[work_order.ursula_id][capsule] = work_order
 
             if num_ursulas is not None:
                 if num_ursulas == len(generated_work_orders):
@@ -462,14 +463,13 @@ class Bob(Character):
             raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
         for counter, capsule in enumerate(work_order.capsules):
             # TODO: Ursula is actually supposed to sign this.  See #141.
-            self._saved_work_orders[work_order.ursula_id][capsule] = work_order
+            # TODO: Maybe just update the work order here instead of setting it anew.
+            work_orders_by_ursula = self._saved_work_orders[work_order.ursula_id]
+            work_orders_by_ursula[capsule] = work_order
         return cfrags
 
     def get_ursula(self, ursula_id):
         return self._ursulas[ursula_id]
-
-    def combine_cfrags(self):
-        assert False
 
 
 class Ursula(Character):
