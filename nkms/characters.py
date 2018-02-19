@@ -377,13 +377,10 @@ class Bob(Character):
     def follow_treasure_map(self, hrac):
         for ursula_interface_id in self.treasure_maps[hrac]:
             # TODO: perform this part concurrently.
-            getter = self.server.get(ursula_interface_id)
-            loop = asyncio.get_event_loop()
-            value = loop.run_until_complete(getter)
-            
+            value = self.server.get_now(ursula_interface_id)
+
             # TODO: Make this much prettier
-            header, signature, ursula_pubkey_sig, _hrac, (port, interface, ttl) =\
-            dht_value_splitter(value, msgpack_remainder=True)
+            header, signature, ursula_pubkey_sig, _hrac, (port, interface, ttl) = dht_value_splitter(value, msgpack_remainder=True)
 
             if header != BYTESTRING_IS_URSULA_IFACE_INFO:
                 raise TypeError("Unknown DHT value.  How did this get on the network?")
