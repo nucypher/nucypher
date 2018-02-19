@@ -35,7 +35,7 @@ def test_all_ursulas_know_about_all_other_ursulas(ursulas):
     ignorance = []
     for acounter, announcing_ursula in enumerate(blockchain_client._ursulas_on_blockchain):
         for counter, propagating_ursula in enumerate(ursulas):
-            if not digest(announcing_ursula) in propagating_ursula.server.storage:
+            if not digest(bytes(announcing_ursula)) in propagating_ursula.server.storage:
                 ignorance.append((counter, acounter))
     if ignorance:
         pytest.fail(str(["{} didn't know about {}".format(counter, acounter) for counter, acounter in ignorance]))
@@ -93,9 +93,7 @@ def test_alice_finds_ursula(alice, ursulas):
     """
     ursula_index = 1
     all_ursulas = blockchain_client._ursulas_on_blockchain
-    getter = alice.server.get(all_ursulas[ursula_index])
-    loop = asyncio.get_event_loop()
-    value = loop.run_until_complete(getter)
+    value = alice.server.get_now(all_ursulas[ursula_index])
     header, _signature, _ursula_pubkey_sig, _hrac, interface_info = dht_value_splitter(value,
                                                                                return_remainder=True)
 
@@ -190,9 +188,7 @@ def test_treaure_map_is_legit(enacted_policy):
     """
     alice = enacted_policy.alice
     for ursula_interface_id in enacted_policy.treasure_map:
-        getter = alice.server.get(ursula_interface_id)
-        loop = asyncio.get_event_loop()
-        value = loop.run_until_complete(getter)
+        value = alice.server.get_now(ursula_interface_id)
         header, signature, ursula_pubkey_sig, hrac, interface_info = dht_value_splitter(value,
                                                                                 return_remainder=True)
         assert header == BYTESTRING_IS_URSULA_IFACE_INFO
