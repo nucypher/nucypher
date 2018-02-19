@@ -334,8 +334,8 @@ class WorkOrderHistory:
     def __getitem__(self, item):
         if isinstance(item, Ursula.InterfaceDHTKey):
             return self.by_ursula.setdefault(item, {})
-
-        assert False
+        else:
+            raise TypeError("If you want to lookup a WorkOrder by Ursula, you need to pass an Ursula.InterfaceDHTKey.")
 
     def __setitem__(self, key, value):
         assert False
