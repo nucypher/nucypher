@@ -1,7 +1,8 @@
 import umbral
-from nkms.crypto import api
-from tests.utilities import EVENT_LOOP, MockNetworkyStuff
+import pytest
+from tests.utilities import MockNetworkyStuff
 from umbral.fragments import KFrag
+from umbral.umbral import GenericUmbralError
 
 
 def test_bob_can_follow_treasure_map(enacted_policy, ursulas, alice, bob):
@@ -24,7 +25,8 @@ def test_bob_can_follow_treasure_map(enacted_policy, ursulas, alice, bob):
     assert len(bob._ursulas) == len(treasure_map)
 
 
-def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, bob, ursulas, alicebob_side_channel):
+def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, bob, ursulas,
+                                                         alicebob_side_channel):
     """
     Now that Bob has his list of Ursulas, he can issue a WorkOrder to one.  Upon receiving the WorkOrder, Ursula
     saves it and responds by re-encrypting and giving Bob a cFrag.
@@ -44,24 +46,30 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     # Bob has no saved work orders yet, ever.
     assert len(bob._saved_work_orders) == 0
 
-    _ciphertext, capsule = alicebob_side_channel
-
     # We'll test against just a single Ursula - here, we make a WorkOrder for just one.
-    work_orders = bob.generate_work_orders(the_hrac, capsule, num_ursulas=1)
+    # We can pass any number of capsules as args; here we pass just one.
+    work_orders = bob.generate_work_orders(the_hrac, alicebob_side_channel.capsule, num_ursulas=1)
+
+    # Again: one Ursula, one work_order.
     assert len(work_orders) == 1
 
-    # Even though Bob generated the WorkOrder - and recorded the Ursula as such -
-    # but he doesn't save it yet until he uses it for re-encryption.
+    # Bob saved the WorkOrder.
+    assert len(bob._saved_work_orders) == 1
+    # And the Ursula.
     assert len(bob._saved_work_orders.ursulas) == 1
-    assert len(bob._saved_work_orders) == 0
 
     networky_stuff = MockNetworkyStuff(ursulas)
-
     ursula_dht_key, work_order = list(work_orders.items())[0]
 
     # **** RE-ENCRYPTION HAPPENS HERE! ****
     cfrags = bob.get_reencrypted_c_frags(networky_stuff, work_order)
-    the_cfrag = cfrags[0]  # We only gave one Capsule, so we only got one cFrag.
+
+    # We only gave one Capsule, so we only got one cFrag.
+    assert len(cfrags) == 1
+    the_cfrag = cfrags[0]
+
+    # Attach the CFrag to the Capsule.
+    alicebob_side_channel.capsule.attach_cfrag(the_cfrag)
 
     # Having received the cFrag, Bob also saved the WorkOrder as complete.
     assert len(bob._saved_work_orders) == 1
@@ -72,7 +80,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     kfrag_bytes = ursula.keystore.get_policy_contract(
         work_order.kfrag_hrac.hex().encode()).k_frag
     the_kfrag = KFrag.from_bytes(kfrag_bytes)
-    the_correct_cfrag = umbral.umbral.reencrypt(the_kfrag, capsule)
+    the_correct_cfrag = umbral.umbral.reencrypt(the_kfrag, alicebob_side_channel.capsule)
     assert bytes(the_cfrag) == bytes(the_correct_cfrag)  # It's the correct cfrag!
 
     # Now we'll show that Ursula saved the correct WorkOrder.
