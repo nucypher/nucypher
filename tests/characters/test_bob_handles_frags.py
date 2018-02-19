@@ -89,39 +89,71 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     assert work_orders_from_bob[0] == work_order
 
 
-def test_bob_remember_that_he_has_cfrags_for_a_particular_capsule(enacted_policy, alice, bob, ursulas, alicebob_side_channel):
+def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_policy, alice, bob,
+                                                                   ursulas, alicebob_side_channel):
+    # In our last episode, Bob made a WorkOrder for the capsule...
+    assert len(bob._saved_work_orders.by_capsule(alicebob_side_channel.capsule)) == 1
+    # ...and he used it to obtain a CFrag from Ursula.
+    assert len(alicebob_side_channel.capsule._attached_cfrags) == 1
 
-    # In our last episode, Bob obtained a cFrag from Ursula.
-    # Bob only has a saved WorkOrder from one Ursula.
-    assert len(bob._saved_work_orders) == 1
+    # He can also get a dict of {Ursula:WorkOrder} by looking them up from the capsule.
+    workorders_by_capsule = bob._saved_work_orders.by_capsule(alicebob_side_channel.capsule)
 
-    ursulas_by_pfrag = bob._saved_work_orders.by_pfrag(enacted_policy.pfrag)
-
-    # ...and only one WorkOrder from that 1 Ursula.
-    assert len(saved_work_orders) == 1
+    # Bob has just one WorkOrder from that one Ursula.
+    assert len(workorders_by_capsule) == 1
+    saved_work_order = list(workorders_by_capsule.values())[0]
 
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
-    # He has the capsule from his side channel with Alice.
-    _ciphertext, capsule = alicebob_side_channel
-    generated_work_order_map = bob.generate_work_orders(enacted_policy.hrac(), capsule, num_ursulas=1)
-    id_of_this_new_ursula, new_work_order = list(generated_work_order_map.items())[0]
+    generated_work_orders = bob.generate_work_orders(enacted_policy.hrac(),
+                                                     alicebob_side_channel.capsule,
+                                                     num_ursulas=1)
+    id_of_this_new_ursula, new_work_order = list(generated_work_orders.items())[0]
 
     # This new Ursula isn't the same one to whom we've already issued a WorkOrder.
+    id_of_ursula_from_whom_we_already_have_a_cfrag = list(workorders_by_capsule.keys())[0]
     assert id_of_ursula_from_whom_we_already_have_a_cfrag != id_of_this_new_ursula
 
     # ...and, although this WorkOrder has the same capsules as the saved one...
-    new_work_order.capsules == saved_work_orders[0].capsules
+    assert new_work_order.capsules == saved_work_order.capsules
 
     # ...it's not the same WorkOrder.
-    assert new_work_order not in saved_work_orders
+    assert new_work_order != saved_work_order
+
+    # We can get a new CFrag, just like last time.
+    networky_stuff = MockNetworkyStuff(ursulas)
+    cfrags = bob.get_reencrypted_c_frags(networky_stuff, new_work_order)
+
+    # Again: one Capsule, one cFrag.
+    assert len(cfrags) == 1
+    new_cfrag = cfrags[0]
+
+    # Attach the CFrag to the Capsule.
+    alicebob_side_channel.capsule.attach_cfrag(new_cfrag)
 
 
-def test_bob_gathers_and_combines(enacted_policy, alice, bob, ursulas):
-    # Bob saved one work order last time.
-    assert len(bob._saved_work_orders) == 1
+def test_bob_gathers_and_combines(enacted_policy, alice, bob, ursulas, alicebob_side_channel):
+    # Bob has saved two WorkOrders so far.
+    assert len(bob._saved_work_orders) == 2
 
     # ...but the policy requires us to collect more cfrags.
     assert len(bob._saved_work_orders) < enacted_policy.m
 
-    new_work_orders = bob.generate_work_orders(enacted_policy.hrac(), enacted_policy.pfrag, num_ursulas=1)
-    assert False
+    # Bob can't decrypt yet with just two CFrags.  He needs to gather at least m.
+    with pytest.raises(GenericUmbralError):
+        bob.decrypt(alicebob_side_channel)
+
+    number_left_to_collect = enacted_policy.m - len(bob._saved_work_orders)
+
+
+    new_work_orders = bob.generate_work_orders(enacted_policy.hrac(),
+                                               alicebob_side_channel.capsule,
+                                               num_ursulas=number_left_to_collect)
+    _id_of_yet_another_ursula, new_work_order = list(new_work_orders.items())[0]
+
+    networky_stuff = MockNetworkyStuff(ursulas)
+    cfrags = bob.get_reencrypted_c_frags(networky_stuff, new_work_order)
+    alicebob_side_channel.capsule.attach_cfrag(cfrags[0])
+
+    # Now.
+    # At long last.
+    assert bob.decrypt(alicebob_side_channel) == b'Welcome to the flippering.'
