@@ -31,10 +31,9 @@ contract Government is Upgradeable {
         RollbackPolicyManager
     }
 
-    uint256 constant VOTING_DURATION_DAYS = 7;
-
     Dispatcher public escrow;
     Dispatcher public policyManager;
+    uint256 public votingDurationSeconds;
 
     // last vote for specified voting number
     mapping(address => uint256) public lastVote;
@@ -43,7 +42,7 @@ contract Government is Upgradeable {
     bool public upgradeFinished;
     VotingType public votingType;
     address public newAddress;
-    // TODO maybe change to votes for only
+    // TODO maybe change to votes "for" only
     uint256 public votesFor;
     uint256 public votesAgainst;
 
@@ -51,11 +50,18 @@ contract Government is Upgradeable {
     * @notice Contracts sets address for upgradeable contracts
     * @param _escrow The escrow dispatcher
     * @param _policyManager The policy manager dispatcher
+    * @param _votingDurationHours Voting duration in hours
     **/
-    function Government(Dispatcher _escrow, Dispatcher _policyManager) {
-        require(address(_escrow) != 0x0 && address(_policyManager) != 0x0);
+    function Government(
+        Dispatcher _escrow,
+        Dispatcher _policyManager,
+        uint256 _votingDurationHours) {
+        require(address(_escrow) != 0x0 &&
+            address(_policyManager) != 0x0 &&
+            _votingDurationHours != 0);
         escrow = _escrow;
         policyManager = _policyManager;
+        votingDurationSeconds = _votingDurationHours.mul(1 hours);
     }
 
     /**
@@ -82,7 +88,7 @@ contract Government is Upgradeable {
     ) public {
         require(getVotingState() == VotingState.Finished);
         votingNumber = votingNumber.add(1);
-        endVotingTimestamp = block.timestamp.add(VOTING_DURATION_DAYS * 1 days);
+        endVotingTimestamp = block.timestamp.add(votingDurationSeconds);
         upgradeFinished = false;
         votesFor = 0;
         votesAgainst = 0;
@@ -100,7 +106,7 @@ contract Government is Upgradeable {
         if (voteFor) {
             votesFor = votesFor.add(lockedTokens);
         } else {
-            votesAgainst = votesFor.add(lockedTokens);
+            votesAgainst = votesAgainst.add(lockedTokens);
         }
         lastVote[msg.sender] = votingNumber;
     }
@@ -134,5 +140,6 @@ contract Government is Upgradeable {
         var government = Government(_target);
         escrow = government.escrow();
         policyManager = government.policyManager();
+        votingDurationSeconds = government.votingDurationSeconds();
     }
 }

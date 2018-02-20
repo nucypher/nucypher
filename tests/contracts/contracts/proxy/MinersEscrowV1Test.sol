@@ -20,6 +20,7 @@ contract MinersEscrowV1Test is Upgradeable {
         for (uint256 i = 0; i < _nodes.length ; i++) {
             lockedTokens[_nodes[i]] = _lockedTokens[i];
         }
+        nodes = _nodes;
     }
 
     function getLockedTokens(address _owner)
