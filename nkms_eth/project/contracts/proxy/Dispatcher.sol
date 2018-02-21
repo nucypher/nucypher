@@ -50,6 +50,7 @@ contract Dispatcher is Upgradeable {
         verifyUpgradeableState(previousTarget, target);
         target = previousTarget;
         previousTarget = 0x0;
+        require(target.delegatecall(bytes4(keccak256("finishUpgrade(address)")), target));
     }
 
     /**

@@ -97,8 +97,14 @@ def test_voting(web3, chain, escrow, policy_manager):
         deploy_transaction={'from': creator})
     assert government_library.address.lower() != government_library_v2.address.lower()
 
+    # Only tokens owner can create voting
+    with pytest.raises(TransactionFailed):
+        tx = government.transact({'from': creator}).createVoting(
+            UPGRADE_GOVERNMENT, government_library_v2.address)
+        chain.wait.for_receipt(tx)
+
     # Create voting for update Government contract
-    tx = government.transact({'from': creator}).createVoting(
+    tx = government.transact({'from': node1}).createVoting(
         UPGRADE_GOVERNMENT, government_library_v2.address)
     chain.wait.for_receipt(tx)
     assert 1 == government.call().votingNumber()
@@ -326,3 +332,63 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     tx = government.transact({'from': node1}).commitUpgrade()
     chain.wait.for_receipt(tx)
     assert policy_manager_library_v1.address.lower() == policy_manager.call().target().lower()
+
+
+def test_verifying_state(web3, chain):
+    creator = web3.eth.accounts[0]
+    address1 = web3.eth.accounts[1].lower()
+    address2 = web3.eth.accounts[2].lower()
+
+    # Deploy contract
+    government_library_v1, _ = chain.provider.get_or_deploy_contract(
+        'Government', deploy_args=[address1, address2, 1],
+        deploy_transaction={'from': creator})
+    government_dispatcher, _ = chain.provider.deploy_contract(
+        'Dispatcher', deploy_args=[government_library_v1.address],
+        deploy_transaction={'from': creator})
+
+    # Deploy second version of the government contract
+    government_library_v2, _ = chain.provider.deploy_contract(
+        'GovernmentV2Test', deploy_args=[address2, address1, 2],
+        deploy_transaction={'from': creator})
+    government = web3.eth.contract(
+        government_library_v2.abi,
+        government_dispatcher.address,
+        ContractFactoryClass=PopulusContract)
+
+    # Upgrade to the second version
+    tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_v2.address)
+    chain.wait.for_receipt(tx)
+    assert government_library_v2.address.lower() == government_dispatcher.call().target().lower()
+    assert address2 == government.call().escrow().lower()
+    assert address1 == government.call().policyManager().lower()
+    assert 2 * 60 * 60 == government.call().votingDurationSeconds()
+    tx = government.transact({'from': creator}).setValueToCheck(3)
+    chain.wait.for_receipt(tx)
+    assert 3 == government.call().valueToCheck()
+
+    # Can't upgrade to the previous version or to the bad version
+    government_library_bad, _ = chain.provider.deploy_contract(
+        'GovernmentBad', deploy_transaction={'from': creator})
+    with pytest.raises(TransactionFailed):
+        tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_v1.address)
+        chain.wait.for_receipt(tx)
+    with pytest.raises(TransactionFailed):
+        tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_bad.address)
+        chain.wait.for_receipt(tx)
+
+    # But can rollback
+    tx = government_dispatcher.transact({'from': creator}).rollback()
+    chain.wait.for_receipt(tx)
+    assert government_library_v1.address.lower() == government_dispatcher.call().target().lower()
+    assert address1 == government.call().escrow().lower()
+    assert address2 == government.call().policyManager().lower()
+    assert 60 * 60 == government.call().votingDurationSeconds()
+    with pytest.raises(TransactionFailed):
+        tx = government.transact({'from': creator}).setValueToCheck(2)
+        chain.wait.for_receipt(tx)
+
+    # Try to upgrade to the bad version
+    with pytest.raises(TransactionFailed):
+        tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_bad.address)
+        chain.wait.for_receipt(tx)

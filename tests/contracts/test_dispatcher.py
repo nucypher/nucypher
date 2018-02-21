@@ -140,12 +140,12 @@ def test_dispatcher(web3, chain):
     assert contract_instance.call().getArrayValueLength() == 2
     assert contract_instance.call().getArrayValue(0) == 12
     assert contract_instance.call().getArrayValue(1) == 232
-    assert contract_instance.call().getStorageValue() == 10
+    assert contract_instance.call().getStorageValue() == 1
     tx = contract_instance.transact().setStorageValue(5)
     chain.wait.for_receipt(tx)
     assert contract_instance.call().getStorageValue() == 5
 
-    # Can't upgrade to bad version
+    # Can't upgrade to the bad version
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
         chain.wait.for_receipt(tx)

@@ -86,7 +86,8 @@ contract Government is Upgradeable {
         VotingType _votingType,
         address _newAddress
     ) public {
-        require(getVotingState() == VotingState.Finished);
+        require(getVotingState() == VotingState.Finished &&
+            MinersEscrowInterface(escrow).getLockedTokens(msg.sender) != 0);
         votingNumber = votingNumber.add(1);
         endVotingTimestamp = block.timestamp.add(votingDurationSeconds);
         upgradeFinished = false;
@@ -133,7 +134,17 @@ contract Government is Upgradeable {
     }
 
     function verifyState(address _testTarget) public constant {
-        // TODO complete
+        require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
+        require(address(delegateGet(_testTarget, "policyManager()")) == address(policyManager));
+        require(uint256(delegateGet(_testTarget, "votingDurationSeconds()")) == votingDurationSeconds);
+        require(uint256(delegateGet(_testTarget, "votingNumber()")) == votingNumber);
+        require(uint256(delegateGet(_testTarget, "endVotingTimestamp()")) == endVotingTimestamp);
+        require(delegateGet(_testTarget, "upgradeFinished()") ==
+            (upgradeFinished ? bytes32(1) : bytes32(0)));
+        require(uint256(delegateGet(_testTarget, "votingType()")) == uint256(votingType));
+        require(address(delegateGet(_testTarget, "newAddress()")) == newAddress);
+        require(uint256(delegateGet(_testTarget, "votesFor()")) == votesFor);
+        require(uint256(delegateGet(_testTarget, "votesAgainst()")) == votesAgainst);
     }
 
     function finishUpgrade(address _target) onlyOwner public {
