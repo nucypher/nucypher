@@ -1,5 +1,6 @@
 import pytest
 from ethereum.tester import TransactionFailed
+import os
 
 
 @pytest.fixture()
@@ -505,7 +506,7 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
     assert 1000 == token.call().balanceOf(escrow.address)
     assert 1000 == escrow.call().getTokens(owner)
     assert 1000 == escrow.call().getLockedTokens(owner)
-    assert 10 == escrow.call().tokenInfo(owner)[4]
+    assert 10 == escrow.call().minerInfo(owner)[4]
 
     # Can't pre-deposit tokens again for same owner
     with pytest.raises(TransactionFailed):
@@ -536,4 +537,33 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
     for index, owner in enumerate(owners):
         assert 100 * (index + 1) == escrow.call().getTokens(owner)
         assert 100 * (index + 1) == escrow.call().getLockedTokens(owner)
-        assert 50 * (index + 1) == escrow.call().tokenInfo(owner)[4]
+        assert 50 * (index + 1) == escrow.call().minerInfo(owner)[4]
+
+
+def test_publish_dht_key(web3, chain, token, escrow_contract):
+    escrow = escrow_contract(5 * 10 ** 8)
+    creator = web3.eth.accounts[0]
+    miner = web3.eth.accounts[1]
+
+    # Initialize contract and miner
+    tx = escrow.transact().initialize()
+    chain.wait.for_receipt(tx)
+    tx = token.transact({'from': creator}).transfer(miner, 1000)
+    chain.wait.for_receipt(tx)
+    balance = token.call().balanceOf(miner)
+    tx = token.transact({'from': miner}).approve(escrow.address, balance)
+    chain.wait.for_receipt(tx)
+    tx = escrow.transact({'from': miner}).deposit(balance, 1)
+    chain.wait.for_receipt(tx)
+
+    # Publish DHT keys
+    dht_key = os.urandom(66).hex()
+    tx = escrow.transact({'from': miner}).publishDHTKey(dht_key)
+    chain.wait.for_receipt(tx)
+    assert 1 == escrow.call().getDHTKeysCount(miner)
+    assert dht_key == escrow.call().getDHTKey(miner, 0)
+    dht_key = os.urandom(66).hex()
+    tx = escrow.transact({'from': miner}).publishDHTKey(dht_key)
+    chain.wait.for_receipt(tx)
+    assert 2 == escrow.call().getDHTKeysCount(miner)
+    assert dht_key == escrow.call().getDHTKey(miner, 1)

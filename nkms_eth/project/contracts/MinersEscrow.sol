@@ -1,4 +1,4 @@
-pragma solidity ^0.4.8;
+pragma solidity ^0.4.18;
 
 
 import "./zeppelin/token/SafeERC20.sol";
@@ -29,7 +29,7 @@ contract MinersEscrow is Issuer, Ownable {
         uint256 endPeriod;
     }
 
-    struct TokenInfo {
+    struct MinerInfo {
         uint256 value;
         uint256 decimals;
         uint256 lockedValue;
@@ -42,13 +42,14 @@ contract MinersEscrow is Issuer, Ownable {
         // downtime
         uint256 lastActivePeriod;
         Downtime[] downtime;
+        bytes[] dhtKeys;
     }
 
     uint256 constant MAX_PERIODS = 10;
     uint256 constant MAX_OWNERS = 50000;
 
-    mapping (address => TokenInfo) public tokenInfo;
-    LinkedList.Data public tokenOwners;
+    mapping (address => MinerInfo) public minerInfo;
+    LinkedList.Data public miners;
 
     mapping (uint256 => uint256) public lockedPerPeriod;
     uint256 public minReleasePeriods;
@@ -96,7 +97,7 @@ contract MinersEscrow is Issuer, Ownable {
     **/
     modifier onlyTokenOwner()
     {
-        require(tokenOwners.valueExists(msg.sender));
+        require(miners.valueExists(msg.sender));
         _;
     }
 
@@ -107,7 +108,7 @@ contract MinersEscrow is Issuer, Ownable {
     function getTokens(address _owner)
         public constant returns (uint256)
     {
-        return tokenInfo[_owner].value;
+        return minerInfo[_owner].value;
     }
 
     /**
@@ -118,7 +119,7 @@ contract MinersEscrow is Issuer, Ownable {
         public constant returns (uint256)
     {
         var currentPeriod = getCurrentPeriod();
-        var info = tokenInfo[_owner];
+        var info = minerInfo[_owner];
         var numberConfirmedPeriods = info.numberConfirmedPeriods;
 
         // no confirmed periods, so current period may be release period
@@ -174,7 +175,7 @@ contract MinersEscrow is Issuer, Ownable {
     )
         internal constant returns (uint256)
     {
-        var info = tokenInfo[_owner];
+        var info = minerInfo[_owner];
         if ((_forceRelease || info.release) && _periods != 0) {
             var unlockedTokens = _periods.mul(info.releaseRate);
             return unlockedTokens <= _lockedTokens ? _lockedTokens.sub(unlockedTokens) : 0;
@@ -196,7 +197,7 @@ contract MinersEscrow is Issuer, Ownable {
         var currentPeriod = getCurrentPeriod();
         var nextPeriod = currentPeriod.add(_periods);
 
-        var info = tokenInfo[_owner];
+        var info = minerInfo[_owner];
         var numberConfirmedPeriods = info.numberConfirmedPeriods;
         if (numberConfirmedPeriods > 0 &&
             info.confirmedPeriods[numberConfirmedPeriods - 1].period >= currentPeriod) {
@@ -223,7 +224,7 @@ contract MinersEscrow is Issuer, Ownable {
     )
         internal constant returns (uint256)
     {
-        var info = tokenInfo[_owner];
+        var info = minerInfo[_owner];
         return _lockedTokens.divCeil(info.releaseRate).sub(1);
     }
 
@@ -237,7 +238,7 @@ contract MinersEscrow is Issuer, Ownable {
         public isInitialized onlyOwner
     {
         require(_owners.length != 0 &&
-            tokenOwners.sizeOf().add(_owners.length) <= MAX_OWNERS &&
+            miners.sizeOf().add(_owners.length) <= MAX_OWNERS &&
             _owners.length == _values.length &&
             _owners.length == _periods.length);
         var currentPeriod = getCurrentPeriod();
@@ -247,13 +248,13 @@ contract MinersEscrow is Issuer, Ownable {
             var owner = _owners[i];
             var value = _values[i];
             var periods = _periods[i];
-            require(!tokenOwners.valueExists(owner) &&
+            require(!miners.valueExists(owner) &&
                 value >= minAllowableLockedTokens &&
                 value <= maxAllowableLockedTokens &&
                 periods >= minReleasePeriods);
             // TODO optimize
-            tokenOwners.push(owner, true);
-            var info = tokenInfo[owner];
+            miners.push(owner, true);
+            var info = minerInfo[owner];
             info.lastActivePeriod = currentPeriod;
             info.value = value;
             info.lockedValue = value;
@@ -273,10 +274,10 @@ contract MinersEscrow is Issuer, Ownable {
     **/
     function deposit(uint256 _value, uint256 _periods) public isInitialized {
         require(_value != 0);
-        var info = tokenInfo[msg.sender];
-        if (!tokenOwners.valueExists(msg.sender)) {
-            require(tokenOwners.sizeOf() < MAX_OWNERS);
-            tokenOwners.push(msg.sender, true);
+        var info = minerInfo[msg.sender];
+        if (!miners.valueExists(msg.sender)) {
+            require(miners.sizeOf() < MAX_OWNERS);
+            miners.push(msg.sender, true);
             info.lastActivePeriod = getCurrentPeriod();
         }
         info.value = info.value.add(_value);
@@ -293,7 +294,7 @@ contract MinersEscrow is Issuer, Ownable {
         require(_value != 0 || _periods != 0);
 
         var lockedTokens = calculateLockedTokens(msg.sender, 1);
-        var info = tokenInfo[msg.sender];
+        var info = minerInfo[msg.sender];
         require(_value <= token.balanceOf(address(this)) &&
             _value <= info.value.sub(lockedTokens));
 
@@ -319,7 +320,7 @@ contract MinersEscrow is Issuer, Ownable {
     * @notice Switch lock
     **/
     function switchLock() public onlyTokenOwner {
-        var info = tokenInfo[msg.sender];
+        var info = minerInfo[msg.sender];
         info.release = !info.release;
     }
 
@@ -328,7 +329,7 @@ contract MinersEscrow is Issuer, Ownable {
     * @param _value Amount of token to withdraw
     **/
     function withdraw(uint256 _value) public onlyTokenOwner {
-        var info = tokenInfo[msg.sender];
+        var info = minerInfo[msg.sender];
         // TODO optimize
         var lockedTokens = Math.max256(calculateLockedTokens(msg.sender, 1),
             getLockedTokens(msg.sender));
@@ -342,13 +343,13 @@ contract MinersEscrow is Issuer, Ownable {
     * @notice Withdraw all amount of tokens back to owner (only if no locked)
     **/
     function withdrawAll() public onlyTokenOwner {
-        var info = tokenInfo[msg.sender];
+        var info = minerInfo[msg.sender];
         var value = info.value;
         require(value <= token.balanceOf(address(this)) &&
             info.lockedValue == 0 &&
             info.numberConfirmedPeriods == 0);
-        tokenOwners.remove(msg.sender);
-        delete tokenInfo[msg.sender];
+        miners.remove(msg.sender);
+        delete minerInfo[msg.sender];
         token.safeTransfer(msg.sender, value);
     }
 
@@ -362,7 +363,7 @@ contract MinersEscrow is Issuer, Ownable {
 //        // Transfer tokens to owners
 //        var current = tokenOwners.step(0x0, true);
 //        while (current != 0x0) {
-//            token.safeTransfer(current, tokenInfo[current].value);
+//            token.safeTransfer(current, minerInfo[current].value);
 //            current = tokenOwners.step(current, true);
 //        }
 //        token.safeTransfer(owner, token.balanceOf(address(this)));
@@ -377,7 +378,7 @@ contract MinersEscrow is Issuer, Ownable {
     **/
     function confirmActivity(uint256 _lockedValue) internal {
         require(_lockedValue > 0);
-        var info = tokenInfo[msg.sender];
+        var info = minerInfo[msg.sender];
         var nextPeriod = getCurrentPeriod() + 1;
 
         var numberConfirmedPeriods = info.numberConfirmedPeriods;
@@ -412,7 +413,7 @@ contract MinersEscrow is Issuer, Ownable {
     * @notice Confirm activity for future period
     **/
     function confirmActivity() external onlyTokenOwner {
-        var info = tokenInfo[msg.sender];
+        var info = minerInfo[msg.sender];
         var currentPeriod = getCurrentPeriod();
         var nextPeriod = currentPeriod + 1;
 
@@ -431,7 +432,7 @@ contract MinersEscrow is Issuer, Ownable {
     **/
     function mint() external onlyTokenOwner {
         var previousPeriod = getCurrentPeriod().sub(1);
-        var info = tokenInfo[msg.sender];
+        var info = minerInfo[msg.sender];
         var numberPeriodsForMinting = info.numberConfirmedPeriods;
         require(numberPeriodsForMinting > 0 &&
             info.confirmedPeriods[0].period <= previousPeriod);
@@ -508,11 +509,11 @@ contract MinersEscrow is Issuer, Ownable {
         var current = _start;
 
         if (current == 0x0) {
-            current = tokenOwners.step(current, true);
+            current = miners.step(current, true);
         }
 
         while (current != 0x0) {
-            var info = tokenInfo[current];
+            var info = minerInfo[current];
             var numberConfirmedPeriods = info.numberConfirmedPeriods;
             var period = currentPeriod;
             if (numberConfirmedPeriods > 0 &&
@@ -530,7 +531,7 @@ contract MinersEscrow is Issuer, Ownable {
                     info.confirmedPeriods[numberConfirmedPeriods - 1].lockedValue,
                     _periods - 1);
             } else {
-                current = tokenOwners.step(current, true);
+                current = miners.step(current, true);
                 continue;
             }
 
@@ -540,7 +541,7 @@ contract MinersEscrow is Issuer, Ownable {
                 break;
             } else {
                 distance += lockedTokens;
-                current = tokenOwners.step(current, true);
+                current = miners.step(current, true);
             }
         }
     }
@@ -562,7 +563,7 @@ contract MinersEscrow is Issuer, Ownable {
     function getDowntimePeriods(address _owner, uint256 _index)
         public constant returns (uint256 startPeriod, uint256 endPeriod)
     {
-        var period = tokenInfo[msg.sender].downtime[_index];
+        var period = minerInfo[msg.sender].downtime[_index];
         startPeriod = period.startPeriod;
         endPeriod = period.endPeriod;
     }
@@ -573,7 +574,7 @@ contract MinersEscrow is Issuer, Ownable {
     function getDowntimePeriodsLength(address _owner)
         public constant returns (uint256)
     {
-        return tokenInfo[msg.sender].downtime.length;
+        return minerInfo[msg.sender].downtime.length;
     }
 
     /**
@@ -582,6 +583,32 @@ contract MinersEscrow is Issuer, Ownable {
     function getLastActivePeriod(address _owner)
         public constant returns (uint256)
     {
-        return tokenInfo[msg.sender].lastActivePeriod;
+        return minerInfo[msg.sender].lastActivePeriod;
+    }
+
+    /**
+    * @notice Public DHT key
+    **/
+    function publishDHTKey(bytes _dhtKey) public {
+        var info = minerInfo[msg.sender];
+        info.dhtKeys.push(_dhtKey);
+    }
+
+    /**
+    * @notice Get DHT keys count
+    **/
+    function getDHTKeysCount(address _owner)
+        public constant returns (uint256)
+    {
+        return minerInfo[_owner].dhtKeys.length;
+    }
+
+    /**
+    * @notice Get DHT key
+    **/
+    function getDHTKey(address _owner, uint256 _index)
+        public constant returns (bytes)
+    {
+       return minerInfo[_owner].dhtKeys[_index];
     }
 }
