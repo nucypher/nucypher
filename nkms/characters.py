@@ -174,20 +174,23 @@ class Character(object):
         recipient_pubkey_enc = recipient.public_key(EncryptingPower)
         if sign:
             if sign_plaintext:
+                # Sign first, encrypt second.
                 signature = self.stamp(plaintext)
-                message_kit = self._crypto_power.encrypt_for(
-                    actor.public_key(EncryptingPower), signature + plaintext)
+                ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, signature + plaintext)
             else:
-                message_kit = self._crypto_power.encrypt_for(
-                    actor.public_key(EncryptingPower), plaintext)
-                signature = self.stamp(message_kit.ciphertext)
-            message_kit.alice_pubkey = self.public_key(SigningPower)
+                # Encrypt first, sign second.
+                ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, plaintext)
+                signature = self.stamp(ciphertext)
         else:
+            # Don't sign.
             signature = NOT_SIGNED
-            message_kit = self._crypto_power.encrypt_for(
-                actor.public_key(EncryptingPower), plaintext)
+            ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, plaintext)
 
+
+        message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule)
+        message_kit.alice_pubkey = self.public_key(SigningPower)
         return message_kit, signature
+
 
     def verify_from(self,
                     actor_whom_sender_claims_to_be: "Character",
