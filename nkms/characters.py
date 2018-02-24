@@ -2,7 +2,7 @@ import asyncio
 import binascii
 from binascii import hexlify
 from logging import getLogger
-from typing import Union
+from typing import Union, List
 
 import msgpack
 import requests
@@ -274,22 +274,22 @@ class Alice(Character):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def generate_kfrags(self, bob, m, n):
+    def generate_kfrags(self, bob, m, n) -> List:
         """
-        Generates re-encryption key frags and returns the frags and encrypted
-        ephemeral key data.
+        Generates re-encryption key frags ("KFrags") and returns them.
+
+        These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
+        that he can activate the Capsule.
 
         :param alice_privkey: Alice's private key
         :param bob_pubkey: Bob's public key
-        :param m: Minimum number of rekey shares needed to rebuild ciphertext
+        :param m: Minimum number of KFrags needed to rebuild ciphertext
         :param n: Total number of rekey shares to generate
-
-        :return: Tuple(kfrags, eph_key_data)
         """
-        # TODO: Is this how we want to access Alice's private key?
+        # TODO: Is this how we want to access Alice's private key?  On further reflection: no.
         alice_priv_enc = self._crypto_power._power_ups[EncryptingPower].keypair.privkey
-        k_frags, _v_keys = umbral.umbral.split_rekey(alice_priv_enc, bob.public_key(EncryptingPower), m, n)
-        return k_frags
+        kfrags, _v_keys = pre.split_rekey(alice_priv_enc, bob.public_key(EncryptingPower), m, n)
+        return kfrags
 
     def create_policy(self,
                       bob: "Bob",
