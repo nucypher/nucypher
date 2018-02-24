@@ -488,8 +488,6 @@ class Ursula(Character):
 
         self._rest_app = None
         self._work_orders = []
-        # TODO: This needs to actually be a persistent data store.  See #127.
-        self._contracts = {}
 
     @property
     def rest_app(self):
@@ -627,8 +625,6 @@ class Ursula(Character):
                                           hrac=contract.hrac.hex().encode(),
                                           alice_pubkey_sig=contract.alice.seal
                                           )
-        #self._contracts[contract.hrac.hex()] = contract_to_store
-
         # TODO: Make the rest of this logic actually work - do something here
         # to decide if this Contract is worth accepting.
         return Response(
