@@ -159,8 +159,7 @@ class Character(object):
                     sign_plaintext=True,
                     ) -> tuple:
         """
-        Looks up recipient actor, finds that actor's pubkey_enc on our keyring,
-        and encrypts for them. Optionally signs the message as well.
+        Encrypts plaintext for recipient actor. Optionally signs the message as well.
 
         :param recipient: The character whose public key will be used to encrypt
             cleartext.
@@ -172,8 +171,7 @@ class Character(object):
         :return: A tuple, (ciphertext, signature).  If sign==False,
             then signature will be NOT_SIGNED.
         """
-        actor = self._lookup_actor(recipient)
-
+        recipient_pubkey_enc = recipient.public_key(EncryptingPower)
         if sign:
             if sign_plaintext:
                 signature = self.stamp(plaintext)
