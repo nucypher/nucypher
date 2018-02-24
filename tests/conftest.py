@@ -13,14 +13,19 @@ def testerchain():
 
 @pytest.fixture()
 def token(testerchain):
-    return NuCypherKMSToken(blockchain=testerchain)
+    token = NuCypherKMSToken(blockchain=testerchain)
+    token.arm().deploy()
+    return token
 
 
 @pytest.fixture()
 def escrow(testerchain, token):
-    return Escrow(blockchain=testerchain, token=token)
+    escrow = Escrow(blockchain=testerchain, token=token)
+    escrow.arm().deploy()
+    return escrow
 
 
 @pytest.fixture()
 def miner(testerchain, escrow, token):
-    return Miner(blockchain=testerchain, token=token, escrow=escrow)
+    address = testerchain.web3.eth.accounts[1]
+    return Miner(blockchain=testerchain, token=token, escrow=escrow, address=address)

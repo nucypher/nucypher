@@ -12,6 +12,9 @@ def test_get_token_before_creation(testerchain):
 
 def test_create_nucypher_kms_token(testerchain):
     token = NuCypherKMSToken(blockchain=testerchain)
+    token.arm()
+    token.deploy()
+
     assert len(token.contract.address) == 42
     assert token.contract.call().totalSupply() != 0
     assert token.contract.call().totalSupply() == 1000000000000000000000000000
@@ -23,6 +26,8 @@ def test_create_then_get_nucypher_kms_token(testerchain):
         NuCypherKMSToken.get(blockchain=testerchain)
 
     token = NuCypherKMSToken(blockchain=testerchain)
+    token.arm()
+    token.deploy()
 
     assert len(token.contract.address) == 42
     assert token.contract.call().totalSupply() != 0
