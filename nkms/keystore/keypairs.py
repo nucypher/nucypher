@@ -7,6 +7,7 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral import pre
 from nkms.crypto.kits import MessageKit
 from nkms.crypto.signature import Signature
+from typing import List
 
 
 class Keypair(object):

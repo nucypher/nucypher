@@ -1,12 +1,11 @@
 import inspect
-from typing import Iterable, List, Tuple
 
 from umbral import pre
-from nkms.crypto import api as API
 from nkms.crypto.kits import MessageKit
 from nkms.keystore import keypairs
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey
+from typing import List
 
 
 class PowerUpError(TypeError):
@@ -22,6 +21,7 @@ class NoEncryptingPower(PowerUpError):
 
 
 class CryptoPower(object):
+
     def __init__(self, power_ups=None, generate_keys_if_needed=False):
         self._power_ups = {}
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
@@ -75,9 +75,12 @@ class CryptoPower(object):
         except KeyError:
             raise NoEncryptingPower
 
-    def encrypt_for(self, recipient_pubkey_enc, plaintext):
-        ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, plaintext)
-        return MessageKit(ciphertext=ciphertext, capsule=capsule)
+    def generate_kfrags(self, bob, m, n) -> List:
+        try:
+            encrypting_power = self._power_ups[EncryptingPower]
+            return encrypting_power.generate_kfrags(bob, m, n)
+        except KeyError:
+            raise NoEncryptingPower
 
 
 class CryptoPowerUp(object):
@@ -129,7 +132,7 @@ class EncryptingPower(KeyPairBasedPower):
     _keypair_class = EncryptingKeypair
 
     def decrypt(self, message_kit: MessageKit) -> bytes:
-        cleartext = pre.decrypt(message_kit.capsule, self.keypair.privkey,
-                              message_kit.ciphertext, message_kit.alice_pubkey)
+        return self.keypair.decrypt(message_kit)
 
-        return cleartext
+    def generate_kfrags(self, bob_pubkey_enc, m, n) -> List:
+        return self.keypair.generate_kfrags(bob_pubkey_enc, m, n)
