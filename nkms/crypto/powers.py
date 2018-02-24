@@ -109,6 +109,9 @@ class KeyPairBasedPower(CryptoPowerUp):
             self.keypair = self._keypair_class(
                 umbral_key=key_to_pass_to_keypair)
 
+    def public_key(self):
+        return self.keypair.pubkey
+
 
 class SigningPower(KeyPairBasedPower):
     confers_public_key = True
@@ -120,88 +123,13 @@ class SigningPower(KeyPairBasedPower):
         """
         return self.keypair.sign(message)
 
-    def public_key(self):
-        return self.keypair.pubkey
-
 
 class EncryptingPower(KeyPairBasedPower):
     confers_public_key = True
     _keypair_class = EncryptingKeypair
-    KEYSIZE = 32
-
-    def _split_path(self, path: bytes) -> List[bytes]:
-        """
-        Splits the file path provided and provides subpaths to each directory.
-
-        :param path: Path to file
-
-        :return: Subpath(s) from path
-        """
-        # Hacky workaround: b'/'.split(b'/') == [b'', b'']
-        if path == b'/':
-            return [b'']
-
-        dirs = path.split(b'/')
-        return [b'/'.join(dirs[:i + 1]) for i in range(len(dirs))]
-
-    def _derive_path_key(
-            self,
-            path: bytes,
-    ) -> bytes:
-        """
-        Derives a key for the specific path.
-
-        :param path: Path to derive key for
-
-        :return: Derived key
-        """
-        priv_key = API.keccak_digest(self.priv_key, path)
-        pub_key = API.ecies_priv2pub(priv_key)
-        return (priv_key, pub_key)
-
-    def _encrypt_key(
-            self,
-            key: bytes,
-            pubkey: UmbralPublicKey=None
-    ) -> Tuple[bytes, bytes]:
-        """
-        Encrypts the `key` provided for the provided `pubkey` using the ECIES
-        schema. If no `pubkey` is provided, it uses `self.pub_key`.
-
-        :param key: Key to encrypt
-        :param pubkey: Public Key to encrypt the `key` for
-
-        :return (encrypted key, Umbral Capsule)
-        """
-        pubkey = pubkey or self.pub_key
-
-        symm_key, enc_symm_key = API.ecies_encaspulate(pubkey)
-        enc_key = API.symm_encrypt(symm_key, key)
-        return (enc_key, enc_symm_key)
-
-    def gen_path_keys(
-            self,
-            path: bytes
-    ) -> List[Tuple[bytes, bytes]]:
-        """
-        Generates path keys and returns path keys
-
-        :param path: Path to derive key(s) from
-
-        :return: List of path keys
-        """
-        subpaths = self._split_path(path)
-        keys = []
-        for subpath in subpaths:
-            path_priv, path_pub = self._derive_path_key(subpath)
-            keys.append((path_priv, path_pub))
-        return keys
 
     def decrypt(self, message_kit: MessageKit) -> bytes:
         cleartext = pre.decrypt(message_kit.capsule, self.keypair.privkey,
                               message_kit.ciphertext, message_kit.alice_pubkey)
 
         return cleartext
-
-    def public_key(self):
-        return self.keypair.pubkey

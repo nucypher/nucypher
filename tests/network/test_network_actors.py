@@ -7,13 +7,10 @@ import pytest
 from kademlia.utils import digest
 from nkms.characters import Ursula, Character
 from nkms.crypto.kits import MessageKit
-from nkms.crypto.signature import Signature
-from nkms.crypto.utils import BytestringSplitter
 from nkms.network import blockchain_client
-from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP, DHT_VALUE_HEADER_LENGTH, \
-    BYTESTRING_IS_URSULA_IFACE_INFO
+from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP, BYTESTRING_IS_URSULA_IFACE_INFO
 from nkms.network.protocols import dht_value_splitter
-from nkms.policy.models import Policy, Contract
+from nkms.policy.models import Contract
 from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
 
 
