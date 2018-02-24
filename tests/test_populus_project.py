@@ -3,6 +3,11 @@ from os.path import join, dirname, abspath
 import nkms_eth
 
 
+def test_testerchain_create(testerchain):
+    assert testerchain.network == 'tester'
+    assert testerchain.chain.web3.eth.blockNumber >= 0
+
+
 def test_nucypher_populus_project(testerchain):
     project_dir = join(dirname(abspath(nkms_eth.__file__)), 'project')
 
