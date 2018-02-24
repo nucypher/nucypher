@@ -46,7 +46,7 @@ class Contract(object):
         self.ursula = ursula
 
     def __bytes__(self):
-        return bytes(self.alice.seal) + bytes(
+        return bytes(self.alice.stamp) + bytes(
             self.hrac) + self.expiration.isoformat().encode() + bytes(
             self.deposit)
 
@@ -165,7 +165,7 @@ class Policy(object):
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
         """
-        return Policy.hash(bytes(alice.seal) + bytes(bob.seal) + uri)
+        return Policy.hash(bytes(alice.stamp) + bytes(bob.stamp) + uri)
 
     @staticmethod
     def hash(message):
@@ -179,17 +179,17 @@ class Policy(object):
 
         Our public key (which everybody knows) and the hrac above.
         """
-        return self.hash(bytes(self.alice.seal) + self.hrac())
+        return self.hash(bytes(self.alice.stamp) + self.hrac())
 
     def publish_treasure_map(self):
         tmap_message_kit, signature_for_bob = self.alice.encrypt_for(
             self.bob,
             self.treasure_map.packed_payload())
-        signature_for_ursula = self.alice.seal(self.hrac())
+        signature_for_ursula = self.alice.stamp(self.hrac())
 
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
-        dht_value = signature_for_ursula + self.alice.seal + self.hrac() + tmap_message_kit.to_bytes()
+        dht_value = signature_for_ursula + self.alice.stamp + self.hrac() + tmap_message_kit.to_bytes()
         dht_key = self.treasure_map_dht_key()
 
         setter = self.alice.server.set(dht_key, BYTESTRING_IS_TREASURE_MAP + dht_value)
@@ -295,7 +295,7 @@ class WorkOrder(object):
     @classmethod
     def construct_by_bob(cls, kfrag_hrac, capsules, ursula_dht_key, bob):
         receipt_bytes = b"wo:" + ursula_dht_key  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
-        receipt_signature = bob.seal(receipt_bytes)
+        receipt_signature = bob.stamp(receipt_bytes)
         return cls(bob, kfrag_hrac, capsules, receipt_bytes, receipt_signature,
                    ursula_dht_key)
 
@@ -315,7 +315,7 @@ class WorkOrder(object):
         capsules_as_bytes = [bytes(p) for p in self.capsules]
         packed_receipt_and_capsules = msgpack.dumps(
             (self.receipt_bytes, msgpack.dumps(capsules_as_bytes)))
-        return bytes(self.receipt_signature) + self.bob.seal + packed_receipt_and_capsules
+        return bytes(self.receipt_signature) + self.bob.stamp + packed_receipt_and_capsules
 
     def complete(self, cfrags):
         # TODO: Verify that this is in fact complete - right of CFrags and properly signed.

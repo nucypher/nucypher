@@ -37,7 +37,7 @@ class Character(object):
     _server = None
     _server_class = Server
     _default_crypto_powerups = None
-    _seal = None
+    _stamp = None
 
     def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
                  crypto_power_ups=[], is_me=True) -> None:
@@ -69,12 +69,12 @@ class Character(object):
         if is_me:
             self._actor_mapping = {}
 
-            self._seal = Seal(self)
+            self._stamp = SignatureStamp(self)
 
             if attach_server:
                 self.attach_server()
         else:
-            self._seal = StrangerSeal(self)
+            self._stamp = StrangerStamp(self)
 
         if crypto_power:
             self._crypto_power = crypto_power
@@ -86,10 +86,10 @@ class Character(object):
                                              generate_keys_if_needed=is_me)
 
     def __eq__(self, other):
-        return bytes(self.seal) == bytes(other.seal)
+        return bytes(self.stamp) == bytes(other.stamp)
 
     def __hash__(self):
-        return int.from_bytes(self.seal, byteorder="big")
+        return int.from_bytes(self.stamp, byteorder="big")
 
     class NotFound(KeyError):
         """raised when we try to interact with an actor of whom we haven't \
@@ -128,11 +128,11 @@ class Character(object):
             ksize, alpha, id, storage, *args, **kwargs)
 
     @property
-    def seal(self):
-        if not self._seal:
-            raise AttributeError("Seal has not been set up yet.")
+    def stamp(self):
+        if not self._stamp:
+            raise AttributeError("SignatureStamp has not been set up yet.")
         else:
-            return self._seal
+            return self._stamp
 
     @property
     def server(self) -> Server:
@@ -176,13 +176,13 @@ class Character(object):
 
         if sign:
             if sign_plaintext:
-                signature = self.seal(plaintext)
+                signature = self.stamp(plaintext)
                 message_kit = self._crypto_power.encrypt_for(
                     actor.public_key(EncryptingPower), signature + plaintext)
             else:
                 message_kit = self._crypto_power.encrypt_for(
                     actor.public_key(EncryptingPower), plaintext)
-                signature = self.seal(message_kit.ciphertext)
+                signature = self.stamp(message_kit.ciphertext)
             message_kit.alice_pubkey = self.public_key(SigningPower)
         else:
             signature = NOT_SIGNED
@@ -263,7 +263,7 @@ class Character(object):
                 "We haven't learned of an actor with ID {}".format(actor.id()))
 
     def id(self):
-        return hexlify(bytes(self.seal))
+        return hexlify(bytes(self.stamp))
 
     def public_key(self, key_class):
         # TODO: Does it make sense to have a specialized exception here? Probably.
@@ -554,8 +554,8 @@ class Ursula(Character):
         return self.dht_port, self.dht_interface, self.dht_ttl
 
     class InterfaceDHTKey:
-        def __init__(self, seal, interface_hrac):
-            self.pubkey_sig_bytes = bytes(seal)
+        def __init__(self, stamp, interface_hrac):
+            self.pubkey_sig_bytes = bytes(stamp)
             self.interface_hrac = interface_hrac
 
         def __bytes__(self):
@@ -574,12 +574,12 @@ class Ursula(Character):
             return bytes(self) == bytes(other)
 
     def interface_dht_key(self):
-        return self.InterfaceDHTKey(self.seal, self.interface_hrac())
+        return self.InterfaceDHTKey(self.stamp, self.interface_hrac())
 
     def interface_dht_value(self):
-        signature = self.seal(self.interface_hrac())
+        signature = self.stamp(self.interface_hrac())
         return (
-            BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.seal + self.interface_hrac()
+            BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.stamp + self.interface_hrac()
             + msgpack.dumps(self.dht_interface_info())
         )
 
@@ -602,7 +602,7 @@ class Ursula(Character):
         REST endpoint for getting both signing and encrypting public keys.
         """
         return Response(
-            content=bytes(self.seal) + bytes(self.public_key(EncryptingPower)),
+            content=bytes(self.stamp) + bytes(self.public_key(EncryptingPower)),
             content_type="application/octet-stream")
 
     def consider_contract(self, hrac_as_hex, request: http.Request):
@@ -623,7 +623,7 @@ class Ursula(Character):
         self.keystore.add_policy_contract(contract.expiration.datetime(),
                                           contract.deposit,
                                           hrac=contract.hrac.hex().encode(),
-                                          alice_pubkey_sig=contract.alice.seal
+                                          alice_pubkey_sig=contract.alice.stamp
                                           )
         # TODO: Make the rest of this logic actually work - do something here
         # to decide if this Contract is worth accepting.
@@ -667,7 +667,7 @@ class Ursula(Character):
         policy_contract = self.keystore.get_policy_contract(hrac_as_hex.encode())
         # contract_details = self._contracts[hrac.hex()]
 
-        if policy_contract.alice_pubkey_sig.key_data != alice.seal:
+        if policy_contract.alice_pubkey_sig.key_data != alice.stamp:
             raise Alice.SuspiciousActivity
 
         # contract = Contract(alice=alice, hrac=hrac,
@@ -717,7 +717,7 @@ class Ursula(Character):
             return work_orders_from_bob
 
 
-class Seal(object):
+class SignatureStamp(object):
     """
     Can be called to sign something or used to express the signing public
     key as bytes.
@@ -728,9 +728,6 @@ class Seal(object):
 
     def __call__(self, *args, **kwargs):
         return self.character._crypto_power.sign(*args, **kwargs)
-
-    def __iter__(seal):
-        yield from seal._as_tuple()
 
     def __bytes__(self):
         return self.character._crypto_power.pubkey_sig_bytes()
@@ -759,14 +756,14 @@ class Seal(object):
         return keccak_digest(bytes(self)).hex().encode()
 
 
-class StrangerSeal(Seal):
+class StrangerStamp(SignatureStamp):
     """
-    Seal of a stranger (ie, can only be used to glean public key, not to sign)
+    SignatureStamp of a stranger (ie, can only be used to glean public key, not to sign)
     """
 
     def __call__(self, *args, **kwargs):
         raise TypeError(
-            "This isn't your Seal; it belongs to {} (a Stranger).  You can't sign with it.".format(self.character))
+            "This isn't your SignatureStamp; it belongs to {} (a Stranger).  You can't sign with it.".format(self.character))
 
 
 def congregate(*characters):

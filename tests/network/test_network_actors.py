@@ -72,7 +72,7 @@ def test_trying_to_find_unknown_actor_raises_not_found(alice):
     tony_clifton = Character()
 
     message = b"some_message"
-    signature = alice.seal(message)
+    signature = alice.stamp(message)
 
     # Tony can't reference Alice...
 
@@ -110,7 +110,7 @@ def test_alice_creates_policy_group_with_correct_hrac(idle_policy):
     bob = idle_policy.bob
 
     assert idle_policy.hrac() == idle_policy.hash(
-        bytes(alice.seal) + bytes(bob.seal) + alice.__resource_id)
+        bytes(alice.stamp) + bytes(bob.stamp) + alice.__resource_id)
 
 
 def test_alice_sets_treasure_map_on_network(enacted_policy, ursulas):
