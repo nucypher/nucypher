@@ -2,7 +2,7 @@ import datetime
 
 import pytest
 
-from nkms.characters import congregate, Alice, Bob
+from nkms.characters import Alice, Bob
 from nkms.crypto.kits import MessageKit
 from nkms.crypto.powers import SigningPower, EncryptingPower
 from nkms.network import blockchain_client
@@ -63,7 +63,6 @@ def bob(alice, ursulas):
     BOB.attach_server()
     BOB.server.listen(8475)
     EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
-    congregate(alice, BOB, *ursulas)
     return BOB
 
 

@@ -65,7 +65,6 @@ def test_anybody_can_verify():
 
     # So, our story is fairly simple: an everyman meets Alice.
     somebody = Character()
-    somebody.learn_about_actor(alice)
 
     # Alice signs a message.
     message = b"A message for all my friends who can only verify and not sign."
@@ -87,7 +86,6 @@ def test_anybody_can_encrypt():
     """
     can_sign_and_encrypt = Character(crypto_power_ups=[SigningPower, EncryptingPower])
     ursula = Ursula()
-    can_sign_and_encrypt.learn_about_actor(ursula)
 
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 

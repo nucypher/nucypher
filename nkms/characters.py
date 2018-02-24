@@ -67,8 +67,6 @@ class Character(object):
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
 
         if is_me:
-            self._actor_mapping = {}
-
             self._stamp = SignatureStamp(self)
 
             if attach_server:
@@ -144,13 +142,6 @@ class Character(object):
     @property
     def name(self):
         return self.__class__.__name__
-
-    @staticmethod
-    def hash(message):
-        return keccak_digest(message)
-
-    def learn_about_actor(self, actor):
-        self._actor_mapping[actor.id()] = actor
 
     def encrypt_for(self,
                     recipient: "Character",
@@ -265,9 +256,6 @@ class Character(object):
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
 
-    def id(self):
-        return hexlify(bytes(self.stamp))
-
     def public_key(self, power_up_class):
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
@@ -369,7 +357,6 @@ class Bob(Character):
 
     @alice.setter
     def alice(self, alice_object):
-        self.learn_about_actor(alice_object)
         self._alice = alice_object
 
     def follow_treasure_map(self, hrac):
@@ -559,7 +546,7 @@ class Ursula(Character):
             self.interface_hrac = interface_hrac
 
         def __bytes__(self):
-            return Ursula.hash(self.pubkey_sig_bytes + self.interface_hrac)
+            return keccak_digest(self.pubkey_sig_bytes + self.interface_hrac)
 
         def __add__(self, other):
             return bytes(self) + other
@@ -584,7 +571,7 @@ class Ursula(Character):
         )
 
     def interface_hrac(self):
-        return self.hash(msgpack.dumps(self.dht_interface_info()))
+        return keccak_digest(msgpack.dumps(self.dht_interface_info()))
 
     def publish_dht_information(self):
         if not self.dht_port and self.dht_interface:
@@ -645,7 +632,6 @@ class Ursula(Character):
         # policy_payload_splitter = BytestringSplitter((KFrag, KFRAG_LENGTH))
 
         alice = Alice.from_public_keys((SigningPower, policy_message_kit.alice_pubkey))
-        self.learn_about_actor(alice)
 
         verified, cleartext = self.verify_from(
             alice, policy_message_kit,
@@ -764,9 +750,3 @@ class StrangerStamp(SignatureStamp):
     def __call__(self, *args, **kwargs):
         raise TypeError(
             "This isn't your SignatureStamp; it belongs to {} (a Stranger).  You can't sign with it.".format(self.character))
-
-
-def congregate(*characters):
-    for character in characters:
-        for newcomer in characters:
-            character.learn_about_actor(newcomer)

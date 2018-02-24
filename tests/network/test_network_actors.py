@@ -50,28 +50,6 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     assert digest(illegal_key) in ursula.server.protocol.illegal_keys_seen
 
 
-def test_trying_to_find_unknown_actor_raises_not_found(alice):
-    """
-    Tony the test character can't make reference to a character he doesn't know about yet.
-    """
-    tony_clifton = Character()
-
-    message = b"some_message"
-    signature = alice.stamp(message)
-
-    # Tony can't reference Alice...
-
-    # TODO: This may not actually be necessary anymore since we are mostly doing Character.from_public_keys()
-    # with pytest.raises(Character.NotFound):
-    #     verification = tony_clifton.verify_from(alice, message, signature)
-
-    # ...before learning about Alice.
-    tony_clifton.learn_about_actor(alice)
-    verification, NO_DECRYPTION_PERFORMED = tony_clifton.verify_from(alice, message, signature=signature)
-
-    assert verification is True
-
-
 def test_alice_finds_ursula(alice, ursulas):
     """
     With the help of any Ursula, Alice can find a specific Ursula.
