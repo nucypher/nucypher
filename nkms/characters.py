@@ -181,22 +181,22 @@ class Character(object):
                     actor.public_key(EncryptingPower), signature + plaintext)
             else:
                 message_kit = self._crypto_power.encrypt_for(
-                        actor.public_key(EncryptingPower), plaintext)
+                    actor.public_key(EncryptingPower), plaintext)
                 signature = self.seal(message_kit.ciphertext)
             message_kit.alice_pubkey = self.public_key(SigningPower)
         else:
             signature = NOT_SIGNED
             message_kit = self._crypto_power.encrypt_for(
-                            actor.public_key(EncryptingPower), plaintext)
+                actor.public_key(EncryptingPower), plaintext)
 
         return message_kit, signature
 
     def verify_from(self,
-                actor_whom_sender_claims_to_be: "Character",
-                message_kit: Union[MessageKit, bytes],
-                signature: Signature=None,
-                decrypt=False,
-                signature_is_on_cleartext=False) -> tuple:
+                    actor_whom_sender_claims_to_be: "Character",
+                    message_kit: Union[MessageKit, bytes],
+                    signature: Signature=None,
+                    decrypt=False,
+                    signature_is_on_cleartext=False) -> tuple:
         """
         Inverse of encrypt_for.
 
@@ -216,9 +216,9 @@ class Character(object):
         # Which do we use in which cases?
 
         # if not signature and not signature_is_on_cleartext:
-            # TODO: Since a signature can now be in a MessageKit, this might not be accurate anymore.
-            # raise ValueError("You need to either provide the Signature or \
-            #                   decrypt and find it on the cleartext.")
+        # TODO: Since a signature can now be in a MessageKit, this might not be accurate anymore.
+        # raise ValueError("You need to either provide the Signature or \
+        #                   decrypt and find it on the cleartext.")
 
         cleartext = NO_DECRYPTION_PERFORMED
 
@@ -226,7 +226,7 @@ class Character(object):
             if decrypt:
                 cleartext_with_sig = self.decrypt(message_kit)
                 signature, cleartext = BytestringSplitter(Signature)(cleartext_with_sig,
-                                                                       return_remainder=True)
+                                                                     return_remainder=True)
                 message_kit.signature = signature  # TODO: Obviously this is the wrong way to do this.  Let's make signature a property.
             else:
                 raise ValueError(
@@ -298,7 +298,8 @@ class Alice(Character):
                       n: int,
                       ):
         """
-        Alice dictates a new group of policies.
+        Create a Policy to share uri with bob.
+        Generates KFrags and attaches them.
         """
         kfrags = self.generate_kfrags(bob, m, n)
         # TODO: Access Alice's private key inside this method.
@@ -337,11 +338,11 @@ class Alice(Character):
         # by trying differet
         # deposits and expirations on a limited number of Ursulas.
         # Users may decide to inject some market strategies here.
-        found_ursulas = policy.find_ursulas(networky_stuff, deposit, 
+        found_ursulas = policy.find_ursulas(networky_stuff, deposit,
                                             expiration, num_ursulas=n)
         policy.match_kfrags_to_found_ursulas(found_ursulas)
         # REST call happens here, as does population of TreasureMap.
-        policy.enact(networky_stuff)  
+        policy.enact(networky_stuff)
 
         return policy
 
@@ -432,7 +433,9 @@ class Bob(Character):
         generated_work_orders = {}
 
         if not treasure_map_to_use:
-            raise ValueError("Bob doesn't have a TreasureMap to match any of these capsules: {}".format(capsules))
+            raise ValueError(
+                "Bob doesn't have a TreasureMap to match any of these capsules: {}".format(
+                    capsules))
 
         for ursula_dht_key in treasure_map_to_use:
             ursula = self._ursulas[ursula_dht_key]
@@ -444,7 +447,7 @@ class Bob(Character):
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
-                        kfrag_hrac, capsules_to_include, ursula_dht_key, self)
+                    kfrag_hrac, capsules_to_include, ursula_dht_key, self)
                 generated_work_orders[ursula_dht_key] = work_order
                 self._saved_work_orders[work_order.ursula_id][capsule] = work_order
 
@@ -486,7 +489,7 @@ class Ursula(Character):
         self._rest_app = None
         self._work_orders = []
         # TODO: This needs to actually be a persistent data store.  See #127.
-        self._contracts = {}  
+        self._contracts = {}
 
     @property
     def rest_app(self):
@@ -512,20 +515,19 @@ class Ursula(Character):
         response = requests.get(url)
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
-        signing_key_bytes, encrypting_key_bytes =\
-                BytestringSplitter(PublicKey)(response.content,
-                                              return_remainder=True)
+        signing_key_bytes, encrypting_key_bytes = \
+            BytestringSplitter(PublicKey)(response.content,
+                                          return_remainder=True)
         stranger_ursula_from_public_keys = cls.from_public_keys(
-                    signing=signing_key_bytes, encrypting=encrypting_key_bytes)
+            signing=signing_key_bytes, encrypting=encrypting_key_bytes)
         return stranger_ursula_from_public_keys
 
     def attach_server(self, ksize=20, alpha=3, id=None,
                       storage=None, *args, **kwargs):
-
         # TODO: Network-wide deterministic ID generation (ie, auction or
         # whatever)  See #136.
         if not id:
-            id = digest(secure_random(32)) 
+            id = digest(secure_random(32))
 
         super().attach_server(ksize, alpha, id, storage)
 
@@ -536,7 +538,7 @@ class Ursula(Character):
             Route('/kFrag/{hrac_as_hex}/reencrypt',
                   'POST',
                   self.reencrypt_via_rest),
-            Route('/public_keys', 'GET', 
+            Route('/public_keys', 'GET',
                   self.get_signing_and_encrypting_public_keys),
             Route('/consider_contract',
                   'POST',
@@ -554,7 +556,6 @@ class Ursula(Character):
         return self.dht_port, self.dht_interface, self.dht_ttl
 
     class InterfaceDHTKey:
-
         def __init__(self, seal, interface_hrac):
             self.pubkey_sig_bytes = bytes(seal)
             self.interface_hrac = interface_hrac
@@ -610,7 +611,7 @@ class Ursula(Character):
         # TODO: This actually needs to be a REST endpoint, with the payload
         # carrying the kfrag hash separately.
         from nkms.policy.models import Contract
-        contract, deposit_as_bytes =\
+        contract, deposit_as_bytes = \
             BytestringSplitter(Contract)(request.body, return_remainder=True)
         contract.deposit = deposit_as_bytes
 
@@ -642,7 +643,6 @@ class Ursula(Character):
         TODO: Validate that the kfrag being saved is pursuant to an approved
             Policy (see #121).
         """
-        from nkms.policy.models import Contract  # Avoid circular import
         hrac = binascii.unhexlify(hrac_as_hex)
         policy_message_kit = MessageKit.from_bytes(request.body)
         # group_payload_splitter = BytestringSplitter(PublicKey)
@@ -652,8 +652,8 @@ class Ursula(Character):
         self.learn_about_actor(alice)
 
         verified, cleartext = self.verify_from(
-                alice, policy_message_kit,
-                decrypt=True, signature_is_on_cleartext=True)
+            alice, policy_message_kit,
+            decrypt=True, signature_is_on_cleartext=True)
 
         if not verified:
             # TODO: What do we do if the Policy isn't signed properly?
@@ -699,10 +699,10 @@ class Ursula(Character):
 
         for capsule in work_order.capsules:
             # TODO: Sign the result of this.  See #141.
-            cfrag_byte_stream += bytes(umbral.umbral.reencrypt(kfrag, capsule))
+            cfrag_byte_stream += bytes(pre.reencrypt(kfrag, capsule))
 
         # TODO: Put this in Ursula's datastore
-        self._work_orders.append(work_order)  
+        self._work_orders.append(work_order)
 
         return Response(content=cfrag_byte_stream,
                         content_type="application/octet-stream")
