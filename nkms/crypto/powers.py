@@ -51,12 +51,11 @@ class CryptoPower(object):
         if power_up.confers_public_key:
             self.public_keys[power_up_class] = power_up_instance.public_key()
 
-    def pubkey_sig_bytes(self):
+    def power_ups(self, power_up_class):
         try:
-            pubkey_sig = self._power_ups[SigningPower].public_key()
-            return bytes(pubkey_sig)
+            return self._power_ups[power_up_class]
         except KeyError:
-            raise NoSigningPower
+            raise power_up_class.not_found_error
 
     def sign(self, message):
         """
