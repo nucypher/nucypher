@@ -7,7 +7,7 @@ def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
     token, _ = chain.provider.get_or_deploy_contract(
-        'NuCypherKMSToken', deploy_args=[10 ** 9, 2 * 10 ** 9],
+        'NuCypherKMSToken', deploy_args=[2 * 10 ** 9],
         deploy_transaction={'from': creator})
     return token
 
@@ -18,7 +18,7 @@ def escrow(web3, chain):
     node = web3.eth.accounts[1]
     # Creator deploys the escrow
     escrow, _ = chain.provider.get_or_deploy_contract(
-        'EscrowTest', deploy_args=[node, MINUTES_IN_PERIOD],
+        'MinersEscrowForPolicyTest', deploy_args=[node, MINUTES_IN_PERIOD],
         deploy_transaction={'from': creator})
     return escrow
 

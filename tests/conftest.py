@@ -15,7 +15,7 @@ def testerchain():
 def token(testerchain):
     token = NuCypherKMSToken(blockchain=testerchain)
     token.arm().deploy()
-    return token
+    yield token
 
 
 @pytest.fixture()
@@ -25,7 +25,7 @@ def escrow(testerchain, token):
     return escrow
 
 
-@pytest.fixture()
-def miner(testerchain, escrow, token):
-    address = testerchain.web3.eth.accounts[1]
-    return Miner(blockchain=testerchain, token=token, escrow=escrow, address=address)
+# @pytest.fixture()
+# def miner(testerchain, escrow, token):
+#     address = testerchain.web3.eth.accounts[1]
+#     return Miner(blockchain=testerchain, token=token, escrow=escrow, address=address)
