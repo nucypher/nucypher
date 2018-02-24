@@ -15,7 +15,7 @@ from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import key_splitter
 from nkms.crypto.utils import BytestringSplitter
 from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP
-from umbral.umbral import Capsule
+from umbral.pre import Capsule
 
 
 class Contract(object):

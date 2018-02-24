@@ -1,7 +1,7 @@
 import inspect
 from typing import Iterable, List, Tuple
 
-import umbral
+from umbral import pre
 from nkms.crypto import api as API
 from nkms.crypto.kits import MessageKit
 from nkms.keystore import keypairs
@@ -76,7 +76,7 @@ class CryptoPower(object):
             raise NoEncryptingPower
 
     def encrypt_for(self, recipient_pubkey_enc, plaintext):
-        ciphertext, capsule = umbral.umbral.encrypt(recipient_pubkey_enc, plaintext)
+        ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, plaintext)
         return MessageKit(ciphertext=ciphertext, capsule=capsule)
 
 
@@ -198,7 +198,7 @@ class EncryptingPower(KeyPairBasedPower):
         return keys
 
     def decrypt(self, message_kit: MessageKit) -> bytes:
-        cleartext = umbral.umbral.decrypt(message_kit.capsule, self.keypair.privkey,
+        cleartext = pre.decrypt(message_kit.capsule, self.keypair.privkey,
                               message_kit.ciphertext, message_kit.alice_pubkey)
 
         return cleartext

@@ -1,5 +1,5 @@
 from nkms.crypto.splitters import key_splitter, capsule_splitter
-from umbral import umbral
+from umbral import pre
 
 
 class CryptoKit:
@@ -25,7 +25,7 @@ class MessageKit(CryptoKit):
         self.alice_pubkey = alice_pubkey
 
     def decrypt(self, privkey):
-        return umbral.decrypt(
+        return pre.decrypt(
             self.capsule,
             self.ciphertext,
             self.alice_pubkey

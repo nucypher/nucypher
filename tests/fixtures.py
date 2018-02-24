@@ -12,7 +12,7 @@ from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, mak
 from sqlalchemy.engine import create_engine
 from nkms.keystore import keystore
 from nkms.keystore.db import Base
-from umbral import umbral
+from umbral import pre
 
 
 @pytest.fixture(scope="module")
@@ -90,7 +90,7 @@ def test_keystore():
 @pytest.fixture(scope="module")
 def alicebob_side_channel(alice):
     plaintext = b"Welcome to the flippering."
-    ciphertext, capsule = umbral.encrypt(alice.public_key(EncryptingPower), plaintext)
+    ciphertext, capsule = pre.encrypt(alice.public_key(EncryptingPower), plaintext)
     return MessageKit(ciphertext=ciphertext, capsule=capsule,
                       alice_pubkey=alice.public_key(EncryptingPower))
 

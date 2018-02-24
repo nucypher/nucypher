@@ -4,7 +4,7 @@ from typing import Union
 
 from nkms.crypto import api as API
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
-from umbral import umbral
+from umbral import pre
 from nkms.crypto.kits import MessageKit
 from nkms.crypto.signature import Signature
 

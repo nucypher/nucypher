@@ -1,8 +1,8 @@
-import umbral
 import pytest
+
 from tests.utilities import MockNetworkyStuff
+from umbral import pre
 from umbral.fragments import KFrag
-from umbral.umbral import GenericUmbralError
 
 
 def test_bob_can_follow_treasure_map(enacted_policy, ursulas, alice, bob):
@@ -80,7 +80,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     kfrag_bytes = ursula.keystore.get_policy_contract(
         work_order.kfrag_hrac.hex().encode()).k_frag
     the_kfrag = KFrag.from_bytes(kfrag_bytes)
-    the_correct_cfrag = umbral.umbral.reencrypt(the_kfrag, alicebob_side_channel.capsule)
+    the_correct_cfrag = pre.reencrypt(the_kfrag, alicebob_side_channel.capsule)
     assert bytes(the_cfrag) == bytes(the_correct_cfrag)  # It's the correct cfrag!
 
     # Now we'll show that Ursula saved the correct WorkOrder.
@@ -139,11 +139,10 @@ def test_bob_gathers_and_combines(enacted_policy, alice, bob, ursulas, alicebob_
     assert len(bob._saved_work_orders) < enacted_policy.m
 
     # Bob can't decrypt yet with just two CFrags.  He needs to gather at least m.
-    with pytest.raises(GenericUmbralError):
+    with pytest.raises(pre.GenericUmbralError):
         bob.decrypt(alicebob_side_channel)
 
     number_left_to_collect = enacted_policy.m - len(bob._saved_work_orders)
-
 
     new_work_orders = bob.generate_work_orders(enacted_policy.hrac(),
                                                alicebob_side_channel.capsule,
