@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 
 import msgpack
 import pytest
@@ -10,19 +9,8 @@ from nkms.crypto.kits import MessageKit
 from nkms.network import blockchain_client
 from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP, BYTESTRING_IS_URSULA_IFACE_INFO
 from nkms.network.protocols import dht_value_splitter
-from nkms.policy.models import Contract
+
 from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
-
-
-def test_alice_cannot_offer_policy_without_first_finding_ursula(alice, ursulas):
-    """
-    Alice can't just make a deal out of thin air if she doesn't know whether any Ursulas are available (she gets Ursula.NotFound).
-    """
-    networky_stuff = MockNetworkyStuff(ursulas)
-    contract = Contract(alice, "some_hrac,", datetime.datetime.now() + datetime.timedelta(days=5), ursula=ursulas[0])
-
-    with pytest.raises(Ursula.NotFound):
-        policy_offer = contract.encrypt_payload_for_ursula()
 
 
 def test_all_ursulas_know_about_all_other_ursulas(ursulas):

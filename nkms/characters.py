@@ -265,13 +265,6 @@ class Character(object):
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
 
-    def _lookup_actor(self, actor: "Character"):
-        try:
-            return self._actor_mapping[actor.id()]
-        except KeyError:
-            raise self.NotFound(
-                "We haven't learned of an actor with ID {}".format(actor.id()))
-
     def id(self):
         return hexlify(bytes(self.stamp))
 
