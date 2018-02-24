@@ -14,23 +14,20 @@ from kademlia.network import Server
 from kademlia.utils import digest
 from sqlalchemy.exc import IntegrityError
 
-from nkms.crypto.kits import MessageKit
-from nkms.network.constants import BYTESTRING_IS_URSULA_IFACE_INFO, BYTESTRING_IS_TREASURE_MAP
-from umbral.fragments import KFrag
-from umbral.keys import UmbralPublicKey
-import umbral
-
-from nkms.crypto import api as API
 from nkms.crypto.api import secure_random, keccak_digest
-from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED, KFRAG_LENGTH
+from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
+from nkms.crypto.kits import MessageKit
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 from nkms.network import blockchain_client
+from nkms.network.constants import BYTESTRING_IS_URSULA_IFACE_INFO, BYTESTRING_IS_TREASURE_MAP
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
 from nkms.policy.constants import NOT_FROM_ALICE, NON_PAYMENT
-
+from umbral import pre
+from umbral.fragments import KFrag
+from umbral.keys import UmbralPublicKey
 
 
 class Character(object):
@@ -128,7 +125,7 @@ class Character(object):
     def attach_server(self, ksize=20, alpha=3, id=None,
                       storage=None, *args, **kwargs) -> None:
         self._server = self._server_class(
-                ksize, alpha, id, storage, *args, **kwargs)
+            ksize, alpha, id, storage, *args, **kwargs)
 
     @property
     def seal(self):
