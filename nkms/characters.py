@@ -266,9 +266,9 @@ class Character(object):
     def id(self):
         return hexlify(bytes(self.stamp))
 
-    def public_key(self, key_class):
-        # TODO: Does it make sense to have a specialized exception here? Probably.
-        return self._crypto_power.public_keys[key_class]
+    def public_key(self, power_up_class):
+        power_up = self._crypto_power.power_ups(power_up_class)
+        return power_up.public_key()
 
 
 class Alice(Character):
@@ -729,7 +729,7 @@ class SignatureStamp(object):
         return self.character._crypto_power.sign(*args, **kwargs)
 
     def __bytes__(self):
-        return self.character._crypto_power.pubkey_sig_bytes()
+        return bytes(self.character.public_key(SigningPower))
 
     def __eq__(self, other):
         return other == bytes(self)
