@@ -17,13 +17,10 @@ class Blockchain:
 
     """
 
-    network = 'mainnetrpc'
+    network = ''  # 'mainnetrpc'
     python_project_name = 'nucypher-kms'
     _project = threading.local()
-    registrar_path = join(appdirs.user_data_dir(python_project_name), 'registrar.json')    # Persistent; In user's .local dir
-
-    class NotEnoughUrsulas(Exception):
-        pass
+    registrar_path = join(appdirs.user_data_dir(python_project_name), 'registrar.json')
 
     def __init__(self, project_name='nucypher-kms', timeout=60):
 
