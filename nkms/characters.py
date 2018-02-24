@@ -191,7 +191,6 @@ class Character(object):
         message_kit.alice_pubkey = self.public_key(SigningPower)
         return message_kit, signature
 
-
     def verify_from(self,
                     actor_whom_sender_claims_to_be: "Character",
                     message_kit: Union[MessageKit, bytes],
@@ -255,6 +254,9 @@ class Character(object):
 
     def decrypt(self, message_kit):
         return self._crypto_power.decrypt(message_kit)
+
+    def sign(self, message):
+        return self._crypto_power.power_ups(SigningPower).sign(message)
 
     def _lookup_actor(self, actor: "Character"):
         try:
@@ -726,7 +728,7 @@ class SignatureStamp(object):
         self.character = character
 
     def __call__(self, *args, **kwargs):
-        return self.character._crypto_power.sign(*args, **kwargs)
+        return self.character.sign(*args, **kwargs)
 
     def __bytes__(self):
         return bytes(self.character.public_key(SigningPower))
