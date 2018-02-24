@@ -20,6 +20,8 @@ class Blockchain:
     network = ''  # 'mainnetrpc'
     python_project_name = 'nucypher-kms'
     _project = threading.local()
+
+    # This config is persistent and is created in user's .local directory
     registrar_path = join(appdirs.user_data_dir(python_project_name), 'registrar.json')
 
     def __init__(self, project_name='nucypher-kms', timeout=60):

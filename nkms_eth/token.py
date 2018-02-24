@@ -1,37 +1,101 @@
-from nkms_eth import blockchain
-
-CONTRACT_NAME = 'NuCypherKMSToken'  # TODO this should be NuCypher's class
-SUBDIGITS = 18
-M = 10 ** SUBDIGITS
-SATURATION = int(1e10) * M
+from populus.contracts.contract import PopulusContract
+from .blockchain import Blockchain
 
 
-def create():
-    """
-    Creates a contract with tokens and returns it.
-    If it was already created, just returns the already existing contract
+class NuCypherKMSToken:
+    _contract_name = 'NuCypherKMSToken'
+    subdigits = 18
+    M = 10 ** subdigits
+    premine = int(1e9) * M
+    saturation = int(1e10) * M
 
-    :returns:   Token contract object
-    """
-    chain = blockchain.chain()
-    web3 = chain.web3
-    creator = web3.eth.accounts[0]  # TODO: make it possible to override
+    class ContractDeploymentError(Exception):
+        pass
 
-    token, tx = chain.provider.get_or_deploy_contract(
-        CONTRACT_NAME, deploy_args=[SATURATION],
-        deploy_transaction={'from': creator})
-    if tx:
-        chain.wait.for_receipt(tx, timeout=blockchain.TIMEOUT)
+    def __init__(self, blockchain: Blockchain, token_contract: PopulusContract=None):
+        self.creator = blockchain.web3.eth.accounts[0]
+        self.blockchain = blockchain
+        self.contract = token_contract
+        self.armed = False
 
-    return token
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        r = "{}(blockchain={}, contract={})"
+        return r.format(class_name, self.blockchain, self.contract)
 
+    def __eq__(self, other):
+        """Two token objects are equal if they have the same contract address"""
+        return self.contract.address == other.contract.address
 
-def get(name=CONTRACT_NAME):
-    """
-    Gets an existing contract or returns an error
-    """
-    return blockchain.chain().provider.get_contract(name)
+    def __call__(self, *args, **kwargs):
+        """Invoke contract -> No state change"""
+        return self.contract.call(*args, **kwargs)
 
+    def _check_contract_deployment(self) -> None:
+        """Raises ContractDeploymentError if the contract has not been armed and deployed."""
+        if not self.contract:
+            class_name = self.__class__.__name__
+            message = '{} contract is not deployed. Arm, then deploy.'.format(class_name)
+            raise self.ContractDeploymentError(message)
 
-def balance(address: str):
-    return get().call().balanceOf(address)
+    def arm(self):
+        """Arm contract for deployment to blockchain."""
+        self.armed = True
+        return self
+
+    def deploy(self):
+        """Deploy and publish contract to the blockchain."""
+
+        if not self.armed:
+            raise self.ContractDeploymentError('use .arm() to arm the contract, then .deploy().')
+
+        if self.contract:
+            class_name = self.__class__.__name__
+            message = '{} contract already deployed, use .get() to retrieve it.'.format(class_name)
+            raise self.ContractDeploymentError(message)
+
+        token_contract, txhash = self.blockchain.chain.provider.deploy_contract(
+            self._contract_name,
+            deploy_args=[self.saturation],
+            deploy_transaction={'from': self.creator})
+
+        self.blockchain.chain.wait.for_receipt(txhash, timeout=self.blockchain.timeout)
+
+        self.contract = token_contract
+        return self
+
+    def transact(self, *args):
+        """Invoke contract -> State change"""
+        self._check_contract_deployment()
+        result = self.contract.transact(*args)
+        return result
+
+    @classmethod
+    def get(cls, blockchain):
+        """Gets an existing token contract or returns an error"""
+        contract = blockchain.chain.provider.get_contract(cls._contract_name)
+        return cls(blockchain=blockchain, token_contract=contract)
+
+    def registrar(self):
+        """Retrieve all known addresses for this contract"""
+        self._check_contract_deployment()
+        return self.blockchain.chain.registrar.get_contract_address(self._contract_name)
+
+    def balance(self, address: str):
+        """Get the balance of a token address"""
+        self._check_contract_deployment()
+        return self.__call__().balanceOf(address)
+
+    def _airdrop(self, amount: int):
+        """Airdrops from creator address to all other addresses"""
+        self._check_contract_deployment()
+        _, *addresses = self.blockchain.web3.eth.accounts
+
+        def txs():
+            for address in addresses:
+                yield self.transact({'from': self.creator}).transfer(address, amount*(10**6))
+
+        for tx in txs():
+            self.blockchain.chain.wait.for_receipt(tx, timeout=10)
+
+        return self
