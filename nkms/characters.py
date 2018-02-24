@@ -296,8 +296,7 @@ class Alice(Character):
         :param n: Total number of rekey shares to generate
         """
         bob_pubkey_enc = bob.public_key(EncryptingPower)
-
-        return self._crypto_power.generate_kfrags(bob_pubkey_enc, m, n)
+        return self._crypto_power.power_ups(EncryptingPower).generate_kfrags(bob_pubkey_enc, m, n)
 
     def create_policy(self,
                       bob: "Bob",
