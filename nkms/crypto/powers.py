@@ -1,10 +1,8 @@
 import inspect
 
-from nkms.crypto.kits import MessageKit
 from nkms.keystore import keypairs
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey
-from typing import List
 
 
 class PowerUpError(TypeError):
@@ -20,7 +18,6 @@ class NoEncryptingPower(PowerUpError):
 
 
 class CryptoPower(object):
-
     def __init__(self, power_ups=None, generate_keys_if_needed=False):
         self._power_ups = {}
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
@@ -56,20 +53,6 @@ class CryptoPower(object):
         except KeyError:
             raise power_up_class.not_found_error
 
-    def decrypt(self, message_kit):
-        try:
-            encrypting_power = self._power_ups[EncryptingPower]
-            return encrypting_power.decrypt(message_kit)
-        except KeyError:
-            raise NoEncryptingPower
-
-    def generate_kfrags(self, bob, m, n) -> List:
-        try:
-            encrypting_power = self._power_ups[EncryptingPower]
-            return encrypting_power.generate_kfrags(bob, m, n)
-        except KeyError:
-            raise NoEncryptingPower
-
 
 class CryptoPowerUp(object):
     """
@@ -81,8 +64,8 @@ class CryptoPowerUp(object):
 class KeyPairBasedPower(CryptoPowerUp):
     _keypair_class = keypairs.Keypair
 
-    def __init__(self, keypair: keypairs.Keypair=None,
-                 pubkey: UmbralPublicKey=None,
+    def __init__(self, keypair: keypairs.Keypair = None,
+                 pubkey: UmbralPublicKey = None,
                  generate_keys_if_needed=True) -> None:
         if keypair and pubkey:
             raise ValueError(
@@ -100,6 +83,18 @@ class KeyPairBasedPower(CryptoPowerUp):
             self.keypair = self._keypair_class(
                 umbral_key=key_to_pass_to_keypair)
 
+    def __getattr__(self, item):
+        if item in self.provides:
+            try:
+                return getattr(self.keypair, item)
+            except AttributeError:
+                raise PowerUpError(
+                    "This {} has a keypair, {}, which doesn't provide {}.".format(self.__class__,
+                                                                                  self.keypair.__class__,
+                                                                                  item))
+        else:
+            raise PowerUpError("This {} doesn't provide {}.".format(self.__class__, item))
+
     def public_key(self):
         return self.keypair.pubkey
 
@@ -108,21 +103,11 @@ class SigningPower(KeyPairBasedPower):
     confers_public_key = True
     _keypair_class = SigningKeypair
     not_found_error = NoSigningPower
-
-    def sign(self, message):
-        """
-        Signs a message message and returns a Signature.
-        """
-        return self.keypair.sign(message)
+    provides = ("sign",)
 
 
 class EncryptingPower(KeyPairBasedPower):
     confers_public_key = True
     _keypair_class = EncryptingKeypair
     not_found_error = NoEncryptingPower
-
-    def decrypt(self, message_kit: MessageKit) -> bytes:
-        return self.keypair.decrypt(message_kit)
-
-    def generate_kfrags(self, bob_pubkey_enc, m, n) -> List:
-        return self.keypair.generate_kfrags(bob_pubkey_enc, m, n)
+    provides = ("decrypt", "generate_kfrags")
