@@ -83,9 +83,7 @@ class EncryptingKeypair(Keypair):
 
         These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
         that he can activate the Capsule.
-
-        :param alice_privkey: Alice's private key
-        :param bob_pubkey: Bob's public key
+        :param bob_pubkey_enc: Bob's public key
         :param m: Minimum number of KFrags needed to rebuild ciphertext
         :param n: Total number of rekey shares to generate
         """

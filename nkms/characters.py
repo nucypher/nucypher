@@ -264,8 +264,7 @@ class Alice(Character):
 
         These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
         that he can activate the Capsule.
-
-        :param bob: Bob's public key
+        :param bob: Bob instance which will be able to decrypt messages re-encrypted with these kfrags.
         :param m: Minimum number of KFrags needed to rebuild ciphertext
         :param n: Total number of rekey shares to generate
         """
