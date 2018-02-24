@@ -282,15 +282,13 @@ class Alice(Character):
         These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
         that he can activate the Capsule.
 
-        :param alice_privkey: Alice's private key
-        :param bob_pubkey: Bob's public key
+        :param bob: Bob's public key
         :param m: Minimum number of KFrags needed to rebuild ciphertext
         :param n: Total number of rekey shares to generate
         """
-        # TODO: Is this how we want to access Alice's private key?  On further reflection: no.
-        alice_priv_enc = self._crypto_power._power_ups[EncryptingPower].keypair.privkey
-        kfrags, _v_keys = pre.split_rekey(alice_priv_enc, bob.public_key(EncryptingPower), m, n)
-        return kfrags
+        bob_pubkey_enc = bob.public_key(EncryptingPower)
+
+        return self._crypto_power.generate_kfrags(bob_pubkey_enc, m, n)
 
     def create_policy(self,
                       bob: "Bob",
