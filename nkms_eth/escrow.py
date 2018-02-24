@@ -10,10 +10,13 @@ addr = str
 
 
 class Escrow:
-    escrow_name = 'Escrow'
+    _contract_name = 'MinersEscrow'
     hours_per_period = 1       # 24
     min_release_periods = 1    # 30
     max_awarded_periods = 365
+    min_allowed_locked = 10 ** 6
+    max_allowed_locked = 10 ** 7 * NuCypherKMSToken.M
+    reward = NuCypherKMSToken.saturation - NuCypherKMSToken.premine
     null_addr = '0x' + '0' * 40
 
     mining_coeff = [
@@ -21,7 +24,9 @@ class Escrow:
         2 * 10 ** 7,
         max_awarded_periods,
         max_awarded_periods,
-        min_release_periods
+        min_release_periods,
+        min_allowed_locked,
+        max_allowed_locked
     ]
 
     class ContractDeploymentError(Exception):
@@ -35,9 +40,10 @@ class Escrow:
         self.contract = contract
         self.token = token
         self.armed = False
-        self.miners = []
+        self.miners = list()
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self):
+        """Gateway to contract function calls"""
         return self.contract.call()
 
     def __eq__(self, other):
@@ -55,21 +61,25 @@ class Escrow:
             message = '{} contract already deployed, use .get() to retrieve it.'.format(class_name)
             raise self.ContractDeploymentError(message)
 
-        contract, txhash = self.blockchain.chain.provider.deploy_contract(self.escrow_name,
+        contract, deploy_txhash = self.blockchain.chain.provider.deploy_contract(self._contract_name,
                                                           deploy_args=[self.token.contract.address] + self.mining_coeff,
                                                           deploy_transaction={'from': self.token.creator})
 
-        self.blockchain.chain.wait.for_receipt(txhash, timeout=self.blockchain.timeout)
-        txhash = self.token.contract.transact({'from': self.token.creator}).addMiner(contract.address)
-        self.blockchain.chain.wait.for_receipt(txhash, timeout=self.blockchain.timeout)
-
+        self.blockchain.chain.wait.for_receipt(deploy_txhash, timeout=self.blockchain.timeout)
         self.contract = contract
-        return self
+
+        reward_txhash = self.token.transact({'from': self.token.creator}).transfer(self.contract.address, self.reward)
+        self.blockchain.chain.wait.for_receipt(reward_txhash, timeout=self.blockchain.timeout)
+
+        init_txhash = self.transact({'from': self.token.creator}).initialize()
+        self.blockchain.chain.wait.for_receipt(init_txhash, timeout=self.blockchain.timeout)
+
+        return deploy_txhash, reward_txhash, init_txhash
 
     @classmethod
     def get(cls, blockchain, token):
         """Returns an escrow object or an error"""
-        contract = blockchain.chain.provider.get_contract(cls.escrow_name)
+        contract = blockchain.chain.provider.get_contract(cls._contract_name)
         return cls(blockchain=blockchain, token=token, contract=contract)
 
     def transact(self, *args, **kwargs):
@@ -88,7 +98,7 @@ class Escrow:
         throw away those which do not respond.
         """
 
-        system_random = SystemRandom()
+        system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
         n_tokens = self.__call__().getAllLockedTokens()
 
@@ -108,4 +118,4 @@ class Escrow:
                 return system_random.sample(addrs, quantity)
 
         raise self.NotEnoughUrsulas('Selection failed after {} attempts'.format(attempts))
->>>>>>> d428158... Escrow miner tracking logic
+
