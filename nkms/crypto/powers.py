@@ -1,6 +1,5 @@
 import inspect
 
-from umbral import pre
 from nkms.crypto.kits import MessageKit
 from nkms.keystore import keypairs
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
@@ -56,16 +55,6 @@ class CryptoPower(object):
             return self._power_ups[power_up_class]
         except KeyError:
             raise power_up_class.not_found_error
-
-    def sign(self, message):
-        """
-        TODO: New docstring.
-        """
-        try:
-            sig_keypair = self._power_ups[SigningPower]
-        except KeyError as e:
-            raise NoSigningPower(e)
-        return sig_keypair.sign(message)
 
     def decrypt(self, message_kit):
         try:
