@@ -1,18 +1,13 @@
 import asyncio
-import binascii
-from binascii import hexlify
 from logging import getLogger
-from typing import Union, List
 
 import msgpack
 import requests
-from apistar import http
 from apistar.core import Route
 from apistar.frameworks.wsgi import WSGIApp as App
-from apistar.http import Response
 from kademlia.network import Server
 from kademlia.utils import digest
-from sqlalchemy.exc import IntegrityError
+from typing import Union, List
 
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
@@ -23,10 +18,9 @@ from nkms.crypto.utils import BytestringSplitter
 from nkms.network import blockchain_client
 from nkms.network.constants import BYTESTRING_IS_URSULA_IFACE_INFO, BYTESTRING_IS_TREASURE_MAP
 from nkms.network.protocols import dht_value_splitter
-from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer
+from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
 from nkms.policy.constants import NOT_FROM_ALICE, NON_PAYMENT
 from umbral import pre
-from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
 
 
@@ -176,7 +170,6 @@ class Character(object):
             # Don't sign.
             signature = NOT_SIGNED
             ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, plaintext)
-
 
         message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule)
         message_kit.alice_pubkey = self.public_key(SigningPower)
@@ -459,8 +452,9 @@ class Bob(Character):
         return self._ursulas[ursula_id]
 
 
-class Ursula(Character):
+class Ursula(Character, ProxyRESTServer):
     _server_class = NuCypherDHTServer
+    _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
     dht_port = None
@@ -583,111 +577,6 @@ class Ursula(Character):
         blockchain_client._ursulas_on_blockchain.append(dht_key)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
-
-    def get_signing_and_encrypting_public_keys(self):
-        """
-        REST endpoint for getting both signing and encrypting public keys.
-        """
-        return Response(
-            content=bytes(self.stamp) + bytes(self.public_key(EncryptingPower)),
-            content_type="application/octet-stream")
-
-    def consider_contract(self, hrac_as_hex, request: http.Request):
-        # TODO: This actually needs to be a REST endpoint, with the payload
-        # carrying the kfrag hash separately.
-        from nkms.policy.models import Contract
-        contract, deposit_as_bytes = \
-            BytestringSplitter(Contract)(request.body, return_remainder=True)
-        contract.deposit = deposit_as_bytes
-
-        # contract_to_store = {  # TODO: This needs to be a datastore - see #127.
-        #     "alice_pubkey_sig":
-        #     "deposit": contract.deposit,
-        #     # TODO: Whatever type "deposit" ends up being, we'll need to
-        #     # serialize it here.  See #148.
-        #     "expiration": contract.expiration,
-        # }
-        self.keystore.add_policy_contract(contract.expiration.datetime(),
-                                          contract.deposit,
-                                          hrac=contract.hrac.hex().encode(),
-                                          alice_pubkey_sig=contract.alice.stamp
-                                          )
-        # TODO: Make the rest of this logic actually work - do something here
-        # to decide if this Contract is worth accepting.
-        return Response(
-            b"This will eventually be an actual acceptance of the contract.",
-            content_type="application/octet-stream")
-
-    def set_policy(self, hrac_as_hex, request: http.Request):
-        """
-        REST endpoint for setting a kFrag.
-        TODO: Instead of taking a Request, use the apistar typing system to type
-            a payload and validate / split it.
-        TODO: Validate that the kfrag being saved is pursuant to an approved
-            Policy (see #121).
-        """
-        hrac = binascii.unhexlify(hrac_as_hex)
-        policy_message_kit = MessageKit.from_bytes(request.body)
-        # group_payload_splitter = BytestringSplitter(PublicKey)
-        # policy_payload_splitter = BytestringSplitter((KFrag, KFRAG_LENGTH))
-
-        alice = Alice.from_public_keys((SigningPower, policy_message_kit.alice_pubkey))
-
-        verified, cleartext = self.verify_from(
-            alice, policy_message_kit,
-            decrypt=True, signature_is_on_cleartext=True)
-
-        if not verified:
-            # TODO: What do we do if the Policy isn't signed properly?
-            pass
-        #
-        # alices_signature, policy_payload =\
-        #     BytestringSplitter(Signature)(cleartext, return_remainder=True)
-
-        # TODO: If we're not adding anything else in the payload, stop using the
-        # splitter here.
-        # kfrag = policy_payload_splitter(policy_payload)[0]
-        kfrag = KFrag.from_bytes(cleartext)
-
-        # TODO: Query stored Contract and reconstitute
-        policy_contract = self.keystore.get_policy_contract(hrac_as_hex.encode())
-        # contract_details = self._contracts[hrac.hex()]
-
-        if policy_contract.alice_pubkey_sig.key_data != alice.stamp:
-            raise Alice.SuspiciousActivity
-
-        # contract = Contract(alice=alice, hrac=hrac,
-        #                     kfrag=kfrag, expiration=policy_contract.expiration)
-
-        try:
-            # TODO: Obviously we do this lower-level.
-            policy_contract.k_frag = bytes(kfrag)
-            self.keystore.session.commit()
-
-        except IntegrityError:
-            raise
-            # Do something appropriately RESTful (ie, 4xx).
-
-        return  # TODO: Return A 200, with whatever policy metadata.
-
-    def reencrypt_via_rest(self, hrac_as_hex, request: http.Request):
-        from nkms.policy.models import WorkOrder  # Avoid circular import
-        hrac = binascii.unhexlify(hrac_as_hex)
-        work_order = WorkOrder.from_rest_payload(hrac, request.body)
-        kfrag_bytes = self.keystore.get_policy_contract(hrac.hex().encode()).k_frag  # Careful!  :-)
-        # TODO: Push this to a lower level.
-        kfrag = KFrag.from_bytes(kfrag_bytes)
-        cfrag_byte_stream = b""
-
-        for capsule in work_order.capsules:
-            # TODO: Sign the result of this.  See #141.
-            cfrag_byte_stream += bytes(pre.reencrypt(kfrag, capsule))
-
-        # TODO: Put this in Ursula's datastore
-        self._work_orders.append(work_order)
-
-        return Response(content=cfrag_byte_stream,
-                        content_type="application/octet-stream")
 
     def work_orders(self, bob=None):
         """
