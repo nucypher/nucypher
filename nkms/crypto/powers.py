@@ -118,6 +118,7 @@ class KeyPairBasedPower(CryptoPowerUp):
 class SigningPower(KeyPairBasedPower):
     confers_public_key = True
     _keypair_class = SigningKeypair
+    not_found_error = NoSigningPower
 
     def sign(self, message):
         """
@@ -129,6 +130,7 @@ class SigningPower(KeyPairBasedPower):
 class EncryptingPower(KeyPairBasedPower):
     confers_public_key = True
     _keypair_class = EncryptingKeypair
+    not_found_error = NoEncryptingPower
 
     def decrypt(self, message_kit: MessageKit) -> bytes:
         return self.keypair.decrypt(message_kit)
