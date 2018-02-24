@@ -6,11 +6,11 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
 def test_gen_keypair_if_needed():
     new_enc_keypair = keypairs.EncryptingKeypair()
-    assert new_enc_keypair.privkey != None
+    assert new_enc_keypair._privkey != None
     assert new_enc_keypair.pubkey != None
 
     new_sig_keypair = keypairs.SigningKeypair()
-    assert new_sig_keypair.privkey != None
+    assert new_sig_keypair._privkey != None
     assert new_sig_keypair.pubkey != None
 
 
@@ -19,13 +19,13 @@ def test_keypair_with_umbral_keys():
     umbral_pubkey = umbral_privkey.get_pubkey()
 
     new_keypair_from_priv = keypairs.Keypair(umbral_privkey)
-    assert new_keypair_from_priv.privkey.bn_key.to_bytes() == umbral_privkey.bn_key.to_bytes()
+    assert new_keypair_from_priv._privkey.bn_key.to_bytes() == umbral_privkey.bn_key.to_bytes()
     assert new_keypair_from_priv.pubkey.to_bytes() == umbral_pubkey.to_bytes()
 
     new_keypair_from_pub = keypairs.Keypair(umbral_pubkey)
     assert new_keypair_from_pub.pubkey.to_bytes() == umbral_pubkey.to_bytes()
     with pytest.raises(AttributeError):
-        new_keypair_from_pub.privkey
+        new_keypair_from_pub._privkey
 
 
 def test_keypair_serialization():

@@ -25,14 +25,14 @@ class Keypair(object):
         """
         try:
             self.pubkey = umbral_key.get_pubkey()
-            self.privkey = umbral_key
+            self._privkey = umbral_key
         except NotImplementedError:
             self.pubkey = umbral_key
         except AttributeError:
             # They didn't pass anything we recognize as a valid key.
             if generate_keys_if_needed:
-                self.privkey = UmbralPrivateKey.gen_key()
-                self.pubkey = self.privkey.get_pubkey()
+                self._privkey = UmbralPrivateKey.gen_key()
+                self.pubkey = self._privkey.get_pubkey()
             else:
                 raise ValueError("Either pass a valid key as umbral_key or, if you want to generate keys, set generate_keys_if_needed to True.")
 
@@ -72,7 +72,26 @@ class EncryptingKeypair(Keypair):
 
         :return: bytes
         """
-        return message_kit.decypt(self.privkey)
+        cleartext = pre.decrypt(message_kit.capsule, self._privkey,
+                                message_kit.ciphertext, message_kit.alice_pubkey)
+
+        return cleartext
+
+    def generate_kfrags(self, bob_pubkey_enc, m, n) -> List:
+        """
+        Generates re-encryption key frags ("KFrags") and returns them.
+
+        These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
+        that he can activate the Capsule.
+
+        :param alice_privkey: Alice's private key
+        :param bob_pubkey: Bob's public key
+        :param m: Minimum number of KFrags needed to rebuild ciphertext
+        :param n: Total number of rekey shares to generate
+        """
+        alice_priv_enc = self._privkey
+        kfrags, _v_keys = pre.split_rekey(alice_priv_enc, bob_pubkey_enc, m, n)
+        return kfrags
 
 
 class SigningKeypair(Keypair):
@@ -90,5 +109,5 @@ class SigningKeypair(Keypair):
 
         :return: Signature in bytes
         """
-        signature_der_bytes = API.ecdsa_sign(message, self.privkey)
+        signature_der_bytes = API.ecdsa_sign(message, self._privkey)
         return Signature.from_bytes(signature_der_bytes, der_encoded=True)
