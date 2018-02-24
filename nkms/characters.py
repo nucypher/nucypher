@@ -252,8 +252,15 @@ class Character(object):
 
         return is_valid, cleartext
 
+    """
+    Next we have decrypt() and sign() - these two functions use the private keys of their respective powers;
+    any character who has these powers can use these functions.
+
+    If they don't have the correct Power, the appropriate PowerUpError is raised.
+    """
+
     def decrypt(self, message_kit):
-        return self._crypto_power.decrypt(message_kit)
+        return self._crypto_power.power_ups(EncryptingPower).decrypt(message_kit)
 
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
