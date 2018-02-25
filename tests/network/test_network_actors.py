@@ -8,6 +8,7 @@ from nkms.characters import Ursula, Character
 from nkms.crypto.kits import MessageKit
 from nkms.network import blockchain_client
 from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP, BYTESTRING_IS_URSULA_IFACE_INFO
+
 from nkms.network.protocols import dht_value_splitter
 
 from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK

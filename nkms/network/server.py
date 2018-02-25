@@ -165,11 +165,13 @@ class ProxyRESTServer(object):
         #     # serialize it here.  See #148.
         #     "expiration": contract.expiration,
         # }
-        self.keystore.add_policy_contract(contract.expiration.datetime(),
-                                          contract.deposit,
-                                          hrac=contract.hrac.hex().encode(),
-                                          alice_pubkey_sig=contract.alice.stamp
-                                          )
+        self.datastore_threadpool.callInThread(
+            self.datastore.add_policy_contract,
+            contract.expiration.datetime(),
+            contract.deposit,
+            hrac=contract.hrac.hex().encode(),
+            alice_pubkey_sig=contract.alice.stamp
+            )
         # TODO: Make the rest of this logic actually work - do something here
         # to decide if this Contract is worth accepting.
         return Response(
@@ -207,8 +209,15 @@ class ProxyRESTServer(object):
         # kfrag = policy_payload_splitter(policy_payload)[0]
         kfrag = KFrag.from_bytes(cleartext)
 
-        # TODO: Query stored Contract and reconstitute
-        policy_contract = self.keystore.get_policy_contract(hrac_as_hex.encode())
+        self.datastore_threadpool.callInThread(self.attach_kfrag_to_saved_contract,
+                                               alice,
+                                               hrac_as_hex,
+                                               kfrag)
+
+        return  # TODO: Return A 200, with whatever policy metadata.
+
+    def attach_kfrag_to_saved_contract(self, alice, hrac_as_hex, kfrag):
+        policy_contract = self.datastore.get_policy_contract(hrac_as_hex.encode())
         # contract_details = self._contracts[hrac.hex()]
 
         if policy_contract.alice_pubkey_sig.key_data != alice.stamp:
@@ -220,19 +229,19 @@ class ProxyRESTServer(object):
         try:
             # TODO: Obviously we do this lower-level.
             policy_contract.k_frag = bytes(kfrag)
-            self.keystore.session.commit()
+            self.datastore.session.commit()
 
         except IntegrityError:
             raise
             # Do something appropriately RESTful (ie, 4xx).
 
-        return  # TODO: Return A 200, with whatever policy metadata.
+        # TODO: Return something that is useful to the REST endpoint caller.
 
     def reencrypt_via_rest(self, hrac_as_hex, request: http.Request):
         from nkms.policy.models import WorkOrder  # Avoid circular import
         hrac = binascii.unhexlify(hrac_as_hex)
         work_order = WorkOrder.from_rest_payload(hrac, request.body)
-        kfrag_bytes = self.keystore.get_policy_contract(hrac.hex().encode()).k_frag  # Careful!  :-)
+        kfrag_bytes = self.datastore.get_policy_contract(hrac.hex().encode()).k_frag  # Careful!  :-)
         # TODO: Push this to a lower level.
         kfrag = KFrag.from_bytes(kfrag_bytes)
         cfrag_byte_stream = b""

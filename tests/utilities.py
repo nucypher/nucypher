@@ -30,12 +30,16 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
 
     URSULAS = []
     for _u in range(how_many_ursulas):
-        engine = create_engine('sqlite:///:memory:')
-        Base.metadata.create_all(engine)
-        ursulas_keystore = keystore.KeyStore(engine)
-        _URSULA = Ursula(urulsas_keystore=ursulas_keystore)
+        _URSULA = Ursula(dht_port=ursula_starting_port + _u, dht_interface="127.0.0.1")
         _URSULA.attach_server()
-        _URSULA.listen(ursula_starting_port + _u, "127.0.0.1")
+
+        class MockDatastoreThreadPool(object):
+            def callInThread(self, f, *args, **kwargs):
+                return f(*args, **kwargs)
+
+        _URSULA.datastore_threadpool = MockDatastoreThreadPool()
+        _URSULA.start_datastore()
+        _URSULA.listen()
 
         URSULAS.append(_URSULA)
 
