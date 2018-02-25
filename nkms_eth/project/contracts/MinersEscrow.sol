@@ -611,4 +611,15 @@ contract MinersEscrow is Issuer, Ownable {
     {
        return minerInfo[_owner].dhtKeys[_index];
     }
+
+    /**
+    * @notice Get next miner
+    * @param _previous Previous miner or 0x0 address
+    * @return Address of next miner or 0x0 if no more miners
+    **/
+    function getNextMiner(address _previous)
+        public constant returns (address)
+    {
+        return miners.step(_previous, true);
+    }
 }

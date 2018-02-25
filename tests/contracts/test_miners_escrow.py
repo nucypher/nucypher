@@ -310,6 +310,17 @@ def test_locked_distribution(web3, chain, token, escrow_contract):
         assert miners[index + 1].lower() == address_stop.lower()
         assert 1 == shift
 
+    # Test miners iteration
+    miner = NULL_ADDR
+    i = 0
+    while True:
+        next_miner = escrow.call().getNextMiner(miner)
+        if next_miner == NULL_ADDR:
+            break
+        assert miners[i].lower() == next_miner.lower()
+        miner = next_miner
+        i += 1
+
 
 def test_mining(web3, chain, token, escrow_contract):
     escrow = escrow_contract(1500)
