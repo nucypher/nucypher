@@ -379,7 +379,7 @@ class Bob(Character):
                     Ursula.as_discovered_on_network(
                             dht_port=port,
                             dht_interface=interface,
-                            powers_and_keys=((SigningPower, ursula_pubkey_sig),)
+                            powers_and_keys=({SigningPower: ursula_pubkey_sig})
                     )
 
     def get_treasure_map(self, policy, using_dht=False):

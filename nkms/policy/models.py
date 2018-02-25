@@ -57,7 +57,7 @@ class Contract(object):
         alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = contract_splitter(
             contract_as_bytes, return_remainder=True)
         expiration = maya.parse(expiration_bytes.decode())
-        alice = Alice.from_public_keys((SigningPower, alice_pubkey_sig))
+        alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
         return cls(alice=alice, hrac=hrac, expiration=expiration)
 
     def activate(self, kfrag, ursula, negotiation_result):
@@ -308,7 +308,7 @@ class WorkOrder(object):
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
             raise ValueError("This doesn't appear to be from Bob.")
-        bob = Bob.from_public_keys((SigningPower, bob_pubkey_sig))
+        bob = Bob.from_public_keys({SigningPower: bob_pubkey_sig})
         return cls(bob, kfrag_hrac, capsules, receipt_bytes, signature)
 
     def payload(self):

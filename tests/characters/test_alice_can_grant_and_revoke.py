@@ -49,8 +49,7 @@ def test_alice_can_get_ursulas_keys_via_rest(alice, ursulas):
         (UmbralPublicKey, PUBLIC_KEY_LENGTH, {"as_b64": False})
     )
     signing_key, encrypting_key = splitter(response.content)
-    stranger_ursula_from_public_keys = Ursula.from_public_keys((SigningPower,
-                                                                signing_key),
-                                                               (EncryptingPower,
-                                                                encrypting_key))
+    stranger_ursula_from_public_keys = Ursula.from_public_keys({SigningPower: signing_key,
+                                                               EncryptingPower: encrypting_key}
+                                                            )
     assert stranger_ursula_from_public_keys == ursulas[0]
