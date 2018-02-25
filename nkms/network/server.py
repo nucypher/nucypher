@@ -9,6 +9,7 @@ from kademlia.network import Server
 from kademlia.utils import digest
 from sqlalchemy.exc import IntegrityError
 
+from hendrix.experience import crosstown_traffic
 from nkms.crypto.kits import MessageKit
 from nkms.crypto.powers import EncryptingPower, SigningPower
 from nkms.crypto.utils import BytestringSplitter
@@ -18,6 +19,11 @@ from nkms.network.protocols import NuCypherSeedOnlyProtocol, NuCypherHashProtoco
 from nkms.network.storage import SeedOnlyStorage
 from umbral import pre
 from umbral.fragments import KFrag
+from twisted.python.threadpool import ThreadPool
+from twisted.internet.threads import deferToThreadPool
+from apistar.core import Route
+from apistar.frameworks.wsgi import WSGIApp as App
+from twisted.internet import reactor
 
 
 class NuCypherDHTServer(Server):
@@ -94,17 +100,59 @@ class NuCypherSeedOnlyDHTServer(NuCypherDHTServer):
 
 class ProxyRESTServer(object):
 
+    datastore_threadpool = None
+
+    def attach_rest_server(self):
+
+        routes = [
+            Route('/kFrag/{hrac_as_hex}',
+                  'POST',
+                  self.set_policy),
+            Route('/kFrag/{hrac_as_hex}/reencrypt',
+                  'POST',
+                  self.reencrypt_via_rest),
+            Route('/public_keys', 'GET',
+                  self.get_signing_and_encrypting_public_keys),
+            Route('/consider_contract',
+                  'POST',
+                  self.consider_contract),
+        ]
+
+        self._rest_app = App(routes=routes)
+
+    def start_datastore_in_threadpool(self):
+        # A threadpool with just 1 thread, to ensure serial operation for sqlite3.
+        # TODO: Some facilities for concurrent operation.
+        self.datastore_threadpool = ThreadPool(minthreads=1, maxthreads=1, name="Ursula's Datastore")
+        self.datastore_threadpool.start()
+        deferToThreadPool(reactor, self.datastore_threadpool, self.start_datastore)
+
+    def start_datastore(self):
+        from nkms.keystore import keystore
+        from nkms.keystore.db import Base
+        from sqlalchemy.engine import create_engine
+
+        engine = create_engine('sqlite:///:memory:')
+        Base.metadata.create_all(engine)
+        self.datastore = keystore.KeyStore(engine)
+
+    # """
+    # REST Endpoints and utilities
+    # """
+    # def find_ursulas_by_ids(self, request: http.Request):
+    #
+    #
+
+
     def get_signing_and_encrypting_public_keys(self):
         """
         REST endpoint for getting both signing and encrypting public keys.
         """
         return Response(
-            content=bytes(self.stamp) + bytes(self.public_key(EncryptingPower)),
+            content=bytes(self.public_key(SigningPower)) + bytes(self.public_key(EncryptingPower)),
             content_type="application/octet-stream")
 
     def consider_contract(self, hrac_as_hex, request: http.Request):
-        # TODO: This actually needs to be a REST endpoint, with the payload
-        # carrying the kfrag hash separately.
         from nkms.policy.models import Contract
         contract, deposit_as_bytes = \
             BytestringSplitter(Contract)(request.body, return_remainder=True)

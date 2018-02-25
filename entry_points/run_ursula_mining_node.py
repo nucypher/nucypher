@@ -5,21 +5,13 @@
 
 # WIP w/ hendrix@8227c4abcb37ee6d27528a13ec22d55ee106107f
 
-
-
-from sqlalchemy.engine import create_engine
-
 from nkms.characters import Ursula
-from nkms.keystore import keystore
-from nkms.keystore.db import Base
 
-engine = create_engine('sqlite:///:memory:')
-Base.metadata.create_all(engine)
-ursulas_keystore = keystore.KeyStore(engine)
-_URSULA = Ursula(urulsas_keystore=ursulas_keystore)
-_URSULA.attach_server()
+_URSULA = Ursula(dht_port=3501, dht_interface="localhost")
+_URSULA.listen()
 
 from hendrix.deploy.base import HendrixDeploy
 
-deployer = HendrixDeploy("start", {"wsgi":_URSULA._rest_app, "http_port": 3500})
+deployer = HendrixDeploy("start", {"wsgi":_URSULA.rest_app, "http_port": 3500})
+deployer.reactor.callWhenRunning(_URSULA.start_datastore_in_threadpool)
 deployer.run()

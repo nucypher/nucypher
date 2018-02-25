@@ -456,18 +456,18 @@ class Ursula(Character, ProxyRESTServer):
     _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    dht_port = None
-    dht_interface = None
-    dht_ttl = 0
-    rest_address = None
-    rest_port = None
-
-    def __init__(self, urulsas_keystore=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.keystore = urulsas_keystore
-
+    def __init__(self, dht_port=None, dht_interface=None, dht_ttl=0,
+                 rest_address=None, rest_port=None,
+                 *args, **kwargs):
+        self.dht_port = dht_port
+        self.dht_interface = dht_interface
+        self.dht_ttl = 0
+        self.rest_address = rest_address
+        self.rest_port = rest_port
         self._rest_app = None
         self._work_orders = []
+        super().__init__(*args, **kwargs)
+        ProxyRESTServer.__init__(self)
 
     @property
     def rest_app(self):
@@ -508,27 +508,10 @@ class Ursula(Character, ProxyRESTServer):
             id = digest(secure_random(32))
 
         super().attach_server(ksize, alpha, id, storage)
+        self.attach_rest_server()
 
-        routes = [
-            Route('/kFrag/{hrac_as_hex}',
-                  'POST',
-                  self.set_policy),
-            Route('/kFrag/{hrac_as_hex}/reencrypt',
-                  'POST',
-                  self.reencrypt_via_rest),
-            Route('/public_keys', 'GET',
-                  self.get_signing_and_encrypting_public_keys),
-            Route('/consider_contract',
-                  'POST',
-                  self.consider_contract),
-        ]
-
-        self._rest_app = App(routes=routes)
-
-    def listen(self, port, interface):
-        self.dht_port = port
-        self.dht_interface = interface
-        return self.server.listen(port, interface)
+    def listen(self):
+        return self.server.listen(self.dht_port, self.dht_interface)
 
     def dht_interface_info(self):
         return self.dht_port, self.dht_interface, self.dht_ttl
