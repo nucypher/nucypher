@@ -5,27 +5,21 @@ from nkms_eth.escrow import Escrow
 from nkms_eth.miner import Miner
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def testerchain():
     chain = TesterBlockchain()
     yield chain
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def token(testerchain):
     token = NuCypherKMSToken(blockchain=testerchain)
     token.arm().deploy()
     yield token
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def escrow(testerchain, token):
     escrow = Escrow(blockchain=testerchain, token=token)
     escrow.arm().deploy()
     return escrow
-
-
-# @pytest.fixture()
-# def miner(testerchain, escrow, token):
-#     address = testerchain.web3.eth.accounts[1]
-#     return Miner(blockchain=testerchain, token=token, escrow=escrow, address=address)

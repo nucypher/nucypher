@@ -1,4 +1,6 @@
 import random
+
+import os
 import pytest
 
 from nkms_eth.escrow import Escrow
@@ -10,7 +12,8 @@ M = 10 ** 6
 
 
 def test_deposit(testerchain, token, escrow):
-    token._airdrop(amount=10000)
+    token._airdrop(amount=10000)    # weeee
+
     ursula_address = testerchain.web3.eth.accounts[1]
     miner = Miner(blockchain=testerchain, token=token, escrow=escrow, address=ursula_address)
     miner.lock(amount=1000*M, locktime=100)
@@ -40,6 +43,35 @@ def test_mine_withdraw(testerchain, token, escrow):
     final_balance = token.balance(ursula.address)
 
     assert final_balance > initial_balance
+
+
+def test_publish_dht_key(testerchain, token, escrow):
+    token._airdrop(amount=10000)    # weeee
+
+    miner_addr = testerchain.web3.eth.accounts[1]
+    miner = Miner(blockchain=testerchain, token=token,
+                  escrow=escrow, address=miner_addr)
+
+    balance = miner.balance()
+    miner.lock(amount=balance, locktime=1)
+
+    # Publish DHT keys
+    mock_dht_key = os.urandom(66).hex()
+
+    txhash = miner.publish_dht_key(mock_dht_key)
+    stored_miner_dht_keys = miner.get_dht_key()
+
+    assert len(stored_miner_dht_keys) == 1
+    assert mock_dht_key == stored_miner_dht_keys[0]
+
+    another_mock_dht_key = os.urandom(66).hex()
+    txhash = miner.publish_dht_key(another_mock_dht_key)
+
+    stored_miner_dht_keys = miner.get_dht_key()
+
+    assert len(stored_miner_dht_keys) == 2
+    assert another_mock_dht_key == stored_miner_dht_keys[1]
+    assert another_mock_dht_key == escrow().getDHTKey(miner_addr, 1)
 
 
 def test_select_ursulas(testerchain, token, escrow):
