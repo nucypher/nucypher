@@ -369,17 +369,24 @@ class Bob(Character):
                     Ursula.as_discovered_on_network(
                             dht_port=port,
                             dht_interface=interface,
-                            pubkey_sig_bytes=ursula_pubkey_sig
+                            powers_and_keys=((SigningPower, ursula_pubkey_sig),)
                     )
 
-    def get_treasure_map(self, policy_group):
+    def get_treasure_map(self, policy, using_dht=False):
 
-        dht_key = policy_group.treasure_map_dht_key()
+        map_id = policy.treasure_map_dht_key()
 
-        ursula_coro = self.server.get(dht_key)
-        event_loop = asyncio.get_event_loop()
-        packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
-        
+        if using_dht:
+            ursula_coro = self.server.get(map_id)
+            event_loop = asyncio.get_event_loop()
+            packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
+        else:
+            if not self._ursulas:
+                # TODO: Try to find more Ursulas on the blockchain.
+                raise self.NotEnoughUrsulas
+            for ursula in self._ursulas:
+                ursula.hand_over_treasure_map(map_id)
+
         # TODO: Make this prettier
         header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map =\
         dht_value_splitter(packed_encrypted_treasure_map, return_remainder=True)
