@@ -71,7 +71,7 @@ class Escrow:
         reward_txhash = self.token.transact({'from': self.token.creator}).transfer(self.contract.address, self.reward)
         self.blockchain.chain.wait.for_receipt(reward_txhash, timeout=self.blockchain.timeout)
 
-        init_txhash = self.transact({'from': self.token.creator}).initialize()
+        init_txhash = self.contract.transact({'from': self.token.creator}).initialize()
         self.blockchain.chain.wait.for_receipt(init_txhash, timeout=self.blockchain.timeout)
 
         return deploy_txhash, reward_txhash, init_txhash

@@ -11,11 +11,11 @@ class Miner:
     def __init__(self, blockchain: Blockchain, token: NuCypherKMSToken, escrow: Escrow, address=None):
         self.blockchain = blockchain
         self.token = token
-        self.address = address or self.token.creator
+        self.address = address
 
         self.escrow = escrow
         if not escrow.contract:
-            raise Exception('Escrow contract not deployed')
+            raise Escrow.ContractDeploymentError('Escrow contract not deployed. Arm then deploy.')
         else:
             escrow.miners.append(self)
 
@@ -23,14 +23,21 @@ class Miner:
         self.escrow.miners.remove(self)
         return None
 
+    def _approve_escrow(self, amount: int) -> str:
+        txhash = self.token.transact({'from': self.address}).approve(self.escrow.contract.address, amount)
+        self.blockchain.chain.wait.for_receipt(txhash, timeout=self.blockchain.timeout)
+        return txhash
+
+    def _send_tokens_to_escrow(self, amount, locktime) -> str:
+        deposit_txhash = self.escrow.transact({'from': self.address}).deposit(amount, locktime)
+        self.blockchain.chain.wait.for_receipt(deposit_txhash, timeout=self.blockchain.timeout)
+        return deposit_txhash
+
     def lock(self, amount: int, locktime: int) -> Tuple[str, str, str]:
         """Deposit and lock tokens for mining."""
 
-        approve_txhash = self.token.transact({'from': self.address}).approve(self.escrow.contract.address, amount)
-        self.blockchain.chain.wait.for_receipt(approve_txhash, timeout=self.blockchain.timeout)
-
-        deposit_txhash = self.escrow.transact({'from': self.address}).deposit(amount, locktime)
-        self.blockchain.chain.wait.for_receipt(deposit_txhash, timeout=self.blockchain.timeout)
+        approve_txhash = self._approve_escrow(amount=amount)
+        deposit_txhash = self._send_tokens_to_escrow(amount=amount, locktime=locktime)
 
         lock_txhash = self.escrow.transact({'from': self.address}).switchLock()
         self.blockchain.chain.wait.for_receipt(lock_txhash, timeout=self.blockchain.timeout)
@@ -43,7 +50,7 @@ class Miner:
         self.blockchain.chain.wait.for_receipt(txhash, timeout=self.blockchain.timeout)
         return txhash
 
-    def add_dht_key(self, dht_id) -> str:
+    def publish_dht_key(self, dht_id) -> str:
         """Store a new DHT key"""
         txhash = self.escrow.transact({'from': self.address}).publishDHTKey(dht_id)
         self.blockchain.chain.wait.for_receipt(txhash)
@@ -60,6 +67,11 @@ class Miner:
         txhash = self.escrow.contract.transact({'from': self.address}).confirmActivity()
         self.blockchain.chain.wait.for_receipt(txhash)
         return txhash
+
+    def balance(self) -> int:
+        self.token._check_contract_deployment()
+        balance = self.token().balanceOf(self.address)
+        return balance
 
     def withdraw(self) -> str:
         """withdraw rewarded tokens"""
