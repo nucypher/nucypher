@@ -83,9 +83,11 @@ class Character(object):
     def __hash__(self):
         return int.from_bytes(self.stamp, byteorder="big")
 
-    class NotFound(KeyError):
-        """raised when we try to interact with an actor of whom we haven't \
-           learned yet."""
+    class NotEnoughUrsulas(RuntimeError):
+        """
+        All Characters depend on knowing about enough Ursulas to perform their role.
+        This exception is raised when a piece of logic can't proceed without more Ursulas.
+        """
 
     class SuspiciousActivity(RuntimeError):
         """raised when an action appears to amount to malicious conduct."""
