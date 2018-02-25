@@ -16,13 +16,13 @@ def test_bob_can_follow_treasure_map(enacted_policy, ursulas, alice, bob):
     bob.treasure_maps[hrac] = treasure_map
 
     # Bob knows of no Ursulas.
-    assert len(bob._ursulas) == 0
+    assert len(bob.known_nodes) == 0
 
     # ...until he follows the TreasureMap.
     bob.follow_treasure_map(hrac)
 
     # Now he knows of all the Ursulas.
-    assert len(bob._ursulas) == len(treasure_map)
+    assert len(bob.known_nodes) == len(treasure_map)
 
 
 def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, bob, ursulas,
@@ -39,7 +39,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     hrac, treasure_map = enacted_policy.hrac(), enacted_policy.treasure_map
     bob.treasure_maps[hrac] = treasure_map
     bob.follow_treasure_map(hrac)
-    assert len(bob._ursulas) == len(ursulas)
+    assert len(bob.known_nodes) == len(ursulas)
 
     the_hrac = enacted_policy.hrac()
 

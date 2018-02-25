@@ -3,8 +3,9 @@ from logging import getLogger
 
 import msgpack
 import requests
-from apistar.core import Route
-from apistar.frameworks.wsgi import WSGIApp as App
+
+from typing import Dict
+
 from kademlia.network import Server
 from kademlia.utils import digest
 from typing import Union, List
@@ -56,6 +57,7 @@ class Character(object):
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
+        self.known_nodes = {}
         self.log = getLogger("characters")
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
@@ -93,12 +95,12 @@ class Character(object):
         """raised when an action appears to amount to malicious conduct."""
 
     @classmethod
-    def from_public_keys(cls, *powers_and_keys):
+    def from_public_keys(cls, powers_and_keys: Dict, *args, **kwargs):
         """
         Sometimes we discover a Character and, at the same moment, learn one or
-        more of their public keys. Here, we take a collection of tuples
+        more of their public keys. Here, we take a Dict
         (powers_and_key_bytes) in the following format:
-        (CryptoPowerUp class, public_key_bytes)
+        {CryptoPowerUp class: public_key_bytes}
 
         Each item in the collection will have the CryptoPowerUp instantiated
         with the public_key_bytes, and the resulting CryptoPowerUp instance
@@ -106,15 +108,16 @@ class Character(object):
         """
         crypto_power = CryptoPower()
 
-        for power_up, public_key in powers_and_keys:
+        for power_up, public_key in powers_and_keys.items():
             try:
                 umbral_key = UmbralPublicKey(public_key)
             except TypeError:
                 umbral_key = public_key
 
+
             crypto_power.consume_power_up(power_up(pubkey=umbral_key))
 
-        return cls(is_me=False, crypto_power=crypto_power)
+        return cls(is_me=False, crypto_power=crypto_power, *args, **kwargs)
 
     def attach_server(self, ksize=20, alpha=3, id=None,
                       storage=None, *args, **kwargs) -> None:
@@ -255,6 +258,14 @@ class Character(object):
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
+    def learn_about_nodes(self, address, port):
+        """
+        Sends a request to node_url to find out about known nodes.
+        """
+        # TODO: Find out about other known nodes, not just this one.
+        node = Ursula.from_rest_url(address, port)
+        self.known_nodes[node.interface_dht_key()] = node
+
 
 class Alice(Character):
     _server_class = NuCypherSeedOnlyDHTServer
@@ -335,7 +346,6 @@ class Bob(Character):
 
     def __init__(self, alice=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._ursulas = {}
         self.treasure_maps = {}
         if alice:
             self.alice = alice
@@ -365,7 +375,7 @@ class Bob(Character):
                 raise TypeError("Unknown DHT value.  How did this get on the network?")
 
             # TODO: If we're going to implement TTL, it will be here.
-            self._ursulas[ursula_interface_id] =\
+            self.known_nodes[ursula_interface_id] =\
                     Ursula.as_discovered_on_network(
                             dht_port=port,
                             dht_interface=interface,
@@ -381,7 +391,7 @@ class Bob(Character):
             event_loop = asyncio.get_event_loop()
             packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
         else:
-            if not self._ursulas:
+            if not self.known_nodes:
                 # TODO: Try to find more Ursulas on the blockchain.
                 raise self.NotEnoughUrsulas
             for ursula in self._ursulas:
@@ -426,7 +436,7 @@ class Bob(Character):
                     capsules))
 
         for ursula_dht_key in treasure_map_to_use:
-            ursula = self._ursulas[ursula_dht_key]
+            ursula = self.known_nodes[ursula_dht_key]
 
             capsules_to_include = []
             for capsule in capsules:

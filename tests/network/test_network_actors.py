@@ -141,7 +141,16 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy, ursula
 
     # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume,
     # through a side-channel with Alice.
-    treasure_map_from_wire = bob.get_treasure_map(enacted_policy)
+
+    # If Bob doesn't know about any Ursulas, he can't find the TreasureMap via the REST swarm:
+    with pytest.raises(bob.NotEnoughUrsulas):
+        treasure_map_from_wire = bob.get_treasure_map(enacted_policy, networky_stuff)
+
+    # Let's imagine he has learned about some - say, from the blockchain.
+    bob.known_nodes = {u.interface_dht_key(): u for u in ursulas}
+
+    # Now try.
+    treasure_map_from_wire = bob.get_treasure_map(enacted_policy, networky_stuff)
 
     assert enacted_policy.treasure_map == treasure_map_from_wire
 
