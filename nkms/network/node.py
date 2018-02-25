@@ -1,8 +1,11 @@
+import requests
 from kademlia.node import Node
 
 from nkms.crypto.constants import CFRAG_LENGTH
+from nkms.crypto.kits import MessageKit
 from nkms.crypto.utils import RepeatingBytestringSplitter
 from nkms.network.capabilities import ServerCapability
+
 from umbral.fragments import CapsuleFrag
 
 
@@ -43,3 +46,8 @@ class NetworkyStuff(object):
 
     def get_competitive_rate(self):
         return NotImplemented
+
+    def get_treasure_map_from_node(self, node, map_id):
+        response = requests.get("{}/treasure_map/{}".format(node.rest_url(), map_id.hex()))
+        return response
+

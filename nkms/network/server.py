@@ -102,6 +102,11 @@ class ProxyRESTServer(object):
 
     datastore_threadpool = None
 
+    def __init__(self, rest_address, rest_port):
+        self.rest_address = rest_address
+        self.rest_port = rest_port
+        self._rest_app = None
+
     def attach_rest_server(self):
 
         routes = [
@@ -116,6 +121,9 @@ class ProxyRESTServer(object):
             Route('/consider_contract',
                   'POST',
                   self.consider_contract),
+            Route('/treasure_map/{treasure_map_id_as_hex}',
+                  'GET',
+                  self.provide_treasure_map),
         ]
 
         self._rest_app = App(routes=routes)
@@ -136,13 +144,15 @@ class ProxyRESTServer(object):
         Base.metadata.create_all(engine)
         self.datastore = keystore.KeyStore(engine)
 
+    def rest_url(self):
+        return "{}:{}".format(self.rest_address, self.rest_port)
+
     # """
-    # REST Endpoints and utilities
+    # Actual REST Endpoints and utilities
     # """
     # def find_ursulas_by_ids(self, request: http.Request):
     #
     #
-
 
     def get_signing_and_encrypting_public_keys(self):
         """
@@ -255,3 +265,11 @@ class ProxyRESTServer(object):
 
         return Response(content=cfrag_byte_stream,
                         content_type="application/octet-stream")
+
+    def provide_treasure_map(self, treasure_map_id_as_hex):
+        # For now, grab the TreasureMap for the DHT storage.  Soon, no do that.  #TODO!
+        treasure_map_id = binascii.unhexlify(treasure_map_id_as_hex)
+        treasure_map_bytes = self.server.storage.get(digest(treasure_map_id))
+        return Response(content=treasure_map_bytes,
+                        content_type="application/octet-stream")
+

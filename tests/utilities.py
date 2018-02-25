@@ -92,3 +92,8 @@ class MockNetworkyStuff(NetworkyStuff):
         payload = work_order.payload()
         hrac_as_hex = work_order.kfrag_hrac.hex()
         return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(hrac_as_hex), payload)
+
+    def get_treasure_map_from_node(self, node, map_id):
+        mock_client = TestClient(node.rest_app)
+        return mock_client.get("http://localhost/treasure_map/{}".format(map_id.hex()))
+

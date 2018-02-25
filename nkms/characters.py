@@ -382,7 +382,7 @@ class Bob(Character):
                             powers_and_keys=({SigningPower: ursula_pubkey_sig})
                     )
 
-    def get_treasure_map(self, policy, using_dht=False):
+    def get_treasure_map(self, policy, networky_stuff, using_dht=False):
 
         map_id = policy.treasure_map_dht_key()
 
@@ -394,19 +394,10 @@ class Bob(Character):
             if not self.known_nodes:
                 # TODO: Try to find more Ursulas on the blockchain.
                 raise self.NotEnoughUrsulas
-            for ursula in self._ursulas:
-                ursula.hand_over_treasure_map(map_id)
-
-        # TODO: Make this prettier
-        header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map =\
-        dht_value_splitter(packed_encrypted_treasure_map, return_remainder=True)
-        tmap_messaage_kit = MessageKit.from_bytes(encrypted_treasure_map)
-
-        if header != BYTESTRING_IS_TREASURE_MAP:
-            raise TypeError("Unknown DHT value.  How did this get on the network?")
+            tmap_message_kit = self.get_treasure_map_from_known_ursulas(networky_stuff, map_id)
 
         verified, packed_node_list = self.verify_from(
-            self.alice, tmap_messaage_kit,
+            self.alice, tmap_message_kit,
             signature_is_on_cleartext=True, decrypt=True
         )
 
@@ -414,10 +405,28 @@ class Bob(Character):
             return NOT_FROM_ALICE
         else:
             from nkms.policy.models import TreasureMap
-            self.treasure_maps[policy.hrac] = TreasureMap(
-                msgpack.loads(packed_node_list)
-            )
-            return self.treasure_maps[policy.hrac]
+            treasure_map = TreasureMap(msgpack.loads(packed_node_list))
+            self.treasure_maps[policy.hrac] = treasure_map
+            return treasure_map
+
+    def get_treasure_map_from_known_ursulas(self, networky_stuff, map_id):
+        """
+        Iterate through swarm, asking for the TreasureMap.
+        Return the first one who has it.
+        TODO: What if a node gives a bunk TreasureMap?
+        """
+        from nkms.network.protocols import dht_value_splitter
+        for node in self.known_nodes.values():
+            response = networky_stuff.get_treasure_map_from_node(node, map_id)
+
+            if response.status_code == 200 and response.content:
+                # TODO: Make this prettier
+                header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = \
+                    dht_value_splitter(response.content, return_remainder=True)
+                tmap_messaage_kit = MessageKit.from_bytes(encrypted_treasure_map)
+                return tmap_messaage_kit
+            else:
+                assert False
 
     def generate_work_orders(self, kfrag_hrac, *capsules, num_ursulas=None):
         from nkms.policy.models import WorkOrder  # Prevent circular import
@@ -481,12 +490,9 @@ class Ursula(Character, ProxyRESTServer):
         self.dht_port = dht_port
         self.dht_interface = dht_interface
         self.dht_ttl = 0
-        self.rest_address = rest_address
-        self.rest_port = rest_port
-        self._rest_app = None
         self._work_orders = []
         super().__init__(*args, **kwargs)
-        ProxyRESTServer.__init__(self)
+        ProxyRESTServer.__init__(self, rest_address, rest_port)
 
     @property
     def rest_app(self):
@@ -508,8 +514,8 @@ class Ursula(Character, ProxyRESTServer):
         return ursula
 
     @classmethod
-    def from_rest_url(cls, url):
-        response = requests.get(url)
+    def from_rest_url(cls, address, port):
+        response = requests.get("{}:{}/public_keys".format(address, port))  # TODO: TLS-only.
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
         signing_key_bytes, encrypting_key_bytes = \
