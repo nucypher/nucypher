@@ -404,10 +404,10 @@ class Bob(Character):
             return NOT_FROM_ALICE
         else:
             from nkms.policy.models import TreasureMap
-            self.treasure_maps[policy_group.hrac] = TreasureMap(
+            self.treasure_maps[policy.hrac] = TreasureMap(
                 msgpack.loads(packed_node_list)
             )
-            return self.treasure_maps[policy_group.hrac]
+            return self.treasure_maps[policy.hrac]
 
     def generate_work_orders(self, kfrag_hrac, *capsules, num_ursulas=None):
         from nkms.policy.models import WorkOrder  # Prevent circular import
