@@ -600,6 +600,9 @@ class SignatureStamp(object):
     def __bytes__(self):
         return bytes(self.character.public_key(SigningPower))
 
+    def __hash__(self):
+        return int.from_bytes(self, byteorder="big")
+
     def __eq__(self, other):
         return other == bytes(self)
 
