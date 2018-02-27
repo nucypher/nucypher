@@ -131,13 +131,6 @@ class ProxyRESTServer(object):
 
         self._rest_app = App(routes=routes)
 
-    def start_datastore_in_threadpool(self):
-        # A threadpool with just 1 thread, to ensure serial operation for sqlite3.
-        # TODO: Some facilities for concurrent operation.
-        self.datastore_threadpool = ThreadPool(minthreads=1, maxthreads=1, name="Ursula's Datastore")
-        self.datastore_threadpool.start()
-        deferToThreadPool(reactor, self.datastore_threadpool, self.start_datastore)
-
     def start_datastore(self):
         from nkms.keystore import keystore
         from nkms.keystore.db import Base
