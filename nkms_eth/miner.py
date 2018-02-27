@@ -19,6 +19,11 @@ class Miner:
         else:
             escrow.miners.append(self)
 
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        r = "{}(address='{}')"
+        r.format(class_name, self.address)
+
     def __del__(self):
         self.escrow.miners.remove(self)
         return None

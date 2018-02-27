@@ -91,6 +91,17 @@ class Escrow:
         """Fetch all DHT keys and return them as a set"""
         return {miner.get_dht_key()for miner in self.miners}
 
+    def get_swarm(self):
+        miner, i = self.null_addr, 0
+        while True:
+            next_miner = self.__call__().getNextMiner(miner)
+            if next_miner == self.null_addr:
+                raise StopIteration()
+
+            yield next_miner
+            miner = next_miner
+            i += 1
+
     def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[addr]:
         """
         Select n random staking Ursulas, according to their stake distribution.
