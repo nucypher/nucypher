@@ -365,6 +365,11 @@ class Bob(Character):
 
     def follow_treasure_map(self, hrac):
         for ursula_interface_id in self.treasure_maps[hrac]:
+            if ursula_interface_id in self.known_nodes:
+                # If we already know about this Ursula,
+                # we needn't learn about it again.
+                continue
+
             # TODO: perform this part concurrently.
             value = self.server.get_now(ursula_interface_id)
 
