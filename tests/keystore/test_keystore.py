@@ -9,16 +9,16 @@ from umbral.keys import UmbralPrivateKey
 def test_key_sqlite_keystore(test_keystore, bob):
 
     # Test add pubkey
-    test_keystore.add_key(bob.seal, is_signing=True)
+    test_keystore.add_key(bob.stamp, is_signing=True)
 
     # Test get pubkey
-    query_key = test_keystore.get_key(bob.seal.fingerprint())
-    assert bytes(bob.seal) == bytes(query_key)
+    query_key = test_keystore.get_key(bob.stamp.fingerprint())
+    assert bytes(bob.stamp) == bytes(query_key)
 
     # Test del pubkey
-    test_keystore.del_key(bob.seal.fingerprint())
+    test_keystore.del_key(bob.stamp.fingerprint())
     with pytest.raises(keystore.NotFound):
-        del_key = test_keystore.get_key(bob.seal.fingerprint())
+        del_key = test_keystore.get_key(bob.stamp.fingerprint())
 
 
 def test_policy_contract_sqlite_keystore(test_keystore):

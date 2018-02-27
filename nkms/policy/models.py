@@ -4,17 +4,18 @@ import binascii
 import maya
 import msgpack
 
-from nkms.characters import Alice, Bob, Ursula
+from nkms.characters import Alice
+from nkms.characters import Bob, Ursula
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import NOT_SIGNED, KECCAK_DIGEST_LENGTH, \
-    PUBLIC_KEY_LENGTH, UNKNOWN_KFRAG
+from nkms.crypto.constants import KECCAK_DIGEST_LENGTH, \
+    UNKNOWN_KFRAG
+from nkms.crypto.constants import NOT_SIGNED
 from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import key_splitter
 from nkms.crypto.utils import BytestringSplitter
 from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP
-from umbral.keys import UmbralPublicKey
-from umbral.umbral import Capsule
+from umbral.pre import Capsule
 
 
 class Contract(object):
@@ -45,14 +46,14 @@ class Contract(object):
         self.ursula = ursula
 
     def __bytes__(self):
-        return bytes(self.alice.seal) + bytes(
+        return bytes(self.alice.stamp) + bytes(
             self.hrac) + self.expiration.isoformat().encode() + bytes(
             self.deposit)
 
     @classmethod
     def from_bytes(cls, contract_as_bytes):
         contract_splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
-            (bytes, 26))
+                                                              (bytes, 26))
         alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = contract_splitter(
             contract_as_bytes, return_remainder=True)
         expiration = maya.parse(expiration_bytes.decode())
@@ -94,8 +95,9 @@ class Policy(object):
     """
     _ursula = None
 
-    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), uri=None,
-                 alices_signature=NOT_SIGNED):
+
+    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), uri=None, m=None, alices_signature=NOT_SIGNED):
+
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.
         :param uri: The identity of the resource to which Bob is granted access.
@@ -104,6 +106,7 @@ class Policy(object):
         self.bob = bob
         self.kfrags = kfrags
         self.uri = uri
+        self.m = m
         self.treasure_map = TreasureMap()
         self._accepted_contracts = {}
 
@@ -136,9 +139,10 @@ class Policy(object):
                    alice,
                    bob,
                    uri,
+                   m,
                    ):
         # TODO: What happened to Alice's signature - don't we include it here?
-        policy = Policy(alice, bob, kfrags, uri)
+        policy = Policy(alice, bob, kfrags, uri, m)
 
         return policy
 
@@ -161,7 +165,7 @@ class Policy(object):
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
         """
-        return Policy.hash(bytes(alice.seal) + bytes(bob.seal) + uri)
+        return Policy.hash(bytes(alice.stamp) + bytes(bob.stamp) + uri)
 
     @staticmethod
     def hash(message):
@@ -175,17 +179,17 @@ class Policy(object):
 
         Our public key (which everybody knows) and the hrac above.
         """
-        return self.hash(bytes(self.alice.seal) + self.hrac())
+        return self.hash(bytes(self.alice.stamp) + self.hrac())
 
     def publish_treasure_map(self):
         tmap_message_kit, signature_for_bob = self.alice.encrypt_for(
             self.bob,
             self.treasure_map.packed_payload())
-        signature_for_ursula = self.alice.seal(self.hrac())
+        signature_for_ursula = self.alice.stamp(self.hrac())
 
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
-        dht_value = signature_for_ursula + self.alice.seal + self.hrac() + tmap_message_kit.to_bytes()
+        dht_value = signature_for_ursula + self.alice.stamp + self.hrac() + tmap_message_kit.to_bytes()
         dht_key = self.treasure_map_dht_key()
 
         setter = self.alice.server.set(dht_key, BYTESTRING_IS_TREASURE_MAP + dht_value)
@@ -250,7 +254,7 @@ class TreasureMap(object):
         self.ids = ursula_interface_ids or []
 
     def packed_payload(self):
-        return msgpack.dumps(self.ids)
+        return msgpack.dumps([bytes(ursula_id) for ursula_id in self.ids])
 
     def add_ursula(self, ursula):
         self.ids.append(ursula.interface_dht_key())
@@ -276,14 +280,14 @@ class WorkOrder(object):
         self.ursula_id = ursula_id  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
 
     def __repr__(self):
-        return "WorkOrder (capsules: {}) {} for {}".format(
-            [binascii.hexlify(bytes(p))[:6] for p in self.capsules],
-            binascii.hexlify(self.receipt_bytes)[:6],
-            binascii.hexlify(self.ursula_id)[:6])
+        return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for {ursulas}".format(
+            hrac=self.kfrag_hrac.hex()[:6],
+            capsule_bytes=[binascii.hexlify(bytes(cap))[:6] for cap in self.capsules],
+            ursulas=binascii.hexlify(bytes(self.ursula_id))[:6])
 
     def __eq__(self, other):
         return (self.receipt_bytes, self.receipt_signature) == (
-        other.receipt_bytes, other.receipt_signature)
+            other.receipt_bytes, other.receipt_signature)
 
     def __len__(self):
         return len(self.capsules)
@@ -291,7 +295,7 @@ class WorkOrder(object):
     @classmethod
     def construct_by_bob(cls, kfrag_hrac, capsules, ursula_dht_key, bob):
         receipt_bytes = b"wo:" + ursula_dht_key  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
-        receipt_signature = bob.seal(receipt_bytes)
+        receipt_signature = bob.stamp(receipt_bytes)
         return cls(bob, kfrag_hrac, capsules, receipt_bytes, receipt_signature,
                    ursula_dht_key)
 
@@ -299,7 +303,7 @@ class WorkOrder(object):
     def from_rest_payload(cls, kfrag_hrac, rest_payload):
         payload_splitter = BytestringSplitter(Signature) + key_splitter
         signature, bob_pubkey_sig, (receipt_bytes, packed_capsules) = payload_splitter(rest_payload,
-                                                         msgpack_remainder=True)
+                                                                                       msgpack_remainder=True)
         capsules = [Capsule.from_bytes(p) for p in msgpack.loads(packed_capsules)]
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
@@ -311,9 +315,42 @@ class WorkOrder(object):
         capsules_as_bytes = [bytes(p) for p in self.capsules]
         packed_receipt_and_capsules = msgpack.dumps(
             (self.receipt_bytes, msgpack.dumps(capsules_as_bytes)))
-        return bytes(self.receipt_signature) + self.bob.seal + packed_receipt_and_capsules
+        return bytes(self.receipt_signature) + self.bob.stamp + packed_receipt_and_capsules
 
     def complete(self, cfrags):
         # TODO: Verify that this is in fact complete - right of CFrags and properly signed.
         # TODO: Mark it complete with datetime.
         self
+
+
+class WorkOrderHistory:
+
+    def __init__(self):
+        self.by_ursula = {}
+
+    def __contains__(self, item):
+        assert False
+
+    def __getitem__(self, item):
+        if isinstance(item, Ursula.InterfaceDHTKey):
+            return self.by_ursula.setdefault(item, {})
+        else:
+            raise TypeError("If you want to lookup a WorkOrder by Ursula, you need to pass an Ursula.InterfaceDHTKey.")
+
+    def __setitem__(self, key, value):
+        assert False
+
+    def __len__(self):
+        return sum(len(work_orders) for work_orders in self.by_ursula.values())
+
+    @property
+    def ursulas(self):
+        return self.by_ursula.keys()
+
+    def by_capsule(self, capsule):
+        ursulas_by_capsules = {}
+        for ursula, pfrags in self.by_ursula.items():
+            for saved_pfrag, work_order in pfrags.items():
+                if saved_pfrag == capsule:
+                    ursulas_by_capsules[ursula] = work_order
+        return ursulas_by_capsules

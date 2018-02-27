@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 
 import msgpack
 import pytest
@@ -7,25 +6,11 @@ import pytest
 from kademlia.utils import digest
 from nkms.characters import Ursula, Character
 from nkms.crypto.kits import MessageKit
-from nkms.crypto.signature import Signature
-from nkms.crypto.utils import BytestringSplitter
 from nkms.network import blockchain_client
-from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP, DHT_VALUE_HEADER_LENGTH, \
-    BYTESTRING_IS_URSULA_IFACE_INFO
+from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP, BYTESTRING_IS_URSULA_IFACE_INFO
 from nkms.network.protocols import dht_value_splitter
-from nkms.policy.models import Policy, Contract
+
 from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
-
-
-def test_alice_cannot_offer_policy_without_first_finding_ursula(alice, ursulas):
-    """
-    Alice can't just make a deal out of thin air if she doesn't know whether any Ursulas are available (she gets Ursula.NotFound).
-    """
-    networky_stuff = MockNetworkyStuff(ursulas)
-    contract = Contract(alice, "some_hrac,", datetime.datetime.now() + datetime.timedelta(days=5), ursula=ursulas[0])
-
-    with pytest.raises(Ursula.NotFound):
-        policy_offer = contract.encrypt_payload_for_ursula()
 
 
 def test_all_ursulas_know_about_all_other_ursulas(ursulas):
@@ -35,7 +20,7 @@ def test_all_ursulas_know_about_all_other_ursulas(ursulas):
     ignorance = []
     for acounter, announcing_ursula in enumerate(blockchain_client._ursulas_on_blockchain):
         for counter, propagating_ursula in enumerate(ursulas):
-            if not digest(announcing_ursula) in propagating_ursula.server.storage:
+            if not digest(bytes(announcing_ursula)) in propagating_ursula.server.storage:
                 ignorance.append((counter, acounter))
     if ignorance:
         pytest.fail(str(["{} didn't know about {}".format(counter, acounter) for counter, acounter in ignorance]))
@@ -56,7 +41,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     value = vladimir.interface_dht_value()
 
     # Except he sets an illegal key for his interface.
-    illegal_key = "Not allowed to set arbitrary key for this."
+    illegal_key = b"Not allowed to set arbitrary key for this."
     setter = vladimir.server.set(key=illegal_key, value=value)
     loop = asyncio.get_event_loop()
     loop.run_until_complete(setter)
@@ -65,37 +50,13 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     assert digest(illegal_key) in ursula.server.protocol.illegal_keys_seen
 
 
-def test_trying_to_find_unknown_actor_raises_not_found(alice):
-    """
-    Tony the test character can't make reference to a character he doesn't know about yet.
-    """
-    tony_clifton = Character()
-
-    message = b"some_message"
-    signature = alice.seal(message)
-
-    # Tony can't reference Alice...
-
-    # TODO: This may not actually be necessary anymore since we are mostly doing Character.from_public_keys()
-    # with pytest.raises(Character.NotFound):
-    #     verification = tony_clifton.verify_from(alice, message, signature)
-
-    # ...before learning about Alice.
-    tony_clifton.learn_about_actor(alice)
-    verification, NO_DECRYPTION_PERFORMED = tony_clifton.verify_from(alice, message, signature=signature)
-
-    assert verification is True
-
-
 def test_alice_finds_ursula(alice, ursulas):
     """
     With the help of any Ursula, Alice can find a specific Ursula.
     """
     ursula_index = 1
     all_ursulas = blockchain_client._ursulas_on_blockchain
-    getter = alice.server.get(all_ursulas[ursula_index])
-    loop = asyncio.get_event_loop()
-    value = loop.run_until_complete(getter)
+    value = alice.server.get_now(all_ursulas[ursula_index])
     header, _signature, _ursula_pubkey_sig, _hrac, interface_info = dht_value_splitter(value,
                                                                                return_remainder=True)
 
@@ -112,7 +73,7 @@ def test_alice_creates_policy_group_with_correct_hrac(idle_policy):
     bob = idle_policy.bob
 
     assert idle_policy.hrac() == idle_policy.hash(
-        bytes(alice.seal) + bytes(bob.seal) + alice.__resource_id)
+        bytes(alice.stamp) + bytes(bob.stamp) + alice.__resource_id)
 
 
 def test_alice_sets_treasure_map_on_network(enacted_policy, ursulas):
@@ -130,7 +91,7 @@ def test_treasure_map_with_bad_id_does_not_propagate(idle_policy, ursulas):
     """
     In order to prevent spam attacks, Ursula refuses to propagate a TreasureMap whose PolicyGroup ID does not comport to convention.
     """
-    illegal_policygroup_id = "This is not a conventional policygroup id"
+    illegal_policygroup_id = b"This is not a conventional policygroup id"
     alice = idle_policy.alice
     bob = idle_policy.bob
     treasure_map = idle_policy.treasure_map
@@ -190,9 +151,7 @@ def test_treaure_map_is_legit(enacted_policy):
     """
     alice = enacted_policy.alice
     for ursula_interface_id in enacted_policy.treasure_map:
-        getter = alice.server.get(ursula_interface_id)
-        loop = asyncio.get_event_loop()
-        value = loop.run_until_complete(getter)
+        value = alice.server.get_now(ursula_interface_id)
         header, signature, ursula_pubkey_sig, hrac, interface_info = dht_value_splitter(value,
                                                                                 return_remainder=True)
         assert header == BYTESTRING_IS_URSULA_IFACE_INFO

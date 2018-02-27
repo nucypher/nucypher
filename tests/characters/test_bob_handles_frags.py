@@ -1,6 +1,7 @@
-import umbral
-from nkms.crypto import api
-from tests.utilities import EVENT_LOOP, MockNetworkyStuff
+import pytest
+
+from tests.utilities import MockNetworkyStuff
+from umbral import pre
 from umbral.fragments import KFrag
 
 
@@ -24,13 +25,14 @@ def test_bob_can_follow_treasure_map(enacted_policy, ursulas, alice, bob):
     assert len(bob._ursulas) == len(treasure_map)
 
 
-def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, bob, ursulas, alicebob_side_channel):
+def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, bob, ursulas,
+                                                         alicebob_side_channel):
     """
     Now that Bob has his list of Ursulas, he can issue a WorkOrder to one.  Upon receiving the WorkOrder, Ursula
     saves it and responds by re-encrypting and giving Bob a cFrag.
 
     This is a multipart test; it shows proper relations between the Characters Ursula and Bob and also proper
-    interchange between a KFrag, PFrag, and CFrag object in the context of REST-driven proxy re-encryption.
+    interchange between a KFrag, Capsule, and CFrag object in the context of REST-driven proxy re-encryption.
     """
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
@@ -44,26 +46,33 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     # Bob has no saved work orders yet, ever.
     assert len(bob._saved_work_orders) == 0
 
-    _ciphertext, capsule = alicebob_side_channel
-
     # We'll test against just a single Ursula - here, we make a WorkOrder for just one.
-    work_orders = bob.generate_work_orders(the_hrac, capsule, num_ursulas=1)
+    # We can pass any number of capsules as args; here we pass just one.
+    work_orders = bob.generate_work_orders(the_hrac, alicebob_side_channel.capsule, num_ursulas=1)
+
+    # Again: one Ursula, one work_order.
     assert len(work_orders) == 1
 
-    # Bob has saved the WorkOrder, but since he hasn't used it for reencryption yet, it's empty.
+    # Bob saved the WorkOrder.
     assert len(bob._saved_work_orders) == 1
-    assert len(list(bob._saved_work_orders.items())[0][1]) == 0
+    # And the Ursula.
+    assert len(bob._saved_work_orders.ursulas) == 1
 
     networky_stuff = MockNetworkyStuff(ursulas)
-
     ursula_dht_key, work_order = list(work_orders.items())[0]
 
     # **** RE-ENCRYPTION HAPPENS HERE! ****
     cfrags = bob.get_reencrypted_c_frags(networky_stuff, work_order)
-    the_cfrag = cfrags[0]  # We only gave one pFrag, so we only got one cFrag.
+
+    # We only gave one Capsule, so we only got one cFrag.
+    assert len(cfrags) == 1
+    the_cfrag = cfrags[0]
+
+    # Attach the CFrag to the Capsule.
+    alicebob_side_channel.capsule.attach_cfrag(the_cfrag)
 
     # Having received the cFrag, Bob also saved the WorkOrder as complete.
-    assert len(list(bob._saved_work_orders.items())[0][1]) == 1
+    assert len(bob._saved_work_orders) == 1
 
     # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
     # the correct cFrag (ie, that Ursula performed reencryption properly).
@@ -71,7 +80,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     kfrag_bytes = ursula.keystore.get_policy_contract(
         work_order.kfrag_hrac.hex().encode()).k_frag
     the_kfrag = KFrag.from_bytes(kfrag_bytes)
-    the_correct_cfrag = umbral.umbral.reencrypt(the_kfrag, capsule)
+    the_correct_cfrag = pre.reencrypt(the_kfrag, alicebob_side_channel.capsule)
     assert bytes(the_cfrag) == bytes(the_correct_cfrag)  # It's the correct cfrag!
 
     # Now we'll show that Ursula saved the correct WorkOrder.
@@ -80,30 +89,70 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     assert work_orders_from_bob[0] == work_order
 
 
-def test_bob_remember_that_he_has_cfrags_for_a_particular_capsule(enacted_policy, alice, bob, ursulas, alicebob_side_channel):
+def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_policy, alice, bob,
+                                                                   ursulas, alicebob_side_channel):
+    # In our last episode, Bob made a WorkOrder for the capsule...
+    assert len(bob._saved_work_orders.by_capsule(alicebob_side_channel.capsule)) == 1
+    # ...and he used it to obtain a CFrag from Ursula.
+    assert len(alicebob_side_channel.capsule._attached_cfrags) == 1
 
-    # In our last episode, Bob obtained a cFrag from Ursula.
-    bobs_saved_work_order_map = list(bob._saved_work_orders.items())
+    # He can also get a dict of {Ursula:WorkOrder} by looking them up from the capsule.
+    workorders_by_capsule = bob._saved_work_orders.by_capsule(alicebob_side_channel.capsule)
 
-    # Bob only has a saved WorkOrder from one Ursula.
-    assert len(bobs_saved_work_order_map) == 1
-
-    id_of_ursula_from_whom_we_already_have_a_cfrag, saved_work_orders = bobs_saved_work_order_map[0]
-
-    # ...and only one WorkOrder from that 1 Ursula.
-    assert len(saved_work_orders) == 1
+    # Bob has just one WorkOrder from that one Ursula.
+    assert len(workorders_by_capsule) == 1
+    saved_work_order = list(workorders_by_capsule.values())[0]
 
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
-    # He has the capsule from his side channel with Alice.
-    _ciphertext, capsule = alicebob_side_channel
-    generated_work_order_map = bob.generate_work_orders(enacted_policy.hrac(), capsule, num_ursulas=1)
-    id_of_this_new_ursula, new_work_order = list(generated_work_order_map.items())[0]
+    generated_work_orders = bob.generate_work_orders(enacted_policy.hrac(),
+                                                     alicebob_side_channel.capsule,
+                                                     num_ursulas=1)
+    id_of_this_new_ursula, new_work_order = list(generated_work_orders.items())[0]
 
     # This new Ursula isn't the same one to whom we've already issued a WorkOrder.
+    id_of_ursula_from_whom_we_already_have_a_cfrag = list(workorders_by_capsule.keys())[0]
     assert id_of_ursula_from_whom_we_already_have_a_cfrag != id_of_this_new_ursula
 
     # ...and, although this WorkOrder has the same capsules as the saved one...
-    new_work_order.capsules == saved_work_orders[0].capsules
+    assert new_work_order.capsules == saved_work_order.capsules
 
     # ...it's not the same WorkOrder.
-    assert new_work_order not in saved_work_orders
+    assert new_work_order != saved_work_order
+
+    # We can get a new CFrag, just like last time.
+    networky_stuff = MockNetworkyStuff(ursulas)
+    cfrags = bob.get_reencrypted_c_frags(networky_stuff, new_work_order)
+
+    # Again: one Capsule, one cFrag.
+    assert len(cfrags) == 1
+    new_cfrag = cfrags[0]
+
+    # Attach the CFrag to the Capsule.
+    alicebob_side_channel.capsule.attach_cfrag(new_cfrag)
+
+
+def test_bob_gathers_and_combines(enacted_policy, alice, bob, ursulas, alicebob_side_channel):
+    # Bob has saved two WorkOrders so far.
+    assert len(bob._saved_work_orders) == 2
+
+    # ...but the policy requires us to collect more cfrags.
+    assert len(bob._saved_work_orders) < enacted_policy.m
+
+    # Bob can't decrypt yet with just two CFrags.  He needs to gather at least m.
+    with pytest.raises(pre.GenericUmbralError):
+        bob.decrypt(alicebob_side_channel)
+
+    number_left_to_collect = enacted_policy.m - len(bob._saved_work_orders)
+
+    new_work_orders = bob.generate_work_orders(enacted_policy.hrac(),
+                                               alicebob_side_channel.capsule,
+                                               num_ursulas=number_left_to_collect)
+    _id_of_yet_another_ursula, new_work_order = list(new_work_orders.items())[0]
+
+    networky_stuff = MockNetworkyStuff(ursulas)
+    cfrags = bob.get_reencrypted_c_frags(networky_stuff, new_work_order)
+    alicebob_side_channel.capsule.attach_cfrag(cfrags[0])
+
+    # Now.
+    # At long last.
+    assert bob.decrypt(alicebob_side_channel) == b'Welcome to the flippering.'

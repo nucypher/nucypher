@@ -2,8 +2,9 @@ import datetime
 
 import pytest
 
-from nkms.characters import congregate, Alice, Bob
-from nkms.crypto.powers import SigningPower
+from nkms.characters import Alice, Bob
+from nkms.crypto.kits import MessageKit
+from nkms.crypto.powers import SigningPower, EncryptingPower
 from nkms.network import blockchain_client
 from nkms.policy.constants import NON_PAYMENT
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
@@ -11,7 +12,7 @@ from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, mak
 from sqlalchemy.engine import create_engine
 from nkms.keystore import keystore
 from nkms.keystore.db import Base
-from umbral import umbral
+from umbral import pre
 
 
 @pytest.fixture(scope="module")
@@ -62,7 +63,6 @@ def bob(alice, ursulas):
     BOB.attach_server()
     BOB.server.listen(8475)
     EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
-    congregate(alice, BOB, *ursulas)
     return BOB
 
 
@@ -89,4 +89,8 @@ def test_keystore():
 @pytest.fixture(scope="module")
 def alicebob_side_channel(alice):
     plaintext = b"Welcome to the flippering."
-    return umbral.encrypt(alice.public_key(SigningPower), plaintext)
+    ciphertext, capsule = pre.encrypt(alice.public_key(EncryptingPower), plaintext)
+    return MessageKit(ciphertext=ciphertext, capsule=capsule,
+                      alice_pubkey=alice.public_key(EncryptingPower))
+
+

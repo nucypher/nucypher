@@ -30,6 +30,7 @@ class Signature(object):
 
     @classmethod
     def from_bytes(cls, signature_as_bytes, der_encoded=False):
+        # TODO: Change the int literals to variables which account for the order of the curve.
         if der_encoded:
             r, s = decode_dss_signature(signature_as_bytes)
         else:

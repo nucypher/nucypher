@@ -19,7 +19,7 @@ ALICE.learn_about_actor(URSULA)
 
 class SandboxNetworkyStuff(NetworkyStuff):
     def find_ursula(self, contract=None):
-        ursula = Ursula.as_discovered_on_network(dhr_port=None, dht_interface=None, pubkey_sig_bytes=bytes(URSULA.seal),
+        ursula = Ursula.as_discovered_on_network(dhr_port=None, dht_interface=None, pubkey_sig_bytes=bytes(URSULA.stamp),
                                                  rest_address="localhost", rest_port=3500)
         response = requests.post("http://localhost:3500/consider_contract", bytes(contract))
         response.was_accepted = True
