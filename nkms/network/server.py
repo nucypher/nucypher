@@ -276,3 +276,22 @@ class ProxyRESTServer(object):
         return Response(content=treasure_map_bytes,
                         content_type="application/octet-stream")
 
+    def receive_treasure_map(self, treasure_map_id_as_hex, request: http.Request):
+        # TODO: This function is the epitome of #172.
+        treasure_map_id = binascii.unhexlify(treasure_map_id_as_hex)
+
+        header, signature_for_ursula, pubkey_sig_alice, hrac, tmap_message_kit = \
+            dht_value_splitter(request.body, return_remainder=True)
+        # TODO: This next line is possibly the worst in the entire codebase at the moment.  #172.
+        # Also TODO: TTL?
+        do_store = self.server.protocol.determine_legality_of_dht_key(signature_for_ursula, pubkey_sig_alice, tmap_message_kit,
+                                                      hrac, digest(treasure_map_id), request.body)
+        if do_store:
+            # TODO: Stop storing things in the protocol storage.  Do this better.
+            # TODO: Propagate to other nodes.
+            self.server.protocol.storage[digest(treasure_map_id)] = request.body
+            return # TODO: Proper response here.
+        else:
+            # TODO: Make this a proper 500 or whatever.
+            assert False
+

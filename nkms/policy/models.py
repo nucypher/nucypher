@@ -179,9 +179,11 @@ class Policy(object):
 
         Our public key (which everybody knows) and the hrac above.
         """
-        return self.hash(bytes(self.alice.stamp) + self.hrac())
+        return keccak_digest(bytes(self.alice.stamp) + self.hrac())
 
-    def publish_treasure_map(self):
+    def publish_treasure_map(self, networky_stuff=None, use_dht=True):
+        if networky_stuff is None and use_dht is False:
+            raise ValueError("Can't engage the REST swarm without networky stuff.")
         tmap_message_kit, signature_for_bob = self.alice.encrypt_for(
             self.bob,
             self.treasure_map.packed_payload())
@@ -189,13 +191,21 @@ class Policy(object):
 
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
-        dht_value = signature_for_ursula + self.alice.stamp + self.hrac() + tmap_message_kit.to_bytes()
-        dht_key = self.treasure_map_dht_key()
+        # TODO: Clean this up.  See #172.
+        map_payload = signature_for_ursula + self.alice.stamp + self.hrac() + tmap_message_kit.to_bytes()
+        map_id = self.treasure_map_dht_key()
 
-        setter = self.alice.server.set(dht_key, BYTESTRING_IS_TREASURE_MAP + dht_value)
-        event_loop = asyncio.get_event_loop()
-        event_loop.run_until_complete(setter)
-        return tmap_message_kit, dht_value, signature_for_bob, signature_for_ursula
+        if use_dht:
+            setter = self.alice.server.set(map_id, BYTESTRING_IS_TREASURE_MAP + map_payload)
+            event_loop = asyncio.get_event_loop()
+            event_loop.run_until_complete(setter)
+        else:
+            for node in self.alice.known_nodes.values():
+                response = networky_stuff.push_treasure_map_to_node(node, map_id, BYTESTRING_IS_TREASURE_MAP + map_payload)
+                # TODO: Do something here based on success or failure
+                if response.status_code == 204:
+                    pass
+        return tmap_message_kit, map_payload, signature_for_bob, signature_for_ursula
 
     def enact(self, networky_stuff):
         for contract in self._accepted_contracts.values():

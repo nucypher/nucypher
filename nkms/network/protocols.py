@@ -75,6 +75,7 @@ class NuCypherHashProtocol(KademliaProtocol):
         self.welcomeIfNewNode(source)
         self.log.debug("got a store request from %s" % str(sender))
 
+        # TODO: Why is this logic here?  This is madness.  See #172.
         if value.startswith(BYTESTRING_IS_URSULA_IFACE_INFO) or value.startswith(
                 BYTESTRING_IS_TREASURE_MAP):
             header, signature, sender_pubkey_sig, hrac, message = dht_value_splitter(
