@@ -8,7 +8,7 @@ pipenv --three
 VENV="$(pipenv --venv)"
 
 # Sol - TODO: integrity
-wget https://github.com/ethereum/solidity/releases/download/v0.4.19/solc-static-linux -O "${VENV}/bin/solc"
+wget https://github.com/ethereum/solidity/releases/download/v0.4.20/solc-static-linux -O "${VENV}/bin/solc"
 chmod +x "${VENV}/bin/solc"
 
 # Python
