@@ -80,15 +80,8 @@ class MockNetworkyStuff(NetworkyStuff):
         response = mock_client.post('http://localhost/kFrag/{}'.format(hrac.hex()), payload)
         return True, ursula.interface_dht_key()
 
-    def get_ursula_by_id(self, ursula_id):
-        try:
-            ursula = self._ursulas[ursula_id]
-        except KeyError:
-            pytest.fail("No Ursula with ID {}".format(ursula_id))
-        return ursula
-
-    def send_work_order_payload_to_ursula(self, work_order, ursula):
-        mock_client = TestClient(ursula.rest_app)
+    def send_work_order_payload_to_ursula(self, work_order):
+        mock_client = TestClient(work_order.ursula.rest_app)
         payload = work_order.payload()
         hrac_as_hex = work_order.kfrag_hrac.hex()
         return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(hrac_as_hex), payload)
