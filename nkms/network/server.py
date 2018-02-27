@@ -124,6 +124,9 @@ class ProxyRESTServer(object):
             Route('/treasure_map/{treasure_map_id_as_hex}',
                   'GET',
                   self.provide_treasure_map),
+            Route('/treasure_map/{treasure_map_id_as_hex}',
+                  'POST',
+                  self.receive_treasure_map),
         ]
 
         self._rest_app = App(routes=routes)

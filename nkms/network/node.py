@@ -50,3 +50,12 @@ class NetworkyStuff(object):
         response = requests.get("{}/treasure_map/{}".format(node.rest_url(), map_id.hex()))
         return response
 
+    def push_treasure_map_to_node(self, node, map_id, map_payload):
+        response = requests.post("{}/treasure_map/{}".format(node.rest_url(), map_id.hex()),
+                      data=map_payload)
+        return response
+
+    def send_work_order_payload_to_ursula(self, work_order):
+        payload = work_order.payload()
+        hrac_as_hex = work_order.kfrag_hrac.hex()
+        return requests.post('{}/kFrag/{}/reencrypt'.format(work_order.ursula.rest_url(), hrac_as_hex), payload)
