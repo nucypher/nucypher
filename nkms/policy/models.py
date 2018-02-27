@@ -299,11 +299,11 @@ class WorkOrder(object):
         return len(self.capsules)
 
     @classmethod
-    def construct_by_bob(cls, kfrag_hrac, capsules, ursula_dht_key, bob):
-        receipt_bytes = b"wo:" + ursula_dht_key  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
+    def construct_by_bob(cls, kfrag_hrac, capsules, ursula, bob):
+        receipt_bytes = b"wo:" + ursula.interface_dht_key()  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
         receipt_signature = bob.stamp(receipt_bytes)
         return cls(bob, kfrag_hrac, capsules, receipt_bytes, receipt_signature,
-                   ursula_dht_key)
+                   ursula)
 
     @classmethod
     def from_rest_payload(cls, kfrag_hrac, rest_payload):
