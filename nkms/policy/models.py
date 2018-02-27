@@ -165,11 +165,7 @@ class Policy(object):
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
         """
-        return Policy.hash(bytes(alice.stamp) + bytes(bob.stamp) + uri)
-
-    @staticmethod
-    def hash(message):
-        return keccak_digest(message)
+        return keccak_digest(bytes(alice.stamp) + bytes(bob.stamp) + uri)
 
     def treasure_map_dht_key(self):
         """

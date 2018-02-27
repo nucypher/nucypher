@@ -5,6 +5,7 @@ import pytest
 
 from kademlia.utils import digest
 from nkms.characters import Ursula, Character
+from nkms.crypto.api import keccak_digest
 from nkms.crypto.kits import MessageKit
 from nkms.network import blockchain_client
 from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP, BYTESTRING_IS_URSULA_IFACE_INFO
@@ -73,7 +74,7 @@ def test_alice_creates_policy_group_with_correct_hrac(idle_policy):
     alice = idle_policy.alice
     bob = idle_policy.bob
 
-    assert idle_policy.hrac() == idle_policy.hash(
+    assert idle_policy.hrac() == keccak_digest(
         bytes(alice.stamp) + bytes(bob.stamp) + alice.__resource_id)
 
 
