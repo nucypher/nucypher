@@ -1,11 +1,10 @@
 from typing import Union
 
-from sqlalchemy.orm import sessionmaker
-
 from nkms.crypto.constants import KFRAG_LENGTH
 from nkms.crypto.signature import Signature
 from nkms.crypto.utils import BytestringSplitter
 from nkms.keystore.db.models import Key, PolicyContract, Workorder
+from nkms.keystore.threading import ThreadedSession
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
 from . import keypairs
@@ -31,8 +30,7 @@ class KeyStore(object):
 
         :param sqlalchemy_engine: SQLAlchemy engine object to create session
         """
-        Session = sessionmaker(bind=sqlalchemy_engine)
-        self.session = Session()
+        self.engine = sqlalchemy_engine
 
     def add_key(self, key, is_signing=True) -> Key:
         """
@@ -45,9 +43,9 @@ class KeyStore(object):
         key_data = bytes(key)
 
         new_key = Key(fingerprint, key_data, is_signing)
-
-        self.session.add(new_key)
-        self.session.commit()
+        with ThreadedSession(self.engine) as session:
+            session.add(new_key)
+            session.commit()
         return new_key
 
     def get_key(self, fingerprint: bytes) -> Union[keypairs.EncryptingKeypair,
@@ -59,7 +57,8 @@ class KeyStore(object):
 
         :return: Keypair of the returned key.
         """
-        key = self.session.query(Key).filter_by(fingerprint=fingerprint).first()
+        with ThreadedSession(self.engine) as session:
+            key = session.query(Key).filter_by(fingerprint=fingerprint).first()
         if not key:
             raise NotFound(
                 "No key with fingerprint {} found.".format(fingerprint))
@@ -73,8 +72,9 @@ class KeyStore(object):
 
         :param fingerprint: Fingerprint of key to delete
         """
-        self.session.query(Key).filter_by(fingerprint=fingerprint).delete()
-        self.session.commit()
+        with ThreadedSession(self.engine) as session:
+            session.query(Key).filter_by(fingerprint=fingerprint).delete()
+            session.commit()
 
     def add_policy_contract(self, expiration, deposit, hrac, kfrag=None,
                             alice_pubkey_sig=None, # alice_pubkey_enc,
@@ -94,8 +94,9 @@ class KeyStore(object):
             alice_signature=None, # bob_pubkey_sig.id
         )
 
-        self.session.add(new_policy_contract)
-        self.session.commit()
+        with ThreadedSession(self.engine) as session:
+            session.add(new_policy_contract)
+            session.commit()
 
         return new_policy_contract
 
@@ -105,7 +106,8 @@ class KeyStore(object):
 
         :return: The PolicyContract object
         """
-        policy_contract = self.session.query(PolicyContract).filter_by(hrac=hrac).first()
+        with ThreadedSession(self.engine) as session:
+            policy_contract = session.query(PolicyContract).filter_by(hrac=hrac).first()
         if not policy_contract:
             raise NotFound("No PolicyContract with {} HRAC found.".format(hrac))
         return policy_contract
@@ -114,8 +116,19 @@ class KeyStore(object):
         """
         Deletes a PolicyContract from the Keystore.
         """
-        self.session.query(PolicyContract).filter_by(hrac=hrac).delete()
-        self.session.commit()
+        with ThreadedSession(self.engine) as session:
+            session.query(PolicyContract).filter_by(hrac=hrac).delete()
+            session.commit()
+
+    def attach_kfrag_to_saved_contract(self, alice, hrac_as_hex, kfrag):
+        with ThreadedSession(self.engine) as session:
+            policy_contract = session.query(PolicyContract).filter_by(hrac=hrac_as_hex.encode()).first()
+
+            if policy_contract.alice_pubkey_sig.key_data != alice.stamp:
+                raise alice.SuspiciousActivity
+
+            policy_contract.k_frag = bytes(kfrag)
+            session.commit()
 
     def add_workorder(self, bob_pubkey_sig, bob_signature, hrac) -> Workorder:
         """
@@ -124,15 +137,17 @@ class KeyStore(object):
         bob_pubkey_sig = self.add_key(bob_pubkey_sig)
         new_workorder = Workorder(bob_pubkey_sig.id, bob_signature, hrac)
 
-        self.session.add(new_workorder)
-        self.session.commit()
+        with ThreadedSession(self.engine) as session:
+            session.add(new_workorder)
+            session.commit()
         return new_workorder
 
     def get_workorders(self, hrac: bytes) -> Workorder:
         """
         Returns a list of Workorders by HRAC.
         """
-        workorders = self.session.query(Workorder).filter_by(hrac=hrac)
+        with ThreadedSession(self.engine) as session:
+            workorders = session.query(Workorder).filter_by(hrac=hrac)
         if not workorders:
             raise NotFound("No Workorders with {} HRAC found.".format(hrac))
         return workorders
@@ -141,7 +156,8 @@ class KeyStore(object):
         """
         Deletes a Workorder from the Keystore.
         """
-        workorders = self.session.query(Workorder).filter_by(hrac=hrac)
-        deleted = workorders.delete()
-        self.session.commit()
+        with ThreadedSession(self.engine) as session:
+            workorders = session.query(Workorder).filter_by(hrac=hrac)
+            deleted = workorders.delete()
+            session.commit()
         return deleted
