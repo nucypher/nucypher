@@ -8,19 +8,25 @@ import datetime
 import requests
 
 from nkms.characters import Alice, Bob, Ursula
+from nkms.crypto.kits import MessageKit
+from nkms.crypto.powers import SigningPower, EncryptingPower
 from nkms.network.node import NetworkyStuff
+from umbral import pre
 
 ALICE = Alice()
 BOB = Bob()
-URSULA = Ursula.from_rest_url("http://localhost:3500/public_keys")
-
-ALICE.learn_about_actor(URSULA)
+URSULA = Ursula.from_rest_url(address="http://localhost", port="3500")
 
 
 class SandboxNetworkyStuff(NetworkyStuff):
     def find_ursula(self, contract=None):
-        ursula = Ursula.as_discovered_on_network(dhr_port=None, dht_interface=None, pubkey_sig_bytes=bytes(URSULA.stamp),
-                                                 rest_address="localhost", rest_port=3500)
+        ursula = Ursula.as_discovered_on_network(dht_port=None, dht_interface=None,
+                                                 rest_address="localhost", rest_port=3500,
+                                                 powers_and_keys={
+                                                    SigningPower: URSULA.stamp.as_umbral_pubkey(),
+                                                    EncryptingPower: URSULA.public_key(EncryptingPower)
+                                                 }
+                                                 )
         response = requests.post("http://localhost:3500/consider_contract", bytes(contract))
         response.was_accepted = True
         return ursula, response
