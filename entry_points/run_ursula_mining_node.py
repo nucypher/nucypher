@@ -13,5 +13,4 @@ _URSULA.listen()
 from hendrix.deploy.base import HendrixDeploy
 
 deployer = HendrixDeploy("start", {"wsgi":_URSULA.rest_app, "http_port": 3500})
-deployer.reactor.callWhenRunning(_URSULA.start_datastore_in_threadpool)
 deployer.run()
