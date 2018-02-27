@@ -271,13 +271,13 @@ class TreasureMap(object):
 
 class WorkOrder(object):
     def __init__(self, bob, kfrag_hrac, capsules, receipt_bytes,
-                 receipt_signature, ursula_id=None):
+                 receipt_signature, ursula=None):
         self.bob = bob
         self.kfrag_hrac = kfrag_hrac
         self.capsules = capsules
         self.receipt_bytes = receipt_bytes
         self.receipt_signature = receipt_signature
-        self.ursula_id = ursula_id  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
+        self.ursula = ursula  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
 
     def __repr__(self):
         return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for {ursulas}".format(
@@ -332,10 +332,10 @@ class WorkOrderHistory:
         assert False
 
     def __getitem__(self, item):
-        if isinstance(item, Ursula.InterfaceDHTKey):
+        if isinstance(item, bytes):
             return self.by_ursula.setdefault(item, {})
         else:
-            raise TypeError("If you want to lookup a WorkOrder by Ursula, you need to pass an Ursula.InterfaceDHTKey.")
+            raise TypeError("If you want to lookup a WorkOrder by Ursula, you need to pass bytes of her signing public key.")
 
     def __setitem__(self, key, value):
         assert False

@@ -459,9 +459,9 @@ class Bob(Character):
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
-                    kfrag_hrac, capsules_to_include, ursula_dht_key, self)
+                    kfrag_hrac, capsules_to_include, ursula, self)
                 generated_work_orders[ursula_dht_key] = work_order
-                self._saved_work_orders[work_order.ursula_id][capsule] = work_order
+                self._saved_work_orders[ursula_dht_key][capsule] = work_order
 
             if num_ursulas is not None:
                 if num_ursulas == len(generated_work_orders):
@@ -476,7 +476,7 @@ class Bob(Character):
         for counter, capsule in enumerate(work_order.capsules):
             # TODO: Ursula is actually supposed to sign this.  See #141.
             # TODO: Maybe just update the work order here instead of setting it anew.
-            work_orders_by_ursula = self._saved_work_orders[work_order.ursula_id]
+            work_orders_by_ursula = self._saved_work_orders[bytes(work_order.ursula.stamp)]
             work_orders_by_ursula[capsule] = work_order
         return cfrags
 
@@ -546,28 +546,9 @@ class Ursula(Character, ProxyRESTServer):
     def dht_interface_info(self):
         return self.dht_port, self.dht_interface, self.dht_ttl
 
-    class InterfaceDHTKey:
-        def __init__(self, stamp, interface_hrac):
-            self.pubkey_sig_bytes = bytes(stamp)
-            self.interface_hrac = interface_hrac
-
-        def __bytes__(self):
-            return keccak_digest(self.pubkey_sig_bytes + self.interface_hrac)
-
-        def __add__(self, other):
-            return bytes(self) + other
-
-        def __radd__(self, other):
-            return other + bytes(self)
-
-        def __hash__(self):
-            return int.from_bytes(self, byteorder="big")
-
-        def __eq__(self, other):
-            return bytes(self) == bytes(other)
-
     def interface_dht_key(self):
-        return self.InterfaceDHTKey(self.stamp, self.interface_hrac())
+        return bytes(self.stamp)
+        # return self.InterfaceDHTKey(self.stamp, self.interface_hrac())
 
     def interface_dht_value(self):
         signature = self.stamp(self.interface_hrac())
