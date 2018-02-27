@@ -411,7 +411,7 @@ class Bob(Character):
         else:
             from nkms.policy.models import TreasureMap
             treasure_map = TreasureMap(msgpack.loads(packed_node_list))
-            self.treasure_maps[policy.hrac] = treasure_map
+            self.treasure_maps[policy.hrac()] = treasure_map
             return treasure_map
 
     def get_treasure_map_from_known_ursulas(self, networky_stuff, map_id):
