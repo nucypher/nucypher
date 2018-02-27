@@ -42,7 +42,7 @@ contract MinersEscrow is Issuer, Ownable {
         // downtime
         uint256 lastActivePeriod;
         Downtime[] downtime;
-        bytes[] dhtKeys;
+        bytes[] minerIds;
     }
 
     uint256 constant MAX_PERIODS = 10;
@@ -587,29 +587,29 @@ contract MinersEscrow is Issuer, Ownable {
     }
 
     /**
-    * @notice Public DHT key
+    * @notice Set miner id
     **/
-    function publishDHTKey(bytes _dhtKey) public {
+    function setMinerId(bytes _minerId) public {
         var info = minerInfo[msg.sender];
-        info.dhtKeys.push(_dhtKey);
+        info.minerIds.push(_minerId);
     }
 
     /**
-    * @notice Get DHT keys count
+    * @notice Get miner ids count
     **/
-    function getDHTKeysCount(address _owner)
+    function getMinerIdsCount(address _owner)
         public constant returns (uint256)
     {
-        return minerInfo[_owner].dhtKeys.length;
+        return minerInfo[_owner].minerIds.length;
     }
 
     /**
-    * @notice Get DHT key
+    * @notice Get miner id
     **/
-    function getDHTKey(address _owner, uint256 _index)
+    function getMinerId(address _owner, uint256 _index)
         public constant returns (bytes)
     {
-       return minerInfo[_owner].dhtKeys[_index];
+       return minerInfo[_owner].minerIds[_index];
     }
 
     /**
