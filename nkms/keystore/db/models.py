@@ -27,13 +27,12 @@ class Key(Base):
 class PolicyContract(Base):
     __tablename__ = 'policycontracts'
 
-    id = Column(Integer, primary_key=True)
+    hrac = Column(LargeBinary, unique=True, primary_key=True)
     expiration = Column(DateTime)
     deposit = Column(LargeBinary)
-    hrac = Column(LargeBinary, unique=True)
     k_frag = Column(LargeBinary, unique=True, nullable=True)
     alice_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
-    alice_pubkey_sig = relationship(Key, backref="policies")
+    alice_pubkey_sig = relationship(Key, backref="policies", lazy='joined')
     # alice_pubkey_enc_id = Column(Integer, ForeignKey('keys.id'))
     # bob_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
     # TODO: Maybe this will be two signatures - one for the offer, one for the KFrag.
