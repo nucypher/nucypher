@@ -13,7 +13,7 @@ class NuCypherKMSToken:
         pass
 
     def __init__(self, blockchain: Blockchain, token_contract: PopulusContract=None):
-        self.creator = blockchain.web3.eth.accounts[0]
+        self.creator = blockchain._chain.web3.eth.accounts[0]
         self.blockchain = blockchain
         self.contract = token_contract
         self.armed = False
@@ -38,31 +38,36 @@ class NuCypherKMSToken:
             message = '{} contract is not deployed. Arm, then deploy.'.format(class_name)
             raise self.ContractDeploymentError(message)
 
-    def arm(self):
+    def arm(self) -> None:
         """Arm contract for deployment to blockchain."""
         self.armed = True
-        return self
 
-    def deploy(self):
-        """Deploy and publish contract to the blockchain."""
+    def deploy(self) -> str:
+        """
+        Deploy and publish the NuCypherKMS Token contract
+        to the blockchain network specified in self.blockchain.network.
 
-        if not self.armed:
+        The contract must be armed before it can be deployed.
+        Deployment can only ever be executed exactly once!
+        """
+
+        if self.armed is False:
             raise self.ContractDeploymentError('use .arm() to arm the contract, then .deploy().')
 
-        if self.contract:
+        if self.contract is not None:
             class_name = self.__class__.__name__
             message = '{} contract already deployed, use .get() to retrieve it.'.format(class_name)
             raise self.ContractDeploymentError(message)
 
-        token_contract, txhash = self.blockchain.chain.provider.deploy_contract(
+        the_nucypherKMS_token_contract, deployment_txhash = self.blockchain._chain.provider.deploy_contract(
             self._contract_name,
             deploy_args=[self.saturation],
             deploy_transaction={'from': self.creator})
 
-        self.blockchain.chain.wait.for_receipt(txhash, timeout=self.blockchain.timeout)
+        self.blockchain._chain.wait.for_receipt(deployment_txhash, timeout=self.blockchain._timeout)
 
-        self.contract = token_contract
-        return self
+        self.contract = the_nucypherKMS_token_contract
+        return deployment_txhash
 
     def transact(self, *args):
         """Invoke contract -> State change"""
@@ -72,14 +77,17 @@ class NuCypherKMSToken:
 
     @classmethod
     def get(cls, blockchain):
-        """Gets an existing token contract or returns an error"""
-        contract = blockchain.chain.provider.get_contract(cls._contract_name)
+        """
+        Returns the NuCypherKMSToken object,
+        or raises UnknownContract if the contract has not been deployed.
+        """
+        contract = blockchain._chain.provider.get_contract(cls._contract_name)
         return cls(blockchain=blockchain, token_contract=contract)
 
     def registrar(self):
         """Retrieve all known addresses for this contract"""
         self._check_contract_deployment()
-        return self.blockchain.chain.registrar.get_contract_address(self._contract_name)
+        return self.blockchain._chain.registrar.get_contract_address(self._contract_name)
 
     def balance(self, address: str):
         """Get the balance of a token address"""
@@ -87,15 +95,15 @@ class NuCypherKMSToken:
         return self.__call__().balanceOf(address)
 
     def _airdrop(self, amount: int):
-        """Airdrops from creator address to all other addresses"""
+        """Airdrops from creator address to all other addresses!"""
         self._check_contract_deployment()
-        _, *addresses = self.blockchain.web3.eth.accounts
+        _, *addresses = self.blockchain._chain.web3.eth.accounts
 
         def txs():
             for address in addresses:
                 yield self.transact({'from': self.creator}).transfer(address, amount*(10**6))
 
         for tx in txs():
-            self.blockchain.chain.wait.for_receipt(tx, timeout=10)
+            self.blockchain._chain.wait.for_receipt(tx, timeout=10)
 
         return self

@@ -46,14 +46,14 @@ def test_get_swarm(testerchain, token, escrow):
     token._airdrop(amount=10000)
 
     # Create 9 Miners
-    for u in testerchain.web3.eth.accounts[1:]:
+    for u in testerchain._chain.web3.eth.accounts[1:]:
         miner = Miner(blockchain=testerchain, token=token, escrow=escrow, address=u)
         amount = (10+random.randrange(9000)) * M
         miner.lock(amount=amount, locktime=1)
 
     testerchain.wait_time(escrow.hours_per_period)
 
-    swarm = escrow.get_swarm()
+    swarm = escrow.swarm()
     swarm_addresses = list(swarm)
     assert len(swarm_addresses) == 9
 

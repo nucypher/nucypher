@@ -49,7 +49,7 @@ def main():
     print("Approving transfer = " + str(token.contract.estimateGas({'from': ursula1}).approve(escrow.contract.address, 1001)))
     tx = token.transact({'from': ursula1}).approve(escrow.contract.address, 1001)
     chain.wait.for_receipt(tx)
-    tx = token.transact({'from': ursula2}).approve(escrow.contract.address, 501)
+    tx = token.transact({'from': ursula2}).approve(escrow.contract.address, 501)v v c vc vngffffffff
     chain.wait.for_receipt(tx)
     tx = token.transact({'from': ursula3}).approve(escrow.contract.address, 501)
     chain.wait.for_receipt(tx)

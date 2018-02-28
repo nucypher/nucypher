@@ -1,5 +1,5 @@
 import pytest
-from nkms_eth.blockchain import TesterBlockchain
+from nkms_eth.blockchain import TesterBlockchain, Blockchain
 from nkms_eth.token import NuCypherKMSToken
 from nkms_eth.escrow import Escrow
 from nkms_eth.miner import Miner
@@ -9,17 +9,21 @@ from nkms_eth.miner import Miner
 def testerchain():
     chain = TesterBlockchain()
     yield chain
+    del chain
+    Blockchain._instance = False
 
 
 @pytest.fixture(scope='function')
 def token(testerchain):
     token = NuCypherKMSToken(blockchain=testerchain)
-    token.arm().deploy()
+    token.arm()
+    token.deploy()
     yield token
 
 
 @pytest.fixture(scope='function')
 def escrow(testerchain, token):
     escrow = Escrow(blockchain=testerchain, token=token)
-    escrow.arm().deploy()
-    return escrow
+    escrow.arm()
+    escrow.deploy()
+    yield escrow
