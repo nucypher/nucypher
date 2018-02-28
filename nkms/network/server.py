@@ -7,23 +7,22 @@ from apistar.http import Response
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
-from sqlalchemy.exc import IntegrityError
 
-from hendrix.experience import crosstown_traffic
 from nkms.crypto.kits import MessageKit
 from nkms.crypto.powers import EncryptingPower, SigningPower
 from nkms.crypto.utils import BytestringSplitter
+from nkms.keystore.threading import ThreadedSession
 from nkms.network.capabilities import SeedOnly, ServerCapability
 from nkms.network.node import NuCypherNode
-from nkms.network.protocols import NuCypherSeedOnlyProtocol, NuCypherHashProtocol
+from nkms.network.protocols import NuCypherSeedOnlyProtocol, NuCypherHashProtocol, \
+    dht_value_splitter
 from nkms.network.storage import SeedOnlyStorage
 from umbral import pre
 from umbral.fragments import KFrag
-from twisted.python.threadpool import ThreadPool
-from twisted.internet.threads import deferToThreadPool
+
 from apistar.core import Route
 from apistar.frameworks.wsgi import WSGIApp as App
-from twisted.internet import reactor
+
 
 
 class NuCypherDHTServer(Server):
@@ -100,8 +99,6 @@ class NuCypherSeedOnlyDHTServer(NuCypherDHTServer):
 
 class ProxyRESTServer(object):
 
-    datastore_threadpool = None
-
     def __init__(self, rest_address, rest_port):
         self.rest_address = rest_address
         self.rest_port = rest_port
@@ -130,15 +127,18 @@ class ProxyRESTServer(object):
         ]
 
         self._rest_app = App(routes=routes)
+        self.start_datastore()
 
     def start_datastore(self):
         from nkms.keystore import keystore
         from nkms.keystore.db import Base
         from sqlalchemy.engine import create_engine
 
-        engine = create_engine('sqlite:///:memory:')
+        engine = create_engine('sqlite:///test.db', echo=True)
         Base.metadata.create_all(engine)
         self.datastore = keystore.KeyStore(engine)
+        self.db_engine = engine
+        print("Engine ID: {} Table names: {}".format(id(engine), engine.table_names()))
 
     def rest_url(self):
         return "{}:{}".format(self.rest_address, self.rest_port)
@@ -164,20 +164,14 @@ class ProxyRESTServer(object):
             BytestringSplitter(Contract)(request.body, return_remainder=True)
         contract.deposit = deposit_as_bytes
 
-        # contract_to_store = {  # TODO: This needs to be a datastore - see #127.
-        #     "alice_pubkey_sig":
-        #     "deposit": contract.deposit,
-        #     # TODO: Whatever type "deposit" ends up being, we'll need to
-        #     # serialize it here.  See #148.
-        #     "expiration": contract.expiration,
-        # }
-        self.datastore_threadpool.callInThread(
-            self.datastore.add_policy_contract,
-            contract.expiration.datetime(),
-            contract.deposit,
-            hrac=contract.hrac.hex().encode(),
-            alice_pubkey_sig=contract.alice.stamp
-            )
+        with ThreadedSession(self.db_engine) as session:
+            self.datastore.add_policy_contract(
+                contract.expiration.datetime(),
+                contract.deposit,
+                hrac=contract.hrac.hex().encode(),
+                alice_pubkey_sig=contract.alice.stamp,
+                session=session,
+                )
         # TODO: Make the rest of this logic actually work - do something here
         # to decide if this Contract is worth accepting.
         return Response(
@@ -215,39 +209,22 @@ class ProxyRESTServer(object):
         # kfrag = policy_payload_splitter(policy_payload)[0]
         kfrag = KFrag.from_bytes(cleartext)
 
-        self.datastore_threadpool.callInThread(self.attach_kfrag_to_saved_contract,
+        with ThreadedSession(self.db_engine) as session:
+            self.datastore.attach_kfrag_to_saved_contract(
                                                alice,
                                                hrac_as_hex,
-                                               kfrag)
+                                               kfrag,
+                                               session=session)
 
         return  # TODO: Return A 200, with whatever policy metadata.
-
-    def attach_kfrag_to_saved_contract(self, alice, hrac_as_hex, kfrag):
-        policy_contract = self.datastore.get_policy_contract(hrac_as_hex.encode())
-        # contract_details = self._contracts[hrac.hex()]
-
-        if policy_contract.alice_pubkey_sig.key_data != alice.stamp:
-            raise self._alice_class.SuspiciousActivity
-
-        # contract = Contract(alice=alice, hrac=hrac,
-        #                     kfrag=kfrag, expiration=policy_contract.expiration)
-
-        try:
-            # TODO: Obviously we do this lower-level.
-            policy_contract.k_frag = bytes(kfrag)
-            self.datastore.session.commit()
-
-        except IntegrityError:
-            raise
-            # Do something appropriately RESTful (ie, 4xx).
-
-        # TODO: Return something that is useful to the REST endpoint caller.
 
     def reencrypt_via_rest(self, hrac_as_hex, request: http.Request):
         from nkms.policy.models import WorkOrder  # Avoid circular import
         hrac = binascii.unhexlify(hrac_as_hex)
         work_order = WorkOrder.from_rest_payload(hrac, request.body)
-        kfrag_bytes = self.datastore.get_policy_contract(hrac.hex().encode()).k_frag  # Careful!  :-)
+        with ThreadedSession(self.db_engine) as session:
+            kfrag_bytes = self.datastore.get_policy_contract(hrac.hex().encode(),
+                                                             session=session).k_frag  # Careful!  :-)
         # TODO: Push this to a lower level.
         kfrag = KFrag.from_bytes(kfrag_bytes)
         cfrag_byte_stream = b""
