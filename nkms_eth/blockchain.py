@@ -1,8 +1,4 @@
-import populus
-import threading
-import nkms_eth
-import appdirs
-from os.path import dirname, join, abspath
+from nkms_eth.config import PopulusConfig
 
 
 class Blockchain:
@@ -14,60 +10,71 @@ class Blockchain:
     tester: Uses an ephemeral in-memory chain backed by pyethereum.
     testrpc: Uses an ephemeral in-memory chain backed by pyethereum.
     temp: Local private chain whos data directory is removed when the chain is shutdown. Runs via geth.
-
     """
 
-    network = ''  # 'mainnetrpc'
-    python_project_name = 'nucypher-kms'
-    _project = threading.local()
+    _network = ''
+    _instance = False
 
-    # This config is persistent and is created in user's .local directory
-    registrar_path = join(appdirs.user_data_dir(python_project_name), 'registrar.json')
+    class AlreadyRunning(Exception):
+        pass
 
-    def __init__(self, project_name='nucypher-kms', timeout=60):
+    def __init__(self, populus_config: PopulusConfig=None, timeout=60):
+        """
+        Configures a populus project and connects to blockchain.network.
+        Transaction timeouts specified measured in seconds.
 
-        # Populus project config
-        project_dir = join(dirname(abspath(nkms_eth.__file__)), 'project')
-        project = populus.Project(project_dir)
-        project.config['chains.mainnetrpc.contracts.backends.JSONFile.settings.file_path'] = self.registrar_path
+        http://populus.readthedocs.io/en/latest/chain.wait.html
 
-        self.project_name = project_name
-        self.timeout = timeout
-        self.project_dir = project_dir
-        self._project.project = project
-        self._project.chain = self._project.project.get_chain(self.network).__enter__()
+        """
+
+        # Singleton
+        if Blockchain._instance is True:
+            class_name = self.__class__.__name__
+            raise Blockchain.AlreadyRunning('{} is already running. Use .get() to retrieve'.format(class_name))
+        Blockchain._instance = True
+
+        if populus_config is None:
+            populus_config = PopulusConfig()
+
+        self._populus_config = populus_config
+        self._timeout = timeout
+        self._project = populus_config.project
+
+        # Opens and preserves connection to a running populus blockchain
+        self._chain = self._project.get_chain(self._network).__enter__()
+
+    def disconnect(self):
+        self._chain.__exit__(None, None, None)
+
+    def __del__(self):
+        self.disconnect()
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        r = "{}(network={}, project_name={}, timeout={})"
-        return r.format(class_name, self.network, self.project_name, self.timeout)
-
-    def __str__(self):
-        class_name = self.__class__.__name__
-        return "{} {}:{}".format(class_name, self.network, self.project_name)
-
-    def disconnect(self):
-        self._project.chain.__exit__(None, None, None)
-
-    @property
-    def chain(self):
-        return self._project.chain
-
-    @property
-    def web3(self):
-        return self._project.chain.web3
+        r = "{}(network={}, timeout={})"
+        return r.format(class_name, self._network, self._timeout)
 
     def get_contract(self, name):
-        """ Gets an existing contract or returns an error """
-        return self._project.chain.provider.get_contract(name)
+        """
+        Gets an existing contract from the network,
+        or raises populus.contracts.exceptions.UnknownContract
+        if there is no contract data available for the name/identifier.
+        """
+        return self._chain.provider.get_contract(name)
 
     def wait_time(self, wait_hours, step=50):
-        end_timestamp = self.web3.eth.getBlock(self.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
+        """Wait the specified number of wait_hours by comparing block timestamps."""
+
+        wait_seconds = wait_hours * 60 * 60
+        current_block = self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber)
+        end_timestamp = current_block.timestamp + wait_seconds
+
         not_time_yet = True
         while not_time_yet:
-            self.chain.wait.for_block(self.web3.eth.blockNumber + step)
-            not_time_yet = self.web3.eth.getBlock(self.web3.eth.blockNumber).timestamp < end_timestamp
+            self._chain.wait.for_block(self._chain.web3.eth.blockNumber+step)
+            current_block = self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber)
+            not_time_yet = current_block.timestamp < end_timestamp
 
 
 class TesterBlockchain(Blockchain):
-    network = 'tester'
+    _network = 'tester'
