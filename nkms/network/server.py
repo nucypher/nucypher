@@ -142,7 +142,6 @@ class ProxyRESTServer(object):
         Base.metadata.create_all(engine)
         self.datastore = keystore.KeyStore(engine)
         self.db_engine = engine
-        print("Engine ID: {} Table names: {}".format(id(engine), engine.table_names()))
 
     def rest_url(self):
         return "{}:{}".format(self.rest_address, self.rest_port)

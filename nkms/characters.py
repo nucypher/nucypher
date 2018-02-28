@@ -9,6 +9,7 @@ from typing import Dict
 from kademlia.network import Server
 from kademlia.utils import digest
 from typing import Union, List
+from collections import OrderedDict
 
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
@@ -446,7 +447,7 @@ class Bob(Character):
             raise KeyError(
                 "Bob doesn't have a TreasureMap matching the hrac {}".format(kfrag_hrac))
 
-        generated_work_orders = {}
+        generated_work_orders = OrderedDict()
 
         if not treasure_map_to_use:
             raise ValueError(
