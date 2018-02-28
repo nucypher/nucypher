@@ -63,7 +63,7 @@ BOB.follow_treasure_map(hrac)
 
 # Now, Alice and Bob are ready for some throughput.
 
-finnegans_wake = open(sys.argv[0], 'rb')
+finnegans_wake = open(sys.argv[1], 'rb')
 
 start_time = datetime.datetime.now()
 
