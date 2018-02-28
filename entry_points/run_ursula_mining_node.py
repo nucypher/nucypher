@@ -7,7 +7,7 @@
 
 from nkms.characters import Ursula
 
-_URSULA = Ursula(dht_port=3501, dht_interface="localhost")
+_URSULA = Ursula(dht_port=3501, dht_interface="localhost", db_name="non-mining-proxy-node")
 _URSULA.listen()
 
 from hendrix.deploy.base import HendrixDeploy

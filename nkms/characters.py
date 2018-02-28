@@ -492,13 +492,13 @@ class Ursula(Character, ProxyRESTServer):
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
     def __init__(self, dht_port=None, dht_interface=None, dht_ttl=0,
-                 rest_address=None, rest_port=None,
+                 rest_address=None, rest_port=None, db_name=None,
                  *args, **kwargs):
         self.dht_port = dht_port
         self.dht_interface = dht_interface
         self.dht_ttl = 0
         self._work_orders = []
-        ProxyRESTServer.__init__(self, rest_address, rest_port)
+        ProxyRESTServer.__init__(self, rest_address, rest_port, db_name)
         super().__init__(*args, **kwargs)
 
     @property
@@ -540,7 +540,7 @@ class Ursula(Character, ProxyRESTServer):
             id = digest(secure_random(32))
 
         super().attach_server(ksize, alpha, id, storage)
-        self.attach_rest_server()
+        self.attach_rest_server(db_name=self.db_name)
 
     def listen(self):
         return self.server.listen(self.dht_port, self.dht_interface)

@@ -70,6 +70,10 @@ def bob(alice, ursulas):
 def ursulas():
     URSULAS = make_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT)
     yield URSULAS
+    # Remove the DBs that have been sprayed hither and yon.
+    for _u in range(NUMBER_OF_URSULAS_IN_NETWORK):
+        port = URSULA_PORT + _u
+        os.remove("test-{}".format(port))
     blockchain_client._ursulas_on_blockchain.clear()
 
 

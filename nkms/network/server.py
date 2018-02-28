@@ -99,12 +99,13 @@ class NuCypherSeedOnlyDHTServer(NuCypherDHTServer):
 
 class ProxyRESTServer(object):
 
-    def __init__(self, rest_address, rest_port):
+    def __init__(self, rest_address, rest_port, db_name):
         self.rest_address = rest_address
         self.rest_port = rest_port
+        self.db_name = db_name
         self._rest_app = None
 
-    def attach_rest_server(self):
+    def attach_rest_server(self, db_name):
 
         routes = [
             Route('/kFrag/{hrac_as_hex}',
@@ -127,14 +128,17 @@ class ProxyRESTServer(object):
         ]
 
         self._rest_app = App(routes=routes)
-        self.start_datastore()
+        self.start_datastore(db_name)
 
-    def start_datastore(self):
+    def start_datastore(self, db_name):
+        if not db_name:
+            raise TypeError("In order to start a datastore, you need to supply a db_name.")
+
         from nkms.keystore import keystore
         from nkms.keystore.db import Base
         from sqlalchemy.engine import create_engine
 
-        engine = create_engine('sqlite:///test.db', echo=True)
+        engine = create_engine('sqlite:///{}'.format(db_name))
         Base.metadata.create_all(engine)
         self.datastore = keystore.KeyStore(engine)
         self.db_engine = engine
