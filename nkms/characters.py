@@ -173,13 +173,15 @@ class Character(object):
                 # Encrypt first, sign second.
                 ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, plaintext)
                 signature = self.stamp(ciphertext)
+            alice_pubkey = self.public_key(SigningPower)
         else:
             # Don't sign.
             signature = NOT_SIGNED
             ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, plaintext)
+            alice_pubkey = None
 
-        message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule)
-        message_kit.alice_pubkey = self.public_key(SigningPower)
+        message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule, alice_pubkey=alice_pubkey)
+
         return message_kit, signature
 
     def verify_from(self,

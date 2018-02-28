@@ -84,14 +84,13 @@ def test_anybody_can_encrypt():
     """
     Similar to anybody_can_verify() above; we show that anybody can encrypt.
     """
-    can_sign_and_encrypt = Character(crypto_power_ups=[SigningPower, EncryptingPower])
-    ursula = Ursula()
+    everyman = Character()
+    ursula = Ursula(is_me=False)
 
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
-    ciphertext, signature = can_sign_and_encrypt.encrypt_for(ursula, cleartext, sign=False)
+    ciphertext, signature = everyman.encrypt_for(ursula, cleartext, sign=False)
     assert signature == NOT_SIGNED
-
     assert ciphertext is not None
 
 """
@@ -132,6 +131,10 @@ def test_encrypt_and_sign_the_ciphertext(alice, bob):
 
 
 def test_encrypt_but_do_not_sign(alice, bob):
+    """
+    Finally, Alice encrypts but declines to sign.
+    This is useful in a scenario in which Alice wishes to plausibly disavow having created this content.
+    """
     message = b"If Bonnie comes home and finds an unencrypted private key in her keystore, I'm gonna get divorced."
 
     # Alice might also want to encrypt a message but *not* sign it, in order to refrain
@@ -148,5 +151,3 @@ def test_encrypt_but_do_not_sign(alice, bob):
 
     # However, the message was properly decrypted.
     assert message == cleartext
-
-
