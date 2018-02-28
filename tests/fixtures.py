@@ -1,5 +1,5 @@
 import datetime
-
+import os
 import pytest
 
 from nkms.characters import Alice, Bob
@@ -50,7 +50,6 @@ def enacted_policy(idle_policy, ursulas):
 @pytest.fixture(scope="module")
 def alice(ursulas):
     ALICE = Alice()
-    ALICE.attach_server()
     ALICE.server.listen(8471)
     ALICE.__resource_id = b"some_resource_id"
     EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", u.dht_port) for u in ursulas]))
@@ -60,7 +59,6 @@ def alice(ursulas):
 @pytest.fixture(scope="module")
 def bob(alice, ursulas):
     BOB = Bob(alice=alice)
-    BOB.attach_server()
     BOB.server.listen(8475)
     EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
     return BOB

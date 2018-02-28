@@ -1,6 +1,8 @@
 import sha3
 
 from datetime import datetime
+
+from nkms.crypto.utils import fingerprint_from_key
 from nkms.keystore.db import Base
 from sqlalchemy.orm import relationship
 
@@ -22,6 +24,12 @@ class Key(Base):
         self.fingerprint = fingerprint
         self.key_data = key_data
         self.is_signing = is_signing
+
+    @classmethod
+    def from_umbral_key(cls, umbral_key, is_signing):
+        fingerprint = fingerprint_from_key(umbral_key)
+        key_data = bytes(umbral_key)
+        return cls(fingerprint, key_data, is_signing)
 
 
 class PolicyContract(Base):

@@ -47,7 +47,6 @@ class KeyStore(object):
         session = session or self._session_on_init_thread
         fingerprint = fingerprint_from_key(key)
         key_data = bytes(key)
-
         new_key = Key(fingerprint, key_data, is_signing)
 
         session.add(new_key)
@@ -96,13 +95,14 @@ class KeyStore(object):
         """
         session = session or self._session_on_init_thread
 
-        # TODO: This can be optimized to one commit/write.
-        alice_pubkey_sig = self.add_key(alice_pubkey_sig, is_signing=True, session=session)
+        alice_key_instance = session.query(Key).filter_by(key_data=bytes(alice_pubkey_sig)).first()
+        if not alice_key_instance:
+            alice_key_instance = Key.from_umbral_key(alice_pubkey_sig, is_signing=True)
         # alice_pubkey_enc = self.add_key(alice_pubkey_enc)
         # bob_pubkey_sig = self.add_key(bob_pubkey_sig)
 
         new_policy_contract = PolicyContract(
-            expiration, deposit, hrac, kfrag, alice_pubkey_sig=alice_pubkey_sig,
+            expiration, deposit, hrac, kfrag, alice_pubkey_sig=alice_key_instance,
             alice_signature=None, # bob_pubkey_sig.id
         )
 
