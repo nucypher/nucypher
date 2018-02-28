@@ -121,6 +121,8 @@ class Character(object):
 
     def attach_server(self, ksize=20, alpha=3, id=None,
                       storage=None, *args, **kwargs) -> None:
+        if self._server:
+            raise RuntimeError("Attaching the server twice is almost certainly a bad idea.")
         self._server = self._server_class(
             ksize, alpha, id, storage, *args, **kwargs)
 
@@ -496,8 +498,8 @@ class Ursula(Character, ProxyRESTServer):
         self.dht_interface = dht_interface
         self.dht_ttl = 0
         self._work_orders = []
-        super().__init__(*args, **kwargs)
         ProxyRESTServer.__init__(self, rest_address, rest_port)
+        super().__init__(*args, **kwargs)
 
     @property
     def rest_app(self):
