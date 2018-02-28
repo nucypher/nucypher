@@ -3,14 +3,20 @@
 # It might be (but might not be) useful for determining whether you have
 # the proper depedencies and configuration to run an actual mining node.
 
-# WIP w/ hendrix@8227c4abcb37ee6d27528a13ec22d55ee106107f
+# WIP w/ hendrix@83519da900a258d8e27a3b1fedee949414d2de26
 
+import os
 from nkms.characters import Ursula
+DB_NAME = "non-mining-proxy-node"
 
-_URSULA = Ursula(dht_port=3501, dht_interface="localhost", db_name="non-mining-proxy-node")
+_URSULA = Ursula(dht_port=3501, dht_interface="localhost", db_name=DB_NAME)
 _URSULA.listen()
 
 from hendrix.deploy.base import HendrixDeploy
 
 deployer = HendrixDeploy("start", {"wsgi":_URSULA.rest_app, "http_port": 3500})
-deployer.run()
+
+try:
+    deployer.run()
+finally:
+    os.remove(DB_NAME)
