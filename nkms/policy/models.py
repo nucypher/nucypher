@@ -289,7 +289,7 @@ class WorkOrder(object):
         return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for {ursulas}".format(
             hrac=self.kfrag_hrac.hex()[:6],
             capsule_bytes=[binascii.hexlify(bytes(cap))[:6] for cap in self.capsules],
-            ursulas=binascii.hexlify(bytes(self.ursula_id))[:6])
+            ursulas=binascii.hexlify(bytes(self.ursula.stamp))[:6])
 
     def __eq__(self, other):
         return (self.receipt_bytes, self.receipt_signature) == (
