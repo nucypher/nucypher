@@ -202,12 +202,12 @@ class Character(object):
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
         """
-        # TODO: In this flow we now essentially have two copies of the public key.
+        # TODO: In this flow we now essentially have two copies of the public key.  See #174.
         # One from the actor (first arg) and one from the MessageKit.
         # Which do we use in which cases?
 
         # if not signature and not signature_is_on_cleartext:
-        # TODO: Since a signature can now be in a MessageKit, this might not be accurate anymore.
+        # TODO: Since a signature can now be in a MessageKit, this might not be accurate anymore.  See #174.
         # raise ValueError("You need to either provide the Signature or \
         #                   decrypt and find it on the cleartext.")
 
@@ -230,7 +230,6 @@ class Character(object):
             if decrypt:
                 message = message_kit.ciphertext
                 cleartext = self.decrypt(message_kit)
-                # TODO: Fully deprecate actor lookup flow?
             else:
                 message = bytes(message_kit)
             alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
@@ -257,6 +256,13 @@ class Character(object):
         return self._crypto_power.power_ups(SigningPower).sign(message)
 
     def public_key(self, power_up_class):
+        """
+        Pass a power_up_class, get the public key for this Character which corresponds to that
+        class.
+
+        If the Character doesn't have the power corresponding to that class, raises the
+        appropriate PowerUpError (ie, NoSigningPower or NoEncryptingPower).
+        """
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
@@ -264,7 +270,7 @@ class Character(object):
         """
         Sends a request to node_url to find out about known nodes.
         """
-        # TODO: Find out about other known nodes, not just this one.
+        # TODO: Find out about other known nodes, not just this one.  #175
         node = Ursula.from_rest_url(address, port)
         self.known_nodes[node.interface_dht_key()] = node
 
@@ -280,8 +286,8 @@ class Alice(Character):
         These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
         that he can activate the Capsule.
         :param bob: Bob instance which will be able to decrypt messages re-encrypted with these kfrags.
-        :param m: Minimum number of KFrags needed to rebuild ciphertext
-        :param n: Total number of rekey shares to generate
+        :param m: Minimum number of kfrags needed to activate a Capsule.
+        :param n: Total number of kfrags to generate
         """
         bob_pubkey_enc = bob.public_key(EncryptingPower)
         return self._crypto_power.power_ups(EncryptingPower).generate_kfrags(bob_pubkey_enc, m, n)
@@ -297,7 +303,6 @@ class Alice(Character):
         Generates KFrags and attaches them.
         """
         kfrags = self.generate_kfrags(bob, m, n)
-        # TODO: Access Alice's private key inside this method.
         from nkms.policy.models import Policy
         policy = Policy.from_alice(
             alice=self,
@@ -312,16 +317,16 @@ class Alice(Character):
     def grant(self, bob, uri, networky_stuff,
               m=None, n=None, expiration=None, deposit=None):
         if not m:
-            # TODO: get m from config
+            # TODO: get m from config  #176
             raise NotImplementedError
         if not n:
-            # TODO: get n from config
+            # TODO: get n from config  #176
             raise NotImplementedError
         if not expiration:
-            # TODO: check default duration in config
+            # TODO: check default duration in config  #176
             raise NotImplementedError
         if not deposit:
-            default_deposit = None  # TODO: Check default deposit in config.
+            default_deposit = None  # TODO: Check default deposit in config.  #176
             if not default_deposit:
                 deposit = networky_stuff.get_competitive_rate()
                 if deposit == NotImplemented:
@@ -339,7 +344,7 @@ class Alice(Character):
         # REST call happens here, as does population of TreasureMap.
         policy.enact(networky_stuff)
 
-        return policy
+        return policy  # Now with TreasureMap affixed!
 
 
 class Bob(Character):
@@ -630,5 +635,5 @@ class StrangerStamp(SignatureStamp):
     """
 
     def __call__(self, *args, **kwargs):
-        raise TypeError(
-            "This isn't your SignatureStamp; it belongs to {} (a Stranger).  You can't sign with it.".format(self.character))
+        message = "This isn't your SignatureStamp; it belongs to {} (a Stranger).  You can't sign with it."
+        raise TypeError(message.format(self.character))
