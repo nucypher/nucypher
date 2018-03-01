@@ -349,24 +349,12 @@ class Bob(Character):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def __init__(self, alice=None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.treasure_maps = {}
-        if alice:
-            self.alice = alice
+
         from nkms.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
-
-    @property
-    def alice(self):
-        if not self._alice:
-            raise Alice.NotFound
-        else:
-            return self._alice
-
-    @alice.setter
-    def alice(self, alice_object):
-        self._alice = alice_object
 
     def follow_treasure_map(self, hrac):
         for ursula_interface_id in self.treasure_maps[hrac]:
@@ -407,7 +395,7 @@ class Bob(Character):
             tmap_message_kit = self.get_treasure_map_from_known_ursulas(networky_stuff, map_id)
 
         verified, packed_node_list = self.verify_from(
-            self.alice, tmap_message_kit,
+            policy.alice, tmap_message_kit,
             signature_is_on_cleartext=True, decrypt=True
         )
 
