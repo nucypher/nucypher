@@ -1,5 +1,6 @@
 import asyncio
 import binascii
+from collections import OrderedDict
 
 import maya
 import msgpack
@@ -108,7 +109,7 @@ class Policy(object):
         self.uri = uri
         self.m = m
         self.treasure_map = TreasureMap()
-        self._accepted_contracts = {}
+        self._accepted_contracts = OrderedDict()
 
         self.alices_signature = alices_signature
 
