@@ -3,22 +3,20 @@ from logging import getLogger
 
 import msgpack
 import requests
-
-from typing import Dict
-
+from collections import OrderedDict
 from kademlia.network import Server
 from kademlia.utils import digest
+from typing import Dict
 from typing import Union, List
-from collections import OrderedDict
 
 from nkms.crypto.api import secure_random, keccak_digest
-from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
+from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED, PUBLIC_KEY_LENGTH
 from nkms.crypto.kits import MessageKit
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.crypto.signature import Signature
-from nkms.crypto.utils import BytestringSplitter
+from nkms.crypto.utils import BytestringSplitter, RepeatingBytestringSplitter
 from nkms.network import blockchain_client
-from nkms.network.constants import BYTESTRING_IS_URSULA_IFACE_INFO, BYTESTRING_IS_TREASURE_MAP
+from nkms.network.constants import BYTESTRING_IS_URSULA_IFACE_INFO
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
 from nkms.policy.constants import NOT_FROM_ALICE, NON_PAYMENT
@@ -114,7 +112,6 @@ class Character(object):
                 umbral_key = UmbralPublicKey(public_key)
             except TypeError:
                 umbral_key = public_key
-
 
             crypto_power.consume_power_up(power_up(pubkey=umbral_key))
 
@@ -367,21 +364,21 @@ class Bob(Character):
             value = self.server.get_now(ursula_interface_id)
 
             # TODO: Make this much prettier
-            header, signature, ursula_pubkey_sig, _hrac, (port, interface, ttl) = dht_value_splitter(value, msgpack_remainder=True)
+            header, signature, ursula_pubkey_sig, _hrac, (
+            port, interface, ttl) = dht_value_splitter(value, msgpack_remainder=True)
 
             if header != BYTESTRING_IS_URSULA_IFACE_INFO:
                 raise TypeError("Unknown DHT value.  How did this get on the network?")
 
             # TODO: If we're going to implement TTL, it will be here.
-            self.known_nodes[ursula_interface_id] =\
-                    Ursula.as_discovered_on_network(
-                            dht_port=port,
-                            dht_interface=interface,
-                            powers_and_keys=({SigningPower: ursula_pubkey_sig})
-                    )
+            self.known_nodes[ursula_interface_id] = \
+                Ursula.as_discovered_on_network(
+                    dht_port=port,
+                    dht_interface=interface,
+                    powers_and_keys=({SigningPower: ursula_pubkey_sig})
+                )
 
     def get_treasure_map(self, policy, networky_stuff, using_dht=False):
-
         map_id = policy.treasure_map_dht_key()
 
         if using_dht:
@@ -501,10 +498,11 @@ class Ursula(Character, ProxyRESTServer):
             return self._rest_app
 
     @classmethod
-    def as_discovered_on_network(cls, dht_port, dht_interface, pubkey_sig_bytes,
-                                 rest_address=None, rest_port=None):
+    def as_discovered_on_network(cls, dht_port, dht_interface,
+                                 rest_address=None, rest_port=None,
+                                 powers_and_keys=()):
         # TODO: We also need the encrypting public key here.
-        ursula = cls.from_public_keys((SigningPower, pubkey_sig_bytes))
+        ursula = cls.from_public_keys(powers_and_keys)
         ursula.dht_port = dht_port
         ursula.dht_interface = dht_interface
         ursula.rest_address = rest_address
@@ -516,11 +514,17 @@ class Ursula(Character, ProxyRESTServer):
         response = requests.get("{}:{}/public_keys".format(address, port))  # TODO: TLS-only.
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
-        signing_key_bytes, encrypting_key_bytes = \
-            BytestringSplitter(PublicKey)(response.content,
-                                          return_remainder=True)
+
+        key_splitter = RepeatingBytestringSplitter(
+            (UmbralPublicKey, PUBLIC_KEY_LENGTH, {"as_b64": False}))
+        signing_key, encrypting_key = key_splitter(response.content)
+
         stranger_ursula_from_public_keys = cls.from_public_keys(
-            signing=signing_key_bytes, encrypting=encrypting_key_bytes)
+            {SigningPower: signing_key, EncryptingPower: encrypting_key},
+            rest_address=address,
+            rest_port=port
+        )
+
         return stranger_ursula_from_public_keys
 
     def attach_server(self, ksize=20, alpha=3, id=None,
