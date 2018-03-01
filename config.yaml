@@ -1,0 +1,4 @@
+# This is the main config file for running NuCypher KMS
+
+owner_key:
+    keyfile: "test.key" # Path of your keyfile from the first run script.
