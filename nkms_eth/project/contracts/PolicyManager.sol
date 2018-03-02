@@ -35,23 +35,18 @@ contract PolicyManager {
         mapping (uint256 => uint256) rewardByPeriod;
     }
 
-    NuCypherKMSToken public token;
     MinersEscrow public escrow;
     mapping (bytes20 => Policy) public policies;
     mapping (address => NodeInfo) public nodes;
 
     /**
-    * @notice Constructor sets addresses of the token and the escrow contracts
-    * @param _token Token contract
+    * @notice Constructor sets address of the escrow contract
     * @param _escrow Escrow contract
     **/
     function PolicyManager(
-        NuCypherKMSToken _token,
         MinersEscrow _escrow
     ) {
-        require(address(_token) != 0x0 &&
-            address(_escrow) != 0x0);
-        token = _token;
+        require(address(_escrow) != 0x0);
         escrow = _escrow;
     }
 
@@ -60,25 +55,22 @@ contract PolicyManager {
     * @dev Generate policy id before creation
     * @param _policyId Policy id
     * @param _node Node that will handle policy
-    * @param _feeByPeriod Amount of node reward by period
     * @param _numberOfPeriods Duration of the policy in periods
     **/
     function createPolicy(
         bytes20 _policyId,
         address _node,
-        uint256 _feeByPeriod,
         uint256 _numberOfPeriods
     )
-        public
+        public payable
     {
         require(
             policies[_policyId].rate == 0 &&
-            _feeByPeriod != 0 &&
             _numberOfPeriods != 0 &&
-            escrow.getLockedTokens(_node) != 0
+            escrow.getLockedTokens(_node) != 0 &&
+            msg.value > 0 &&
+            msg.value % _numberOfPeriods == 0
         );
-        token.safeTransferFrom(
-            msg.sender, address(this), _feeByPeriod.mul(_numberOfPeriods));
         var policy = policies[_policyId];
         policy.client = msg.sender;
         policy.node = _node;
@@ -86,11 +78,12 @@ contract PolicyManager {
         var currentPeriod = escrow.getCurrentPeriod();
         policy.startPeriod = currentPeriod.add(1);
         policy.lastPeriod = currentPeriod.add(_numberOfPeriods);
-        policy.rate = _feeByPeriod;
+        var feeByPeriod = msg.value.div(_numberOfPeriods);
+        policy.rate = feeByPeriod;
 
         var node = nodes[_node];
         for (uint256 i = policy.startPeriod; i <= policy.lastPeriod; i++) {
-            node.rewardByPeriod[i] = node.rewardByPeriod[i].add(_feeByPeriod);
+            node.rewardByPeriod[i] = node.rewardByPeriod[i].add(feeByPeriod);
         }
         policy.indexOfDowntimePeriods = escrow.getDowntimePeriodsLength(_node);
     }
@@ -126,7 +119,7 @@ contract PolicyManager {
         var reward = node.reward;
         require(reward != 0);
         node.reward = 0;
-        token.safeTransfer(msg.sender, reward);
+        msg.sender.send(reward);
     }
 
     /**
@@ -143,7 +136,7 @@ contract PolicyManager {
             refund = refund.add(policy.rate);
         }
         delete policies[_policyId];
-        token.safeTransfer(msg.sender, refund);
+        msg.sender.send(refund);
     }
 
     /**
@@ -162,7 +155,7 @@ contract PolicyManager {
             delete policies[_policyId];
         }
         if (refund > 0) {
-            token.safeTransfer(client, refund);
+            client.send(refund);
         }
     }
 

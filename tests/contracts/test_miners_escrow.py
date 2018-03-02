@@ -551,7 +551,7 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
         assert 50 * (index + 1) == escrow.call().minerInfo(owner)[4]
 
 
-def test_publish_dht_key(web3, chain, token, escrow_contract):
+def test_miner_id(web3, chain, token, escrow_contract):
     escrow = escrow_contract(5 * 10 ** 8)
     creator = web3.eth.accounts[0]
     miner = web3.eth.accounts[1]
@@ -567,14 +567,14 @@ def test_publish_dht_key(web3, chain, token, escrow_contract):
     tx = escrow.transact({'from': miner}).deposit(balance, 1)
     chain.wait.for_receipt(tx)
 
-    # Publish DHT keys
-    dht_key = os.urandom(66).hex()
-    tx = escrow.transact({'from': miner}).publishDHTKey(dht_key)
+    # Set miner ids
+    miner_id = os.urandom(66).hex()
+    tx = escrow.transact({'from': miner}).setMinerId(miner_id)
     chain.wait.for_receipt(tx)
-    assert 1 == escrow.call().getDHTKeysCount(miner)
-    assert dht_key == escrow.call().getDHTKey(miner, 0)
-    dht_key = os.urandom(66).hex()
-    tx = escrow.transact({'from': miner}).publishDHTKey(dht_key)
+    assert 1 == escrow.call().getMinerIdsCount(miner)
+    assert miner_id == escrow.call().getMinerId(miner, 0)
+    miner_id = os.urandom(66).hex()
+    tx = escrow.transact({'from': miner}).setMinerId(miner_id)
     chain.wait.for_receipt(tx)
-    assert 2 == escrow.call().getDHTKeysCount(miner)
-    assert dht_key == escrow.call().getDHTKey(miner, 1)
+    assert 2 == escrow.call().getMinerIdsCount(miner)
+    assert miner_id == escrow.call().getMinerId(miner, 1)

@@ -14,7 +14,7 @@ library AdditionalMath {
     * @notice Division and ceil
     **/
     function divCeil(uint256 a, uint256 b)
-        public constant returns (uint256) {
+        internal constant returns (uint256) {
         return (a.add(b) - 1) / b;
     }
 
