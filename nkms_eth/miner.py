@@ -1,5 +1,6 @@
 from typing import Tuple
 
+from nkms_eth.policies import PolicyManager
 from .blockchain import Blockchain
 from .escrow import Escrow
 from .token import NuCypherKMSToken
@@ -16,16 +17,19 @@ class Miner:
 
     """
 
-    def __init__(self, blockchain: Blockchain, token: NuCypherKMSToken, escrow: Escrow, address=None):
+    def __init__(self, blockchain: Blockchain, token: NuCypherKMSToken,
+                 escrow: Escrow, policy_manager: PolicyManager, address=None):
         self.blockchain = blockchain
         self.token = token
-        self.address = address
 
         self.escrow = escrow
-        if not escrow.contract:
+        if not escrow._contract:
             raise Escrow.ContractDeploymentError('Escrow contract not deployed. Arm then deploy.')
         else:
             escrow.miners.append(self)
+
+        self.policy_manager = policy_manager
+        self.address = address
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -40,7 +44,7 @@ class Miner:
     def _approve_escrow(self, amount: int) -> str:
         """Approve the transfer of token from the miner's address to the escrow contract."""
 
-        txhash = self.token.transact({'from': self.address}).approve(self.escrow.contract.address, amount)
+        txhash = self.token.transact({'from': self.address}).approve(self.escrow._contract.address, amount)
         self.blockchain._chain.wait.for_receipt(txhash, timeout=self.blockchain._timeout)
 
         return txhash
@@ -72,10 +76,13 @@ class Miner:
 
         return txhash
 
-    # TODO
-    # def collect_reward(self):
-    #     tx = policy_manager.transact({'from': self.address}).withdraw()
-    #     chain.wait.for_receipt(tx)
+    def collect_reward(self):
+        """Collect policy reward"""
+
+        txhash = self.policy_manager.transact({'from': self.address}).withdraw()
+        self.blockchain._chain.wait.for_receipt(txhash)
+
+        return txhash
 
     def publish_miner_id(self, miner_id) -> str:
         """Store a new Miner ID"""

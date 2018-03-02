@@ -66,18 +66,18 @@ class Escrow:
 
     def __init__(self, blockchain: Blockchain, token: NuCypherKMSToken, contract: PopulusContract=None):
         self.blockchain = blockchain
-        self.contract = contract
+        self._contract = contract
         self.token = token
         self.armed = False
         self.miners = list()
 
     def __call__(self):
         """Gateway to contract function calls without state change."""
-        return self.contract.call()
+        return self._contract.call()
 
     def __eq__(self, other: 'Escrow'):
         """If two deployed escrows have the same contract address, they are equal."""
-        return self.contract.address == other.contract.address
+        return self._contract.address == other._contract.address
 
     def arm(self) -> None:
         self.armed = True
@@ -96,22 +96,22 @@ class Escrow:
         if self.armed is False:
             raise self.ContractDeploymentError('use .arm() to arm the contract, then .deploy().')
 
-        if self.contract is not None:
+        if self._contract is not None:
             class_name = self.__class__.__name__
             message = '{} contract already deployed, use .get() to retrieve it.'.format(class_name)
             raise self.ContractDeploymentError(message)
 
         the_escrow_contract, deploy_txhash = self.blockchain._chain.provider.deploy_contract(self._contract_name,
-                                                          deploy_args=[self.token.contract.address] + self.mining_coeff,
-                                                          deploy_transaction={'from': self.token.creator})
+                                                                                             deploy_args=[self.token._contract.address] + self.mining_coeff,
+                                                                                             deploy_transaction={'from': self.token.creator})
 
         self.blockchain._chain.wait.for_receipt(deploy_txhash, timeout=self.blockchain._timeout)
-        self.contract = the_escrow_contract
+        self._contract = the_escrow_contract
 
-        reward_txhash = self.token.transact({'from': self.token.creator}).transfer(self.contract.address, self.reward)
+        reward_txhash = self.token.transact({'from': self.token.creator}).transfer(self._contract.address, self.reward)
         self.blockchain._chain.wait.for_receipt(reward_txhash, timeout=self.blockchain._timeout)
 
-        init_txhash = self.contract.transact({'from': self.token.creator}).initialize()
+        init_txhash = self._contract.transact({'from': self.token.creator}).initialize()
         self.blockchain._chain.wait.for_receipt(init_txhash, timeout=self.blockchain._timeout)
 
         return deploy_txhash, reward_txhash, init_txhash
@@ -126,9 +126,9 @@ class Escrow:
         return cls(blockchain=blockchain, token=token, contract=contract)
 
     def transact(self, *args, **kwargs):
-        if self.contract is None:
+        if self._contract is None:
             raise self.ContractDeploymentError('Contract must be deployed before executing transactions.')
-        return self.contract.transact(*args, **kwargs)
+        return self._contract.transact(*args, **kwargs)
 
     def get_dht(self) -> Set[str]:
         """Fetch all miner IDs and return them in a set"""
