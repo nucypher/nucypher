@@ -8,15 +8,16 @@ import "contracts/NuCypherKMSToken.sol";
 /**
 * @dev Contract for testing internal methods in Issuer contract
 **/
-contract IssuerTest is Issuer {
+contract IssuerMock is Issuer {
 
-    function IssuerTest(
+    function IssuerMock(
         NuCypherKMSToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,
         uint256 _awardedPeriods
     )
+        public
         Issuer(
             _token,
             _hoursPerPeriod,

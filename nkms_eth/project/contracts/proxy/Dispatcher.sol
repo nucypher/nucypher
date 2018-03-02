@@ -26,7 +26,7 @@ contract Dispatcher is Upgradeable {
     * @notice Verify new contract storage and upgrade target
     * @param _target New target contract address
     **/
-    function upgrade(address _target) onlyOwner public {
+    function upgrade(address _target) public onlyOwner {
         verifyState(_target);
         verifyUpgradeableState(target, _target);
         previousTarget = target;
@@ -35,7 +35,7 @@ contract Dispatcher is Upgradeable {
         TargetChanged(previousTarget, _target, owner);
     }
 
-    function verifyState(address _testTarget) public constant {
+    function verifyState(address _testTarget) public onlyOwner {
         //checks equivalence accessing target through new contract and current storage
         require(address(delegateGet(_testTarget, "target()")) == target);
         require(address(delegateGet(_testTarget, "owner()")) == owner);
@@ -45,7 +45,7 @@ contract Dispatcher is Upgradeable {
     * @notice Rollback to previous target
     * @dev Test storage carefully before upgrade again after rollback
     **/
-    function rollback() onlyOwner public {
+    function rollback() public onlyOwner {
         require(previousTarget != 0x0);
         verifyUpgradeableState(previousTarget, target);
         target = previousTarget;
@@ -60,7 +60,7 @@ contract Dispatcher is Upgradeable {
         require(_from.delegatecall(bytes4(keccak256("verifyState(address)")), _to));
     }
 
-    function finishUpgrade(address _target) onlyOwner public {}
+    function finishUpgrade(address) public {}
 
     /**
     * @dev Fallback function send all requests to the target contract.

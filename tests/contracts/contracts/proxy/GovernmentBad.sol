@@ -31,6 +31,6 @@ contract GovernmentBad is Upgradeable {
     uint256 public votesFor;
     uint256 public votesAgainst;
 
-    function verifyState(address _testTarget) public constant {}
-    function finishUpgrade(address _target) onlyOwner public {}
+    function verifyState(address) public {}
+    function finishUpgrade(address) public {}
 }

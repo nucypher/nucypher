@@ -1,7 +1,7 @@
-pragma solidity ^0.4.0;
+pragma solidity ^0.4.18;
 
 
-import "./zeppelin/token/SafeERC20.sol";
+import "./zeppelin/token/ERC20/SafeERC20.sol";
 import "./zeppelin/ownership/Ownable.sol";
 import "./zeppelin/math/SafeMath.sol";
 import "./NuCypherKMSToken.sol";
@@ -30,7 +30,9 @@ contract UserEscrow is Ownable {
     function UserEscrow(
         NuCypherKMSToken _token,
         MinersEscrow _escrow
-    ){
+    )
+        public
+    {
         require(address(_token) != 0x0 &&
             address(_escrow) != 0x0);
         token = _token;
@@ -53,7 +55,7 @@ contract UserEscrow is Ownable {
     /**
     * @notice Get locked tokens value
     **/
-    function getLockedTokens() public constant returns (uint256) {
+    function getLockedTokens() public view returns (uint256) {
         if (endLockTimestamp <= block.timestamp) {
             return 0;
         }

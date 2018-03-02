@@ -5,10 +5,12 @@ import "../zeppelin/math/SafeMath.sol";
 import "./Dispatcher.sol";
 import "./Upgradeable.sol";
 
+
 contract MinersEscrowInterface {
     function getLockedTokens(address _owner)
         public constant returns (uint256);
 }
+
 
 /**
 * @notice Contract for version voting
@@ -55,7 +57,10 @@ contract Government is Upgradeable {
     function Government(
         Dispatcher _escrow,
         Dispatcher _policyManager,
-        uint256 _votingDurationHours) {
+        uint256 _votingDurationHours
+    )
+        public
+    {
         require(address(_escrow) != 0x0 &&
             address(_policyManager) != 0x0 &&
             _votingDurationHours != 0);
@@ -67,7 +72,7 @@ contract Government is Upgradeable {
     /**
     * @notice Get voting state
     **/
-    function getVotingState() public constant returns (VotingState) {
+    function getVotingState() public view returns (VotingState) {
         if (block.timestamp <= endVotingTimestamp) {
             return VotingState.Active;
         }
@@ -102,7 +107,7 @@ contract Government is Upgradeable {
     **/
     function vote(bool voteFor) public {
         require(getVotingState() == VotingState.Active && lastVote[msg.sender] < votingNumber);
-        var lockedTokens = MinersEscrowInterface(escrow).getLockedTokens(msg.sender);
+        uint256 lockedTokens = MinersEscrowInterface(escrow).getLockedTokens(msg.sender);
         require(lockedTokens > 0);
         if (voteFor) {
             votesFor = votesFor.add(lockedTokens);
@@ -133,7 +138,7 @@ contract Government is Upgradeable {
         }
     }
 
-    function verifyState(address _testTarget) public constant {
+    function verifyState(address _testTarget) public onlyOwner {
         require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
         require(address(delegateGet(_testTarget, "policyManager()")) == address(policyManager));
         require(uint256(delegateGet(_testTarget, "votingDurationSeconds()")) == votingDurationSeconds);
@@ -147,8 +152,8 @@ contract Government is Upgradeable {
         require(uint256(delegateGet(_testTarget, "votesAgainst()")) == votesAgainst);
     }
 
-    function finishUpgrade(address _target) onlyOwner public {
-        var government = Government(_target);
+    function finishUpgrade(address _target) public onlyOwner {
+        Government government = Government(_target);
         escrow = government.escrow();
         policyManager = government.policyManager();
         votingDurationSeconds = government.votingDurationSeconds();

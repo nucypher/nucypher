@@ -40,7 +40,7 @@ def main():
 
         # Creator deploys the policy manager
         policy_manager, _ = chain.provider.get_or_deploy_contract(
-            'PolicyManager', deploy_args=[token.address, escrow.address],
+            'PolicyManager', deploy_args=[escrow.address],
             deploy_transaction={'from': creator})
         tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)
         chain.wait.for_receipt(tx)
@@ -55,7 +55,7 @@ def main():
         # Pre deposit tokens
         tx = token.transact({'from': creator}).approve(escrow.address, 10000)
         chain.wait.for_receipt(tx)
-        print("Pre-deposit tokens fro 5 owners = " +
+        print("Pre-deposit tokens for 5 owners = " +
               str(escrow.estimateGas({'from': creator}).preDeposit(
                   web3.eth.accounts[4:9], [1000] * 5, [1] * 5)))
 

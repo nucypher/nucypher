@@ -1,7 +1,7 @@
-pragma solidity ^0.4.0;
+pragma solidity ^0.4.18;
 
 
-import "./zeppelin/token/SafeERC20.sol";
+import "./zeppelin/token/ERC20/SafeERC20.sol";
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
 import "./MinersEscrow.sol";
@@ -45,7 +45,9 @@ contract PolicyManager {
     **/
     function PolicyManager(
         MinersEscrow _escrow
-    ) {
+    )
+        public
+    {
         require(address(_escrow) != 0x0);
         escrow = _escrow;
     }
@@ -71,17 +73,17 @@ contract PolicyManager {
             msg.value > 0 &&
             msg.value % _numberOfPeriods == 0
         );
-        var policy = policies[_policyId];
+        Policy storage policy = policies[_policyId];
         policy.client = msg.sender;
         policy.node = _node;
 //        policy.state = PolicyState.Pending;
-        var currentPeriod = escrow.getCurrentPeriod();
+        uint256 currentPeriod = escrow.getCurrentPeriod();
         policy.startPeriod = currentPeriod.add(1);
         policy.lastPeriod = currentPeriod.add(_numberOfPeriods);
-        var feeByPeriod = msg.value.div(_numberOfPeriods);
+        uint256 feeByPeriod = msg.value.div(_numberOfPeriods);
         policy.rate = feeByPeriod;
 
-        var node = nodes[_node];
+        NodeInfo storage node = nodes[_node];
         for (uint256 i = policy.startPeriod; i <= policy.lastPeriod; i++) {
             node.rewardByPeriod[i] = node.rewardByPeriod[i].add(feeByPeriod);
         }
@@ -93,7 +95,7 @@ contract PolicyManager {
 //    * @param _policyId Policy id
 //    **/
 //    function confirmPolicy(bytes20 _policyId) public {
-//        var policy = policies[_policyId];
+//        Policy policy = policies[_policyId];
 //        require(policy.state == PolicyState.Pending &&
 //            policy.node == msg.sender);
 //        policy.state = PolicyState.Active;
@@ -106,7 +108,7 @@ contract PolicyManager {
     **/
     function updateReward(address _node, uint256 _period) external {
         require(msg.sender == address(escrow));
-        var node = nodes[_node];
+        NodeInfo storage node = nodes[_node];
         node.reward = node.reward.add(node.rewardByPeriod[_period]);
         delete node.rewardByPeriod[_period];
     }
@@ -115,11 +117,11 @@ contract PolicyManager {
     * @notice Withdraw fee by node
     **/
     function withdraw() public {
-        var node = nodes[msg.sender];
-        var reward = node.reward;
+        NodeInfo storage node = nodes[msg.sender];
+        uint256 reward = node.reward;
         require(reward != 0);
         node.reward = 0;
-        msg.sender.send(reward);
+        msg.sender.transfer(reward);
     }
 
     /**
@@ -127,16 +129,16 @@ contract PolicyManager {
     * @param _policyId Policy id
     **/
     function revokePolicy(bytes20 _policyId) public {
-        var policy = policies[_policyId];
+        Policy storage policy = policies[_policyId];
         require(policy.client == msg.sender);
-        var refund = calculateRefund(_policyId);
-        var node = nodes[policy.node];
-        for (var i = policy.startPeriod; i <= policy.lastPeriod; i++) {
+        uint256 refund = calculateRefund(_policyId);
+        NodeInfo storage node = nodes[policy.node];
+        for (uint256 i = policy.startPeriod; i <= policy.lastPeriod; i++) {
             node.rewardByPeriod[i] = node.rewardByPeriod[i].sub(policy.rate);
             refund = refund.add(policy.rate);
         }
         delete policies[_policyId];
-        msg.sender.send(refund);
+        msg.sender.transfer(refund);
     }
 
     /**
@@ -144,18 +146,18 @@ contract PolicyManager {
     * @param _policyId Policy id
     **/
     function refund(bytes20 _policyId) public {
-        var policy = policies[_policyId];
+        Policy storage policy = policies[_policyId];
 //        require(policy.state == PolicyState.Active &&
 //            msg.sender == policy.client);
         require(msg.sender == policy.client);
 
-        var refund = calculateRefund(_policyId);
-        var client = policy.client;
+        uint256 refundValue = calculateRefund(_policyId);
+        address client = policy.client;
         if (policy.startPeriod > policy.lastPeriod) {
             delete policies[_policyId];
         }
-        if (refund > 0) {
-            client.send(refund);
+        if (refundValue > 0) {
+            client.transfer(refundValue);
         }
     }
 
@@ -164,28 +166,30 @@ contract PolicyManager {
     * @param _policyId Policy id
     **/
     function calculateRefund(bytes20 _policyId) internal returns (uint256) {
-        var policy = policies[_policyId];
-        var currentPeriod = escrow.getCurrentPeriod();
-        var maxPeriod = Math.min256(currentPeriod, policy.lastPeriod);
-        var minPeriod = policy.startPeriod;
+        Policy storage policy = policies[_policyId];
+        uint256 currentPeriod = escrow.getCurrentPeriod();
+        uint256 maxPeriod = Math.min256(currentPeriod, policy.lastPeriod);
+        uint256 minPeriod = policy.startPeriod;
         uint256 downtimePeriods = 0;
-        var length = escrow.getDowntimePeriodsLength(policy.node);
-        for (var i = policy.indexOfDowntimePeriods; i < length; i++) {
-            var (startPeriod, endPeriod) = escrow.getDowntimePeriods(policy.node, i);
+        uint256 length = escrow.getDowntimePeriodsLength(policy.node);
+        for (uint256 i = policy.indexOfDowntimePeriods; i < length; i++) {
+            uint256 startPeriod;
+            uint256 endPeriod;
+            (startPeriod, endPeriod) = escrow.getDowntimePeriods(policy.node, i);
             if (startPeriod > maxPeriod) {
                 break;
             } else if (endPeriod < minPeriod) {
                 continue;
             }
-            var max = Math.min256(maxPeriod, endPeriod);
-            var min = Math.max256(minPeriod, startPeriod);
+            uint256 max = Math.min256(maxPeriod, endPeriod);
+            uint256 min = Math.max256(minPeriod, startPeriod);
             downtimePeriods = downtimePeriods.add(max.sub(min).add(1));
             if (maxPeriod <= endPeriod) {
                 break;
             }
         }
         policy.indexOfDowntimePeriods = i;
-        var lastActivePeriod = escrow.getLastActivePeriod(policy.node);
+        uint256 lastActivePeriod = escrow.getLastActivePeriod(policy.node);
         if (i == length && lastActivePeriod < maxPeriod) {
             min = Math.max256(minPeriod.sub(1), lastActivePeriod);
             downtimePeriods = downtimePeriods.add(maxPeriod.sub(min));

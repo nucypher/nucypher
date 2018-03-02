@@ -7,7 +7,7 @@ import "contracts/PolicyManager.sol";
 /**
 * @notice Contract for using in PolicyManager tests
 **/
-contract MinersEscrowForPolicyTest {
+contract MinersEscrowForPolicyMock {
 
     struct Downtime {
         uint256 startPeriod;
@@ -24,7 +24,7 @@ contract MinersEscrowForPolicyTest {
     * @param _node Address of node that allow to use policy manager
     * @param _minutesPerPeriod Size of period in minutes
     **/
-    function MinersEscrowForPolicyTest(address _node, uint256 _minutesPerPeriod) {
+    function MinersEscrowForPolicyMock(address _node, uint256 _minutesPerPeriod) public {
         node = _node;
         secondsPerPeriod = _minutesPerPeriod * 1 minutes;
     }
@@ -33,7 +33,7 @@ contract MinersEscrowForPolicyTest {
     * @notice Return non zero value for node
     **/
     function getLockedTokens(address _owner)
-        public constant returns (uint256)
+        public view returns (uint256)
     {
         if (_owner == node) {
             return 1;
@@ -44,21 +44,21 @@ contract MinersEscrowForPolicyTest {
     /**
     * @return Number of current period
     **/
-    function getCurrentPeriod() public constant returns (uint256) {
+    function getCurrentPeriod() public view returns (uint256) {
         return block.timestamp / secondsPerPeriod;
     }
 
     /**
     * @notice Set last active period
     **/
-    function setLastActivePeriod(uint256 _lastActivePeriod) {
+    function setLastActivePeriod(uint256 _lastActivePeriod) external {
         lastActivePeriod = _lastActivePeriod;
     }
 
     /**
     * @notice Add downtime period
     **/
-    function pushDowntimePeriod(uint256 _startPeriod, uint256 _endPeriod) {
+    function pushDowntimePeriod(uint256 _startPeriod, uint256 _endPeriod) external {
         downtime.push(Downtime(_startPeriod, _endPeriod));
     }
 
@@ -73,17 +73,17 @@ contract MinersEscrowForPolicyTest {
     /**
     * @notice Set policy manager address
     **/
-    function setPolicyManager(PolicyManager _policyManager) {
+    function setPolicyManager(PolicyManager _policyManager) external {
         policyManager = _policyManager;
     }
 
     /**
     * @dev Get info about downtime periods
     **/
-    function getDowntimePeriods(address _owner, uint256 _index)
-        public constant returns (uint256 startPeriod, uint256 endPeriod)
+    function getDowntimePeriods(address, uint256 _index)
+        public view returns (uint256 startPeriod, uint256 endPeriod)
     {
-        var period = downtime[_index];
+        Downtime storage period = downtime[_index];
         startPeriod = period.startPeriod;
         endPeriod = period.endPeriod;
     }
@@ -91,8 +91,8 @@ contract MinersEscrowForPolicyTest {
     /**
     * @dev Get size of downtime periods array
     **/
-    function getDowntimePeriodsLength(address _owner)
-        public constant returns (uint256)
+    function getDowntimePeriodsLength(address)
+        public view returns (uint256)
     {
         return downtime.length;
     }
@@ -100,8 +100,8 @@ contract MinersEscrowForPolicyTest {
     /**
     * @dev Get last active period
     **/
-    function getLastActivePeriod(address _owner)
-        public constant returns (uint256)
+    function getLastActivePeriod(address)
+        public view returns (uint256)
     {
         return lastActivePeriod;
     }

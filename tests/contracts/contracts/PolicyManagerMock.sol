@@ -7,12 +7,12 @@ import "contracts/MinersEscrow.sol";
 /**
 * @notice Contract for testing miners escrow contract
 **/
-contract PolicyManagerTest {
+contract PolicyManagerMock {
 
     MinersEscrow public escrow;
     mapping (address => uint256[]) public nodes;
 
-    function PolicyManagerTest(address _token, MinersEscrow _escrow) {
+    function PolicyManagerMock(address, MinersEscrow _escrow) public {
         escrow = _escrow;
     }
 
@@ -26,14 +26,14 @@ contract PolicyManagerTest {
     /**
     * @notice Get length of array
     **/
-    function getPeriodsLength(address _node) public constant returns (uint256) {
+    function getPeriodsLength(address _node) public view returns (uint256) {
         return nodes[_node].length;
     }
 
     /**
     * @notice Get period info
     **/
-    function getPeriod(address _node, uint256 _index) public constant returns (uint256) {
+    function getPeriod(address _node, uint256 _index) public view returns (uint256) {
         return nodes[_node][_index];
     }
 

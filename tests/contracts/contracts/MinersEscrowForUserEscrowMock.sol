@@ -7,7 +7,7 @@ import "contracts/NuCypherKMSToken.sol";
 /**
 * @notice Contract for using in UserEscrow tests
 **/
-contract MinersEscrowForUserEscrowTest {
+contract MinersEscrowForUserEscrowMock {
 
     NuCypherKMSToken token;
     address public node;
@@ -17,7 +17,7 @@ contract MinersEscrowForUserEscrowTest {
     uint256 public confirmedPeriod;
     bool public unlock;
 
-    function MinersEscrowForUserEscrowTest(NuCypherKMSToken _token) {
+    function MinersEscrowForUserEscrowMock(NuCypherKMSToken _token) public {
         token = _token;
     }
 

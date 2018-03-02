@@ -16,7 +16,7 @@ def test_linked_list(web3, chain):
     address4 = web3.eth.accounts[3]
 
     # Deploy test contract
-    instance, _ = chain.provider.get_or_deploy_contract('LinkedListTest')
+    instance, _ = chain.provider.get_or_deploy_contract('LinkedListMock')
 
     # Check that list is empty
     assert not instance.call().exists()

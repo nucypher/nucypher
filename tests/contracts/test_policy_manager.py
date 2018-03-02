@@ -8,7 +8,7 @@ def escrow(web3, chain):
     node = web3.eth.accounts[1]
     # Creator deploys the escrow
     escrow, _ = chain.provider.get_or_deploy_contract(
-        'MinersEscrowForPolicyTest', deploy_args=[node, MINUTES_IN_PERIOD],
+        'MinersEscrowForPolicyMock', deploy_args=[node, MINUTES_IN_PERIOD],
         deploy_transaction={'from': creator})
     return escrow
 

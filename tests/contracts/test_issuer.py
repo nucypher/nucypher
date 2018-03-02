@@ -18,14 +18,18 @@ def test_issuer(web3, chain, token):
 
     # Creator deploys the issuer
     issuer, _ = chain.provider.get_or_deploy_contract(
-        'IssuerTest', deploy_args=[token.address, 1, 10 ** 46, 10 ** 7, 10 ** 7],
+        'IssuerMock', deploy_args=[token.address, 1, 10 ** 46, 10 ** 7, 10 ** 7],
         deploy_transaction={'from': creator})
 
     # Give Miner tokens for reward and initialize contract
-    tx = token.transact({'from': creator}).transfer(issuer.address, 2 * 10 ** 40 - 10 ** 30)
+    reserved_reward = 2 * 10 ** 40 - 10 ** 30
+    tx = token.transact({'from': creator}).transfer(issuer.address, reserved_reward)
     chain.wait.for_receipt(tx)
     tx = issuer.transact().initialize()
     chain.wait.for_receipt(tx)
+    events = issuer.pastEvents('Initialized').get()
+    assert 1 == len(events)
+    assert reserved_reward == events[0]['args']['reservedReward']
     balance = token.call().balanceOf(issuer.address)
 
     # Can't initialize second time
@@ -62,7 +66,7 @@ def test_inflation_rate(web3, chain, token):
 
     # Creator deploys the miner
     issuer, _ = chain.provider.get_or_deploy_contract(
-        'IssuerTest', deploy_args=[token.address, 1, 2 * 10 ** 19, 1, 1],
+        'IssuerMock', deploy_args=[token.address, 1, 2 * 10 ** 19, 1, 1],
         deploy_transaction={'from': creator})
 
     # Give Miner tokens for reward and initialize contract

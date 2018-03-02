@@ -1,4 +1,4 @@
-pragma solidity ^0.4.0;
+pragma solidity ^0.4.18;
 
 
 import "./NuCypherKMSToken.sol";
@@ -10,6 +10,9 @@ import "./zeppelin/math/SafeMath.sol";
 **/
 contract Issuer {
     using SafeMath for uint256;
+
+    /// Issuer initialized with reserved reward
+    event Initialized(uint256 reservedReward);
 
     NuCypherKMSToken public token;
     uint256 public miningCoefficient;
@@ -41,7 +44,9 @@ contract Issuer {
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,
         uint256 _awardedPeriods
-    ) {
+    )
+        public
+    {
         require(address(_token) != 0x0 &&
             _miningCoefficient != 0 &&
             _hoursPerPeriod != 0 &&
@@ -69,7 +74,7 @@ contract Issuer {
     /**
     * @return Number of current period
     **/
-    function getCurrentPeriod() public constant returns (uint256) {
+    function getCurrentPeriod() public view returns (uint256) {
         return block.timestamp / secondsPerPeriod;
     }
 
@@ -79,9 +84,11 @@ contract Issuer {
     function initialize() public {
         require(currentIndex == 0x00);
         currentIndex = 0x01;
-        var currentTotalSupply = futureSupply.sub(token.balanceOf(address(this)));
+        uint256 reservedReward = token.balanceOf(address(this));
+        uint256 currentTotalSupply = futureSupply.sub(reservedReward);
         totalSupply[currentIndex] = currentTotalSupply;
         totalSupply[currentIndex ^ NEGATION] = currentTotalSupply;
+        Initialized(reservedReward);
     }
 
     /**
@@ -104,7 +111,7 @@ contract Issuer {
         internal returns (uint256 amount, uint256 decimals)
     {
         // TODO end of mining before calculation
-        var nextTotalSupply = totalSupply[currentIndex ^ NEGATION];
+        uint256 nextTotalSupply = totalSupply[currentIndex ^ NEGATION];
         if (_period > lastMintedPeriod) {
             currentIndex = currentIndex ^ NEGATION;
             lastMintedPeriod = _period;
@@ -112,10 +119,10 @@ contract Issuer {
 
         //futureSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2) -
         //currentSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
-        var allLockedPeriods = (_allLockedPeriods <= awardedPeriods ?
+        uint256 allLockedPeriods = (_allLockedPeriods <= awardedPeriods ?
             _allLockedPeriods : awardedPeriods)
             .add(lockedPeriodsCoefficient);
-        var denominator = _totalLockedValue.mul(miningCoefficient);
+        uint256 denominator = _totalLockedValue.mul(miningCoefficient);
         amount =
             futureSupply
                 .mul(_lockedValue)
@@ -125,6 +132,7 @@ contract Issuer {
                 .mul(_lockedValue)
                 .mul(allLockedPeriods)
                 .div(denominator));
+        decimals = _decimals;
 
         totalSupply[currentIndex ^ NEGATION] = nextTotalSupply.add(amount);
     }

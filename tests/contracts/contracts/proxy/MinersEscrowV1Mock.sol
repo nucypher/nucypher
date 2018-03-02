@@ -7,7 +7,7 @@ import "contracts/proxy/Upgradeable.sol";
 /**
 * @notice Contract for using in Government tests
 **/
-contract MinersEscrowV1Test is Upgradeable {
+contract MinersEscrowV1Mock is Upgradeable {
 
     mapping (address => uint256) public lockedTokens;
     address[] public nodes;
@@ -16,7 +16,7 @@ contract MinersEscrowV1Test is Upgradeable {
     * @param _nodes Addresses of nodes
     * @param _lockedTokens Locked tokens for nodes
     **/
-    function MinersEscrowV1Test(address[] _nodes, uint256[] _lockedTokens) {
+    function MinersEscrowV1Mock(address[] _nodes, uint256[] _lockedTokens) public {
         for (uint256 i = 0; i < _nodes.length ; i++) {
             lockedTokens[_nodes[i]] = _lockedTokens[i];
         }
@@ -24,23 +24,21 @@ contract MinersEscrowV1Test is Upgradeable {
     }
 
     function getLockedTokens(address _owner)
-        public constant returns (uint256)
+        public view returns (uint256)
     {
         return lockedTokens[_owner];
     }
 
-    function getNodesLength() public constant returns (uint256) {
+    function getNodesLength() public view returns (uint256) {
         return nodes.length;
     }
 
-    function verifyState(address testTarget) public constant {
+    function verifyState(address) public {}
 
-    }
-
-    function finishUpgrade(address _target) onlyOwner public {
-        var escrow = MinersEscrowV1Test(_target);
+    function finishUpgrade(address _target) public onlyOwner {
+        MinersEscrowV1Mock escrow = MinersEscrowV1Mock(_target);
         for (uint256 i = 0; i < escrow.getNodesLength(); i++) {
-            var node = escrow.nodes(i);
+            address node = escrow.nodes(i);
             nodes.push(node);
             lockedTokens[node] = escrow.lockedTokens(node);
         }

@@ -27,13 +27,13 @@ contract Upgradeable is Ownable {
     * @dev Method for verifying storage state.
     * Should check that new target contract returns right storage value
     **/
-    function verifyState(address _testTarget) public constant;
+    function verifyState(address _testTarget) public /*onlyOwner*/;
 
     /**
     * @dev Copy values from the new target to the current storage
     * @param _target New target contract address
     **/
-    function finishUpgrade(address _target) onlyOwner public;
+    function finishUpgrade(address _target) public /*onlyOwner*/;
 
     /**
     * @dev Simple method for call function without parameters.

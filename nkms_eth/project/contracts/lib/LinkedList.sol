@@ -1,4 +1,4 @@
-pragma solidity ^0.4.10;
+pragma solidity ^0.4.18;
 
 /**
 * @notice Doubly linked list for addresses
@@ -19,7 +19,7 @@ library LinkedList {
 
     /// @notice Return existential state of a list.
     function exists(Data storage self)
-        internal constant returns (bool)
+        internal view returns (bool)
     {
         if (self.data[HEAD][PREV] != HEAD ||
             self.data[HEAD][NEXT] != HEAD)
@@ -28,7 +28,7 @@ library LinkedList {
 
     /// @notice Returns the number of elements in the list
     function sizeOf(Data storage self)
-        internal constant returns (uint result)
+        internal view returns (uint result)
     {
         return self.count;
     }
@@ -38,7 +38,7 @@ library LinkedList {
     * @param value Value to search for
     **/
     function valueExists(Data storage self, address value)
-        internal constant returns (bool)
+        internal view returns (bool)
     {
         if (self.data[value][PREV] == HEAD && self.data[value][NEXT] == HEAD) {
             if (self.data[HEAD][NEXT] == value) {
@@ -53,14 +53,14 @@ library LinkedList {
 
     /// @notice Returns the links of a value as an array
     function getLinks(Data storage self, address value)
-        internal constant returns (address[2])
+        internal view returns (address[2])
     {
         return [self.data[value][PREV], self.data[value][NEXT]];
     }
 
     /// @notice Returns the link of a value in specified direction.
     function step(Data storage self, address value, bool direction)
-        internal constant returns (address)
+        internal view returns (address)
     {
         return self.data[value][direction];
     }

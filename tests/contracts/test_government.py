@@ -35,7 +35,7 @@ def escrow(web3, chain):
 
     # Creator deploys the escrow
     escrow_library, _ = chain.provider.get_or_deploy_contract(
-        'MinersEscrowV1Test', deploy_args=[
+        'MinersEscrowV1Mock', deploy_args=[
             [node1, node2, node3], [1, 2, 3]],
         deploy_transaction={'from': creator})
     escrow_dispatcher, _ = chain.provider.deploy_contract(
@@ -53,7 +53,7 @@ def policy_manager(web3, chain):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
     policy_manager, _ = chain.provider.get_or_deploy_contract(
-        'PolicyManagerV1Test', deploy_transaction={'from': creator})
+        'PolicyManagerV1Mock', deploy_transaction={'from': creator})
     dispatcher, _ = chain.provider.deploy_contract(
         'Dispatcher', deploy_args=[policy_manager.address],
         deploy_transaction={'from': creator})
@@ -251,16 +251,16 @@ def test_upgrade(web3, chain, escrow, policy_manager):
         'Government', deploy_args=[escrow.address, policy_manager.address, 1],
         deploy_transaction={'from': creator})
     # Get first version of the escrow contract
-    escrow_library_v1 = chain.provider.get_contract('MinersEscrowV1Test')
+    escrow_library_v1 = chain.provider.get_contract('MinersEscrowV1Mock')
     # Deploy second version of the escrow contract
     escrow_library_v2, _ = chain.provider.deploy_contract(
-        'MinersEscrowV1Test', deploy_args=[[node1], [1]],
+        'MinersEscrowV1Mock', deploy_args=[[node1], [1]],
         deploy_transaction={'from': creator})
     # Get first version of the policy manager contract
-    policy_manager_library_v1 = chain.provider.get_contract('PolicyManagerV1Test')
+    policy_manager_library_v1 = chain.provider.get_contract('PolicyManagerV1Mock')
     # Deploy second version of the policy manager contract
     policy_manager_library_v2, _ = chain.provider.deploy_contract(
-        'PolicyManagerV1Test', deploy_transaction={'from': creator})
+        'PolicyManagerV1Mock', deploy_transaction={'from': creator})
 
     # Transfer ownership
     tx = government.transact({'from': creator}).transferOwnership(government.address)
@@ -349,7 +349,7 @@ def test_verifying_state(web3, chain):
 
     # Deploy second version of the government contract
     government_library_v2, _ = chain.provider.deploy_contract(
-        'GovernmentV2Test', deploy_args=[address2, address1, 2],
+        'GovernmentV2Mock', deploy_args=[address2, address1, 2],
         deploy_transaction={'from': creator})
     government = web3.eth.contract(
         government_library_v2.abi,

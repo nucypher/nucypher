@@ -335,7 +335,7 @@ def test_mining(web3, chain, token, escrow_contract):
     chain.wait.for_receipt(tx)
 
     policy_manager, _ = chain.provider.get_or_deploy_contract(
-        'PolicyManagerTest', deploy_args=[token.address, escrow.address],
+        'PolicyManagerMock', deploy_args=[token.address, escrow.address],
         deploy_transaction={'from': creator})
     tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)
     chain.wait.for_receipt(tx)

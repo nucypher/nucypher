@@ -7,14 +7,16 @@ import "contracts/proxy/Government.sol";
 /**
 * @notice Contract for using in Government tests
 **/
-contract GovernmentV2Test is Government {
+contract GovernmentV2Mock is Government {
 
     uint256 public valueToCheck;
 
-    function GovernmentV2Test(
+    function GovernmentV2Mock(
         Dispatcher _escrow,
         Dispatcher _policyManager,
-        uint256 _votingDurationHours)
+        uint256 _votingDurationHours
+    )
+        public
         Government(_escrow, _policyManager, _votingDurationHours)
     {
     }
@@ -23,7 +25,7 @@ contract GovernmentV2Test is Government {
         valueToCheck = _valueToCheck;
     }
 
-    function verifyState(address _testTarget) public constant {
+    function verifyState(address _testTarget) public onlyOwner {
         super.verifyState(_testTarget);
         require(uint256(delegateGet(_testTarget, "valueToCheck()")) == valueToCheck);
     }
