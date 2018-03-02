@@ -89,5 +89,5 @@ def test_select_ursulas(testerchain, token, escrow):
     assert len(miners) == 3
     assert len(set(miners)) == 3
 
-    with pytest.raises(Exception):
+    with pytest.raises(Escrow.NotEnoughUrsulas):
         escrow.sample(quantity=100)  # Waay more than we have deployed

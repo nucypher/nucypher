@@ -11,12 +11,12 @@ addr = str
 
 class Escrow:
     """
+    Wraps NuCypher's Escrow solidity smart contract, and manages a PopulusContract.
+
     In order to become a participant of the network,
-    a miner locks tokens by depositing to the Escrow contract
+    a miner locks tokens by depositing to the Escrow contract address
     for a duration measured in periods.
 
-    The contract must be armed, before it can be deployed
-    to the blockchain.
     """
 
     _contract_name = 'MinersEscrow'
