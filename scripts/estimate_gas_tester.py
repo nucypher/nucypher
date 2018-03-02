@@ -1,236 +1,185 @@
-"""Deploy contracts in tester.
+"""
+Deploy contracts in tester.
 
 A simple Python script to deploy contracts and then estimate gas for different methods.
 """
-from nkms_eth.blockchain import project
 
-
-def wait_time(chain, wait_hours):
-    web3 = chain.web3
-    step = 50
-    end_timestamp = web3.eth.getBlock(web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
-    while web3.eth.getBlock(web3.eth.blockNumber).timestamp < end_timestamp:
-        chain.wait.for_block(web3.eth.blockNumber + step)
+from nkms_eth.blockchain import TesterBlockchain
+from nkms_eth.escrow import Escrow
+from nkms_eth.token import NuCypherKMSToken
 
 
 def main():
+    testerchain = TesterBlockchain()
+    chain, web3 = testerchain._chain, testerchain._chain.web3
+    creator, ursula1, ursula2, ursula3, *everyone_else = web3.eth.accounts
 
-    proj = project()
+    print("Web3 providers are", web3.providers)
 
-    chain_name = "tester"
-    print("Make sure {} chain is running, you can connect to it, or you'll get timeout".format(chain_name))
+    # Create an ERC20 token
+    token = NuCypherKMSToken(blockchain=testerchain)
+    token.arm()
+    token.deploy()
 
-    with proj.get_chain(chain_name) as chain:
-        web3 = chain.web3
-        print("Web3 providers are", web3.providers)
-        creator = web3.eth.accounts[0]
-        ursula1 = web3.eth.accounts[1]
-        ursula2 = web3.eth.accounts[2]
-        ursula3 = web3.eth.accounts[3]
+    # Creator deploys the escrow
+    escrow = Escrow(blockchain=testerchain, token=token)
+    escrow.arm()
+    escrow.deploy()
 
-        # Create an ERC20 token
-        token, _ = chain.provider.get_or_deploy_contract(
-            'NuCypherKMSToken', deploy_args=[2 * 10 ** 9],
-            deploy_transaction={'from': creator})
+    # Creator deploys the policy manager
+    policy_manager, txhash = chain.provider.get_or_deploy_contract(
+        'PolicyManager', deploy_args=[escrow.contract.address],
+        deploy_transaction={'from': creator})
+    tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)
+    chain.wait.for_receipt(tx)
 
-        # Creator deploys the escrow
-        escrow, _ = chain.provider.get_or_deploy_contract(
-            'MinersEscrow', deploy_args=[token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 1, 0, 10 ** 9],
-            deploy_transaction={'from': creator})
+    print("Estimate gas:")
+    # Pre deposit tokens
+    tx = token.transact({'from': creator}).approve(escrow.contract.address, 10 ** 7)
+    chain.wait.for_receipt(tx)
+    print("Pre-deposit tokens fro 5 owners = " +
+          str(escrow.contract.estimateGas({'from': creator}).preDeposit(
+              web3.eth.accounts[4:9], [10 ** 6] * 5, [1] * 5)))
 
-        # Creator deploys the policy manager
-        policy_manager, _ = chain.provider.get_or_deploy_contract(
-            'PolicyManager', deploy_args=[escrow.address],
-            deploy_transaction={'from': creator})
-        tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)
-        chain.wait.for_receipt(tx)
+    # Give Ursula and Alice some coins
+    print("Transfer tokens = " + str(token.contract.estimateGas({'from': creator}).transfer(ursula1, 10 ** 7)))
+    tx = token.transact({'from': creator}).transfer(ursula1, 10 ** 7)
+    chain.wait.for_receipt(tx)
+    tx = token.transact({'from': creator}).transfer(ursula2, 10 ** 7)
+    chain.wait.for_receipt(tx)
+    tx = token.transact({'from': creator}).transfer(ursula3, 10 ** 7)
+    chain.wait.for_receipt(tx)
 
-        # Give Escrow tokens for reward and initialize contract
-        tx = token.transact({'from': creator}).transfer(escrow.address, 10 ** 9)
-        chain.wait.for_receipt(tx)
-        tx = escrow.transact().initialize()
-        chain.wait.for_receipt(tx)
+    # Ursula and Alice give Escrow rights to transfer
+    print("Approving transfer = " +
+          str(token.contract.estimateGas({'from': ursula1}).approve(escrow.contract.address, 5 * 10 ** 6 + 1)))
+    tx = token.transact({'from': ursula1}).approve(escrow.contract.address, 5 * 10 ** 6 + 1)
+    chain.wait.for_receipt(tx)
+    tx = token.transact({'from': ursula2}).approve(escrow.contract.address, 2 * 10 ** 6 + 1)
+    chain.wait.for_receipt(tx)
+    tx = token.transact({'from': ursula3}).approve(escrow.contract.address, 2 * 10 ** 6 + 1)
+    chain.wait.for_receipt(tx)
 
-        print("Estimate gas:")
-        # Pre deposit tokens
-        tx = token.transact({'from': creator}).approve(escrow.address, 10000)
-        chain.wait.for_receipt(tx)
-        print("Pre-deposit tokens for 5 owners = " +
-              str(escrow.estimateGas({'from': creator}).preDeposit(
-                  web3.eth.accounts[4:9], [1000] * 5, [1] * 5)))
+    # Ursula and Alice transfer some tokens to the escrow and lock them
+    print("First deposit tokens = " + str(escrow.contract.estimateGas({'from': ursula1}).deposit(5 * 10 ** 6, 1)))
+    tx = escrow.transact({'from': ursula1}).deposit(5 * 10 ** 6, 1)
+    chain.wait.for_receipt(tx)
+    print("Second deposit tokens = " + str(escrow.contract.estimateGas({'from': ursula2}).deposit(2 * 10 ** 6, 1)))
+    tx = escrow.transact({'from': ursula2}).deposit(2 * 10 ** 6, 1)
+    chain.wait.for_receipt(tx)
+    print("Third deposit tokens = " + str(escrow.contract.estimateGas({'from': ursula3}).deposit(2 * 10 ** 6, 1)))
+    tx = escrow.transact({'from': ursula3}).deposit(2 * 10 ** 6, 1)
+    chain.wait.for_receipt(tx)
 
-        # Give some coins
-        print("Transfer tokens = " +
-              str(token.estimateGas({'from': creator}).transfer(ursula1, 10000)))
-        tx = token.transact({'from': creator}).transfer(ursula1, 10000)
-        chain.wait.for_receipt(tx)
-        tx = token.transact({'from': creator}).transfer(ursula2, 10000)
-        chain.wait.for_receipt(tx)
-        tx = token.transact({'from': creator}).transfer(ursula3, 10000)
-        chain.wait.for_receipt(tx)
+    # Wait 1 period and confirm activity
+    testerchain.wait_time(1)
+    print("First confirm activity = " + str(escrow.contract.estimateGas({'from': ursula1}).confirmActivity()))
+    tx = escrow.transact({'from': ursula1}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    print("Second confirm activity = " + str(escrow.contract.estimateGas({'from': ursula2}).confirmActivity()))
+    tx = escrow.transact({'from': ursula2}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    print("Third confirm activity = " + str(escrow.contract.estimateGas({'from': ursula3}).confirmActivity()))
+    tx = escrow.transact({'from': ursula3}).confirmActivity()
+    chain.wait.for_receipt(tx)
 
-        # Give Escrow rights to transfer
-        print("Approving transfer = " +
-              str(token.estimateGas({'from': ursula1}).approve(escrow.address, 1001)))
-        tx = token.transact({'from': ursula1}).approve(escrow.address, 1001)
-        chain.wait.for_receipt(tx)
-        tx = token.transact({'from': ursula2}).approve(escrow.address, 501)
-        chain.wait.for_receipt(tx)
-        tx = token.transact({'from': ursula3}).approve(escrow.address, 501)
-        chain.wait.for_receipt(tx)
+    # Wait 1 period and mint tokens
+    testerchain.wait_time(1)
+    print("First mining = " + str(escrow.contract.estimateGas({'from': ursula1}).mint()))
+    tx = escrow.transact({'from': ursula1}).mint()
+    chain.wait.for_receipt(tx)
+    print("Second mining = " + str(escrow.contract.estimateGas({'from': ursula2}).mint()))
+    tx = escrow.transact({'from': ursula2}).mint()
+    chain.wait.for_receipt(tx)
+    print("Third/last mining = " + str(escrow.contract.estimateGas({'from': ursula3}).mint()))
+    tx = escrow.transact({'from': ursula3}).mint()
+    chain.wait.for_receipt(tx)
 
-        # Transfer some tokens to the escrow and lock them
-        print("First deposit tokens = " +
-              str(escrow.estimateGas({'from': ursula1}).deposit(1000, 1)))
-        tx = escrow.transact({'from': ursula1}).deposit(1000, 1)
-        chain.wait.for_receipt(tx)
-        print("Second deposit tokens = " +
-              str(escrow.estimateGas({'from': ursula2}).deposit(500, 1)))
-        tx = escrow.transact({'from': ursula2}).deposit(500, 1)
-        chain.wait.for_receipt(tx)
-        print("Third deposit tokens = " +
-              str(escrow.estimateGas({'from': ursula3}).deposit(500, 1)))
-        tx = escrow.transact({'from': ursula3}).deposit(500, 1)
-        chain.wait.for_receipt(tx)
+    # Confirm again
+    print("First confirm activity again = " + str(escrow.contract.estimateGas({'from': ursula1}).confirmActivity()))
+    tx = escrow.transact({'from': ursula1}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    print("Second confirm activity again = " + str(escrow.contract.estimateGas({'from': ursula2}).confirmActivity()))
+    tx = escrow.transact({'from': ursula2}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    print("Third confirm activity again = " + str(escrow.contract.estimateGas({'from': ursula3}).confirmActivity()))
+    tx = escrow.transact({'from': ursula3}).confirmActivity()
+    chain.wait.for_receipt(tx)
 
-        # Wait 1 period and confirm activity
-        wait_time(chain, 1)
-        print("First confirm activity = " +
-              str(escrow.estimateGas({'from': ursula1}).confirmActivity()))
-        tx = escrow.transact({'from': ursula1}).confirmActivity()
-        chain.wait.for_receipt(tx)
-        print("Second confirm activity = " +
-              str(escrow.estimateGas({'from': ursula2}).confirmActivity()))
-        tx = escrow.transact({'from': ursula2}).confirmActivity()
-        chain.wait.for_receipt(tx)
-        print("Third confirm activity = " +
-              str(escrow.estimateGas({'from': ursula3}).confirmActivity()))
-        tx = escrow.transact({'from': ursula3}).confirmActivity()
-        chain.wait.for_receipt(tx)
+    # Get locked tokens
+    print("Getting locked tokens = " + str(escrow.contract.estimateGas().getLockedTokens(ursula1)))
+    print("Calculating locked tokens = " + str(escrow.contract.estimateGas().calculateLockedTokens(ursula1, 1)))
 
-        # Wait 1 period and mint tokens
-        wait_time(chain, 1)
-        print("First mining = " +
-              str(escrow.estimateGas({'from': ursula1}).mint()))
-        tx = escrow.transact({'from': ursula1}).mint()
-        chain.wait.for_receipt(tx)
-        print("Second mining = " +
-              str(escrow.estimateGas({'from': ursula2}).mint()))
-        tx = escrow.transact({'from': ursula2}).mint()
-        chain.wait.for_receipt(tx)
-        print("Third/last mining = " +
-              str(escrow.estimateGas({'from': ursula3}).mint()))
-        tx = escrow.transact({'from': ursula3}).mint()
-        chain.wait.for_receipt(tx)
+    # Switch to unlock and lock tokens again
+    print("First switch = " + str(escrow.contract.estimateGas({'from': ursula1}).switchLock()))
+    tx = escrow.transact({'from': ursula1}).switchLock()
+    chain.wait.for_receipt(tx)
+    print("Second switch = " + str(escrow.contract.estimateGas({'from': ursula2}).switchLock()))
+    tx = escrow.transact({'from': ursula2}).switchLock()
+    chain.wait.for_receipt(tx)
+    print("Third switch = " + str(escrow.contract.estimateGas({'from': ursula3}).switchLock()))
+    tx = escrow.transact({'from': ursula3}).switchLock()
+    chain.wait.for_receipt(tx)
+    #
+    testerchain.wait_time(1)
+    print("First locking tokens = " + str(escrow.contract.estimateGas({'from': ursula1}).lock(10 ** 6, 0)))
+    tx = escrow.transact({'from': ursula1}).lock(10 ** 6, 0)
+    chain.wait.for_receipt(tx)
+    print("Second locking tokens = " + str(escrow.contract.estimateGas({'from': ursula2}).lock(10 ** 6, 0)))
+    tx = escrow.transact({'from': ursula2}).lock(10 ** 6, 0)
+    chain.wait.for_receipt(tx)
+    print("Third locking tokens = " + str(escrow.contract.estimateGas({'from': ursula3}).lock(10 ** 6, 0)))
+    tx = escrow.transact({'from': ursula3}).lock(10 ** 6, 0)
+    chain.wait.for_receipt(tx)
 
-        # Confirm again
-        print("First confirm activity again = " +
-              str(escrow.estimateGas({'from': ursula1}).confirmActivity()))
-        tx = escrow.transact({'from': ursula1}).confirmActivity()
-        chain.wait.for_receipt(tx)
-        print("Second confirm activity again = " +
-              str(escrow.estimateGas({'from': ursula2}).confirmActivity()))
-        tx = escrow.transact({'from': ursula2}).confirmActivity()
-        chain.wait.for_receipt(tx)
-        print("Third confirm activity again = " +
-              str(escrow.estimateGas({'from': ursula3}).confirmActivity()))
-        tx = escrow.transact({'from': ursula3}).confirmActivity()
-        chain.wait.for_receipt(tx)
+    # Wait 1 period and withdraw tokens
+    testerchain.wait_time(1)
+    print("First withdraw = " + str(escrow.contract.estimateGas({'from': ursula1}).withdraw(1)))
+    tx = escrow.transact({'from': ursula1}).withdraw(1)
+    chain.wait.for_receipt(tx)
+    print("Second withdraw = " + str(escrow.contract.estimateGas({'from': ursula2}).withdraw(1)))
+    tx = escrow.transact({'from': ursula2}).withdraw(1)
+    chain.wait.for_receipt(tx)
+    print("Third withdraw = " + str(escrow.contract.estimateGas({'from': ursula3}).withdraw(1)))
+    tx = escrow.transact({'from': ursula3}).withdraw(1)
+    chain.wait.for_receipt(tx)
 
-        # Get locked tokens
-        print("Getting locked tokens = " +
-              str(escrow.estimateGas().getLockedTokens(ursula1)))
-        print("Calculating locked tokens = " +
-              str(escrow.estimateGas().calculateLockedTokens(ursula1, 1)))
+    # Wait 1 period and confirm activity
+    testerchain.wait_time(1)
+    print("First confirm activity after downtime = " + str(escrow.contract.estimateGas({'from': ursula1}).confirmActivity()))
+    tx = escrow.transact({'from': ursula1}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    print("Second confirm activity after downtime  = " + str(escrow.contract.estimateGas({'from': ursula2}).confirmActivity()))
+    tx = escrow.transact({'from': ursula2}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    print("Third confirm activity after downtime  = " + str(escrow.contract.estimateGas({'from': ursula3}).confirmActivity()))
+    tx = escrow.transact({'from': ursula3}).confirmActivity()
+    chain.wait.for_receipt(tx)
 
-        # Switch to unlock and lock tokens again
-        print("First switch = " +
-              str(escrow.estimateGas({'from': ursula1}).switchLock()))
-        tx = escrow.transact({'from': ursula1}).switchLock()
-        chain.wait.for_receipt(tx)
-        print("Second switch = " +
-              str(escrow.estimateGas({'from': ursula2}).switchLock()))
-        tx = escrow.transact({'from': ursula2}).switchLock()
-        chain.wait.for_receipt(tx)
-        print("Third switch = " +
-              str(escrow.estimateGas({'from': ursula3}).switchLock()))
-        tx = escrow.transact({'from': ursula3}).switchLock()
-        chain.wait.for_receipt(tx)
-        #
-        wait_time(chain, 1)
-        print("First locking tokens = " +
-              str(escrow.estimateGas({'from': ursula1}).lock(1, 0)))
-        tx = escrow.transact({'from': ursula1}).lock(1, 0)
-        chain.wait.for_receipt(tx)
-        print("Second locking tokens = " +
-              str(escrow.estimateGas({'from': ursula2}).lock(1, 0)))
-        tx = escrow.transact({'from': ursula2}).lock(1, 0)
-        chain.wait.for_receipt(tx)
-        print("Third locking tokens = " +
-              str(escrow.estimateGas({'from': ursula3}).lock(1, 0)))
-        tx = escrow.transact({'from': ursula3}).lock(1, 0)
-        chain.wait.for_receipt(tx)
+    # Ursula and Alice deposit some tokens to the escrow again
+    print("First deposit tokens again = " + str(escrow.contract.estimateGas({'from': ursula1}).deposit(1, 1)))
+    tx = escrow.transact({'from': ursula1}).deposit(1, 1)
+    chain.wait.for_receipt(tx)
+    print("Second deposit tokens again = " + str(escrow.contract.estimateGas({'from': ursula2}).deposit(1, 1)))
+    tx = escrow.transact({'from': ursula2}).deposit(1, 1)
+    chain.wait.for_receipt(tx)
+    print("Third deposit tokens again = " + str(escrow.contract.estimateGas({'from': ursula3}).deposit(1, 1)))
+    tx = escrow.transact({'from': ursula3}).deposit(1, 1)
+    chain.wait.for_receipt(tx)
 
-        # Wait 1 period and withdraw tokens
-        wait_time(chain, 1)
-        print("First withdraw = " +
-              str(escrow.estimateGas({'from': ursula1}).withdraw(1)))
-        tx = escrow.transact({'from': ursula1}).withdraw(1)
-        chain.wait.for_receipt(tx)
-        print("Second withdraw = " +
-              str(escrow.estimateGas({'from': ursula2}).withdraw(1)))
-        tx = escrow.transact({'from': ursula2}).withdraw(1)
-        chain.wait.for_receipt(tx)
-        print("Third withdraw = " +
-              str(escrow.estimateGas({'from': ursula3}).withdraw(1)))
-        tx = escrow.transact({'from': ursula3}).withdraw(1)
-        chain.wait.for_receipt(tx)
+    # Wait 1 period and mint tokens
+    testerchain.wait_time(1)
+    print("First mining again = " + str(escrow.contract.estimateGas({'from': ursula1}).mint()))
+    tx = escrow.transact({'from': ursula1}).mint()
+    chain.wait.for_receipt(tx)
+    print("Second mining again = " + str(escrow.contract.estimateGas({'from': ursula2}).mint()))
+    tx = escrow.transact({'from': ursula2}).mint()
+    chain.wait.for_receipt(tx)
+    print("Third/last mining again = " + str(escrow.contract.estimateGas({'from': ursula3}).mint()))
+    tx = escrow.transact({'from': ursula3}).mint()
+    chain.wait.for_receipt(tx)
 
-        # Wait 1 period and confirm activity
-        wait_time(chain, 1)
-        print("First confirm activity after downtime = " +
-              str(escrow.estimateGas({'from': ursula1}).confirmActivity()))
-        tx = escrow.transact({'from': ursula1}).confirmActivity()
-        chain.wait.for_receipt(tx)
-        print("Second confirm activity after downtime  = " +
-              str(escrow.estimateGas({'from': ursula2}).confirmActivity()))
-        tx = escrow.transact({'from': ursula2}).confirmActivity()
-        chain.wait.for_receipt(tx)
-        print("Third confirm activity after downtime  = " +
-              str(escrow.estimateGas({'from': ursula3}).confirmActivity()))
-        tx = escrow.transact({'from': ursula3}).confirmActivity()
-        chain.wait.for_receipt(tx)
-
-        # Ursula and Alice deposit some tokens to the escrow again
-        print("First deposit tokens again = " +
-              str(escrow.estimateGas({'from': ursula1}).deposit(1, 1)))
-        tx = escrow.transact({'from': ursula1}).deposit(1, 1)
-        chain.wait.for_receipt(tx)
-        print("Second deposit tokens again = " +
-              str(escrow.estimateGas({'from': ursula2}).deposit(1, 1)))
-        tx = escrow.transact({'from': ursula2}).deposit(1, 1)
-        chain.wait.for_receipt(tx)
-        print("Third deposit tokens again = " +
-              str(escrow.estimateGas({'from': ursula3}).deposit(1, 1)))
-        tx = escrow.transact({'from': ursula3}).deposit(1, 1)
-        chain.wait.for_receipt(tx)
-
-        # Wait 1 period and mint tokens
-        wait_time(chain, 1)
-        print("First mining again = " +
-              str(escrow.estimateGas({'from': ursula1}).mint()))
-        tx = escrow.transact({'from': ursula1}).mint()
-        chain.wait.for_receipt(tx)
-        print("Second mining again = " +
-              str(escrow.estimateGas({'from': ursula2}).mint()))
-        tx = escrow.transact({'from': ursula2}).mint()
-        chain.wait.for_receipt(tx)
-        print("Third/last mining again = " +
-              str(escrow.estimateGas({'from': ursula3}).mint()))
-        tx = escrow.transact({'from': ursula3}).mint()
-        chain.wait.for_receipt(tx)
-
-        print("All done!")
+    print("All done!")
 
 
 if __name__ == "__main__":

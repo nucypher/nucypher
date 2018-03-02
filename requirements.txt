@@ -1,4 +1,0 @@
-appdirs
-pdbpp
-ipython
-populus

@@ -12,3 +12,4 @@ __pycache__
 /registrar.json
 /dist
 chains
+.pytest_cache

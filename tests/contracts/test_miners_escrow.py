@@ -568,12 +568,29 @@ def test_miner_id(web3, chain, token, escrow_contract):
     chain.wait.for_receipt(tx)
 
     # Set miner ids
-    miner_id = os.urandom(66).hex()
+    miner_id = os.urandom(32)
+    print(miner_id)  # TODO delete
+    print(type(miner_id))  # TODO delete
+    print(web3.toHex(miner_id))  # TODO delete
+    print(type(web3.toHex(miner_id)))  # TODO delete
+    print(web3.toBytes(miner_id))  # TODO delete
+    print(type(web3.toBytes(miner_id)))  # TODO delete
+    # print(bytes(web3.toHex(miner_id)))  # TODO delete
+    # print(type(bytes(web3.toHex(miner_id))))  # TODO delete
+    # miner_id = bytearray(32)
+    # print(type(miner_id))  # TODO delete
+
     tx = escrow.transact({'from': miner}).setMinerId(miner_id)
     chain.wait.for_receipt(tx)
+
+    print(escrow.call().getMinerId(miner, 0))  # TODO delete
+    print(escrow.call().getMinerId(miner, 0).encode())  # TODO delete
+    print(bytes(escrow.call().getMinerId(miner, 0).encode()))  # TODO delete
+    print(escrow.call().getMinerId(miner, 0).decode())  # TODO delete
+
     assert 1 == escrow.call().getMinerIdsCount(miner)
-    assert miner_id == escrow.call().getMinerId(miner, 0)
-    miner_id = os.urandom(66).hex()
+    assert miner_id == bytes(escrow.call().getMinerId(miner, 0).encode())
+    miner_id = os.urandom(32).hex()
     tx = escrow.transact({'from': miner}).setMinerId(miner_id)
     chain.wait.for_receipt(tx)
     assert 2 == escrow.call().getMinerIdsCount(miner)

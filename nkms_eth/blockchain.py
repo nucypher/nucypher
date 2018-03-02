@@ -1,49 +1,80 @@
-import populus
-import threading
-import nkms_eth
-import appdirs
-from os.path import dirname, join, abspath
-
-DEFAULT_NETWORK = 'mainnetrpc'
-PYTHON_PROJECT_NAME = 'nucypher-kms'
-TIMEOUT = 60
-_project = threading.local()
-
-# This config is persistent and is created in user's .local directory
-REGISTRAR_PATH = join(appdirs.user_data_dir(PYTHON_PROJECT_NAME),
-                      'registrar.json')
+from nkms_eth.config import PopulusConfig
 
 
-def project():
-    # Hardcoded the config for the project
-    # It will read user-specific configs also which may override it
-    if not hasattr(_project, 'project'):
-        project_dir = join(dirname(abspath(nkms_eth.__file__)), 'project')
-        project = populus.Project(project_dir)
-        project.config['chains.mainnetrpc']['contracts']['backends']['JSONFile']['settings']['file_path'] = REGISTRAR_PATH
-        _project.project = project
-    return _project.project
+class Blockchain:
+    """
+    http://populus.readthedocs.io/en/latest/config.html#chains
+
+    mainnet: Connects to the public ethereum mainnet via geth.
+    ropsten: Connects to the public ethereum ropsten testnet via geth.
+    tester: Uses an ephemeral in-memory chain backed by pyethereum.
+    testrpc: Uses an ephemeral in-memory chain backed by pyethereum.
+    temp: Local private chain whos data directory is removed when the chain is shutdown. Runs via geth.
+    """
+
+    _network = ''
+    _instance = False
+
+    class AlreadyRunning(Exception):
+        pass
+
+    def __init__(self, populus_config: PopulusConfig=None, timeout=60):
+        """
+        Configures a populus project and connects to blockchain.network.
+        Transaction timeouts specified measured in seconds.
+
+        http://populus.readthedocs.io/en/latest/chain.wait.html
+
+        """
+
+        # Singleton
+        if Blockchain._instance is True:
+            class_name = self.__class__.__name__
+            raise Blockchain.AlreadyRunning('{} is already running. Use .get() to retrieve'.format(class_name))
+        Blockchain._instance = True
+
+        if populus_config is None:
+            populus_config = PopulusConfig()
+
+        self._populus_config = populus_config
+        self._timeout = timeout
+        self._project = populus_config.project
+
+        # Opens and preserves connection to a running populus blockchain
+        self._chain = self._project.get_chain(self._network).__enter__()
+
+    def disconnect(self):
+        self._chain.__exit__(None, None, None)
+
+    def __del__(self):
+        self.disconnect()
+
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        r = "{}(network={}, timeout={})"
+        return r.format(class_name, self._network, self._timeout)
+
+    def get_contract(self, name):
+        """
+        Gets an existing contract from the network,
+        or raises populus.contracts.exceptions.UnknownContract
+        if there is no contract data available for the name/identifier.
+        """
+        return self._chain.provider.get_contract(name)
+
+    def wait_time(self, wait_hours, step=50):
+        """Wait the specified number of wait_hours by comparing block timestamps."""
+
+        wait_seconds = wait_hours * 60 * 60
+        current_block = self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber)
+        end_timestamp = current_block.timestamp + wait_seconds
+
+        not_time_yet = True
+        while not_time_yet:
+            self._chain.wait.for_block(self._chain.web3.eth.blockNumber+step)
+            current_block = self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber)
+            not_time_yet = current_block.timestamp < end_timestamp
 
 
-def get_chain(name=None):
-    return project().get_chain(name or DEFAULT_NETWORK)
-
-
-def chain(name=None):
-    if not hasattr(_project, 'chain'):
-        _project.chain = get_chain(name).__enter__()
-    return _project.chain
-
-
-def disconnect():
-    _project.chain.__exit__(None, None, None)
-    if hasattr(_project, 'project'):
-        delattr(_project, 'project')
-    if hasattr(_project, 'chain'):
-        delattr(_project, 'chain')
-    if hasattr(_project, 'web3'):
-        delattr(_project, 'web3')
-
-
-def web3():
-    return chain().web3
+class TesterBlockchain(Blockchain):
+    _network = 'tester'

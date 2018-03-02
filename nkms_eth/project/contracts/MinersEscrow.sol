@@ -42,7 +42,7 @@ contract MinersEscrow is Issuer, Ownable {
         // downtime
         uint256 lastActivePeriod;
         Downtime[] downtime;
-        bytes[] minerIds;
+        bytes32[] minerIds;
     }
 
     uint256 constant MAX_PERIODS = 10;
@@ -589,7 +589,7 @@ contract MinersEscrow is Issuer, Ownable {
     /**
     * @notice Set miner id
     **/
-    function setMinerId(bytes _minerId) public {
+    function setMinerId(bytes32 _minerId) public {
         MinerInfo storage info = minerInfo[msg.sender];
         info.minerIds.push(_minerId);
     }
@@ -607,7 +607,7 @@ contract MinersEscrow is Issuer, Ownable {
     * @notice Get miner id
     **/
     function getMinerId(address _owner, uint256 _index)
-        public view returns (bytes)
+        public view returns (bytes32)
     {
        return minerInfo[_owner].minerIds[_index];
     }
