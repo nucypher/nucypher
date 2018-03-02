@@ -79,7 +79,7 @@ class Miner:
     def publish_dht_key(self, dht_id) -> str:
         """Store a new DHT key"""
 
-        txhash = self.escrow.transact({'from': self.address}).publishDHTKey(dht_id)
+        txhash = self.escrow.transact({'from': self.address}).setMinerId(dht_id)
         self.blockchain._chain.wait.for_receipt(txhash)
 
         return txhash
@@ -87,8 +87,9 @@ class Miner:
     def get_dht_key(self) -> tuple:
         """Retrieve all stored DHT keys for this miner"""
 
-        count = self.escrow().getDHTKeysCount(self.address)
-        dht_keys = tuple(self.escrow().getDHTKey(self.address, index) for index in range(count))
+        count = self.escrow().getMinerIdsCount(self.address)
+        # TODO change when v4 web3.py will released
+        dht_keys = tuple(self.escrow().getMinerId(self.address, index).encode('latin-1') for index in range(count))
 
         return dht_keys
 
