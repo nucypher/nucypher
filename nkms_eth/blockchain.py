@@ -74,7 +74,3 @@ class Blockchain:
             self._chain.wait.for_block(self._chain.web3.eth.blockNumber+step)
             current_block = self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber)
             not_time_yet = current_block.timestamp < end_timestamp
-
-
-class TesterBlockchain(Blockchain):
-    _network = 'tester'

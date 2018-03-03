@@ -45,7 +45,7 @@ def test_mine_withdraw(testerchain, token, escrow):
     assert final_balance > initial_balance
 
 
-def test_publish_dht_key(testerchain, token, escrow):
+def test_publish_miner_id(testerchain, token, escrow):
     token._airdrop(amount=10000)    # weeee
 
     miner_addr = testerchain._chain.web3.eth.accounts[1]
@@ -55,25 +55,25 @@ def test_publish_dht_key(testerchain, token, escrow):
     balance = miner.balance()
     miner.lock(amount=balance, locktime=1)
 
-    # Publish DHT keys
-    mock_dht_key = os.urandom(32)
+    # Publish Miner IDs to the DHT
+    mock_miner_id = os.urandom(32)
 
-    txhash = miner.publish_dht_key(mock_dht_key)
-    stored_miner_dht_keys = miner.get_dht_key()
+    txhash = miner.publish_miner_id(mock_miner_id)
+    stored_miner_ids = miner.fetch_miner_ids()
 
-    assert len(stored_miner_dht_keys) == 1
-    assert mock_dht_key == stored_miner_dht_keys[0]
+    assert len(stored_miner_ids) == 1
+    assert mock_miner_id == stored_miner_ids[0]
 
-    another_mock_dht_key = os.urandom(32)
-    txhash = miner.publish_dht_key(another_mock_dht_key)
+    another_mock_miner_id = os.urandom(32)
+    txhash = miner.publish_miner_id(another_mock_miner_id)
 
-    stored_miner_dht_keys = miner.get_dht_key()
+    stored_miner_ids = miner.fetch_miner_ids()
 
-    assert len(stored_miner_dht_keys) == 2
-    assert another_mock_dht_key == stored_miner_dht_keys[1]
-    # TODO change when v4 web3.py will released
-    assert another_mock_dht_key == escrow().getMinerInfo(escrow.MinerInfoField.MINER_ID.value, miner_addr, 1)\
-        .encode('latin-1')
+    assert len(stored_miner_ids) == 2
+    assert another_mock_miner_id == stored_miner_ids[1]
+
+    # TODO change when v4 of web3.py is released
+    assert another_mock_miner_id == escrow().getMinerId(miner_addr, 1).encode('latin-1')
 
 
 def test_select_ursulas(testerchain, token, escrow):

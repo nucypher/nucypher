@@ -10,6 +10,7 @@ from nkms_eth.token import NuCypherKMSToken
 
 M = 10 ** 6
 
+
 def test_create_escrow(testerchain):
     with raises(NoKnownAddress):
         NuCypherKMSToken.get(blockchain=testerchain)

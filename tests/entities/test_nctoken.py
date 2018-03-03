@@ -1,7 +1,6 @@
-from pytest import raises
 from populus.contracts.exceptions import NoKnownAddress
+from pytest import raises
 
-from nkms_eth.blockchain import TesterBlockchain
 from nkms_eth.token import NuCypherKMSToken
 
 

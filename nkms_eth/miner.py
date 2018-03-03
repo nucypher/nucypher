@@ -31,6 +31,7 @@ class Miner:
         class_name = self.__class__.__name__
         r = "{}(address='{}')"
         r.format(class_name, self.address)
+        return r
 
     def __del__(self):
         """Removes this miner from the escrow's list of miners on delete."""
@@ -76,25 +77,28 @@ class Miner:
     #     tx = policy_manager.transact({'from': self.address}).withdraw()
     #     chain.wait.for_receipt(tx)
 
-    def publish_dht_key(self, dht_id) -> str:
-        """Store a new DHT key"""
+    def publish_miner_id(self, miner_id) -> str:
+        """Store a new Miner ID"""
 
-        txhash = self.escrow.transact({'from': self.address}).setMinerId(dht_id)
+        txhash = self.escrow.transact({'from': self.address}).setMinerId(miner_id)
         self.blockchain._chain.wait.for_receipt(txhash)
 
         return txhash
 
-    def get_dht_key(self) -> tuple:
-        """Retrieve all stored DHT keys for this miner"""
+    def fetch_miner_ids(self) -> tuple:
+        """Retrieve all stored Miner IDs on this miner"""
 
-        count = self.blockchain._chain.web3.toInt(
-            self.escrow().getMinerInfo(self.escrow.MinerInfoField.MINER_IDS_LENGTH.value, self.address, 0)
-                .encode('latin-1'))
+        count = self.escrow().getMinerInfo(self.escrow.MinerInfoField.MINER_IDS_LENGTH.value,
+                                           self.address,
+                                           0).encode('latin-1')
+
+        count = self.blockchain._chain.web3.toInt(count)
+
         # TODO change when v4 web3.py will released
-        dht_keys = tuple(self.escrow().getMinerInfo(self.escrow.MinerInfoField.MINER_ID.value, self.address, index)
-                         .encode('latin-1') for index in range(count))
+        miner_ids = tuple(self.escrow().getMinerInfo(self.escrow.MinerInfoField.MINER_ID.value, self.address, index)
+                          .encode('latin-1') for index in range(count))
 
-        return dht_keys
+        return tuple(miner_ids)
 
     def confirm_activity(self) -> str:
         """Miner rewarded for every confirmed period"""
