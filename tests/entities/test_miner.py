@@ -15,7 +15,7 @@ def test_deposit(testerchain, token, escrow):
     token._airdrop(amount=10000)    # weeee
 
     ursula_address = testerchain._chain.web3.eth.accounts[1]
-    miner = Miner(blockchain=testerchain, token=token, escrow=escrow, address=ursula_address)
+    miner = Miner(escrow=escrow, address=ursula_address)
     miner.lock(amount=1000*M, locktime=100)
 
 
@@ -23,15 +23,14 @@ def test_mine_withdraw(testerchain, token, escrow):
     token._airdrop(amount=10000)
 
     ursula_address = testerchain._chain.web3.eth.accounts[1]
-    miner = Miner(blockchain=testerchain, token=token, escrow=escrow, address=ursula_address)
+    miner = Miner(escrow=escrow, address=ursula_address)
 
     ursula = miner
     initial_balance = token.balance(address=ursula.address)
 
     # Create a random set of miners (we have 9 in total)
     for address in testerchain._chain.web3.eth.accounts[1:]:
-        miner = Miner(blockchain=testerchain, token=token,
-                      escrow=escrow, address=address)
+        miner = Miner(escrow=escrow, address=address)
 
         amount = (10+random.randrange(9000)) * M
         miner.lock(amount=amount, locktime=1)
@@ -39,7 +38,7 @@ def test_mine_withdraw(testerchain, token, escrow):
     testerchain.wait_time(escrow.hours_per_period*2)
 
     ursula.mint()
-    ursula.withdraw()
+    ursula.withdraw(entire_balance=True)
     final_balance = token.balance(ursula.address)
 
     assert final_balance > initial_balance
@@ -49,10 +48,9 @@ def test_publish_miner_id(testerchain, token, escrow):
     token._airdrop(amount=10000)    # weeee
 
     miner_addr = testerchain._chain.web3.eth.accounts[1]
-    miner = Miner(blockchain=testerchain, token=token,
-                  escrow=escrow, address=miner_addr)
+    miner = Miner(escrow=escrow, address=miner_addr)
 
-    balance = miner.balance()
+    balance = miner.token_balance()
     miner.lock(amount=balance, locktime=1)
 
     # Publish Miner IDs to the DHT
@@ -81,7 +79,7 @@ def test_select_ursulas(testerchain, token, escrow):
 
     # Create a random set of miners (we have 9 in total)
     for u in testerchain._chain.web3.eth.accounts[1:]:
-        miner = Miner(blockchain=testerchain, token=token, escrow=escrow, address=u)
+        miner = Miner(escrow=escrow, address=u)
         amount = (10 + random.randrange(9000))*M
         miner.lock(amount=amount, locktime=100)
 

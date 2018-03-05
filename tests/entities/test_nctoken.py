@@ -12,13 +12,13 @@ def test_create_and_get_nucypherkms_token(testerchain):
     token.arm()
     token.deploy()
 
-    assert len(token.contract.address) == 42
-    assert token.contract.call().totalSupply() != 0
+    assert len(token._contract.address) == 42
+    assert token._contract.call().totalSupply() != 0
     # assert token.contract.call().totalSupply() == 10 ** 9 - 1
 
     same_token = NuCypherKMSToken.get(blockchain=testerchain)
 
-    assert token.contract.address == same_token.contract.address
+    assert token._contract.address == same_token.contract.address
     assert token == same_token
 
 

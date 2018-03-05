@@ -78,7 +78,7 @@ class Miner:
     def confirm_activity(self) -> str:
         """Miner rewarded for every confirmed period"""
 
-        txhash = self.escrow._contract.transact({'from': self.address}).confirmActivity()
+        txhash = self.escrow.transact({'from': self.address}).confirmActivity()
         self._blockchain._chain.wait.for_receipt(txhash)
 
         self._transactions.append(txhash)
@@ -131,7 +131,7 @@ class Miner:
         return tuple(miner_ids)
 
     def eth_balance(self):
-        return self.escrow.blockchain._chain.web3.eth.getBalance(self.address)
+        return self._blockchain._chain.web3.eth.getBalance(self.address)
 
     def token_balance(self) -> int:
         """Check miner's current token balance"""
@@ -141,7 +141,7 @@ class Miner:
 
         return balance
 
-    def withdraw(self, amount: int, entire_balance=False) -> str:
+    def withdraw(self, amount: int=0, entire_balance=False) -> str:
         """Withdraw tokens"""
 
         tokens_amount = self._blockchain._chain.web3.toInt(
@@ -160,6 +160,6 @@ class Miner:
             txhash = self.escrow.transact({'from': self.address}).withdraw(amount)
 
         self._transactions.append(txhash)
-        self._blockchain.chain.wait.for_receipt(txhash, timeout=self._blockchain.timeout)
+        self._blockchain._chain.wait.for_receipt(txhash, timeout=self._blockchain._timeout)
 
         return txhash

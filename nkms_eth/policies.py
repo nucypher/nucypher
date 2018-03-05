@@ -81,11 +81,11 @@ class PolicyManager:
         self.blockchain = self.token.blockchain
 
         self.armed = False
-        self.__contract = None
+        self._contract = None
 
     @property
     def is_deployed(self):
-        return bool(self.__contract is not None)
+        return bool(self._contract is not None)
 
     def arm(self) -> None:
         self.armed = True
@@ -106,7 +106,7 @@ class PolicyManager:
             deploy_args=[self.escrow._contract.address],
             deploy_transaction={'from': self.token.creator})
 
-        self.__contract = the_policy_manager_contract
+        self._contract = the_policy_manager_contract
 
         set_txhash = self.escrow.transact({'from': self.token.creator}).setPolicyManager(the_policy_manager_contract.address)
         self.blockchain._chain.wait.for_receipt(set_txhash)
@@ -114,18 +114,18 @@ class PolicyManager:
         return deploy_txhash, set_txhash
 
     def __call__(self, *args, **kwargs):
-        return self.__contract.call()
+        return self._contract.call()
 
     @classmethod
     def get(cls, escrow: Escrow) -> 'PolicyManager':
         contract = escrow.blockchain._chain.provider.get_contract(cls.__contract_name)
         instance = cls(escrow)
-        instance.__contract = contract
+        instance._contract = contract
         return instance
 
     def transact(self, *args):
         """Transmit a network transaction."""
-        return self.__contract.transact(*args)
+        return self._contract.transact(*args)
 
     def fetch_arrangement_data(self, arrangement_id: bytes) -> list:
         blockchain_record = self.__call__().policies(arrangement_id)
@@ -154,14 +154,14 @@ class PolicyAuthor:
 
         self._arrangements = OrderedDict()    # Track authored policies by id
 
-    def make_arrangement(self, delegate: str, periods: int, rate: int, arrangement_id: bytes=None) -> PolicyArrangement:
+    def make_arrangement(self, miner: Miner, periods: int, rate: int, arrangement_id: bytes=None) -> PolicyArrangement:
         """
         Create a new arrangement to carry out a blockchain policy for the specified rate and time.
         """
 
         value = rate * periods
         arrangement = PolicyArrangement(author=self,
-                                        delegate_address=delegate,
+                                        miner=miner,
                                         value=value,
                                         periods=periods)
 
@@ -172,9 +172,10 @@ class PolicyAuthor:
         """Fetch a published arrangement from the blockchain"""
 
         blockchain_record = self.policy_manager().policies(arrangement_id)
-        client, delegate, rate, *periods = blockchain_record
+        author_address, miner_address, rate, *periods = blockchain_record
 
-        arrangement = PolicyArrangement(author=self, delegate_address=delegate, rate=rate)
+        miner = Miner.from_address(miner_address)
+        arrangement = PolicyArrangement(author=self, miner=miner, rate=rate)
 
         arrangement._elapsed_periods = periods
         arrangement.is_published = True
@@ -194,3 +195,5 @@ class PolicyAuthor:
         miner_addresses = self.policy_manager.escrow.sample(quantity=quantity)
         return miner_addresses
 
+    def balance(self):
+        return self.policy_manager.token().balanceOf(self.address)
