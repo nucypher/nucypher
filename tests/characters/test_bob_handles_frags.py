@@ -16,13 +16,13 @@ def test_bob_can_follow_treasure_map(enacted_policy, ursulas, alice, bob):
     bob.treasure_maps[hrac] = treasure_map
 
     # Bob knows of no Ursulas.
-    assert len(bob._ursulas) == 0
+    assert len(bob.known_nodes) == 0
 
     # ...until he follows the TreasureMap.
     bob.follow_treasure_map(hrac)
 
     # Now he knows of all the Ursulas.
-    assert len(bob._ursulas) == len(treasure_map)
+    assert len(bob.known_nodes) == len(treasure_map)
 
 
 def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, bob, ursulas,
@@ -39,7 +39,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     hrac, treasure_map = enacted_policy.hrac(), enacted_policy.treasure_map
     bob.treasure_maps[hrac] = treasure_map
     bob.follow_treasure_map(hrac)
-    assert len(bob._ursulas) == len(ursulas)
+    assert len(bob.known_nodes) == len(ursulas)
 
     the_hrac = enacted_policy.hrac()
 
@@ -61,6 +61,9 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     networky_stuff = MockNetworkyStuff(ursulas)
     ursula_dht_key, work_order = list(work_orders.items())[0]
 
+    # In the real world, we'll have a full Ursula node here.  But in this case, we need to fake it.
+    work_order.ursula = ursulas[0]
+
     # **** RE-ENCRYPTION HAPPENS HERE! ****
     cfrags = bob.get_reencrypted_c_frags(networky_stuff, work_order)
 
@@ -76,8 +79,8 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
 
     # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
     # the correct cFrag (ie, that Ursula performed reencryption properly).
-    ursula = networky_stuff.get_ursula_by_id(work_order.ursula_id)
-    kfrag_bytes = ursula.keystore.get_policy_contract(
+    ursula = work_order.ursula
+    kfrag_bytes = ursula.datastore.get_policy_contract(
         work_order.kfrag_hrac.hex().encode()).k_frag
     the_kfrag = KFrag.from_bytes(kfrag_bytes)
     the_correct_cfrag = pre.reencrypt(the_kfrag, alicebob_side_channel.capsule)
@@ -121,6 +124,9 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_polic
 
     # We can get a new CFrag, just like last time.
     networky_stuff = MockNetworkyStuff(ursulas)
+    # In the real world, we'll have a full Ursula node here.  But in this case, we need to fake it.
+    new_work_order.ursula = ursulas[1]
+
     cfrags = bob.get_reencrypted_c_frags(networky_stuff, new_work_order)
 
     # Again: one Capsule, one cFrag.
@@ -150,6 +156,8 @@ def test_bob_gathers_and_combines(enacted_policy, alice, bob, ursulas, alicebob_
     _id_of_yet_another_ursula, new_work_order = list(new_work_orders.items())[0]
 
     networky_stuff = MockNetworkyStuff(ursulas)
+    # In the real world, we'll have a full Ursula node here.  But in this case, we need to fake it.
+    new_work_order.ursula = ursulas[2]
     cfrags = bob.get_reencrypted_c_frags(networky_stuff, new_work_order)
     alicebob_side_channel.capsule.attach_cfrag(cfrags[0])
 

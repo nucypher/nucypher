@@ -49,8 +49,14 @@ class NuCypherHashProtocol(KademliaProtocol):
 
     def determine_legality_of_dht_key(self, signature, sender_pubkey_sig,
                                       message, hrac, dht_key, dht_value):
-        proper_key = digest(
-            keccak_digest(bytes(sender_pubkey_sig) + bytes(hrac)))
+
+        # TODO: This function can use a once-over.
+        # TODO: Push the logic of this if branch down.
+        if dht_value[:2] == BYTESTRING_IS_URSULA_IFACE_INFO:
+            proper_key = digest(bytes(sender_pubkey_sig))
+        else:
+            proper_key = digest(
+                keccak_digest(bytes(sender_pubkey_sig) + bytes(hrac)))
 
         verified = signature.verify(hrac, sender_pubkey_sig)
 
@@ -69,6 +75,7 @@ class NuCypherHashProtocol(KademliaProtocol):
         self.welcomeIfNewNode(source)
         self.log.debug("got a store request from %s" % str(sender))
 
+        # TODO: Why is this logic here?  This is madness.  See #172.
         if value.startswith(BYTESTRING_IS_URSULA_IFACE_INFO) or value.startswith(
                 BYTESTRING_IS_TREASURE_MAP):
             header, signature, sender_pubkey_sig, hrac, message = dht_value_splitter(

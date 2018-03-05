@@ -7,17 +7,22 @@ from apistar.http import Response
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
-from sqlalchemy.exc import IntegrityError
 
 from nkms.crypto.kits import MessageKit
 from nkms.crypto.powers import EncryptingPower, SigningPower
 from nkms.crypto.utils import BytestringSplitter
+from nkms.keystore.threading import ThreadedSession
 from nkms.network.capabilities import SeedOnly, ServerCapability
 from nkms.network.node import NuCypherNode
-from nkms.network.protocols import NuCypherSeedOnlyProtocol, NuCypherHashProtocol
+from nkms.network.protocols import NuCypherSeedOnlyProtocol, NuCypherHashProtocol, \
+    dht_value_splitter
 from nkms.network.storage import SeedOnlyStorage
 from umbral import pre
 from umbral.fragments import KFrag
+
+from apistar.core import Route
+from apistar.frameworks.wsgi import WSGIApp as App
+
 
 
 class NuCypherDHTServer(Server):
@@ -94,34 +99,82 @@ class NuCypherSeedOnlyDHTServer(NuCypherDHTServer):
 
 class ProxyRESTServer(object):
 
+    def __init__(self, rest_address, rest_port, db_name):
+        self.rest_address = rest_address
+        self.rest_port = rest_port
+        self.db_name = db_name
+        self._rest_app = None
+
+    def attach_rest_server(self, db_name):
+
+        routes = [
+            Route('/kFrag/{hrac_as_hex}',
+                  'POST',
+                  self.set_policy),
+            Route('/kFrag/{hrac_as_hex}/reencrypt',
+                  'POST',
+                  self.reencrypt_via_rest),
+            Route('/public_keys', 'GET',
+                  self.get_signing_and_encrypting_public_keys),
+            Route('/consider_contract',
+                  'POST',
+                  self.consider_contract),
+            Route('/treasure_map/{treasure_map_id_as_hex}',
+                  'GET',
+                  self.provide_treasure_map),
+            Route('/treasure_map/{treasure_map_id_as_hex}',
+                  'POST',
+                  self.receive_treasure_map),
+        ]
+
+        self._rest_app = App(routes=routes)
+        self.start_datastore(db_name)
+
+    def start_datastore(self, db_name):
+        if not db_name:
+            raise TypeError("In order to start a datastore, you need to supply a db_name.")
+
+        from nkms.keystore import keystore
+        from nkms.keystore.db import Base
+        from sqlalchemy.engine import create_engine
+
+        engine = create_engine('sqlite:///{}'.format(db_name))
+        Base.metadata.create_all(engine)
+        self.datastore = keystore.KeyStore(engine)
+        self.db_engine = engine
+
+    def rest_url(self):
+        return "{}:{}".format(self.rest_address, self.rest_port)
+
+    # """
+    # Actual REST Endpoints and utilities
+    # """
+    # def find_ursulas_by_ids(self, request: http.Request):
+    #
+    #
+
     def get_signing_and_encrypting_public_keys(self):
         """
         REST endpoint for getting both signing and encrypting public keys.
         """
         return Response(
-            content=bytes(self.stamp) + bytes(self.public_key(EncryptingPower)),
+            content=bytes(self.public_key(SigningPower)) + bytes(self.public_key(EncryptingPower)),
             content_type="application/octet-stream")
 
     def consider_contract(self, hrac_as_hex, request: http.Request):
-        # TODO: This actually needs to be a REST endpoint, with the payload
-        # carrying the kfrag hash separately.
         from nkms.policy.models import Contract
         contract, deposit_as_bytes = \
             BytestringSplitter(Contract)(request.body, return_remainder=True)
         contract.deposit = deposit_as_bytes
 
-        # contract_to_store = {  # TODO: This needs to be a datastore - see #127.
-        #     "alice_pubkey_sig":
-        #     "deposit": contract.deposit,
-        #     # TODO: Whatever type "deposit" ends up being, we'll need to
-        #     # serialize it here.  See #148.
-        #     "expiration": contract.expiration,
-        # }
-        self.keystore.add_policy_contract(contract.expiration.datetime(),
-                                          contract.deposit,
-                                          hrac=contract.hrac.hex().encode(),
-                                          alice_pubkey_sig=contract.alice.stamp
-                                          )
+        with ThreadedSession(self.db_engine) as session:
+            self.datastore.add_policy_contract(
+                contract.expiration.datetime(),
+                contract.deposit,
+                hrac=contract.hrac.hex().encode(),
+                alice_pubkey_sig=contract.alice.stamp,
+                session=session,
+                )
         # TODO: Make the rest of this logic actually work - do something here
         # to decide if this Contract is worth accepting.
         return Response(
@@ -141,7 +194,7 @@ class ProxyRESTServer(object):
         # group_payload_splitter = BytestringSplitter(PublicKey)
         # policy_payload_splitter = BytestringSplitter((KFrag, KFRAG_LENGTH))
 
-        alice = self._alice_class.from_public_keys((SigningPower, policy_message_kit.alice_pubkey))
+        alice = self._alice_class.from_public_keys({SigningPower: policy_message_kit.alice_pubkey})
 
         verified, cleartext = self.verify_from(
             alice, policy_message_kit,
@@ -159,24 +212,12 @@ class ProxyRESTServer(object):
         # kfrag = policy_payload_splitter(policy_payload)[0]
         kfrag = KFrag.from_bytes(cleartext)
 
-        # TODO: Query stored Contract and reconstitute
-        policy_contract = self.keystore.get_policy_contract(hrac_as_hex.encode())
-        # contract_details = self._contracts[hrac.hex()]
-
-        if policy_contract.alice_pubkey_sig.key_data != alice.stamp:
-            raise self._alice_class.SuspiciousActivity
-
-        # contract = Contract(alice=alice, hrac=hrac,
-        #                     kfrag=kfrag, expiration=policy_contract.expiration)
-
-        try:
-            # TODO: Obviously we do this lower-level.
-            policy_contract.k_frag = bytes(kfrag)
-            self.keystore.session.commit()
-
-        except IntegrityError:
-            raise
-            # Do something appropriately RESTful (ie, 4xx).
+        with ThreadedSession(self.db_engine) as session:
+            self.datastore.attach_kfrag_to_saved_contract(
+                                               alice,
+                                               hrac_as_hex,
+                                               kfrag,
+                                               session=session)
 
         return  # TODO: Return A 200, with whatever policy metadata.
 
@@ -184,7 +225,9 @@ class ProxyRESTServer(object):
         from nkms.policy.models import WorkOrder  # Avoid circular import
         hrac = binascii.unhexlify(hrac_as_hex)
         work_order = WorkOrder.from_rest_payload(hrac, request.body)
-        kfrag_bytes = self.keystore.get_policy_contract(hrac.hex().encode()).k_frag  # Careful!  :-)
+        with ThreadedSession(self.db_engine) as session:
+            kfrag_bytes = self.datastore.get_policy_contract(hrac.hex().encode(),
+                                                             session=session).k_frag  # Careful!  :-)
         # TODO: Push this to a lower level.
         kfrag = KFrag.from_bytes(kfrag_bytes)
         cfrag_byte_stream = b""
@@ -198,3 +241,30 @@ class ProxyRESTServer(object):
 
         return Response(content=cfrag_byte_stream,
                         content_type="application/octet-stream")
+
+    def provide_treasure_map(self, treasure_map_id_as_hex):
+        # For now, grab the TreasureMap for the DHT storage.  Soon, no do that.  #TODO!
+        treasure_map_id = binascii.unhexlify(treasure_map_id_as_hex)
+        treasure_map_bytes = self.server.storage.get(digest(treasure_map_id))
+        return Response(content=treasure_map_bytes,
+                        content_type="application/octet-stream")
+
+    def receive_treasure_map(self, treasure_map_id_as_hex, request: http.Request):
+        # TODO: This function is the epitome of #172.
+        treasure_map_id = binascii.unhexlify(treasure_map_id_as_hex)
+
+        header, signature_for_ursula, pubkey_sig_alice, hrac, tmap_message_kit = \
+            dht_value_splitter(request.body, return_remainder=True)
+        # TODO: This next line is possibly the worst in the entire codebase at the moment.  #172.
+        # Also TODO: TTL?
+        do_store = self.server.protocol.determine_legality_of_dht_key(signature_for_ursula, pubkey_sig_alice, tmap_message_kit,
+                                                      hrac, digest(treasure_map_id), request.body)
+        if do_store:
+            # TODO: Stop storing things in the protocol storage.  Do this better.
+            # TODO: Propagate to other nodes.
+            self.server.protocol.storage[digest(treasure_map_id)] = request.body
+            return # TODO: Proper response here.
+        else:
+            # TODO: Make this a proper 500 or whatever.
+            assert False
+

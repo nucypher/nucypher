@@ -1,5 +1,6 @@
 import asyncio
 import binascii
+from collections import OrderedDict
 
 import maya
 import msgpack
@@ -57,7 +58,7 @@ class Contract(object):
         alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = contract_splitter(
             contract_as_bytes, return_remainder=True)
         expiration = maya.parse(expiration_bytes.decode())
-        alice = Alice.from_public_keys((SigningPower, alice_pubkey_sig))
+        alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
         return cls(alice=alice, hrac=hrac, expiration=expiration)
 
     def activate(self, kfrag, ursula, negotiation_result):
@@ -108,7 +109,7 @@ class Policy(object):
         self.uri = uri
         self.m = m
         self.treasure_map = TreasureMap()
-        self._accepted_contracts = {}
+        self._accepted_contracts = OrderedDict()
 
         self.alices_signature = alices_signature
 
@@ -165,11 +166,7 @@ class Policy(object):
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
         """
-        return Policy.hash(bytes(alice.stamp) + bytes(bob.stamp) + uri)
-
-    @staticmethod
-    def hash(message):
-        return keccak_digest(message)
+        return keccak_digest(bytes(alice.stamp) + bytes(bob.stamp) + uri)
 
     def treasure_map_dht_key(self):
         """
@@ -179,9 +176,11 @@ class Policy(object):
 
         Our public key (which everybody knows) and the hrac above.
         """
-        return self.hash(bytes(self.alice.stamp) + self.hrac())
+        return keccak_digest(bytes(self.alice.stamp) + self.hrac())
 
-    def publish_treasure_map(self):
+    def publish_treasure_map(self, networky_stuff=None, use_dht=True):
+        if networky_stuff is None and use_dht is False:
+            raise ValueError("Can't engage the REST swarm without networky stuff.")
         tmap_message_kit, signature_for_bob = self.alice.encrypt_for(
             self.bob,
             self.treasure_map.packed_payload())
@@ -189,13 +188,21 @@ class Policy(object):
 
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
-        dht_value = signature_for_ursula + self.alice.stamp + self.hrac() + tmap_message_kit.to_bytes()
-        dht_key = self.treasure_map_dht_key()
+        # TODO: Clean this up.  See #172.
+        map_payload = signature_for_ursula + self.alice.stamp + self.hrac() + tmap_message_kit.to_bytes()
+        map_id = self.treasure_map_dht_key()
 
-        setter = self.alice.server.set(dht_key, BYTESTRING_IS_TREASURE_MAP + dht_value)
-        event_loop = asyncio.get_event_loop()
-        event_loop.run_until_complete(setter)
-        return tmap_message_kit, dht_value, signature_for_bob, signature_for_ursula
+        if use_dht:
+            setter = self.alice.server.set(map_id, BYTESTRING_IS_TREASURE_MAP + map_payload)
+            event_loop = asyncio.get_event_loop()
+            event_loop.run_until_complete(setter)
+        else:
+            for node in self.alice.known_nodes.values():
+                response = networky_stuff.push_treasure_map_to_node(node, map_id, BYTESTRING_IS_TREASURE_MAP + map_payload)
+                # TODO: Do something here based on success or failure
+                if response.status_code == 204:
+                    pass
+        return tmap_message_kit, map_payload, signature_for_bob, signature_for_ursula
 
     def enact(self, networky_stuff):
         for contract in self._accepted_contracts.values():
@@ -271,19 +278,19 @@ class TreasureMap(object):
 
 class WorkOrder(object):
     def __init__(self, bob, kfrag_hrac, capsules, receipt_bytes,
-                 receipt_signature, ursula_id=None):
+                 receipt_signature, ursula=None):
         self.bob = bob
         self.kfrag_hrac = kfrag_hrac
         self.capsules = capsules
         self.receipt_bytes = receipt_bytes
         self.receipt_signature = receipt_signature
-        self.ursula_id = ursula_id  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
+        self.ursula = ursula  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
 
     def __repr__(self):
         return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for {ursulas}".format(
             hrac=self.kfrag_hrac.hex()[:6],
             capsule_bytes=[binascii.hexlify(bytes(cap))[:6] for cap in self.capsules],
-            ursulas=binascii.hexlify(bytes(self.ursula_id))[:6])
+            ursulas=binascii.hexlify(bytes(self.ursula.stamp))[:6])
 
     def __eq__(self, other):
         return (self.receipt_bytes, self.receipt_signature) == (
@@ -293,11 +300,11 @@ class WorkOrder(object):
         return len(self.capsules)
 
     @classmethod
-    def construct_by_bob(cls, kfrag_hrac, capsules, ursula_dht_key, bob):
-        receipt_bytes = b"wo:" + ursula_dht_key  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
+    def construct_by_bob(cls, kfrag_hrac, capsules, ursula, bob):
+        receipt_bytes = b"wo:" + ursula.interface_dht_key()  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
         receipt_signature = bob.stamp(receipt_bytes)
         return cls(bob, kfrag_hrac, capsules, receipt_bytes, receipt_signature,
-                   ursula_dht_key)
+                   ursula)
 
     @classmethod
     def from_rest_payload(cls, kfrag_hrac, rest_payload):
@@ -308,7 +315,7 @@ class WorkOrder(object):
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
             raise ValueError("This doesn't appear to be from Bob.")
-        bob = Bob.from_public_keys((SigningPower, bob_pubkey_sig))
+        bob = Bob.from_public_keys({SigningPower: bob_pubkey_sig})
         return cls(bob, kfrag_hrac, capsules, receipt_bytes, signature)
 
     def payload(self):
@@ -332,10 +339,10 @@ class WorkOrderHistory:
         assert False
 
     def __getitem__(self, item):
-        if isinstance(item, Ursula.InterfaceDHTKey):
+        if isinstance(item, bytes):
             return self.by_ursula.setdefault(item, {})
         else:
-            raise TypeError("If you want to lookup a WorkOrder by Ursula, you need to pass an Ursula.InterfaceDHTKey.")
+            raise TypeError("If you want to lookup a WorkOrder by Ursula, you need to pass bytes of her signing public key.")
 
     def __setitem__(self, key, value):
         assert False

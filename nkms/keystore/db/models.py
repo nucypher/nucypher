@@ -1,6 +1,8 @@
 import sha3
 
 from datetime import datetime
+
+from nkms.crypto.utils import fingerprint_from_key
 from nkms.keystore.db import Base
 from sqlalchemy.orm import relationship
 
@@ -23,17 +25,22 @@ class Key(Base):
         self.key_data = key_data
         self.is_signing = is_signing
 
+    @classmethod
+    def from_umbral_key(cls, umbral_key, is_signing):
+        fingerprint = fingerprint_from_key(umbral_key)
+        key_data = bytes(umbral_key)
+        return cls(fingerprint, key_data, is_signing)
+
 
 class PolicyContract(Base):
     __tablename__ = 'policycontracts'
 
-    id = Column(Integer, primary_key=True)
+    hrac = Column(LargeBinary, unique=True, primary_key=True)
     expiration = Column(DateTime)
     deposit = Column(LargeBinary)
-    hrac = Column(LargeBinary, unique=True)
     k_frag = Column(LargeBinary, unique=True, nullable=True)
     alice_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
-    alice_pubkey_sig = relationship(Key, backref="policies")
+    alice_pubkey_sig = relationship(Key, backref="policies", lazy='joined')
     # alice_pubkey_enc_id = Column(Integer, ForeignKey('keys.id'))
     # bob_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
     # TODO: Maybe this will be two signatures - one for the offer, one for the KFrag.

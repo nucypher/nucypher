@@ -30,12 +30,15 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
 
     URSULAS = []
     for _u in range(how_many_ursulas):
-        engine = create_engine('sqlite:///:memory:')
-        Base.metadata.create_all(engine)
-        ursulas_keystore = keystore.KeyStore(engine)
-        _URSULA = Ursula(urulsas_keystore=ursulas_keystore)
-        _URSULA.attach_server()
-        _URSULA.listen(ursula_starting_port + _u, "127.0.0.1")
+        port = ursula_starting_port + _u
+        _URSULA = Ursula(dht_port=port, dht_interface="127.0.0.1", db_name="test-{}".format(port))
+
+        class MockDatastoreThreadPool(object):
+            def callInThread(self, f, *args, **kwargs):
+                return f(*args, **kwargs)
+
+        _URSULA.datastore_threadpool = MockDatastoreThreadPool()
+        _URSULA.listen()
 
         URSULAS.append(_URSULA)
 
@@ -76,15 +79,13 @@ class MockNetworkyStuff(NetworkyStuff):
         response = mock_client.post('http://localhost/kFrag/{}'.format(hrac.hex()), payload)
         return True, ursula.interface_dht_key()
 
-    def get_ursula_by_id(self, ursula_id):
-        try:
-            ursula = self._ursulas[ursula_id]
-        except KeyError:
-            pytest.fail("No Ursula with ID {}".format(ursula_id))
-        return ursula
-
-    def send_work_order_payload_to_ursula(self, work_order, ursula):
-        mock_client = TestClient(ursula.rest_app)
+    def send_work_order_payload_to_ursula(self, work_order):
+        mock_client = TestClient(work_order.ursula.rest_app)
         payload = work_order.payload()
         hrac_as_hex = work_order.kfrag_hrac.hex()
         return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(hrac_as_hex), payload)
+
+    def get_treasure_map_from_node(self, node, map_id):
+        mock_client = TestClient(node.rest_app)
+        return mock_client.get("http://localhost/treasure_map/{}".format(map_id.hex()))
+

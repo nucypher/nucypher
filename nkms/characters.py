@@ -3,11 +3,13 @@ from logging import getLogger
 
 import msgpack
 import requests
-from apistar.core import Route
-from apistar.frameworks.wsgi import WSGIApp as App
+
+from typing import Dict
+
 from kademlia.network import Server
 from kademlia.utils import digest
 from typing import Union, List
+from collections import OrderedDict
 
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
@@ -56,6 +58,7 @@ class Character(object):
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
+        self.known_nodes = {}
         self.log = getLogger("characters")
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
@@ -83,20 +86,22 @@ class Character(object):
     def __hash__(self):
         return int.from_bytes(self.stamp, byteorder="big")
 
-    class NotFound(KeyError):
-        """raised when we try to interact with an actor of whom we haven't \
-           learned yet."""
+    class NotEnoughUrsulas(RuntimeError):
+        """
+        All Characters depend on knowing about enough Ursulas to perform their role.
+        This exception is raised when a piece of logic can't proceed without more Ursulas.
+        """
 
     class SuspiciousActivity(RuntimeError):
         """raised when an action appears to amount to malicious conduct."""
 
     @classmethod
-    def from_public_keys(cls, *powers_and_keys):
+    def from_public_keys(cls, powers_and_keys: Dict, *args, **kwargs):
         """
         Sometimes we discover a Character and, at the same moment, learn one or
-        more of their public keys. Here, we take a collection of tuples
+        more of their public keys. Here, we take a Dict
         (powers_and_key_bytes) in the following format:
-        (CryptoPowerUp class, public_key_bytes)
+        {CryptoPowerUp class: public_key_bytes}
 
         Each item in the collection will have the CryptoPowerUp instantiated
         with the public_key_bytes, and the resulting CryptoPowerUp instance
@@ -104,18 +109,21 @@ class Character(object):
         """
         crypto_power = CryptoPower()
 
-        for power_up, public_key in powers_and_keys:
+        for power_up, public_key in powers_and_keys.items():
             try:
                 umbral_key = UmbralPublicKey(public_key)
             except TypeError:
                 umbral_key = public_key
 
+
             crypto_power.consume_power_up(power_up(pubkey=umbral_key))
 
-        return cls(is_me=False, crypto_power=crypto_power)
+        return cls(is_me=False, crypto_power=crypto_power, *args, **kwargs)
 
     def attach_server(self, ksize=20, alpha=3, id=None,
                       storage=None, *args, **kwargs) -> None:
+        if self._server:
+            raise RuntimeError("Attaching the server twice is almost certainly a bad idea.")
         self._server = self._server_class(
             ksize, alpha, id, storage, *args, **kwargs)
 
@@ -166,13 +174,15 @@ class Character(object):
                 # Encrypt first, sign second.
                 ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, plaintext)
                 signature = self.stamp(ciphertext)
+            alice_pubkey = self.public_key(SigningPower)
         else:
             # Don't sign.
             signature = NOT_SIGNED
             ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, plaintext)
+            alice_pubkey = None
 
-        message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule)
-        message_kit.alice_pubkey = self.public_key(SigningPower)
+        message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule, alice_pubkey=alice_pubkey)
+
         return message_kit, signature
 
     def verify_from(self,
@@ -252,6 +262,14 @@ class Character(object):
     def public_key(self, power_up_class):
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
+
+    def learn_about_nodes(self, address, port):
+        """
+        Sends a request to node_url to find out about known nodes.
+        """
+        # TODO: Find out about other known nodes, not just this one.
+        node = Ursula.from_rest_url(address, port)
+        self.known_nodes[node.interface_dht_key()] = node
 
 
 class Alice(Character):
@@ -333,7 +351,6 @@ class Bob(Character):
 
     def __init__(self, alice=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._ursulas = {}
         self.treasure_maps = {}
         if alice:
             self.alice = alice
@@ -353,6 +370,11 @@ class Bob(Character):
 
     def follow_treasure_map(self, hrac):
         for ursula_interface_id in self.treasure_maps[hrac]:
+            if ursula_interface_id in self.known_nodes:
+                # If we already know about this Ursula,
+                # we needn't learn about it again.
+                continue
+
             # TODO: perform this part concurrently.
             value = self.server.get_now(ursula_interface_id)
 
@@ -363,31 +385,29 @@ class Bob(Character):
                 raise TypeError("Unknown DHT value.  How did this get on the network?")
 
             # TODO: If we're going to implement TTL, it will be here.
-            self._ursulas[ursula_interface_id] =\
+            self.known_nodes[ursula_interface_id] =\
                     Ursula.as_discovered_on_network(
                             dht_port=port,
                             dht_interface=interface,
-                            pubkey_sig_bytes=ursula_pubkey_sig
+                            powers_and_keys=({SigningPower: ursula_pubkey_sig})
                     )
 
-    def get_treasure_map(self, policy_group):
+    def get_treasure_map(self, policy, networky_stuff, using_dht=False):
 
-        dht_key = policy_group.treasure_map_dht_key()
+        map_id = policy.treasure_map_dht_key()
 
-        ursula_coro = self.server.get(dht_key)
-        event_loop = asyncio.get_event_loop()
-        packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
-        
-        # TODO: Make this prettier
-        header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map =\
-        dht_value_splitter(packed_encrypted_treasure_map, return_remainder=True)
-        tmap_messaage_kit = MessageKit.from_bytes(encrypted_treasure_map)
-
-        if header != BYTESTRING_IS_TREASURE_MAP:
-            raise TypeError("Unknown DHT value.  How did this get on the network?")
+        if using_dht:
+            ursula_coro = self.server.get(map_id)
+            event_loop = asyncio.get_event_loop()
+            packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
+        else:
+            if not self.known_nodes:
+                # TODO: Try to find more Ursulas on the blockchain.
+                raise self.NotEnoughUrsulas
+            tmap_message_kit = self.get_treasure_map_from_known_ursulas(networky_stuff, map_id)
 
         verified, packed_node_list = self.verify_from(
-            self.alice, tmap_messaage_kit,
+            self.alice, tmap_message_kit,
             signature_is_on_cleartext=True, decrypt=True
         )
 
@@ -395,10 +415,28 @@ class Bob(Character):
             return NOT_FROM_ALICE
         else:
             from nkms.policy.models import TreasureMap
-            self.treasure_maps[policy_group.hrac] = TreasureMap(
-                msgpack.loads(packed_node_list)
-            )
-            return self.treasure_maps[policy_group.hrac]
+            treasure_map = TreasureMap(msgpack.loads(packed_node_list))
+            self.treasure_maps[policy.hrac()] = treasure_map
+            return treasure_map
+
+    def get_treasure_map_from_known_ursulas(self, networky_stuff, map_id):
+        """
+        Iterate through swarm, asking for the TreasureMap.
+        Return the first one who has it.
+        TODO: What if a node gives a bunk TreasureMap?
+        """
+        from nkms.network.protocols import dht_value_splitter
+        for node in self.known_nodes.values():
+            response = networky_stuff.get_treasure_map_from_node(node, map_id)
+
+            if response.status_code == 200 and response.content:
+                # TODO: Make this prettier
+                header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = \
+                    dht_value_splitter(response.content, return_remainder=True)
+                tmap_messaage_kit = MessageKit.from_bytes(encrypted_treasure_map)
+                return tmap_messaage_kit
+            else:
+                assert False
 
     def generate_work_orders(self, kfrag_hrac, *capsules, num_ursulas=None):
         from nkms.policy.models import WorkOrder  # Prevent circular import
@@ -409,7 +447,7 @@ class Bob(Character):
             raise KeyError(
                 "Bob doesn't have a TreasureMap matching the hrac {}".format(kfrag_hrac))
 
-        generated_work_orders = {}
+        generated_work_orders = OrderedDict()
 
         if not treasure_map_to_use:
             raise ValueError(
@@ -417,7 +455,7 @@ class Bob(Character):
                     capsules))
 
         for ursula_dht_key in treasure_map_to_use:
-            ursula = self._ursulas[ursula_dht_key]
+            ursula = self.known_nodes[ursula_dht_key]
 
             capsules_to_include = []
             for capsule in capsules:
@@ -426,9 +464,9 @@ class Bob(Character):
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
-                    kfrag_hrac, capsules_to_include, ursula_dht_key, self)
+                    kfrag_hrac, capsules_to_include, ursula, self)
                 generated_work_orders[ursula_dht_key] = work_order
-                self._saved_work_orders[work_order.ursula_id][capsule] = work_order
+                self._saved_work_orders[ursula_dht_key][capsule] = work_order
 
             if num_ursulas is not None:
                 if num_ursulas == len(generated_work_orders):
@@ -443,7 +481,7 @@ class Bob(Character):
         for counter, capsule in enumerate(work_order.capsules):
             # TODO: Ursula is actually supposed to sign this.  See #141.
             # TODO: Maybe just update the work order here instead of setting it anew.
-            work_orders_by_ursula = self._saved_work_orders[work_order.ursula_id]
+            work_orders_by_ursula = self._saved_work_orders[bytes(work_order.ursula.stamp)]
             work_orders_by_ursula[capsule] = work_order
         return cfrags
 
@@ -456,18 +494,15 @@ class Ursula(Character, ProxyRESTServer):
     _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    dht_port = None
-    dht_interface = None
-    dht_ttl = 0
-    rest_address = None
-    rest_port = None
-
-    def __init__(self, urulsas_keystore=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.keystore = urulsas_keystore
-
-        self._rest_app = None
+    def __init__(self, dht_port=None, dht_interface=None, dht_ttl=0,
+                 rest_address=None, rest_port=None, db_name=None,
+                 *args, **kwargs):
+        self.dht_port = dht_port
+        self.dht_interface = dht_interface
+        self.dht_ttl = 0
         self._work_orders = []
+        ProxyRESTServer.__init__(self, rest_address, rest_port, db_name)
+        super().__init__(*args, **kwargs)
 
     @property
     def rest_app(self):
@@ -489,8 +524,8 @@ class Ursula(Character, ProxyRESTServer):
         return ursula
 
     @classmethod
-    def from_rest_url(cls, url):
-        response = requests.get(url)
+    def from_rest_url(cls, address, port):
+        response = requests.get("{}:{}/public_keys".format(address, port))  # TODO: TLS-only.
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
         signing_key_bytes, encrypting_key_bytes = \
@@ -508,53 +543,17 @@ class Ursula(Character, ProxyRESTServer):
             id = digest(secure_random(32))
 
         super().attach_server(ksize, alpha, id, storage)
+        self.attach_rest_server(db_name=self.db_name)
 
-        routes = [
-            Route('/kFrag/{hrac_as_hex}',
-                  'POST',
-                  self.set_policy),
-            Route('/kFrag/{hrac_as_hex}/reencrypt',
-                  'POST',
-                  self.reencrypt_via_rest),
-            Route('/public_keys', 'GET',
-                  self.get_signing_and_encrypting_public_keys),
-            Route('/consider_contract',
-                  'POST',
-                  self.consider_contract),
-        ]
-
-        self._rest_app = App(routes=routes)
-
-    def listen(self, port, interface):
-        self.dht_port = port
-        self.dht_interface = interface
-        return self.server.listen(port, interface)
+    def listen(self):
+        return self.server.listen(self.dht_port, self.dht_interface)
 
     def dht_interface_info(self):
         return self.dht_port, self.dht_interface, self.dht_ttl
 
-    class InterfaceDHTKey:
-        def __init__(self, stamp, interface_hrac):
-            self.pubkey_sig_bytes = bytes(stamp)
-            self.interface_hrac = interface_hrac
-
-        def __bytes__(self):
-            return keccak_digest(self.pubkey_sig_bytes + self.interface_hrac)
-
-        def __add__(self, other):
-            return bytes(self) + other
-
-        def __radd__(self, other):
-            return other + bytes(self)
-
-        def __hash__(self):
-            return int.from_bytes(self, byteorder="big")
-
-        def __eq__(self, other):
-            return bytes(self) == bytes(other)
-
     def interface_dht_key(self):
-        return self.InterfaceDHTKey(self.stamp, self.interface_hrac())
+        return bytes(self.stamp)
+        # return self.InterfaceDHTKey(self.stamp, self.interface_hrac())
 
     def interface_dht_value(self):
         signature = self.stamp(self.interface_hrac())
@@ -605,6 +604,9 @@ class SignatureStamp(object):
 
     def __bytes__(self):
         return bytes(self.character.public_key(SigningPower))
+
+    def __hash__(self):
+        return int.from_bytes(self, byteorder="big")
 
     def __eq__(self, other):
         return other == bytes(self)

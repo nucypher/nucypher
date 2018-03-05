@@ -28,7 +28,7 @@ def test_grant(alice, bob, ursulas):
 
     # Get the Policy from Ursula's datastore, looking up by hrac.
     proper_hrac = keccak_digest(bytes(alice.stamp) + bytes(bob.stamp) + uri)
-    retrieved_policy = ursula.keystore.get_policy_contract(proper_hrac.hex().encode())
+    retrieved_policy = ursula.datastore.get_policy_contract(proper_hrac.hex().encode())
 
     # TODO: Make this a legit KFrag, not bytes.
     retrieved_k_frag = KFrag.from_bytes(retrieved_policy.k_frag)
@@ -49,8 +49,7 @@ def test_alice_can_get_ursulas_keys_via_rest(alice, ursulas):
         (UmbralPublicKey, PUBLIC_KEY_LENGTH, {"as_b64": False})
     )
     signing_key, encrypting_key = splitter(response.content)
-    stranger_ursula_from_public_keys = Ursula.from_public_keys((SigningPower,
-                                                                signing_key),
-                                                               (EncryptingPower,
-                                                                encrypting_key))
+    stranger_ursula_from_public_keys = Ursula.from_public_keys({SigningPower: signing_key,
+                                                               EncryptingPower: encrypting_key}
+                                                            )
     assert stranger_ursula_from_public_keys == ursulas[0]

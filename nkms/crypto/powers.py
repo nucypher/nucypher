@@ -64,8 +64,9 @@ class CryptoPowerUp(object):
 class KeyPairBasedPower(CryptoPowerUp):
     _keypair_class = keypairs.Keypair
 
-    def __init__(self, keypair: keypairs.Keypair = None,
+    def __init__(self,
                  pubkey: UmbralPublicKey = None,
+                 keypair: keypairs.Keypair = None,
                  generate_keys_if_needed=True) -> None:
         if keypair and pubkey:
             raise ValueError(

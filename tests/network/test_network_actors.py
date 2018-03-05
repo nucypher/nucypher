@@ -5,9 +5,11 @@ import pytest
 
 from kademlia.utils import digest
 from nkms.characters import Ursula, Character
+from nkms.crypto.api import keccak_digest
 from nkms.crypto.kits import MessageKit
 from nkms.network import blockchain_client
 from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP, BYTESTRING_IS_URSULA_IFACE_INFO
+
 from nkms.network.protocols import dht_value_splitter
 
 from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
@@ -72,7 +74,7 @@ def test_alice_creates_policy_group_with_correct_hrac(idle_policy):
     alice = idle_policy.alice
     bob = idle_policy.bob
 
-    assert idle_policy.hrac() == idle_policy.hash(
+    assert idle_policy.hrac() == keccak_digest(
         bytes(alice.stamp) + bytes(bob.stamp) + alice.__resource_id)
 
 
@@ -140,7 +142,16 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy, ursula
 
     # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume,
     # through a side-channel with Alice.
-    treasure_map_from_wire = bob.get_treasure_map(enacted_policy)
+
+    # If Bob doesn't know about any Ursulas, he can't find the TreasureMap via the REST swarm:
+    with pytest.raises(bob.NotEnoughUrsulas):
+        treasure_map_from_wire = bob.get_treasure_map(enacted_policy, networky_stuff)
+
+    # Let's imagine he has learned about some - say, from the blockchain.
+    bob.known_nodes = {u.interface_dht_key(): u for u in ursulas}
+
+    # Now try.
+    treasure_map_from_wire = bob.get_treasure_map(enacted_policy, networky_stuff)
 
     assert enacted_policy.treasure_map == treasure_map_from_wire
 
