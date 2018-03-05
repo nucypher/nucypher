@@ -1,13 +1,13 @@
 from collections import OrderedDict
 from typing import Tuple, List
 
-from nkms_eth.blockchain import Blockchain
 from nkms_eth.escrow import Escrow
+from nkms_eth.miner import Miner
 from nkms_eth.token import NuCypherKMSToken
 
 
 class PolicyArrangement:
-    def __init__(self, author: 'PolicyAuthor', delegate_address: str, value: int=None,
+    def __init__(self, author: 'PolicyAuthor', miner: 'Miner', value: int=None,
                  periods: int=None, rate: int=None, arrangement_id: bytes=None):
 
         if arrangement_id is None:
@@ -17,7 +17,7 @@ class PolicyArrangement:
         self.author = author
         self.policy_manager = author.policy_manager
 
-        self.delegate_address = delegate_address
+        self.miner = miner
 
         # Arrangement value, rate, and duration
         if (value and periods) and (not rate):
@@ -38,7 +38,7 @@ class PolicyArrangement:
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(client={}, node={})"
-        r = r.format(class_name, self.author.address, self.delegate_address)
+        r = r.format(class_name, self.author, self.miner)
         return r
 
     def publish(self, gas_price: int) -> str:
@@ -48,7 +48,7 @@ class PolicyArrangement:
                    'gas_price': gas_price}
 
         txhash = self.policy_manager.transact(payload).createPolicy(self.id,
-                                                                    self.delegate_address,
+                                                                    self.miner.address,
                                                                     self.periods)
 
         self.policy_manager.blockchain._chain.wait.for_receipt(txhash)
@@ -75,10 +75,10 @@ class PolicyManager:
     class ContractDeploymentError(Exception):
         pass
 
-    def __init__(self, blockchain: Blockchain, token: NuCypherKMSToken, escrow: Escrow):
-        self.blockchain = blockchain
-        self.token = token
+    def __init__(self, escrow: Escrow):
         self.escrow = escrow
+        self.token = escrow.token
+        self.blockchain = self.token.blockchain
 
         self.armed = False
         self.__contract = None
@@ -95,7 +95,7 @@ class PolicyManager:
             raise PolicyManager.ContractDeploymentError('PolicyManager contract not armed')
         if self.is_deployed is True:
             raise PolicyManager.ContractDeploymentError('PolicyManager contract already deployed')
-        if self.escrow.contract is None:
+        if self.escrow._contract is None:
             raise Escrow.ContractDeploymentError('Escrow contract must be deployed before')
         if self.token.contract is None:
             raise NuCypherKMSToken.ContractDeploymentError('Token contract must be deployed before')
@@ -103,7 +103,7 @@ class PolicyManager:
         # Creator deploys the policy manager
         the_policy_manager_contract, deploy_txhash = self.blockchain._chain.provider.deploy_contract(
             self.__contract_name,
-            deploy_args=[self.escrow.contract.address],
+            deploy_args=[self.escrow._contract.address],
             deploy_transaction={'from': self.token.creator})
 
         self.__contract = the_policy_manager_contract
@@ -117,9 +117,9 @@ class PolicyManager:
         return self.__contract.call()
 
     @classmethod
-    def get(cls, blockchain: Blockchain, token: NuCypherKMSToken) -> 'PolicyManager':
-        contract = blockchain._chain.provider.get_contract(cls.__contract_name)
-        instance = cls(blockchain=blockchain, token=token)
+    def get(cls, escrow: Escrow) -> 'PolicyManager':
+        contract = escrow.blockchain._chain.provider.get_contract(cls.__contract_name)
+        instance = cls(escrow)
         instance.__contract = contract
         return instance
 
