@@ -65,6 +65,13 @@ def test_escrow(web3, chain, token, user_escrow):
     assert 1000 >= user_escrow.call().getLockedTokens()
     assert 950 <= user_escrow.call().getLockedTokens()
 
+    events = user_escrow.pastEvents('Deposited').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert creator.lower() == event_args['sender'].lower()
+    assert 1000 == event_args['value']
+    assert 1000 == event_args['duration']
+
     # Can't deposit tokens again
     with pytest.raises(TransactionFailed):
         tx = user_escrow.transact({'from': creator}).initialDeposit(1000, 1000)
@@ -89,6 +96,12 @@ def test_escrow(web3, chain, token, user_escrow):
     assert 1000 == token.call().balanceOf(user)
     assert 1000 == token.call().balanceOf(user_escrow.address)
 
+    events = user_escrow.pastEvents('Withdrawn').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user.lower() == event_args['owner'].lower()
+    assert 1000 == event_args['value']
+
     # Wait some time
     wait_time(chain, 500)
     assert 500 >= user_escrow.call().getLockedTokens()
@@ -99,6 +112,12 @@ def test_escrow(web3, chain, token, user_escrow):
     chain.wait.for_receipt(tx)
     assert 1500 == token.call().balanceOf(user)
 
+    events = user_escrow.pastEvents('Withdrawn').get()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert user.lower() == event_args['owner'].lower()
+    assert 500 == event_args['value']
+
     # Wait more time and withdraw all
     wait_time(chain, 500)
     assert 0 == user_escrow.call().getLockedTokens()
@@ -106,6 +125,12 @@ def test_escrow(web3, chain, token, user_escrow):
     chain.wait.for_receipt(tx)
     assert 0 == token.call().balanceOf(user_escrow.address)
     assert 2000 == token.call().balanceOf(user)
+
+    events = user_escrow.pastEvents('Withdrawn').get()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    assert user.lower() == event_args['owner'].lower()
+    assert 500 == event_args['value']
 
 
 def test_miner(web3, chain, token, escrow, user_escrow):
@@ -120,6 +145,7 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     tx = token.transact({'from': creator}).transfer(user_escrow.address, 1000)
     chain.wait.for_receipt(tx)
     assert 2000 == token.call().balanceOf(user_escrow.address)
+    assert 1 == len(user_escrow.pastEvents('Deposited').get())
 
     # Only user can deposit tokens to the miner escrow
     with pytest.raises(TransactionFailed):
@@ -140,6 +166,13 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert not escrow.call().unlock()
     assert 11500 == token.call().balanceOf(escrow.address)
     assert 500 == token.call().balanceOf(user_escrow.address)
+
+    events = user_escrow.pastEvents('DepositedAsMiner').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user.lower() == event_args['owner'].lower()
+    assert 1500 == event_args['value']
+    assert 5 == event_args['periods']
 
     # Can't withdraw because of locking
     with pytest.raises(TransactionFailed):
@@ -192,6 +225,33 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert 9000 == token.call().balanceOf(escrow.address)
     assert 3000 == token.call().balanceOf(user_escrow.address)
 
+    events = user_escrow.pastEvents('Locked').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user.lower() == event_args['owner'].lower()
+    assert 100 == event_args['value']
+    assert 1 == event_args['periods']
+    events = user_escrow.pastEvents('LockSwitched').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user.lower() == event_args['owner'].lower()
+    events = user_escrow.pastEvents('ActivityConfirmed').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user.lower() == event_args['owner'].lower()
+    events = user_escrow.pastEvents('Mined').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user.lower() == event_args['owner'].lower()
+    events = user_escrow.pastEvents('WithdrawnAsMiner').get()
+    assert 2 == len(events)
+    event_args = events[0]['args']
+    assert user.lower() == event_args['owner'].lower()
+    assert 1500 == event_args['value']
+    event_args = events[1]['args']
+    assert user.lower() == event_args['owner'].lower()
+    assert 1000 == event_args['value']
+
     # User can withdraw reward for mining but no more than locked
     with pytest.raises(TransactionFailed):
         tx = user_escrow.transact({'from': user}).withdraw(2500)
@@ -200,3 +260,9 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     chain.wait.for_receipt(tx)
     assert 2000 == token.call().balanceOf(user_escrow.address)
     assert 1000 == token.call().balanceOf(user)
+
+    events = user_escrow.pastEvents('Withdrawn').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user.lower() == event_args['owner'].lower()
+    assert 1000 == event_args['value']

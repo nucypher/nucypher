@@ -19,6 +19,13 @@ contract MinersEscrow is Issuer, Ownable {
     using SafeERC20 for NuCypherKMSToken;
     using AdditionalMath for uint256;
 
+    event Deposited(address indexed owner, uint256 value, uint256 periods);
+    event Locked(address indexed owner, uint256 value, uint256 releaseRate);
+    event LockSwitched(address indexed owner, bool release);
+    event Withdrawn(address indexed owner, uint256 value);
+    event ActivityConfirmed(address indexed owner, uint256 indexed period, uint256 value);
+    event Mined(address indexed owner, uint256 indexed period, uint256 value);
+
     struct ConfirmedPeriodInfo {
         uint256 period;
         uint256 lockedValue;
@@ -263,6 +270,7 @@ contract MinersEscrow is Issuer, Ownable {
             info.releaseRate = Math.max256(value.divCeil(periods), 1);
             info.release = false;
             allValue = allValue.add(value);
+            Deposited(owner, value, periods);
         }
 
         token.safeTransferFrom(msg.sender, address(this), allValue);
@@ -284,6 +292,7 @@ contract MinersEscrow is Issuer, Ownable {
         info.value = info.value.add(_value);
         token.safeTransferFrom(msg.sender, address(this), _value);
         lock(_value, _periods);
+        Deposited(msg.sender, _value, _periods);
     }
 
     /**
@@ -314,6 +323,7 @@ contract MinersEscrow is Issuer, Ownable {
         require(info.lockedValue <= maxAllowableLockedTokens);
 
         confirmActivity(info.lockedValue);
+        Locked(msg.sender, info.lockedValue, info.releaseRate);
     }
 
     /**
@@ -322,6 +332,7 @@ contract MinersEscrow is Issuer, Ownable {
     function switchLock() public onlyTokenOwner {
         MinerInfo storage info = minerInfo[msg.sender];
         info.release = !info.release;
+        LockSwitched(msg.sender, info.release);
     }
 
     /**
@@ -337,6 +348,7 @@ contract MinersEscrow is Issuer, Ownable {
             _value <= info.value.sub(lockedTokens));
         info.value -= _value;
         token.safeTransfer(msg.sender, _value);
+        Withdrawn(msg.sender, _value);
     }
 
     /**
@@ -351,6 +363,7 @@ contract MinersEscrow is Issuer, Ownable {
         miners.remove(msg.sender);
         delete minerInfo[msg.sender];
         token.safeTransfer(msg.sender, value);
+        Withdrawn(msg.sender, value);
     }
 
     // TODO change to upgrade
@@ -389,6 +402,7 @@ contract MinersEscrow is Issuer, Ownable {
             lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod]
                 .add(_lockedValue.sub(confirmedPeriod.lockedValue));
             confirmedPeriod.lockedValue = _lockedValue;
+            ActivityConfirmed(msg.sender, nextPeriod, _lockedValue);
             return;
         }
 
@@ -408,6 +422,7 @@ contract MinersEscrow is Issuer, Ownable {
             info.downtime.push(Downtime(info.lastActivePeriod + 1, currentPeriod));
         }
         info.lastActivePeriod = nextPeriod;
+        ActivityConfirmed(msg.sender, nextPeriod, _lockedValue);
     }
 
     /**
@@ -453,8 +468,8 @@ contract MinersEscrow is Issuer, Ownable {
         }
 
         uint256 reward = 0;
-        uint256 amount = 0;
         for(uint i = 0; i < numberPeriodsForMinting; ++i) {
+            uint256 amount;
             uint256 period = info.confirmedPeriods[i].period;
             uint256 lockedValue = info.confirmedPeriods[i].lockedValue;
             allLockedPeriods--;
@@ -481,6 +496,7 @@ contract MinersEscrow is Issuer, Ownable {
 
         // Update lockedValue for current period
         info.lockedValue = currentLockedValue;
+        Mined(msg.sender, previousPeriod, reward);
     }
 
     /**

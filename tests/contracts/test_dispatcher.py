@@ -24,7 +24,14 @@ def test_dispatcher(web3, chain):
     dispatcher, _ = chain.provider.get_or_deploy_contract(
             'Dispatcher', deploy_args=[contract1_lib.address],
             deploy_transaction={'from': creator})
-    # assert dispatcher.call().target().lower() == contract1_lib.address
+    assert dispatcher.call().target().lower() == contract1_lib.address
+
+    events = dispatcher.pastEvents('Upgraded').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert '0x' + '0' * 40 == event_args['from']
+    assert contract1_lib.address.lower() == event_args['to'].lower()
+    assert creator == event_args['owner']
 
     # Assign dispatcher address as contract.
     # In addition to the interface can be used ContractV1, ContractV2 or ContractV3 ABI
@@ -79,6 +86,13 @@ def test_dispatcher(web3, chain):
     tx = dispatcher.transact({'from': creator}).upgrade(contract2_lib.address)
     chain.wait.for_receipt(tx)
     assert dispatcher.call().target().lower() == contract2_lib.address.lower()
+
+    events = dispatcher.pastEvents('Upgraded').get()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert contract1_lib.address.lower() == event_args['from'].lower()
+    assert contract2_lib.address.lower() == event_args['to'].lower()
+    assert creator == event_args['owner']
 
     # Check values after upgrade
     assert contract_instance.call().returnValue() == 20
@@ -145,6 +159,13 @@ def test_dispatcher(web3, chain):
     chain.wait.for_receipt(tx)
     assert contract_instance.call().getStorageValue() == 5
 
+    events = dispatcher.pastEvents('RolledBack').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert contract2_lib.address.lower() == event_args['from'].lower()
+    assert contract1_lib.address.lower() == event_args['to'].lower()
+    assert creator == event_args['owner']
+
     # Can't upgrade to the bad version
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
@@ -157,11 +178,26 @@ def test_dispatcher(web3, chain):
     # chain.wait.for_receipt(tx)
     # assert contract_instance.call().getDynamicallySizedValue() == 'Hola'
 
+    # Create Event
+    contract_instance = web3.eth.contract(
+        contract1_lib.abi,
+        dispatcher.address,
+        ContractFactoryClass=PopulusContract)
+    tx = contract_instance.transact().createEvent(33)
+    chain.wait.for_receipt(tx)
+    events = contract_instance.pastEvents('EventV1').get()
+    assert 1 == len(events)
+    assert 33 == events[0]['args']['value']
+
     # Upgrade to version 3
     tx = dispatcher.transact({'from': creator}).upgrade(contract2_lib.address)
     chain.wait.for_receipt(tx)
     tx = dispatcher.transact({'from': creator}).upgrade(contract3_lib.address)
     chain.wait.for_receipt(tx)
+    contract_instance = web3.eth.contract(
+        contract2_lib.abi,
+        dispatcher.address,
+        ContractFactoryClass=PopulusContract)
     assert dispatcher.call().target().lower() == contract3_lib.address.lower()
     assert contract_instance.call().returnValue() == 20
     assert contract_instance.call().getStorageValue() == 5
@@ -181,3 +217,27 @@ def test_dispatcher(web3, chain):
     assert contract_instance.call().getStructureArrayValue2(0, 1) == 13
     assert contract_instance.call().getStructureValueToCheck2(0) == 55
     assert contract_instance.call().storageValueToCheck() == 2
+    events = dispatcher.pastEvents('Upgraded').get()
+    assert 4 == len(events)
+    event_args = events[2]['args']
+    assert contract1_lib.address.lower() == event_args['from'].lower()
+    assert contract2_lib.address.lower() == event_args['to'].lower()
+    assert creator == event_args['owner']
+    event_args = events[3]['args']
+    assert contract2_lib.address.lower() == event_args['from'].lower()
+    assert contract3_lib.address.lower() == event_args['to'].lower()
+    assert creator == event_args['owner']
+
+    # Create and check events
+    tx = contract_instance.transact().createEvent(22)
+    chain.wait.for_receipt(tx)
+    events = contract_instance.pastEvents('EventV2').get()
+    assert 1 == len(events)
+    assert 22 == events[0]['args']['value']
+    contract_instance = web3.eth.contract(
+        contract1_lib.abi,
+        dispatcher.address,
+        ContractFactoryClass=PopulusContract)
+    events = contract_instance.pastEvents('EventV1').get()
+    assert 1 == len(events)
+    assert 33 == events[0]['args']['value']

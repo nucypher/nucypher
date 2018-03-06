@@ -11,7 +11,7 @@ import "./zeppelin/math/SafeMath.sol";
 contract Issuer {
     using SafeMath for uint256;
 
-    /// Issuer initialized with reserved reward
+    /// Issuer is initialized with a reserved reward
     event Initialized(uint256 reservedReward);
 
     NuCypherKMSToken public token;

@@ -18,6 +18,17 @@ contract MinersEscrowInterface {
 contract Government is Upgradeable {
     using SafeMath for uint256;
 
+    event VotingCreated(
+        uint256 indexed votingNumber,
+        VotingType indexed votingType,
+        address indexed newAddress
+    );
+    event UpgradeCommitted(
+        uint256 indexed votingNumber,
+        VotingType indexed votingType,
+        address indexed newAddress
+    );
+
     enum VotingState {
         Active,
         UpgradeWaiting,
@@ -100,6 +111,7 @@ contract Government is Upgradeable {
         votesAgainst = 0;
         votingType = _votingType;
         newAddress = _newAddress;
+        VotingCreated(votingNumber, votingType, newAddress);
     }
 
     /**
@@ -136,6 +148,7 @@ contract Government is Upgradeable {
         } else if (votingType == VotingType.RollbackPolicyManager) {
             policyManager.rollback();
         }
+        UpgradeCommitted(votingNumber, votingType, newAddress);
     }
 
     function verifyState(address _testTarget) public onlyOwner {

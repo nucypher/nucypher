@@ -10,6 +10,8 @@ import "contracts/proxy/Upgradeable.sol";
 **/
 contract ContractV2 is ContractInterface, Upgradeable {
 
+    event EventV2(uint8 value);
+
     uint public storageValue;
     string public dynamicallySizedValue;
     uint[] public arrayValues;
@@ -185,5 +187,9 @@ contract ContractV2 is ContractInterface, Upgradeable {
 
     function finishUpgrade(address _target) public onlyOwner {
         storageValueToCheck = ContractV2(_target).storageValueToCheck();
+    }
+
+    function createEvent(uint8 _value) public {
+        EventV2(_value);
     }
 }

@@ -100,18 +100,69 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert 1000 == escrow.call().getLockedTokens(ursula)
     assert 1000 == escrow.call().calculateLockedTokens(ursula, 1)
     assert 1000 == escrow.call().calculateLockedTokens(ursula, 2)
+
+    events = escrow.pastEvents('Deposited').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert ursula.lower() == event_args['owner'].lower()
+    assert 1000 == event_args['value']
+    assert 1 == event_args['periods']
+    events = escrow.pastEvents('Locked').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert ursula.lower() == event_args['owner'].lower()
+    assert 1000 == event_args['value']
+    assert 500 == event_args['releaseRate']
+    events = escrow.pastEvents('ActivityConfirmed').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert ursula.lower() == event_args['owner'].lower()
+    assert escrow.call().getCurrentPeriod() + 1 == event_args['period']
+    assert 1000 == event_args['value']
+
     tx = escrow.transact({'from': ursula}).switchLock()
     chain.wait.for_receipt(tx)
     assert 500 == escrow.call().calculateLockedTokens(ursula, 2)
+    events = escrow.pastEvents('LockSwitched').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert ursula.lower() == event_args['owner'].lower()
+    assert event_args['release']
+
     tx = escrow.transact({'from': ursula}).switchLock()
     chain.wait.for_receipt(tx)
     assert 1000 == escrow.call().calculateLockedTokens(ursula, 2)
+    events = escrow.pastEvents('LockSwitched').get()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert ursula.lower() == event_args['owner'].lower()
+    assert not event_args['release']
+
     tx = escrow.transact({'from': alice}).deposit(500, 2)
     chain.wait.for_receipt(tx)
     assert 1500 == token.call().balanceOf(escrow.address)
     assert 9500 == token.call().balanceOf(alice)
     assert 500 == escrow.call().getLockedTokens(alice)
     assert 500 == escrow.call().calculateLockedTokens(alice, 1)
+
+    events = escrow.pastEvents('Deposited').get()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert alice.lower() == event_args['owner'].lower()
+    assert 500 == event_args['value']
+    assert 2 == event_args['periods']
+    events = escrow.pastEvents('Locked').get()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert alice.lower() == event_args['owner'].lower()
+    assert 500 == event_args['value']
+    assert 250 == event_args['releaseRate']
+    events = escrow.pastEvents('ActivityConfirmed').get()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert alice.lower() == event_args['owner'].lower()
+    assert escrow.call().getCurrentPeriod() + 1 == event_args['period']
+    assert 500 == event_args['value']
 
     # Checks locked tokens in next period
     wait_time(chain, 1)
@@ -129,10 +180,23 @@ def test_escrow(web3, chain, token, escrow_contract):
     # Ursula can deposit more tokens
     tx = escrow.transact({'from': ursula}).confirmActivity()
     chain.wait.for_receipt(tx)
+    events = escrow.pastEvents('ActivityConfirmed').get()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    assert ursula.lower() == event_args['owner'].lower()
+    assert escrow.call().getCurrentPeriod() + 1 == event_args['period']
+    assert 1000 == event_args['value']
+
     tx = escrow.transact({'from': ursula}).deposit(500, 0)
     chain.wait.for_receipt(tx)
     assert 2000 == token.call().balanceOf(escrow.address)
     assert 8500 == token.call().balanceOf(ursula)
+    events = escrow.pastEvents('ActivityConfirmed').get()
+    assert 4 == len(events)
+    event_args = events[3]['args']
+    assert ursula.lower() == event_args['owner'].lower()
+    assert escrow.call().getCurrentPeriod() + 1 == event_args['period']
+    assert 1500 == event_args['value']
 
     # But can't deposit too high value
     with pytest.raises(TransactionFailed):
@@ -160,6 +224,11 @@ def test_escrow(web3, chain, token, escrow_contract):
     chain.wait.for_receipt(tx)
     assert 1900 == token.call().balanceOf(escrow.address)
     assert 8600 == token.call().balanceOf(ursula)
+    events = escrow.pastEvents('Withdrawn').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert ursula.lower() == event_args['owner'].lower()
+    assert 100 == event_args['value']
 
     # But Ursula can't withdraw all without mining for locked value
     with pytest.raises(TransactionFailed):
@@ -239,6 +308,12 @@ def test_escrow(web3, chain, token, escrow_contract):
     # assert 0 == token.call().balanceOf(escrow.address)
     # assert 10000 == token.call().balanceOf(ursula)
     # assert 10000 == token.call().balanceOf(alice)
+
+    assert 6 == len(escrow.pastEvents('Deposited').get())
+    assert 9 == len(escrow.pastEvents('Locked').get())
+    assert 5 == len(escrow.pastEvents('LockSwitched').get())
+    assert 1 == len(escrow.pastEvents('Withdrawn').get())
+    assert 11 == len(escrow.pastEvents('ActivityConfirmed').get())
 
 
 def test_locked_distribution(web3, chain, token, escrow_contract):
@@ -394,6 +469,17 @@ def test_mining(web3, chain, token, escrow_contract):
     assert 1050 == escrow.call().getTokens(ursula)
     assert 521 == escrow.call().getTokens(alice)
 
+    events = escrow.pastEvents('Mined').get()
+    assert 2 == len(events)
+    event_args = events[0]['args']
+    assert ursula.lower() == event_args['owner'].lower()
+    assert 50 == event_args['value']
+    assert escrow.call().getCurrentPeriod() - 1 == event_args['period']
+    event_args = events[1]['args']
+    assert alice.lower() == event_args['owner'].lower()
+    assert 21 == event_args['value']
+    assert escrow.call().getCurrentPeriod() - 1 == event_args['period']
+
     assert 1 == policy_manager.call().getPeriodsLength(ursula)
     assert 1 == policy_manager.call().getPeriodsLength(alice)
     period = escrow.call().getCurrentPeriod() - 1
@@ -434,6 +520,13 @@ def test_mining(web3, chain, token, escrow_contract):
     assert period + 1 == policy_manager.call().getPeriod(ursula, 1)
     assert period + 2 == policy_manager.call().getPeriod(ursula, 2)
 
+    events = escrow.pastEvents('Mined').get()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    assert ursula.lower() == event_args['owner'].lower()
+    assert 113 == event_args['value']
+    assert escrow.call().getCurrentPeriod() - 1 == event_args['period']
+
     # Alice confirm next period and mint tokens
     tx = escrow.transact({'from': alice}).switchLock()
     chain.wait.for_receipt(tx)
@@ -450,6 +543,13 @@ def test_mining(web3, chain, token, escrow_contract):
     assert 3 == policy_manager.call().getPeriodsLength(alice)
     assert period + 3 == policy_manager.call().getPeriod(alice, 1)
     assert period + 4 == policy_manager.call().getPeriod(alice, 2)
+
+    events = escrow.pastEvents('Mined').get()
+    assert 4 == len(events)
+    event_args = events[3]['args']
+    assert alice.lower() == event_args['owner'].lower()
+    assert 113 == event_args['value']
+    assert escrow.call().getCurrentPeriod() - 1 == event_args['period']
 
     # Ursula can't confirm and mint because no locked tokens
     with pytest.raises(TransactionFailed):
@@ -494,6 +594,17 @@ def test_mining(web3, chain, token, escrow_contract):
     tx = escrow.transact({'from': alice}).withdrawAll()
     chain.wait.for_receipt(tx)
     assert 10134 == token.call().balanceOf(alice)
+
+    events = escrow.pastEvents('Withdrawn').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert alice.lower() == event_args['owner'].lower()
+    assert 634 == event_args['value']
+
+    assert 3 == len(escrow.pastEvents('Deposited').get())
+    assert 6 == len(escrow.pastEvents('Locked').get())
+    assert 3 == len(escrow.pastEvents('LockSwitched').get())
+    assert 10 == len(escrow.pastEvents('ActivityConfirmed').get())
 
     # TODO test max confirmed periods and miners
 
@@ -550,6 +661,33 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
         assert 100 * (index + 1) == escrow.call().getLockedTokens(owner)
         assert 50 * (index + 1) == escrow.call().minerInfo(owner)[4]
 
+    events = escrow.pastEvents('Deposited').get()
+    assert 6 == len(events)
+    event_args = events[0]['args']
+    assert web3.eth.accounts[1].lower() == event_args['owner'].lower()
+    assert 1000 == event_args['value']
+    assert 10 == event_args['periods']
+    event_args = events[1]['args']
+    assert owners[0].lower() == event_args['owner'].lower()
+    assert 100 == event_args['value']
+    assert 50 == event_args['periods']
+    event_args = events[2]['args']
+    assert owners[1].lower() == event_args['owner'].lower()
+    assert 200 == event_args['value']
+    assert 100 == event_args['periods']
+    event_args = events[3]['args']
+    assert owners[2].lower() == event_args['owner'].lower()
+    assert 300 == event_args['value']
+    assert 150 == event_args['periods']
+    event_args = events[4]['args']
+    assert owners[3].lower() == event_args['owner'].lower()
+    assert 400 == event_args['value']
+    assert 200 == event_args['periods']
+    event_args = events[5]['args']
+    assert owners[4].lower() == event_args['owner'].lower()
+    assert 500 == event_args['value']
+    assert 250 == event_args['periods']
+
 
 def test_miner_id(web3, chain, token, escrow_contract):
     escrow = escrow_contract(5 * 10 ** 8)
@@ -572,11 +710,11 @@ def test_miner_id(web3, chain, token, escrow_contract):
     tx = escrow.transact({'from': miner}).setMinerId(miner_id)
     chain.wait.for_receipt(tx)
     assert 1 == escrow.call().getMinerIdsCount(miner)
-    # TODO change when v4 web3.py will released
+    # TODO change when v4 of web3.py is released
     assert miner_id == escrow.call().getMinerId(miner, 0).encode('latin-1')
     miner_id = os.urandom(32)
     tx = escrow.transact({'from': miner}).setMinerId(miner_id)
     chain.wait.for_receipt(tx)
     assert 2 == escrow.call().getMinerIdsCount(miner)
-    # TODO change when v4 web3.py will released
+    # TODO change when v4 of web3.py is released
     assert miner_id == escrow.call().getMinerId(miner, 1).encode('latin-1')

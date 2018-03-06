@@ -10,11 +10,20 @@ import "./MinersEscrow.sol";
 
 /**
 * @notice Contract holds tokens for vesting.
-Also tokens can be send to the miners escrow
+* Also tokens can be send to the miners escrow
 **/
 contract UserEscrow is Ownable {
     using SafeERC20 for NuCypherKMSToken;
     using SafeMath for uint256;
+
+    event Deposited(address indexed sender, uint256 value, uint256 duration);
+    event Withdrawn(address indexed owner, uint256 value);
+    event DepositedAsMiner(address indexed owner, uint256 value, uint256 periods);
+    event WithdrawnAsMiner(address indexed owner, uint256 value);
+    event Locked(address indexed owner, uint256 value, uint256 periods);
+    event LockSwitched(address indexed owner);
+    event ActivityConfirmed(address indexed owner);
+    event Mined(address indexed owner);
 
     NuCypherKMSToken public token;
     MinersEscrow public escrow;
@@ -50,6 +59,7 @@ contract UserEscrow is Ownable {
         lockDuration = _duration;
         lockedValue = _value;
         token.safeTransferFrom(msg.sender, address(this), _value);
+        Deposited(msg.sender, _value, _duration);
     }
 
     /**
@@ -70,6 +80,7 @@ contract UserEscrow is Ownable {
     function withdraw(uint256 _value) public onlyOwner {
         require(token.balanceOf(address(this)).sub(getLockedTokens()) >= _value);
         token.safeTransfer(owner, _value);
+        Withdrawn(owner, _value);
     }
 
     /**
@@ -81,6 +92,7 @@ contract UserEscrow is Ownable {
         require(token.balanceOf(address(this)) > _value);
         token.approve(address(escrow), _value);
         escrow.deposit(_value, _periods);
+        DepositedAsMiner(owner, _value, _periods);
     }
 
     /**
@@ -89,13 +101,16 @@ contract UserEscrow is Ownable {
     **/
     function minerWithdraw(uint256 _value) public onlyOwner {
         escrow.withdraw(_value);
+        WithdrawnAsMiner(owner, _value);
     }
 
     /**
     * @notice Withdraw all amount of tokens back to user escrow (only if no locked)
     **/
     function minerWithdrawAll() public onlyOwner {
+        uint256 tokensBefore = token.balanceOf(address(this));
         escrow.withdrawAll();
+        WithdrawnAsMiner(owner, token.balanceOf(address(this)).sub(tokensBefore));
     }
 
     /**
@@ -105,6 +120,7 @@ contract UserEscrow is Ownable {
     **/
     function lock(uint256 _value, uint256 _periods) public onlyOwner {
         escrow.lock(_value, _periods);
+        Locked(owner, _value, _periods);
     }
 
     /**
@@ -112,6 +128,7 @@ contract UserEscrow is Ownable {
     **/
     function switchLock() public onlyOwner {
         escrow.switchLock();
+        LockSwitched(owner);
     }
 
     /**
@@ -119,13 +136,15 @@ contract UserEscrow is Ownable {
     **/
     function confirmActivity() external onlyOwner {
         escrow.confirmActivity();
+        ActivityConfirmed(owner);
     }
 
     /**
-    * @notice Mint tokens  in the miners escrow
+    * @notice Mint tokens in the miners escrow
     **/
     function mint() external onlyOwner {
         escrow.mint();
+        Mined(owner);
     }
 
 }

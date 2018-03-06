@@ -12,7 +12,8 @@ import "./Upgradeable.sol";
 **/
 contract Dispatcher is Upgradeable {
 
-    event TargetChanged(address from, address to, address admin);
+    event Upgraded(address indexed from, address indexed to, address owner);
+    event RolledBack(address indexed from, address indexed to, address owner);
 
     /**
     * @param _target Target contract address
@@ -20,6 +21,7 @@ contract Dispatcher is Upgradeable {
     function Dispatcher(address _target) public {
         target = _target;
         require(target.delegatecall(bytes4(keccak256("finishUpgrade(address)")), target));
+        Upgraded(0x0, _target, msg.sender);
     }
 
     /**
@@ -32,7 +34,7 @@ contract Dispatcher is Upgradeable {
         previousTarget = target;
         target = _target;
         require(target.delegatecall(bytes4(keccak256("finishUpgrade(address)")), target));
-        TargetChanged(previousTarget, _target, owner);
+        Upgraded(previousTarget, _target, msg.sender);
     }
 
     function verifyState(address _testTarget) public onlyOwner {
@@ -47,6 +49,7 @@ contract Dispatcher is Upgradeable {
     **/
     function rollback() public onlyOwner {
         require(previousTarget != 0x0);
+        RolledBack(target, previousTarget, msg.sender);
         verifyUpgradeableState(previousTarget, target);
         target = previousTarget;
         previousTarget = 0x0;

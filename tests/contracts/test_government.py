@@ -229,6 +229,12 @@ def test_voting(web3, chain, escrow, policy_manager):
     wait_time(chain, 1)
     assert FINISHED_STATE == government.call().getVotingState()
 
+    # Check events
+    events = government.pastEvents('VotingCreated').get()
+    assert 4 == len(events)
+    events = government.pastEvents('UpgradeCommitted').get()
+    assert 1 == len(events)
+
 
 def test_upgrade(web3, chain, escrow, policy_manager):
     creator = web3.eth.accounts[0]
@@ -274,6 +280,14 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     tx = government.transact({'from': node1}).createVoting(
         UPGRADE_GOVERNMENT, government_library_v2.address)
     chain.wait.for_receipt(tx)
+
+    events = government.pastEvents('VotingCreated').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert 1 == event_args['votingNumber']
+    assert UPGRADE_GOVERNMENT == event_args['votingType']
+    assert government_library_v2.address.lower() == event_args['newAddress'].lower()
+
     tx = government.transact({'from': node1}).vote(True)
     chain.wait.for_receipt(tx)
     wait_time(chain, 1)
@@ -281,9 +295,24 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     chain.wait.for_receipt(tx)
     assert government_library_v2.address.lower() == government_dispatcher.call().target().lower()
 
+    events = government.pastEvents('UpgradeCommitted').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert 1 == event_args['votingNumber']
+    assert UPGRADE_GOVERNMENT == event_args['votingType']
+    assert government_library_v2.address.lower() == event_args['newAddress'].lower()
+
     # Vote and rollback government contract
     tx = government.transact({'from': node1}).createVoting(ROLLBACK_GOVERNMENT, NULL_ADDR)
     chain.wait.for_receipt(tx)
+
+    events = government.pastEvents('VotingCreated').get()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert 2 == event_args['votingNumber']
+    assert ROLLBACK_GOVERNMENT == event_args['votingType']
+    assert NULL_ADDR == event_args['newAddress']
+
     tx = government.transact({'from': node1}).vote(True)
     chain.wait.for_receipt(tx)
     wait_time(chain, 1)
@@ -291,10 +320,25 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     chain.wait.for_receipt(tx)
     assert government_library_v1.address.lower() == government_dispatcher.call().target().lower()
 
+    events = government.pastEvents('UpgradeCommitted').get()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert 2 == event_args['votingNumber']
+    assert ROLLBACK_GOVERNMENT == event_args['votingType']
+    assert NULL_ADDR == event_args['newAddress']
+
     # Vote and upgrade escrow contract
     tx = government.transact({'from': node1}).createVoting(
         UPGRADE_ESCROW, escrow_library_v2.address)
     chain.wait.for_receipt(tx)
+
+    events = government.pastEvents('VotingCreated').get()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    assert 3 == event_args['votingNumber']
+    assert UPGRADE_ESCROW == event_args['votingType']
+    assert escrow_library_v2.address.lower() == event_args['newAddress'].lower()
+
     tx = government.transact({'from': node1}).vote(True)
     chain.wait.for_receipt(tx)
     wait_time(chain, 1)
@@ -302,9 +346,24 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     chain.wait.for_receipt(tx)
     assert escrow_library_v2.address.lower() == escrow.call().target().lower()
 
+    events = government.pastEvents('UpgradeCommitted').get()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    assert 3 == event_args['votingNumber']
+    assert UPGRADE_ESCROW == event_args['votingType']
+    assert escrow_library_v2.address.lower() == event_args['newAddress'].lower()
+
     # Vote and rollback escrow contract
     tx = government.transact({'from': node1}).createVoting(ROLLBACK_ESCROW, NULL_ADDR)
     chain.wait.for_receipt(tx)
+
+    events = government.pastEvents('VotingCreated').get()
+    assert 4 == len(events)
+    event_args = events[3]['args']
+    assert 4 == event_args['votingNumber']
+    assert ROLLBACK_ESCROW == event_args['votingType']
+    assert NULL_ADDR == event_args['newAddress']
+
     tx = government.transact({'from': node1}).vote(True)
     chain.wait.for_receipt(tx)
     wait_time(chain, 1)
@@ -312,10 +371,25 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     chain.wait.for_receipt(tx)
     assert escrow_library_v1.address.lower() == escrow.call().target().lower()
 
+    events = government.pastEvents('UpgradeCommitted').get()
+    assert 4 == len(events)
+    event_args = events[3]['args']
+    assert 4 == event_args['votingNumber']
+    assert ROLLBACK_ESCROW == event_args['votingType']
+    assert NULL_ADDR == event_args['newAddress']
+
     # Vote and upgrade policy manager contract
     tx = government.transact({'from': node1}).createVoting(
         UPGRADE_POLICY_MANAGER, policy_manager_library_v2.address)
     chain.wait.for_receipt(tx)
+
+    events = government.pastEvents('VotingCreated').get()
+    assert 5 == len(events)
+    event_args = events[4]['args']
+    assert 5 == event_args['votingNumber']
+    assert UPGRADE_POLICY_MANAGER == event_args['votingType']
+    assert policy_manager_library_v2.address.lower() == event_args['newAddress'].lower()
+
     tx = government.transact({'from': node1}).vote(True)
     chain.wait.for_receipt(tx)
     wait_time(chain, 1)
@@ -323,15 +397,37 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     chain.wait.for_receipt(tx)
     assert policy_manager_library_v2.address.lower() == policy_manager.call().target().lower()
 
+    events = government.pastEvents('UpgradeCommitted').get()
+    assert 5 == len(events)
+    event_args = events[4]['args']
+    assert 5 == event_args['votingNumber']
+    assert UPGRADE_POLICY_MANAGER == event_args['votingType']
+    assert policy_manager_library_v2.address.lower() == event_args['newAddress'].lower()
+
     # Vote and rollback policy manager contract
     tx = government.transact({'from': node1}).createVoting(ROLLBACK_POLICY_MANAGER, NULL_ADDR)
     chain.wait.for_receipt(tx)
+
+    events = government.pastEvents('VotingCreated').get()
+    assert 6 == len(events)
+    event_args = events[5]['args']
+    assert 6 == event_args['votingNumber']
+    assert ROLLBACK_POLICY_MANAGER == event_args['votingType']
+    assert NULL_ADDR == event_args['newAddress']
+
     tx = government.transact({'from': node1}).vote(True)
     chain.wait.for_receipt(tx)
     wait_time(chain, 1)
     tx = government.transact({'from': node1}).commitUpgrade()
     chain.wait.for_receipt(tx)
     assert policy_manager_library_v1.address.lower() == policy_manager.call().target().lower()
+
+    events = government.pastEvents('UpgradeCommitted').get()
+    assert 6 == len(events)
+    event_args = events[5]['args']
+    assert 6 == event_args['votingNumber']
+    assert ROLLBACK_POLICY_MANAGER == event_args['votingType']
+    assert NULL_ADDR == event_args['newAddress']
 
 
 def test_verifying_state(web3, chain):

@@ -15,6 +15,22 @@ contract PolicyManager {
     using SafeERC20 for NuCypherKMSToken;
     using SafeMath for uint256;
 
+    event PolicyCreated(
+        bytes20 indexed policyId,
+        address indexed client,
+        address indexed node
+    );
+    event PolicyRevoked(bytes20 indexed policyId);
+    event Withdrawn(
+        address indexed node,
+        uint256 value
+    );
+    event Refunded(
+        bytes20 indexed policyId,
+        address indexed client,
+        uint256 value
+    );
+
 //    enum PolicyState { Pending, Active }
 //    enum PolicyType { Periods }
 
@@ -88,6 +104,7 @@ contract PolicyManager {
             node.rewardByPeriod[i] = node.rewardByPeriod[i].add(feeByPeriod);
         }
         policy.indexOfDowntimePeriods = escrow.getDowntimePeriodsLength(_node);
+        PolicyCreated(_policyId, msg.sender, _node);
     }
 
 //    /**
@@ -122,6 +139,7 @@ contract PolicyManager {
         require(reward != 0);
         node.reward = 0;
         msg.sender.transfer(reward);
+        Withdrawn(msg.sender, reward);
     }
 
     /**
@@ -138,7 +156,11 @@ contract PolicyManager {
             refund = refund.add(policy.rate);
         }
         delete policies[_policyId];
-        msg.sender.transfer(refund);
+        if (refund > 0) {
+            msg.sender.transfer(refund);
+            Refunded(_policyId, msg.sender, refund);
+        }
+        PolicyRevoked(_policyId);
     }
 
     /**
@@ -158,6 +180,7 @@ contract PolicyManager {
         }
         if (refundValue > 0) {
             client.transfer(refundValue);
+            Refunded(_policyId, client, refundValue);
         }
     }
 
@@ -165,6 +188,7 @@ contract PolicyManager {
     * @notice Calculate amount of refund
     * @param _policyId Policy id
     **/
+    //TODO extract checkRefund method
     function calculateRefund(bytes20 _policyId) internal returns (uint256) {
         Policy storage policy = policies[_policyId];
         uint256 currentPeriod = escrow.getCurrentPeriod();

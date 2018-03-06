@@ -7,6 +7,8 @@ import "contracts/proxy/Upgradeable.sol";
 
 contract ContractV2Bad is ContractInterface, Upgradeable {
 
+    event EventV1(uint256 value);
+
     uint32 public storageValue;
     string public dynamicallySizedValue;
     uint[] arrayValues;

@@ -10,6 +10,8 @@ import "contracts/proxy/Upgradeable.sol";
 **/
 contract ContractV1 is ContractInterface, Upgradeable {
 
+    event EventV1(uint256 value);
+
     // The storage layout must remain the same in all the upgraded contracts, although it can be added to.
     // Note that besides the potential mess of unnecessary variables this could create over time, there isn't currently
     // any increase in cost because of this.
@@ -169,4 +171,7 @@ contract ContractV1 is ContractInterface, Upgradeable {
         storageValue = ContractV1(_target).storageValue();
     }
 
+    function createEvent(uint256 _value) public {
+        EventV1(_value);
+    }
 }

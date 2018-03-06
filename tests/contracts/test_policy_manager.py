@@ -1,5 +1,6 @@
 import pytest
 from ethereum.tester import TransactionFailed
+import os
 
 
 @pytest.fixture()
@@ -41,8 +42,8 @@ def wait_time(chain, wait_periods):
 
 
 MINUTES_IN_PERIOD = 10
-policy_id = bytes([1])
-policy_id_2 = bytes([2])
+policy_id = os.urandom(20)
+policy_id_2 = os.urandom(20)
 rate = 20
 number_of_periods = 10
 value = rate * number_of_periods
@@ -80,6 +81,14 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     assert period + 1 == policy[3]
     assert period + 10 == policy[4]
 
+    events = policy_manager.pastEvents('PolicyCreated').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    # TODO change when v4 of web3.py is released
+    assert policy_id == event_args['policyId'].encode('latin-1')
+    assert client.lower() == event_args['client'].lower()
+    assert node.lower() == event_args['node'].lower()
+
     # Try to create policy again
     with pytest.raises(TransactionFailed):
         tx = policy_manager.transact({'from': client, 'value': value}) \
@@ -95,6 +104,12 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     policy = policy_manager.call().policies(policy_id)
     assert '0x' + '0' * 40 == policy[0]
 
+    events = policy_manager.pastEvents('PolicyRevoked').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    # TODO change when v4 of web3.py is released
+    assert policy_id == event_args['policyId'].encode('latin-1')
+
     # Create another policy
     period = escrow.call().getCurrentPeriod()
     tx = policy_manager.transact({'from': client, 'value': value, 'gas_price': 0})\
@@ -108,6 +123,17 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     assert rate == policy[2]
     assert period + 1 == policy[3]
     assert period + 10 == policy[4]
+
+    events = policy_manager.pastEvents('PolicyCreated').get()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    # TODO change when v4 of web3.py is released
+    assert policy_id_2 == event_args['policyId'].encode('latin-1')
+    assert client.lower() == event_args['client'].lower()
+    assert node.lower() == event_args['node'].lower()
+
+    events = policy_manager.pastEvents('Refunded').get()
+    assert 1 == len(events)
 
 
 def test_reward(web3, chain, escrow, policy_manager):
@@ -144,6 +170,12 @@ def test_reward(web3, chain, escrow, policy_manager):
     assert node_balance + 80 == web3.eth.getBalance(node)
     assert 120 == web3.eth.getBalance(policy_manager.address)
 
+    events = policy_manager.pastEvents('Withdrawn').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert node.lower() == event_args['node'].lower()
+    assert 80 == event_args['value']
+
     # Mint more periods
     for x in range(20):
         tx = escrow.transact({'from': node, 'gas_price': 0}).mint(period)
@@ -156,6 +188,12 @@ def test_reward(web3, chain, escrow, policy_manager):
     chain.wait.for_receipt(tx)
     assert node_balance + 200 == web3.eth.getBalance(node)
     assert 0 == web3.eth.getBalance(policy_manager.address)
+
+    events = policy_manager.pastEvents('Withdrawn').get()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert node.lower() == event_args['node'].lower()
+    assert 120 == event_args['value']
 
 
 def test_refund(web3, chain, escrow, policy_manager):
@@ -177,12 +215,29 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert 20 == web3.eth.getBalance(policy_manager.address)
     assert client_balance - 20 == web3.eth.getBalance(client)
     assert client == policy_manager.call().policies(policy_id)[0]
+
+    events = policy_manager.pastEvents('Refunded').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    # TODO change when v4 of web3.py is released
+    assert policy_id == event_args['policyId'].encode('latin-1')
+    assert client.lower() == event_args['client'].lower()
+    assert 180 == event_args['value']
+
     wait_time(chain, 1)
     tx = policy_manager.transact({'from': client, 'gas_price': 0}).refund(policy_id)
     chain.wait.for_receipt(tx)
     assert 0 == web3.eth.getBalance(policy_manager.address)
     assert client_balance == web3.eth.getBalance(client)
     assert '0x' + '0' * 40 == policy_manager.call().policies(policy_id)[0]
+
+    events = policy_manager.pastEvents('Refunded').get()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    # TODO change when v4 of web3.py is released
+    assert policy_id == event_args['policyId'].encode('latin-1')
+    assert client.lower() == event_args['client'].lower()
+    assert 20 == event_args['value']
 
     # Create policy again
     period = escrow.call().getCurrentPeriod()
@@ -195,6 +250,8 @@ def test_refund(web3, chain, escrow, policy_manager):
     chain.wait.for_receipt(tx)
     assert 200 == web3.eth.getBalance(policy_manager.address)
     assert client_balance - 200 == web3.eth.getBalance(client)
+    events = policy_manager.pastEvents('Refunded').get()
+    assert 2 == len(events)
 
     # Try to refund nonexistent policy
     with pytest.raises(TransactionFailed):
@@ -232,6 +289,14 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert client_balance - 80 == web3.eth.getBalance(client)
     assert '0x' + '0' * 40 == policy_manager.call().policies(policy_id)[0]
 
+    events = policy_manager.pastEvents('Refunded').get()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    # TODO change when v4 of web3.py is released
+    assert policy_id == event_args['policyId'].encode('latin-1')
+    assert client.lower() == event_args['client'].lower()
+    assert 120 == event_args['value']
+
     # Create policy again
     period = escrow.call().getCurrentPeriod()
     tx = policy_manager.transact({'from': client, 'value': value, 'gas_price': 0})\
@@ -259,9 +324,22 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert client_balance - 140 == web3.eth.getBalance(client)
     assert '0x' + '0' * 40 == policy[0]
 
+    events = policy_manager.pastEvents('Refunded').get()
+    assert 4 == len(events)
+    event_args = events[3]['args']
+    # TODO change when v4 of web3.py is released
+    assert policy_id == event_args['policyId'].encode('latin-1')
+    assert client.lower() == event_args['client'].lower()
+    assert 140 == event_args['value']
+
     # Minting is useless after revoke
     for x in range(20):
         period += 1
         tx = escrow.transact({'from': node}).mint(period)
         chain.wait.for_receipt(tx)
     assert 140 == policy_manager.call().nodes(node)
+
+    events = policy_manager.pastEvents('PolicyCreated').get()
+    assert 3 == len(events)
+    events = policy_manager.pastEvents('PolicyRevoked').get()
+    assert 1 == len(events)
