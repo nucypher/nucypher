@@ -3,7 +3,7 @@ import random
 import os
 import pytest
 
-from nkms_eth.escrow import Escrow
+from nkms_eth.escrow import MinerEscrow
 from nkms_eth.miner import Miner
 from nkms_eth.token import NuCypherKMSToken
 
@@ -89,5 +89,5 @@ def test_select_ursulas(testerchain, token, escrow):
     assert len(miners) == 3
     assert len(set(miners)) == 3
 
-    with pytest.raises(Escrow.NotEnoughUrsulas):
+    with pytest.raises(MinerEscrow.NotEnoughUrsulas):
         escrow.sample(quantity=100)  # Waay more than we have deployed

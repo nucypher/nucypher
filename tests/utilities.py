@@ -1,5 +1,5 @@
 from nkms_eth.blockchain import Blockchain
-from nkms_eth.escrow import Escrow
+from nkms_eth.escrow import MinerEscrow
 
 
 class TesterBlockchain(Blockchain):
@@ -7,7 +7,7 @@ class TesterBlockchain(Blockchain):
     _network = 'tester'
 
 
-class MockEscrow(Escrow):
+class MockMinerEscrow(MinerEscrow):
     """Speed things up a bit"""
     hours_per_period = 1
     min_release_periods = 1

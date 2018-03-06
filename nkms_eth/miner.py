@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from .escrow import Escrow
+from .escrow import MinerEscrow
 
 
 class Miner:
@@ -14,11 +14,11 @@ class Miner:
 
     """
 
-    def __init__(self, escrow: Escrow, address=None):
+    def __init__(self, escrow: MinerEscrow, address=None):
 
         self.escrow = escrow
         if not escrow._contract:
-            raise Escrow.ContractDeploymentError('Escrow contract not deployed. Arm then deploy.')
+            raise MinerEscrow.ContractDeploymentError('Escrow contract not deployed. Arm then deploy.')
         else:
             escrow.miners.append(self)
 

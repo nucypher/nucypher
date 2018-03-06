@@ -1,14 +1,14 @@
 from collections import OrderedDict
 from typing import Tuple, List
 
-from nkms_eth.escrow import Escrow
+from nkms_eth.escrow import MinerEscrow
 from nkms_eth.miner import Miner
 from nkms_eth.token import NuCypherKMSToken
 
 
 class PolicyArrangement:
-    def __init__(self, author: 'PolicyAuthor', miner: 'Miner', value: int=None,
-                 periods: int=None, rate: int=None, arrangement_id: bytes=None):
+    def __init__(self, author: 'PolicyAuthor', miner: 'Miner', value: int,
+                 periods: int, arrangement_id: bytes=None):
 
         if arrangement_id is None:
             self.id = self.__class__._generate_arrangement_id()  # TODO: Generate policy ID
@@ -20,16 +20,14 @@ class PolicyArrangement:
         self.miner = miner
 
         # Arrangement value, rate, and duration
-        if (value and periods) and (not rate):
-            rate = value // periods
+        rate = value // periods
         self._rate = rate
+
         self.value = value
         self.periods = periods  # TODO: datetime -> duration in blocks
 
         self.is_published = False
-        self._elapsed_periods = None
-        self.publish_transaction = None    # TX hashes set when published to network
-        self.revoke_transaction = None
+
 
     @staticmethod
     def _generate_arrangement_id(policy_hrac: bytes) -> bytes:
@@ -75,7 +73,7 @@ class PolicyManager:
     class ContractDeploymentError(Exception):
         pass
 
-    def __init__(self, escrow: Escrow):
+    def __init__(self, escrow: MinerEscrow):
         self.escrow = escrow
         self.token = escrow.token
         self.blockchain = self.token.blockchain
@@ -96,7 +94,7 @@ class PolicyManager:
         if self.is_deployed is True:
             raise PolicyManager.ContractDeploymentError('PolicyManager contract already deployed')
         if self.escrow._contract is None:
-            raise Escrow.ContractDeploymentError('Escrow contract must be deployed before')
+            raise MinerEscrow.ContractDeploymentError('Escrow contract must be deployed before')
         if self.token.contract is None:
             raise NuCypherKMSToken.ContractDeploymentError('Token contract must be deployed before')
 
@@ -117,7 +115,7 @@ class PolicyManager:
         return self._contract.call()
 
     @classmethod
-    def get(cls, escrow: Escrow) -> 'PolicyManager':
+    def get(cls, escrow: MinerEscrow) -> 'PolicyManager':
         contract = escrow.blockchain._chain.provider.get_contract(cls.__contract_name)
         instance = cls(escrow)
         instance._contract = contract
@@ -133,8 +131,7 @@ class PolicyManager:
 
     def revoke_arrangement(self, arrangement_id: bytes, author: 'PolicyAuthor', gas_price: int):
         """
-        Revoke by arrangement ID.
-        Only the policy author can revoke the policy
+        Revoke by arrangement ID; Only the policy author can revoke the policy
         """
         txhash = self.transact({'from': author.address, 'gas_price': gas_price}).revokePolicy(arrangement_id)
         self.blockchain._chain.wait.for_receipt(txhash)
@@ -172,12 +169,13 @@ class PolicyAuthor:
         """Fetch a published arrangement from the blockchain"""
 
         blockchain_record = self.policy_manager().policies(arrangement_id)
-        author_address, miner_address, rate, *periods = blockchain_record
+        author_address, miner_address, rate, start_block, end_block, downtime_index = blockchain_record
 
-        miner = Miner.from_address(miner_address)
-        arrangement = PolicyArrangement(author=self, miner=miner, rate=rate)
+        duration = end_block - start_block
 
-        arrangement._elapsed_periods = periods
+        miner = Miner(address=miner_address, escrow=self.policy_manager.escrow)
+        arrangement = PolicyArrangement(author=self, miner=miner, periods=duration, rate=rate)
+
         arrangement.is_published = True
         return arrangement
 

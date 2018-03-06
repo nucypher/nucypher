@@ -10,7 +10,7 @@ from .blockchain import Blockchain
 addr = str
 
 
-class Escrow:
+class MinerEscrow:
     """
     Wraps NuCypher's Escrow solidity smart contract, and manages a PopulusContract.
 
@@ -75,7 +75,7 @@ class Escrow:
         """Gateway to contract function calls without state change."""
         return self._contract.call()
 
-    def __eq__(self, other: 'Escrow'):
+    def __eq__(self, other: 'MinerEscrow'):
         """If two deployed escrows have the same contract address, they are equal."""
         return self._contract.address == other._contract.address
 
@@ -117,7 +117,7 @@ class Escrow:
         return deploy_txhash, reward_txhash, init_txhash
 
     @classmethod
-    def get(cls, blockchain, token) -> 'Escrow':
+    def get(cls, blockchain, token) -> 'MinerEscrow':
         """
         Returns the Escrow object,
         or raises UnknownContract if the contract has not been deployed.
