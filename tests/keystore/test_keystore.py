@@ -2,8 +2,6 @@ import pytest
 
 from datetime import datetime
 from nkms.keystore import keystore, keypairs
-from nkms.crypto import api as API
-from umbral.keys import UmbralPrivateKey
 
 
 def test_key_sqlite_keystore(test_keystore, bob):
