@@ -89,7 +89,7 @@ class EncryptingKeypair(Keypair):
         :param n: Total number of rekey shares to generate
         """
         alice_priv_enc = self._privkey
-        kfrags, _v_keys = pre.split_rekey(alice_priv_enc, bob_pubkey_enc, m, n)
+        kfrags = pre.split_rekey(alice_priv_enc, bob_pubkey_enc, m, n)
         return kfrags
 
 

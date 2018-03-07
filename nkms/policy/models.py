@@ -222,7 +222,6 @@ class Policy(object):
 
     def find_ursulas(self, networky_stuff, deposit, expiration,
                      num_ursulas=None):
-        # TODO: This is a number mismatch - we need not one contract, but n contracts.
         """
         :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
         """
@@ -325,9 +324,9 @@ class WorkOrder(object):
         return bytes(self.receipt_signature) + self.bob.stamp + packed_receipt_and_capsules
 
     def complete(self, cfrags):
-        # TODO: Verify that this is in fact complete - right of CFrags and properly signed.
+        # TODO: Verify that this is in fact complete - right number of CFrags and properly signed.
         # TODO: Mark it complete with datetime.
-        self
+        pass
 
 
 class WorkOrderHistory:
