@@ -1,10 +1,27 @@
+import random
 from enum import Enum
-from typing import Generator, List
-
-from nkms_eth.base import ContractAgent
+from typing import List
+from typing import Set, Generator
 
 from nkms_eth.actors import PolicyAuthor
+from nkms_eth.base import ContractAgent
 from nkms_eth.deployers import MinerEscrowDeployer, PolicyManagerDeployer
+from nkms_eth.deployers import NuCypherKMSTokenDeployer
+
+
+class NuCypherKMSTokenAgent(ContractAgent):
+
+    __deployer = NuCypherKMSTokenDeployer
+    _contract_name = __deployer.contract_name
+
+    def registrar(self):
+        """Retrieve all known addresses for this contract"""
+        all_known_address = self._blockchain._chain.registrar.get_contract_address(self._contract_name)
+        return all_known_address
+
+    def check_balance(self, address: str) -> int:
+        """Get the balance of a token address"""
+        return self.call().balanceOf(address)
 
 
 class MinerAgent(ContractAgent):
@@ -16,7 +33,8 @@ class MinerAgent(ContractAgent):
     for a duration measured in periods.
 
     """
-    _contract_name = MinerEscrowDeployer.contract_name
+    __deployer = MinerEscrowDeployer
+    _contract_name = __deployer.contract_name
 
     class MinerInfoField(Enum):
         MINERS_LENGTH = 0
@@ -56,12 +74,12 @@ class MinerAgent(ContractAgent):
         Generates all miner addresses via cumulative sum on-network.
         """
         count = self.call().getMinerInfo(self.MinerInfoField.MINERS_LENGTH.value, self.null_addr, 0).encode('latin-1')
-        count = self.blockchain._chain.web3.toInt(count)
+        count = self._blockchain._chain.web3.toInt(count)
 
 
         for index in range(count):
             addr = self.call().getMinerInfo(self.MinerInfoField.MINER.value, self.null_addr, index).encode('latin-1')
-            yield self.blockchain._chain.web3.toChecksumAddress(addr)
+            yield self._blockchain._chain.web3.toChecksumAddress(addr)
 
     def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:
         """
