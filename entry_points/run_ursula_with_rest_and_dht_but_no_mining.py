@@ -13,6 +13,7 @@ from hendrix.deploy.ssl import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from nkms.characters import Ursula
 from OpenSSL.crypto import X509
+from OpenSSL.SSL import TLSv1_2_METHOD
 
 from nkms.crypto.api import generate_self_signed_certificate
 
@@ -29,7 +30,8 @@ deployer = HendrixDeployTLS("start",
                             key=private_key,
                             cert=X509.from_cryptography(cert),
                             context_factory=ExistingKeyTLSContextFactory,
-                            context_factory_kwargs={"curve_name": "prime256v1"})
+                            context_factory_kwargs={"curve_name": "prime256v1",
+                                                    "sslmethod": TLSv1_2_METHOD})
 
 try:
     deployer.run()
