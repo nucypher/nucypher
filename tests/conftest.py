@@ -1,6 +1,6 @@
 import pytest
 
-from nkms_eth.agents import NuCypherKMSTokenAgent
+from nkms_eth.agents import NuCypherKMSTokenAgent, MinerAgent
 from nkms_eth.deployers import NuCypherKMSTokenDeployer
 from tests.utilities import TesterBlockchain, MockMinerEscrow
 
@@ -14,11 +14,6 @@ def testerchain():
 
 
 @pytest.fixture(scope='function')
-def token_agent(testerchain):
-    token = NuCypherKMSTokenAgent(blockchain=testerchain)
-    yield token
-
-@pytest.fixture(scope='function')
 def token_deployer(testerchain):
     token_deployer = NuCypherKMSTokenDeployer(blockchain=testerchain)
     token_deployer.arm()
@@ -27,8 +22,20 @@ def token_deployer(testerchain):
 
 
 @pytest.fixture(scope='function')
-def escrow(testerchain, token):
-    escrow = MockMinerEscrow(blockchain=testerchain, token=token)
+def token_agent(testerchain):
+    token = NuCypherKMSTokenAgent(blockchain=testerchain)
+    yield token
+
+
+@pytest.fixture(scope='function')
+def escrow_deployer(token_agent):
+    escrow = MockMinerEscrowDeployer(token_agent)
     escrow.arm()
     escrow.deploy()
     yield escrow
+
+
+@pytest.fixture(scope='function')
+def miner_agent(token_agent):
+    miner_agent = MinerAgent(token_agent)
+    yield miner_agent

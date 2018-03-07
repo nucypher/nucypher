@@ -3,9 +3,8 @@ import random
 import os
 import pytest
 
-from nkms_eth.escrow import MinerAgent
-from nkms_eth.miner import Miner
-from nkms_eth.token import NuCypherKMSTokenAgent
+from nkms_eth.agents import MinerAgent, NuCypherKMSTokenAgent
+from nkms_eth.actors import Miner
 
 
 M = 10 ** 6

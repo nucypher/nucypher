@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from typing import Tuple, List
 
-from nkms_eth.agents import MinerAgent, PolicyAgent
+# from nkms_eth.agents import MinerAgent, PolicyAgent
 from nkms_eth.base import Actor
 
 
@@ -75,17 +75,14 @@ class Miner(Actor):
 
     """
 
-    def __init__(self, miner_agent: MinerAgent, address):
+    def __init__(self, miner_agent, address):
         super().__init__(address)
 
         self.miner_agent = miner_agent
-        if not miner_agent._contract:
-            raise MinerAgent.ContractDeploymentError('Escrow contract not deployed. Arm then deploy.')
-        else:
-            miner_agent.miners.append(self)
+        miner_agent.miners.append(self)    # Track Miners
 
-        self._token = miner_agent._token
-        self._blockchain = self._token._blockchain
+        self._token_agent = miner_agent._token
+        self._blockchain = self._token_agent._blockchain
 
         self._transactions = list()
         self._locked_tokens = self._update_locked_tokens()
@@ -97,7 +94,7 @@ class Miner(Actor):
     def _approve_escrow(self, amount: int) -> str:
         """Approve the transfer of token from the miner's address to the escrow contract."""
 
-        txhash = self._token.transact({'from': self.address}).approve(self.miner_agent._contract.address, amount)
+        txhash = self._token_agent.transact({'from': self.address}).approve(self.miner_agent._contract.address, amount)
         self._blockchain._chain.wait.for_receipt(txhash, timeout=self._blockchain._timeout)
 
         self._transactions.append(txhash)
@@ -194,8 +191,8 @@ class Miner(Actor):
     def token_balance(self) -> int:
         """Check miner's current token balance"""
 
-        self._token._check_contract_deployment()
-        balance = self._token().balanceOf(self.address)
+        self._token_agent._check_contract_deployment()
+        balance = self._token_agent().balanceOf(self.address)
 
         return balance
 
@@ -251,12 +248,12 @@ class PolicyAuthor(Actor):
     def get_arrangement(self, arrangement_id: bytes) -> PolicyArrangement:
         """Fetch a published arrangement from the blockchain"""
 
-        blockchain_record = self.policy_agent().policies(arrangement_id)
+        blockchain_record = self.policy_agent.call().policies(arrangement_id)
         author_address, miner_address, rate, start_block, end_block, downtime_index = blockchain_record
 
         duration = end_block - start_block
 
-        miner = Miner(address=miner_address, miner_agent=self.policy_agent.escrow)
+        miner = Miner(address=miner_address, miner_agent=self.policy_agent.miner_agent)
         arrangement = PolicyArrangement(author=self, miner=miner, periods=duration)
 
         arrangement.is_published = True
@@ -273,9 +270,9 @@ class PolicyAuthor(Actor):
         return txhash
 
     def select_miners(self, quantity: int) -> List[str]:
-        miner_addresses = self.policy_agent.escrow.sample(quantity=quantity)
+        miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity)
         return miner_addresses
 
     def balance(self):
-        return self.policy_agent.token().balanceOf(self.address)
+        return self.policy_agent.miner_agent.call().balanceOf(self.address)
 

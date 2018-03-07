@@ -1,22 +1,23 @@
 import random
 from enum import Enum
-from typing import List
-from typing import Set, Generator
+from typing import Set, Generator, List
 
 from nkms_eth.actors import PolicyAuthor
 from nkms_eth.base import ContractAgent
-from nkms_eth.deployers import MinerEscrowDeployer, PolicyManagerDeployer
-from nkms_eth.deployers import NuCypherKMSTokenDeployer
+from nkms_eth.base import EthereumContractAgent
+from nkms_eth.blockchain import TheBlockchain
+from nkms_eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer, PolicyManagerDeployer
 
 
-class NuCypherKMSTokenAgent(ContractAgent):
+class NuCypherKMSTokenAgent(EthereumContractAgent, deployer=NuCypherKMSTokenDeployer):
 
-    __deployer = NuCypherKMSTokenDeployer
-    _contract_name = __deployer.contract_name
+    def __init__(self, blockchain: TheBlockchain):
+        self._blockchain = blockchain
+        super().__init__(self)
 
     def registrar(self):
         """Retrieve all known addresses for this contract"""
-        all_known_address = self._blockchain._chain.registrar.get_contract_address(self._contract_name)
+        all_known_address = self._blockchain._chain.registrar.get_contract_address(self._principal_contract_name)
         return all_known_address
 
     def check_balance(self, address: str) -> int:
@@ -126,10 +127,11 @@ class MinerAgent(ContractAgent):
         raise self.NotEnoughUrsulas('Selection failed after {} attempts'.format(attempts))
 
 
-class PolicyAgent(ContractAgent):
+class PolicyAgent(EthereumContractAgent, deployer=PolicyManagerDeployer):
 
-    __deployer = PolicyManagerDeployer
-    _contract_name = __deployer.contract_name
+    def __init__(self, miner_agent):
+        super().__init__(miner_agent)
+        self.miner_agent = miner_agent
 
     def fetch_arrangement_data(self, arrangement_id: bytes) -> list:
         blockchain_record = self.call().policies(arrangement_id)

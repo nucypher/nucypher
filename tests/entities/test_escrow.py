@@ -4,9 +4,8 @@ import pytest
 from populus.contracts.exceptions import NoKnownAddress
 from pytest import raises
 
-from nkms_eth.escrow import MinerAgent
-from nkms_eth.miner import Miner
-from nkms_eth.token import NuCypherKMSTokenAgent
+from nkms_eth.agents import MinerAgent, NuCypherKMSTokenAgent
+from nkms_eth.actors import Miner
 
 M = 10 ** 6
 

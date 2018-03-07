@@ -52,17 +52,17 @@ class ContractDeployer(ABC):
         return None
 
     def arm(self) -> None:
-        self._armed = True
+        self.__armed = True
         return None
 
     @abstractmethod
     def deploy(self) -> str:
         raise NotImplementedError
 
-    @abstractmethod
-    def make_agent(self) -> 'ContractAgent':
-        raise NotImplementedError
-
+    # TODO
+    # @abstractmethod
+    # def make_agent(self) -> 'EthereumContractAgent':
+    #     raise NotImplementedError
 
     # @classmethod
     # def from_blockchain(cls, blockchain: TheBlockchain) -> 'ContractDeployer':
