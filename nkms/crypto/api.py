@@ -7,6 +7,12 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from nkms.crypto.constants import BLAKE2B
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
+from cryptography import x509
+from cryptography.x509.oid import NameOID
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+import datetime
+
 SYSTEM_RAND = SystemRandom()
 
 
@@ -97,3 +103,26 @@ def ecdsa_verify(
     except InvalidSignature:
         return False
     return True
+
+
+def generate_self_signed_certificate(common_name, curve, private_key=None, days_valid=365):
+
+    if not private_key:
+        private_key = ec.generate_private_key(curve, default_backend())
+
+    public_key = private_key.public_key()
+
+    now = datetime.datetime.utcnow()
+    subject = issuer = x509.Name([
+             x509.NameAttribute(NameOID.COMMON_NAME, common_name),
+        ])
+    cert = x509.CertificateBuilder().subject_name(subject)
+    cert = cert.issuer_name(issuer)
+    cert = cert.public_key(public_key)
+    cert = cert.serial_number(x509.random_serial_number())
+    cert = cert.not_valid_before(now)
+    cert = cert.not_valid_after(now + datetime.timedelta(days=days_valid))
+    # TODO: What domain here?  Not localhost presumably - ENS?
+    cert = cert.add_extension(x509.SubjectAlternativeName([x509.DNSName(u"localhost")]), critical=False)
+    cert = cert.sign(private_key, hashes.SHA512(), default_backend())
+    return cert, private_key
