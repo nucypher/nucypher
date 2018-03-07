@@ -1,10 +1,11 @@
 import sha3
-
 from typing import Union
 
 from nkms.crypto import api as API
+from nkms.crypto.api import generate_self_signed_certificate
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral import pre
+from umbral.config import default_curve
 from nkms.crypto.kits import MessageKit
 from nkms.crypto.signature import Signature
 from typing import List
@@ -109,3 +110,8 @@ class SigningKeypair(Keypair):
         """
         signature_der_bytes = API.ecdsa_sign(message, self._privkey)
         return Signature.from_bytes(signature_der_bytes, der_encoded=True)
+
+    def generate_self_signed_cert(self, common_name):
+        # TODO: Let's have a shortcut method for getting the cryptography key(s).
+        cryptography_key = self._privkey.bn_key.to_cryptography_priv_key()
+        return generate_self_signed_certificate(common_name, default_curve(), cryptography_key)

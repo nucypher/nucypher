@@ -104,7 +104,7 @@ class SigningPower(KeyPairBasedPower):
     confers_public_key = True
     _keypair_class = SigningKeypair
     not_found_error = NoSigningPower
-    provides = ("sign",)
+    provides = ("sign", "generate_self_signed_cert")
 
 
 class EncryptingPower(KeyPairBasedPower):
