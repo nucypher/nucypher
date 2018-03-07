@@ -1,28 +1,26 @@
-[[source]]
+    [[source]]
 
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
-
 
 [packages]
 
 rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "kms-dependency"}
 kademlia = {git = "https://github.com/nucypher/kademlia", ref = "kms-dependency"}
 lmdb = "*"
-PyNaCl = "*"
+pynacl = "*"
 "pysha3" = "*"
 bidict = "*"
-py_ecc = "*"
-SQLAlchemy = "*"
-Twisted = "*"
-pyOpenSSL = "*"
-service_identity = "*"
+py-ecc = "*"
+sqlalchemy = "*"
 apistar = "*"
 mypy = "*"
 pytest-mypy = "*"
 maya = "*"
-kms-depend = {git = "https://github.com/nucypher/pyumbral.git"}
+pyumbral = {git = "https://github.com/nucypher/pyumbral.git"}
+requests = "*"
+hendrix = {git = "https://github.com/hendrix/hendrix", ref = "tags/3.0.0rc1"}
 
 
 [dev-packages]
