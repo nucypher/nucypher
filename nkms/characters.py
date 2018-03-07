@@ -524,7 +524,7 @@ class Ursula(Character, ProxyRESTServer):
 
     @classmethod
     def from_rest_url(cls, address, port):
-        response = requests.get("{}:{}/public_keys".format(address, port))  # TODO: TLS-only.
+        response = requests.get("{}:{}/public_keys".format(address, port), verify=False)  # TODO: TLS-only.
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 

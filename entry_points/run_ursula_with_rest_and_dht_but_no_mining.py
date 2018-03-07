@@ -3,18 +3,33 @@
 # It might be (but might not be) useful for determining whether you have
 # the proper depedencies and configuration to run an actual mining node.
 
-# WIP w/ hendrix@83519da900a258d8e27a3b1fedee949414d2de26
+# WIP w/ hendrix@tags/3.3.0rc1
 
 import os
+
+from cryptography.hazmat.primitives.asymmetric import ec
+
+from hendrix.deploy.ssl import HendrixDeployTLS
+from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from nkms.characters import Ursula
+from OpenSSL.crypto import X509
+
+from nkms.crypto.api import generate_self_signed_certificate
+
 DB_NAME = "non-mining-proxy-node"
 
 _URSULA = Ursula(dht_port=3501, dht_interface="localhost", db_name=DB_NAME)
 _URSULA.listen()
 
-from hendrix.deploy.base import HendrixDeploy
+CURVE = ec.SECP256R1
+cert, private_key = generate_self_signed_certificate(_URSULA.stamp.fingerprint().decode(), CURVE)
 
-deployer = HendrixDeploy("start", {"wsgi":_URSULA.rest_app, "http_port": 3500})
+deployer = HendrixDeployTLS("start",
+                            {"wsgi":_URSULA.rest_app, "https_port": 3550},
+                            key=private_key,
+                            cert=X509.from_cryptography(cert),
+                            context_factory=ExistingKeyTLSContextFactory,
+                            context_factory_kwargs={"curve_name": "prime256v1"})
 
 try:
     deployer.run()
