@@ -105,4 +105,36 @@ contract Upgradeable is Ownable {
                 }
         }
     }
+
+    /**
+    * @dev Simple method for call function with three parameters.
+    * Result should not exceed 32 bytes
+    **/
+    //TODO fix return size
+    function delegateGet(
+        address _testTarget,
+        string _signature,
+        bytes32 _argument1,
+        bytes32 _argument2,
+        bytes32 _argument3
+    )
+        internal returns (bytes32 result)
+    {
+        bytes4 targetCall = bytes4(keccak256(_signature));
+        assembly {
+            let in_pos := mload(0x40)
+            mstore(in_pos, targetCall)
+            mstore(add(in_pos, 0x04), _argument1)
+            mstore(add(in_pos, 0x24), _argument2)
+            mstore(add(in_pos, 0x44), _argument3)
+            switch delegatecall(gas, _testTarget, in_pos, 0x64, in_pos, 32)
+                case 0 {
+                    revert(0x0, 0)
+                }
+                default {
+                   result := mload(in_pos)
+                   mstore(0x40, add(in_pos, 0x64))
+                }
+        }
+    }
 }
