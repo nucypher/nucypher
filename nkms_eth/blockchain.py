@@ -1,7 +1,7 @@
 from nkms_eth.config import PopulusConfig
 
 
-class Blockchain:
+class TheBlockchain:
     """
     http://populus.readthedocs.io/en/latest/config.html#chains
 
@@ -12,8 +12,8 @@ class Blockchain:
     temp: Local private chain whos data directory is removed when the chain is shutdown. Runs via geth.
     """
 
-    _network = ''
-    _instance = None
+    __network = ''
+    __instance = None
 
     class AlreadyRunning(Exception):
         pass
@@ -28,10 +28,10 @@ class Blockchain:
         """
 
         # Singleton
-        if Blockchain._instance is not None:
-            message = 'Blockchain: is already running. Use .get() to retrieve'.format(self._network)
-            raise Blockchain.AlreadyRunning(message)
-        Blockchain.__instance = self
+        if TheBlockchain.__instance is not None:
+            message = 'Blockchain: is already running. Use .get() to retrieve'.format(self.__network)
+            raise TheBlockchain.AlreadyRunning(message)
+        TheBlockchain.__instance = self
 
         if populus_config is None:
             populus_config = PopulusConfig()
@@ -41,14 +41,14 @@ class Blockchain:
         self._project = populus_config.project
 
         # Opens and preserves connection to a running populus blockchain
-        self._chain = self._project.get_chain(self._network).__enter__()
+        self._chain = self._project.get_chain(self.__network).__enter__()
 
     @classmethod
     def get(cls):
-        if cls._instance is None:
+        if cls.__instance is None:
             class_name = cls.__name__
             raise Exception('{} has not been created.'.format(class_name))
-        return cls._instance
+        return cls.__instance
 
     def disconnect(self):
         self._chain.__exit__(None, None, None)
@@ -59,7 +59,7 @@ class Blockchain:
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(network={}, timeout={})"
-        return r.format(class_name, self._network, self._timeout)
+        return r.format(class_name, self.__network, self._timeout)
 
     def get_contract(self, name):
         """

@@ -43,11 +43,11 @@ class PolicyArrangement:
                    'value': self.value,
                    'gas_price': gas_price}
 
-        txhash = self.policy_manager.transact(payload).createPolicy(self.id,
+        txhash = self.policy_agent.transact(payload).createPolicy(self.id,
                                                                     self.miner.address,
                                                                     self.periods)
 
-        self.policy_manager.blockchain._chain.wait.for_receipt(txhash)
+        self.policy_agent._blockchain._chain.wait.for_receipt(txhash)
         self.publish_transaction = txhash
         self.is_published = True
         return txhash

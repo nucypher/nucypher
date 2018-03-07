@@ -1,13 +1,13 @@
-from nkms_eth.blockchain import Blockchain
-from nkms_eth.escrow import MinerEscrow
+from nkms_eth.blockchain import TheBlockchain
+from nkms_eth.escrow import MinerAgent
 
 
-class TesterBlockchain(Blockchain):
+class TesterBlockchain(TheBlockchain):
     """Transient chain"""
-    _network = 'tester'
+    __network = 'tester'
 
 
-class MockMinerEscrow(MinerEscrow):
+class MockMinerEscrow(MinerAgent):
     """Speed things up a bit"""
-    hours_per_period = 1
-    min_release_periods = 1
+    __hours_per_period = 1
+    __min_release_periods = 1

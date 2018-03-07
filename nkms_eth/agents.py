@@ -1,6 +1,10 @@
+from enum import Enum
 from typing import Generator, List
 
 from nkms_eth.base import ContractAgent
+
+from nkms_eth.actors import PolicyAuthor
+from nkms_eth.deployers import MinerEscrowDeployer, PolicyManagerDeployer
 
 
 class MinerAgent(ContractAgent):
@@ -13,25 +17,6 @@ class MinerAgent(ContractAgent):
 
     """
     _contract_name = MinerEscrowDeployer.contract_name
-
-    _contract_name = 'MinersEscrow'
-    hours_per_period = 1       # 24 Hours    TODO
-    min_release_periods = 1    # 30 Periods
-    max_awarded_periods = 365  # Periods
-    min_allowed_locked = 10 ** 6
-    max_allowed_locked = 10 ** 7 * NuCypherKMSToken.M
-    reward = NuCypherKMSToken.saturation - NuCypherKMSToken.premine
-    null_addr = '0x' + '0' * 40
-
-    mining_coeff = [
-        hours_per_period,
-        2 * 10 ** 7,
-        max_awarded_periods,
-        max_awarded_periods,
-        min_release_periods,
-        min_allowed_locked,
-        max_allowed_locked
-    ]
 
     class MinerInfoField(Enum):
         MINERS_LENGTH = 0
@@ -61,15 +46,18 @@ class MinerAgent(ContractAgent):
         self.miners = list()
 
     def get_miner_ids(self) -> Set[str]:
-        """Fetch all miner IDs and return them in a set"""
+        """
+        Fetch all miner IDs from the local cache and return them in a set
+        """
         return {miner.get_id() for miner in self.miners}
 
     def swarm(self) -> Generator[str, None, None]:
         """
-        Generates all miner addresses via cumulative sum.
+        Generates all miner addresses via cumulative sum on-network.
         """
         count = self.call().getMinerInfo(self.MinerInfoField.MINERS_LENGTH.value, self.null_addr, 0).encode('latin-1')
         count = self.blockchain._chain.web3.toInt(count)
+
 
         for index in range(count):
             addr = self.call().getMinerInfo(self.MinerInfoField.MINER.value, self.null_addr, index).encode('latin-1')
@@ -100,7 +88,7 @@ class MinerAgent(ContractAgent):
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
-        n_tokens = self.__call__().getAllLockedTokens()
+        n_tokens = self.call().getAllLockedTokens()
 
         if not n_tokens > 0:
             raise self.NotEnoughUrsulas('There are no locked tokens.')
@@ -111,7 +99,7 @@ class MinerAgent(ContractAgent):
 
             addrs, addr, shift = set(), MinerEscrowDeployer.null_address, 0
             for delta in deltas:
-                addr, shift = self.__call__().findCumSum(addr, delta+shift, duration)
+                addr, shift = self.call().findCumSum(addr, delta+shift, duration)
                 addrs.add(addr)
 
             if len(addrs) >= quantity:
@@ -122,8 +110,11 @@ class MinerAgent(ContractAgent):
 
 class PolicyAgent(ContractAgent):
 
+    __deployer = PolicyManagerDeployer
+    _contract_name = __deployer.contract_name
+
     def fetch_arrangement_data(self, arrangement_id: bytes) -> list:
-        blockchain_record = self.__call__().policies(arrangement_id)
+        blockchain_record = self.call().policies(arrangement_id)
         return blockchain_record
 
     def revoke_arrangement(self, arrangement_id: bytes, author: 'PolicyAuthor', gas_price: int):
@@ -131,22 +122,5 @@ class PolicyAgent(ContractAgent):
         Revoke by arrangement ID; Only the policy author can revoke the policy
         """
         txhash = self.transact({'from': author.address, 'gas_price': gas_price}).revokePolicy(arrangement_id)
-        self.blockchain._chain.wait.for_receipt(txhash)
+        self._blockchain._chain.wait.for_receipt(txhash)
         return txhash
-
-
-class NuCypherKMSTokenAgent(ContractAgent):
-
-    def __repr__(self):
-        class_name = self.__class__.__name__
-        r = "{}(blockchain={}, contract={})"
-        return r.format(class_name, self._blockchain, self._contract)
-
-    def registrar(self):
-        """Retrieve all known addresses for this contract"""
-        all_known_address = self._blockchain._chain.registrar.get_contract_address(NuCypherKMSTokenDeployer.contract_name())
-        return all_known_address
-
-    def check_balance(self, address: str) -> int:
-        """Get the balance of a token address"""
-        return self.__call__().balanceOf(address)

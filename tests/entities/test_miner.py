@@ -3,9 +3,9 @@ import random
 import os
 import pytest
 
-from nkms_eth.escrow import MinerEscrow
+from nkms_eth.escrow import MinerAgent
 from nkms_eth.miner import Miner
-from nkms_eth.token import NuCypherKMSToken
+from nkms_eth.token import NuCypherKMSTokenAgent
 
 
 M = 10 ** 6
@@ -15,7 +15,7 @@ def test_deposit(testerchain, token, escrow):
     token._airdrop(amount=10000)    # weeee
 
     ursula_address = testerchain._chain.web3.eth.accounts[1]
-    miner = Miner(escrow=escrow, address=ursula_address)
+    miner = Miner(miner_agent=escrow, address=ursula_address)
     miner.lock(amount=1000*M, locktime=100)
 
 
@@ -23,14 +23,14 @@ def test_mine_withdraw(testerchain, token, escrow):
     token._airdrop(amount=10000)
 
     ursula_address = testerchain._chain.web3.eth.accounts[1]
-    miner = Miner(escrow=escrow, address=ursula_address)
+    miner = Miner(miner_agent=escrow, address=ursula_address)
 
     ursula = miner
     initial_balance = token.balance(address=ursula.address)
 
     # Create a random set of miners (we have 9 in total)
     for address in testerchain._chain.web3.eth.accounts[1:]:
-        miner = Miner(escrow=escrow, address=address)
+        miner = Miner(miner_agent=escrow, address=address)
 
         amount = (10+random.randrange(9000)) * M
         miner.lock(amount=amount, locktime=1)
@@ -48,7 +48,7 @@ def test_publish_miner_id(testerchain, token, escrow):
     token._airdrop(amount=10000)    # weeee
 
     miner_addr = testerchain._chain.web3.eth.accounts[1]
-    miner = Miner(escrow=escrow, address=miner_addr)
+    miner = Miner(miner_agent=escrow, address=miner_addr)
 
     balance = miner.token_balance()
     miner.lock(amount=balance, locktime=1)
@@ -79,7 +79,7 @@ def test_select_ursulas(testerchain, token, escrow):
 
     # Create a random set of miners (we have 9 in total)
     for u in testerchain._chain.web3.eth.accounts[1:]:
-        miner = Miner(escrow=escrow, address=u)
+        miner = Miner(miner_agent=escrow, address=u)
         amount = (10 + random.randrange(9000))*M
         miner.lock(amount=amount, locktime=100)
 
@@ -89,5 +89,5 @@ def test_select_ursulas(testerchain, token, escrow):
     assert len(miners) == 3
     assert len(set(miners)) == 3
 
-    with pytest.raises(MinerEscrow.NotEnoughUrsulas):
+    with pytest.raises(MinerAgent.NotEnoughUrsulas):
         escrow.sample(quantity=100)  # Waay more than we have deployed

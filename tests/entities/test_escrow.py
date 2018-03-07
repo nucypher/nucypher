@@ -4,23 +4,23 @@ import pytest
 from populus.contracts.exceptions import NoKnownAddress
 from pytest import raises
 
-from nkms_eth.escrow import MinerEscrow
+from nkms_eth.escrow import MinerAgent
 from nkms_eth.miner import Miner
-from nkms_eth.token import NuCypherKMSToken
+from nkms_eth.token import NuCypherKMSTokenAgent
 
 M = 10 ** 6
 
 
 def test_create_escrow(testerchain):
     with raises(NoKnownAddress):
-        NuCypherKMSToken.get(blockchain=testerchain)
+        NuCypherKMSTokenAgent.get(blockchain=testerchain)
 
-    token = NuCypherKMSToken(blockchain=testerchain)
+    token = NuCypherKMSTokenAgent(blockchain=testerchain)
     token.arm()
     token.deploy()
 
-    same_token = NuCypherKMSToken.get(blockchain=testerchain)
-    with raises(NuCypherKMSToken.ContractDeploymentError):
+    same_token = NuCypherKMSTokenAgent.get(blockchain=testerchain)
+    with raises(NuCypherKMSTokenAgent.ContractDeploymentError):
         same_token.arm()
         same_token.deploy()
 
@@ -28,14 +28,14 @@ def test_create_escrow(testerchain):
     assert token._contract.address == same_token._contract.address
 
     with raises(NoKnownAddress):
-        MinerEscrow.get(blockchain=testerchain, token=token)
+        MinerAgent.get(token=token)
 
-    escrow = MinerEscrow(blockchain=testerchain, token=token)
+    escrow = MinerAgent(token=token)
     escrow.arm()
     escrow.deploy()
 
-    same_escrow = MinerEscrow.get(blockchain=testerchain, token=token)
-    with raises(MinerEscrow.ContractDeploymentError):
+    same_escrow = MinerAgent.get(token=token)
+    with raises(MinerAgent.ContractDeploymentError):
         same_escrow.arm()
         same_escrow.deploy()
 
@@ -49,7 +49,7 @@ def test_get_swarm(testerchain, token, escrow):
 
     # Create 9 Miners
     for address in addresses:
-        miner = Miner(escrow=escrow, address=address)
+        miner = Miner(miner_agent=escrow, address=address)
         amount = (10+random.randrange(9000)) * M
         miner.lock(amount=amount, locktime=1)
 

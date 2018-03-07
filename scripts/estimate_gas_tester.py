@@ -10,9 +10,8 @@ from nkms_eth.blockchain import TesterBlockchain
 from nkms_eth.escrow import Escrow
 from nkms_eth.token import NuCypherKMSToken
 import os
+from nkms_eth.agents import NuCypherKMSTokenAgent
 
-
-def main():
     testerchain = TesterBlockchain()
     chain, web3 = testerchain._chain, testerchain._chain.web3
     creator, ursula1, ursula2, ursula3, alice1, *everyone_else = web3.eth.accounts
@@ -20,7 +19,7 @@ def main():
     print("Web3 providers are", web3.providers)
 
     # Create an ERC20 token
-    token = NuCypherKMSToken(blockchain=testerchain)
+    token = NuCypherKMSTokenAgent(blockchain=testerchain)
     token.arm()
     token.deploy()
 

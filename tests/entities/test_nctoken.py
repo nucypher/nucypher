@@ -1,24 +1,24 @@
 from populus.contracts.exceptions import NoKnownAddress
 from pytest import raises
 
-from nkms_eth.token import NuCypherKMSToken
+from nkms_eth.token import NuCypherKMSTokenAgent
 
 
 def test_launch_and_fetch_nucypherkms_token(testerchain):
 
     # Trying to get token from blockchain before it's been published fails
     with raises(NoKnownAddress):
-        NuCypherKMSToken.get(blockchain=testerchain)
+        NuCypherKMSTokenAgent.get(blockchain=testerchain)
 
     # Create a token instance
-    token = NuCypherKMSToken(blockchain=testerchain)
+    token = NuCypherKMSTokenAgent(blockchain=testerchain)
 
     # Make sure we got the name right
-    contract_identifier = NuCypherKMSToken._NuCypherKMSToken__contract_name
+    contract_identifier = NuCypherKMSTokenAgent._NuCypherKMSToken__contract_name
     assert'NuCypherKMSToken' == contract_identifier
 
     # The big day...
-    with raises(NuCypherKMSToken.ContractDeploymentError):
+    with raises(NuCypherKMSTokenAgent.ContractDeploymentError):
         token.deploy()
 
     # Token must be armed before deploying to the blockchain
@@ -33,7 +33,7 @@ def test_launch_and_fetch_nucypherkms_token(testerchain):
     # assert token().totalSupply() == 10 ** 9 - 1    # TODO
 
     # Retrieve the token from the blockchain
-    same_token = NuCypherKMSToken.get(blockchain=testerchain)
+    same_token = NuCypherKMSTokenAgent.get(blockchain=testerchain)
 
     # Compare the contract address for equality
     assert token._contract.address == same_token._contract.address
