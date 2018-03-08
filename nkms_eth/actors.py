@@ -53,13 +53,13 @@ class PolicyArrangement:
         return txhash
 
     def __update_periods(self) -> None:
-        blockchain_record = self.policy_manager.fetch_arrangement_data(self.id)
+        blockchain_record = self.policy_agent.fetch_arrangement_data(self.id)
         client, delegate, rate, *periods = blockchain_record
         self._elapsed_periods = periods
 
     def revoke(self, gas_price: int) -> str:
         """Revoke this arrangement and return the transaction hash as hex."""
-        txhash = self.policy_manager.revoke_arrangement(self.id, author=self.author, gas_price=gas_price)
+        txhash = self.policy_agent.revoke_arrangement(self.id, author=self.author, gas_price=gas_price)
         self.revoke_transaction = txhash
         return txhash
 
@@ -148,7 +148,7 @@ class Miner(Actor):
 
         return txhash
 
-    def collect_policy_reward(self, policy_manager):
+    def collect_policy_reward(self, policy_manager) -> str:
         """Collect policy reward in ETH"""
 
         txhash = policy_manager.transact({'from': self.address}).withdraw()
@@ -191,8 +191,8 @@ class Miner(Actor):
     def token_balance(self) -> int:
         """Check miner's current token balance"""
 
-        self._token_agent._check_contract_deployment()
-        balance = self._token_agent().balanceOf(self.address)
+        # self._token_agent._check_contract_deployment()
+        balance = self._token_agent.call().balanceOf(self.address)
 
         return balance
 
@@ -261,12 +261,12 @@ class PolicyAuthor(Actor):
         try:
             arrangement = self._arrangements[arrangement_id]
         except KeyError:
-            raise Exception('No such arrangement')
+            raise Exception('No such arrangement')  #TODO
         else:
             txhash = arrangement.revoke()
         return txhash
 
-    def select_miners(self, quantity: int) -> List[str]:
+    def recruit(self, quantity: int) -> List[str]:
         miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity)
         return miner_addresses
 

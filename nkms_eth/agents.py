@@ -18,7 +18,7 @@ class NuCypherKMSTokenAgent(EthereumContractAgent, deployer=NuCypherKMSTokenDepl
         all_known_address = self._blockchain._chain.registrar.get_contract_address(self._principal_contract_name)
         return all_known_address
 
-    def check_balance(self, address: str) -> int:
+    def balance(self, address: str) -> int:
         """Get the balance of a token address"""
         return self.call().balanceOf(address)
 
@@ -83,8 +83,8 @@ class MinerAgent(EthereumContractAgent, deployer=MinerEscrowDeployer):
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
+        n_tokens = self.call().getAllLockedTokens()
 
-        n_tokens = self.call().getAllLockedTokens()              # Check for locked tokens
         if not n_tokens > 0:
             raise self.NotEnoughUrsulas('There are no locked tokens.')
 
@@ -92,9 +92,9 @@ class MinerAgent(EthereumContractAgent, deployer=MinerEscrowDeployer):
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
             deltas = [i-j for i, j in zip(points[1:], points[:-1])]
 
-            addrs, addr, shift = set(), MinerEscrowDeployer._null_addr, 0
+            addrs, addr, index, shift = set(), self._deployer._null_addr, 0, 0
             for delta in deltas:
-                addr, shift = self.call().findCumSum(addr, delta+shift, duration)
+                addr, index, shift = self.call().findCumSum(index, delta+shift, duration)
                 addrs.add(addr)
 
             if len(addrs) >= quantity:

@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+from nkms_eth.blockchain import TheBlockchain
+
 
 class Actor(ABC):
     def __init__(self, address):
@@ -15,6 +17,7 @@ class Actor(ABC):
 
 
 class ContractDeployer(ABC):
+
     _contract_name = NotImplemented
 
     class ContractDeploymentError(Exception):
@@ -22,31 +25,38 @@ class ContractDeployer(ABC):
 
     def __init__(self, blockchain):
         self.__armed = False
-        self.__contract = None
+        self._contract = None
+
+        # Sanity check
+        if not isinstance(blockchain, TheBlockchain):
+            error = 'Only TheBlockchain can be used to create a deployer, got {}.'
+            raise ValueError(error.format(type(blockchain)))
         self._blockchain = blockchain
 
     def __eq__(self, other):
-        return self.__contract.address == other.address
+        return self._contract.address == other.address
 
     @property
-    def address(self) -> str:
-        return self.__contract.address
+    def contract_address(self) -> str:
+        try:
+            address = self._contract.address
+        except AttributeError:
+            cls = self.__class__
+            raise cls.ContractDeploymentError('Contract not deployed')
+        else:
+            return address
 
     @property
     def is_deployed(self) -> bool:
-        return bool(self.__contract is not None)
+        return bool(self._contract is not None)
 
     @property
     def is_armed(self) -> bool:
         return bool(self.__armed is True)
 
-    @classmethod
-    def contract_name(cls) -> str:
-        return cls._contract_name
-
     def _verify_contract_deployment(self) -> None:
         """Raises ContractDeploymentError if the contract has not been armed and deployed."""
-        if not self.__contract:
+        if not self._contract:
             class_name = self.__class__.__name__
             message = '{} contract is not deployed. Arm, then deploy.'.format(class_name)
             raise self.ContractDeploymentError(message)
@@ -65,50 +75,62 @@ class ContractDeployer(ABC):
     # def make_agent(self) -> 'EthereumContractAgent':
     #     raise NotImplementedError
 
-    # @classmethod
-    # def from_blockchain(cls, blockchain: TheBlockchain) -> 'ContractDeployer':
-    #     """
-    #     Returns the NuCypherKMSToken object,
-    #     or raises UnknownContract if the contract has not been deployed.
-    #     """
-    #     contract = blockchain._chain.provider.get_contract(cls.contract_name)
-    #     instance = cls(blockchain=blockchain)
-    #     instance._contract = contract
-    #     return instance
+    @classmethod
+    def from_blockchain(cls, blockchain: TheBlockchain) -> 'ContractDeployer':
+        """
+        Returns the NuCypherKMSToken object,
+        or raises UnknownContract if the contract has not been deployed.
+        """
+        contract = blockchain._chain.provider.get_contract(cls._contract_name)
+        instance = cls(blockchain=blockchain)
+        instance._contract = contract
+        return instance
 
 
 class EthereumContractAgent(ABC):
     _deployer = NotImplemented
     _principal_contract_name = NotImplemented
 
-    class ContractNotDeployed(Exception):
+    class ContractNotDeployed(ContractDeployer.ContractDeploymentError):
         pass
 
     def __init__(self, agent, *args, **kwargs):
-        if not self._blockchain:
-            self._blockchain = agent._blockchain
+
+        self._blockchain = agent._blockchain
 
         contract = self._blockchain._chain.provider.get_contract(self._principal_contract_name)
-        self.__contract = contract
+        self._contract = contract
 
-    def __init_subclass__(cls, deployer):
+    @classmethod
+    def __init_subclass__(cls, deployer, **kwargs):
+        """
+        https://www.python.org/dev/peps/pep-0487/#proposal
+        """
         cls._deployer = deployer
-        cls._principal_contract_name = deployer.contract_name()
+        cls._principal_contract_name = deployer._contract_name
+        super().__init_subclass__(**kwargs)
 
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(blockchain={}, contract={})"
-        return r.format(class_name, self._blockchain, self.__contract)
+        return r.format(class_name, self._blockchain, self._contract)
+
+    def __eq__(self, other):
+        return bool(self.contract_address == other.contract_address)
 
     def call(self):
-        return self.__contract.call()
+        return self._contract.call()
 
     def transact(self, *args, **kwargs):
-        return self.__contract.transact(*args, **kwargs)
+        return self._contract.transact(*args, **kwargs)
+
+    @property
+    def origin(self):
+        return self._blockchain._chain.web3.eth.accounts[0]    # TODO
 
     @property
     def contract_address(self):
-        return self.__contract.address
+        return self._contract.address
 
     @property
     def contract_name(self):

@@ -25,9 +25,8 @@ def test_deploy_and_fetch_nucypherkms_token(testerchain):
     token_agent = NuCypherKMSTokenAgent(blockchain=testerchain)
 
     # Make sure we got the name right
-    deployer_contract_identifier = NuCypherKMSTokenDeployer.contract_name
-    contract_identifier = NuCypherKMSTokenAgent._contract_name
-    assert'NuCypherKMSToken' == contract_identifier == deployer_contract_identifier
+    deployer_contract_identifier = NuCypherKMSTokenDeployer._contract_name
+    assert'NuCypherKMSToken' == deployer_contract_identifier
 
     # Ensure the contract is deployed and has a valid blockchain address
     assert len(token_agent.contract_address) == 42

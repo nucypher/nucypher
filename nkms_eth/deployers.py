@@ -36,14 +36,14 @@ class NuCypherKMSTokenDeployer(ContractDeployer):
             message = '{} contract already deployed, use .get() to retrieve it.'.format(class_name)
             raise self.ContractDeploymentError(message)
 
-        the_nucypherKMS_token_contract, deployment_txhash = self._blockchain._chain.provider.deploy_contract(
+        the_nucypher_token_contract, deployment_txhash = self._blockchain._chain.provider.deploy_contract(
             self._contract_name,
-            deploy_args=[self._token_config.saturation],
+            deploy_args=[self.saturation],
             deploy_transaction={'from': self.origin})
 
         self._blockchain._chain.wait.for_receipt(deployment_txhash, timeout=self._blockchain._timeout)
+        self._contract = the_nucypher_token_contract
 
-        self._contract = the_nucypherKMS_token_contract
         return deployment_txhash
 
 
@@ -104,21 +104,21 @@ class MinerEscrowDeployer(ContractDeployer):
             message = '{} contract already deployed, use .get() to retrieve it.'.format(class_name)
             raise self.ContractDeploymentError(message)
 
-        deploy_args = [self._token_agent._contract.address] + self._config.mining_coefficient
-        deploy_tx = {'from': self._token_agent._creator}
+        deploy_args = [self._token_agent._contract.address] + self.mining_coefficient
+        deploy_tx = {'from': self._token_agent.origin}
 
         the_escrow_contract, deploy_txhash = self._blockchain._chain.provider.deploy_contract(self._contract_name,
                                                                                               deploy_args=deploy_args,
                                                                                               deploy_transaction=deploy_tx)
 
         self._blockchain._chain.wait.for_receipt(deploy_txhash, timeout=self._blockchain._timeout)
-        self.__contract = the_escrow_contract
+        self._contract = the_escrow_contract
 
-        reward_txhash = self._token_agent.transact({'from': self._token_agent.origin}).transfer(self.__contract.address,
-                                                                                                self._config.reward)
+        reward_txhash = self._token_agent.transact({'from': self._token_agent.origin}).transfer(self.contract_address,
+                                                                                                self.reward)
         self._blockchain._chain.wait.for_receipt(reward_txhash, timeout=self._blockchain._timeout)
 
-        init_txhash = self.__contract.transact({'from': self._token_agent.origin}).initialize()
+        init_txhash = self._contract.transact({'from': self._token_agent.origin}).initialize()
         self._blockchain._chain.wait.for_receipt(init_txhash, timeout=self._blockchain._timeout)
 
         return deploy_txhash, reward_txhash, init_txhash

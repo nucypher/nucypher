@@ -1,6 +1,7 @@
 import pytest
 
 from nkms_eth.agents import NuCypherKMSTokenAgent, MinerAgent
+from nkms_eth.blockchain import TheBlockchain
 from nkms_eth.deployers import NuCypherKMSTokenDeployer
 from tests.utilities import TesterBlockchain, MockMinerEscrowDeployer
 
