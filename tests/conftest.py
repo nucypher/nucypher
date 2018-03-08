@@ -2,7 +2,7 @@ import pytest
 
 from nkms_eth.agents import NuCypherKMSTokenAgent, MinerAgent
 from nkms_eth.deployers import NuCypherKMSTokenDeployer
-from tests.utilities import TesterBlockchain, MockMinerEscrow
+from tests.utilities import TesterBlockchain, MockMinerEscrowDeployer
 
 
 @pytest.fixture(scope='function')

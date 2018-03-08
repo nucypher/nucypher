@@ -223,10 +223,7 @@ class Miner(Actor):
 class PolicyAuthor(Actor):
     """Alice"""
 
-    def __init__(self, address: bytes, policy_agent: PolicyAgent):
-
-        if policy_agent.is_deployed is False:
-            raise PolicyAgent.ContractDeploymentError('PolicyManager contract not deployed.')
+    def __init__(self, address: bytes, policy_agent):
         self.policy_agent = policy_agent
         super().__init__(address)
         self._arrangements = OrderedDict()    # Track authored policies by id

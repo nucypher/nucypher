@@ -1,5 +1,4 @@
 import random
-from enum import Enum
 from typing import Set, Generator, List
 
 from nkms_eth.actors import PolicyAuthor
@@ -37,25 +36,6 @@ class MinerAgent(ContractAgent):
     __deployer = MinerEscrowDeployer
     _contract_name = __deployer.contract_name
 
-    class MinerInfoField(Enum):
-        MINERS_LENGTH = 0
-        MINER = 1
-        VALUE = 2
-        DECIMALS = 3
-        LOCKED_VALUE = 4
-        RELEASE = 5
-        MAX_RELEASE_PERIODS = 6
-        RELEASE_RATE = 7
-        CONFIRMED_PERIODS_LENGTH = 8
-        CONFIRMED_PERIOD = 9
-        CONFIRMED_PERIOD_LOCKED_VALUE = 10
-        LAST_ACTIVE_PERIOD_F = 11
-        DOWNTIME_LENGTH = 12
-        DOWNTIME_START_PERIOD = 13
-        DOWNTIME_END_PERIOD = 14
-        MINER_IDS_LENGTH = 15
-        MINER_ID = 16
-
     class NotEnoughUrsulas(Exception):
         pass
 
@@ -76,7 +56,6 @@ class MinerAgent(ContractAgent):
         """
         count = self.call().getMinerInfo(self.MinerInfoField.MINERS_LENGTH.value, self.null_addr, 0).encode('latin-1')
         count = self._blockchain._chain.web3.toInt(count)
-
 
         for index in range(count):
             addr = self.call().getMinerInfo(self.MinerInfoField.MINER.value, self.null_addr, index).encode('latin-1')
@@ -107,8 +86,8 @@ class MinerAgent(ContractAgent):
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
-        n_tokens = self.call().getAllLockedTokens()
 
+        n_tokens = self.call().getAllLockedTokens()              # Check for locked tokens
         if not n_tokens > 0:
             raise self.NotEnoughUrsulas('There are no locked tokens.')
 
