@@ -23,8 +23,8 @@ def test_create_escrow(testerchain):
         same_token.arm()
         same_token.deploy()
 
-    assert len(token._contract.address) == 42
-    assert token._contract.address == same_token._contract.address
+    assert len(token.__contract.address) == 42
+    assert token.__contract.address == same_token._contract.address
 
     with raises(NoKnownAddress):
         MinerAgent.get(token=token)
@@ -38,8 +38,8 @@ def test_create_escrow(testerchain):
         same_escrow.arm()
         same_escrow.deploy()
 
-    assert len(escrow._contract.address) == 42
-    assert escrow._contract.address == same_escrow._contract.address
+    assert len(escrow.__contract.address) == 42
+    assert escrow.__contract.address == same_escrow._contract.address
 
 
 def test_get_swarm(testerchain, token, escrow):

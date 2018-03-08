@@ -2,7 +2,6 @@ import random
 from typing import Set, Generator, List
 
 from nkms_eth.actors import PolicyAuthor
-from nkms_eth.base import ContractAgent
 from nkms_eth.base import EthereumContractAgent
 from nkms_eth.blockchain import TheBlockchain
 from nkms_eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer, PolicyManagerDeployer
@@ -24,7 +23,7 @@ class NuCypherKMSTokenAgent(EthereumContractAgent, deployer=NuCypherKMSTokenDepl
         return self.call().balanceOf(address)
 
 
-class MinerAgent(ContractAgent):
+class MinerAgent(EthereumContractAgent, deployer=MinerEscrowDeployer):
     """
     Wraps NuCypher's Escrow solidity smart contract, and manages a PopulusContract.
 
@@ -33,8 +32,6 @@ class MinerAgent(ContractAgent):
     for a duration measured in periods.
 
     """
-    __deployer = MinerEscrowDeployer
-    _contract_name = __deployer.contract_name
 
     class NotEnoughUrsulas(Exception):
         pass
@@ -54,11 +51,11 @@ class MinerAgent(ContractAgent):
         """
         Generates all miner addresses via cumulative sum on-network.
         """
-        count = self.call().getMinerInfo(self.MinerInfoField.MINERS_LENGTH.value, self.null_addr, 0).encode('latin-1')
+        count = self.call().getMinerInfo(self._deployer.MinerInfoField.MINERS_LENGTH.value, self._deployer.null_address, 0).encode('latin-1')
         count = self._blockchain._chain.web3.toInt(count)
 
         for index in range(count):
-            addr = self.call().getMinerInfo(self.MinerInfoField.MINER.value, self.null_addr, index).encode('latin-1')
+            addr = self.call().getMinerInfo(self._deployer.MinerInfoField.MINER.value, self._deployer.null_address, index).encode('latin-1')
             yield self._blockchain._chain.web3.toChecksumAddress(addr)
 
     def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:
@@ -95,7 +92,7 @@ class MinerAgent(ContractAgent):
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
             deltas = [i-j for i, j in zip(points[1:], points[:-1])]
 
-            addrs, addr, shift = set(), MinerEscrowDeployer.null_address, 0
+            addrs, addr, shift = set(), MinerEscrowDeployer._null_addr, 0
             for delta in deltas:
                 addr, shift = self.call().findCumSum(addr, delta+shift, duration)
                 addrs.add(addr)

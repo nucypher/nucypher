@@ -10,7 +10,7 @@ def testerchain():
     chain = TesterBlockchain()
     yield chain
     del chain
-    TesterBlockchain.__instance = None
+    TheBlockchain._TheBlockchain__instance = None
 
 
 @pytest.fixture(scope='function')

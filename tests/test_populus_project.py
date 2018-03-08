@@ -1,10 +1,11 @@
 from os.path import join, dirname, abspath
 
 import nkms_eth
-from nkms_eth.token import NuCypherKMSTokenAgent
+from nkms_eth.agents import NuCypherKMSTokenAgent
+from nkms_eth.deployers import NuCypherKMSTokenDeployer
 
 
-def test_testerchain_create(testerchain):
+def test_testerchain_creation(testerchain):
     # Ensure we are testing on the correct network...
     assert testerchain._network == 'tester'
 
@@ -25,5 +26,5 @@ def test_nucypher_populus_project(testerchain):
     assert testerchain._project.project_dir == populus_project_dir
 
     # Ensure that solidity smart contacts are available, post-compile.
-    token_contract_identifier = NuCypherKMSTokenAgent._NuCypherKMSToken__contract_name
+    token_contract_identifier = NuCypherKMSTokenDeployer(blockchain=testerchain).contract_name()
     assert token_contract_identifier in testerchain._project.compiled_contract_data

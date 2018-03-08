@@ -28,7 +28,7 @@ class MinerConfig:
     __max_allowed_locked = 10 ** 7 * TokenConfig._M
 
     __reward = TokenConfig._reward
-    __null_addr = '0x' + '0' * 40
+    _null_addr = '0x' + '0' * 40
 
     __mining_coeff = [
         __hours_per_period,
@@ -61,7 +61,7 @@ class MinerConfig:
 
     @property
     def null_address(self):
-        return self.__null_addr
+        return self._null_addr
 
     @property
     def mining_coefficient(self):

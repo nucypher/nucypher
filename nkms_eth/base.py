@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
 
-from nkms_eth.blockchain import TheBlockchain
-
 
 class Actor(ABC):
     def __init__(self, address):
@@ -17,13 +15,13 @@ class Actor(ABC):
 
 
 class ContractDeployer(ABC):
-    __contract_name = None
+    _contract_name = NotImplemented
 
     class ContractDeploymentError(Exception):
         pass
 
     def __init__(self, blockchain):
-        self._armed = False
+        self.__armed = False
         self.__contract = None
         self._blockchain = blockchain
 
@@ -39,9 +37,12 @@ class ContractDeployer(ABC):
         return bool(self.__contract is not None)
 
     @property
+    def is_armed(self) -> bool:
+        return bool(self.__armed is True)
+
     @classmethod
     def contract_name(cls) -> str:
-        return cls.__contract_name
+        return cls._contract_name
 
     def _verify_contract_deployment(self) -> None:
         """Raises ContractDeploymentError if the contract has not been armed and deployed."""
@@ -76,25 +77,39 @@ class ContractDeployer(ABC):
     #     return instance
 
 
-class ContractAgent(ABC):
-    __deployer = None
-    _contract_name = None
+class EthereumContractAgent(ABC):
+    _deployer = NotImplemented
+    _principal_contract_name = NotImplemented
 
     class ContractNotDeployed(Exception):
         pass
 
     def __init__(self, agent, *args, **kwargs):
-        contract = agent._blockchain._chain.provider.get_contract(agent._contract_name)
-        self._contract = contract
-        self._blockchain = agent._blockchain
+        if not self._blockchain:
+            self._blockchain = agent._blockchain
+
+        contract = self._blockchain._chain.provider.get_contract(self._principal_contract_name)
+        self.__contract = contract
+
+    def __init_subclass__(cls, deployer):
+        cls._deployer = deployer
+        cls._principal_contract_name = deployer.contract_name()
 
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(blockchain={}, contract={})"
-        return r.format(class_name, self._blockchain, self._contract)
+        return r.format(class_name, self._blockchain, self.__contract)
 
     def call(self):
-        return self._contract.call()
+        return self.__contract.call()
 
     def transact(self, *args, **kwargs):
-        return self._contract.transact(*args, **kwargs)
+        return self.__contract.transact(*args, **kwargs)
+
+    @property
+    def contract_address(self):
+        return self.__contract.address
+
+    @property
+    def contract_name(self):
+        return self._principal_contract_name
