@@ -3,22 +3,20 @@ from logging import getLogger
 
 import msgpack
 import requests
-
-from typing import Dict
-
+from collections import OrderedDict
 from kademlia.network import Server
 from kademlia.utils import digest
+from typing import Dict
 from typing import Union, List
-from collections import OrderedDict
 
 from nkms.crypto.api import secure_random, keccak_digest
-from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED
+from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED, PUBLIC_KEY_LENGTH
 from nkms.crypto.kits import MessageKit
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from nkms.crypto.signature import Signature
-from nkms.crypto.utils import BytestringSplitter
+from nkms.crypto.utils import BytestringSplitter, RepeatingBytestringSplitter
 from nkms.network import blockchain_client
-from nkms.network.constants import BYTESTRING_IS_URSULA_IFACE_INFO, BYTESTRING_IS_TREASURE_MAP
+from nkms.network.constants import BYTESTRING_IS_URSULA_IFACE_INFO
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
 from nkms.policy.constants import NOT_FROM_ALICE, NON_PAYMENT
@@ -115,7 +113,6 @@ class Character(object):
             except TypeError:
                 umbral_key = public_key
 
-
             crypto_power.consume_power_up(power_up(pubkey=umbral_key))
 
         return cls(is_me=False, crypto_power=crypto_power, *args, **kwargs)
@@ -205,12 +202,12 @@ class Character(object):
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
         """
-        # TODO: In this flow we now essentially have two copies of the public key.
+        # TODO: In this flow we now essentially have two copies of the public key.  See #174.
         # One from the actor (first arg) and one from the MessageKit.
         # Which do we use in which cases?
 
         # if not signature and not signature_is_on_cleartext:
-        # TODO: Since a signature can now be in a MessageKit, this might not be accurate anymore.
+        # TODO: Since a signature can now be in a MessageKit, this might not be accurate anymore.  See #174.
         # raise ValueError("You need to either provide the Signature or \
         #                   decrypt and find it on the cleartext.")
 
@@ -233,7 +230,6 @@ class Character(object):
             if decrypt:
                 message = message_kit.ciphertext
                 cleartext = self.decrypt(message_kit)
-                # TODO: Fully deprecate actor lookup flow?
             else:
                 message = bytes(message_kit)
             alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
@@ -247,8 +243,8 @@ class Character(object):
         return is_valid, cleartext
 
     """
-    Next we have decrypt() and sign() - these two functions use the private keys of their respective powers;
-    any character who has these powers can use these functions.
+    Next we have decrypt(), sign(), and generate_self_signed_certificate() - these use the private 
+    keys of their respective powers; any character who has these powers can use these functions.
 
     If they don't have the correct Power, the appropriate PowerUpError is raised.
     """
@@ -259,7 +255,22 @@ class Character(object):
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
 
+    def generate_self_signed_certificate(self):
+        signing_power = self._crypto_power.power_ups(SigningPower)
+        return signing_power.generate_self_signed_cert(self.stamp.fingerprint().decode())
+
+    """
+    And finally, some miscellaneous but generally-applicable abilities:
+    """
+
     def public_key(self, power_up_class):
+        """
+        Pass a power_up_class, get the public key for this Character which corresponds to that
+        class.
+
+        If the Character doesn't have the power corresponding to that class, raises the
+        appropriate PowerUpError (ie, NoSigningPower or NoEncryptingPower).
+        """
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
@@ -267,7 +278,7 @@ class Character(object):
         """
         Sends a request to node_url to find out about known nodes.
         """
-        # TODO: Find out about other known nodes, not just this one.
+        # TODO: Find out about other known nodes, not just this one.  #175
         node = Ursula.from_rest_url(address, port)
         self.known_nodes[node.interface_dht_key()] = node
 
@@ -283,8 +294,8 @@ class Alice(Character):
         These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
         that he can activate the Capsule.
         :param bob: Bob instance which will be able to decrypt messages re-encrypted with these kfrags.
-        :param m: Minimum number of KFrags needed to rebuild ciphertext
-        :param n: Total number of rekey shares to generate
+        :param m: Minimum number of kfrags needed to activate a Capsule.
+        :param n: Total number of kfrags to generate
         """
         bob_pubkey_enc = bob.public_key(EncryptingPower)
         return self._crypto_power.power_ups(EncryptingPower).generate_kfrags(bob_pubkey_enc, m, n)
@@ -300,7 +311,6 @@ class Alice(Character):
         Generates KFrags and attaches them.
         """
         kfrags = self.generate_kfrags(bob, m, n)
-        # TODO: Access Alice's private key inside this method.
         from nkms.policy.models import Policy
         policy = Policy.from_alice(
             alice=self,
@@ -315,16 +325,16 @@ class Alice(Character):
     def grant(self, bob, uri, networky_stuff,
               m=None, n=None, expiration=None, deposit=None):
         if not m:
-            # TODO: get m from config
+            # TODO: get m from config  #176
             raise NotImplementedError
         if not n:
-            # TODO: get n from config
+            # TODO: get n from config  #176
             raise NotImplementedError
         if not expiration:
-            # TODO: check default duration in config
+            # TODO: check default duration in config  #176
             raise NotImplementedError
         if not deposit:
-            default_deposit = None  # TODO: Check default deposit in config.
+            default_deposit = None  # TODO: Check default deposit in config.  #176
             if not default_deposit:
                 deposit = networky_stuff.get_competitive_rate()
                 if deposit == NotImplemented:
@@ -342,31 +352,19 @@ class Alice(Character):
         # REST call happens here, as does population of TreasureMap.
         policy.enact(networky_stuff)
 
-        return policy
+        return policy  # Now with TreasureMap affixed!
 
 
 class Bob(Character):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def __init__(self, alice=None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.treasure_maps = {}
-        if alice:
-            self.alice = alice
+
         from nkms.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
-
-    @property
-    def alice(self):
-        if not self._alice:
-            raise Alice.NotFound
-        else:
-            return self._alice
-
-    @alice.setter
-    def alice(self, alice_object):
-        self._alice = alice_object
 
     def follow_treasure_map(self, hrac):
         for ursula_interface_id in self.treasure_maps[hrac]:
@@ -379,21 +377,21 @@ class Bob(Character):
             value = self.server.get_now(ursula_interface_id)
 
             # TODO: Make this much prettier
-            header, signature, ursula_pubkey_sig, _hrac, (port, interface, ttl) = dht_value_splitter(value, msgpack_remainder=True)
+            header, signature, ursula_pubkey_sig, _hrac, (
+            port, interface, ttl) = dht_value_splitter(value, msgpack_remainder=True)
 
             if header != BYTESTRING_IS_URSULA_IFACE_INFO:
                 raise TypeError("Unknown DHT value.  How did this get on the network?")
 
             # TODO: If we're going to implement TTL, it will be here.
-            self.known_nodes[ursula_interface_id] =\
-                    Ursula.as_discovered_on_network(
-                            dht_port=port,
-                            dht_interface=interface,
-                            powers_and_keys=({SigningPower: ursula_pubkey_sig})
-                    )
+            self.known_nodes[ursula_interface_id] = \
+                Ursula.as_discovered_on_network(
+                    dht_port=port,
+                    dht_interface=interface,
+                    powers_and_keys=({SigningPower: ursula_pubkey_sig})
+                )
 
     def get_treasure_map(self, policy, networky_stuff, using_dht=False):
-
         map_id = policy.treasure_map_dht_key()
 
         if using_dht:
@@ -407,7 +405,7 @@ class Bob(Character):
             tmap_message_kit = self.get_treasure_map_from_known_ursulas(networky_stuff, map_id)
 
         verified, packed_node_list = self.verify_from(
-            self.alice, tmap_message_kit,
+            policy.alice, tmap_message_kit,
             signature_is_on_cleartext=True, decrypt=True
         )
 
@@ -513,10 +511,11 @@ class Ursula(Character, ProxyRESTServer):
             return self._rest_app
 
     @classmethod
-    def as_discovered_on_network(cls, dht_port, dht_interface, pubkey_sig_bytes,
-                                 rest_address=None, rest_port=None):
+    def as_discovered_on_network(cls, dht_port, dht_interface,
+                                 rest_address=None, rest_port=None,
+                                 powers_and_keys=()):
         # TODO: We also need the encrypting public key here.
-        ursula = cls.from_public_keys((SigningPower, pubkey_sig_bytes))
+        ursula = cls.from_public_keys(powers_and_keys)
         ursula.dht_port = dht_port
         ursula.dht_interface = dht_interface
         ursula.rest_address = rest_address
@@ -525,14 +524,20 @@ class Ursula(Character, ProxyRESTServer):
 
     @classmethod
     def from_rest_url(cls, address, port):
-        response = requests.get("{}:{}/public_keys".format(address, port))  # TODO: TLS-only.
+        response = requests.get("{}:{}/public_keys".format(address, port), verify=False)  # TODO: TLS-only.
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
-        signing_key_bytes, encrypting_key_bytes = \
-            BytestringSplitter(PublicKey)(response.content,
-                                          return_remainder=True)
+
+        key_splitter = RepeatingBytestringSplitter(
+            (UmbralPublicKey, PUBLIC_KEY_LENGTH, {"as_b64": False}))
+        signing_key, encrypting_key = key_splitter(response.content)
+
         stranger_ursula_from_public_keys = cls.from_public_keys(
-            signing=signing_key_bytes, encrypting=encrypting_key_bytes)
+            {SigningPower: signing_key, EncryptingPower: encrypting_key},
+            rest_address=address,
+            rest_port=port
+        )
+
         return stranger_ursula_from_public_keys
 
     def attach_server(self, ksize=20, alpha=3, id=None,
@@ -638,5 +643,5 @@ class StrangerStamp(SignatureStamp):
     """
 
     def __call__(self, *args, **kwargs):
-        raise TypeError(
-            "This isn't your SignatureStamp; it belongs to {} (a Stranger).  You can't sign with it.".format(self.character))
+        message = "This isn't your SignatureStamp; it belongs to {} (a Stranger).  You can't sign with it."
+        raise TypeError(message.format(self.character))

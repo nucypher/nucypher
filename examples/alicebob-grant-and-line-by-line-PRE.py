@@ -16,25 +16,25 @@ from umbral import pre
 
 ALICE = Alice()
 BOB = Bob()
-URSULA = Ursula.from_rest_url(address="http://localhost", port="3500")
+URSULA = Ursula.from_rest_url(address="https://localhost", port="3550")
 
 
 class SandboxNetworkyStuff(NetworkyStuff):
     def find_ursula(self, contract=None):
         ursula = Ursula.as_discovered_on_network(dht_port=None, dht_interface=None,
-                                                 rest_address="localhost", rest_port=3500,
+                                                 rest_address="https://localhost", rest_port=3550,
                                                  powers_and_keys={
                                                     SigningPower: URSULA.stamp.as_umbral_pubkey(),
                                                     EncryptingPower: URSULA.public_key(EncryptingPower)
                                                  }
                                                  )
-        response = requests.post("http://localhost:3500/consider_contract", bytes(contract))
+        response = requests.post("https://localhost:3550/consider_contract", bytes(contract), verify=False)
         response.was_accepted = True
         return ursula, response
 
     def enact_policy(self, ursula, hrac, payload):
-        response = requests.post('http://{}:{}/kFrag/{}'.format(ursula.rest_address, ursula.rest_port, hrac.hex()),
-                                 payload)
+        response = requests.post('{}:{}/kFrag/{}'.format(ursula.rest_address, ursula.rest_port, hrac.hex()),
+                                 payload, verify=False)
         # TODO: Something useful here and it's probably ready to go down into NetworkyStuff.
         return response.status_code == 200
 
@@ -46,7 +46,7 @@ n = 1
 uri = b"secret/files/and/stuff"
 
 # Alice gets on the network and discovers Ursula, presumably from the blockchain.
-ALICE.learn_about_nodes(address="http://localhost", port="3500")
+ALICE.learn_about_nodes(address="https://localhost", port="3550")
 
 # Alice grants to Bob.
 
@@ -56,7 +56,7 @@ policy.publish_treasure_map(networky_stuff, use_dht=False)
 hrac, treasure_map = policy.hrac(), policy.treasure_map
 
 # Bob learns about Ursula, gets the TreasureMap, and follows it.
-BOB.learn_about_nodes(address="http://localhost", port="3500")
+BOB.learn_about_nodes(address="https://localhost", port="3550")
 networky_stuff = NetworkyStuff()
 BOB.get_treasure_map(policy, networky_stuff)
 BOB.follow_treasure_map(hrac)

@@ -58,7 +58,7 @@ def alice(ursulas):
 
 @pytest.fixture(scope="module")
 def bob(alice, ursulas):
-    BOB = Bob(alice=alice)
+    BOB = Bob()
     BOB.server.listen(8475)
     EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
     return BOB
