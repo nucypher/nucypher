@@ -7,12 +7,13 @@ A simple Python script to deploy contracts and then estimate gas for different m
 from nkms_eth.blockchain import TesterBlockchain
 from nkms_eth.escrow import Escrow
 from nkms_eth.token import NuCypherKMSToken
+import os
 
 
 def main():
     testerchain = TesterBlockchain()
     chain, web3 = testerchain._chain, testerchain._chain.web3
-    creator, ursula1, ursula2, ursula3, *everyone_else = web3.eth.accounts
+    creator, ursula1, ursula2, ursula3, alice1, *everyone_else = web3.eth.accounts
 
     print("Web3 providers are", web3.providers)
 
@@ -37,7 +38,7 @@ def main():
     # Pre deposit tokens
     tx = token.transact({'from': creator}).approve(escrow.contract.address, 10 ** 7)
     chain.wait.for_receipt(tx)
-    print("Pre-deposit tokens fro 5 owners = " +
+    print("Pre-deposit tokens for 5 owners = " +
           str(escrow.contract.estimateGas({'from': creator}).preDeposit(
               web3.eth.accounts[4:9], [10 ** 6] * 5, [1] * 5)))
 
@@ -177,6 +178,79 @@ def main():
     chain.wait.for_receipt(tx)
     print("Third/last mining again = " + str(escrow.contract.estimateGas({'from': ursula3}).mint()))
     tx = escrow.transact({'from': ursula3}).mint()
+    chain.wait.for_receipt(tx)
+
+    # Create policy
+    policy_id_1 = os.urandom(20)
+    policy_id_2 = os.urandom(20)
+    policy_id_3 = os.urandom(20)
+    number_of_periods = 10
+    print("First creating policy (1 node, 10 periods) = " +
+          str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
+              .createPolicy(policy_id_1, ursula1, number_of_periods)))
+    tx = policy_manager.transact({'from': alice1, 'value': 10000})\
+        .createPolicy(policy_id_1, ursula1, number_of_periods)
+    chain.wait.for_receipt(tx)
+    print("Second creating policy (1 node, 10 periods) = " +
+          str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
+              .createPolicy(policy_id_2, ursula1, number_of_periods)))
+    tx = policy_manager.transact({'from': alice1, 'value': 10000}) \
+        .createPolicy(policy_id_2, ursula1, number_of_periods)
+    chain.wait.for_receipt(tx)
+
+    # Revoke policy
+    print("Revoking policy = " +
+          str(policy_manager.estimateGas({'from': alice1}).revokePolicy(policy_id_1)))
+    tx = policy_manager.transact({'from': alice1}).revokePolicy(policy_id_1)
+    chain.wait.for_receipt(tx)
+    tx = policy_manager.transact({'from': alice1}).revokePolicy(policy_id_2)
+    chain.wait.for_receipt(tx)
+
+    # Create policy with more periods
+    number_of_periods = 100
+    print("First creating policy (1 node, " + str(number_of_periods) + " periods) = " +
+          str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
+              .createPolicy(policy_id_1, ursula2, number_of_periods)))
+    tx = policy_manager.transact({'from': alice1, 'value': 10000})\
+        .createPolicy(policy_id_1, ursula2, number_of_periods)
+    chain.wait.for_receipt(tx)
+    testerchain.wait_time(1)
+    print("Second creating policy (1 node, " + str(number_of_periods) + " periods) = " +
+          str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
+              .createPolicy(policy_id_2, ursula2, number_of_periods)))
+    tx = policy_manager.transact({'from': alice1, 'value': 10000}) \
+        .createPolicy(policy_id_2, ursula2, number_of_periods)
+    chain.wait.for_receipt(tx)
+    print("Third creating policy (1 node, " + str(number_of_periods) + " periods) = " +
+          str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
+              .createPolicy(policy_id_3, ursula1, number_of_periods)))
+    tx = policy_manager.transact({'from': alice1, 'value': 10000}) \
+        .createPolicy(policy_id_3, ursula1, number_of_periods)
+    chain.wait.for_receipt(tx)
+
+    # Mine and revoke policy
+    testerchain.wait_time(10)
+    tx = escrow.transact({'from': ursula2}).confirmActivity()
+    chain.wait.for_receipt(tx)
+    tx = escrow.transact({'from': ursula1}).confirmActivity()
+    chain.wait.for_receipt(tx)
+
+    testerchain.wait_time(1)
+    print("First mining after downtime = " + str(escrow.contract.estimateGas({'from': ursula1}).mint()))
+    tx = escrow.transact({'from': ursula1}).mint()
+    chain.wait.for_receipt(tx)
+    print("Second mining after downtime = " + str(escrow.contract.estimateGas({'from': ursula2}).mint()))
+    tx = escrow.transact({'from': ursula2}).mint()
+    chain.wait.for_receipt(tx)
+
+    testerchain.wait_time(10)
+    print("First revoking policy after downtime = " +
+          str(policy_manager.estimateGas({'from': alice1}).revokePolicy(policy_id_1)))
+    tx = policy_manager.transact({'from': alice1}).revokePolicy(policy_id_1)
+    chain.wait.for_receipt(tx)
+    print("Second revoking policy after downtime = " +
+          str(policy_manager.estimateGas({'from': alice1}).revokePolicy(policy_id_2)))
+    tx = policy_manager.transact({'from': alice1}).revokePolicy(policy_id_2)
     chain.wait.for_receipt(tx)
 
     print("All done!")

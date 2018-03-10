@@ -4,6 +4,7 @@ pragma solidity ^0.4.18;
 import "./zeppelin/token/ERC20/SafeERC20.sol";
 import "./zeppelin/math/SafeMath.sol";
 import "./zeppelin/math/Math.sol";
+import "./lib/AdditionalMath.sol";
 import "./MinersEscrow.sol";
 import "./NuCypherKMSToken.sol";
 
@@ -14,6 +15,8 @@ import "./NuCypherKMSToken.sol";
 contract PolicyManager {
     using SafeERC20 for NuCypherKMSToken;
     using SafeMath for uint256;
+    using AdditionalMath for uint256;
+    using AdditionalMath for int256;
 
     event PolicyCreated(
         bytes20 indexed policyId,
@@ -31,13 +34,9 @@ contract PolicyManager {
         uint256 value
     );
 
-//    enum PolicyState { Pending, Active }
-//    enum PolicyType { Periods }
-
     struct Policy {
         address client;
         address node;
-//        PolicyState state;
 
         // policy for activity periods
         uint256 rate;
@@ -48,7 +47,9 @@ contract PolicyManager {
 
     struct NodeInfo {
         uint256 reward;
-        mapping (uint256 => uint256) rewardByPeriod;
+        uint256 lastRewardByPeriod;
+        uint256 lastRewardedPeriod;
+        mapping (uint256 => int256) rewardChanges;
     }
 
     MinersEscrow public escrow;
@@ -92,31 +93,25 @@ contract PolicyManager {
         Policy storage policy = policies[_policyId];
         policy.client = msg.sender;
         policy.node = _node;
-//        policy.state = PolicyState.Pending;
         uint256 currentPeriod = escrow.getCurrentPeriod();
-        policy.startPeriod = currentPeriod.add(1);
+        policy.startPeriod = currentPeriod.add(uint(1));
         policy.lastPeriod = currentPeriod.add(_numberOfPeriods);
         uint256 feeByPeriod = msg.value.div(_numberOfPeriods);
         policy.rate = feeByPeriod;
 
         NodeInfo storage node = nodes[_node];
-        for (uint256 i = policy.startPeriod; i <= policy.lastPeriod; i++) {
-            node.rewardByPeriod[i] = node.rewardByPeriod[i].add(feeByPeriod);
+        uint256 endPeriod = policy.lastPeriod.add(uint(1));
+        node.rewardChanges[policy.startPeriod] = node.rewardChanges[policy.startPeriod]
+            .add(feeByPeriod);
+        node.rewardChanges[endPeriod] = node.rewardChanges[endPeriod].sub(feeByPeriod);
+        // TODO node should pay for this
+        if (node.lastRewardedPeriod == 0) {
+            node.lastRewardedPeriod = currentPeriod;
         }
+
         policy.indexOfDowntimePeriods = escrow.getDowntimePeriodsLength(_node);
         PolicyCreated(_policyId, msg.sender, _node);
     }
-
-//    /**
-//    * @notice Confirm policy by node
-//    * @param _policyId Policy id
-//    **/
-//    function confirmPolicy(bytes20 _policyId) public {
-//        Policy policy = policies[_policyId];
-//        require(policy.state == PolicyState.Pending &&
-//            policy.node == msg.sender);
-//        policy.state = PolicyState.Active;
-//    }
 
     /**
     * @notice Update node reward
@@ -126,8 +121,15 @@ contract PolicyManager {
     function updateReward(address _node, uint256 _period) external {
         require(msg.sender == address(escrow));
         NodeInfo storage node = nodes[_node];
-        node.reward = node.reward.add(node.rewardByPeriod[_period]);
-        delete node.rewardByPeriod[_period];
+        if (node.lastRewardedPeriod == 0) {
+            return;
+        }
+        for (uint256 i = node.lastRewardedPeriod + 1; i <= _period; i++) {
+            node.lastRewardByPeriod = node.lastRewardByPeriod.add(node.rewardChanges[i]);
+//            delete node.rewardChanges[i];
+        }
+        node.lastRewardedPeriod = _period;
+        node.reward = node.reward.add(node.lastRewardByPeriod);
     }
 
     /**
@@ -151,10 +153,11 @@ contract PolicyManager {
         require(policy.client == msg.sender);
         uint256 refund = calculateRefund(_policyId);
         NodeInfo storage node = nodes[policy.node];
-        for (uint256 i = policy.startPeriod; i <= policy.lastPeriod; i++) {
-            node.rewardByPeriod[i] = node.rewardByPeriod[i].sub(policy.rate);
-            refund = refund.add(policy.rate);
-        }
+        uint256 endPeriod = policy.lastPeriod.add(uint(1));
+        node.rewardChanges[policy.startPeriod] = node.rewardChanges[policy.startPeriod]
+            .sub(policy.rate);
+        node.rewardChanges[endPeriod] = node.rewardChanges[endPeriod].add(policy.rate);
+        refund = refund.add(endPeriod.sub(policy.startPeriod).mul(policy.rate));
         delete policies[_policyId];
         if (refund > 0) {
             msg.sender.transfer(refund);
@@ -169,10 +172,7 @@ contract PolicyManager {
     **/
     function refund(bytes20 _policyId) public {
         Policy storage policy = policies[_policyId];
-//        require(policy.state == PolicyState.Active &&
-//            msg.sender == policy.client);
         require(msg.sender == policy.client);
-
         uint256 refundValue = calculateRefund(_policyId);
         address client = policy.client;
         if (policy.startPeriod > policy.lastPeriod) {
@@ -207,7 +207,7 @@ contract PolicyManager {
             }
             uint256 max = Math.min256(maxPeriod, endPeriod);
             uint256 min = Math.max256(minPeriod, startPeriod);
-            downtimePeriods = downtimePeriods.add(max.sub(min).add(1));
+            downtimePeriods = downtimePeriods.add(max.sub(min).add(uint(1)));
             if (maxPeriod <= endPeriod) {
                 break;
             }
@@ -215,10 +215,10 @@ contract PolicyManager {
         policy.indexOfDowntimePeriods = i;
         uint256 lastActivePeriod = escrow.getLastActivePeriod(policy.node);
         if (i == length && lastActivePeriod < maxPeriod) {
-            min = Math.max256(minPeriod.sub(1), lastActivePeriod);
+            min = Math.max256(minPeriod.sub(uint(1)), lastActivePeriod);
             downtimePeriods = downtimePeriods.add(maxPeriod.sub(min));
         }
-        policy.startPeriod = maxPeriod.add(1);
+        policy.startPeriod = maxPeriod.add(uint(1));
 
         return policy.rate.mul(downtimePeriods);
     }

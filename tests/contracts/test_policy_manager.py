@@ -141,8 +141,13 @@ def test_reward(web3, chain, escrow, policy_manager):
     client = web3.eth.accounts[2]
     node_balance = web3.eth.getBalance(node)
 
-    # Create policy
+    # Mint period without policies
     period = escrow.call().getCurrentPeriod()
+    tx = escrow.transact({'from': node, 'gas_price': 0}).mint(period)
+    chain.wait.for_receipt(tx)
+    assert 0 == policy_manager.call().nodes(node)[0]
+
+    # Create policy
     tx = policy_manager.transact({'from': client, 'value': value})\
         .createPolicy(policy_id, node, number_of_periods)
     chain.wait.for_receipt(tx)
@@ -162,7 +167,7 @@ def test_reward(web3, chain, escrow, policy_manager):
         tx = escrow.transact({'from': node, 'gas_price': 0}).mint(period)
         chain.wait.for_receipt(tx)
         period += 1
-    assert 80 == policy_manager.call().nodes(node)
+    assert 80 == policy_manager.call().nodes(node)[0]
 
     # Withdraw
     tx = policy_manager.transact({'from': node, 'gas_price': 0}).withdraw()
@@ -181,7 +186,7 @@ def test_reward(web3, chain, escrow, policy_manager):
         tx = escrow.transact({'from': node, 'gas_price': 0}).mint(period)
         chain.wait.for_receipt(tx)
         period += 1
-    assert 120 == policy_manager.call().nodes(node)
+    assert 120 == policy_manager.call().nodes(node)[0]
 
     # Withdraw
     tx = policy_manager.transact({'from': node, 'gas_price': 0}).withdraw()
@@ -279,7 +284,7 @@ def test_refund(web3, chain, escrow, policy_manager):
     chain.wait.for_receipt(tx)
     tx = escrow.transact().setLastActivePeriod(period + 8)
     chain.wait.for_receipt(tx)
-    assert 80 == policy_manager.call().nodes(node)
+    assert 80 == policy_manager.call().nodes(node)[0]
 
     # Wait and refund
     wait_time(chain, 10)
@@ -313,7 +318,7 @@ def test_refund(web3, chain, escrow, policy_manager):
         chain.wait.for_receipt(tx)
     tx = escrow.transact().setLastActivePeriod(period)
     chain.wait.for_receipt(tx)
-    assert 140 == policy_manager.call().nodes(node)
+    assert 140 == policy_manager.call().nodes(node)[0]
 
     # Client revokes policy
     wait_time(chain, 4)
@@ -337,7 +342,7 @@ def test_refund(web3, chain, escrow, policy_manager):
         period += 1
         tx = escrow.transact({'from': node}).mint(period)
         chain.wait.for_receipt(tx)
-    assert 140 == policy_manager.call().nodes(node)
+    assert 140 == policy_manager.call().nodes(node)[0]
 
     events = policy_manager.pastEvents('PolicyCreated').get()
     assert 3 == len(events)
