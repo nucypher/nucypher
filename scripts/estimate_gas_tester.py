@@ -183,19 +183,18 @@ def main():
     # Create policy
     policy_id_1 = os.urandom(20)
     policy_id_2 = os.urandom(20)
-    policy_id_3 = os.urandom(20)
     number_of_periods = 10
     print("First creating policy (1 node, 10 periods) = " +
           str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
-              .createPolicy(policy_id_1, ursula1, number_of_periods)))
+              .createPolicy(policy_id_1, number_of_periods, [ursula1])))
     tx = policy_manager.transact({'from': alice1, 'value': 10000})\
-        .createPolicy(policy_id_1, ursula1, number_of_periods)
+        .createPolicy(policy_id_1, number_of_periods, [ursula1])
     chain.wait.for_receipt(tx)
     print("Second creating policy (1 node, 10 periods) = " +
           str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
-              .createPolicy(policy_id_2, ursula1, number_of_periods)))
+              .createPolicy(policy_id_2, number_of_periods, [ursula1])))
     tx = policy_manager.transact({'from': alice1, 'value': 10000}) \
-        .createPolicy(policy_id_2, ursula1, number_of_periods)
+        .createPolicy(policy_id_2, number_of_periods, [ursula1])
     chain.wait.for_receipt(tx)
 
     # Revoke policy
@@ -207,25 +206,28 @@ def main():
     chain.wait.for_receipt(tx)
 
     # Create policy with more periods
+    policy_id_1 = os.urandom(20)
+    policy_id_2 = os.urandom(20)
+    policy_id_3 = os.urandom(20)
     number_of_periods = 100
     print("First creating policy (1 node, " + str(number_of_periods) + " periods) = " +
           str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
-              .createPolicy(policy_id_1, ursula2, number_of_periods)))
+              .createPolicy(policy_id_1, number_of_periods, [ursula2])))
     tx = policy_manager.transact({'from': alice1, 'value': 10000})\
-        .createPolicy(policy_id_1, ursula2, number_of_periods)
+        .createPolicy(policy_id_1, number_of_periods, [ursula2])
     chain.wait.for_receipt(tx)
     testerchain.wait_time(1)
     print("Second creating policy (1 node, " + str(number_of_periods) + " periods) = " +
           str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
-              .createPolicy(policy_id_2, ursula2, number_of_periods)))
+              .createPolicy(policy_id_2, number_of_periods, [ursula2])))
     tx = policy_manager.transact({'from': alice1, 'value': 10000}) \
-        .createPolicy(policy_id_2, ursula2, number_of_periods)
+        .createPolicy(policy_id_2, number_of_periods, [ursula2])
     chain.wait.for_receipt(tx)
     print("Third creating policy (1 node, " + str(number_of_periods) + " periods) = " +
           str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
-              .createPolicy(policy_id_3, ursula1, number_of_periods)))
+              .createPolicy(policy_id_3, number_of_periods, [ursula1])))
     tx = policy_manager.transact({'from': alice1, 'value': 10000}) \
-        .createPolicy(policy_id_3, ursula1, number_of_periods)
+        .createPolicy(policy_id_3, number_of_periods, [ursula1])
     chain.wait.for_receipt(tx)
 
     # Mine and revoke policy
@@ -251,6 +253,34 @@ def main():
     print("Second revoking policy after downtime = " +
           str(policy_manager.estimateGas({'from': alice1}).revokePolicy(policy_id_2)))
     tx = policy_manager.transact({'from': alice1}).revokePolicy(policy_id_2)
+    chain.wait.for_receipt(tx)
+    print("Second revoking policy after downtime = " +
+          str(policy_manager.estimateGas({'from': alice1}).revokePolicy(policy_id_3)))
+    tx = policy_manager.transact({'from': alice1}).revokePolicy(policy_id_3)
+    chain.wait.for_receipt(tx)
+
+    # Create policy with multiple nodes
+    policy_id_1 = os.urandom(20)
+    policy_id_2 = os.urandom(20)
+    policy_id_3 = os.urandom(20)
+    number_of_periods = 100
+    print("First creating policy (3 nodes, 100 periods) = " +
+          str(policy_manager.estimateGas({'from': alice1, 'value': 30000})
+              .createPolicy(policy_id_1, number_of_periods, [ursula1, ursula2, ursula3])))
+    tx = policy_manager.transact({'from': alice1, 'value': 30000}) \
+        .createPolicy(policy_id_1, number_of_periods, [ursula1, ursula2, ursula3])
+    chain.wait.for_receipt(tx)
+    print("Second creating policy (3 nodes, 100 periods) = " +
+          str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
+              .createPolicy(policy_id_2, number_of_periods, [ursula1, ursula2, ursula3])))
+    tx = policy_manager.transact({'from': alice1, 'value': 10000}) \
+        .createPolicy(policy_id_2, number_of_periods, [ursula1, ursula2, ursula3])
+    chain.wait.for_receipt(tx)
+    print("Third creating policy (2 nodes, 100 periods) = " +
+          str(policy_manager.estimateGas({'from': alice1, 'value': 20000})
+              .createPolicy(policy_id_3, number_of_periods, [ursula1, ursula2])))
+    tx = policy_manager.transact({'from': alice1, 'value': 20000}) \
+        .createPolicy(policy_id_3, number_of_periods, [ursula1, ursula2])
     chain.wait.for_receipt(tx)
 
     print("All done!")

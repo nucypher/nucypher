@@ -1,4 +1,4 @@
-pragma solidity ^0.4.8;
+pragma solidity ^0.4.18;
 
 
 import "contracts/PolicyManager.sol";
@@ -16,16 +16,18 @@ contract MinersEscrowForPolicyMock {
 
     PolicyManager public policyManager;
     uint256 public secondsPerPeriod;
-    address public node;
+    mapping(address => bool) public nodes;
     uint256 public lastActivePeriod;
     Downtime[] public downtime;
 
     /**
-    * @param _node Address of node that allow to use policy manager
+    * @param _nodes Addresses of nodes that allow to use policy manager
     * @param _minutesPerPeriod Size of period in minutes
     **/
-    function MinersEscrowForPolicyMock(address _node, uint256 _minutesPerPeriod) public {
-        node = _node;
+    function MinersEscrowForPolicyMock(address[] _nodes, uint256 _minutesPerPeriod) public {
+        for (uint256 i = 0; i < _nodes.length; i++) {
+            nodes[_nodes[i]] = true;
+        }
         secondsPerPeriod = _minutesPerPeriod * 1 minutes;
     }
 
@@ -35,7 +37,7 @@ contract MinersEscrowForPolicyMock {
     function getLockedTokens(address _owner)
         public view returns (uint256)
     {
-        if (_owner == node) {
+        if (nodes[_owner]) {
             return 1;
         }
         return 0;
@@ -67,7 +69,7 @@ contract MinersEscrowForPolicyMock {
     * @param _period Period for minting
     **/
     function mint(uint256 _period) external {
-        policyManager.updateReward(node, _period);
+        policyManager.updateReward(msg.sender, _period);
     }
 
     /**
