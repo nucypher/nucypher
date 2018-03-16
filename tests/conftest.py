@@ -15,8 +15,8 @@ def testerchain():
 
 
 @pytest.fixture(scope='function')
-def token_deployer(testerchain):
-    token_deployer = NuCypherKMSTokenDeployer(blockchain=testerchain)
+def mock_token_deployer(testerchain):
+    token_deployer = MockNuCypherKMSTokenDeployer(blockchain=testerchain)
     token_deployer.arm()
     token_deployer.deploy()
     yield token_deployer
@@ -29,14 +29,17 @@ def token_agent(testerchain):
 
 
 @pytest.fixture(scope='function')
-def escrow_deployer(token_agent):
+def mock_miner_escrow_deployer(token_agent):
     escrow = MockMinerEscrowDeployer(token_agent)
     escrow.arm()
     escrow.deploy()
     yield escrow
 
 
+# Unused args preserve fixture dependency order #
+
+
 @pytest.fixture(scope='function')
-def miner_agent(token_agent):
+def miner_agent(token_agent, mock_token_deployer, mock_miner_escrow_deployer):
     miner_agent = MinerAgent(token_agent)
     yield miner_agent
