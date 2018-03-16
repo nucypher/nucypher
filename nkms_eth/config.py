@@ -7,7 +7,7 @@ import populus
 import nkms_eth
 
 
-class TokenConfig:
+class NuCypherTokenConfig:
     __subdigits = 18
     _M = 10 ** __subdigits
     __premine = int(1e9) * _M
@@ -19,23 +19,23 @@ class TokenConfig:
         return self.__saturation
 
 
-class MinerConfig:
-    __hours_per_period = 1       # 24 Hours    TODO
-    __min_release_periods = 1    # 30 Periods
-    __max_awarded_periods = 365  # Periods
+class NuCypherMinerConfig:
+    _hours_per_period = 24       # Hours
+    _min_release_periods = 30    # 720 Hours
+    __max_awarded_periods = 365
 
     __min_allowed_locked = 10 ** 6
-    __max_allowed_locked = 10 ** 7 * TokenConfig._M
+    __max_allowed_locked = 10 ** 7 * NuCypherTokenConfig._M
 
-    __reward = TokenConfig._reward
     _null_addr = '0x' + '0' * 40
+    __reward = NuCypherTokenConfig._reward
 
     __mining_coeff = [
-        __hours_per_period,
+        _hours_per_period,
         2 * 10 ** 7,
         __max_awarded_periods,
         __max_awarded_periods,
-        __min_release_periods,
+        _min_release_periods,
         __min_allowed_locked,
         __max_allowed_locked
     ]
@@ -62,6 +62,7 @@ class MinerConfig:
     @property
     def null_address(self):
         return self._null_addr
+
 
     @property
     def mining_coefficient(self):

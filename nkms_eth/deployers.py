@@ -1,19 +1,19 @@
 from typing import Tuple
 
 from nkms_eth.base import ContractDeployer
-from nkms_eth.config import MinerConfig, TokenConfig
+from nkms_eth.config import NuCypherMinerConfig, NuCypherTokenConfig
 from .blockchain import TheBlockchain
 
 addr = str
 
 
-class NuCypherKMSTokenDeployer(ContractDeployer):
+class NuCypherKMSTokenDeployer(ContractDeployer, NuCypherTokenConfig):
+
     _contract_name = 'NuCypherKMSToken'
 
-    def __init__(self, blockchain: TheBlockchain, config=TokenConfig()):
+    def __init__(self, blockchain: TheBlockchain):
         super().__init__(blockchain=blockchain)
         self.__creator = self._blockchain._chain.web3.eth.accounts[0]
-        self._token_config = config
 
     @property
     def origin(self):
@@ -76,14 +76,13 @@ class PolicyManagerDeployer(ContractDeployer):
         return deploy_txhash, set_txhash
 
 
-class MinerEscrowDeployer(ContractDeployer):
+class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
 
     _contract_name = 'MinersEscrow'
 
-    def __init__(self, token_agent, config=MinerConfig()):
-        super().__init__(token_agent)
+    def __init__(self, token_agent):
         self._token_agent = token_agent
-        self._config = config
+        super().__init__(blockchain=token_agent._blockchain)
 
     def deploy(self) -> Tuple[str, str, str]:
         """
