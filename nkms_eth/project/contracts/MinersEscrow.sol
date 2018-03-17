@@ -233,7 +233,7 @@ contract MinersEscrow is Issuer, Ownable {
         internal view returns (uint256)
     {
         MinerInfo storage info = minerInfo[_owner];
-        return _lockedTokens.divCeil(info.releaseRate).sub(1);
+        return _lockedTokens.divCeil(info.releaseRate).sub(uint(1));
     }
 
     /**
@@ -447,7 +447,7 @@ contract MinersEscrow is Issuer, Ownable {
     * @notice Mint tokens for sender for previous periods if he locked his tokens and confirmed activity
     **/
     function mint() external onlyTokenOwner {
-        uint256 previousPeriod = getCurrentPeriod().sub(1);
+        uint256 previousPeriod = getCurrentPeriod().sub(uint(1));
         MinerInfo storage info = minerInfo[msg.sender];
         uint256 numberPeriodsForMinting = info.numberConfirmedPeriods;
         require(numberPeriodsForMinting > 0 &&
