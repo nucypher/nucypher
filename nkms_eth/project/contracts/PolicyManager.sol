@@ -84,11 +84,7 @@ contract PolicyManager is Upgradeable {
     * @notice Constructor sets address of the escrow contract
     * @param _escrow Escrow contract
     **/
-    function PolicyManager(
-        MinersEscrow _escrow
-    )
-        public
-    {
+    function PolicyManager(MinersEscrow _escrow) public {
         require(address(_escrow) != 0x0);
         escrow = _escrow;
     }
