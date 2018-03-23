@@ -1,26 +1,79 @@
 import random
+from abc import ABC
 from typing import Set, Generator, List
 
-from nkms_eth.actors import PolicyAuthor
-from nkms_eth.base import EthereumContractAgent
-from nkms_eth.blockchain import TheBlockchain
-from nkms_eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer, PolicyManagerDeployer
+from nkms_eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer, PolicyManagerDeployer, ContractDeployer
+
+
+class EthereumContractAgent(ABC):
+    _principal_contract_name = NotImplemented
+
+    _contract_subclasses = list()
+
+    class ContractNotDeployed(ContractDeployer.ContractDeploymentError):
+        pass
+
+    def __init__(self, blockchain, *args, **kwargs):
+
+        self._blockchain = blockchain
+        self._contract = self.__fetch_contract()
+
+    @classmethod
+    def __init_subclass__(cls, deployer, **kwargs):
+        """
+        https://www.python.org/dev/peps/pep-0487/#proposal
+        """
+        super().__init_subclass__(**kwargs)
+        cls._deployer = deployer
+        cls._principal_contract_name = deployer._contract_name
+        cls._contract_subclasses.append(cls)
+
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        r = "{}(blockchain={}, contract={})"
+        return r.format(class_name, self._blockchain, self._contract)
+
+    def __eq__(self, other):
+        return bool(self.contract_address == other.contract_address)
+
+    @property
+    def contract_address(self):
+        return self._contract.address
+
+    @property
+    def contract_name(self) -> str:
+        return self._principal_contract_name
+
+    @property
+    def origin(self) -> str:
+        return self._blockchain._chain.web3.eth.accounts[0]    # TODO: make swappable
+
+    def __fetch_contract(self):
+        contract = self._blockchain._chain.provider.get_contract(self._principal_contract_name)
+        return contract
+
+    def call(self):
+        return self._contract.call()
+
+    def transact(self, payload: dict):
+        """Packs kwargs into payload dictionary and transmits an eth contract transaction"""
+        return self._contract.transact(payload)
+
+    def get_balance(self, address: str=None) -> int:
+        """Get the balance of a token address, or of this contract address"""
+        if address is None:
+            address = self.contract_address
+        return self.call().balanceOf(address)
 
 
 class NuCypherKMSTokenAgent(EthereumContractAgent, deployer=NuCypherKMSTokenDeployer):
 
-    def __init__(self, blockchain: TheBlockchain):
-        self._blockchain = blockchain
-        super().__init__(self)
+    _principal_contract_name = NotImplemented
 
     def registrar(self):
         """Retrieve all known addresses for this contract"""
         all_known_address = self._blockchain._chain.registrar.get_contract_address(self._principal_contract_name)
         return all_known_address
-
-    def balance(self, address: str) -> int:
-        """Get the balance of a token address"""
-        return self.call().balanceOf(address)
 
 
 class MinerAgent(EthereumContractAgent, deployer=MinerEscrowDeployer):
@@ -36,20 +89,21 @@ class MinerAgent(EthereumContractAgent, deployer=MinerEscrowDeployer):
     class NotEnoughUrsulas(Exception):
         pass
 
-    def __init__(self, token: NuCypherKMSTokenAgent):
-        super().__init__(agent=token)
-        self._token = token
+    def __init__(self, token_agent: NuCypherKMSTokenAgent):
+        super().__init__(blockchain=token_agent._blockchain)
+        self.token_agent = token_agent
         self.miners = list()
 
     def get_miner_ids(self) -> Set[str]:
         """
         Fetch all miner IDs from the local cache and return them in a set
         """
+
         return {miner.get_id() for miner in self.miners}
 
     def swarm(self) -> Generator[str, None, None]:
         """
-        Generates all miner addresses via cumulative sum on-network.
+        Returns an iterator of all miner addresses via cumulative sum, on-network.
         """
         count = self.call().getMinerInfo(self._deployer.MinerInfoField.MINERS_LENGTH.value, self._deployer.null_address, 0).encode('latin-1')
         count = self._blockchain._chain.web3.toInt(count)
@@ -106,17 +160,19 @@ class MinerAgent(EthereumContractAgent, deployer=MinerEscrowDeployer):
 class PolicyAgent(EthereumContractAgent, deployer=PolicyManagerDeployer):
 
     def __init__(self, miner_agent):
-        super().__init__(miner_agent)
+        super().__init__(blockchain=miner_agent._blockchain)
         self.miner_agent = miner_agent
 
     def fetch_arrangement_data(self, arrangement_id: bytes) -> list:
         blockchain_record = self.call().policies(arrangement_id)
         return blockchain_record
 
-    def revoke_arrangement(self, arrangement_id: bytes, author: 'PolicyAuthor', gas_price: int):
+    def revoke_arrangement(self, arrangement_id: bytes, author, gas_price: int):
         """
         Revoke by arrangement ID; Only the policy author can revoke the policy
         """
+
         txhash = self.transact({'from': author.address, 'gas_price': gas_price}).revokePolicy(arrangement_id)
         self._blockchain._chain.wait.for_receipt(txhash)
+
         return txhash

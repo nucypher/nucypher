@@ -1,73 +1,43 @@
+from abc import ABC
 from collections import OrderedDict
-from typing import Tuple, List
+from datetime import datetime
+from typing import Tuple, List, Union
 
-# from nkms_eth.agents import MinerAgent, PolicyAgent
-from nkms_eth.base import Actor
+from nkms_eth.agents import NuCypherKMSTokenAgent
+from nkms_eth.policies import BlockchainArrangement
 
 
-class PolicyArrangement:
-    def __init__(self, author: 'PolicyAuthor', miner: 'Miner', value: int,
-                 periods: int, arrangement_id: bytes=None):
+class TokenActor(ABC):
 
-        if arrangement_id is None:
-            self.id = self.__class__._generate_arrangement_id()  # TODO: Generate policy ID
+    def __init__(self, token_agent: NuCypherKMSTokenAgent, address: Union[bytes, str]):
+        self.token_agent = token_agent
 
-        # The relationship exists between two addresses
-        self.author = author
-        self.policy_agent = author.policy_agent
-
-        self.miner = miner
-
-        # Arrangement value, rate, and duration
-        rate = value // periods
-        self._rate = rate
-
-        self.value = value
-        self.periods = periods  # TODO: datetime -> duration in blocks
-
-        self.is_published = False
-
-    @staticmethod
-    def _generate_arrangement_id(policy_hrac: bytes) -> bytes:
-        pass  # TODO
+        if isinstance(address, bytes):
+            address = address.hex()
+        self.address = address
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        r = "{}(client={}, node={})"
-        r = r.format(class_name, self.author, self.miner)
+        r = "{}(address='{}')"
+        r.format(class_name, self.address)
         return r
 
-    def publish(self, gas_price: int) -> str:
+    def eth_balance(self):
+        """Return this actors's current ETH balance"""
 
-        payload = {'from': self.author.address,
-                   'value': self.value,
-                   'gas_price': gas_price}
+        balance = self.token_agent._blockchain._chain.web3.eth.getBalance(self.address)
+        return balance
 
-        txhash = self.policy_agent.transact(payload).createPolicy(self.id,
-                                                                    self.miner.address,
-                                                                    self.periods)
+    def token_balance(self):
+        """Return this actors's current token balance"""
 
-        self.policy_agent._blockchain._chain.wait.for_receipt(txhash)
-        self.publish_transaction = txhash
-        self.is_published = True
-        return txhash
-
-    def __update_periods(self) -> None:
-        blockchain_record = self.policy_agent.fetch_arrangement_data(self.id)
-        client, delegate, rate, *periods = blockchain_record
-        self._elapsed_periods = periods
-
-    def revoke(self, gas_price: int) -> str:
-        """Revoke this arrangement and return the transaction hash as hex."""
-        txhash = self.policy_agent.revoke_arrangement(self.id, author=self.author, gas_price=gas_price)
-        self.revoke_transaction = txhash
-        return txhash
+        balance = self.token_agent.get_balance(address=self.address)
+        return balance
 
 
-class Miner(Actor):
+class Miner(TokenActor):
     """
-    Practically carrying a pickaxe.
-    Intended for use as an Ursula mixin.
+    Ursula - practically carrying a pickaxe.
 
     Accepts a running blockchain, deployed token contract, and deployed escrow contract.
     If the provided token and escrow contracts are not deployed,
@@ -76,28 +46,30 @@ class Miner(Actor):
     """
 
     def __init__(self, miner_agent, address):
-        super().__init__(address)
+        super().__init__(token_agent=miner_agent.token_agent, address=address)
 
         self.miner_agent = miner_agent
         miner_agent.miners.append(self)    # Track Miners
 
-        self._token_agent = miner_agent._token
-        self._blockchain = self._token_agent._blockchain
+        self.token_agent = miner_agent.token_agent
+        self._blockchain = self.token_agent._blockchain
 
-        self._transactions = list()
+        self._transactions = OrderedDict()
         self._locked_tokens = self._update_locked_tokens()
 
     def _update_locked_tokens(self) -> None:
+        """Query the contract for the amount of locked tokens on this miner's eth address and cache it"""
+
         self._locked_tokens = self.miner_agent.call().getLockedTokens(self.address)
         return None
 
     def _approve_escrow(self, amount: int) -> str:
         """Approve the transfer of token from the miner's address to the escrow contract."""
 
-        txhash = self._token_agent.transact({'from': self.address}).approve(self.miner_agent._contract.address, amount)
+        txhash = self.token_agent.transact({'from': self.address}).approve(self.miner_agent._contract.address, amount)
         self._blockchain._chain.wait.for_receipt(txhash, timeout=self._blockchain._timeout)
 
-        self._transactions.append(txhash)
+        self._transactions[datetime.now()] = txhash
 
         return txhash
 
@@ -107,12 +79,16 @@ class Miner(Actor):
         deposit_txhash = self.miner_agent.transact({'from': self.address}).deposit(amount, locktime)
         self._blockchain._chain.wait.for_receipt(deposit_txhash, timeout=self._blockchain._timeout)
 
-        self._transactions.append(deposit_txhash)
+        self._transactions[datetime.now()] = deposit_txhash
 
         return deposit_txhash
 
     @property
-    def is_staking(self):
+    def is_staking(self, query=True):
+        """Checks if this Miner currently has locked tokens."""
+
+        if query:
+            self._update_locked_tokens()
         return bool(self._locked_tokens > 0)
 
     def lock(self, amount: int, locktime: int) -> Tuple[str, str, str]:
@@ -124,7 +100,7 @@ class Miner(Actor):
         lock_txhash = self.miner_agent.transact({'from': self.address}).switchLock()
         self._blockchain._chain.wait.for_receipt(lock_txhash, timeout=self._blockchain._timeout)
 
-        self._transactions.extend([approve_txhash, deposit_txhash, lock_txhash])
+        self._transactions[datetime.now()] = (approve_txhash, deposit_txhash, lock_txhash)
 
         return approve_txhash, deposit_txhash, lock_txhash
 
@@ -134,7 +110,7 @@ class Miner(Actor):
         txhash = self.miner_agent.transact({'from': self.address}).confirmActivity()
         self._blockchain._chain.wait.for_receipt(txhash)
 
-        self._transactions.append(txhash)
+        self._transactions[datetime.now()] = txhash
 
         return txhash
 
@@ -144,7 +120,7 @@ class Miner(Actor):
         txhash = self.miner_agent.transact({'from': self.address}).mint()
         self._blockchain._chain.wait.for_receipt(txhash, timeout=self._blockchain._timeout)
 
-        self._transactions.append(txhash)
+        self._transactions[datetime.now()] = txhash
 
         return txhash
 
@@ -154,7 +130,7 @@ class Miner(Actor):
         txhash = policy_manager.transact({'from': self.address}).withdraw()
         self._blockchain._chain.wait.for_receipt(txhash)
 
-        self._transactions.append(txhash)
+        self._transactions[datetime.now()] = txhash
 
         return txhash
 
@@ -164,45 +140,34 @@ class Miner(Actor):
         txhash = self.miner_agent.transact({'from': self.address}).setMinerId(miner_id)
         self._blockchain._chain.wait.for_receipt(txhash)
 
-        self._transactions.append(txhash)
+        self._transactions[datetime.now()] = txhash
 
         return txhash
 
     def fetch_miner_ids(self) -> tuple:
         """Retrieve all stored Miner IDs on this miner"""
 
-        count = self.escrow().getMinerInfo(self.escrow.MinerInfoField.MINER_IDS_LENGTH.value,
-                                           self.address,
-                                           0).encode('latin-1')
+        count = self.miner_agent.call().getMinerInfo(self.miner_agent.MinerInfoField.MINER_IDS_LENGTH.value,
+                                                     self.address,
+                                                     0).encode('latin-1')
 
         count = self._blockchain._chain.web3.toInt(count)
 
         miner_ids = list()
         for index in range(count):
-            miner_id = self.miner_agent.call().getMinerInfo(self.escrow.MinerInfoField.MINER_ID.value, self.address, index)
+            miner_id = self.miner_agent.call().getMinerInfo(self.miner_agent.MinerInfoField.MINER_ID.value, self.address, index)
             encoded_miner_id = miner_id.encode('latin-1')  # TODO change when v4 of web3.py is released
             miner_ids.append(encoded_miner_id)
 
         return tuple(miner_ids)
 
-    def eth_balance(self):
-        return self._blockchain._chain.web3.eth.getBalance(self.address)
-
-    def token_balance(self) -> int:
-        """Check miner's current token balance"""
-
-        # self._token_agent._check_contract_deployment()
-        balance = self._token_agent.call().balanceOf(self.address)
-
-        return balance
-
     def withdraw(self, amount: int=0, entire_balance=False) -> str:
         """Withdraw tokens"""
 
         tokens_amount = self._blockchain._chain.web3.toInt(
-            self.escrow().getMinerInfo(self.escrow.MinerInfoField.VALUE.value, self.address, 0).encode('latin-1'))
+            self.miner_agent.call().getMinerInfo(self.miner_agent.MinerInfoField.VALUE.value, self.address, 0).encode('latin-1'))
 
-        txhash = self.escrow.transact({'from': self.address}).withdraw(tokens_amount)
+        txhash = self.miner_agent.call().transact({'from': self.address}).withdraw(tokens_amount)
 
         self._blockchain._chain.wait.for_receipt(txhash, timeout=self._blockchain._timeout)
 
@@ -210,39 +175,39 @@ class Miner(Actor):
             raise Exception("Specify an amount or entire balance, not both")
 
         if entire_balance:
-            txhash = self.escrow.transact({'from': self.address}).withdraw(tokens_amount)
+            txhash = self.miner_agent.call().transact({'from': self.address}).withdraw(tokens_amount)
         else:
-            txhash = self.escrow.transact({'from': self.address}).withdraw(amount)
+            txhash = self.miner_agent.call().transact({'from': self.address}).withdraw(amount)
 
-        self._transactions.append(txhash)
         self._blockchain._chain.wait.for_receipt(txhash, timeout=self._blockchain._timeout)
 
         return txhash
 
 
-class PolicyAuthor(Actor):
+class PolicyAuthor(TokenActor):
     """Alice"""
 
     def __init__(self, address: bytes, policy_agent):
+        super().__init__(token_agent=policy_agent._token, address=address)
         self.policy_agent = policy_agent
-        super().__init__(address)
+
         self._arrangements = OrderedDict()    # Track authored policies by id
 
-    def make_arrangement(self, miner: Miner, periods: int, rate: int, arrangement_id: bytes=None) -> PolicyArrangement:
+    def make_arrangement(self, miner: Miner, periods: int, rate: int, arrangement_id: bytes=None) -> 'BlockchainArrangement':
         """
         Create a new arrangement to carry out a blockchain policy for the specified rate and time.
         """
 
         value = rate * periods
-        arrangement = PolicyArrangement(author=self,
-                                        miner=miner,
-                                        value=value,
-                                        periods=periods)
+        arrangement = BlockchainArrangement(author=self,
+                                            miner=miner,
+                                            value=value,
+                                            periods=periods)
 
         self._arrangements[arrangement.id] = {arrangement_id: arrangement}
         return arrangement
 
-    def get_arrangement(self, arrangement_id: bytes) -> PolicyArrangement:
+    def get_arrangement(self, arrangement_id: bytes) -> BlockchainArrangement:
         """Fetch a published arrangement from the blockchain"""
 
         blockchain_record = self.policy_agent.call().policies(arrangement_id)
@@ -251,13 +216,13 @@ class PolicyAuthor(Actor):
         duration = end_block - start_block
 
         miner = Miner(address=miner_address, miner_agent=self.policy_agent.miner_agent)
-        arrangement = PolicyArrangement(author=self, miner=miner, periods=duration)
+        arrangement = BlockchainArrangement(author=self, miner=miner, periods=duration)
 
         arrangement.is_published = True
         return arrangement
 
     def revoke_arrangement(self, arrangement_id):
-        """Lookup the arrangement in the cache and revoke it on the blockchain"""
+        """Get the arrangement from the cache and revoke it on the blockchain"""
         try:
             arrangement = self._arrangements[arrangement_id]
         except KeyError:
@@ -267,9 +232,12 @@ class PolicyAuthor(Actor):
         return txhash
 
     def recruit(self, quantity: int) -> List[str]:
+        """Uses sampling logic to gather"""
+
         miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity)
         return miner_addresses
 
     def balance(self):
+        """Get the balance of this actor's address"""
         return self.policy_agent.miner_agent.call().balanceOf(self.address)
 

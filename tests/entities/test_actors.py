@@ -18,32 +18,34 @@ def test_deposit(testerchain, mock_token_deployer, token_agent, miner_agent):
     miner.lock(amount=1000*M, locktime=100)
 
 
-class MockNucypherMinerConfig(object):
-    pass
+def test_mine_withdraw(testerchain, mock_token_deployer, token_agent, miner_agent, mock_miner_escrow_deployer):
+    """
+    - Airdrop tokens to everyone
+    - Create an Ursula (Miner)
+    - Ursula locks tokens
+    - Spawn additional miners
+    - Wait
+    - Ursula mints new tokens
+    """
 
-
-def test_mine_withdraw(testerchain, mock_token_deployer, token_agent, miner_agent):
     mock_token_deployer._global_airdrop(amount=10000)
 
-    ursula_address = testerchain._chain.web3.eth.accounts[1]
-    miner = Miner(miner_agent=miner_agent, address=ursula_address)
+    _origin, ursula_address, *everyone_else = testerchain._chain.web3.eth.accounts
 
-    ursula = miner
-    initial_balance = token_agent.balance(address=ursula.address)
+    ursula = Miner(miner_agent=miner_agent, address=ursula_address)
+    initial_balance = ursula.token_balance()
 
-    # Create a random set of miners (we have 9 in total)
-    for address in testerchain._chain.web3.eth.accounts[1:]:
-        miner = Miner(miner_agent=miner_agent, address=address)
 
-        amount = (10+random.randrange(9000)) * M
-        miner.lock(amount=amount, locktime=1)
+    amount = (10 + random.randrange(9000)) * M
+    ursula.lock(amount=amount, locktime=1)
 
-    testerchain.wait_time(MockNuCypherMinerConfig._hours_per_period*2)
+    spawn_miners(miner_agent=miner_agent, addresses=everyone_else, locktime=1, m=M)
+    testerchain.wait_time(wait_hours=miner_agent._deployer._hours_per_period*2)
 
     ursula.mint()
     ursula.withdraw(entire_balance=True)
-    final_balance = token_agent.balance(ursula.address)
 
+    final_balance = token_agent.balance(ursula.address)
     assert final_balance > initial_balance
 
 

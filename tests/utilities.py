@@ -21,7 +21,7 @@ class MockNuCypherKMSTokenDeployer(NuCypherKMSTokenDeployer):
 
         def txs():
             for address in addresses:
-                yield self._contract.transact({'from': self.origin}).transfer(address, amount * (10 ** 6))
+                yield self._contract.transact({'from': self._creator}).transfer(address, amount * (10 ** 6))
 
         for tx in txs():
             self._blockchain._chain.wait.for_receipt(tx, timeout=10)
