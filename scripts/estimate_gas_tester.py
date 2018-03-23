@@ -2,16 +2,14 @@
 
 """
 Deploy contracts in tester.
-
 A simple Python script to deploy contracts and then estimate gas for different methods.
 """
 
+
+from nkms_eth.agents import NuCypherKMSTokenAgent, MinerAgent
 import os
 
-from nkms_eth.escrow import Escrow
-
-from nkms_eth.agents import NuCypherKMSTokenAgent
-from nkms_eth.blockchain import TesterBlockchain
+from tests.utilities import TesterBlockchain
 
 
 def main():
@@ -21,8 +19,9 @@ def main():
 
     print("Web3 providers are", web3.providers)
 
+    # TODO: Updatae to agents and deployers
     # Create an ERC20 token
-    token = NuCypherKMSTokenAgent(blockchain=testerchain)
+    token = NuCypherKMSToken(blockchain=testerchain)
     token.arm()
     token.deploy()
 

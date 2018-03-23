@@ -620,7 +620,7 @@ def test_verifying_state(web3, chain):
 
     # Can't upgrade to the previous version or to the bad version
     contract_library_bad, _ = chain.provider.deploy_contract(
-        'PolicyManagerBad', deploy_args=[address2], 
+        'PolicyManagerBad', deploy_args=[address2],
         deploy_transaction={'from': creator})
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
