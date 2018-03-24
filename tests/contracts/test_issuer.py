@@ -124,6 +124,12 @@ def test_verifying_state(web3, chain, token):
         dispatcher.address,
         ContractFactoryClass=PopulusContract)
 
+    # Give Miner tokens for reward and initialize contract
+    tx = token.transact({'from': creator}).transfer(contract.address, 10000)
+    chain.wait.for_receipt(tx)
+    tx = contract.transact().initialize()
+    chain.wait.for_receipt(tx)
+
     # Upgrade to the second version
     assert 1 == contract.call().miningCoefficient()
     tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v2.address)

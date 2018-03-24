@@ -1,6 +1,7 @@
 import pytest
 from ethereum.tester import TransactionFailed
 import os
+from populus.contracts.contract import PopulusContract
 
 
 MINERS_LENGTH = 0
@@ -680,7 +681,7 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
         assert 100 * (index + 1) == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, owner, 0).encode('latin-1'))
         assert 100 * (index + 1) == escrow.call().getLockedTokens(owner)
         assert 50 * (index + 1) == \
-               web3.toInt(escrow.call().getMinerInfo(MAX_RELEASE_PERIODS_FIELD, owner, 0).encode('latin-1'))
+            web3.toInt(escrow.call().getMinerInfo(MAX_RELEASE_PERIODS_FIELD, owner, 0).encode('latin-1'))
 
     events = escrow.pastEvents('Deposited').get()
     assert 6 == len(events)
@@ -739,3 +740,76 @@ def test_miner_id(web3, chain, token, escrow_contract):
     assert 2 == web3.toInt(escrow.call().getMinerInfo(MINER_IDS_FIELD_LENGTH, miner, 0).encode('latin-1'))
     # TODO change when v4 of web3.py is released
     assert miner_id == escrow.call().getMinerInfo(MINER_ID_FIELD, miner, 1).encode('latin-1')
+
+
+def test_verifying_state(web3, chain, token):
+    creator = web3.eth.accounts[0]
+    miner = web3.eth.accounts[1]
+
+    # Deploy contract
+    contract_library_v1, _ = chain.provider.get_or_deploy_contract(
+        'MinersEscrow', deploy_args=[token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, 1500],
+        deploy_transaction={'from': creator})
+    dispatcher, _ = chain.provider.deploy_contract(
+        'Dispatcher', deploy_args=[contract_library_v1.address],
+        deploy_transaction={'from': creator})
+
+    # Deploy second version of the government contract
+    contract_library_v2, _ = chain.provider.deploy_contract(
+        'MinersEscrowV2Mock', deploy_args=[token.address, 2, 2, 2, 2, 2, 2, 2, 2],
+        deploy_transaction={'from': creator})
+    contract = web3.eth.contract(
+        contract_library_v2.abi,
+        dispatcher.address,
+        ContractFactoryClass=PopulusContract)
+    assert 1500 == contract.call().maxAllowableLockedTokens()
+
+    # Initialize contract and miner
+    policy_manager, _ = chain.provider.get_or_deploy_contract(
+        'PolicyManagerMock', deploy_args=[token.address, contract.address],
+        deploy_transaction={'from': creator})
+    tx = contract.transact({'from': creator}).setPolicyManager(policy_manager.address)
+    chain.wait.for_receipt(tx)
+    tx = contract.transact().initialize()
+    chain.wait.for_receipt(tx)
+    tx = token.transact({'from': creator}).transfer(miner, 1000)
+    chain.wait.for_receipt(tx)
+    balance = token.call().balanceOf(miner)
+    tx = token.transact({'from': miner}).approve(contract.address, balance)
+    chain.wait.for_receipt(tx)
+    tx = contract.transact({'from': miner}).deposit(balance, 1000)
+    chain.wait.for_receipt(tx)
+
+    # Upgrade to the second version
+    tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v2.address)
+    chain.wait.for_receipt(tx)
+    assert contract_library_v2.address.lower() == dispatcher.call().target().lower()
+    assert 1500 == contract.call().maxAllowableLockedTokens()
+    assert 2 == contract.call().valueToCheck()
+    tx = contract.transact({'from': creator}).setValueToCheck(3)
+    chain.wait.for_receipt(tx)
+    assert 3 == contract.call().valueToCheck()
+
+    # Can't upgrade to the previous version or to the bad version
+    contract_library_bad, _ = chain.provider.deploy_contract(
+        'MinersEscrowBad', deploy_args=[token.address, 2, 2, 2, 2, 2, 2, 2],
+        deploy_transaction={'from': creator})
+    with pytest.raises(TransactionFailed):
+        tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
+        chain.wait.for_receipt(tx)
+    with pytest.raises(TransactionFailed):
+        tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
+        chain.wait.for_receipt(tx)
+
+    # But can rollback
+    tx = dispatcher.transact({'from': creator}).rollback()
+    chain.wait.for_receipt(tx)
+    assert contract_library_v1.address.lower() == dispatcher.call().target().lower()
+    with pytest.raises(TransactionFailed):
+        tx = contract.transact({'from': creator}).setValueToCheck(2)
+        chain.wait.for_receipt(tx)
+
+    # Try to upgrade to the bad version
+    with pytest.raises(TransactionFailed):
+        tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
+        chain.wait.for_receipt(tx)
