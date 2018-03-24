@@ -105,15 +105,6 @@ contract UserEscrow is Ownable {
     }
 
     /**
-    * @notice Withdraw all amount of tokens back to user escrow (only if no locked)
-    **/
-    function minerWithdrawAll() public onlyOwner {
-        uint256 tokensBefore = token.balanceOf(address(this));
-        escrow.withdrawAll();
-        WithdrawnAsMiner(owner, token.balanceOf(address(this)).sub(tokensBefore));
-    }
-
-    /**
     * @notice Lock some tokens or increase lock in the miners escrow
     * @param _value Amount of tokens which should lock
     * @param _periods Amount of periods during which tokens will be unlocked

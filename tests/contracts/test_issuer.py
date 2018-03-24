@@ -1,5 +1,6 @@
 import pytest
 from ethereum.tester import TransactionFailed
+from populus.contracts.contract import PopulusContract
 
 
 @pytest.fixture()
@@ -101,3 +102,65 @@ def test_inflation_rate(web3, chain, token):
     tx = issuer.transact({'from': ursula}).testMint(period + 3, 1, 1, 0, 0)
     chain.wait.for_receipt(tx)
     assert 2 * one_period + 3 * minted_amount > token.call().balanceOf(ursula)
+
+
+def test_verifying_state(web3, chain, token):
+    creator = web3.eth.accounts[0]
+
+    # Deploy contract
+    contract_library_v1, _ = chain.provider.get_or_deploy_contract(
+        'Issuer', deploy_args=[token.address, 1, 1, 1, 1],
+        deploy_transaction={'from': creator})
+    dispatcher, _ = chain.provider.deploy_contract(
+        'Dispatcher', deploy_args=[contract_library_v1.address],
+        deploy_transaction={'from': creator})
+
+    # Deploy second version of the government contract
+    contract_library_v2, _ = chain.provider.deploy_contract(
+        'IssuerV2Mock', deploy_args=[token.address, 2, 2, 2, 2],
+        deploy_transaction={'from': creator})
+    contract = web3.eth.contract(
+        contract_library_v2.abi,
+        dispatcher.address,
+        ContractFactoryClass=PopulusContract)
+
+    # Upgrade to the second version
+    assert 1 == contract.call().miningCoefficient()
+    tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v2.address)
+    chain.wait.for_receipt(tx)
+    assert contract_library_v2.address.lower() == dispatcher.call().target().lower()
+    assert 2 == contract.call().miningCoefficient()
+    assert 2 * 3600 == contract.call().secondsPerPeriod()
+    assert 2 == contract.call().lockedPeriodsCoefficient()
+    assert 2 == contract.call().awardedPeriods()
+    tx = contract.transact({'from': creator}).setValueToCheck(3)
+    chain.wait.for_receipt(tx)
+    assert 3 == contract.call().valueToCheck()
+
+    # Can't upgrade to the previous version or to the bad version
+    contract_library_bad, _ = chain.provider.deploy_contract(
+        'IssuerBad', deploy_args=[token.address, 2, 2, 2, 2],
+        deploy_transaction={'from': creator})
+    with pytest.raises(TransactionFailed):
+        tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
+        chain.wait.for_receipt(tx)
+    with pytest.raises(TransactionFailed):
+        tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
+        chain.wait.for_receipt(tx)
+
+    # But can rollback
+    tx = dispatcher.transact({'from': creator}).rollback()
+    chain.wait.for_receipt(tx)
+    assert contract_library_v1.address.lower() == dispatcher.call().target().lower()
+    assert 1 == contract.call().miningCoefficient()
+    assert 3600 == contract.call().secondsPerPeriod()
+    assert 1 == contract.call().lockedPeriodsCoefficient()
+    assert 1 == contract.call().awardedPeriods()
+    with pytest.raises(TransactionFailed):
+        tx = contract.transact({'from': creator}).setValueToCheck(2)
+        chain.wait.for_receipt(tx)
+
+    # Try to upgrade to the bad version
+    with pytest.raises(TransactionFailed):
+        tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
+        chain.wait.for_receipt(tx)

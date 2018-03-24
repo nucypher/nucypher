@@ -219,7 +219,7 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert 1000 == escrow.call().value()
     assert 10000 == token.call().balanceOf(escrow.address)
     assert 2000 == token.call().balanceOf(user_escrow.address)
-    tx = user_escrow.transact({'from': user}).minerWithdrawAll()
+    tx = user_escrow.transact({'from': user}).minerWithdraw(1000)
     chain.wait.for_receipt(tx)
     assert 0 == escrow.call().value()
     assert 9000 == token.call().balanceOf(escrow.address)

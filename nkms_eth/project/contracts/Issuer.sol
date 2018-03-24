@@ -3,12 +3,13 @@ pragma solidity ^0.4.18;
 
 import "./NuCypherKMSToken.sol";
 import "./zeppelin/math/SafeMath.sol";
+import "./proxy/Upgradeable.sol";
 
 
 /**
 * @notice Contract for calculate issued tokens
 **/
-contract Issuer {
+contract Issuer is Upgradeable {
     using SafeMath for uint256;
 
     /// Issuer is initialized with a reserved reward
@@ -135,5 +136,31 @@ contract Issuer {
         decimals = _decimals;
 
         totalSupply[currentIndex ^ NEGATION] = nextTotalSupply.add(amount);
+    }
+
+    function verifyState(address _testTarget) public onlyOwner {
+        require(address(delegateGet(_testTarget, "token()")) == address(token));
+        require(uint256(delegateGet(_testTarget, "miningCoefficient()")) == miningCoefficient);
+        require(uint256(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
+        require(uint256(delegateGet(_testTarget, "lockedPeriodsCoefficient()")) == lockedPeriodsCoefficient);
+        require(uint256(delegateGet(_testTarget, "awardedPeriods()")) == awardedPeriods);
+        require(uint256(delegateGet(_testTarget, "lastMintedPeriod()")) == lastMintedPeriod);
+        require(byte(delegateGet(_testTarget, "currentIndex()")) == currentIndex);
+        require(uint256(delegateGet(_testTarget, "totalSupply(bytes1)", currentIndex)) == totalSupply[currentIndex]);
+        require(uint256(delegateGet(_testTarget, "totalSupply(bytes1)", currentIndex ^ NEGATION)) ==
+            totalSupply[currentIndex ^ NEGATION]);
+        require(uint256(delegateGet(_testTarget, "futureSupply()")) == futureSupply);
+    }
+
+    function finishUpgrade(address _target) public onlyOwner {
+        Issuer issuer = Issuer(_target);
+        token = issuer.token();
+        miningCoefficient = issuer.miningCoefficient();
+        secondsPerPeriod = issuer.secondsPerPeriod();
+        lockedPeriodsCoefficient = issuer.lockedPeriodsCoefficient();
+        awardedPeriods = issuer.awardedPeriods();
+
+        lastMintedPeriod = issuer.lastMintedPeriod();
+        futureSupply = issuer.futureSupply();
     }
 }

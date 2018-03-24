@@ -3,6 +3,25 @@ from ethereum.tester import TransactionFailed
 import os
 
 
+MINERS_LENGTH = 0
+MINER = 1
+VALUE_FIELD = 2
+DECIMALS_FIELD = 3
+LOCKED_VALUE_FIELD = 4
+RELEASE_FIELD = 5
+MAX_RELEASE_PERIODS_FIELD = 6
+RELEASE_RATE_FIELD = 7
+CONFIRMED_PERIODS_FIELD_LENGTH = 8
+CONFIRMED_PERIOD_FIELD = 9
+CONFIRMED_PERIOD_LOCKED_VALUE_FIELD = 10
+LAST_ACTIVE_PERIOD_FIELD = 11
+DOWNTIME_FIELD_LENGTH = 12
+DOWNTIME_START_PERIOD_FIELD = 13
+DOWNTIME_END_PERIOD_FIELD = 14
+MINER_IDS_FIELD_LENGTH = 15
+MINER_ID_FIELD = 16
+
+
 @pytest.fixture()
 def token(web3, chain):
     creator = web3.eth.accounts[0]
@@ -232,7 +251,7 @@ def test_escrow(web3, chain, token, escrow_contract):
 
     # But Ursula can't withdraw all without mining for locked value
     with pytest.raises(TransactionFailed):
-        tx = escrow.transact({'from': ursula}).withdrawAll()
+        tx = escrow.transact({'from': ursula}).withdraw(1400)
         chain.wait.for_receipt(tx)
 
     # And Ursula can't lock again too low value
@@ -247,7 +266,7 @@ def test_escrow(web3, chain, token, escrow_contract):
     chain.wait.for_receipt(tx)
 
     # Locked tokens will be updated in next period
-    # Release rate will be updated too because of end of previous locking
+    # Release rate will be updated too because of the end of previous locking
     assert 750 == escrow.call().getLockedTokens(ursula)
     assert 600 == escrow.call().calculateLockedTokens(ursula, 1)
     assert 600 == escrow.call().calculateLockedTokens(ursula, 2)
@@ -338,16 +357,17 @@ def test_locked_distribution(web3, chain, token, escrow_contract):
         amount = amount // 2
 
     # Lock
-    for index, miner in enumerate(miners[::-1]):
+    for index, miner in enumerate(miners):
         balance = token.call().balanceOf(miner)
         tx = token.transact({'from': miner}).approve(escrow.address, balance)
         chain.wait.for_receipt(tx)
-        tx = escrow.transact({'from': miner}).deposit(balance, len(miners) - index + 1)
+        tx = escrow.transact({'from': miner}).deposit(balance, index + 2)
         chain.wait.for_receipt(tx)
 
     # Check current period
-    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, 1, 1)
+    address_stop, index_stop, shift = escrow.call().findCumSum(0, 1, 1)
     assert NULL_ADDR == address_stop.lower()
+    assert 0 == index_stop
     assert 0 == shift
 
     # Wait next period
@@ -360,41 +380,41 @@ def test_locked_distribution(web3, chain, token, escrow_contract):
         tx = escrow.transact({'from': miner}).confirmActivity()
         chain.wait.for_receipt(tx)
 
-    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, n_locked // 3, 1)
+    address_stop, index_stop, shift = escrow.call().findCumSum(0, n_locked // 3, 1)
     assert miners[0].lower() == address_stop.lower()
+    assert 0 == index_stop
     assert n_locked // 3 == shift
 
-    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, largest_locked, 1)
+    address_stop, index_stop, shift = escrow.call().findCumSum(0, largest_locked, 1)
     assert miners[1].lower() == address_stop.lower()
+    assert 1 == index_stop
     assert 0 == shift
 
-    address_stop, shift = escrow.call().findCumSum(
-        miners[1], largest_locked // 2 + 1, 1)
+    address_stop, index_stop, shift = escrow.call().findCumSum(
+        1, largest_locked // 2 + 1, 1)
     assert miners[2].lower() == address_stop.lower()
+    assert 2 == index_stop
     assert 1 == shift
 
-    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, 1, 10)
+    address_stop, index_stop, shift = escrow.call().findCumSum(0, 1, 10)
     assert NULL_ADDR != address_stop.lower()
     assert 0 != shift
-    address_stop, shift = escrow.call().findCumSum(NULL_ADDR, 1, 11)
+    address_stop, index_stop, shift = escrow.call().findCumSum(0, 1, 11)
     assert NULL_ADDR == address_stop.lower()
+    assert 0 == index_stop
     assert 0 == shift
 
     for index, _ in enumerate(miners[:-1]):
-        address_stop, shift = escrow.call().findCumSum(NULL_ADDR, 1, index + 3)
+        address_stop, index_stop, shift = escrow.call().findCumSum(0, 1, index + 3)
         assert miners[index + 1].lower() == address_stop.lower()
+        assert index + 1 == index_stop
         assert 1 == shift
 
     # Test miners iteration
-    miner = NULL_ADDR
-    i = 0
-    while True:
-        next_miner = escrow.call().getNextMiner(miner)
-        if next_miner == NULL_ADDR:
-            break
-        assert miners[i].lower() == next_miner.lower()
-        miner = next_miner
-        i += 1
+    assert len(miners) == web3.toInt(escrow.call().getMinerInfo(MINERS_LENGTH, NULL_ADDR, 0).encode('latin-1'))
+    for index, miner in enumerate(miners):
+        assert miners[index] == \
+               web3.toChecksumAddress(escrow.call().getMinerInfo(MINER, NULL_ADDR, index).encode('latin-1'))
 
 
 def test_mining(web3, chain, token, escrow_contract):
@@ -466,8 +486,8 @@ def test_mining(web3, chain, token, escrow_contract):
     chain.wait.for_receipt(tx)
     tx = escrow.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
-    assert 1050 == escrow.call().getTokens(ursula)
-    assert 521 == escrow.call().getTokens(alice)
+    assert 1050 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula, 0).encode('latin-1'))
+    assert 521 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, alice, 0).encode('latin-1'))
 
     events = escrow.pastEvents('Mined').get()
     assert 2 == len(events)
@@ -512,8 +532,8 @@ def test_mining(web3, chain, token, escrow_contract):
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': alice}).mint()
         chain.wait.for_receipt(tx)
-    assert 1163 == escrow.call().getTokens(ursula)
-    assert 521 == escrow.call().getTokens(alice)
+    assert 1163 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula, 0).encode('latin-1'))
+    assert 521 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, alice, 0).encode('latin-1'))
 
     assert 3 == policy_manager.call().getPeriodsLength(ursula)
     assert 1 == policy_manager.call().getPeriodsLength(alice)
@@ -536,8 +556,8 @@ def test_mining(web3, chain, token, escrow_contract):
     assert 0 == escrow.call().getAllLockedTokens()
     tx = escrow.transact({'from': alice}).mint()
     chain.wait.for_receipt(tx)
-    assert 1163 == escrow.call().getTokens(ursula)
-    assert 634 == escrow.call().getTokens(alice)
+    assert 1163 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula, 0).encode('latin-1'))
+    assert 634 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, alice, 0).encode('latin-1'))
 
     assert 3 == policy_manager.call().getPeriodsLength(ursula)
     assert 3 == policy_manager.call().getPeriodsLength(alice)
@@ -591,7 +611,7 @@ def test_mining(web3, chain, token, escrow_contract):
     assert 0 == escrow.call().calculateLockedTokens(ursula, 8)
 
     # Alice can withdraw all
-    tx = escrow.transact({'from': alice}).withdrawAll()
+    tx = escrow.transact({'from': alice}).withdraw(634)
     chain.wait.for_receipt(tx)
     assert 10134 == token.call().balanceOf(alice)
 
@@ -626,9 +646,9 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
     tx = escrow.transact({'from': creator}).preDeposit([owner], [1000], [10])
     chain.wait.for_receipt(tx)
     assert 1000 == token.call().balanceOf(escrow.address)
-    assert 1000 == escrow.call().getTokens(owner)
+    assert 1000 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, owner, 0).encode('latin-1'))
     assert 1000 == escrow.call().getLockedTokens(owner)
-    assert 10 == escrow.call().minerInfo(owner)[4]
+    assert 10 == web3.toInt(escrow.call().getMinerInfo(MAX_RELEASE_PERIODS_FIELD, owner, 0).encode('latin-1'))
 
     # Can't pre-deposit tokens again for same owner
     with pytest.raises(TransactionFailed):
@@ -657,9 +677,10 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
     chain.wait.for_receipt(tx)
     assert 2500 == token.call().balanceOf(escrow.address)
     for index, owner in enumerate(owners):
-        assert 100 * (index + 1) == escrow.call().getTokens(owner)
+        assert 100 * (index + 1) == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, owner, 0).encode('latin-1'))
         assert 100 * (index + 1) == escrow.call().getLockedTokens(owner)
-        assert 50 * (index + 1) == escrow.call().minerInfo(owner)[4]
+        assert 50 * (index + 1) == \
+               web3.toInt(escrow.call().getMinerInfo(MAX_RELEASE_PERIODS_FIELD, owner, 0).encode('latin-1'))
 
     events = escrow.pastEvents('Deposited').get()
     assert 6 == len(events)
@@ -709,12 +730,12 @@ def test_miner_id(web3, chain, token, escrow_contract):
     miner_id = os.urandom(32)
     tx = escrow.transact({'from': miner}).setMinerId(miner_id)
     chain.wait.for_receipt(tx)
-    assert 1 == escrow.call().getMinerIdsCount(miner)
+    assert 1 == web3.toInt(escrow.call().getMinerInfo(MINER_IDS_FIELD_LENGTH, miner, 0).encode('latin-1'))
     # TODO change when v4 of web3.py is released
-    assert miner_id == escrow.call().getMinerId(miner, 0).encode('latin-1')
+    assert miner_id == escrow.call().getMinerInfo(MINER_ID_FIELD, miner, 0).encode('latin-1')
     miner_id = os.urandom(32)
     tx = escrow.transact({'from': miner}).setMinerId(miner_id)
     chain.wait.for_receipt(tx)
-    assert 2 == escrow.call().getMinerIdsCount(miner)
+    assert 2 == web3.toInt(escrow.call().getMinerInfo(MINER_IDS_FIELD_LENGTH, miner, 0).encode('latin-1'))
     # TODO change when v4 of web3.py is released
-    assert miner_id == escrow.call().getMinerId(miner, 1).encode('latin-1')
+    assert miner_id == escrow.call().getMinerInfo(MINER_ID_FIELD, miner, 1).encode('latin-1')

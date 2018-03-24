@@ -13,7 +13,7 @@ contract PolicyManagerBad is PolicyManager {
     function PolicyManagerBad(MinersEscrow _escrow) public PolicyManager(_escrow) {
     }
 
-    function getNodeInfoField(address _node, uint8 _field, uint256 _period)
+    function getNodeInfoField(address, uint8, uint256)
         public view returns (bytes32)
     {
     }

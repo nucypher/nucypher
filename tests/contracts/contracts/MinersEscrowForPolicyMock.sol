@@ -2,6 +2,7 @@ pragma solidity ^0.4.18;
 
 
 import "contracts/PolicyManager.sol";
+import "contracts/MinersEscrow.sol";
 
 
 /**
@@ -79,32 +80,17 @@ contract MinersEscrowForPolicyMock {
         policyManager = _policyManager;
     }
 
-    /**
-    * @dev Get info about downtime periods
-    **/
-    function getDowntimePeriods(address, uint256 _index)
-        public view returns (uint256 startPeriod, uint256 endPeriod)
+    function getMinerInfo(MinersEscrow.MinerInfoField _field, address, uint256 _index)
+        public view returns (bytes32)
     {
-        Downtime storage period = downtime[_index];
-        startPeriod = period.startPeriod;
-        endPeriod = period.endPeriod;
-    }
-
-    /**
-    * @dev Get size of downtime periods array
-    **/
-    function getDowntimePeriodsLength(address)
-        public view returns (uint256)
-    {
-        return downtime.length;
-    }
-
-    /**
-    * @dev Get last active period
-    **/
-    function getLastActivePeriod(address)
-        public view returns (uint256)
-    {
-        return lastActivePeriod;
+        if (_field == MinersEscrow.MinerInfoField.LastActivePeriod) {
+            return bytes32(lastActivePeriod);
+        } else if (_field == MinersEscrow.MinerInfoField.DowntimeLength) {
+            return bytes32(downtime.length);
+        } else if (_field == MinersEscrow.MinerInfoField.DowntimeStartPeriod) {
+            return bytes32(downtime[_index].startPeriod);
+        } else if (_field == MinersEscrow.MinerInfoField.DowntimeEndPeriod) {
+            return bytes32(downtime[_index].endPeriod);
+        }
     }
 }

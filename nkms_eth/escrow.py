@@ -1,5 +1,6 @@
 import random
 from typing import List, Tuple, Set, Generator
+from enum import Enum
 
 from populus.contracts.contract import PopulusContract
 
@@ -37,6 +38,25 @@ class Escrow:
         min_allowed_locked,
         max_allowed_locked
     ]
+
+    class MinerInfoField(Enum):
+        MINERS_LENGTH = 0
+        MINER = 1
+        VALUE = 2
+        DECIMALS = 3
+        LOCKED_VALUE = 4
+        RELEASE = 5
+        MAX_RELEASE_PERIODS = 6
+        RELEASE_RATE = 7
+        CONFIRMED_PERIODS_LENGTH = 8
+        CONFIRMED_PERIOD = 9
+        CONFIRMED_PERIOD_LOCKED_VALUE = 10
+        LAST_ACTIVE_PERIOD_F = 11
+        DOWNTIME_LENGTH = 12
+        DOWNTIME_START_PERIOD = 13
+        DOWNTIME_END_PERIOD = 14
+        MINER_IDS_LENGTH = 15
+        MINER_ID = 16
 
     class ContractDeploymentError(Exception):
         pass
@@ -118,20 +138,12 @@ class Escrow:
         """
         Generates all miner addresses via cumulative sum.
         """
-        miner, i = self.null_addr, 0
-        while True:
-
-            # Get the next miner
-            next_miner = self.__call__().getNextMiner(miner)
-
-            if next_miner == self.null_addr:
-                raise StopIteration()
-
-            yield next_miner
-
-            # Advance
-            miner = next_miner
-            i += 1
+        count = self.blockchain._chain.web3.toInt(
+            self.__call__().getMinerInfo(self.MinerInfoField.MINERS_LENGTH.value, self.null_addr, 0)
+                .encode('latin-1'))
+        for index in range(count):
+            yield self.blockchain._chain.web3.toChecksumAddress(
+                self.__call__().getMinerInfo(self.MinerInfoField.MINER.value, self.null_addr, index).encode('latin-1'))
 
     def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[addr]:
         """
@@ -139,11 +151,11 @@ class Escrow:
         The returned addresses are shuffled, so one can request more than needed and
         throw away those which do not respond.
 
-                     _start
+                _startIndex
                 v
       |-------->*--------------->*---->*------------->|
                 |                      ^
-                |                      stop
+                |                      stopIndex
                 |
                 |       _delta
                 |---------------------------->|
@@ -166,9 +178,9 @@ class Escrow:
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
             deltas = [i-j for i, j in zip(points[1:], points[:-1])]
 
-            addrs, addr, shift = set(), self.null_addr, 0
+            addrs, addr, index, shift = set(), self.null_addr, 0, 0
             for delta in deltas:
-                addr, shift = self.__call__().findCumSum(addr, delta+shift, duration)
+                addr, index, shift = self.__call__().findCumSum(index, delta+shift, duration)
                 addrs.add(addr)
 
             if len(addrs) >= quantity:

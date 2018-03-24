@@ -72,7 +72,8 @@ def test_publish_dht_key(testerchain, token, escrow):
     assert len(stored_miner_dht_keys) == 2
     assert another_mock_dht_key == stored_miner_dht_keys[1]
     # TODO change when v4 web3.py will released
-    assert another_mock_dht_key == escrow().getMinerId(miner_addr, 1).encode('latin-1')
+    assert another_mock_dht_key == escrow().getMinerInfo(escrow.MinerInfoField.MINER_ID.value, miner_addr, 1)\
+        .encode('latin-1')
 
 
 def test_select_ursulas(testerchain, token, escrow):

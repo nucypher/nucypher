@@ -133,7 +133,8 @@ contract PolicyManager is Upgradeable {
                 node.lastMinedPeriod = currentPeriod;
             }
             ArrangementInfo storage arrangement = policy.arrangements[_nodes[i]];
-            arrangement.indexOfDowntimePeriods = escrow.getDowntimePeriodsLength(_nodes[i]);
+            arrangement.indexOfDowntimePeriods =
+                uint256(escrow.getMinerInfo(MinersEscrow.MinerInfoField.DowntimeLength, _nodes[i], 0));
         }
 
         PolicyCreated(_policyId, msg.sender, _nodes);
@@ -300,11 +301,12 @@ contract PolicyManager is Upgradeable {
         uint256 maxPeriod = Math.min256(escrow.getCurrentPeriod(), _policy.lastPeriod);
         uint256 minPeriod = Math.max256(_policy.startPeriod, arrangement.lastRefundedPeriod);
         uint256 downtimePeriods = 0;
-        uint256 length = escrow.getDowntimePeriodsLength(_node);
+        uint256 length = uint256(escrow.getMinerInfo(MinersEscrow.MinerInfoField.DowntimeLength, _node, 0));
         for (uint256 i = arrangement.indexOfDowntimePeriods; i < length; i++) {
-            uint256 startPeriod;
-            uint256 endPeriod;
-            (startPeriod, endPeriod) = escrow.getDowntimePeriods(_node, i);
+            uint256 startPeriod =
+                uint256(escrow.getMinerInfo(MinersEscrow.MinerInfoField.DowntimeStartPeriod, _node, i));
+            uint256 endPeriod =
+                uint256(escrow.getMinerInfo(MinersEscrow.MinerInfoField.DowntimeEndPeriod, _node, i));
             if (startPeriod > maxPeriod) {
                 break;
             } else if (endPeriod < minPeriod) {
@@ -319,7 +321,8 @@ contract PolicyManager is Upgradeable {
             }
         }
         arrangement.indexOfDowntimePeriods = i;
-        uint256 lastActivePeriod = escrow.getLastActivePeriod(_node);
+        uint256 lastActivePeriod =
+            uint256(escrow.getMinerInfo(MinersEscrow.MinerInfoField.LastActivePeriod, _node, 0));
         if (i == length && lastActivePeriod < maxPeriod) {
             downtimePeriods = downtimePeriods.add(
                 maxPeriod.sub(Math.max256(

@@ -87,9 +87,12 @@ class Miner:
     def get_dht_key(self) -> tuple:
         """Retrieve all stored DHT keys for this miner"""
 
-        count = self.escrow().getMinerIdsCount(self.address)
+        count = self.blockchain._chain.web3.toInt(
+            self.escrow().getMinerInfo(self.escrow.MinerInfoField.MINER_IDS_LENGTH.value, self.address, 0)
+                .encode('latin-1'))
         # TODO change when v4 web3.py will released
-        dht_keys = tuple(self.escrow().getMinerId(self.address, index).encode('latin-1') for index in range(count))
+        dht_keys = tuple(self.escrow().getMinerInfo(self.escrow.MinerInfoField.MINER_ID.value, self.address, index)
+                         .encode('latin-1') for index in range(count))
 
         return dht_keys
 
@@ -111,8 +114,9 @@ class Miner:
 
     def withdraw(self) -> str:
         """withdraw rewarded tokens"""
-
-        txhash = self.escrow.transact({'from': self.address}).withdrawAll()
+        tokens_amount = self.blockchain._chain.web3.toInt(
+            self.escrow().getMinerInfo(self.escrow.MinerInfoField.VALUE.value, self.address, 0).encode('latin-1'))
+        txhash = self.escrow.transact({'from': self.address}).withdraw(tokens_amount)
         self.blockchain._chain.wait.for_receipt(txhash, timeout=self.blockchain._timeout)
 
         return txhash
