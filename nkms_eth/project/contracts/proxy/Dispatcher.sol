@@ -73,7 +73,7 @@ contract Dispatcher is Upgradeable {
         assert(target != 0x0);
 
         address upgradableContractMem = target;
-        uint32 size = 32;
+        uint32 size = 96;
 
         assembly {
             let freeMemAddress := mload(0x40)

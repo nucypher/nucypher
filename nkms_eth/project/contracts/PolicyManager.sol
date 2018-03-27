@@ -48,6 +48,24 @@ contract PolicyManager is Upgradeable {
         uint256 value
     );
 
+    enum PolicyInfoField {
+        Client,
+        IndexOfDowntimePeriods,
+        LastRefundedPeriod,
+        ArrangementDisabled,
+        Rate,
+        StartPeriod,
+        LastPeriod,
+        Disabled
+    }
+
+    enum NodeInfoField {
+        Reward,
+        RewardRate,
+        LastMinedPeriod,
+        RewardDelta
+    }
+
     struct ArrangementInfo {
         uint256 indexOfDowntimePeriods;
         uint256 lastRefundedPeriod;
@@ -68,17 +86,17 @@ contract PolicyManager is Upgradeable {
 
     struct NodeInfo {
         uint256 reward;
-        uint256 lastRewardByPeriod;
+        uint256 rewardRate;
         uint256 lastMinedPeriod;
-        mapping (uint256 => int256) rewardChanges;
+        mapping (uint256 => int256) rewardDelta;
     }
 
     bytes20 constant RESERVED_POLICY_ID = bytes20(0);
     address constant RESERVED_NODE = 0x0;
 
     MinersEscrow public escrow;
-    mapping (bytes20 => Policy) public policies;
-    mapping (address => NodeInfo) public nodes;
+    mapping (bytes20 => Policy) policies;
+    mapping (address => NodeInfo) nodes;
 
     /**
     * @notice Constructor sets address of the escrow contract
@@ -125,9 +143,9 @@ contract PolicyManager is Upgradeable {
             require(escrow.getLockedTokens(_nodes[i]) != 0 &&
                 _nodes[i] != RESERVED_NODE);
             NodeInfo storage node = nodes[_nodes[i]];
-            node.rewardChanges[policy.startPeriod] = node.rewardChanges[policy.startPeriod]
+            node.rewardDelta[policy.startPeriod] = node.rewardDelta[policy.startPeriod]
                 .add(feeByPeriod);
-            node.rewardChanges[endPeriod] = node.rewardChanges[endPeriod].sub(feeByPeriod);
+            node.rewardDelta[endPeriod] = node.rewardDelta[endPeriod].sub(feeByPeriod);
             // TODO node should pay for this
             if (node.lastMinedPeriod == 0) {
                 node.lastMinedPeriod = currentPeriod;
@@ -152,11 +170,11 @@ contract PolicyManager is Upgradeable {
             return;
         }
         for (uint256 i = node.lastMinedPeriod + 1; i <= _period; i++) {
-            node.lastRewardByPeriod = node.lastRewardByPeriod.add(node.rewardChanges[i]);
-//            delete node.rewardChanges[i];
+            node.rewardRate = node.rewardRate.add(node.rewardDelta[i]);
+//            delete node.rewardDelta[i];
         }
         node.lastMinedPeriod = _period;
-        node.reward = node.reward.add(node.lastRewardByPeriod);
+        node.reward = node.reward.add(node.rewardRate);
     }
 
     /**
@@ -228,9 +246,9 @@ contract PolicyManager is Upgradeable {
         refundValue = calculateRefund(_policy, _node);
         NodeInfo storage node = nodes[_node];
         ArrangementInfo storage arrangement = _policy.arrangements[_node];
-        node.rewardChanges[arrangement.lastRefundedPeriod] =
-            node.rewardChanges[arrangement.lastRefundedPeriod].sub(_policy.rate);
-        node.rewardChanges[_endPeriod] = node.rewardChanges[_endPeriod].add(_policy.rate);
+        node.rewardDelta[arrangement.lastRefundedPeriod] =
+            node.rewardDelta[arrangement.lastRefundedPeriod].sub(_policy.rate);
+        node.rewardDelta[_endPeriod] = node.rewardDelta[_endPeriod].add(_policy.rate);
         refundValue = refundValue.add(
             _endPeriod.sub(arrangement.lastRefundedPeriod).mul(_policy.rate));
         _policy.arrangements[_node].disabled = true;
@@ -355,84 +373,90 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @dev Used only in verifyState(address) method
+    * @notice Get information about policy
+    * @param _field Field to get
+    * @param _policyId Policy id
+    * @param _node Address of node
     **/
-    function getPolicyField(bytes20 _policyId, uint8 _field, address _node)
+    function getPolicyInfo(PolicyInfoField _field, bytes20 _policyId, address _node)
         public view returns (bytes32)
     {
         Policy storage policy = policies[_policyId];
-        if (_field == 0) {
+        if (_field == PolicyInfoField.Client) {
             return bytes32(policy.client);
-        } else if (_field == 1) {
+        } else if (_field == PolicyInfoField.Rate) {
             return bytes32(policy.rate);
-        } else if (_field == 2) {
+        } else if (_field == PolicyInfoField.StartPeriod) {
             return bytes32(policy.startPeriod);
-        } else if (_field == 3) {
+        } else if (_field == PolicyInfoField.LastPeriod) {
             return bytes32(policy.lastPeriod);
-        } else if (_field == 4) {
+        } else if (_field == PolicyInfoField.Disabled) {
             return policy.disabled ? bytes32(1) : bytes32(0);
-        } else if (_field == 5) {
+        } else if (_field == PolicyInfoField.IndexOfDowntimePeriods) {
             return bytes32(policy.arrangements[_node].indexOfDowntimePeriods);
-        } else if (_field == 6) {
+        } else if (_field == PolicyInfoField.LastRefundedPeriod) {
             return bytes32(policy.arrangements[_node].lastRefundedPeriod);
-        } else if (_field == 7) {
+        } else if (_field == PolicyInfoField.ArrangementDisabled) {
             return policy.arrangements[_node].disabled ? bytes32(1) : bytes32(0);
         }
     }
 
     /**
-    * @dev Used only in verifyState(address) method
+    * @notice Get information about node
+    * @param _field Field to get
+    * @param _node Address of node
+    * @param _period Period to get reward delta
     **/
-    function getNodeInfoField(address _node, uint8 _field, uint256 _period)
+    function getNodeInfo(NodeInfoField _field, address _node, uint256 _period)
         public view returns (bytes32)
     {
         NodeInfo storage nodeInfo = nodes[_node];
-        if (_field == 0) {
+        if (_field == NodeInfoField.Reward) {
             return bytes32(nodeInfo.reward);
-        } else if (_field == 1) {
-            return bytes32(nodeInfo.lastRewardByPeriod);
-        } else if (_field == 2) {
+        } else if (_field == NodeInfoField.RewardRate) {
+            return bytes32(nodeInfo.rewardRate);
+        } else if (_field == NodeInfoField.LastMinedPeriod) {
             return bytes32(nodeInfo.lastMinedPeriod);
-        } else if (_field == 3) {
-            return bytes32(nodeInfo.rewardChanges[_period]);
+        } else if (_field == NodeInfoField.RewardDelta) {
+            return bytes32(nodeInfo.rewardDelta[_period]);
         }
     }
 
     function verifyState(address _testTarget) public onlyOwner {
         require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
         Policy storage policy = policies[RESERVED_POLICY_ID];
-        require(address(delegateGet(_testTarget, "getPolicyField(bytes20,uint8,address)",
-            RESERVED_POLICY_ID, 0, 0x0)) == policy.client);
-        require(uint256(delegateGet(_testTarget, "getPolicyField(bytes20,uint8,address)",
-            RESERVED_POLICY_ID, 1, 0x0)) == policy.rate);
-        require(uint256(delegateGet(_testTarget, "getPolicyField(bytes20,uint8,address)",
-            RESERVED_POLICY_ID, 2, 0x0)) == policy.startPeriod);
-        require(uint256(delegateGet(_testTarget, "getPolicyField(bytes20,uint8,address)",
-            RESERVED_POLICY_ID, 3, 0x0)) == policy.lastPeriod);
-        require((delegateGet(_testTarget, "getPolicyField(bytes20,uint8,address)",
-            RESERVED_POLICY_ID, 4, 0x0) == bytes32(1)) == policy.disabled);
-        require(uint256(delegateGet(_testTarget, "getPolicyField(bytes20,uint8,address)",
-            RESERVED_POLICY_ID, 5, bytes32(RESERVED_NODE))) ==
+        require(address(delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
+            bytes32(uint8(PolicyInfoField.Client)), RESERVED_POLICY_ID, 0x0)) == policy.client);
+        require(uint256(delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
+            bytes32(uint8(PolicyInfoField.Rate)), RESERVED_POLICY_ID, 0x0)) == policy.rate);
+        require(uint256(delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
+            bytes32(uint8(PolicyInfoField.StartPeriod)), RESERVED_POLICY_ID, 0x0)) == policy.startPeriod);
+        require(uint256(delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
+            bytes32(uint8(PolicyInfoField.LastPeriod)), RESERVED_POLICY_ID, 0x0)) == policy.lastPeriod);
+        require((delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
+            bytes32(uint8(PolicyInfoField.Disabled)), RESERVED_POLICY_ID, 0x0) == bytes32(1)) == policy.disabled);
+        require(uint256(delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
+            bytes32(uint8(PolicyInfoField.IndexOfDowntimePeriods)), RESERVED_POLICY_ID, bytes32(RESERVED_NODE))) ==
                 policy.arrangements[RESERVED_NODE].indexOfDowntimePeriods);
-        require(uint256(delegateGet(_testTarget, "getPolicyField(bytes20,uint8,address)",
-            RESERVED_POLICY_ID, 6, bytes32(RESERVED_NODE))) ==
+        require(uint256(delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
+            bytes32(uint8(PolicyInfoField.LastRefundedPeriod)), RESERVED_POLICY_ID, bytes32(RESERVED_NODE))) ==
                 policy.arrangements[RESERVED_NODE].lastRefundedPeriod);
-        require((delegateGet(_testTarget, "getPolicyField(bytes20,uint8,address)",
-            RESERVED_POLICY_ID, 7, bytes32(RESERVED_NODE)) == bytes32(1)) ==
+        require((delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
+            bytes32(uint8(PolicyInfoField.ArrangementDisabled)), RESERVED_POLICY_ID, bytes32(RESERVED_NODE)) == bytes32(1)) ==
                 policy.arrangements[RESERVED_NODE].disabled);
         require(uint256(delegateGet(_testTarget, "getPolicyNodesLength(bytes20)",
             RESERVED_POLICY_ID)) == policy.nodes.length);
         require(address(delegateGet(_testTarget, "getPolicyNode(bytes20,uint256)",
             RESERVED_POLICY_ID, 0)) == policy.nodes[0]);
         NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
-        require(uint256(delegateGet(_testTarget, "getNodeInfoField(address,uint8,uint256)",
-            bytes32(RESERVED_NODE), 0, 0)) == nodeInfo.reward);
-        require(uint256(delegateGet(_testTarget, "getNodeInfoField(address,uint8,uint256)",
-            bytes32(RESERVED_NODE), 1, 0)) == nodeInfo.lastRewardByPeriod);
-        require(uint256(delegateGet(_testTarget, "getNodeInfoField(address,uint8,uint256)",
-            bytes32(RESERVED_NODE), 2, 0)) == nodeInfo.lastMinedPeriod);
-        require(int256(delegateGet(_testTarget, "getNodeInfoField(address,uint8,uint256)",
-            bytes32(RESERVED_NODE), 3, 11)) == nodeInfo.rewardChanges[11]);
+        require(uint256(delegateGet(_testTarget, "getNodeInfo(uint8,address,uint256)",
+            bytes32(uint8(NodeInfoField.Reward)), bytes32(RESERVED_NODE), 0)) == nodeInfo.reward);
+        require(uint256(delegateGet(_testTarget, "getNodeInfo(uint8,address,uint256)",
+            bytes32(uint8(NodeInfoField.RewardRate)), bytes32(RESERVED_NODE), 0)) == nodeInfo.rewardRate);
+        require(uint256(delegateGet(_testTarget, "getNodeInfo(uint8,address,uint256)",
+            bytes32(uint8(NodeInfoField.LastMinedPeriod)), bytes32(RESERVED_NODE), 0)) == nodeInfo.lastMinedPeriod);
+        require(int256(delegateGet(_testTarget, "getNodeInfo(uint8,address,uint256)",
+            bytes32(uint8(NodeInfoField.RewardDelta)), bytes32(RESERVED_NODE), 11)) == nodeInfo.rewardDelta[11]);
     }
 
     function finishUpgrade(address _target) public onlyOwner {
@@ -451,8 +475,8 @@ contract PolicyManager is Upgradeable {
         policy.arrangements[RESERVED_NODE].disabled = true;
         NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
         nodeInfo.reward = 100;
-        nodeInfo.lastRewardByPeriod = 33;
+        nodeInfo.rewardRate = 33;
         nodeInfo.lastMinedPeriod = 44;
-        nodeInfo.rewardChanges[11] = 55;
+        nodeInfo.rewardDelta[11] = 55;
     }
 }

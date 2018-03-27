@@ -115,7 +115,7 @@ def test_verifying_state(web3, chain, token):
         'Dispatcher', deploy_args=[contract_library_v1.address],
         deploy_transaction={'from': creator})
 
-    # Deploy second version of the government contract
+    # Deploy second version of the contract
     contract_library_v2, _ = chain.provider.deploy_contract(
         'IssuerV2Mock', deploy_args=[token.address, 2, 2, 2, 2],
         deploy_transaction={'from': creator})

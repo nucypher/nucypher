@@ -593,46 +593,46 @@ contract MinersEscrow is Issuer {
         address minerAddress = miners[0];
         bytes32 miner = bytes32(minerAddress);
         require(address(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint256(MinerInfoField.Miner)), 0x0, 0)) == minerAddress);
+            bytes32(uint8(MinerInfoField.Miner)), 0x0, 0)) == minerAddress);
         MinerInfo storage info = minerInfo[minerAddress];
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint256(MinerInfoField.Value)), miner, 0)) == info.value);
+            bytes32(uint8(MinerInfoField.Value)), miner, 0)) == info.value);
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint256(MinerInfoField.Decimals)), miner, 0)) == info.decimals);
+            bytes32(uint8(MinerInfoField.Decimals)), miner, 0)) == info.decimals);
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint256(MinerInfoField.LockedValue)), miner, 0)) == info.lockedValue);
+            bytes32(uint8(MinerInfoField.LockedValue)), miner, 0)) == info.lockedValue);
         require(((delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint256(MinerInfoField.Release)), miner, 0)) == bytes32(1)) == info.release);
+            bytes32(uint8(MinerInfoField.Release)), miner, 0)) == bytes32(1)) == info.release);
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint256(MinerInfoField.MaxReleasePeriods)), miner, 0)) == info.maxReleasePeriods);
+            bytes32(uint8(MinerInfoField.MaxReleasePeriods)), miner, 0)) == info.maxReleasePeriods);
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint256(MinerInfoField.ReleaseRate)), miner, 0)) == info.releaseRate);
+            bytes32(uint8(MinerInfoField.ReleaseRate)), miner, 0)) == info.releaseRate);
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint256(MinerInfoField.ConfirmedPeriodsLength)), miner, 0)) == info.confirmedPeriods.length);
+            bytes32(uint8(MinerInfoField.ConfirmedPeriodsLength)), miner, 0)) == info.confirmedPeriods.length);
         for (uint256 i = 0; i < info.confirmedPeriods.length; i++) {
             ConfirmedPeriodInfo storage confirmedPeriod = info.confirmedPeriods[i];
             require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint256(MinerInfoField.ConfirmedPeriod)), miner, bytes32(i))) == confirmedPeriod.period);
+                bytes32(uint8(MinerInfoField.ConfirmedPeriod)), miner, bytes32(i))) == confirmedPeriod.period);
             require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint256(MinerInfoField.ConfirmedPeriodLockedValue)), miner, bytes32(i))) ==
+                bytes32(uint8(MinerInfoField.ConfirmedPeriodLockedValue)), miner, bytes32(i))) ==
                 confirmedPeriod.lockedValue);
         }
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint256(MinerInfoField.LastActivePeriod)), miner, 0)) == info.lastActivePeriod);
+            bytes32(uint8(MinerInfoField.LastActivePeriod)), miner, 0)) == info.lastActivePeriod);
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint256(MinerInfoField.DowntimeLength)), miner, 0)) == info.downtime.length);
+            bytes32(uint8(MinerInfoField.DowntimeLength)), miner, 0)) == info.downtime.length);
         for (i = 0; i < info.downtime.length && i < MAX_PERIODS; i++) {
             Downtime storage downtime = info.downtime[i];
             require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint256(MinerInfoField.DowntimeStartPeriod)), miner, bytes32(i))) == downtime.startPeriod);
+                bytes32(uint8(MinerInfoField.DowntimeStartPeriod)), miner, bytes32(i))) == downtime.startPeriod);
             require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint256(MinerInfoField.DowntimeEndPeriod)), miner, bytes32(i))) == downtime.endPeriod);
+                bytes32(uint8(MinerInfoField.DowntimeEndPeriod)), miner, bytes32(i))) == downtime.endPeriod);
         }
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint256(MinerInfoField.MinerIdsLength)), miner, 0)) == info.minerIds.length);
+            bytes32(uint8(MinerInfoField.MinerIdsLength)), miner, 0)) == info.minerIds.length);
         for (i = 0; i < info.minerIds.length && i < 10; i++) {
             require(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint256(MinerInfoField.MinerId)), miner, bytes32(i)) == info.minerIds[i]);
+                bytes32(uint8(MinerInfoField.MinerId)), miner, bytes32(i)) == info.minerIds[i]);
         }
     }
 

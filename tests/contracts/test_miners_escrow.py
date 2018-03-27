@@ -33,16 +33,27 @@ def token(web3, chain):
     return token
 
 
-@pytest.fixture()
-def escrow_contract(web3, chain, token):
+@pytest.fixture(params=[False, True])
+def escrow_contract(web3, chain, token, request):
     def make_escrow(max_allowed_locked_tokens):
         creator = web3.eth.accounts[0]
         # Creator deploys the escrow
-        escrow, _ = chain.provider.get_or_deploy_contract(
+        contract, _ = chain.provider.get_or_deploy_contract(
             'MinersEscrow', deploy_args=[
                 token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, max_allowed_locked_tokens],
             deploy_transaction={'from': creator})
-        return escrow
+
+        if request.param:
+            dispatcher, _ = chain.provider.deploy_contract(
+                'Dispatcher', deploy_args=[contract.address],
+                deploy_transaction={'from': creator})
+
+            # Deploy second version of the government contract
+            contract = web3.eth.contract(
+                contract.abi,
+                dispatcher.address,
+                ContractFactoryClass=PopulusContract)
+        return contract
 
     return make_escrow
 
@@ -754,7 +765,7 @@ def test_verifying_state(web3, chain, token):
         'Dispatcher', deploy_args=[contract_library_v1.address],
         deploy_transaction={'from': creator})
 
-    # Deploy second version of the government contract
+    # Deploy second version of the contract
     contract_library_v2, _ = chain.provider.deploy_contract(
         'MinersEscrowV2Mock', deploy_args=[token.address, 2, 2, 2, 2, 2, 2, 2, 2],
         deploy_transaction={'from': creator})
