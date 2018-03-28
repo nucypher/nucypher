@@ -76,7 +76,7 @@ def test_publish_miner_id(testerchain, mock_token_deployer, token_agent, miner_a
     assert another_mock_miner_id == stored_miner_ids[1]
 
     # TODO change when v4 of web3.py is released
-    assert another_mock_miner_id == miner_agent.call().getMinerId(miner_addr, 1).encode('latin-1')
+    assert another_mock_miner_id == miner_agent.call().getMinerInfo(miner_agent._deployer.MinerInfoField.MINER_ID.value, miner_addr, 1).encode('latin-1')
 
 
 def test_select_ursulas(testerchain, mock_token_deployer, token_agent, miner_agent):

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Tuple, List, Union
 
 from nkms_eth.agents import NuCypherKMSTokenAgent
-from nkms_eth.policies import BlockchainArrangement
+from nkms_eth.policies import PolicyArrangement
 
 
 class TokenActor(ABC):
@@ -147,7 +147,7 @@ class Miner(TokenActor):
     def fetch_miner_ids(self) -> tuple:
         """Retrieve all stored Miner IDs on this miner"""
 
-        count = self.miner_agent.call().getMinerInfo(self.miner_agent.MinerInfoField.MINER_IDS_LENGTH.value,
+        count = self.miner_agent.call().getMinerInfo(self.miner_agent._deployer.MinerInfoField.MINER_IDS_LENGTH.value,
                                                      self.address,
                                                      0).encode('latin-1')
 
@@ -155,7 +155,9 @@ class Miner(TokenActor):
 
         miner_ids = list()
         for index in range(count):
-            miner_id = self.miner_agent.call().getMinerInfo(self.miner_agent.MinerInfoField.MINER_ID.value, self.address, index)
+            miner_id = self.miner_agent.call().getMinerInfo(self.miner_agent._deployer.MinerInfoField.MINER_ID.value,
+                                                            self.address,
+                                                            index)
             encoded_miner_id = miner_id.encode('latin-1')  # TODO change when v4 of web3.py is released
             miner_ids.append(encoded_miner_id)
 
@@ -164,20 +166,17 @@ class Miner(TokenActor):
     def withdraw(self, amount: int=0, entire_balance=False) -> str:
         """Withdraw tokens"""
 
-        tokens_amount = self._blockchain._chain.web3.toInt(
-            self.miner_agent.call().getMinerInfo(self.miner_agent.MinerInfoField.VALUE.value, self.address, 0).encode('latin-1'))
-
-        txhash = self.miner_agent.call().transact({'from': self.address}).withdraw(tokens_amount)
-
-        self._blockchain._chain.wait.for_receipt(txhash, timeout=self._blockchain._timeout)
-
         if entire_balance and amount:
             raise Exception("Specify an amount or entire balance, not both")
 
         if entire_balance:
-            txhash = self.miner_agent.call().transact({'from': self.address}).withdraw(tokens_amount)
+            tokens_amount = self._blockchain._chain.web3.toInt(self.miner_agent.call().getMinerInfo(self.miner_agent._deployer.MinerInfoField.VALUE.value,
+                                                               self.address,
+                                                               0).encode('latin-1'))
+
+            txhash = self.miner_agent.transact({'from': self.address}).withdraw(tokens_amount)
         else:
-            txhash = self.miner_agent.call().transact({'from': self.address}).withdraw(amount)
+            txhash = self.miner_agent.transact({'from': self.address}).withdraw(amount)
 
         self._blockchain._chain.wait.for_receipt(txhash, timeout=self._blockchain._timeout)
 
@@ -193,13 +192,13 @@ class PolicyAuthor(TokenActor):
 
         self._arrangements = OrderedDict()    # Track authored policies by id
 
-    def make_arrangement(self, miner: Miner, periods: int, rate: int, arrangement_id: bytes=None) -> 'BlockchainArrangement':
+    def make_arrangement(self, miner: Miner, periods: int, rate: int, arrangement_id: bytes=None) -> 'PolicyArrangement':
         """
         Create a new arrangement to carry out a blockchain policy for the specified rate and time.
         """
 
         value = rate * periods
-        arrangement = BlockchainArrangement(author=self,
+        arrangement = PolicyArrangement(author=self,
                                             miner=miner,
                                             value=value,
                                             periods=periods)
@@ -207,7 +206,7 @@ class PolicyAuthor(TokenActor):
         self._arrangements[arrangement.id] = {arrangement_id: arrangement}
         return arrangement
 
-    def get_arrangement(self, arrangement_id: bytes) -> BlockchainArrangement:
+    def get_arrangement(self, arrangement_id: bytes) -> PolicyArrangement:
         """Fetch a published arrangement from the blockchain"""
 
         blockchain_record = self.policy_agent.call().policies(arrangement_id)
@@ -216,7 +215,7 @@ class PolicyAuthor(TokenActor):
         duration = end_block - start_block
 
         miner = Miner(address=miner_address, miner_agent=self.policy_agent.miner_agent)
-        arrangement = BlockchainArrangement(author=self, miner=miner, periods=duration)
+        arrangement = PolicyArrangement(author=self, miner=miner, periods=duration)
 
         arrangement.is_published = True
         return arrangement

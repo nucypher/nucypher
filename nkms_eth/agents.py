@@ -105,11 +105,13 @@ class MinerAgent(EthereumContractAgent, deployer=MinerEscrowDeployer):
         """
         Returns an iterator of all miner addresses via cumulative sum, on-network.
         """
-        count = self.call().getMinerInfo(self._deployer.MinerInfoField.MINERS_LENGTH.value, self._deployer.null_address, 0).encode('latin-1')
+
+        # TODO - Partial;
+        count = self.call().getMinerInfo(self._deployer.MinerInfoField.MINERS_LENGTH.value, self._deployer._null_addr, 0).encode('latin-1')
         count = self._blockchain._chain.web3.toInt(count)
 
         for index in range(count):
-            addr = self.call().getMinerInfo(self._deployer.MinerInfoField.MINER.value, self._deployer.null_address, index).encode('latin-1')
+            addr = self.call().getMinerInfo(self._deployer.MinerInfoField.MINER.value, self._deployer._null_addr, index).encode('latin-1')
             yield self._blockchain._chain.web3.toChecksumAddress(addr)
 
     def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:
