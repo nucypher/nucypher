@@ -104,7 +104,7 @@ class NuCypherKMSTokenDeployer(ContractDeployer, NuCypherTokenConfig):
             deploy_args=[self.saturation],
             deploy_transaction={'from': self._creator})
 
-        self._blockchain._chain.wait.for_receipt(deployment_txhash, timeout=self._blockchain._timeout)
+        self._blockchain.wait_for_receipt(deployment_txhash)
         self._contract = the_nucypher_token_contract
 
         return deployment_txhash
@@ -140,23 +140,22 @@ class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
             message = '{} contract already deployed, use .get() to retrieve it.'.format(class_name)
             raise self.ContractDeploymentError(message)
 
-        deploy_args = [self.token_agent._contract.address] + self.mining_coefficient
+        deploy_args = [self.token_agent.contract_address] + self.mining_coefficient
         deploy_tx = {'from': self.token_agent.origin}
 
         the_escrow_contract, deploy_txhash = self._blockchain._chain.provider.deploy_contract(self._contract_name,
                                                                                               deploy_args=deploy_args,
                                                                                               deploy_transaction=deploy_tx)
 
-        timeout = self._blockchain._timeout
-        self._blockchain._chain.wait.for_receipt(deploy_txhash, timeout=timeout)
+        self._blockchain.wait_for_receipt(deploy_txhash)
         self._contract = the_escrow_contract
 
         reward_txhash = self.token_agent.transact({'from': self.token_agent.origin}).transfer(self.contract_address,
                                                                                               self.reward)
-        self._blockchain._chain.wait.for_receipt(reward_txhash, timeout=timeout)
+        self._blockchain.wait_for_receipt(reward_txhash)
 
         init_txhash = self._contract.transact({'from': self.token_agent.origin}).initialize()
-        self._blockchain._chain.wait.for_receipt(init_txhash, timeout=timeout)
+        self._blockchain.wait_for_receipt(init_txhash)
 
         return deploy_txhash, reward_txhash, init_txhash
 
@@ -169,9 +168,9 @@ class PolicyManagerDeployer(ContractDeployer):
     _contract_name = 'PolicyManager'
 
     def __init__(self, miner_agent):
-        super().__init__(blockchain=token_agent._blockchain)
-        self.token_agent = miner_agent._token_agent
+        self.token_agent = miner_agent.token_agent
         self.miner_agent = miner_agent
+        super().__init__(blockchain=self.token_agent._blockchain)
 
     def deploy(self) -> Tuple[str, str]:
         if self.is_armed is False:
@@ -182,12 +181,12 @@ class PolicyManagerDeployer(ContractDeployer):
         # Creator deploys the policy manager
         the_policy_manager_contract, deploy_txhash = self._blockchain._chain.provider.deploy_contract(
             self._contract_name,
-            deploy_args=[self.miner_agent._contract.address],
-            deploy_transaction={'from': self.token_agent.creator})
+            deploy_args=[self.miner_agent.contract_address],
+            deploy_transaction={'from': self.token_agent.origin})
 
         self._contract = the_policy_manager_contract
 
-        set_txhash = self.miner_agent.transact({'from': self.token_agent.creator}).setPolicyManager(the_policy_manager_contract.address)
-        self._blockchain._chain.wait.for_receipt(set_txhash)
+        set_txhash = self.miner_agent.transact({'from': self.token_agent.origin}).setPolicyManager(the_policy_manager_contract.address)
+        self._blockchain.wait_for_receipt(set_txhash)
 
         return deploy_txhash, set_txhash

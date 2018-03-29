@@ -1,6 +1,6 @@
 class PolicyArrangement:
     """
-    A relationship between Alice and a single Ursula as part of BlockchainPolicy
+    A relationship between Alice and a single Ursula as part of Blockchain Policy
     """
 
     def __init__(self, author, miner, value: int, periods: int, arrangement_id: bytes=None):
@@ -65,6 +65,9 @@ class PolicyArrangement:
 
 class BlockchainPolicy:
     """A collection of n BlockchainArrangements representing a single Policy"""
+
+    class NoSuchPolicy(Exception):
+        pass
 
     def __init__(self):
         self._arrangements = list()

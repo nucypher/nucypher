@@ -175,6 +175,5 @@ class PolicyAgent(EthereumContractAgent, deployer=PolicyManagerDeployer):
         """
 
         txhash = self.transact({'from': author.address, 'gas_price': gas_price}).revokePolicy(arrangement_id)
-        self._blockchain._chain.wait.for_receipt(txhash)
-
+        self._blockchain.wait_for_receipt(txhash)
         return txhash

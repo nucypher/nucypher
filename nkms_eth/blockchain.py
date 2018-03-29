@@ -19,7 +19,7 @@ class TheBlockchain:
     class IsAlreadyRunning(Exception):
         pass
 
-    def __init__(self, populus_config: PopulusConfig=None, timeout=None):
+    def __init__(self, populus_config: PopulusConfig=None):
         """
         Configures a populus project and connects to blockchain.network.
         Transaction timeouts specified measured in seconds.
@@ -41,10 +41,6 @@ class TheBlockchain:
 
         # Opens and preserves connection to a running populus blockchain
         self._chain = self._project.get_chain(self._network).__enter__()
-
-        if timeout is None:
-            timeout = TheBlockchain._default_timeout
-        self._timeout = timeout
 
     @classmethod
     def get(cls):
@@ -72,15 +68,16 @@ class TheBlockchain:
         """
         return self._chain.provider.get_contract(name)
 
+    def wait_for_receipt(self, txhash, timeout=None) -> None:
+        if timeout is None:
+            timeout = self._default_timeout
+
+        self._chain.wait.for_receipt(txhash, timeout=timeout)
+        return None
+
     def wait_time(self, wait_hours, step=50):
         """Wait the specified number of wait_hours by comparing block timestamps."""
 
-        wait_seconds = wait_hours * 60 * 60
-        current_block = self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber)
-        end_timestamp = current_block.timestamp + wait_seconds
-
-        not_time_yet = True
-        while not_time_yet:
-            self._chain.wait.for_block(self._chain.web3.eth.blockNumber+step)
-            current_block = self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber)
-            not_time_yet = current_block.timestamp < end_timestamp
+        end_timestamp = self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
+        while self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber).timestamp < end_timestamp:
+            self._chain.wait.for_block(self._chain.web3.eth.blockNumber + step)

@@ -1,7 +1,7 @@
 import random
 
 from nkms_eth.actors import Miner
-from nkms_eth.agents import MinerAgent
+from nkms_eth.agents import MinerAgent, EthereumContractAgent
 from nkms_eth.blockchain import TheBlockchain
 from nkms_eth.config import NuCypherMinerConfig
 from nkms_eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer
@@ -36,17 +36,18 @@ class MockNuCypherMinerConfig(NuCypherMinerConfig):
 
 
 class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNuCypherMinerConfig):
-    pass
+    """Helper class for MockMinerAgent"""
 
 
-def spawn_miners(addresses, miner_agent, locktime=1, m=None) -> None:
+class MockMinerAgent(MinerAgent, deployer=MockMinerEscrowDeployer):
+    """MinerAgent with faked config subclass"""
+
+
+def spawn_miners(addresses: list, miner_agent: MinerAgent, m: int, locktime: int) -> None:
     """
     Deposit and lock a random amount of tokens in the miner escrow
     from each address, "spawning" new Miners.
     """
-    if m is None:
-        m = 10 ** 6
-
     # Create n Miners
     for address in addresses:
         miner = Miner(miner_agent=miner_agent, address=address)

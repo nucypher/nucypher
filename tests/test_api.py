@@ -1,11 +1,11 @@
 from populus.contracts.exceptions import NoKnownAddress
 from pytest import raises
 
-from nkms_eth.agents import NuCypherKMSTokenAgent
-from nkms_eth.deployers import NuCypherKMSTokenDeployer
+from nkms_eth.agents import NuCypherKMSTokenAgent, MinerAgent
+from nkms_eth.deployers import NuCypherKMSTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 
 
-def test_deploy_and_fetch_nucypherkms_token(testerchain):
+def test_token_deployer_and_agent(testerchain):
 
     # Trying to get token from blockchain before it's been published fails
     with raises(NoKnownAddress):
@@ -41,3 +41,33 @@ def test_deploy_and_fetch_nucypherkms_token(testerchain):
     # Compare the contract address for equality
     assert token_agent.contract_address == same_token_agent.contract_address
     assert token_agent == same_token_agent  # __eq__
+
+
+def test_deploy_ethereum_contracts(testerchain):
+    """
+    Launch all ethereum contracts:
+    - NuCypherKMSToken
+    - PolicyManager
+    - MinersEscrow
+    - UserEscrow
+    - Issuer
+    """
+
+    token_deployer = NuCypherKMSTokenDeployer(blockchain=testerchain)
+    token_deployer.arm()
+    token_deployer.deploy()
+
+    token_agent = NuCypherKMSTokenAgent(blockchain=testerchain)
+
+    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent)
+    miner_escrow_deployer.arm()
+    miner_escrow_deployer.deploy()
+
+    miner_agent = MinerAgent(token_agent=token_agent)
+
+    policy_manager_contract = PolicyManagerDeployer(miner_agent=miner_agent)
+    policy_manager_contract.arm()
+    policy_manager_contract.deploy()
+
+
+

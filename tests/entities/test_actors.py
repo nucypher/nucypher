@@ -5,92 +5,116 @@ import pytest
 
 from nkms_eth.actors import Miner
 from nkms_eth.agents import MinerAgent
-from tests.utilities import spawn_miners, MockNuCypherMinerConfig
+from nkms_eth.deployers import PolicyManagerDeployer
+from tests.utilities import spawn_miners
 
 M = 10 ** 6
 
 
-def test_deposit(testerchain, mock_token_deployer, token_agent, miner_agent):
+def test_miner_locking_tokens(testerchain, mock_token_deployer, mock_miner_agent):
+
+    # Deploy the Policy manager
+    policy_manager_deployer = PolicyManagerDeployer(miner_agent=mock_miner_agent)
+    policy_manager_deployer.arm()
+    policy_manager_deployer.deploy()
+
     mock_token_deployer._global_airdrop(amount=10000)    # weeee
 
-    ursula_address = testerchain._chain.web3.eth.accounts[1]
-    miner = Miner(miner_agent=miner_agent, address=ursula_address)
-    miner.lock(amount=1000*M, locktime=100)
+    miner = Miner(miner_agent=mock_miner_agent, address=testerchain._chain.web3.eth.accounts[1])
+
+    an_amount_of_tokens = 1000 * M
+    miner.lock(amount=an_amount_of_tokens, locktime=100)
+
+    assert mock_miner_agent.call().getLockedTokens(miner.address) == an_amount_of_tokens
+
+    testerchain.wait_time(mock_miner_agent._deployer._hours_per_period)
+
+    assert mock_miner_agent.call().getAllLockedTokens() == an_amount_of_tokens
 
 
-def test_mine_withdraw(testerchain, mock_token_deployer, token_agent, miner_agent, mock_miner_escrow_deployer):
+def test_mine_then_withdraw_tokens(testerchain, mock_token_deployer, token_agent, mock_miner_agent, mock_miner_escrow_deployer):
     """
     - Airdrop tokens to everyone
-    - Create an Ursula (Miner)
-    - Ursula locks tokens
+    - Create a Miner (Ursula)
     - Spawn additional miners
-    - Wait
-    - Ursula mints new tokens
+    - All miners lock tokens
+    - Wait (with time)
+    - Miner (Ursula) mints new tokens
     """
 
     mock_token_deployer._global_airdrop(amount=10000)
 
-    _origin, ursula_address, *everyone_else = testerchain._chain.web3.eth.accounts
+    _origin, *everybody = testerchain._chain.web3.eth.accounts
+    ursula_address, *everyone_else = everybody
 
-    ursula = Miner(miner_agent=miner_agent, address=ursula_address)
-    initial_balance = ursula.token_balance()
-
+    miner = Miner(miner_agent=mock_miner_agent, address=ursula_address)
+    initial_balance = miner.token_balance()
 
     amount = (10 + random.randrange(9000)) * M
-    ursula.lock(amount=amount, locktime=1)
+    miner.lock(amount=amount, locktime=3)
 
-    spawn_miners(miner_agent=miner_agent, addresses=everyone_else, locktime=1, m=M)
-    testerchain.wait_time(wait_hours=miner_agent._deployer._hours_per_period*2)
+    testerchain.wait_time(mock_miner_agent._deployer._hours_per_period)
+    assert mock_miner_agent.call().getLockedTokens(ursula_address) == amount
 
-    ursula.mint()
-    ursula.withdraw(entire_balance=True)
+    spawn_miners(miner_agent=mock_miner_agent, addresses=everyone_else, locktime=1, m=M)
+    testerchain.wait_time(mock_miner_agent._deployer._hours_per_period*2)
 
-    final_balance = token_agent.balance(ursula.address)
+    miner.confirm_activity()
+    miner.mint()
+    miner.withdraw(entire_balance=True)
+
+    final_balance = token_agent.balance(miner.address)
     assert final_balance > initial_balance
 
 
-def test_publish_miner_id(testerchain, mock_token_deployer, token_agent, miner_agent):
+def test_publish_miner_ids(testerchain, mock_token_deployer, mock_miner_agent):
     mock_token_deployer._global_airdrop(amount=10000)    # weeee
 
     miner_addr = testerchain._chain.web3.eth.accounts[1]
-    miner = Miner(miner_agent=miner_agent, address=miner_addr)
+    miner = Miner(miner_agent=mock_miner_agent, address=miner_addr)
 
     balance = miner.token_balance()
     miner.lock(amount=balance, locktime=1)
 
     # Publish Miner IDs to the DHT
     mock_miner_id = os.urandom(32)
+    _txhash = miner.publish_miner_id(mock_miner_id)
 
-    txhash = miner.publish_miner_id(mock_miner_id)
+    # Fetch the miner Ids
     stored_miner_ids = miner.fetch_miner_ids()
 
     assert len(stored_miner_ids) == 1
     assert mock_miner_id == stored_miner_ids[0]
 
+    # Repeat, with another miner ID
     another_mock_miner_id = os.urandom(32)
-    txhash = miner.publish_miner_id(another_mock_miner_id)
+    _txhash = miner.publish_miner_id(another_mock_miner_id)
 
     stored_miner_ids = miner.fetch_miner_ids()
 
     assert len(stored_miner_ids) == 2
     assert another_mock_miner_id == stored_miner_ids[1]
 
-    # TODO change when v4 of web3.py is released
-    assert another_mock_miner_id == miner_agent.call().getMinerInfo(miner_agent._deployer.MinerInfoField.MINER_ID.value, miner_addr, 1).encode('latin-1')
+    # TODO change encoding when v4 of web3.py is released
+    supposedly_the_same_miner_id = mock_miner_agent.call() \
+        .getMinerInfo(mock_miner_agent._deployer.MinerInfoField.MINER_ID.value,
+                      miner_addr,
+                      1).encode('latin-1')
+
+    assert another_mock_miner_id == supposedly_the_same_miner_id
 
 
-def test_select_ursulas(testerchain, mock_token_deployer, token_agent, miner_agent):
+def test_sample_miners(testerchain, mock_token_deployer, mock_miner_agent):
     mock_token_deployer._global_airdrop(amount=10000)
 
-    # Create a random set of miners (we have 9 in total)
-    addresses = testerchain._chain.web3.eth.accounts[1:]
-    spawn_miners(addresses=addresses, locktime=100, miner_agent=miner_agent)
+    _origin, *everyone_else = testerchain._chain.web3.eth.accounts[1:]
+    spawn_miners(addresses=everyone_else, locktime=100, miner_agent=mock_miner_agent, m=M)
 
-    testerchain.wait_time(miner_agent._deployer._hours_per_period)
-
-    miners = miner_agent.sample(quantity=3)
-    assert len(miners) == 3
-    assert len(set(miners)) == 3
+    testerchain.wait_time(mock_miner_agent._deployer._hours_per_period)
 
     with pytest.raises(MinerAgent.NotEnoughUrsulas):
-        miner_agent.sample(quantity=100)  # Waay more than we have deployed
+        mock_miner_agent.sample(quantity=100)  # Waay more than we have deployed
+
+    miners = mock_miner_agent.sample(quantity=3)
+    assert len(miners) == 3
+    assert len(set(miners)) == 3

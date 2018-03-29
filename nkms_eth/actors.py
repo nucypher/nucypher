@@ -16,10 +16,12 @@ class TokenActor(ABC):
             address = address.hex()
         self.address = address
 
+        self._transactions = OrderedDict()    # Tracks
+
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(address='{}')"
-        r.format(class_name, self.address)
+        r = r.format(class_name, self.address)
         return r
 
     def eth_balance(self):
@@ -54,8 +56,9 @@ class Miner(TokenActor):
         self.token_agent = miner_agent.token_agent
         self._blockchain = self.token_agent._blockchain
 
-        self._transactions = OrderedDict()
-        self._locked_tokens = self._update_locked_tokens()
+
+        self._locked_tokens = None
+        self._update_locked_tokens()
 
     def _update_locked_tokens(self) -> None:
         """Query the contract for the amount of locked tokens on this miner's eth address and cache it"""
@@ -66,8 +69,8 @@ class Miner(TokenActor):
     def _approve_escrow(self, amount: int) -> str:
         """Approve the transfer of token from the miner's address to the escrow contract."""
 
-        txhash = self.token_agent.transact({'from': self.address}).approve(self.miner_agent._contract.address, amount)
-        self._blockchain._chain.wait.for_receipt(txhash, timeout=self._blockchain._timeout)
+        txhash = self.token_agent.transact({'from': self.address}).approve(self.miner_agent.contract_address, amount)
+        self._blockchain.wait_for_receipt(txhash)
 
         self._transactions[datetime.now()] = txhash
 
@@ -77,7 +80,7 @@ class Miner(TokenActor):
         """Send tokes to the escrow from the miner's address"""
 
         deposit_txhash = self.miner_agent.transact({'from': self.address}).deposit(amount, locktime)
-        self._blockchain._chain.wait.for_receipt(deposit_txhash, timeout=self._blockchain._timeout)
+        self._blockchain.wait_for_receipt(deposit_txhash)
 
         self._transactions[datetime.now()] = deposit_txhash
 
@@ -92,15 +95,15 @@ class Miner(TokenActor):
         return bool(self._locked_tokens > 0)
 
     def lock(self, amount: int, locktime: int) -> Tuple[str, str, str]:
-        """Deposit and lock tokens for mining."""
+        """Public facing method for token locking."""
 
         approve_txhash = self._approve_escrow(amount=amount)
         deposit_txhash = self._send_tokens_to_escrow(amount=amount, locktime=locktime)
 
         lock_txhash = self.miner_agent.transact({'from': self.address}).switchLock()
-        self._blockchain._chain.wait.for_receipt(lock_txhash, timeout=self._blockchain._timeout)
+        self._blockchain.wait_for_receipt(lock_txhash)
 
-        self._transactions[datetime.now()] = (approve_txhash, deposit_txhash, lock_txhash)
+        self._transactions[datetime.now()] = lock_txhash
 
         return approve_txhash, deposit_txhash, lock_txhash
 
@@ -108,7 +111,7 @@ class Miner(TokenActor):
         """Miner rewarded for every confirmed period"""
 
         txhash = self.miner_agent.transact({'from': self.address}).confirmActivity()
-        self._blockchain._chain.wait.for_receipt(txhash)
+        self._blockchain.wait_for_receipt(txhash)
 
         self._transactions[datetime.now()] = txhash
 
@@ -118,8 +121,7 @@ class Miner(TokenActor):
         """Computes and transfers tokens to the miner's account"""
 
         txhash = self.miner_agent.transact({'from': self.address}).mint()
-        self._blockchain._chain.wait.for_receipt(txhash, timeout=self._blockchain._timeout)
-
+        self._blockchain.wait_for_receipt(txhash)
         self._transactions[datetime.now()] = txhash
 
         return txhash
@@ -128,8 +130,7 @@ class Miner(TokenActor):
         """Collect policy reward in ETH"""
 
         txhash = policy_manager.transact({'from': self.address}).withdraw()
-        self._blockchain._chain.wait.for_receipt(txhash)
-
+        self._blockchain.wait_for_receipt(txhash)
         self._transactions[datetime.now()] = txhash
 
         return txhash
@@ -138,8 +139,7 @@ class Miner(TokenActor):
         """Store a new Miner ID"""
 
         txhash = self.miner_agent.transact({'from': self.address}).setMinerId(miner_id)
-        self._blockchain._chain.wait.for_receipt(txhash)
-
+        self._blockchain.wait_for_receipt(txhash)
         self._transactions[datetime.now()] = txhash
 
         return txhash
@@ -231,7 +231,7 @@ class PolicyAuthor(TokenActor):
         return txhash
 
     def recruit(self, quantity: int) -> List[str]:
-        """Uses sampling logic to gather"""
+        """Uses sampling logic to gather miner address from the blockchain"""
 
         miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity)
         return miner_addresses
