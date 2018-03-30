@@ -72,7 +72,7 @@ def ecdsa_sign(message: bytes, privkey: UmbralPrivateKey) -> bytes:
 
     :return: signature
     """
-    cryptography_priv_key = privkey.bn_key.to_cryptography_priv_key()
+    cryptography_priv_key = privkey.to_cryptography_privkey()
     signature_der_bytes = cryptography_priv_key.sign(message, ec.ECDSA(BLAKE2B))
     return signature_der_bytes
 
@@ -92,7 +92,7 @@ def ecdsa_verify(
 
     :return: True if valid, False if invalid.
     """
-    cryptography_pub_key = pubkey.point_key.to_cryptography_pub_key()
+    cryptography_pub_key = pubkey.to_cryptography_pubkey()
 
     try:
         cryptography_pub_key.verify(

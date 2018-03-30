@@ -113,5 +113,5 @@ class SigningKeypair(Keypair):
 
     def generate_self_signed_cert(self, common_name):
         # TODO: Let's have a shortcut method for getting the cryptography key(s).
-        cryptography_key = self._privkey.bn_key.to_cryptography_priv_key()
+        cryptography_key = self._privkey.to_cryptography_privkey()
         return generate_self_signed_certificate(common_name, default_curve(), cryptography_key)
