@@ -1,4 +1,4 @@
-pragma solidity ^0.4.0;
+pragma solidity ^0.4.18;
 
 
 import "contracts/MinersEscrow.sol";
@@ -7,12 +7,12 @@ import "contracts/MinersEscrow.sol";
 /**
 * @notice Contract for testing miners escrow contract
 **/
-contract PolicyManagerMock {
+contract PolicyManagerForMinersEscrowMock {
 
     MinersEscrow public escrow;
     mapping (address => uint256[]) public nodes;
 
-    function PolicyManagerMock(address, MinersEscrow _escrow) public {
+    function PolicyManagerForMinersEscrowMock(address, MinersEscrow _escrow) public {
         escrow = _escrow;
     }
 
