@@ -16,31 +16,37 @@ def token(web3, chain):
 def escrow(web3, chain, token):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
-    escrow, _ = chain.provider.get_or_deploy_contract(
+    contract, _ = chain.provider.get_or_deploy_contract(
         'MinersEscrowForUserEscrowMock', deploy_args=[token.address],
         deploy_transaction={'from': creator})
 
     # Give escrow some coins
-    tx = token.transact({'from': creator}).transfer(escrow.address, 10000)
+    tx = token.transact({'from': creator}).transfer(contract.address, 10000)
     chain.wait.for_receipt(tx)
 
-    return escrow
+    return contract
 
 
 @pytest.fixture()
-def user_escrow(web3, chain, token, escrow):
+def policy_manager(chain):
+    contract, _ = chain.provider.get_or_deploy_contract('PolicyManagerForUserEscrowMock')
+    return contract
+
+
+@pytest.fixture()
+def user_escrow(web3, chain, token, escrow, policy_manager):
     creator = web3.eth.accounts[0]
     user = web3.eth.accounts[1]
 
     # Creator deploys the user escrow
-    user_escrow, _ = chain.provider.get_or_deploy_contract(
-        'UserEscrow', deploy_args=[token.address, escrow.address],
+    contract, _ = chain.provider.get_or_deploy_contract(
+        'UserEscrow', deploy_args=[token.address, escrow.address, policy_manager.address],
         deploy_transaction={'from': creator})
 
     # Transfer ownership
-    tx = user_escrow.transact({'from': creator}).transferOwnership(user)
+    tx = contract.transact({'from': creator}).transferOwnership(user)
     chain.wait.for_receipt(tx)
-    return user_escrow
+    return contract
 
 
 def wait_time(chain, wait_seconds):
@@ -266,3 +272,52 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     event_args = events[0]['args']
     assert user.lower() == event_args['owner'].lower()
     assert 1000 == event_args['value']
+
+
+def test_policy(web3, chain, policy_manager, user_escrow):
+    creator = web3.eth.accounts[0]
+    user = web3.eth.accounts[1]
+    user_balance = web3.eth.getBalance(user)
+
+    # Only user can withdraw reward
+    with pytest.raises(TransactionFailed):
+        tx = user_escrow.transact({'from': creator, 'gas_price': 0}).policyRewardWithdraw()
+        chain.wait.for_receipt(tx)
+    with pytest.raises(TransactionFailed):
+        tx = user_escrow.transact({'from': creator, 'gas_price': 0}).rewardWithdraw()
+        chain.wait.for_receipt(tx)
+
+    # Nothing to reward
+    with pytest.raises(TransactionFailed):
+        tx = user_escrow.transact({'from': user, 'gas_price': 0}).policyRewardWithdraw()
+        chain.wait.for_receipt(tx)
+    with pytest.raises(TransactionFailed):
+        tx = user_escrow.transact({'from': user, 'gas_price': 0}).rewardWithdraw()
+        chain.wait.for_receipt(tx)
+    assert user_balance == web3.eth.getBalance(user)
+    assert 0 == web3.eth.getBalance(user_escrow.address)
+
+    # Send ETH to the policy manager as a reward for the user
+    tx = web3.eth.sendTransaction({'from': web3.eth.coinbase, 'to': policy_manager.address, 'value': 10000})
+    chain.wait.for_receipt(tx)
+
+    # Withdraw reward reward
+    tx = user_escrow.transact({'from': user, 'gas_price': 0}).policyRewardWithdraw()
+    chain.wait.for_receipt(tx)
+    assert user_balance == web3.eth.getBalance(user)
+    assert 10000 == web3.eth.getBalance(user_escrow.address)
+    tx = user_escrow.transact({'from': user, 'gas_price': 0}).rewardWithdraw()
+    chain.wait.for_receipt(tx)
+    assert user_balance + 10000 == web3.eth.getBalance(user)
+    assert 0 == web3.eth.getBalance(user_escrow.address)
+
+    events = user_escrow.pastEvents('RewardWithdrawnAsMiner').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user.lower() == event_args['owner'].lower()
+    assert 10000 == event_args['value']
+    events = user_escrow.pastEvents('RewardWithdrawn').get()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user.lower() == event_args['owner'].lower()
+    assert 10000 == event_args['value']

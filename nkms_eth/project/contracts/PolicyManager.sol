@@ -178,7 +178,7 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Withdraw fee by node
+    * @notice Withdraw reward by node
     **/
     function withdraw() public {
         NodeInfo storage node = nodes[msg.sender];

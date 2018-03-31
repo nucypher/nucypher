@@ -24,29 +24,38 @@ contract UserEscrow is Ownable {
     event LockSwitched(address indexed owner);
     event ActivityConfirmed(address indexed owner);
     event Mined(address indexed owner);
+    event RewardWithdrawnAsMiner(address indexed owner, uint256 value);
+    event RewardWithdrawn(address indexed owner, uint256 value);
 
     NuCypherKMSToken public token;
     MinersEscrow public escrow;
+    PolicyManager public policyManager;
     uint256 public lockedValue;
     uint256 public endLockTimestamp;
     uint256 public lockDuration;
 
     /**
-    * @notice Constructor sets addresses of the token and the escrow contracts
+    * @notice Constructor sets addresses of the contracts
     * @param _token Token contract
     * @param _escrow Escrow contract
+    * @param _policyManager PolicyManager contract
     **/
     function UserEscrow(
         NuCypherKMSToken _token,
-        MinersEscrow _escrow
+        MinersEscrow _escrow,
+        PolicyManager _policyManager
     )
         public
     {
         require(address(_token) != 0x0 &&
-            address(_escrow) != 0x0);
+            address(_escrow) != 0x0 &&
+            address(_policyManager) != 0x0);
         token = _token;
         escrow = _escrow;
+        policyManager = _policyManager;
     }
+
+    function () public payable {}
 
     /**
     * @notice Initial tokens deposit
@@ -136,6 +145,25 @@ contract UserEscrow is Ownable {
     function mint() external onlyOwner {
         escrow.mint();
         Mined(owner);
+    }
+
+    /**
+    * @notice Withdraw available reward from the policy manager to the user escrow
+    **/
+    function policyRewardWithdraw() public onlyOwner {
+        uint256 balance = this.balance;
+        policyManager.withdraw();
+        RewardWithdrawnAsMiner(owner, this.balance - balance);
+    }
+
+    /**
+    * @notice Withdraw available reward to the owner
+    **/
+    function rewardWithdraw() public onlyOwner {
+        uint256 balance = this.balance;
+        require(balance != 0);
+        owner.transfer(balance);
+        RewardWithdrawn(owner, balance);
     }
 
 }
