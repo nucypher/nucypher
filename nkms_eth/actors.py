@@ -136,42 +136,26 @@ class Miner(TokenActor):
         """Computes and transfers tokens to the miner's account"""
 
         txhash = self.miner_agent.transact({'from': self.address}).mint()
+
         self.blockchain.wait_for_receipt(txhash)
         self._transactions[datetime.utcnow()] = txhash
 
         return txhash
 
     def collect_reward(self, policy_manager) -> str:
-        """Collect policy reward in ETH"""
+        """Withdraw policy reward in ETH"""
 
-        txhash = policy_manager.transact({'from': self.address}).withdraw()  # TODO: Calculate reward
+        token_reward_bytes = self.miner_agent().getMinerInfo(self.miner_agent.MinerInfoField.VALUE.value, self.address, 0).encode('latin-1')
+        reward_amount = self.blockchain._chain.web3.toInt(token_reward_bytes)
+
+        txhash = policy_manager.transact({'from': self.address}).withdraw(reward_amount)  # TODO: Calculate reward
+
         self.blockchain.wait_for_receipt(txhash)
         self._transactions[datetime.utcnow()] = txhash
 
         return txhash
 
-    # TODO
-    # def withdraw(self, amount: int=0, entire_balance=False) -> str:
-    #     """Withdraw tokens"""
-    #
-    #
-    #     if entire_balance and amount:
-    #         raise Exception("Specify an amount or entire balance, not both")
-    #
-    #     if entire_balance:
-    #         tokens_amount = self._blockchain._chain.web3.toInt(self.miner_agent.read().getMinerInfo(self.miner_agent._deployer.MinerInfoField.VALUE.value,
-    #                                                            self.address,
-    #                                                            0).encode('latin-1'))
-    #
-    #         txhash = self.miner_agent.transact({'from': self.address}).withdraw(tokens_amount)
-    #     else:
-    #         txhash = self.miner_agent.transact({'from': self.address}).withdraw(amount)
-    #
-    #     self._blockchain._chain.wait.for_receipt(txhash)
-    #
-    #     return txhash
-
-    def stake(self, amount, locktime, entire_balance=False, restake=False, auto_switch_lock=False):
+    def stake(self, amount, locktime, entire_balance=False, auto_switch_lock=False):
         """
         High level staking method for Miners.
         """
@@ -200,25 +184,9 @@ class Miner(TokenActor):
             lock_txhash = self.switch_lock()
             staking_transactions[datetime.utcnow()] = lock_txhash
 
-        # not_time_yet = True    # TODO
-        # while not_time_yet:
-
-            # self.blockchain.wait_time(wait_hours=1)
-
-            # confirm_txhash = self.confirm_activity()
-            # staking_transactions[datetime.utcnow()] = confirm_txhash
-
-            # mint_txhash = self.mint()
-            # staking_transactions[datetime.utcnow()] = mint_txhash
-
-            # if restake is True:
-            #     #TODO: get reward amount
-            #     self.collect_reward()
-            #     self.deposit()
-
         return staking_transactions
 
-    #TODO: Sidechain datastore
+    # TODO: Sidechain datastore
     # def publish_data(self, miner_id) -> str:
     #     """Store a new Miner ID"""
     #

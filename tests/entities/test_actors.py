@@ -1,33 +1,32 @@
-import os
 import random
 
 import pytest
 
 from nkms_eth.actors import Miner
 from nkms_eth.agents import MinerAgent
-from nkms_eth.deployers import PolicyManagerDeployer
-from tests.utilities import spawn_miners
+from nkms_eth.utilities import spawn_miners
 
 
 def test_miner_locking_tokens(testerchain, mock_token_deployer, mock_miner_agent):
-
-    # Deploy the Policy manager
-    policy_manager_deployer = PolicyManagerDeployer(miner_agent=mock_miner_agent)
-    policy_manager_deployer.arm()
-    policy_manager_deployer.deploy()
 
     mock_token_deployer._global_airdrop(amount=10000)    # weeee
 
     miner = Miner(miner_agent=mock_miner_agent, address=testerchain._chain.web3.eth.accounts[1])
 
     an_amount_of_tokens = 1000 * mock_token_deployer._M
-    miner.stake(amount=an_amount_of_tokens, locktime=100)
+    miner.stake(amount=an_amount_of_tokens, locktime=mock_miner_agent._deployer._min_release_periods, auto_switch_lock=False)
 
-    assert mock_miner_agent.read().getLockedTokens(miner.address) == an_amount_of_tokens
+    # Verify that the escrow is allowed to receive tokens
+    # assert mock_miner_agent.token_agent.read().allowance(miner.address, mock_miner_agent.contract_address) == 0
 
+    # Stake starts after one period
+    # assert miner.token_balance() == 0
+    # assert mock_miner_agent.read().getLockedTokens(miner.address) == 0
+
+    # Wait for it...
     testerchain.wait_time(mock_miner_agent._deployer._hours_per_period)
 
-    assert mock_miner_agent.read().getAllLockedTokens() == an_amount_of_tokens
+    assert mock_miner_agent.read().getLockedTokens(miner.address) == an_amount_of_tokens
 
 
 def test_mine_then_withdraw_tokens(testerchain, mock_token_deployer, token_agent, mock_miner_agent, mock_miner_escrow_deployer):
@@ -46,22 +45,29 @@ def test_mine_then_withdraw_tokens(testerchain, mock_token_deployer, token_agent
     ursula_address, *everyone_else = everybody
 
     miner = Miner(miner_agent=mock_miner_agent, address=ursula_address)
+
     initial_balance = miner.token_balance()
+    assert token_agent.get_balance(miner.address) == miner.token_balance()
 
-    amount = (10 + random.randrange(9000)) * mock_token_deployer._M
-    miner.stake(amount=amount, locktime=3)
+    stake_amount = (10 + random.randrange(9000)) * mock_token_deployer._M
+    miner.stake(amount=stake_amount, locktime=30, auto_switch_lock=False)
 
+    # Stake starts after one period
+    assert miner.token_balance() == 0
+    assert mock_miner_agent.read().getLockedTokens(ursula_address) == 0
+
+    # Wait for it...
     testerchain.wait_time(mock_miner_agent._deployer._hours_per_period)
-    assert mock_miner_agent.call().getLockedTokens(ursula_address) == amount
 
-    spawn_miners(miner_agent=mock_miner_agent, addresses=everyone_else, locktime=1, m=mock_token_deployer._M)
+    # Have other address lock tokens, and wait...
+    spawn_miners(miner_agent=mock_miner_agent, addresses=everyone_else, locktime=30, m=mock_token_deployer._M)
     testerchain.wait_time(mock_miner_agent._deployer._hours_per_period*2)
 
-    miner.confirm_activity()
+    # miner.confirm_activity()
     miner.mint()
     miner.collect_reward()
 
-    final_balance = token_agent.balance(miner.address)
+    final_balance = token_agent.get_balance(miner.address)
     assert final_balance > initial_balance
 
 
@@ -80,7 +86,7 @@ def test_sample_miners(testerchain, mock_token_deployer, mock_miner_agent):
     assert len(miners) == 3
     assert len(set(miners)) == 3
 
-#
+
 # def test_publish_miner_ids(testerchain, mock_token_deployer, mock_miner_agent):
 #     mock_token_deployer._global_airdrop(amount=10000)    # weeee
 #

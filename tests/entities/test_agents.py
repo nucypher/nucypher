@@ -1,8 +1,6 @@
 import pytest
-from pytest import raises
 
-from nkms_eth.deployers import NuCypherKMSTokenDeployer
-from tests.utilities import spawn_miners, MockNuCypherMinerConfig
+from nkms_eth.utilities import spawn_miners, MockNuCypherMinerConfig
 
 M = 10 ** 6
 
