@@ -1,8 +1,8 @@
 import pytest
+from constant_sorrow import constants
 
 from nkms.characters import Alice, Ursula, Character
 from nkms.crypto import api
-from nkms.crypto.constants import NOT_SIGNED
 from nkms.crypto.constants import NO_DECRYPTION_PERFORMED
 from nkms.crypto.powers import CryptoPower, SigningPower, NoSigningPower, \
     EncryptingPower
@@ -90,7 +90,8 @@ def test_anybody_can_encrypt():
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
     ciphertext, signature = everyman.encrypt_for(ursula, cleartext, sign=False)
-    assert signature == NOT_SIGNED
+
+    assert signature == constants.NOT_SIGNED
     assert ciphertext is not None
 
 """
@@ -142,7 +143,7 @@ def test_encrypt_but_do_not_sign(alice, bob):
     message_kit, not_signature = alice.encrypt_for(bob, message, sign=False)
 
     # The message is not signed...
-    assert not_signature == NOT_SIGNED
+    assert not_signature == constants.NOT_SIGNED
 
     verified, cleartext = bob.verify_from(alice, message_kit, decrypt=True)
 
