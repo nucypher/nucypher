@@ -1,6 +1,7 @@
 import asyncio
 import binascii
 from collections import OrderedDict
+from datetime import datetime
 
 import maya
 import msgpack
@@ -47,6 +48,13 @@ class Arrangement(BlockchainArrangement):
         self.kfrag = kfrag
         self.ursula = ursula
 
+        arrangement_delta = datetime.utcnow() - self.expiration
+        policy_duration = arrangement_delta.hours // 24
+
+        super().__init__(author=self.alice.address, miner=self.ursula.address,
+              value=self.deposit, periods=policy_duration,
+              arrangement_id=str(uuid.uuid4()).encode())
+
     def __bytes__(self):
         return bytes(self.alice.stamp) + bytes(
             self.hrac) + self.expiration.isoformat().encode() + bytes(
@@ -66,6 +74,11 @@ class Arrangement(BlockchainArrangement):
         self.kfrag = kfrag
         self.ursula = ursula
         self.negotiation_result = negotiation_result
+
+        # Publish arrangement to blockchain
+        # TODO Determine actual gas price here
+        # TODO Negotiate the receipt of a KFrag per Ursula
+        self.publish(gas_price=0)
 
     def encrypt_payload_for_ursula(self):
         """
