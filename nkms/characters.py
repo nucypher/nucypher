@@ -389,7 +389,7 @@ class Bob(Character):
 
             # TODO: Make this much prettier
             header, signature, ursula_pubkey_sig, _hrac, (
-            port, interface, ttl) = dht_value_splitter(value, msgpack_remainder=True)
+                port, interface, ttl) = dht_value_splitter(value, msgpack_remainder=True)
 
             if header != BYTESTRING_IS_URSULA_IFACE_INFO:
                 raise TypeError("Unknown DHT value.  How did this get on the network?")
@@ -442,7 +442,7 @@ class Bob(Character):
                 # TODO: Make this prettier
                 header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = \
                     dht_value_splitter(response.content, return_remainder=True)
-                tmap_messaage_kit = MessageKit.from_bytes(encrypted_treasure_map)
+                tmap_messaage_kit = AdventureKit.from_bytes(encrypted_treasure_map)
                 return tmap_messaage_kit
             else:
                 assert False
@@ -574,8 +574,8 @@ class Ursula(Character, ProxyRESTServer):
     def interface_dht_value(self):
         signature = self.stamp(self.interface_hrac())
         return (
-            BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.stamp + self.interface_hrac()
-            + msgpack.dumps(self.dht_interface_info())
+                BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.stamp + self.interface_hrac()
+                + msgpack.dumps(self.dht_interface_info())
         )
 
     def interface_hrac(self):

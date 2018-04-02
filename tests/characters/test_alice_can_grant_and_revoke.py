@@ -6,7 +6,7 @@ from nkms.characters import Ursula
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH
 from nkms.crypto.powers import SigningPower, EncryptingPower
-from nkms.crypto.utils import BytestringSplitter
+from bytestring_splitter import BytestringSplitter
 from tests.utilities import MockNetworkyStuff
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
