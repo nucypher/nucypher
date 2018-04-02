@@ -19,27 +19,27 @@ def test_key_sqlite_keystore(test_keystore, bob):
         del_key = test_keystore.get_key(bob.stamp.fingerprint())
 
 
-def test_policy_contract_sqlite_keystore(test_keystore):
+def test_policy_arrangement_sqlite_keystore(test_keystore):
     alice_keypair_sig = keypairs.SigningKeypair(generate_keys_if_needed=True)
     alice_keypair_enc = keypairs.EncryptingKeypair(generate_keys_if_needed=True)
     bob_keypair_sig = keypairs.SigningKeypair(generate_keys_if_needed=True)
 
     hrac = b'test'
 
-    # Test add PolicyContract
-    new_contract = test_keystore.add_policy_contract(
+    # Test add PolicyArrangement
+    new_arrangement = test_keystore.add_policy_arrangement(
             datetime.utcnow(), b'test', hrac, alice_pubkey_sig=alice_keypair_sig.pubkey,
             alice_signature=b'test'
     )
 
-    # Test get PolicyContract
-    query_contract = test_keystore.get_policy_contract(hrac)
-    assert new_contract == query_contract
+    # Test get PolicyArrangement
+    query_arrangement = test_keystore.get_policy_arrangement(hrac)
+    assert new_arrangement == query_arrangement
 
-    # Test del PolicyContract
-    test_keystore.del_policy_contract(hrac)
+    # Test del PolicyArrangement
+    test_keystore.del_policy_arrangement(hrac)
     with pytest.raises(keystore.NotFound):
-        del_key = test_keystore.get_policy_contract(hrac)
+        del_key = test_keystore.get_policy_arrangement(hrac)
 
 
 def test_workorder_sqlite_keystore(test_keystore):

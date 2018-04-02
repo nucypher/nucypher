@@ -21,14 +21,14 @@ def test_grant(alice, bob, ursulas):
                          expiration=policy_end_datetime)
 
     # The number of policies is equal to the number of Ursulas we're using (n)
-    assert len(policy._accepted_contracts) == n
+    assert len(policy._accepted_arrangements) == n
 
     # Let's look at the first Ursula.
-    ursula = list(policy._accepted_contracts.values())[0].ursula
+    ursula = list(policy._accepted_arrangements.values())[0].ursula
 
     # Get the Policy from Ursula's datastore, looking up by hrac.
     proper_hrac = keccak_digest(bytes(alice.stamp) + bytes(bob.stamp) + uri)
-    retrieved_policy = ursula.datastore.get_policy_contract(proper_hrac.hex().encode())
+    retrieved_policy = ursula.datastore.get_policy_arrangement(proper_hrac.hex().encode())
 
     # TODO: Make this a legit KFrag, not bytes.
     retrieved_k_frag = KFrag.from_bytes(retrieved_policy.k_frag)
