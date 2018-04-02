@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import suppress
 from logging import getLogger
 
 import msgpack
@@ -12,10 +13,10 @@ from typing import Union, List
 from nkms.config.config import KMSConfig
 from constant_sorrow import constants, default_constant_splitter
 from nkms.crypto.api import secure_random, keccak_digest
-from nkms.crypto.constants import NO_DECRYPTION_PERFORMED, PUBLIC_KEY_LENGTH
-from nkms.crypto.kits import MessageKit, AdventureKit
+from nkms.crypto.constants import PUBLIC_KEY_LENGTH
+from nkms.crypto.kits import UmbralMessageKit
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
-from bytestring_splitter import BytestringSplitter, RepeatingBytestringSplitter
+from bytestring_splitter import RepeatingBytestringSplitter
 from nkms.crypto.splitters import signature_splitter
 from nkms.network import blockchain_client
 from nkms.network.constants import BYTESTRING_IS_URSULA_IFACE_INFO
@@ -190,16 +191,16 @@ class Character(object):
             signature = sig_header = constants.NOT_SIGNED
             alice_pubkey = None
             ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
-        message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule, alice_pubkey=alice_pubkey)
+        message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule, alice_pubkey=alice_pubkey)
 
         return message_kit, signature
 
     def verify_from(self,
                     actor_whom_sender_claims_to_be: "Character",
-                    message_kit: Union[MessageKit, bytes],
+                    message_kit: Union[UmbralMessageKit, bytes],
                     signature: Signature=None,
                     decrypt=False,
-                    signature_is_on_cleartext=False) -> tuple:
+                    ) -> tuple:
         """
         Inverse of encrypt_for.
 
@@ -214,41 +215,42 @@ class Character(object):
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
         """
-        # TODO: In this flow we now essentially have two copies of the public key.  See #174.
-        # One from the actor (first arg) and one from the MessageKit.
-        # Which do we use in which cases?
+        with suppress(AttributeError):
+            if message_kit.alice_pubkey:
+                if not message_kit.alice_pubkey == actor_whom_sender_claims_to_be.public_key(SigningPower):
+                    raise ValueError("This MessageKit doesn't appear to have come from {}".format(actor_whom_sender_claims_to_be))
 
-        # if not signature and not signature_is_on_cleartext:
-        # TODO: Since a signature can now be in a MessageKit, this might not be accurate anymore.  See #174.
-        # raise ValueError("You need to either provide the Signature or \
-        #                   decrypt and find it on the cleartext.")
+        alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
+        signature_from_kit = None
 
-        cleartext = NO_DECRYPTION_PERFORMED
-
-        if signature_is_on_cleartext:
-            if decrypt:
-                cleartext_with_sig = self.decrypt(message_kit)
-                header_and_sig_splitter = default_constant_splitter + signature_splitter
-                sig_header, signature, cleartext = header_and_sig_splitter(cleartext_with_sig,
-                                                                           return_remainder=True)
-            else:
-                raise ValueError(
-                    "Can't look for a signature on the cleartext if we're not \
-                     decrypting.")
-            message = cleartext
-            alice_pubkey = message_kit.alice_pubkey
-        else:
-            # The signature is on the ciphertext.  We might not even need to decrypt it.
-            if decrypt:
+        if decrypt:
+            # We are decrypting the message; let's do that first and see what the sig header says.
+            cleartext_with_sig_header = self.decrypt(message_kit)
+            sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
+            if sig_header == constants.SIGNATURE_IS_ON_CIPHERTEXT:
+                # THe ciphertext is what is signed - note that for later.
                 message = message_kit.ciphertext
-                full_cleartext = self.decrypt(message_kit)
-                sig_header, cleartext = default_constant_splitter(full_cleartext, return_remainder=True)
-            else:
-                message = bytes(message_kit)
-            alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
+                if not signature:
+                    raise ValueError("Can't check a signature on the ciphertext if don't provide one.")
+            elif sig_header == constants.SIGNATURE_TO_FOLLOW:
+                # The signature follows in this cleartext - split it off.
+                signature_from_kit, cleartext = signature_splitter(cleartext,
+                                                                   return_remainder=True)
+                message = cleartext
+        else:
+            # Not decrypting - the message is the object passed in as a message kit.  Cast it.
+            message = bytes(message_kit)
+            cleartext = constants.NO_DECRYPTION_PERFORMED
 
-        if signature:
-            is_valid = signature.verify(message, alice_pubkey)
+        if signature and signature_from_kit:
+            if not signature != signature_from_kit:
+                raise ValueError(
+                    "The MessageKit has a Signature, but it's not the same one you provided.  Something's up.")
+        else:
+            best_signature = signature or signature_from_kit
+
+        if best_signature:
+            is_valid = best_signature.verify(message, alice_pubkey)
         else:
             # Meh, we didn't even get a signature.  Not much we can do.
             is_valid = False
@@ -417,7 +419,7 @@ class Bob(Character):
 
         verified, packed_node_list = self.verify_from(
             policy.alice, tmap_message_kit,
-            signature_is_on_cleartext=True, decrypt=True
+            decrypt=True
         )
 
         if not verified:
@@ -442,7 +444,7 @@ class Bob(Character):
                 # TODO: Make this prettier
                 header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = \
                     dht_value_splitter(response.content, return_remainder=True)
-                tmap_messaage_kit = AdventureKit.from_bytes(encrypted_treasure_map)
+                tmap_messaage_kit = UmbralMessageKit.from_bytes(encrypted_treasure_map)
                 return tmap_messaage_kit
             else:
                 assert False
