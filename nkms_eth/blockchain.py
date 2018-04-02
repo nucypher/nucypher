@@ -1,7 +1,9 @@
+from abc import ABC
+
 from nkms_eth.config import PopulusConfig
 
 
-class TheBlockchain:
+class TheBlockchain(ABC):
     """
     http://populus.readthedocs.io/en/latest/config.html#chains
 
@@ -12,9 +14,13 @@ class TheBlockchain:
     temp: Local private chain whos data directory is removed when the chain is shutdown. Runs via geth.
     """
 
-    _network = ''
+    _network = NotImplemented
+    _default_timeout = NotImplemented
     __instance = None
-    _default_timeout = 60
+
+    test_chains = ('tester', )
+    transient_chains = test_chains + ('testrpc', 'temp')
+    public_chains = ('mainnet', 'ropsten')
 
     class IsAlreadyRunning(Exception):
         pass
@@ -30,7 +36,7 @@ class TheBlockchain:
 
         # Singleton
         if TheBlockchain.__instance is not None:
-            message = 'Blockchain:{} is already running. Use .get() to retrieve'.format(self._network)
+            message = '{} is already running. Use .get() to retrieve'.format(self._network)
             raise TheBlockchain.IsAlreadyRunning(message)
         TheBlockchain.__instance = self
 
@@ -73,11 +79,9 @@ class TheBlockchain:
             timeout = self._default_timeout
 
         self._chain.wait.for_receipt(txhash, timeout=timeout)
-        return None
 
-    def wait_time(self, wait_hours, step=50):
-        """Wait the specified number of wait_hours by comparing block timestamps."""
+# class TestRpcBlockchain:
+#
+#     _network = 'testrpc'
+#     _default_timeout = 60
 
-        end_timestamp = self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
-        while self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber).timestamp < end_timestamp:
-            self._chain.wait.for_block(self._chain.web3.eth.blockNumber + step)

@@ -1,17 +1,15 @@
-class PolicyArrangement:
+class BlockchainArrangement:
     """
     A relationship between Alice and a single Ursula as part of Blockchain Policy
     """
 
     def __init__(self, author, miner, value: int, periods: int, arrangement_id: bytes=None):
 
-        if arrangement_id is None:
-            self.id = self.__class__._generate_arrangement_id()  # TODO: Generate policy ID
+        self.id = arrangement_id
 
         # The relationship exists between two addresses
         self.author = author
         self.policy_agent = author.policy_agent
-
 
         self.miner = miner
 
@@ -23,10 +21,6 @@ class PolicyArrangement:
         self.periods = periods  # TODO: datetime -> duration in blocks
 
         self.is_published = False
-
-    @staticmethod
-    def _generate_arrangement_id(policy_hrac: bytes) -> bytes:
-        pass  # TODO
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -50,11 +44,6 @@ class PolicyArrangement:
         self.publish_transaction = txhash
         self.is_published = True
         return txhash
-
-    def __update_periods(self) -> None:
-        blockchain_record = self.policy_agent.fetch_arrangement_data(self.id)
-        client, delegate, rate, *periods = blockchain_record
-        self._elapsed_periods = periods
 
     def revoke(self, gas_price: int) -> str:
         """Revoke this arrangement and return the transaction hash as hex."""
