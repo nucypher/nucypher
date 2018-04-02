@@ -8,9 +8,9 @@ from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
 
-from nkms.crypto.kits import MessageKit
+from nkms.crypto.kits import UmbralMessageKit
 from nkms.crypto.powers import EncryptingPower, SigningPower
-from nkms.crypto.utils import BytestringSplitter
+from bytestring_splitter import BytestringSplitter
 from nkms.keystore.threading import ThreadedSession
 from nkms.network.capabilities import SeedOnly, ServerCapability
 from nkms.network.node import NuCypherNode
@@ -22,7 +22,6 @@ from umbral.fragments import KFrag
 
 from apistar.core import Route
 from apistar.frameworks.wsgi import WSGIApp as App
-
 
 
 class NuCypherDHTServer(Server):
@@ -190,15 +189,13 @@ class ProxyRESTServer(object):
             Policy (see #121).
         """
         hrac = binascii.unhexlify(hrac_as_hex)
-        policy_message_kit = MessageKit.from_bytes(request.body)
+        policy_message_kit = UmbralMessageKit.from_bytes(request.body)
         # group_payload_splitter = BytestringSplitter(PublicKey)
         # policy_payload_splitter = BytestringSplitter((KFrag, KFRAG_LENGTH))
 
         alice = self._alice_class.from_public_keys({SigningPower: policy_message_kit.alice_pubkey})
 
-        verified, cleartext = self.verify_from(
-            alice, policy_message_kit,
-            decrypt=True, signature_is_on_cleartext=True)
+        verified, cleartext = self.verify_from(alice, policy_message_kit, decrypt=True)
 
         if not verified:
             # TODO: What do we do if the Policy isn't signed properly?

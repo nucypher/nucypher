@@ -6,7 +6,7 @@ import pytest
 from kademlia.utils import digest
 from nkms.characters import Ursula, Character
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.kits import MessageKit
+from nkms.crypto.kits import MessageKit, AdventureKit
 from nkms.network import blockchain_client
 from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP, BYTESTRING_IS_URSULA_IFACE_INFO
 
@@ -120,7 +120,7 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ur
 
     assert header == BYTESTRING_IS_TREASURE_MAP
 
-    tmap_message_kit = MessageKit.from_bytes(encrypted_treasure_map)
+    tmap_message_kit = AdventureKit.from_bytes(encrypted_treasure_map)
     verified, treasure_map_as_decrypted_by_bob = bob.verify_from(alice,
                                            tmap_message_kit,
                                            decrypt=True,
