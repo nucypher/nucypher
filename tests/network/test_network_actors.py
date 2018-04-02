@@ -124,7 +124,6 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ur
     verified, treasure_map_as_decrypted_by_bob = bob.verify_from(alice,
                                            tmap_message_kit,
                                            decrypt=True,
-                                           signature_is_on_cleartext=True,
                                            )
 
     assert treasure_map_as_decrypted_by_bob == enacted_policy.treasure_map.packed_payload()

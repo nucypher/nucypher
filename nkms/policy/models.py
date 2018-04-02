@@ -8,8 +8,7 @@ import msgpack
 from nkms.characters import Alice
 from nkms.characters import Bob, Ursula
 from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import KECCAK_DIGEST_LENGTH, \
-    UNKNOWN_KFRAG
+from nkms.crypto.constants import KECCAK_DIGEST_LENGTH
 from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import key_splitter
@@ -26,7 +25,7 @@ class Contract(object):
     _EXPECTED_LENGTH = 124
 
     def __init__(self, alice, hrac, expiration, deposit=None, ursula=None,
-                 kfrag=UNKNOWN_KFRAG, alices_signature=None):
+                 kfrag=constants.UNKNOWN_KFRAG, alices_signature=None):
         """
         :param deposit: Funds which will pay for the timeframe  of this Contract (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
@@ -97,7 +96,7 @@ class Policy(object):
     _ursula = None
 
 
-    def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), uri=None, m=None, alices_signature=constants.NOT_SIGNED):
+    def __init__(self, alice, bob=None, kfrags=(constants.UNKNOWN_KFRAG,), uri=None, m=None, alices_signature=constants.NOT_SIGNED):
 
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.

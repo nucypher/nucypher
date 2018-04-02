@@ -73,8 +73,10 @@ class EncryptingKeypair(Keypair):
 
         :return: bytes
         """
-        cleartext = pre.decrypt(message_kit.capsule, self._privkey,
-                                message_kit.ciphertext, message_kit.alice_pubkey)
+        cleartext = pre.decrypt(ciphertext=message_kit.ciphertext,
+                                capsule=message_kit.capsule,
+                                priv_key=self._privkey,
+                                alice_pub_key=message_kit.alice_pubkey)
 
         return cleartext
 

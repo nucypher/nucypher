@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import suppress
 from logging import getLogger
 
 import msgpack
@@ -11,7 +12,7 @@ from typing import Union, List
 
 from constant_sorrow import constants, default_constant_splitter
 from nkms.crypto.api import secure_random, keccak_digest
-from nkms.crypto.constants import NO_DECRYPTION_PERFORMED, PUBLIC_KEY_LENGTH
+from nkms.crypto.constants import PUBLIC_KEY_LENGTH
 from nkms.crypto.kits import MessageKit, AdventureKit
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from bytestring_splitter import BytestringSplitter, RepeatingBytestringSplitter
@@ -193,7 +194,7 @@ class Character(object):
                     message_kit: Union[MessageKit, bytes],
                     signature: Signature=None,
                     decrypt=False,
-                    signature_is_on_cleartext=False) -> tuple:
+                    ) -> tuple:
         """
         Inverse of encrypt_for.
 
@@ -208,41 +209,43 @@ class Character(object):
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
         """
-        # TODO: In this flow we now essentially have two copies of the public key.  See #174.
-        # One from the actor (first arg) and one from the MessageKit.
-        # Which do we use in which cases?
+        with suppress(AttributeError):
+            if message_kit.alice_pubkey:
+                if not message_kit.alice_pubkey == actor_whom_sender_claims_to_be.public_key(SigningPower):
+                    raise ValueError("This MessageKit doesn't appear to have come from {}".format(actor_whom_sender_claims_to_be))
 
-        # if not signature and not signature_is_on_cleartext:
-        # TODO: Since a signature can now be in a MessageKit, this might not be accurate anymore.  See #174.
-        # raise ValueError("You need to either provide the Signature or \
-        #                   decrypt and find it on the cleartext.")
+        alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
+        cleartext = constants.NO_DECRYPTION_PERFORMED
+        signature_from_kit = None
 
-        cleartext = NO_DECRYPTION_PERFORMED
-
-        if signature_is_on_cleartext:
-            if decrypt:
-                cleartext_with_sig = self.decrypt(message_kit)
-                header_and_sig_splitter = default_constant_splitter + signature_splitter
-                sig_header, signature, cleartext = header_and_sig_splitter(cleartext_with_sig,
-                                                                           return_remainder=True)
-            else:
-                raise ValueError(
-                    "Can't look for a signature on the cleartext if we're not \
-                     decrypting.")
-            message = cleartext
-            alice_pubkey = message_kit.alice_pubkey
-        else:
+        if decrypt:
+            cleartext_with_sig_header = self.decrypt(message_kit)
+            sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
+        if decrypt is False or sig_header == constants.SIGNATURE_IS_ON_CIPHERTEXT:
             # The signature is on the ciphertext.  We might not even need to decrypt it.
             if decrypt:
-                message = message_kit.ciphertext
                 full_cleartext = self.decrypt(message_kit)
                 sig_header, cleartext = default_constant_splitter(full_cleartext, return_remainder=True)
-            else:
-                message = bytes(message_kit)
             alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
+        elif sig_header == constants.SIGNATURE_TO_FOLLOW:
+            signature_from_kit, cleartext = signature_splitter(cleartext,
+                                                           return_remainder=True)
 
-        if signature:
-            is_valid = signature.verify(message, alice_pubkey)
+        if cleartext is constants.NO_DECRYPTION_PERFORMED:
+            message = bytes(message_kit)
+        elif sig_header == constants.SIGNATURE_IS_ON_CIPHERTEXT:
+            message = message_kit.ciphertext
+        else:
+            message = cleartext
+
+        if signature and signature_from_kit:
+            if not signature != signature_from_kit:
+                raise ValueError(
+                    "The MessageKit has a Signature, but it's not the same one you provided.  Something's up.")
+        else:
+            best_signature = signature_from_kit or signature
+        if best_signature:
+            is_valid = best_signature.verify(message, alice_pubkey)
         else:
             # Meh, we didn't even get a signature.  Not much we can do.
             is_valid = False
@@ -413,7 +416,7 @@ class Bob(Character):
 
         verified, packed_node_list = self.verify_from(
             policy.alice, tmap_message_kit,
-            signature_is_on_cleartext=True, decrypt=True
+            decrypt=True
         )
 
         if not verified:
