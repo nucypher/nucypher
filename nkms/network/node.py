@@ -2,8 +2,7 @@ import requests
 from kademlia.node import Node
 
 from nkms.crypto.constants import CFRAG_LENGTH
-from nkms.crypto.kits import MessageKit
-from nkms.crypto.utils import RepeatingBytestringSplitter
+from bytestring_splitter import RepeatingBytestringSplitter
 from nkms.network.capabilities import ServerCapability
 
 from umbral.fragments import CapsuleFrag
