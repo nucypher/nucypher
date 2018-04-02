@@ -176,19 +176,20 @@ class Character(object):
         if sign:
             if sign_plaintext:
                 # Sign first, encrypt second.
+                sig_header = constants.SIGNATURE_TO_FOLLOW
                 signature = self.stamp(plaintext)
-                ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, signature + plaintext)
+                ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + signature + plaintext)
             else:
                 # Encrypt first, sign second.
-                ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, plaintext)
+                sig_header = constants.SIGNATURE_IS_ON_CIPHERTEXT
+                ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
                 signature = self.stamp(ciphertext)
             alice_pubkey = self.public_key(SigningPower)
         else:
             # Don't sign.
-            signature = NOT_SIGNED
-            ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, plaintext)
+            signature = sig_header = constants.NOT_SIGNED
             alice_pubkey = None
-
+            ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
         message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule, alice_pubkey=alice_pubkey)
 
         return message_kit, signature
@@ -227,9 +228,9 @@ class Character(object):
         if signature_is_on_cleartext:
             if decrypt:
                 cleartext_with_sig = self.decrypt(message_kit)
-                signature, cleartext = BytestringSplitter(Signature)(cleartext_with_sig,
-                                                                     return_remainder=True)
-                message_kit.signature = signature  # TODO: Obviously this is the wrong way to do this.  Let's make signature a property.
+                header_and_sig_splitter = default_constant_splitter + signature_splitter
+                sig_header, signature, cleartext = header_and_sig_splitter(cleartext_with_sig,
+                                                                           return_remainder=True)
             else:
                 raise ValueError(
                     "Can't look for a signature on the cleartext if we're not \
@@ -240,7 +241,8 @@ class Character(object):
             # The signature is on the ciphertext.  We might not even need to decrypt it.
             if decrypt:
                 message = message_kit.ciphertext
-                cleartext = self.decrypt(message_kit)
+                full_cleartext = self.decrypt(message_kit)
+                sig_header, cleartext = default_constant_splitter(full_cleartext, return_remainder=True)
             else:
                 message = bytes(message_kit)
             alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
