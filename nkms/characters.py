@@ -9,12 +9,13 @@ from kademlia.utils import digest
 from typing import Dict
 from typing import Union, List
 
+from constant_sorrow import constants, default_constant_splitter
 from nkms.crypto.api import secure_random, keccak_digest
-from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED, PUBLIC_KEY_LENGTH
-from nkms.crypto.kits import MessageKit
+from nkms.crypto.constants import NO_DECRYPTION_PERFORMED, PUBLIC_KEY_LENGTH
+from nkms.crypto.kits import MessageKit, AdventureKit
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
-from nkms.crypto.signature import Signature
-from nkms.crypto.utils import BytestringSplitter, RepeatingBytestringSplitter
+from bytestring_splitter import BytestringSplitter, RepeatingBytestringSplitter
+from nkms.crypto.splitters import signature_splitter
 from nkms.network import blockchain_client
 from nkms.network.constants import BYTESTRING_IS_URSULA_IFACE_INFO
 from nkms.network.protocols import dht_value_splitter
@@ -22,6 +23,7 @@ from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, Pr
 from nkms.policy.constants import NOT_FROM_ALICE, NON_PAYMENT
 from umbral import pre
 from umbral.keys import UmbralPublicKey
+from nkms.crypto.signature import Signature
 
 
 class Character(object):
@@ -34,7 +36,7 @@ class Character(object):
     _stamp = None
 
     def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
-                 crypto_power_ups=[], is_me=True) -> None:
+                 crypto_power_ups=None, is_me=True) -> None:
         """
         :param attach_server:  Whether to attach a Server when this Character is
             born.
@@ -60,6 +62,9 @@ class Character(object):
         self.log = getLogger("characters")
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
+
+        if not crypto_power_ups:
+            crypto_power_ups = []
 
         if is_me:
             self._stamp = SignatureStamp(self)
