@@ -1,5 +1,5 @@
 import base64
-
+from umbral import keys
 from nkms.crypto import api as API
 
 
@@ -14,13 +14,15 @@ class KMSConfig:
     class KMSConfigrationError(Exception):
         pass
 
-    def __init__(self, blockchain_address: str, key_path: str=None, config_path: str=None):
+    def __init__(self, blockchain_address: str, enc_key_path: str=None,
+                 sig_key_path: str=None, config_path: str=None):
 
         if self._default_config_path is None:
             pass    # TODO: no default config path set
 
         self.__config_path = config_path or self._default_config_path
-        self.__key_path = key_path
+        self.__enc_key_path = enc_key_path
+        self.__sig_key_path = sig_key_path
 
         # Blockchain
         self.address = blockchain_address
@@ -64,14 +66,16 @@ def _save_keyfile(self, encoded_keys):
 
 
 def _generate_encryption_keys(self):
-    ecies_privkey = API.ecies_gen_priv(to_bytes=True)
-    ecies_pubkey = API.ecies_priv2pub(ecies_privkey, to_bytes=True)
+    privkey = UmbralPrivateKey.gen_key()
+    pubkey = priv_key.get_pubkey()
 
-    return ecies_privkey, ecies_pubkey
+    return (privkey, pubkey)
 
 
+# TODO: Do we really want to use Umbral keys for signing?
+# TODO: Perhaps we can use Curve25519/EdDSA for signatures?
 def _generate_signing_keys(self):
-    ecdsa_privkey = API.ecdsa_gen_priv()
-    ecdsa_pubkey = API.ecdsa_priv2pub(ecdsa_privkey, to_bytes=True)
+    privkey = UmbralPrivateKey.gen_key()
+    pubkey = priv_key.get_pubkey()
 
-    return ecdsa_privkey, ecdsa_pubkey
+    return (privkey, pubkey)
