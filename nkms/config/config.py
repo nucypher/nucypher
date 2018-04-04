@@ -22,7 +22,7 @@ class KMSConfig:
 
     _default_config_path = None
     __root_name = '.nucypher'
-    __default_key_path = os.path.join('~', __root_name, 'keys')    # TODO: Change by actor
+    __default_key_dir = os.path.join('~', __root_name, 'keys')    # TODO: Change by actor
 
     class KMSConfigrationError(Exception):
         pass
