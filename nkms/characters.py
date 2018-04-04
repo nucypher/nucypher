@@ -20,6 +20,9 @@ from nkms.network.constants import BYTESTRING_IS_URSULA_IFACE_INFO
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
 from nkms.policy.constants import NOT_FROM_ALICE, NON_PAYMENT
+
+from nkms_eth.actors import PolicyAuthor
+
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 
@@ -283,9 +286,12 @@ class Character(object):
         self.known_nodes[node.interface_dht_key()] = node
 
 
-class Alice(Character):
+class Alice(Character, PolicyAuthor):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def generate_kfrags(self, bob, m, n) -> List:
         """
@@ -300,12 +306,7 @@ class Alice(Character):
         bob_pubkey_enc = bob.public_key(EncryptingPower)
         return self._crypto_power.power_ups(EncryptingPower).generate_kfrags(bob_pubkey_enc, m, n)
 
-    def create_policy(self,
-                      bob: "Bob",
-                      uri: bytes,
-                      m: int,
-                      n: int,
-                      ):
+    def create_policy(self, bob: "Bob", uri: bytes, m: int, n: int):
         """
         Create a Policy to share uri with bob.
         Generates KFrags and attaches them.
