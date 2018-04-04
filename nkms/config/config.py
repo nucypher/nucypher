@@ -8,6 +8,7 @@ import web3
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+from nacl.secret import SecretBox
 
 from nkms.config import utils
 from nkms.config.utils import _derive_wrapping_key_from_master_key, _decrypt_key
@@ -212,6 +213,27 @@ def _derive_wrapping_key_from_master_key(salt: bytes, master_key: bytes):
     ).derive(master_key)
 
     return wrapping_key
+
+
+def _encrypt_key(wrapping_key: bytes, key_material: bytes):
+    """
+    Encrypts a key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
+    Returns an encrypted key as bytes with the nonce appended.
+    """
+    nonce = os.urandom(24)
+    enc_key = SecretBox(wrapping_key).encrypt(key_material, nonce)
+
+    return enc_key + nonce
+
+
+def _decrypt_key(wrapping_key: bytes, enc_key_material: bytes, nonce: bytes):
+    """
+    Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
+    Returns a decrypted key as bytes.
+    """
+    dec_key = SecretBox(wrapping_key).encrypt(enc_key_material, nonce)
+
+    return dec_key
 
 
 def _generate_encryption_keys():
