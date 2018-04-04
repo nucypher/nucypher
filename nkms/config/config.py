@@ -1,15 +1,28 @@
 import base64
-from umbral import keys
-from nkms.crypto import api as API
+import os
+
+import web3
+
+
+class Wallet:
+    def accounts(self):
+        return web3.personal.listAccounts()
+
+    @classmethod
+    def create(self):
+        pass
+
+    @classmethod
+    def import_existing(self):
+        pass
 
 
 class KMSConfig:
-    """
-    Warning: This class handles private keys!
-
-    """
+    """Warning: This class handles private keys!"""
 
     _default_config_path = None
+    __root_name = '.nucypher'
+    __default_key_path = os.path.join('~', __root_name, 'keys')    # TODO: Change by actor
 
     class KMSConfigrationError(Exception):
         pass
@@ -38,7 +51,13 @@ class KMSConfig:
         return instance
 
     def get_transacting_key(self):
-        pass
+        """
+
+        """
+        with open(self.transacting_key_path) as keyfile:
+            encrypted_key = keyfile.read()
+            private_key = web3.eth.account.decrypt(encrypted_key, 'correcthorsebatterystaple')
+            # WARNING: do not save the key or password anywhere
 
     def get_decrypting_key(self):
         pass

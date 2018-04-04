@@ -1,8 +1,8 @@
     [[source]]
-
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
+
 
 [packages]
 
@@ -21,6 +21,7 @@ maya = "*"
 pyumbral = {git = "https://github.com/nucypher/pyumbral.git"}
 requests = "*"
 hendrix = {git = "https://github.com/hendrix/hendrix", ref = "tags/3.0.0rc1"}
+"web3" = "*"
 
 
 [dev-packages]
