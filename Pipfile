@@ -21,9 +21,8 @@ maya = "*"
 pyumbral = {git = "https://github.com/nucypher/pyumbral.git"}
 requests = "*"
 hendrix = {git = "https://github.com/hendrix/hendrix", ref = "tags/3.0.0rc1"}
-constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "c8968369b7a0a802345c2a41f671db5df244ef77"}
+constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "kms-depend"}
 bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git", ref = "eaa1df2433362190f30bc6e400570f0331980ebb"}
-cryptoKits = {git = "https://github.com/nucypher/cryptoKits.git", ref = "4317b8701c827b364ee1d65b0168257b1d5114a4"}
 
 [dev-packages]
 
