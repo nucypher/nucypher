@@ -78,10 +78,12 @@ class KMSKeyring:
         if power_class is SigningPower:
             umbral_privkey = self.__get_signing_key(self.__derived_master_key)
             keypair = SigningKeypair(umbral_privkey)
+
         elif power_class is EncryptingPower:
             # TODO: Derive a key from the root_key.
             umbral_privkey = self.__get_decrypting_key(self.__derived_master_key)
             keypair = EncryptingKeypair(umbral_privkey)
+
         else:
             raise ValueError("Invalid class for deriving a power.")
 
@@ -121,12 +123,6 @@ class Wallet:
         signed_txn = w3.eth.account.signTransaction(transaction, private_key=self.__transacting_key)
         txhash = w3.eth.sendRawTransaction(signed_txn.rawTransaction)
         return txhash
-
-    def get_decrypting_key(self, master_key: str=None, wrapping_key: bytes=None):
-        """
-        Returns plaintext version of decrypting key.
-        """
-        pass
 
 
 class Stake:
