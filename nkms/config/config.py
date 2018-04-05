@@ -2,12 +2,6 @@ import json
 import os
 
 import web3
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
-from nacl.secret import SecretBox
-
-import web3
 
 from nkms.config.utils import _derive_wrapping_key_from_master_key, _decrypt_key
 
@@ -43,43 +37,20 @@ class EthAccount:
         """Sign and transact without unlocking"""
 
 
-class KMSConfig:
+class KMSKeyring:
     """Warning: This class handles private keys!"""
 
-    __config_root = os.path.join('~', '.nucypher')
-
-    __default_yaml_path = os.path.join(__config_root, 'conf.yml')
-    __keys_dir = os.path.join(__config_root, 'keys')
+    __keyring_root = os.path.join('~', '.nucypher')
+    __key_dir = os.path.join(__keyring_root, 'keys')
     __transacting_key_path = os.path.join('.ethereum')
 
     class KMSConfigurationError(Exception):
         pass
 
-    def __init__(self, blockchain_address: str, keys_dir: str=None,
-                 yaml_config_path: str=None):
+    def __init__(self, key_root: str=None):
+        self.__key_dir = key_root
 
-        self.__config_path = config_path or self._default_config_path
-        self.__enc_key_path = enc_key_path
-        self.__sig_key_path = sig_key_path
-
-        self.__yaml_config_path = yaml_config_path or self.__default_yaml_path
-        self.__keys_dir = keys_dir
-
-        # Blockchain
-        self.address = blockchain_address
-
-    @classmethod
-    def from_yaml_config(cls, config_path=None):
-        """Reads the config file and instantiates a KMSConfig instance"""
-
-        with open(config_path or cls.__default_yaml_path, 'r') as conf_file:
-            # Get data from the config file
-            data = conf_file.read()    #TODO: Parse
-
-        instance = cls()
-        return instance
-
-    def get_transacting_key(self, passphrase):
+    def get_transacting_key(self, passphrase: str):
         with open(self.__transacting_key_path) as keyfile:
             encrypted_key = keyfile.read()
             private_key = web3.eth.account.decrypt(encrypted_key, passphrase)
@@ -121,7 +92,7 @@ class KMSConfig:
         """
         Parses a keyfile and returns key metadata as a dict.
         """
-        keyfile_path = os.path.join(self.__keys_dir, path)
+        keyfile_path = os.path.join(self.__key_dir, path)
         with open(keyfile_path, 'r') as keyfile:
             try:
                 key_metadata = json.loads(keyfile)
@@ -134,7 +105,7 @@ class KMSConfig:
         """
         Saves key data to a file.
         """
-        keyfile_path = os.path.join(self.__keys_dir, path)
+        keyfile_path = os.path.join(self.__key_dir, path)
         with open(keyfile_path, 'w+') as keyfile:
             keyfile.seek(0)
             check_byte = keyfile.read(1)
@@ -143,4 +114,24 @@ class KMSConfig:
             else:
                 keyfile.seek(0)
                 keyfile.write(json.dumps(key_data))
+
+
+class KMSConfig:
+    __config_root = os.path.join('~', '.nucypher')
+    __default_config_filepath = os.path.join(__config_root, 'conf.yml')
+
+    def __init__(self, account: EthAccount, keyring: KMSKeyring, config_filepath):
+        self.__yaml_config_path = config_filepath or self.__default_config_filepath
+        self.keyring = keyring
+        self.account = account
+
+    @classmethod
+    def from_config_file(cls, config_path=None):
+        """Reads the config file and creates a KMSConfig instance"""
+        with open(config_path or cls.__default_config_filepath, 'r') as conf_file:
+            # Get data from the config file
+            data = conf_file.read()  # TODO: Parse
+
+        instance = cls()
+        return instance
 

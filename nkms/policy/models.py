@@ -1,5 +1,6 @@
 import asyncio
 import binascii
+import uuid
 from collections import OrderedDict
 from datetime import datetime
 
@@ -52,13 +53,18 @@ class Arrangement(BlockchainArrangement):
         policy_duration = arrangement_delta.hours // 24
 
         super().__init__(author=self.alice.address, miner=self.ursula.address,
-              value=self.deposit, periods=policy_duration,
-              arrangement_id=str(uuid.uuid4()).encode())
+                         value=self.deposit, periods=policy_duration,
+                         arrangement_id=self._make_arrangement_id())
 
     def __bytes__(self):
         return bytes(self.alice.stamp) + bytes(
             self.hrac) + self.expiration.isoformat().encode() + bytes(
             self.deposit)
+
+    @staticmethod
+    def _make_arrangement_id():
+        arrangement_id = str(uuid.uuid4()).encode()
+        return arrangement_id
 
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
@@ -70,7 +76,7 @@ class Arrangement(BlockchainArrangement):
         alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
         return cls(alice=alice, hrac=hrac, expiration=expiration)
 
-    def activate(self, kfrag, ursula, negotiation_result):
+    def publish(self, kfrag, ursula, negotiation_result):
         self.kfrag = kfrag
         self.ursula = ursula
         self.negotiation_result = negotiation_result
@@ -78,7 +84,7 @@ class Arrangement(BlockchainArrangement):
         # Publish arrangement to blockchain
         # TODO Determine actual gas price here
         # TODO Negotiate the receipt of a KFrag per Ursula
-        self.publish(gas_price=0)
+        super().publish(gas_price=0)
 
     def encrypt_payload_for_ursula(self):
         """
@@ -109,7 +115,6 @@ class Policy(object):
     and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
     """
     _ursula = None
-
 
     def __init__(self, alice, bob=None, kfrags=(UNKNOWN_KFRAG,), uri=None, m=None, alices_signature=NOT_SIGNED):
 

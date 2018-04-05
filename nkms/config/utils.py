@@ -10,7 +10,7 @@ from umbral.keys import UmbralPrivateKey
 from nkms.config.config import KMSConfig
 
 
-def validate_passphrase(passphrase):
+def validate_passphrase(passphrase) -> str:
     """Validate a passphrase and return it or raise"""
 
     rules = (
@@ -24,7 +24,7 @@ def validate_passphrase(passphrase):
         return passphrase
 
 
-def _derive_master_key_from_passphrase(salt: bytes, passphrase: str):
+def _derive_master_key_from_passphrase(salt: bytes, passphrase: str) -> bytes:
     """
     Uses Scrypt derivation to derive a master key for encrypting key material.
     See RFC 7914 for n, r, and p value selections.
@@ -42,7 +42,7 @@ def _derive_master_key_from_passphrase(salt: bytes, passphrase: str):
     return master_key
 
 
-def _derive_wrapping_key_from_master_key(salt: bytes, master_key: bytes):
+def _derive_wrapping_key_from_master_key(salt: bytes, master_key: bytes) -> bytes:
     """
     Uses HKDF to derive a 32 byte wrapping key to encrypt key material with.
     """
@@ -57,7 +57,7 @@ def _derive_wrapping_key_from_master_key(salt: bytes, master_key: bytes):
     return wrapping_key
 
 
-def _encrypt_key(wrapping_key: bytes, key_material: bytes):
+def _encrypt_key(wrapping_key: bytes, key_material: bytes) -> dict:
     """
     Encrypts a key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
     Returns an encrypted key as bytes with the nonce appended.
@@ -74,7 +74,7 @@ def _encrypt_key(wrapping_key: bytes, key_material: bytes):
 
 
 # TODO: Handle decryption failures
-def _decrypt_key(wrapping_key: bytes, nonce: bytes, enc_key_material: bytes):
+def _decrypt_key(wrapping_key: bytes, nonce: bytes, enc_key_material: bytes) -> bytes:
     """
     Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
     Returns a decrypted key as bytes.
@@ -84,7 +84,9 @@ def _decrypt_key(wrapping_key: bytes, nonce: bytes, enc_key_material: bytes):
     return dec_key
 
 
-def _generate_encryption_keys():
+def _generate_encryption_keys() -> tuple:
+    """Use pyUmbral keys to generate a new encrypting key pair"""
+
     privkey = UmbralPrivateKey.gen_key()
     pubkey = privkey.get_pubkey()
 
@@ -93,7 +95,7 @@ def _generate_encryption_keys():
 
 # TODO: Do we really want to use Umbral keys for signing?
 # TODO: Perhaps we can use Curve25519/EdDSA for signatures?
-def _generate_signing_keys():
+def _generate_signing_keys() -> tuple:
     privkey = UmbralPrivateKey.gen_key()
     pubkey = privkey.get_pubkey()
 
