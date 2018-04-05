@@ -5,7 +5,7 @@ from kademlia.utils import digest
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
 from nkms.crypto.signature import Signature
-from nkms.crypto.utils import BytestringSplitter
+from bytestring_splitter import BytestringSplitter
 from nkms.network.constants import NODE_HAS_NO_STORAGE, BYTESTRING_IS_URSULA_IFACE_INFO, \
     BYTESTRING_IS_TREASURE_MAP, DHT_VALUE_HEADER_LENGTH
 from nkms.network.node import NuCypherNode

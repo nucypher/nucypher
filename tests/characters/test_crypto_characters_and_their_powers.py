@@ -1,11 +1,9 @@
 import pytest
+from constant_sorrow import constants
 
 from nkms.characters import Alice, Ursula, Character
 from nkms.crypto import api
-from nkms.crypto.constants import NOT_SIGNED
-from nkms.crypto.constants import NO_DECRYPTION_PERFORMED
-from nkms.crypto.powers import CryptoPower, SigningPower, NoSigningPower, \
-    EncryptingPower
+from nkms.crypto.powers import CryptoPower, SigningPower, NoSigningPower
 
 """
 Chapter 1: SIGNING
@@ -73,7 +71,7 @@ def test_anybody_can_verify():
     # Our everyman can verify it.
     verification, cleartext = somebody.verify_from(alice, message, signature, decrypt=False)
     assert verification is True
-    assert cleartext is NO_DECRYPTION_PERFORMED
+    assert cleartext is constants.NO_DECRYPTION_PERFORMED
 
 """
 Chapter 2: ENCRYPTION
@@ -90,7 +88,8 @@ def test_anybody_can_encrypt():
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
     ciphertext, signature = everyman.encrypt_for(ursula, cleartext, sign=False)
-    assert signature == NOT_SIGNED
+
+    assert signature == constants.NOT_SIGNED
     assert ciphertext is not None
 
 """
@@ -109,8 +108,7 @@ def test_sign_cleartext_and_encrypt(alice, bob):
     # else with it, such as post it publicly for later public verifiability.
 
     # However, we can expressly refrain from passing the Signature, and the verification still works:
-    verified, cleartext = bob.verify_from(alice, message_kit, signature=None, decrypt=True,
-                                          signature_is_on_cleartext=True)
+    verified, cleartext = bob.verify_from(alice, message_kit, signature=None, decrypt=True)
     assert verified
     assert cleartext == message
 
@@ -125,7 +123,7 @@ def test_encrypt_and_sign_the_ciphertext(alice, bob):
     message = b"We have a reaaall problem."
     message_kit, signature = alice.encrypt_for(bob, message, sign_plaintext=False)
     verified, cleartext = bob.verify_from(alice, message_kit, signature,
-                                          signature_is_on_cleartext=False, decrypt=True)
+                                          decrypt=True)
     assert verified
     assert cleartext == message
 
@@ -142,7 +140,7 @@ def test_encrypt_but_do_not_sign(alice, bob):
     message_kit, not_signature = alice.encrypt_for(bob, message, sign=False)
 
     # The message is not signed...
-    assert not_signature == NOT_SIGNED
+    assert not_signature == constants.NOT_SIGNED
 
     verified, cleartext = bob.verify_from(alice, message_kit, decrypt=True)
 
