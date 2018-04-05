@@ -63,35 +63,71 @@ class KMSConfig:
             private_key = web3.eth.account.decrypt(encrypted_key, 'correcthorsebatterystaple')
             # WARNING: do not save the key or password anywhere
 
-    def get_decrypting_key(self):
-        pass
+    def get_decrypting_key(self, master_key: bytes=None):
+        """
+        Returns plaintext version of decrypting key.
+        """
+        key_data = self._parse_keyfile('root_key.priv')
 
-    def get_signing_key(self):
-        pass
+        # TODO: Prompt user for password?
+        if not master_key:
+            return
 
+        wrap_key = _derive_wrapping_key_from_master_key(
+            key_data['wrap_salt'], master_key)
 
-def _encode_keys(encoder=base64.b64encode, *keys):
-    data = sum(keys)
-    encoded = encoder(data)
-    return encoded    # TODO: Validate
+        plain_key = _decrypt_key(wrap_key, key_data['nonce'], key_data['enc_key'])
+        return plain_key
 
+    def get_signing_key(self, master_key: bytes=None):
+        """
+        Returns plaintext version of decrypting key.
+        """
+        key_data = self._parse_keyfile('signing_key.priv')
 
-def _save_keyfile(encoded_keys):
-    """Check if the keyfile is empty, then write."""
+        # TODO: Prompt user for password?
+        if not master_key:
+            return
 
-    with open(self.__key_path, 'w+') as f:
-        f.seek(0)
-        check_byte = f.read(1)
-        if check_byte != '':
-            raise self.KMSConfigrationError("Keyfile is not empty! Check your key path.")
-        f.seek(0)
-        f.write(encoded_keys.decode())
+        wrap_key = _derive_wrapping_key_from_master_key(
+            key_data['wrap_salt'], master_key)
+
+        plain_key = _decrypt_key(wrap_key, key_data['nonce'], key_data['enc_key'])
+        return plain_key
+
+    def _parse_keyfile(self, path: str):
+        """
+        Parses a keyfile and returns key metadata as a dict.
+        """
+        keyfile_path = os.path.join(self.__key_dir, path)
+        with open(keyfile_path, 'r') as keyfile:
+            try:
+                key_metadata = json.loads(keyfile)
+        except json.JSONDecodeError:
+            raise KMSConfigurationError("Invalid data in keyfile {}".format(path))
+
+        return key_metadata
+
+    def _save_keyfile(self, path: str, key_data: dict):
+        """
+        Saves key data to a file.
+        """
+        keyfile_path = os.path.join(self.__key_dir, path)
+        with open(keyfile_path),  'w+') as keyfile:
+            f.seek(0)
+            check_byte = keyfile.read(1)
+            if len(check_byte) != 0:
+                raise self.KMSConfigurationError("Keyfile is not empty! Check your key path.")
+            else:
+                keyfile.seek(0)
+                keyfile.write(json.dumps(key_data))
 
 
 def _derive_master_key_from_passphrase(salt: bytes, passphrase: str):
     """
     Uses Scrypt derivation to derive a master key for encrypting key material.
     See RFC 7914 for n, r, and p value selections.
+    This takes around ~5 seconds to perform.
     """
     master_key = Scrypt(
         salt=salt,
@@ -128,10 +164,16 @@ def _encrypt_key(wrapping_key: bytes, key_material: bytes):
     nonce = os.urandom(24)
     enc_key = SecretBox(wrapping_key).encrypt(key_material, nonce)
 
-    return enc_key + nonce
+    crypto_data = {
+        'nonce': nonce,
+        'enc_key': enc_key
+    }
+
+    return crypto_data
 
 
-def _decrypt_key(wrapping_key: bytes, enc_key_material: bytes, nonce: bytes):
+# TODO: Handle decryption failures
+def _decrypt_key(wrapping_key: bytes, nonce: bytes, enc_key_material: bytes):
     """
     Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
     Returns a decrypted key as bytes.
