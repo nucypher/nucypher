@@ -1,32 +1,49 @@
-import curses
-from curses.textpad import rectangle, Textbox
+import sys
+from .configs import validate_passphrase, KMSConfig
+
+# Configurator Text #
+
+title = "NuCypher KMS Configurator"
+welcome = "Welcome to the NuCypher KMS Config Tool"
+description = "Use this tool to manage keypairs node operation."
+
+newlines = '\n' * 2
+press_any = "Press any key to continue..."
+
+enter_new_passphrase = 'Enter new passphrase: '
+confirm_passphrase = "Confirm passphrase"
+did_not_match = "Passwords did not match"
+
+loading = "loading..."
+keygen_success = "Keys generated and written to keyfile!"
 
 
-class ConfigText:
-    title = "NuCypher KMS Configurator"
-    welcome = "Welcome to the NuCypher KMS Config Tool"
-    description = "Use this tool to manage keypairs node operation."
-    loading = "loading..."
-    keygen_success = "Keys generated and written to keyfile!"
+def close():
+    sys.exit()
 
 
-def main(screen):
+def gather_passphrase():
+    user_passphrase = input(enter_new_passphrase)
 
-    height, width = 40, 1
-    editwin = curses.newwin(width, height, 2, 1)
-    textarea = rectangle(screen, 1, 0, 1+width+1, 1+height+1)  # 1s for padding
+    try:    # Validate
+        validate_passphrase(user_passphrase)
+    except KMSConfig.KMSConfigrationError:
+        close()
+    else:
+        confirm_passphrase = input(enter_new_passphrase)
+        if user_passphrase != confirm_passphrase:
+            print(did_not_match)
+            del user_passphrase
+            del confirm_passphrase
+            gather_passphrase()
 
-    screen.addstr(1, 1, ConfigText.welcome)
-    screen.refresh()
-
-    screen.addstr(1, 1, ConfigText.title, curses.A_BOLD)
-    screen.refresh()
-
-    box = Textbox(editwin)
-    box.edit()    # Let the user edit until Ctrl-G is struck.
-    message = box.gather()        # Get resulting contents
+    return user_passphrase
 
 
-if __name__ == "__main__":
-    curses.wrapper(main)
-    curses.beep()
+def start():
+    print(title, welcome, description, newlines, sep='\n')
+    input(press_any)
+    gather_passphrase()
+
+
+start()
