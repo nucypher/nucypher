@@ -1,137 +1,168 @@
-import json
 import os
 
-import web3
+from eth_account import Account
+from umbral.bignum import BigNum
+from umbral.keys import UmbralPrivateKey
+from web3.auto import w3
 
+from nkms.config import utils
 from nkms.config.utils import _derive_wrapping_key_from_master_key, _decrypt_key
+from nkms.crypto.powers import CryptoPower
 
-
-class EthAccount:
-    """http://eth-account.readthedocs.io/en/latest/eth_account.html#eth-account"""
-
-    def __init__(self, address):
-        self.__address = address
-
-    def __del__(self):
-        self.lock()
-
-    @property
-    def address(self):
-        return self.__address
-
-    @classmethod
-    def create(self, passphrase):
-        """Create a new wallet address"""
-
-    @classmethod
-    def import_existing(self, private_key, passphrase):
-        """Instantiate a wallet from an existing wallet address"""
-
-    def unlock(self, passphrase, duration):
-        """Unlock the account for a specified duration"""
-
-    def lock(self):
-        """Lock the account and make efforts to remove the key from memory"""
-
-    def transact(self, txhash, passphrase):
-        """Sign and transact without unlocking"""
+_CONFIG_ROOT = os.path.join('~', '.nucypher')
 
 
 class KMSKeyring:
     """Warning: This class handles private keys!"""
 
-    __keyring_root = os.path.join('~', '.nucypher')
-    __key_dir = os.path.join(__keyring_root, 'keys')
-    __transacting_key_path = os.path.join('.ethereum')
+    __privkey_dir = os.path.join(_CONFIG_ROOT, 'keys')
+    __root_keypath = os.path.join(__privkey_dir, 'root_key.priv')
+    __signing_keypath = os.path.join(__privkey_dir, 'signing_key.priv')
+    __transacting_keypath = os.path.join(__privkey_dir, 'signing_key.priv')
 
-    class KMSConfigurationError(Exception):
-        pass
+    __derived_master_key = None
+    __transacting_privkey = None
 
     def __init__(self, key_root: str=None):
-        self.__key_dir = key_root
+        self.__privkey_dir = key_root
 
-    def get_transacting_key(self, passphrase: str):
-        with open(self.__transacting_key_path) as keyfile:
-            encrypted_key = keyfile.read()
-            private_key = web3.eth.account.decrypt(encrypted_key, passphrase)
-            # WARNING: do not save the key or password anywhere
+    def __get_decrypting_key(self, master_key: bytes=None) -> UmbralPrivateKey:
+        """Returns plaintext version of decrypting key."""
 
-    def get_decrypting_key(self, master_key: bytes=None):
-        """
-        Returns plaintext version of decrypting key.
-        """
-        key_data = self._parse_keyfile('root_key.priv')
+        key_data = utils._parse_keyfile(self.__privkey_dir)
 
         # TODO: Prompt user for password?
         if not master_key:
             return
 
-        wrap_key = _derive_wrapping_key_from_master_key(
-            key_data['wrap_salt'], master_key)
-
+        wrap_key = _derive_wrapping_key_from_master_key(key_data['wrap_salt'], master_key)
         plain_key = _decrypt_key(wrap_key, key_data['nonce'], key_data['enc_key'])
+
         return plain_key
 
-    def get_signing_key(self, master_key: bytes=None):
-        """
-        Returns plaintext version of decrypting key.
-        """
-        key_data = self._parse_keyfile('signing_key.priv')
+    def __get_signing_key(self, master_key: bytes=None) -> UmbralPrivateKey:
+        """Returns plaintext version of private signature ("decrypting") key."""
+
+        key_data = utils._parse_keyfile(self.__signing_keypath)
 
         # TODO: Prompt user for password?
         if not master_key:
             return
 
-        wrap_key = _derive_wrapping_key_from_master_key(
-            key_data['wrap_salt'], master_key)
+        wrap_key = _derive_wrapping_key_from_master_key(key_data['wrap_salt'], master_key)
 
         plain_key = _decrypt_key(wrap_key, key_data['nonce'], key_data['enc_key'])
+
         return plain_key
 
-    def _parse_keyfile(self, path: str):
-        """
-        Parses a keyfile and returns key metadata as a dict.
-        """
-        keyfile_path = os.path.join(self.__key_dir, path)
-        with open(keyfile_path, 'r') as keyfile:
-            try:
-                key_metadata = json.loads(keyfile)
-            except json.JSONDecodeError:
-                raise self.KMSConfigurationError("Invalid data in keyfile {}".format(path))
-            else:
-                return key_metadata
+    def _cache_transacting_key(self, passphrase) -> None:
+        """Decrypts and caches an ethereum key"""
+        key_data = utils._parse_keyfile(self.__transacting_keypath)
+        hex_bytes_privkey = Account.decrypt(keyfile_json=key_data, password=passphrase)
+        self.__transacting_privkey = hex_bytes_privkey
 
-    def _save_keyfile(self, path: str, key_data: dict):
-        """
-        Saves key data to a file.
-        """
-        keyfile_path = os.path.join(self.__key_dir, path)
-        with open(keyfile_path, 'w+') as keyfile:
-            keyfile.seek(0)
-            check_byte = keyfile.read(1)
-            if len(check_byte) != 0:
-                raise self.KMSConfigurationError("Keyfile is not empty! Check your key path.")
-            else:
-                keyfile.seek(0)
-                keyfile.write(json.dumps(key_data))
+    def lock_wallet(self) -> None:
+        self.__transacting_privkey = None
 
+    def lock_master_key(self) -> None:
+        self.__derived_master_key = None
+
+    def make_crypto_power(self, power_class: CryptoPower) -> CryptoPower:
+        """
+        Takes a crypto power class and returns
+        an instance containing client private keys
+        """
+        BigNum.from_bytes()
+        UmbralPrivateKey(bn_key=)
+        power = power_class()
+        return power
+
+
+class Wallet:
+    """http://eth-account.readthedocs.io/en/latest/eth_account.html#eth-account"""
+
+    def __init__(self, address: str, keyring: KMSKeyring):
+        self.__address = address
+        self.keyring = keyring
+
+        self.__transacting_key = None
+
+    def __del__(self):
+        self.lock()
+
+    @property
+    def address(self) -> str:
+        return self.__address
+
+    def unlock(self, passphrase) -> None:
+        """Unlock the account indefinately"""
+        self.keyring._cache_transacting_key(passphrase)
+
+    def lock(self) -> None:
+        """Lock the account and make efforts to remove the key from memory"""
+        self.keyring.lock_wallet()
+
+    def transact(self, transaction, passphrase) -> str:
+        """
+        Sign and transact without unlocking.
+        https://web3py.readthedocs.io/en/stable/web3.eth.account.html#sign-a-contract-transaction
+        """
+        signed_txn = w3.eth.account.signTransaction(transaction, private_key=self.__transacting_key)
+        txhash = w3.eth.sendRawTransaction(signed_txn.rawTransaction)
+        return txhash
+
+
+class Stake:
+    def __init__(self, amount: int, duration: int, start):
+        self.amount = amount
+        self.duration = duration
+        self.start_datetime = start
+        # self.end_date = datetime.utcnow()
+
+class PolicyConfig:
+    def __init__(self, default_m: int, default_n: int, gas_limit: int):
+        self.default_m = default_m
+        self.default_n = default_n
+        self.gas_limit = gas_limit
 
 class KMSConfig:
-    __config_root = os.path.join('~', '.nucypher')
-    __default_config_filepath = os.path.join(__config_root, 'conf.yml')
+    """
+    Configuration class providing access to Ethereum accounts and NuCypher KMS secret keys
+    """
 
-    def __init__(self, account: EthAccount, keyring: KMSKeyring, config_filepath):
-        self.__yaml_config_path = config_filepath or self.__default_config_filepath
+    class KMSConfigurationError(RuntimeError):
+        pass
+
+    __default_config_filepath = os.path.join(_CONFIG_ROOT, 'conf.yml')
+    __default_db_path = os.path.join(_CONFIG_ROOT, 'kms_datastore.db')
+
+    def __init__(self,
+                 wallet: 'Wallet',
+                 keyring: 'KMSKeyring',
+                 policy_config: PolicyConfig,
+                 stake_config: Stake=None,
+                 db_path: str=None,
+                 config_filepath: str=None):
+
+        self.__config_filepath = config_filepath or self.__default_config_filepath
+        self.__db_path = db_path or self.__default_db_path    # Sqlite
+
         self.keyring = keyring
-        self.account = account
+        self.wallet = wallet
+        self.stake_confg = stake_config
+        self.policy_config = policy_config
+
+    @property
+    def db_path(self):
+        return self.__db_path
+
+    @classmethod
+    def get_config(cls):
+        """Gets the current config"""
 
     @classmethod
     def from_config_file(cls, config_path=None):
         """Reads the config file and creates a KMSConfig instance"""
-        with open(config_path or cls.__default_config_filepath, 'r') as conf_file:
-            # Get data from the config file
-            data = conf_file.read()  # TODO: Parse
 
-        instance = cls()
-        return instance
+
 

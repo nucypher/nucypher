@@ -9,6 +9,7 @@ from kademlia.utils import digest
 from typing import Dict
 from typing import Union, List
 
+from nkms.config.config import KMSConfig
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import NOT_SIGNED, NO_DECRYPTION_PERFORMED, PUBLIC_KEY_LENGTH
 from nkms.crypto.kits import MessageKit
@@ -37,7 +38,7 @@ class Character(object):
     _stamp = None
 
     def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
-                 crypto_power_ups=[], is_me=True) -> None:
+                 crypto_power_ups=None, is_me=True, config: KMSConfig=None) -> None:
         """
         :param attach_server:  Whether to attach a Server when this Character is
             born.
@@ -59,8 +60,10 @@ class Character(object):
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
+        self.config = config if config is not None else KMSConfig.get_config()
         self.known_nodes = {}
         self.log = getLogger("characters")
+
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
 

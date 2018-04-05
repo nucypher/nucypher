@@ -1,13 +1,19 @@
+import json
 import os
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+from eth_account import Account
 from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey
 
-from nkms.config.config import KMSConfig
+from web3.auto import w3
+w3.eth.enable_unaudited_features()
+w3.eth.account
+
+from nkms.config.config import KMSConfig, Wallet, KMSKeyring
 
 
 def validate_passphrase(passphrase) -> str:
@@ -102,3 +108,41 @@ def _generate_signing_keys() -> tuple:
     return privkey, pubkey
 
 
+def _parse_keyfile(keypath: str):
+    """Parses a keyfile and returns key metadata as a dict."""
+
+    with open(keypath, 'r') as keyfile:
+        try:
+            key_metadata = json.loads(keyfile)
+        except json.JSONDecodeError:
+            raise KMSConfig.KMSConfigurationError("Invalid data in keyfile {}".format(keypath))
+        else:
+            return key_metadata
+
+
+def _save_keyfile(keypath: str, key_data: dict) -> None:
+    """Saves key data to a file"""
+
+    with open(keypath, 'w+') as keyfile:
+
+        # Check_if the file is empty
+        keyfile.seek(0)
+        check_byte = keyfile.read(1)
+
+        if len(check_byte) != 0:
+            message = "{} is not empty. Check your key path.".format(keypath)
+            raise KMSConfig.KMSConfigurationError(message)
+
+        # Write the keydata to the file
+        keyfile.seek(0)
+        keyfile.write(json.dumps(key_data))
+
+
+def create_eth_wallet(passphrase: str) -> dict:
+    """Create a new wallet address from the provided passphrase"""
+
+    entropy = os.urandom(32)   # max out entropy for keccak256
+    account = Account.create(extra_entropy=entropy)
+    encrypted_wallet_data = Account.encrypt(private_key=account.privateKey, password=passphrase)
+
+    return encrypted_wallet_data
