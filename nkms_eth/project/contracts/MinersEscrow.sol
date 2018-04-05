@@ -226,6 +226,23 @@ contract MinersEscrow is Issuer {
     }
 
     /**
+    * @notice Calculate locked periods for owner from start period
+    * @param _owner Tokens owner
+    * @param _lockedTokens Locked tokens in start period
+    * @return Calculated locked periods
+    **/
+    function calculateLockedPeriods(
+        address _owner,
+        uint256 _lockedTokens
+    )
+        internal view returns (uint256)
+    {
+        MinerInfo storage info = minerInfo[_owner];
+        return _lockedTokens.divCeil(info.releaseRate).sub(uint(1));
+    }
+
+    /**
+
     * @notice Pre-deposit tokens
     * @param _owners Tokens owners
     * @param _values Amount of token to deposit for each owner

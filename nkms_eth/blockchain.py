@@ -1,7 +1,9 @@
+from abc import ABC
+
 from nkms_eth.config import PopulusConfig
 
 
-class Blockchain:
+class TheBlockchain(ABC):
     """
     http://populus.readthedocs.io/en/latest/config.html#chains
 
@@ -12,13 +14,18 @@ class Blockchain:
     temp: Local private chain whos data directory is removed when the chain is shutdown. Runs via geth.
     """
 
-    _network = ''
-    _instance = False
+    _network = NotImplemented
+    _default_timeout = NotImplemented
+    __instance = None
 
-    class AlreadyRunning(Exception):
+    test_chains = ('tester', )
+    transient_chains = test_chains + ('testrpc', 'temp')
+    public_chains = ('mainnet', 'ropsten')
+
+    class IsAlreadyRunning(Exception):
         pass
 
-    def __init__(self, populus_config: PopulusConfig=None, timeout=60):
+    def __init__(self, populus_config: PopulusConfig=None):
         """
         Configures a populus project and connects to blockchain.network.
         Transaction timeouts specified measured in seconds.
@@ -28,20 +35,25 @@ class Blockchain:
         """
 
         # Singleton
-        if Blockchain._instance is True:
-            class_name = self.__class__.__name__
-            raise Blockchain.AlreadyRunning('{} is already running. Use .get() to retrieve'.format(class_name))
-        Blockchain._instance = True
+        if TheBlockchain.__instance is not None:
+            message = '{} is already running. Use .get() to retrieve'.format(self._network)
+            raise TheBlockchain.IsAlreadyRunning(message)
+        TheBlockchain.__instance = self
 
         if populus_config is None:
             populus_config = PopulusConfig()
-
         self._populus_config = populus_config
-        self._timeout = timeout
         self._project = populus_config.project
 
         # Opens and preserves connection to a running populus blockchain
         self._chain = self._project.get_chain(self._network).__enter__()
+
+    @classmethod
+    def get(cls):
+        if cls.__instance is None:
+            class_name = cls.__name__
+            raise Exception('{} has not been created.'.format(class_name))
+        return cls.__instance
 
     def disconnect(self):
         self._chain.__exit__(None, None, None)
@@ -51,8 +63,8 @@ class Blockchain:
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        r = "{}(network={}, timeout={})"
-        return r.format(class_name, self._network, self._timeout)
+        r = "{}(network={})"
+        return r.format(class_name, self._network)
 
     def get_contract(self, name):
         """
@@ -62,19 +74,14 @@ class Blockchain:
         """
         return self._chain.provider.get_contract(name)
 
-    def wait_time(self, wait_hours, step=50):
-        """Wait the specified number of wait_hours by comparing block timestamps."""
+    def wait_for_receipt(self, txhash, timeout=None) -> None:
+        if timeout is None:
+            timeout = self._default_timeout
 
-        wait_seconds = wait_hours * 60 * 60
-        current_block = self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber)
-        end_timestamp = current_block.timestamp + wait_seconds
+        self._chain.wait.for_receipt(txhash, timeout=timeout)
 
-        not_time_yet = True
-        while not_time_yet:
-            self._chain.wait.for_block(self._chain.web3.eth.blockNumber+step)
-            current_block = self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber)
-            not_time_yet = current_block.timestamp < end_timestamp
+# class TestRpcBlockchain:
+#
+#     _network = 'testrpc'
+#     _default_timeout = 60
 
-
-class TesterBlockchain(Blockchain):
-    _network = 'tester'

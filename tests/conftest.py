@@ -1,8 +1,8 @@
 import pytest
-from nkms_eth.blockchain import TesterBlockchain, Blockchain
-from nkms_eth.token import NuCypherKMSToken
-from nkms_eth.escrow import Escrow
-from nkms_eth.miner import Miner
+
+from nkms_eth.agents import NuCypherKMSTokenAgent, MinerAgent
+from nkms_eth.blockchain import TheBlockchain
+from nkms_eth.utilities import TesterBlockchain, MockNuCypherKMSTokenDeployer, MockMinerEscrowDeployer
 
 
 @pytest.fixture(scope='function')
@@ -10,20 +10,34 @@ def testerchain():
     chain = TesterBlockchain()
     yield chain
     del chain
-    Blockchain._instance = False
+    TheBlockchain._TheBlockchain__instance = None
 
 
 @pytest.fixture(scope='function')
-def token(testerchain):
-    token = NuCypherKMSToken(blockchain=testerchain)
-    token.arm()
-    token.deploy()
+def mock_token_deployer(testerchain):
+    token_deployer = MockNuCypherKMSTokenDeployer(blockchain=testerchain)
+    token_deployer.arm()
+    token_deployer.deploy()
+    yield token_deployer
+
+
+@pytest.fixture(scope='function')
+def mock_miner_escrow_deployer(token_agent):
+    escrow = MockMinerEscrowDeployer(token_agent)
+    escrow.arm()
+    escrow.deploy()
+    yield escrow
+
+
+# Unused args preserve fixture dependency order #
+
+@pytest.fixture(scope='function')
+def token_agent(testerchain, mock_token_deployer):
+    token = NuCypherKMSTokenAgent(blockchain=testerchain)
     yield token
 
 
 @pytest.fixture(scope='function')
-def escrow(testerchain, token):
-    escrow = Escrow(blockchain=testerchain, token=token)
-    escrow.arm()
-    escrow.deploy()
-    yield escrow
+def mock_miner_agent(token_agent, mock_token_deployer, mock_miner_escrow_deployer):
+    miner_agent = MinerAgent(token_agent)
+    yield miner_agent
