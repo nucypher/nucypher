@@ -1,14 +1,16 @@
-from base64 import urlsafe_b64encode, urlsafe_b64decode
 import json
 import os
+from base64 import urlsafe_b64encode
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
-#from eth_account import Account
 from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey
+
+
+#from eth_account import Account
 
 #from web3.auto import w3
 #w3.eth.enable_unaudited_features()

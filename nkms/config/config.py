@@ -1,20 +1,13 @@
 import os
 
 from eth_account import Account
-from umbral.bignum import BigNum
 from umbral.keys import UmbralPrivateKey
 from web3.auto import w3
-import web3
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
-from nacl.secret import SecretBox
 
 from nkms.config import utils
 from nkms.config.utils import _derive_wrapping_key_from_master_key, _decrypt_key
-from nkms.crypto.powers import SigningPower, EncryptingPower, KeyPairBasedPower
+from nkms.crypto.powers import SigningPower, EncryptingPower
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
-
 
 _CONFIG_ROOT = os.path.join('~', '.nucypher')
 
@@ -83,11 +76,11 @@ class KMSKeyring:
         private key.
         """
         if power_class is SigningPower:
-            umbral_privkey = self.__get_signing_key(__derived_master_key)
+            umbral_privkey = self.__get_signing_key(self.__derived_master_key)
             keypair = SigningKeypair(umbral_privkey)
         elif power_class is EncryptingPower:
             # TODO: Derive a key from the root_key.
-            umbral_privkey = self.__get_decrypting_key(__derived_master_key)
+            umbral_privkey = self.__get_decrypting_key(self.__derived_master_key)
             keypair = EncryptingKeypair(umbral_privkey)
         else:
             raise ValueError("Invalid class for deriving a power.")
@@ -129,6 +122,12 @@ class Wallet:
         txhash = w3.eth.sendRawTransaction(signed_txn.rawTransaction)
         return txhash
 
+    def get_decrypting_key(self, master_key: str=None, wrapping_key: bytes=None):
+        """
+        Returns plaintext version of decrypting key.
+        """
+        pass
+
 
 class Stake:
     def __init__(self, amount: int, duration: int, start):
@@ -137,11 +136,13 @@ class Stake:
         self.start_datetime = start
         # self.end_date = datetime.utcnow()
 
+
 class PolicyConfig:
     def __init__(self, default_m: int, default_n: int, gas_limit: int):
         self.default_m = default_m
         self.default_n = default_n
         self.gas_limit = gas_limit
+
 
 class KMSConfig:
     """
@@ -181,69 +182,3 @@ class KMSConfig:
     @classmethod
     def from_config_file(cls, config_path=None):
         """Reads the config file and creates a KMSConfig instance"""
-
-
-def _derive_master_key_from_passphrase(salt: bytes, passphrase: str):
-    """
-    Uses Scrypt derivation to derive a master key for encrypting key material.
-    See RFC 7914 for n, r, and p value selections.
-    """
-    master_key = Scrypt(
-        salt=salt,
-        length=32,
-        n=2**20,
-        r=8,
-        p=1,
-        backend=default_backend()
-    ).derive(passphrase.encode())
-
-    return master_key
-
-
-def _derive_wrapping_key_from_master_key(salt: bytes, master_key: bytes):
-    """
-    Uses HKDF to derive a 32 byte wrapping key to encrypt key material with.
-    """
-    wrapping_key = HKDF(
-        algorithm=hashes.SHA512(),
-        length=32,
-        salt=salt,
-        info=b'NuCypher-KMS-KeyWrap',
-        backend=default_backend()
-    ).derive(master_key)
-
-    return wrapping_key
-
-
-def _encrypt_key(wrapping_key: bytes, key_material: bytes):
-    """
-    Encrypts a key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
-    Returns an encrypted key as bytes with the nonce appended.
-    """
-    nonce = os.urandom(24)
-    enc_key = SecretBox(wrapping_key).encrypt(key_material, nonce)
-
-    return enc_key + nonce
-
-
-def _decrypt_key(wrapping_key: bytes, enc_key_material: bytes, nonce: bytes):
-    """
-    Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
-    Returns a decrypted key as bytes.
-    """
-    dec_key = SecretBox(wrapping_key).encrypt(enc_key_material, nonce)
-
-    return dec_key
-
-
-def _generate_encryption_keys():
-    privkey = UmbralPrivateKey.gen_key()
-    pubkey = priv_key.get_pubkey()
-
-
-# TODO: Do we really want to use Umbral keys for signing?
-# TODO: Perhaps we can use Curve25519/EdDSA for signatures?
-def _generate_signing_keys():
-    privkey = UmbralPrivateKey.gen_key()
-    pubkey = priv_key.get_pubkey()
-
