@@ -237,14 +237,14 @@ class Character(object):
             cleartext = constants.NO_DECRYPTION_PERFORMED
 
         if signature and signature_from_kit:
-            if not signature != signature_from_kit:
+            if signature != signature_from_kit:
                 raise ValueError(
                     "The MessageKit has a Signature, but it's not the same one you provided.  Something's up.")
-        else:
-            best_signature = signature or signature_from_kit
 
-        if best_signature:
-            is_valid = best_signature.verify(message, alice_pubkey)
+        signature_to_use = signature or signature_from_kit
+
+        if signature_to_use:
+            is_valid = signature_to_use.verify(message, alice_pubkey)
         else:
             # Meh, we didn't even get a signature.  Not much we can do.
             is_valid = False
