@@ -128,6 +128,21 @@ def test_encrypt_and_sign_the_ciphertext(alice, bob):
     assert cleartext == message
 
 
+def test_encrypt_and_sign_including_signature_in_both_places(alice, bob):
+    """
+    Same as above, but showing that we can include the signature in both the plaintext
+    (to be found upon decryption) and also passed into verify_from() (eg,
+    gleaned over a side-channel).
+    """
+    message = b"We have a reaaall problem."
+    message_kit, signature = alice.encrypt_for(bob, message, sign_plaintext=True)
+    verified, cleartext = bob.verify_from(alice, message_kit, signature,
+                                          decrypt=True)
+    assert verified
+    assert cleartext == message
+
+
+
 def test_encrypt_but_do_not_sign(alice, bob):
     """
     Finally, Alice encrypts but declines to sign.

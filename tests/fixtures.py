@@ -2,11 +2,11 @@ import datetime
 import os
 import pytest
 
+from constant_sorrow import constants
 from nkms.characters import Alice, Bob
 from nkms.crypto.kits import MessageKit
 from nkms.crypto.powers import SigningPower, EncryptingPower
 from nkms.network import blockchain_client
-from nkms.policy.constants import NON_PAYMENT
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
 from sqlalchemy.engine import create_engine
@@ -35,7 +35,7 @@ def idle_policy(alice, bob):
 @pytest.fixture(scope="module")
 def enacted_policy(idle_policy, ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
-    deposit = NON_PAYMENT
+    deposit = constants.NON_PAYMENT
     contract_end_datetime = datetime.datetime.now() + datetime.timedelta(days=5)
     # contract = Contract(idle_policy.n, deposit, contract_end_datetime)
 
