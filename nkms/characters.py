@@ -18,10 +18,8 @@ from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
 from bytestring_splitter import RepeatingBytestringSplitter
 from nkms.crypto.splitters import signature_splitter
 from nkms.network import blockchain_client
-from nkms.network.constants import BYTESTRING_IS_URSULA_IFACE_INFO
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
-from nkms.policy.constants import NOT_FROM_ALICE, NON_PAYMENT
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from nkms.crypto.signature import Signature
@@ -237,14 +235,14 @@ class Character(object):
             cleartext = constants.NO_DECRYPTION_PERFORMED
 
         if signature and signature_from_kit:
-            if not signature != signature_from_kit:
+            if signature != signature_from_kit:
                 raise ValueError(
                     "The MessageKit has a Signature, but it's not the same one you provided.  Something's up.")
-        else:
-            best_signature = signature or signature_from_kit
 
-        if best_signature:
-            is_valid = best_signature.verify(message, alice_pubkey)
+        signature_to_use = signature or signature_from_kit
+
+        if signature_to_use:
+            is_valid = signature_to_use.verify(message, alice_pubkey)
         else:
             # Meh, we didn't even get a signature.  Not much we can do.
             is_valid = False
@@ -347,7 +345,7 @@ class Alice(Character):
             if not default_deposit:
                 deposit = networky_stuff.get_competitive_rate()
                 if deposit == NotImplemented:
-                    deposit = NON_PAYMENT
+                    deposit = constants.NON_PAYMENT
 
         policy = self.create_policy(bob, uri, m, n)
 
@@ -389,7 +387,7 @@ class Bob(Character):
             header, signature, ursula_pubkey_sig, _hrac, (
                 port, interface, ttl) = dht_value_splitter(value, msgpack_remainder=True)
 
-            if header != BYTESTRING_IS_URSULA_IFACE_INFO:
+            if header != constants.BYTESTRING_IS_URSULA_IFACE_INFO:
                 raise TypeError("Unknown DHT value.  How did this get on the network?")
 
             # TODO: If we're going to implement TTL, it will be here.
@@ -419,7 +417,7 @@ class Bob(Character):
         )
 
         if not verified:
-            return NOT_FROM_ALICE
+            return constants.NOT_FROM_ALICE
         else:
             from nkms.policy.models import TreasureMap
             treasure_map = TreasureMap(msgpack.loads(packed_node_list))
@@ -572,7 +570,7 @@ class Ursula(Character, ProxyRESTServer):
     def interface_dht_value(self):
         signature = self.stamp(self.interface_hrac())
         return (
-                BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.stamp + self.interface_hrac()
+                constants.BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.stamp + self.interface_hrac()
                 + msgpack.dumps(self.dht_interface_info())
         )
 

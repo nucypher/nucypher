@@ -3,11 +3,11 @@ import asyncio
 import msgpack
 import pytest
 from kademlia.utils import digest
+
+from constant_sorrow import constants
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.kits import UmbralMessageKit
 from nkms.network import blockchain_client
-from nkms.network.constants import BYTESTRING_IS_TREASURE_MAP, BYTESTRING_IS_URSULA_IFACE_INFO
-
 from nkms.network.protocols import dht_value_splitter
 
 from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
@@ -60,7 +60,7 @@ def test_alice_finds_ursula(alice, ursulas):
     header, _signature, _ursula_pubkey_sig, _hrac, interface_info = dht_value_splitter(value,
                                                                                return_remainder=True)
 
-    assert header == BYTESTRING_IS_URSULA_IFACE_INFO
+    assert header == constants.BYTESTRING_IS_URSULA_IFACE_INFO
     port = msgpack.loads(interface_info)[0]
     assert port == URSULA_PORT + ursula_index
 
@@ -84,7 +84,7 @@ def test_alice_sets_treasure_map_on_network(enacted_policy, ursulas):
 
     treasure_map_as_set_on_network = ursulas[0].server.storage[
         digest(enacted_policy.treasure_map_dht_key())]
-    assert treasure_map_as_set_on_network == BYTESTRING_IS_TREASURE_MAP + packed_encrypted_treasure_map
+    assert treasure_map_as_set_on_network == constants.BYTESTRING_IS_TREASURE_MAP + packed_encrypted_treasure_map
 
 
 def test_treasure_map_with_bad_id_does_not_propagate(idle_policy, ursulas):
@@ -116,7 +116,7 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ur
     header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
         treasure_map_as_set_on_network, return_remainder=True)
 
-    assert header == BYTESTRING_IS_TREASURE_MAP
+    assert header == constants.BYTESTRING_IS_TREASURE_MAP
 
     tmap_message_kit = UmbralMessageKit.from_bytes(encrypted_treasure_map)
     verified, treasure_map_as_decrypted_by_bob = bob.verify_from(alice,
@@ -162,7 +162,7 @@ def test_treaure_map_is_legit(enacted_policy):
         value = alice.server.get_now(ursula_interface_id)
         header, signature, ursula_pubkey_sig, hrac, interface_info = dht_value_splitter(value,
                                                                                 return_remainder=True)
-        assert header == BYTESTRING_IS_URSULA_IFACE_INFO
+        assert header == constants.BYTESTRING_IS_URSULA_IFACE_INFO
         port = msgpack.loads(interface_info)[0]
         legal_ports = range(NUMBER_OF_URSULAS_IN_NETWORK, NUMBER_OF_URSULAS_IN_NETWORK + URSULA_PORT)
         assert port in legal_ports
