@@ -25,7 +25,7 @@ class Arrangement(BlockchainArrangement):
     """
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
-    _EXPECTED_LENGTH = 124
+    _EXPECTED_LENGTH = 99
 
     def __init__(self, alice, hrac, expiration, deposit=None, ursula=None,
                  kfrag=constants.UNKNOWN_KFRAG, alices_signature=None):
@@ -211,12 +211,12 @@ class Policy(object):
         map_id = self.treasure_map_dht_key()
 
         if use_dht:
-            setter = self.alice.server.set(map_id, BYTESTRING_IS_TREASURE_MAP + map_payload)
+            setter = self.alice.server.set(map_id, constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
             event_loop = asyncio.get_event_loop()
             event_loop.run_until_complete(setter)
         else:
             for node in self.alice.known_nodes.values():
-                response = networky_stuff.push_treasure_map_to_node(node, map_id, BYTESTRING_IS_TREASURE_MAP + map_payload)
+                response = networky_stuff.push_treasure_map_to_node(node, map_id, constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
                 # TODO: Do something here based on success or failure
                 if response.status_code == 204:
                     pass

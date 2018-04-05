@@ -2,17 +2,16 @@ from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
 
+from constant_sorrow import default_constant_splitter, constants
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
 from nkms.crypto.signature import Signature
 from bytestring_splitter import BytestringSplitter
-from nkms.network.constants import NODE_HAS_NO_STORAGE, BYTESTRING_IS_URSULA_IFACE_INFO, \
-    BYTESTRING_IS_TREASURE_MAP, DHT_VALUE_HEADER_LENGTH
 from nkms.network.node import NuCypherNode
 from nkms.network.routing import NuCypherRoutingTable
 from umbral.keys import UmbralPublicKey
 
-dht_value_splitter = BytestringSplitter((bytes, DHT_VALUE_HEADER_LENGTH), Signature,
+dht_value_splitter = default_constant_splitter + BytestringSplitter(Signature,
                                         (UmbralPublicKey, PUBLIC_KEY_LENGTH, {"as_b64": False}),
                                         (bytes, KECCAK_DIGEST_LENGTH))
 
@@ -45,14 +44,14 @@ class NuCypherHashProtocol(KademliaProtocol):
             success, data = self.handleCallResponse(result, nodeToAsk)
             return success, data
         else:
-            return NODE_HAS_NO_STORAGE, False
+            return constants.NODE_HAS_NO_STORAGE, False
 
     def determine_legality_of_dht_key(self, signature, sender_pubkey_sig,
                                       message, hrac, dht_key, dht_value):
 
         # TODO: This function can use a once-over.
         # TODO: Push the logic of this if branch down.
-        if dht_value[:2] == BYTESTRING_IS_URSULA_IFACE_INFO:
+        if dht_value[:8] == constants.BYTESTRING_IS_URSULA_IFACE_INFO:
             proper_key = digest(bytes(sender_pubkey_sig))
         else:
             proper_key = digest(
@@ -76,8 +75,8 @@ class NuCypherHashProtocol(KademliaProtocol):
         self.log.debug("got a store request from %s" % str(sender))
 
         # TODO: Why is this logic here?  This is madness.  See #172.
-        if value.startswith(BYTESTRING_IS_URSULA_IFACE_INFO) or value.startswith(
-                BYTESTRING_IS_TREASURE_MAP):
+        if value.startswith(bytes(constants.BYTESTRING_IS_URSULA_IFACE_INFO)) or value.startswith(
+                bytes(constants.BYTESTRING_IS_TREASURE_MAP)):
             header, signature, sender_pubkey_sig, hrac, message = dht_value_splitter(
                 value, return_remainder=True)
 
