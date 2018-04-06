@@ -7,7 +7,9 @@ from web3.auto import w3
 
 from nkms.config import utils
 from nkms.config.utils import _derive_wrapping_key_from_master_key, _decrypt_key
-from nkms.crypto.powers import CryptoPower
+from nkms.crypto.powers import SigningPower, EncryptingPower, KeyPairBasedPower
+from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
+
 
 _CONFIG_ROOT = os.path.join('~', '.nucypher')
 
@@ -69,15 +71,24 @@ class KMSKeyring:
     def lock_master_key(self) -> None:
         self.__derived_master_key = None
 
-    def make_crypto_power(self, power_class: CryptoPower) -> CryptoPower:
+    def derive_crypto_power(self, power_class):
         """
-        Takes a crypto power class and returns
-        an instance containing client private keys
+        Takes either a SigningPower or an EncryptingPower and returns
+        a either a SigningPower or EncryptingPower  with the coinciding
+        private key.
         """
-        BigNum.from_bytes()
-        UmbralPrivateKey(bn_key=)
-        power = power_class()
-        return power
+        if power_class is SigningPower:
+            umbral_privkey = self.__get_signing_key(__derived_master_key)
+            keypair = SigningKeypair(umbral_privkey)
+        elif power_class is EncryptingPower:
+            # TODO: Derive a key from the root_key.
+            umbral_privkey = self.__get_decrypting_key(__derived_master_key)
+            keypair = EncryptingKeypair(umbral_privkey)
+        else:
+            raise ValueError("Invalid class for deriving a power.")
+
+        new_power = power_class(keypair=keypair)
+        return new_power
 
 
 class Wallet:
