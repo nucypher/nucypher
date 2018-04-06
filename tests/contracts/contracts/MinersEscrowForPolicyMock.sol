@@ -67,10 +67,13 @@ contract MinersEscrowForPolicyMock {
 
     /**
     * @notice Emulate mint method
-    * @param _period Period for minting
+    * @param _startPeriod Start period for minting
+    * @param _numberOfPeriods Number periods for minting
     **/
-    function mint(uint256 _period) external {
-        policyManager.updateReward(msg.sender, _period);
+    function mint(uint256 _startPeriod, uint256 _numberOfPeriods) external {
+        for (uint256 i = 0; i < _numberOfPeriods; i++) {
+            policyManager.updateReward(msg.sender, i + _startPeriod);
+        }
     }
 
     /**
