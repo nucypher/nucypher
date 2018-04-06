@@ -68,7 +68,7 @@ contract MinersEscrow is Issuer {
         bytes32[] minerIds;
     }
 
-    uint256 constant MAX_PERIODS = 10;
+    uint256 constant MAX_PERIODS = 3;
     uint256 constant MAX_OWNERS = 50000;
     uint256 constant RESERVED_PERIOD = 0;
 
@@ -330,6 +330,7 @@ contract MinersEscrow is Issuer {
 
         confirmActivity(info.lockedValue);
         Locked(msg.sender, info.lockedValue, info.releaseRate);
+        mint();
     }
 
     /**
@@ -377,7 +378,7 @@ contract MinersEscrow is Issuer {
             return;
         }
 
-        require(info.confirmedPeriods.length < MAX_PERIODS);
+//        require(info.confirmedPeriods.length < MAX_PERIODS);
         lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod]
             .add(_lockedValue);
         info.confirmedPeriods.push(ConfirmedPeriodInfo(nextPeriod, _lockedValue));
@@ -391,9 +392,10 @@ contract MinersEscrow is Issuer {
     }
 
     /**
-    * @notice Confirm activity for future period
+    * @notice Confirm activity for future period and mine for previous period
     **/
     function confirmActivity() external onlyTokenOwner {
+        mint();
         MinerInfo storage info = minerInfo[msg.sender];
         uint256 currentPeriod = getCurrentPeriod();
         uint256 nextPeriod = currentPeriod + 1;
@@ -411,12 +413,13 @@ contract MinersEscrow is Issuer {
     /**
     * @notice Mint tokens for sender for previous periods if he locked his tokens and confirmed activity
     **/
-    function mint() external onlyTokenOwner {
+    function mint() public onlyTokenOwner {
         uint256 previousPeriod = getCurrentPeriod().sub(uint(1));
         MinerInfo storage info = minerInfo[msg.sender];
         uint256 numberPeriodsForMinting = info.confirmedPeriods.length;
-        require(numberPeriodsForMinting > 0 &&
-            info.confirmedPeriods[0].period <= previousPeriod);
+        if (numberPeriodsForMinting == 0 || info.confirmedPeriods[0].period > previousPeriod) {
+            return;
+        }
 
         uint256 currentLockedValue = getLockedTokens(msg.sender);
         ConfirmedPeriodInfo storage last = info.confirmedPeriods[numberPeriodsForMinting - 1];
@@ -445,18 +448,17 @@ contract MinersEscrow is Issuer {
                 allLockedPeriods,
                 info.decimals);
             reward = reward.add(amount);
-            // TODO remove
+            // TODO remove if
             if (address(policyManager) != 0x0) {
                 policyManager.updateReward(msg.sender, period);
             }
         }
         info.value = info.value.add(reward);
         // Copy not minted periods
-        uint256 newNumberConfirmedPeriods = info.confirmedPeriods.length - numberPeriodsForMinting;
-        for (i = 0; i < newNumberConfirmedPeriods; i++) {
+        for (i = 0; i < info.confirmedPeriods.length - numberPeriodsForMinting; i++) {
             info.confirmedPeriods[i] = info.confirmedPeriods[numberPeriodsForMinting + i];
         }
-        info.confirmedPeriods.length = newNumberConfirmedPeriods;
+        info.confirmedPeriods.length -= numberPeriodsForMinting;
 
         // Update lockedValue for current period
         info.lockedValue = currentLockedValue;
@@ -638,7 +640,7 @@ contract MinersEscrow is Issuer {
             bytes32(uint8(MinerInfoField.LastActivePeriod)), miner, 0)) == info.lastActivePeriod);
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
             bytes32(uint8(MinerInfoField.DowntimeLength)), miner, 0)) == info.downtime.length);
-        for (i = 0; i < info.downtime.length && i < MAX_PERIODS; i++) {
+        for (i = 0; i < info.downtime.length && i < 10; i++) {
             Downtime storage downtime = info.downtime[i];
             require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
                 bytes32(uint8(MinerInfoField.DowntimeStartPeriod)), miner, bytes32(i))) == downtime.startPeriod);

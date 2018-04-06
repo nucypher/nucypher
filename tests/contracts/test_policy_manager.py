@@ -196,6 +196,11 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     assert client.lower() == event_args['client'].lower()
     # assert node.lower() == event_args['node'].lower()
 
+    # Can't revoke nonexistent arrangement
+    with pytest.raises(TransactionFailed):
+        tx = policy_manager.transact({'from': client}).revokeArrangement(policy_id_2, web3.eth.accounts[6])
+        chain.wait.for_receipt(tx)
+
     tx = policy_manager.transact({'from': client, 'gas_price': 0})\
         .revokeArrangement(policy_id_2, node1)
     chain.wait.for_receipt(tx)
@@ -270,7 +275,7 @@ def test_reward(web3, chain, escrow, policy_manager):
 
     # Mint period without policies
     period = escrow.call().getCurrentPeriod()
-    tx = escrow.transact({'from': node1, 'gas_price': 0}).mint(period)
+    tx = escrow.transact({'from': node1, 'gas_price': 0}).mint(period, 1)
     chain.wait.for_receipt(tx)
     assert 0 == web3.toInt(policy_manager.call().getNodeInfo(REWARD_FIELD, node1, 0).encode('latin-1'))
 
@@ -290,10 +295,9 @@ def test_reward(web3, chain, escrow, policy_manager):
         chain.wait.for_receipt(tx)
 
     # Mint some periods
-    for x in range(5):
-        tx = escrow.transact({'from': node1, 'gas_price': 0}).mint(period)
-        chain.wait.for_receipt(tx)
-        period += 1
+    tx = escrow.transact({'from': node1, 'gas_price': 0}).mint(period, 5)
+    chain.wait.for_receipt(tx)
+    period += 5
     assert 80 == web3.toInt(policy_manager.call().getNodeInfo(REWARD_FIELD, node1, 0).encode('latin-1'))
 
     # Withdraw
@@ -310,7 +314,7 @@ def test_reward(web3, chain, escrow, policy_manager):
 
     # Mint more periods
     for x in range(20):
-        tx = escrow.transact({'from': node1, 'gas_price': 0}).mint(period)
+        tx = escrow.transact({'from': node1, 'gas_price': 0}).mint(period, 1)
         chain.wait.for_receipt(tx)
         period += 1
     assert 120 == web3.toInt(policy_manager.call().getNodeInfo(REWARD_FIELD, node1, 0).encode('latin-1'))
@@ -457,17 +461,15 @@ def test_refund(web3, chain, escrow, policy_manager):
 
     # Mint some periods and mark others as downtime periods
     period += 1
-    tx = escrow.transact({'from': node1}).mint(period)
-    chain.wait.for_receipt(tx)
-    tx = escrow.transact({'from': node1}).mint(period + 1)
+    tx = escrow.transact({'from': node1}).mint(period, 2)
     chain.wait.for_receipt(tx)
     tx = escrow.transact().pushDowntimePeriod(period + 2, period + 3)
     chain.wait.for_receipt(tx)
-    tx = escrow.transact({'from': node1}).mint(period + 4)
+    tx = escrow.transact({'from': node1}).mint(period + 4, 1)
     chain.wait.for_receipt(tx)
     tx = escrow.transact().pushDowntimePeriod(period + 5, period + 7)
     chain.wait.for_receipt(tx)
-    tx = escrow.transact({'from': node1}).mint(period + 8)
+    tx = escrow.transact({'from': node1}).mint(period + 8, 1)
     chain.wait.for_receipt(tx)
     tx = escrow.transact().setLastActivePeriod(period + 8)
     chain.wait.for_receipt(tx)
@@ -540,7 +542,7 @@ def test_refund(web3, chain, escrow, policy_manager):
     chain.wait.for_receipt(tx)
     for x in range(3):
         period += 1
-        tx = escrow.transact({'from': node1}).mint(period)
+        tx = escrow.transact({'from': node1}).mint(period, 1)
         chain.wait.for_receipt(tx)
     tx = escrow.transact().setLastActivePeriod(period)
     chain.wait.for_receipt(tx)
@@ -578,7 +580,7 @@ def test_refund(web3, chain, escrow, policy_manager):
     # Minting is useless after revoke
     for x in range(20):
         period += 1
-        tx = escrow.transact({'from': node1}).mint(period)
+        tx = escrow.transact({'from': node1}).mint(period, 1)
         chain.wait.for_receipt(tx)
     assert 140 == web3.toInt(policy_manager.call().getNodeInfo(REWARD_FIELD, node1, 0).encode('latin-1'))
 

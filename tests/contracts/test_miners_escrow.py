@@ -528,10 +528,9 @@ def test_mining(web3, chain, token, escrow_contract):
     assert 500 == escrow.call().getAllLockedTokens()
     tx = escrow.transact({'from': ursula1}).mint()
     chain.wait.for_receipt(tx)
-    # But Ursula(2) can't mining because she did not confirmed activity
-    with pytest.raises(TransactionFailed):
-        tx = escrow.transact({'from': ursula2}).mint()
-        chain.wait.for_receipt(tx)
+    # But Ursula(2) can't get reward because she did not confirmed activity
+    tx = escrow.transact({'from': ursula2}).mint()
+    chain.wait.for_receipt(tx)
     assert 1163 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula1, 0).encode('latin-1'))
     assert 521 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula2, 0).encode('latin-1'))
 
@@ -571,10 +570,10 @@ def test_mining(web3, chain, token, escrow_contract):
     assert 113 == event_args['value']
     assert escrow.call().getCurrentPeriod() - 1 == event_args['period']
 
-    # Ursula can't confirm and mint because no locked tokens
-    with pytest.raises(TransactionFailed):
-        tx = escrow.transact({'from': ursula1}).mint()
-        chain.wait.for_receipt(tx)
+    # Ursula can't confirm and get reward because no locked tokens
+    tx = escrow.transact({'from': ursula1}).mint()
+    chain.wait.for_receipt(tx)
+    assert 1163 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula1, 0).encode('latin-1'))
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).confirmActivity()
         chain.wait.for_receipt(tx)
@@ -626,7 +625,7 @@ def test_mining(web3, chain, token, escrow_contract):
     assert 3 == len(escrow.pastEvents('LockSwitched').get())
     assert 10 == len(escrow.pastEvents('ActivityConfirmed').get())
 
-    # TODO test max confirmed periods and miners
+    # TODO test max miners
 
 
 def test_pre_deposit(web3, chain, token, escrow_contract):
