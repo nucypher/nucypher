@@ -26,6 +26,7 @@ class KMSKeyring:
     def __init__(self, key_root: str=None):
         self.__privkey_dir = key_root
 
+    # TODO: Make these one function
     def __get_decrypting_key(self, master_key: bytes=None) -> UmbralPrivateKey:
         """Returns plaintext version of decrypting key."""
 
@@ -38,7 +39,8 @@ class KMSKeyring:
         wrap_key = _derive_wrapping_key_from_master_key(key_data['wrap_salt'], master_key)
         plain_key = _decrypt_key(wrap_key, key_data['nonce'], key_data['enc_key'])
 
-        return plain_key
+        umbral_key = UmbralPrivateKey.from_bytes(plain_key)
+        return umbral_key
 
     def __get_signing_key(self, master_key: bytes=None) -> UmbralPrivateKey:
         """Returns plaintext version of private signature ("decrypting") key."""
@@ -50,10 +52,10 @@ class KMSKeyring:
             return
 
         wrap_key = _derive_wrapping_key_from_master_key(key_data['wrap_salt'], master_key)
-
         plain_key = _decrypt_key(wrap_key, key_data['nonce'], key_data['enc_key'])
 
-        return plain_key
+        umbral_key = UmbralPrivateKey.from_bytes(plain_key)
+        return umbral_key
 
     def _cache_transacting_key(self, passphrase) -> None:
         """Decrypts and caches an ethereum key"""
