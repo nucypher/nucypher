@@ -1,3 +1,4 @@
+from base64 import urlsafe_b64encode, urlsafe_b64decode
 import json
 import os
 
@@ -5,27 +6,29 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
-from eth_account import Account
+#from eth_account import Account
 from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey
 
-from web3.auto import w3
-w3.eth.enable_unaudited_features()
-w3.eth.account
+#from web3.auto import w3
+#w3.eth.enable_unaudited_features()
+#w3.eth.account
 
-from nkms.config.config import KMSConfig, Wallet, KMSKeyring
+
+class KMSConfigurationError(RuntimeError):
+    pass
 
 
 def validate_passphrase(passphrase) -> str:
     """Validate a passphrase and return it or raise"""
 
     rules = (
-        (len(passphrase) >= 16, 'Too short'),
+        (len(passphrase) >= 16, 'Passphrase is too short, must be >= 16 chars.'),
     )
 
     for rule, failure_message in rules:
         if not rule:
-            raise KMSConfig.KMSConfigurationError(failure_message)
+            raise KMSConfigurationError(failure_message)
     else:
         return passphrase
 
@@ -63,31 +66,32 @@ def _derive_wrapping_key_from_master_key(salt: bytes, master_key: bytes) -> byte
     return wrapping_key
 
 
-def _encrypt_key(wrapping_key: bytes, key_material: bytes) -> dict:
+def _encrypt_umbral_key(wrapping_key: bytes, umbral_key: UmbralPrivateKey) -> dict:
     """
     Encrypts a key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
     Returns an encrypted key as bytes with the nonce appended.
     """
     nonce = os.urandom(24)
-    enc_key = SecretBox(wrapping_key).encrypt(key_material, nonce)
+    enc_key = SecretBox(wrapping_key).encrypt(umbral_key.to_bytes(), nonce)
 
     crypto_data = {
-        'nonce': nonce,
-        'enc_key': enc_key
+        'nonce': urlsafe_b64encode(nonce).decode(),
+        'enc_key': urlsafe_b64encode(enc_key).decode()
     }
 
     return crypto_data
 
 
 # TODO: Handle decryption failures
-def _decrypt_key(wrapping_key: bytes, nonce: bytes, enc_key_material: bytes) -> bytes:
+def _decrypt_key(wrapping_key: bytes, nonce: bytes, enc_key_material: bytes) -> UmbralPrivateKey:
     """
     Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
-    Returns a decrypted key as bytes.
+    Returns a decrypted key as an UmbralPrivateKey.
     """
     dec_key = SecretBox(wrapping_key).encrypt(enc_key_material, nonce)
+    umbral_key = UmbralPrivateKey.from_bytes(dec_key)
 
-    return dec_key
+    return umbral_key
 
 
 def _generate_encryption_keys() -> tuple:
@@ -115,7 +119,7 @@ def _parse_keyfile(keypath: str):
         try:
             key_metadata = json.loads(keyfile)
         except json.JSONDecodeError:
-            raise KMSConfig.KMSConfigurationError("Invalid data in keyfile {}".format(keypath))
+            raise KMSConfigurationError("Invalid data in keyfile {}".format(keypath))
         else:
             return key_metadata
 
@@ -131,18 +135,40 @@ def _save_keyfile(keypath: str, key_data: dict) -> None:
 
         if len(check_byte) != 0:
             message = "{} is not empty. Check your key path.".format(keypath)
-            raise KMSConfig.KMSConfigurationError(message)
+            raise KMSConfigurationError(message)
 
         # Write the keydata to the file
         keyfile.seek(0)
         keyfile.write(json.dumps(key_data))
 
 
-def create_eth_wallet(passphrase: str) -> dict:
-    """Create a new wallet address from the provided passphrase"""
+def _bootstrap_config():
+    """
+    """
+    enc_key, _ = _generate_encryption_keys()
+    sig_key, _ = _generate_signing_keys()
 
-    entropy = os.urandom(32)   # max out entropy for keccak256
-    account = Account.create(extra_entropy=entropy)
-    encrypted_wallet_data = Account.encrypt(private_key=account.privateKey, password=passphrase)
+    der_master_key = _derive_master_key_from_passphrase(b'test', 'test')
+    der_wrap_key = _derive_wrapping_key_from_master_key(b'test', der_master_key)
 
-    return encrypted_wallet_data
+    enc_json = _encrypt_umbral_key(der_wrap_key, enc_key)
+    sig_json = _encrypt_umbral_key(der_wrap_key, sig_key)
+
+    enc_json['master_salt'] = urlsafe_b64encode(b'test').decode()
+    sig_json['master_salt'] = urlsafe_b64encode(b'test').decode()
+
+    enc_json['wrap_salt'] = urlsafe_b64encode(b'test').decode()
+    sig_json['wrap_salt'] = urlsafe_b64encode(b'test').decode()
+
+    _save_keyfile('root_key.priv', enc_json)
+    _save_keyfile('signing_key.priv', sig_json)
+
+
+#def create_eth_wallet(passphrase: str) -> dict:
+#    """Create a new wallet address from the provided passphrase"""
+#
+#    entropy = os.urandom(32)   # max out entropy for keccak256
+#    account = Account.create(extra_entropy=entropy)
+#    encrypted_wallet_data = Account.encrypt(private_key=account.privateKey, password=passphrase)
+#
+#    return encrypted_wallet_data
