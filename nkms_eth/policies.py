@@ -1,9 +1,12 @@
+
+hex = str
+
 class BlockchainArrangement:
     """
     A relationship between Alice and a single Ursula as part of Blockchain Policy
     """
 
-    def __init__(self, author, miner, value: int, periods: int, arrangement_id: bytes=None):
+    def __init__(self, author: hex, miner: hex, value: int, periods: int, arrangement_id: bytes=None):
 
         self.id = arrangement_id
 
