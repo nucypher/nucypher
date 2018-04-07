@@ -114,7 +114,7 @@ def _generate_signing_keys() -> tuple:
 
 def _parse_keyfile(keypath: str):
     """Parses a keyfile and returns key metadata as a dict."""
-
+    from nkms.config.config import KMSConfig
     with open(keypath, 'r') as keyfile:
         try:
             key_metadata = json.loads(keyfile)
@@ -126,7 +126,7 @@ def _parse_keyfile(keypath: str):
 
 def _save_keyfile(keypath: str, key_data: dict) -> None:
     """Saves key data to a file"""
-
+    from nkms.config.config import KMSConfig
     with open(keypath, 'w+') as keyfile:
 
         # Check_if the file is empty
