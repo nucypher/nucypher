@@ -44,6 +44,41 @@ class ContractDeployer:
     def is_armed(self) -> bool:
         return bool(self.__armed is True)
 
+    def check_ready_to_deploy(self, fail=False) -> Tuple[bool, list]:
+        """
+        Iterates through a set of rules required for an ethereum
+        contract deployer to be eligible for deployment returning a
+        tuple or raising an exception if <fail> is True.
+
+        Returns a tuple containing the boolean readiness result and a list of reasons (if any)
+        why the deployer is not ready.
+
+        If fail is set to True, raise a configuration error, instead of returning.
+        """
+
+        rules = (
+            (self.is_armed is True, 'Contract not armed'),
+
+            (self.is_deployed is not True, 'Contract already deployed'),
+
+            (self.blockchain._chain.provider.are_contract_dependencies_available(self._contract_name),
+             'Blockchain contract dependencies unmet')
+
+            )
+
+        reasons, ready = list(), True
+        for rule, failure_reason in rules:
+            if not rule:                            # If this rule fails...
+                ready = False                       # it's not ready to be deployed
+
+                if fail is True:
+                    raise self.ContractDeploymentError(failure_reason)
+                else:
+                    reasons.append(failure_reason)  # ...and here's why
+                    continue
+
+        return ready, reasons
+
     def _ensure_contract_deployment(self) -> None:
         """Raises ContractDeploymentError if the contract has not been armed and deployed."""
 
@@ -63,29 +98,43 @@ class ContractDeployer:
         if self.__armed is True:
             raise self.ContractDeploymentError("Deployer already armed, use .deploy() to deploy.")
 
-        # Check that the contract can be deployed
-        is_ready = bool(self.blockchain._chain.provider.are_contract_dependencies_available(self._contract_name))
+    def arm(self, fail_on_abort=True) -> None:
+        """
+        Safety mechanism for ethereum contract deployment
+
+        If the blockchain network being deployed is not in the testchains tuple,
+        user interaction is required to enter the arming word.
+
+        If fail_on_abort is True, raise a configuration Error if the user
+        incorrectly types the arming_word.
+
+        """
+
+        # self.check_ready_to_deploy(fail=True)
 
         # If the blockchain network is public, prompt the user
         if self.blockchain._network not in self.blockchain.test_chains:
             message = """
             Are you sure you want to deploy {} on the {} network?
             
-            Type "I UNDERSTAND" to arm the deployer.
-            """
+            Type {} to arm the deployer.
+            """.format(self._arming_word, self._contract_name, self.blockchain._network)
 
-            answer = input(message.format(self._contract_name, self.blockchain._network))
-            if answer == "I UNDERSTAND":
+            answer = input(message)
+            if answer == self._arming_word:
                 arm = True
                 outcome_message = '{} is armed!'.format(self.__class__.__name__)
             else:
                 arm = False
                 outcome_message = '{} was not armed.'.format(self.__class__.__name__)
 
+                if fail_on_abort is True:
+                    raise self.ContractDeploymentError("User aborted deployment")
+
             print(outcome_message)
         else:
-            # If this is a private chain, just arm the deployer without interaction.
-            arm = True
+            arm = True      # If this is a private chain, just arm the deployer without interaction.
+        self.__armed = arm  # Set the arming status
 
         self.__armed = arm
         return
@@ -112,13 +161,7 @@ class NuCypherKMSTokenDeployer(ContractDeployer, NuCypherTokenConfig):
         Deployment can only ever be executed exactly once!
         """
 
-        if self.is_armed is False:
-            raise self.ContractDeploymentError('use .arm() to arm the contract, then .deploy().')
-
-        if self.is_deployed is True:
-            class_name = self.__class__.__name__
-            message = '{} contract already deployed, use .get() to retrieve it.'.format(class_name)
-            raise self.ContractDeploymentError(message)
+        self.check_ready_to_deploy(fail=True)
 
         the_nucypher_token_contract, deployment_txhash = self.blockchain._chain.provider.deploy_contract(
             self._contract_name,
@@ -197,10 +240,7 @@ class PolicyManagerDeployer(ContractDeployer):
         super().__init__(blockchain=self.token_agent.blockchain)
 
     def deploy(self) -> Tuple[str, str]:
-        if self.is_armed is False:
-            raise self.ContractDeploymentError('PolicyManager contract not armed')
-        if self.is_deployed is True:
-            raise self.ContractDeploymentError('PolicyManager contract already deployed')
+        self.check_ready_to_deploy(fail=True)
 
         # Creator deploys the policy manager
         the_policy_manager_contract, deploy_txhash = self.blockchain._chain.provider.deploy_contract(
