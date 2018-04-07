@@ -169,10 +169,6 @@ class PolicyAgent(EthereumContractAgent):
     _deployer = PolicyManagerDeployer
     _principal_contract_name = PolicyManagerDeployer._contract_name
 
-    def __init__(self, miner_agent):
-        super().__init__(blockchain=miner_agent.blockchain)
-        self.miner_agent = miner_agent
-
     def fetch_arrangement_data(self, arrangement_id: bytes) -> list:
         blockchain_record = self.read().policies(arrangement_id)
         return blockchain_record
