@@ -20,9 +20,21 @@ class TesterBlockchain(TheBlockchain):
         while self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber).timestamp < end_timestamp:
             self._chain.wait.for_block(self._chain.web3.eth.blockNumber + step)
 
+    def spawn_miners(self, miner_agent: MinerAgent, addresses: list, locktime: int, m: int) -> None:
+        """
+        Deposit and lock a random amount of tokens in the miner escrow
+        from each address, "spawning" new Miners.
+        """
+        for address in addresses:
+            miner = Miner(miner_agent=miner_agent, address=address)
+            amount = miner.token_balance() // 2
+
+            # amount = (10 + random.randrange(9000)) * m
+            miner.stake(amount=amount, locktime=locktime, auto_switch_lock=True)
+
 
 class MockNuCypherKMSTokenDeployer(NuCypherKMSTokenDeployer):
-    _M = 10 ** 6    #TODO
+    _M = 10 ** 6    #TODO: Unify with config class's _M
 
     def _global_airdrop(self, amount: int):
         """Airdrops from creator address to all other addresses!"""
@@ -31,12 +43,14 @@ class MockNuCypherKMSTokenDeployer(NuCypherKMSTokenDeployer):
 
         def txs():
             for address in addresses:
-                yield self._contract.transact({'from': self._creator}).transfer(address, amount * (10 ** 6))
+                txhash = self._contract.transact({'from': self._creator}).transfer(address, amount)
+                yield txhash
 
-        for tx in txs():
-            self.blockchain._chain.wait.for_receipt(tx, timeout=10)
-
-        return self    # for method chaining
+        receipts = []
+        for tx in txs():    # One at a time
+            receipt = self.blockchain.wait_for_receipt(tx)
+            receipts.append(receipt)
+        return receipts
 
 
 class MockNuCypherMinerConfig(NuCypherMinerConfig):
@@ -52,15 +66,3 @@ class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNuCypherMinerConfig):
 class MockMinerAgent(MinerAgent):
     """MinerAgent with faked config subclass"""
     _deployer = MockMinerEscrowDeployer
-
-
-def spawn_miners(addresses: list, miner_agent: MinerAgent, m: int, locktime: int) -> None:
-    """
-    Deposit and lock a random amount of tokens in the miner escrow
-    from each address, "spawning" new Miners.
-    """
-    # Create n Miners
-    for address in addresses:
-        miner = Miner(miner_agent=miner_agent, address=address)
-        amount = (10+random.randrange(9000)) * m
-        miner.lock(amount=amount, locktime=locktime)
