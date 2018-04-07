@@ -9,6 +9,7 @@ from nkms_eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer
 
 class TesterBlockchain(TheBlockchain):
     """Transient, in-memory, local, private chain"""
+
     _network = 'tester'
 
     def wait_time(self, wait_hours, step=50):
