@@ -13,6 +13,7 @@ from sqlalchemy.engine import create_engine
 from nkms.keystore import keystore
 from nkms.keystore.db import Base
 from umbral import pre
+import maya
 
 
 @pytest.fixture(scope="module")
@@ -36,7 +37,7 @@ def idle_policy(alice, bob):
 def enacted_policy(idle_policy, ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = constants.NON_PAYMENT
-    contract_end_datetime = datetime.datetime.now() + datetime.timedelta(days=5)
+    contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     # contract = Contract(idle_policy.n, deposit, contract_end_datetime)
 
     networky_stuff = MockNetworkyStuff(ursulas)

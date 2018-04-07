@@ -47,16 +47,16 @@ class Arrangement(BlockchainArrangement):
         self.kfrag = kfrag
         self.ursula = ursula
 
-        arrangement_delta = datetime.utcnow() - self.expiration
-        policy_duration = arrangement_delta.hours // 24
+        arrangement_delta = maya.now() - self.expiration
+        policy_duration = arrangement_delta.days
 
-        super().__init__(author=self.alice.address, miner=self.ursula.address,
+        super().__init__(author=self.alice, miner=ursula,
                          value=self.deposit, periods=policy_duration,
                          arrangement_id=self._make_arrangement_id())
 
     def __bytes__(self):
         return bytes(self.alice.stamp) + bytes(
-            self.hrac) + self.expiration.isoformat().encode() + bytes(
+            self.hrac) + self.expiration.iso8601().encode() + bytes(
             self.deposit)
 
     @staticmethod
@@ -82,7 +82,7 @@ class Arrangement(BlockchainArrangement):
         # Publish arrangement to blockchain
         # TODO Determine actual gas price here
         # TODO Negotiate the receipt of a KFrag per Ursula
-        super().publish(gas_price=0)
+        # super().publish(gas_price=0)
 
     def encrypt_payload_for_ursula(self):
         """
@@ -268,7 +268,7 @@ class Policy(object):
         for ursula, arrangement, result in found_ursulas:
             if result.was_accepted:  # TODO: Here, we need to assess the result and see if we're actually good to go.
                 kfrag = self.assign_kfrag_to_arrangement(arrangement)
-                arrangement.activate(kfrag, ursula, result)
+                arrangement.publish(kfrag, ursula, result)
                 # TODO: What if there weren't enough Arrangements approved to distribute n kfrags?  We need to raise NotEnoughQualifiedUrsulas.
 
 

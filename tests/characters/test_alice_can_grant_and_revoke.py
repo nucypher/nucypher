@@ -10,11 +10,12 @@ from bytestring_splitter import BytestringSplitter
 from tests.utilities import MockNetworkyStuff
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
+import maya
 
 
 def test_grant(alice, bob, ursulas):
     networky_stuff = MockNetworkyStuff(ursulas)
-    policy_end_datetime = datetime.datetime.now() + datetime.timedelta(days=5)
+    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     n = 5
     uri = b"this_is_the_path_to_which_access_is_being_granted"
     policy = alice.grant(bob, uri, networky_stuff, m=3, n=n,
