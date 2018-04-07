@@ -78,7 +78,8 @@ class TheBlockchain(ABC):
         if timeout is None:
             timeout = self._default_timeout
 
-        self._chain.wait.for_receipt(txhash, timeout=timeout)
+        result = self._chain.wait.for_receipt(txhash, timeout=timeout)
+        return result
 
 # class TestRpcBlockchain:
 #

@@ -7,6 +7,10 @@ from nkms_eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer, Po
 
 
 class EthereumContractAgent(ABC):
+    """
+    Base class for ethereum contract wrapper types that interact with blockchain contract instances
+    """
+
     _principal_contract_name = NotImplemented
 
     class ContractNotDeployed(ContractDeployer.ContractDeploymentError):
@@ -38,6 +42,16 @@ class EthereumContractAgent(ABC):
         return self.blockchain._chain.web3.eth.accounts[0]    # TODO: make swappable
 
     def read(self):
+        """
+        Returns an object that exposes the contract instance functions.
+
+        This method is intended for use with method chaining,
+        results in zero state changes, and costs zero gas.
+        Useful as a dry-run before sending an actual transaction.
+
+        See more on interacting with contract instances in the Populus docs:
+        http://populus.readthedocs.io/en/latest/dev_cycle.part-07.html#call-an-instance-function
+        """
         return self._contract.call()
 
     def transact(self, payload: dict):

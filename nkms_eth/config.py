@@ -63,7 +63,6 @@ class NuCypherMinerConfig:
     def null_address(self):
         return self._null_addr
 
-
     @property
     def mining_coefficient(self):
         return self.__mining_coeff
@@ -74,18 +73,19 @@ class NuCypherMinerConfig:
 
 
 class PopulusConfig:
+    __project_name = 'nucypher-kms'
 
-    def __init__(self, project_name='nucypher-kms', registrar_path=None):
-        self._python_project_name = project_name
+    def __init__(self, registrar_path=None):
 
         # This config is persistent and is created in user's .local directory
         if registrar_path is None:
-            registrar_path = join(appdirs.user_data_dir(self._python_project_name), 'registrar.json')
+            registrar_path = join(appdirs.user_data_dir(self.__project_name), 'registrar.json')
         self._registrar_path = registrar_path
 
         # Populus project config
         self._project_dir = join(dirname(abspath(nkms_eth.__file__)), 'project')
         self._populus_project = populus.Project(self._project_dir)
+
         self.project.config['chains.mainnetrpc.contracts.backends.JSONFile.settings.file_path'] = self._registrar_path
 
     @property

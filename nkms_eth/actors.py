@@ -200,34 +200,34 @@ class Miner(TokenActor):
 
         return staking_transactions
 
-    # TODO: Sidechain datastore
-    # def publish_data(self, miner_id) -> str:
-    #     """Store a new Miner ID"""
-    #
-    #     txhash = self.miner_agent.transact({'from': self.address}).setMinerId(miner_id)
-    #     self._blockchain.wait_for_receipt(txhash)
-    #     self._transactions[datetime.utcnow()] = txhash
-    #
-    #     return txhash
-    #
-    # def fetch_miner_data(self) -> tuple:
-    #     """Retrieve all stored Miner IDs on this miner"""
-    #
-    #     count = self.miner_agent.read().getMinerInfo(self.miner_agent._deployer.MinerInfoField.MINER_IDS_LENGTH.value,
-    #                                                  self.address,
-    #                                                  0).encode('latin-1')
-    #
-    #     count = self._blockchain._chain.web3.toInt(count)
-    #
-    #     miner_ids = list()
-    #     for index in range(count):
-    #         miner_id = self.miner_agent.read().getMinerInfo(self.miner_agent._deployer.MinerInfoField.MINER_ID.value,
-    #                                                         self.address,
-    #                                                         index)
-    #         encoded_miner_id = miner_id.encode('latin-1')  # TODO change when v4 of web3.py is released
-    #         miner_ids.append(encoded_miner_id)
-    #
-    #     return tuple(miner_ids)
+    def publish_data(self, data) -> str:
+        """Store new data"""
+
+        txhash = self.miner_agent.transact({'from': self.address}).setMinerId(data)
+        self.blockchain.wait_for_receipt(txhash)
+
+        self._transactions[datetime.utcnow()] = txhash
+
+        return txhash
+
+    def fetch_data(self) -> tuple:
+        """Retrieve all stored Miner IDs on this miner"""
+
+        count_bytes = self.miner_agent.read().getMinerInfo(self.miner_agent._deployer.MinerInfoField.MINER_IDS_LENGTH.value,
+                                                     self.address,
+                                                     0).encode('latin-1') # TODO change when v4 of web3.py is released
+
+        count = self.blockchain._chain.web3.toInt(count_bytes)
+
+        miner_ids = list()
+        for index in range(count):
+            miner_id = self.miner_agent.read().getMinerInfo(self.miner_agent._deployer.MinerInfoField.MINER_ID.value,
+                                                            self.address,
+                                                            index)
+            encoded_miner_id = miner_id.encode('latin-1')
+            miner_ids.append(encoded_miner_id)
+
+        return tuple(miner_ids)
 
 
 class PolicyAuthor(TokenActor):
@@ -239,40 +239,12 @@ class PolicyAuthor(TokenActor):
 
         self._arrangements = OrderedDict()    # Track authored policies by id
 
-    def make_arrangement(self, miner: Miner, periods: int, rate: int, arrangement_id: bytes=None) -> 'BlockchainArrangement':
-        """
-        Create a new arrangement to carry out a blockchain policy for the specified rate and time.
-        """
-
-        value = rate * periods
-        arrangement = BlockchainArrangement(author=self,
-                                        miner=miner,
-                                        value=value,
-                                        periods=periods)
-
-        self._arrangements[arrangement.id] = {arrangement_id: arrangement}
-        return arrangement
-
-    def get_arrangement(self, arrangement_id: bytes) -> BlockchainArrangement:
-        """Fetch a published arrangement from the blockchain"""
-
-        blockchain_record = self.policy_agent.read().policies(arrangement_id)
-        author_address, miner_address, rate, start_block, end_block, downtime_index = blockchain_record
-
-        duration = end_block - start_block
-
-        miner = Miner(address=miner_address, miner_agent=self.policy_agent.miner_agent)
-        arrangement = BlockchainArrangement(author=self, miner=miner, periods=duration)
-
-        arrangement.is_published = True
-        return arrangement
-
     def revoke_arrangement(self, arrangement_id):
         """Get the arrangement from the cache and revoke it on the blockchain"""
         try:
             arrangement = self._arrangements[arrangement_id]
         except KeyError:
-            raise Exception('No such arrangement')  #TODO
+            raise self.ActorError('No such arrangement')
         else:
             txhash = arrangement.revoke()
         return txhash

@@ -1,13 +1,16 @@
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Tuple, Dict
+
+from populus.contracts.contract import PopulusContract
 
 from nkms_eth.config import NuCypherMinerConfig, NuCypherTokenConfig
 from .blockchain import TheBlockchain
 
 
-class ContractDeployer(ABC):
+class ContractDeployer:
 
     _contract_name = NotImplemented
+    _arming_word = "I UNDERSTAND"
 
     class ContractDeploymentError(Exception):
         pass
