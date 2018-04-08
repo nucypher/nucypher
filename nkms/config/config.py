@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from eth_account import Account
 from umbral.keys import UmbralPrivateKey
@@ -9,7 +10,7 @@ from nkms.config.utils import _derive_wrapping_key_from_master_key, _decrypt_key
 from nkms.crypto.powers import SigningPower, EncryptingPower
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
 
-_CONFIG_ROOT = os.path.join('~', '.nucypher')
+_CONFIG_ROOT = os.path.join(str(Path.home()), '.nucypher')
 
 
 class KMSKeyring:
