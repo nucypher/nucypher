@@ -1,7 +1,6 @@
 import json
 import os
 from base64 import urlsafe_b64encode
-from pathlib import Path
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -12,16 +11,11 @@ from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey
 from web3.auto import w3
 
+from nkms.config.configs import KMSConfigurationError, _CONFIG_ROOT
 from nkms.crypto.powers import SigningPower, EncryptingPower, CryptoPower
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
 
 w3.eth.enable_unaudited_features()
-
-_CONFIG_ROOT = os.path.join(str(Path.home()), '.nucypher')
-
-
-class KMSConfigurationError(RuntimeError):
-    pass
 
 
 def validate_passphrase(passphrase) -> str:

@@ -1,6 +1,13 @@
 import os
+from pathlib import Path
 
-from nkms.config.keys import KMSKeyring, _CONFIG_ROOT
+from nkms.config.keys import KMSKeyring
+
+_CONFIG_ROOT = os.path.join(str(Path.home()), '.nucypher')
+
+
+class KMSConfigurationError(RuntimeError):
+    pass
 
 
 class StakeConfig:

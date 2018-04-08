@@ -169,15 +169,15 @@ def test_treaure_map_is_legit(enacted_policy):
         assert port in legal_ports
 
 
-# TODO: Have Alice inherit from PolicyAuthor
-def test_alice_finds_ursulas_from_blockchain(testerchain, mock_miner_agent, mock_token_deployer):
-    mock_token_deployer._global_airdrop(amount=10000)
-
-    # Create some miners to find
-    _, *miner_addresses = testerchain._chain.web3.eth.accounts[1:]
-    spawn_miners(miner_addresses, mock_miner_agent, mock_miner_agent.token_agent._deployer._M, 100)
-
-    testerchain.wait_time(mock_miner_agent._deployer._hours_per_period)
-
-    reenc_nodes = mock_miner_agent.sample(quantity=4)
-    assert len(reenc_nodes) >= 4
+# # TODO: Have Alice inherit from PolicyAuthor
+# def test_alice_finds_ursulas_from_blockchain(testerchain, mock_miner_agent, mock_token_deployer):
+#     mock_token_deployer._global_airdrop(amount=10000)
+#
+#     # Create some miners to find
+#     _, *miner_addresses = testerchain._chain.web3.eth.accounts[1:]
+#     spawn_miners(miner_addresses, mock_miner_agent, mock_miner_agent.token_agent._deployer._M, 100)
+#
+#     testerchain.wait_time(mock_miner_agent._deployer._hours_per_period)
+#
+#     reenc_nodes = mock_miner_agent.sample(quantity=4)
+#     assert len(reenc_nodes) >= 4
