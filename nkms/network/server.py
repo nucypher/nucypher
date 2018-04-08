@@ -115,9 +115,9 @@ class ProxyRESTServer(object):
                   self.reencrypt_via_rest),
             Route('/public_keys', 'GET',
                   self.get_signing_and_encrypting_public_keys),
-            Route('/consider_contract',
+            Route('/consider_arrangement',
                   'POST',
-                  self.consider_contract),
+                  self.consider_arrangement),
             Route('/treasure_map/{treasure_map_id_as_hex}',
                   'GET',
                   self.provide_treasure_map),
@@ -160,24 +160,24 @@ class ProxyRESTServer(object):
             content=bytes(self.public_key(SigningPower)) + bytes(self.public_key(EncryptingPower)),
             content_type="application/octet-stream")
 
-    def consider_contract(self, hrac_as_hex, request: http.Request):
-        from nkms.policy.models import Contract
-        contract, deposit_as_bytes = \
-            BytestringSplitter(Contract)(request.body, return_remainder=True)
-        contract.deposit = deposit_as_bytes
+    def consider_arrangement(self, hrac_as_hex, request: http.Request):
+        from nkms.policy.models import Arrangement
+        arrangement, deposit_as_bytes = \
+            BytestringSplitter(Arrangement)(request.body, return_remainder=True)
+        arrangement.deposit = deposit_as_bytes
 
         with ThreadedSession(self.db_engine) as session:
-            self.datastore.add_policy_contract(
-                contract.expiration.datetime(),
-                contract.deposit,
-                hrac=contract.hrac.hex().encode(),
-                alice_pubkey_sig=contract.alice.stamp,
+            self.datastore.add_policy_arrangement(
+                arrangement.expiration.datetime(),
+                arrangement.deposit,
+                hrac=arrangement.hrac.hex().encode(),
+                alice_pubkey_sig=arrangement.alice.stamp,
                 session=session,
-                )
+            )
         # TODO: Make the rest of this logic actually work - do something here
-        # to decide if this Contract is worth accepting.
+        # to decide if this Arrangement is worth accepting.
         return Response(
-            b"This will eventually be an actual acceptance of the contract.",
+            b"This will eventually be an actual acceptance of the arrangement.",
             content_type="application/octet-stream")
 
     def set_policy(self, hrac_as_hex, request: http.Request):
@@ -210,7 +210,7 @@ class ProxyRESTServer(object):
         kfrag = KFrag.from_bytes(cleartext)
 
         with ThreadedSession(self.db_engine) as session:
-            self.datastore.attach_kfrag_to_saved_contract(
+            self.datastore.attach_kfrag_to_saved_arrangement(
                                                alice,
                                                hrac_as_hex,
                                                kfrag,
@@ -223,7 +223,7 @@ class ProxyRESTServer(object):
         hrac = binascii.unhexlify(hrac_as_hex)
         work_order = WorkOrder.from_rest_payload(hrac, request.body)
         with ThreadedSession(self.db_engine) as session:
-            kfrag_bytes = self.datastore.get_policy_contract(hrac.hex().encode(),
+            kfrag_bytes = self.datastore.get_policy_arrangement(hrac.hex().encode(),
                                                              session=session).k_frag  # Careful!  :-)
         # TODO: Push this to a lower level.
         kfrag = KFrag.from_bytes(kfrag_bytes)
@@ -254,8 +254,9 @@ class ProxyRESTServer(object):
             dht_value_splitter(request.body, return_remainder=True)
         # TODO: This next line is possibly the worst in the entire codebase at the moment.  #172.
         # Also TODO: TTL?
-        do_store = self.server.protocol.determine_legality_of_dht_key(signature_for_ursula, pubkey_sig_alice, tmap_message_kit,
-                                                      hrac, digest(treasure_map_id), request.body)
+        do_store = self.server.protocol.determine_legality_of_dht_key(
+                    signature_for_ursula, pubkey_sig_alice, tmap_message_kit,
+                    hrac, digest(treasure_map_id), request.body)
         if do_store:
             # TODO: Stop storing things in the protocol storage.  Do this better.
             # TODO: Propagate to other nodes.

@@ -32,8 +32,8 @@ class Key(Base):
         return cls(fingerprint, key_data, is_signing)
 
 
-class PolicyContract(Base):
-    __tablename__ = 'policycontracts'
+class PolicyArrangement(Base):
+    __tablename__ = 'policyarrangements'
 
     hrac = Column(LargeBinary, unique=True, primary_key=True)
     expiration = Column(DateTime)

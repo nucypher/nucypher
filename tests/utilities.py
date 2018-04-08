@@ -7,7 +7,7 @@ from apistar.test import TestClient
 from nkms.characters import Ursula
 
 from nkms.network.node import NetworkyStuff
-from nkms.policy.models import ContractResponse
+from nkms.policy.models import ArrangementResponse
 
 NUMBER_OF_URSULAS_IN_NETWORK = 6
 
@@ -48,11 +48,11 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
     return URSULAS
 
 
-class MockContractResponse(ContractResponse):
+class MockArrangementResponse(ArrangementResponse):
     was_accepted = True
 
     def __bytes__(self):
-        return b"This is a contract response; we have no idea what the bytes repr will be."
+        return b"This is a arrangement response; we have no idea what the bytes repr will be."
 
 
 class MockNetworkyStuff(NetworkyStuff):
@@ -63,14 +63,14 @@ class MockNetworkyStuff(NetworkyStuff):
     def go_live_with_policy(self, ursula, policy_offer):
         return
 
-    def find_ursula(self, contract=None):
+    def find_ursula(self, arrangement=None):
         try:
             ursula = next(self.ursulas)
         except StopIteration:
             raise self.NotEnoughQualifiedUrsulas
         mock_client = TestClient(ursula.rest_app)
-        response = mock_client.post("http://localhost/consider_contract", bytes(contract))
-        return ursula, MockContractResponse()
+        response = mock_client.post("http://localhost/consider_arrangement", bytes(arrangement))
+        return ursula, MockArrangementResponse()
 
     def enact_policy(self, ursula, hrac, payload):
         mock_client = TestClient(ursula.rest_app)

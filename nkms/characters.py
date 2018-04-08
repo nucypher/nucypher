@@ -11,6 +11,7 @@ from typing import Dict
 from typing import Union, List
 
 from constant_sorrow import constants, default_constant_splitter
+from nkms.config.config import KMSConfig
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH
 from nkms.crypto.kits import UmbralMessageKit
@@ -20,6 +21,9 @@ from nkms.crypto.splitters import signature_splitter
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
+
+from nkms_eth.actors import PolicyAuthor
+
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from nkms.crypto.signature import Signature
@@ -34,8 +38,10 @@ class Character(object):
     _default_crypto_powerups = None
     _stamp = None
 
-    def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
-                 crypto_power_ups=None, is_me=True) -> None:
+    address = "This is a fake address."  # TODO: #192
+
+    def __init__(self, attach_server=True, crypto_power: CryptoPower=None,
+                 crypto_power_ups=None, is_me=True, config: "KMSConfig"=None) -> None:
         """
         :param attach_server:  Whether to attach a Server when this Character is
             born.
@@ -57,8 +63,10 @@ class Character(object):
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
+        self.config = config if config is not None else KMSConfig.get_config()
         self.known_nodes = {}
         self.log = getLogger("characters")
+
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
 
@@ -210,7 +218,8 @@ class Character(object):
         with suppress(AttributeError):
             if message_kit.alice_pubkey:
                 if not message_kit.alice_pubkey == actor_whom_sender_claims_to_be.public_key(SigningPower):
-                    raise ValueError("This MessageKit doesn't appear to have come from {}".format(actor_whom_sender_claims_to_be))
+                    raise ValueError(
+                        "This MessageKit doesn't appear to have come from {}".format(actor_whom_sender_claims_to_be))
 
         alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
         signature_from_kit = None
@@ -290,9 +299,17 @@ class Character(object):
         self.known_nodes[node.interface_dht_key()] = node
 
 
-class Alice(Character):
+class FakePolicyAgent:  # TODO: #192
+    _token = "fake token"
+
+
+class Alice(Character, PolicyAuthor):
     _server_class = NuCypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        PolicyAuthor.__init__(self, self.address, policy_agent=FakePolicyAgent())
 
     def generate_kfrags(self, bob, m, n) -> List:
         """
@@ -307,12 +324,7 @@ class Alice(Character):
         bob_pubkey_enc = bob.public_key(EncryptingPower)
         return self._crypto_power.power_ups(EncryptingPower).generate_kfrags(bob_pubkey_enc, m, n)
 
-    def create_policy(self,
-                      bob: "Bob",
-                      uri: bytes,
-                      m: int,
-                      n: int,
-                      ):
+    def create_policy(self, bob: "Bob", uri: bytes, m: int, n: int):
         """
         Create a Policy to share uri with bob.
         Generates KFrags and attaches them.

@@ -3,7 +3,7 @@ from typing import Union
 from nkms.crypto.constants import KFRAG_LENGTH
 from nkms.crypto.signature import Signature
 from bytestring_splitter import BytestringSplitter
-from nkms.keystore.db.models import Key, PolicyContract, Workorder
+from nkms.keystore.db.models import Key, PolicyArrangement, Workorder
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
 from . import keypairs
@@ -84,13 +84,13 @@ class KeyStore(object):
         session.query(Key).filter_by(fingerprint=fingerprint).delete()
         session.commit()
 
-    def add_policy_contract(self, expiration, deposit, hrac, kfrag=None,
-                            alice_pubkey_sig=None, # alice_pubkey_enc,
-                            alice_signature=None, session=None) -> PolicyContract:
+    def add_policy_arrangement(self, expiration, deposit, hrac, kfrag=None,
+                               alice_pubkey_sig=None, # alice_pubkey_enc,
+                               alice_signature=None, session=None) -> PolicyArrangement:
         """
-        Creates a PolicyContract to the Keystore.
+        Creates a PolicyArrangement to the Keystore.
 
-        :return: The newly added PolicyContract object
+        :return: The newly added PolicyArrangement object
         """
         session = session or self._session_on_init_thread
 
@@ -100,48 +100,48 @@ class KeyStore(object):
         # alice_pubkey_enc = self.add_key(alice_pubkey_enc)
         # bob_pubkey_sig = self.add_key(bob_pubkey_sig)
 
-        new_policy_contract = PolicyContract(
+        new_policy_arrangement = PolicyArrangement(
             expiration, deposit, hrac, kfrag, alice_pubkey_sig=alice_key_instance,
             alice_signature=None, # bob_pubkey_sig.id
         )
 
-        session.add(new_policy_contract)
+        session.add(new_policy_arrangement)
         session.commit()
 
-        return new_policy_contract
+        return new_policy_arrangement
 
-    def get_policy_contract(self, hrac: bytes, session=None) -> PolicyContract:
+    def get_policy_arrangement(self, hrac: bytes, session=None) -> PolicyArrangement:
         """
-        Returns the PolicyContract by its HRAC.
+        Returns the PolicyArrangement by its HRAC.
 
-        :return: The PolicyContract object
-        """
-        session = session or self._session_on_init_thread
-
-        policy_contract = session.query(PolicyContract).filter_by(hrac=hrac).first()
-
-        if not policy_contract:
-            raise NotFound("No PolicyContract with {} HRAC found.".format(hrac))
-        return policy_contract
-
-    def del_policy_contract(self, hrac: bytes, session=None):
-        """
-        Deletes a PolicyContract from the Keystore.
+        :return: The PolicyArrangement object
         """
         session = session or self._session_on_init_thread
 
-        session.query(PolicyContract).filter_by(hrac=hrac).delete()
+        policy_arrangement = session.query(PolicyArrangement).filter_by(hrac=hrac).first()
+
+        if not policy_arrangement:
+            raise NotFound("No PolicyArrangement with {} HRAC found.".format(hrac))
+        return policy_arrangement
+
+    def del_policy_arrangement(self, hrac: bytes, session=None):
+        """
+        Deletes a PolicyArrangement from the Keystore.
+        """
+        session = session or self._session_on_init_thread
+
+        session.query(PolicyArrangement).filter_by(hrac=hrac).delete()
         session.commit()
 
-    def attach_kfrag_to_saved_contract(self, alice, hrac_as_hex, kfrag, session=None):
+    def attach_kfrag_to_saved_arrangement(self, alice, hrac_as_hex, kfrag, session=None):
         session = session or self._session_on_init_thread
+        
+        policy_arrangement = session.query(PolicyArrangement).filter_by(hrac=hrac_as_hex.encode()).first()
 
-        policy_contract = session.query(PolicyContract).filter_by(hrac=hrac_as_hex.encode()).first()
-
-        if policy_contract.alice_pubkey_sig.key_data != alice.stamp:
+        if policy_arrangement.alice_pubkey_sig.key_data != alice.stamp:
             raise alice.SuspiciousActivity
 
-        policy_contract.k_frag = bytes(kfrag)
+        policy_arrangement.k_frag = bytes(kfrag)
         session.commit()
 
     def add_workorder(self, bob_pubkey_sig, bob_signature, hrac, session=None) -> Workorder:

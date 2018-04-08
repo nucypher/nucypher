@@ -80,7 +80,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
     # the correct cFrag (ie, that Ursula performed reencryption properly).
     ursula = work_order.ursula
-    kfrag_bytes = ursula.datastore.get_policy_contract(
+    kfrag_bytes = ursula.datastore.get_policy_arrangement(
         work_order.kfrag_hrac.hex().encode()).k_frag
     the_kfrag = KFrag.from_bytes(kfrag_bytes)
     the_correct_cfrag = pre.reencrypt(the_kfrag, alicebob_side_channel.capsule)

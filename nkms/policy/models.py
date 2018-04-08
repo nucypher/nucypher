@@ -1,6 +1,8 @@
 import asyncio
 import binascii
+import uuid
 from collections import OrderedDict
+from datetime import datetime
 
 import maya
 import msgpack
@@ -13,22 +15,23 @@ from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import key_splitter
 from bytestring_splitter import BytestringSplitter
+from nkms_eth.policies import BlockchainArrangement
 from umbral.pre import Capsule
 from constant_sorrow import constants
 
 
-class Contract(object):
+class Arrangement(BlockchainArrangement):
     """
-    A Policy must be implemented by contract with n Ursulas.  This class tracks the status of that implementation.
+    A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
     _EXPECTED_LENGTH = 99
 
     def __init__(self, alice, hrac, expiration, deposit=None, ursula=None,
                  kfrag=constants.UNKNOWN_KFRAG, alices_signature=None):
         """
-        :param deposit: Funds which will pay for the timeframe  of this Contract (not the actual re-encryptions);
+        :param deposit: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
-        :param expiration: The moment which Alice wants the Contract to end.
+        :param expiration: The moment which Alice wants the Arrangement to end.
 
         Other params are hopefully self-evident.
         """
@@ -38,31 +41,48 @@ class Contract(object):
         self.alice = alice
 
         """
-        These will normally not be set if Alice is drawing up this contract - she hasn't assigned a kfrag yet
-        (because she doesn't know if this Contract will be accepted).  She doesn't have an Ursula, for the same reason.
+        These will normally not be set if Alice is drawing up this arrangement - she hasn't assigned a kfrag yet
+        (because she doesn't know if this Arrangement will be accepted).  She doesn't have an Ursula, for the same reason.
         """
         self.kfrag = kfrag
         self.ursula = ursula
 
+        arrangement_delta = maya.now() - self.expiration
+        policy_duration = arrangement_delta.days
+
+        super().__init__(author=self.alice, miner=ursula,
+                         value=self.deposit, periods=policy_duration,
+                         arrangement_id=self._make_arrangement_id())
+
     def __bytes__(self):
         return bytes(self.alice.stamp) + bytes(
-            self.hrac) + self.expiration.isoformat().encode() + bytes(
+            self.hrac) + self.expiration.iso8601().encode() + bytes(
             self.deposit)
 
+    @staticmethod
+    def _make_arrangement_id():
+        arrangement_id = str(uuid.uuid4()).encode()
+        return arrangement_id
+
     @classmethod
-    def from_bytes(cls, contract_as_bytes):
-        contract_splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
+    def from_bytes(cls, arrangement_as_bytes):
+        arrangement_splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
                                                               (bytes, 26))
-        alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = contract_splitter(
-            contract_as_bytes, return_remainder=True)
+        alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = arrangement_splitter(
+            arrangement_as_bytes, return_remainder=True)
         expiration = maya.parse(expiration_bytes.decode())
         alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
         return cls(alice=alice, hrac=hrac, expiration=expiration)
 
-    def activate(self, kfrag, ursula, negotiation_result):
+    def publish(self, kfrag, ursula, negotiation_result):
         self.kfrag = kfrag
         self.ursula = ursula
         self.negotiation_result = negotiation_result
+
+        # Publish arrangement to blockchain
+        # TODO Determine actual gas price here
+        # TODO Negotiate the receipt of a KFrag per Ursula
+        # super().publish(gas_price=0)
 
     def encrypt_payload_for_ursula(self):
         """
@@ -72,28 +92,27 @@ class Contract(object):
         return self.alice.encrypt_for(self.ursula, self.payload())[0]
 
     def payload(self):
-        # TODO: Ship the expiration again?  Or some other way of alerting Ursula to recall her previous dialogue regarding this Contract.  Update: We'll probably have her store the Contract by hrac.  See #127.
+        # TODO: Ship the expiration again?  Or some other way of alerting Ursula to recall her previous dialogue regarding this Arrangement.  Update: We'll probably have her store the Arrangement by hrac.  See #127.
         return bytes(self.kfrag)
 
 
-class ContractResponse(object):
+class ArrangementResponse(object):
     pass
 
 
 class Policy(object):
     """
-    An edict by Alice, contracted with n Ursulas, to perform re-encryption for a specific Bob
+    An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob
     for a specific path.
 
     Once Alice is ready to enact a Policy, she generates KFrags, which become part of the Policy.
 
-    Each Ursula is offered a Contract (see above) for a given Policy by Alice.
+    Each Ursula is offered a Arrangement (see above) for a given Policy by Alice.
 
     Once Alice has secured agreement with n Ursulas to enact a Policy, she sends each a KFrag,
     and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
     """
     _ursula = None
-
 
     def __init__(self, alice, bob=None, kfrags=(constants.UNKNOWN_KFRAG,), uri=None, m=None, alices_signature=constants.NOT_SIGNED):
 
@@ -107,13 +126,13 @@ class Policy(object):
         self.uri = uri
         self.m = m
         self.treasure_map = TreasureMap()
-        self._accepted_contracts = OrderedDict()
+        self._accepted_arrangements = OrderedDict()
 
         self.alices_signature = alices_signature
 
-    class MoreContractsThanKFrags(TypeError):
+    class MoreArrangementsThanKFrags(TypeError):
         """
-        Raised when a Policy has been used to generate Contracts with Ursulas in sufficient number
+        Raised when a Policy has been used to generate Arrangements with Ursulas in sufficient number
         such that we don't have enough KFrags to give to each Ursula.
         """
 
@@ -203,19 +222,19 @@ class Policy(object):
         return tmap_message_kit, map_payload, signature_for_bob, signature_for_ursula
 
     def enact(self, networky_stuff):
-        for contract in self._accepted_contracts.values():
-            policy_message_kit = contract.encrypt_payload_for_ursula()
-            response = networky_stuff.enact_policy(contract.ursula,
+        for arrangement in self._accepted_arrangements.values():
+            policy_message_kit = arrangement.encrypt_payload_for_ursula()
+            response = networky_stuff.enact_policy(arrangement.ursula,
                                                    self.hrac(),
                                                    policy_message_kit.to_bytes())
             # TODO: Parse response for confirmation.
             response
 
             # Assuming response is what we hope for
-            self.treasure_map.add_ursula(contract.ursula)
+            self.treasure_map.add_ursula(arrangement.ursula)
 
-    def draw_up_contract(self, deposit, expiration):
-        return Contract(self.alice, self.hrac(), expiration=expiration,
+    def make_arrangement(self, deposit, expiration):
+        return Arrangement(self.alice, self.hrac(), expiration=expiration,
                         deposit=deposit)
 
     def find_ursulas(self, networky_stuff, deposit, expiration,
@@ -228,29 +247,29 @@ class Policy(object):
 
         found_ursulas = []
         while len(found_ursulas) < num_ursulas:
-            contract = self.draw_up_contract(deposit, expiration)
+            arrangement = self.make_arrangement(deposit, expiration)
             try:
-                ursula, result = networky_stuff.find_ursula(contract)
-                found_ursulas.append((ursula, contract, result))
+                ursula, result = networky_stuff.find_ursula(arrangement)
+                found_ursulas.append((ursula, arrangement, result))
             except networky_stuff.NotEnoughQualifiedUrsulas:
                 pass  # TODO: Tell Alice to either wait or lower the value of num_ursulas.
         return found_ursulas
 
-    def assign_kfrag_to_contract(self, contract):
+    def assign_kfrag_to_arrangement(self, arrangement):
         for kfrag in self.kfrags:
-            if not kfrag in self._accepted_contracts:
-                contract.kfrag = kfrag
-                self._accepted_contracts[kfrag] = contract
+            if not kfrag in self._accepted_arrangements:
+                arrangement.kfrag = kfrag
+                self._accepted_arrangements[kfrag] = arrangement
                 return kfrag
-        if not contract.kfrag:
-            raise self.MoreContractsThanKFrags  # TODO: Perhaps in a future version, we consider allowing Alice to assign *the same* KFrag to multiple Ursulas?
+        if not arrangement.kfrag:
+            raise self.MoreArrangementsThanKFrags  # TODO: Perhaps in a future version, we consider allowing Alice to assign *the same* KFrag to multiple Ursulas?
 
     def match_kfrags_to_found_ursulas(self, found_ursulas):
-        for ursula, contract, result in found_ursulas:
+        for ursula, arrangement, result in found_ursulas:
             if result.was_accepted:  # TODO: Here, we need to assess the result and see if we're actually good to go.
-                kfrag = self.assign_kfrag_to_contract(contract)
-                contract.activate(kfrag, ursula, result)
-                # TODO: What if there weren't enough Contracts approved to distribute n kfrags?  We need to raise NotEnoughQualifiedUrsulas.
+                kfrag = self.assign_kfrag_to_arrangement(arrangement)
+                arrangement.publish(kfrag, ursula, result)
+                # TODO: What if there weren't enough Arrangements approved to distribute n kfrags?  We need to raise NotEnoughQualifiedUrsulas.
 
 
 class TreasureMap(object):
