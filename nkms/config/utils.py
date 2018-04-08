@@ -6,15 +6,12 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+from eth_account import Account
 from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey
+from web3.auto import w3
 
-
-#from eth_account import Account
-
-#from web3.auto import w3
-#w3.eth.enable_unaudited_features()
-#w3.eth.account
+w3.eth.enable_unaudited_features()
 
 
 class KMSConfigurationError(RuntimeError):
@@ -146,6 +143,7 @@ def _save_keyfile(keypath: str, key_data: dict) -> None:
 
 def _bootstrap_config():
     """
+    Mocks user configuration, bootstraping user keys and local filesystem config
     """
     enc_key, _ = _generate_encryption_keys()
     sig_key, _ = _generate_signing_keys()
@@ -166,11 +164,11 @@ def _bootstrap_config():
     _save_keyfile('signing_key.priv', sig_json)
 
 
-#def create_eth_wallet(passphrase: str) -> dict:
-#    """Create a new wallet address from the provided passphrase"""
-#
-#    entropy = os.urandom(32)   # max out entropy for keccak256
-#    account = Account.create(extra_entropy=entropy)
-#    encrypted_wallet_data = Account.encrypt(private_key=account.privateKey, password=passphrase)
-#
-#    return encrypted_wallet_data
+def create_eth_wallet(passphrase: str) -> dict:
+   """Create a new wallet address from the provided passphrase"""
+
+   entropy = os.urandom(32)   # max out entropy for keccak256
+   account = Account.create(extra_entropy=entropy)
+   encrypted_wallet_data = Account.encrypt(private_key=account.privateKey, password=passphrase)
+
+   return encrypted_wallet_data
