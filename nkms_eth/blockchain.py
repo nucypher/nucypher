@@ -1,6 +1,6 @@
 from abc import ABC
 
-from nkms_eth.config import PopulusConfig
+from nkms_eth.config import EthereumConfig
 
 
 class TheBlockchain(ABC):
@@ -22,10 +22,10 @@ class TheBlockchain(ABC):
     transient_chains = test_chains + ('testrpc', 'temp')
     public_chains = ('mainnet', 'ropsten')
 
-    class IsAlreadyRunning(Exception):
+    class IsAlreadyRunning(RuntimeError):
         pass
 
-    def __init__(self, populus_config: PopulusConfig=None):
+    def __init__(self, populus_config: EthereumConfig=None):
         """
         Configures a populus project and connects to blockchain.network.
         Transaction timeouts specified measured in seconds.
@@ -41,7 +41,7 @@ class TheBlockchain(ABC):
         TheBlockchain.__instance = self
 
         if populus_config is None:
-            populus_config = PopulusConfig()
+            populus_config = EthereumConfig()
         self._populus_config = populus_config
         self._project = populus_config.project
 

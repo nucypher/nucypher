@@ -1,14 +1,20 @@
 import pytest
+from web3 import Web3
+from web3.providers.eth_tester import EthereumTesterProvider
 
 from nkms_eth.agents import NuCypherKMSTokenAgent, MinerAgent, PolicyAgent
 from nkms_eth.blockchain import TheBlockchain
 from nkms_eth.deployers import PolicyManagerDeployer
 from nkms_eth.utilities import TesterBlockchain, MockNuCypherKMSTokenDeployer, MockMinerEscrowDeployer, MockMinerAgent
+from eth_tester import EthereumTester
 
 
 @pytest.fixture()
 def testerchain():
-    chain = TesterBlockchain()
+    tester = EthereumTester()
+    test_provider = EthereumTesterProvider(ethereum_tester=tester)
+    web3 = Web3(providers=test_provider)
+
     yield chain
     del chain
     TheBlockchain._TheBlockchain__instance = None

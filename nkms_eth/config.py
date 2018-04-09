@@ -72,14 +72,15 @@ class NuCypherMinerConfig:
         return self.__reward
 
 
-class PopulusConfig:
-    __project_name = 'nucypher-kms'
+class EthereumConfig:
+    __python_project_name = 'nucypher-kms'
+    __default_solidity_dir = os.path.join()    # TODO
 
     def __init__(self, registrar_path=None):
 
         # This config is persistent and is created in user's .local directory
         if registrar_path is None:
-            registrar_path = join(appdirs.user_data_dir(self.__project_name), 'registrar.json')
+            registrar_path = join(appdirs.user_data_dir(self.__python_project_name), 'registrar.json')
         self._registrar_path = registrar_path
 
         # Populus project config

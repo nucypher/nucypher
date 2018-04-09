@@ -1,10 +1,10 @@
+import os
 import random
 
 import pytest
 
 from nkms_eth.actors import Miner
 from nkms_eth.agents import MinerAgent
-from nkms_eth.utilities import spawn_miners
 
 
 def test_miner_locking_tokens(testerchain, mock_token_deployer, mock_miner_agent):
