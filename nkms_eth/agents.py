@@ -64,12 +64,11 @@ class NuCypherKMSTokenAgent(EthereumContractAgent):
 
 class MinerAgent(EthereumContractAgent):
     """
-    Wraps NuCypher's Escrow solidity smart contract, and manages a PopulusContract.
+    Wraps NuCypher's Escrow solidity smart contract, and manages a... PopulusContract?
 
     In order to become a participant of the network,
     a miner locks tokens by depositing to the Escrow contract address
     for a duration measured in periods.
-
     """
 
     _deployer = MinerEscrowDeployer

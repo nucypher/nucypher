@@ -1,7 +1,7 @@
 import pytest
 from ethereum.tester import TransactionFailed
 import os
-from populus.contracts.contract import PopulusContract
+from web3.contract import Contract
 
 
 MINERS_LENGTH = 0
@@ -52,7 +52,7 @@ def escrow_contract(web3, chain, token, request):
             contract = web3.eth.contract(
                 contract.abi,
                 dispatcher.address,
-                ContractFactoryClass=PopulusContract)
+                ContractFactoryClass=Contract)
         return contract
 
     return make_escrow
@@ -760,7 +760,7 @@ def test_verifying_state(web3, chain, token):
     contract = web3.eth.contract(
         contract_library_v2.abi,
         dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
     assert 1500 == contract.call().maxAllowableLockedTokens()
 
     # Initialize contract and miner

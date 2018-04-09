@@ -1,6 +1,6 @@
 import pytest
 from ethereum.tester import TransactionFailed
-from populus.contracts.contract import PopulusContract
+from web3.contract import Contract
 
 
 @pytest.fixture()
@@ -122,7 +122,7 @@ def test_verifying_state(web3, chain, token):
     contract = web3.eth.contract(
         contract_library_v2.abi,
         dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
 
     # Give Miner tokens for reward and initialize contract
     tx = token.transact({'from': creator}).transfer(contract.address, 10000)
