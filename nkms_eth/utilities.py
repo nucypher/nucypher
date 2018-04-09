@@ -1,4 +1,5 @@
 import random
+from typing import List
 
 from nkms_eth.actors import Miner
 from nkms_eth.agents import MinerAgent, EthereumContractAgent
@@ -9,6 +10,7 @@ from nkms_eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer
 
 class TesterBlockchain(TheBlockchain):
     """Transient, in-memory, local, private chain"""
+
     _network = 'tester'
 
     def wait_time(self, wait_hours, step=50):
@@ -19,9 +21,26 @@ class TesterBlockchain(TheBlockchain):
         while self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber).timestamp < end_timestamp:
             self._chain.wait.for_block(self._chain.web3.eth.blockNumber + step)
 
+    def spawn_miners(self, miner_agent: MinerAgent, addresses: list, locktime: int, random_amount=False) -> List[Miner]:
+        """
+        Deposit and lock a random amount of tokens in the miner escrow
+        from each address, "spawning" new Miners.
+        """
+        miners = list()
+        for address in addresses:
+            miner = Miner(miner_agent=miner_agent, address=address)
+            miners.append(miner)
+
+            if random_amount is True:
+                amount = (10 + random.randrange(9000)) * miner_agent._deployer._M
+            else:
+                amount = miner.token_balance() // 2    # stake half
+            miner.stake(amount=amount, locktime=locktime, auto_switch_lock=True)
+
+        return miners
+
 
 class MockNuCypherKMSTokenDeployer(NuCypherKMSTokenDeployer):
-    _M = 10 ** 6    #TODO
 
     def _global_airdrop(self, amount: int):
         """Airdrops from creator address to all other addresses!"""
@@ -30,12 +49,14 @@ class MockNuCypherKMSTokenDeployer(NuCypherKMSTokenDeployer):
 
         def txs():
             for address in addresses:
-                yield self._contract.transact({'from': self._creator}).transfer(address, amount * (10 ** 6))
+                txhash = self._contract.transact({'from': self._creator}).transfer(address, amount)
+                yield txhash
 
-        for tx in txs():
-            self.blockchain._chain.wait.for_receipt(tx, timeout=10)
-
-        return self    # for method chaining
+        receipts = []
+        for tx in txs():    # One at a time
+            receipt = self.blockchain.wait_for_receipt(tx)
+            receipts.append(receipt)
+        return receipts
 
 
 class MockNuCypherMinerConfig(NuCypherMinerConfig):
@@ -51,15 +72,3 @@ class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNuCypherMinerConfig):
 class MockMinerAgent(MinerAgent):
     """MinerAgent with faked config subclass"""
     _deployer = MockMinerEscrowDeployer
-
-
-def spawn_miners(addresses: list, miner_agent: MinerAgent, m: int, locktime: int) -> None:
-    """
-    Deposit and lock a random amount of tokens in the miner escrow
-    from each address, "spawning" new Miners.
-    """
-    # Create n Miners
-    for address in addresses:
-        miner = Miner(miner_agent=miner_agent, address=address)
-        amount = (10+random.randrange(9000)) * m
-        miner.lock(amount=amount, locktime=locktime)

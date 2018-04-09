@@ -1,12 +1,20 @@
 import random
 from abc import ABC
+from enum import Enum
+
 from functools import partial
 from typing import Set, Generator, List
+
+from web3.contract import Contract
 
 from nkms_eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer, PolicyManagerDeployer, ContractDeployer
 
 
 class EthereumContractAgent(ABC):
+    """
+    Base class for ethereum contract wrapper types that interact with blockchain contract instances
+    """
+
     _principal_contract_name = NotImplemented
 
     class ContractNotDeployed(ContractDeployer.ContractDeploymentError):
@@ -15,7 +23,7 @@ class EthereumContractAgent(ABC):
     def __init__(self, blockchain, *args, **kwargs):
 
         self.blockchain = blockchain
-        self._contract = self.blockchain._chain.provider.get_contract(self._principal_contract_name)
+        # self._contract = Contract(address)
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -38,6 +46,16 @@ class EthereumContractAgent(ABC):
         return self.blockchain._chain.web3.eth.accounts[0]    # TODO: make swappable
 
     def read(self):
+        """
+        Returns an object that exposes the contract instance functions.
+
+        This method is intended for use with method chaining,
+        results in zero state changes, and costs zero gas.
+        Useful as a dry-run before sending an actual transaction.
+
+        See more on interacting with contract instances in the Populus docs:
+        http://populus.readthedocs.io/en/latest/dev_cycle.part-07.html#call-an-instance-function
+        """
         return self._contract.call()
 
     def transact(self, payload: dict):
@@ -77,6 +95,25 @@ class MinerAgent(EthereumContractAgent):
     class NotEnoughUrsulas(Exception):
         pass
 
+    class MinerInfo(Enum):
+        MINERS_LENGTH = 0
+        MINER = 1
+        VALUE = 2
+        DECIMALS = 3
+        LOCKED_VALUE = 4
+        RELEASE = 5
+        MAX_RELEASE_PERIODS = 6
+        RELEASE_RATE = 7
+        CONFIRMED_PERIODS_LENGTH = 8
+        CONFIRMED_PERIOD = 9
+        CONFIRMED_PERIOD_LOCKED_VALUE = 10
+        LAST_ACTIVE_PERIOD_F = 11
+        DOWNTIME_LENGTH = 12
+        DOWNTIME_START_PERIOD = 13
+        DOWNTIME_END_PERIOD = 14
+        MINER_IDS_LENGTH = 15
+        MINER_ID = 16
+
     def __init__(self, token_agent: NuCypherKMSTokenAgent):
         super().__init__(blockchain=token_agent.blockchain)  # TODO: public
         self.token_agent = token_agent
@@ -96,8 +133,10 @@ class MinerAgent(EthereumContractAgent):
         Miner addresses will be returned in the order in which they were added to the MinersEscrow's ledger
         """
 
-        # TODO - Partial;
-        info_reader = partial(self.read().getMinerInfo, self._deployer.MinerInfoField.MINERS_LENGTH.value, self._deployer._null_addr)
+        info_reader = partial(self.read().getMinerInfo,
+                              self.MinerInfo.MINERS_LENGTH.value,
+                              self._deployer._null_addr)
+
         count = info_reader(0).encode('latin-1')
         count = self.blockchain._chain.web3.toInt(count)
 
@@ -154,10 +193,6 @@ class PolicyAgent(EthereumContractAgent):
 
     _deployer = PolicyManagerDeployer
     _principal_contract_name = PolicyManagerDeployer._contract_name
-
-    def __init__(self, miner_agent):
-        super().__init__(blockchain=miner_agent.blockchain)
-        self.miner_agent = miner_agent
 
     def fetch_arrangement_data(self, arrangement_id: bytes) -> list:
         blockchain_record = self.read().policies(arrangement_id)

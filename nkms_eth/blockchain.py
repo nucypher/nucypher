@@ -1,6 +1,6 @@
 from abc import ABC
 
-from nkms_eth.config import PopulusConfig
+from nkms_eth.config import EthereumConfig
 
 
 class TheBlockchain(ABC):
@@ -22,10 +22,10 @@ class TheBlockchain(ABC):
     transient_chains = test_chains + ('testrpc', 'temp')
     public_chains = ('mainnet', 'ropsten')
 
-    class IsAlreadyRunning(Exception):
+    class IsAlreadyRunning(RuntimeError):
         pass
 
-    def __init__(self, populus_config: PopulusConfig=None):
+    def __init__(self, eth_config: EthereumConfig):
         """
         Configures a populus project and connects to blockchain.network.
         Transaction timeouts specified measured in seconds.
@@ -36,17 +36,12 @@ class TheBlockchain(ABC):
 
         # Singleton
         if TheBlockchain.__instance is not None:
-            message = '{} is already running. Use .get() to retrieve'.format(self._network)
+            message = '{} is already running on {}. Use .get() to retrieve'.format(self.__class__.__name__, self._network)
             raise TheBlockchain.IsAlreadyRunning(message)
         TheBlockchain.__instance = self
 
-        if populus_config is None:
-            populus_config = PopulusConfig()
-        self._populus_config = populus_config
-        self._project = populus_config.project
-
-        # Opens and preserves connection to a running populus blockchain
-        self._chain = self._project.get_chain(self._network).__enter__()
+        self._eth_config = eth_config
+        self._chain = eth_config.provider  # TODO
 
     @classmethod
     def get(cls):
@@ -78,7 +73,8 @@ class TheBlockchain(ABC):
         if timeout is None:
             timeout = self._default_timeout
 
-        self._chain.wait.for_receipt(txhash, timeout=timeout)
+        result = self._chain.wait.for_receipt(txhash, timeout=timeout)
+        return result
 
 # class TestRpcBlockchain:
 #
