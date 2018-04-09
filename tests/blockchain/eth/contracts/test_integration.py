@@ -64,7 +64,7 @@ def escrow(web3, chain, token):
 
     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
 
-    # Deploy second version of the government contract
+    # Wrap dispatcher contract
     contract = web3.eth.contract(abi=contract.abi, address=dispatcher.address, ContractFactoryClass=Contract)
     return contract
 
@@ -77,7 +77,7 @@ def policy_manager(web3, chain, escrow):
     contract, _ = chain.provider.deploy_contract('PolicyManager', escrow.address)
     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
 
-    # Deploy second version of the government contract
+    # Wrap dispatcher contract
     contract = web3.eth.contract(abi=contract.abi, address=dispatcher.address, ContractFactoryClass=Contract)
 
     tx = escrow.transact({'from': creator}).setPolicyManager(contract.address)

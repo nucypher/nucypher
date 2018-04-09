@@ -297,7 +297,7 @@ def test_escrow(web3, chain, token, escrow_contract):
     chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': ursula2}).switchLock()
     chain.wait_for_receipt(tx)
-    assert 500 == escrow.call().getLockedTokens(ursula2)
+    assert 1000 == escrow.call().getLockedTokens(ursula2)
     assert 1000 == escrow.call().calculateLockedTokens(ursula2, 1)
     assert 500 == escrow.call().calculateLockedTokens(ursula2, 2)
     assert 0 == escrow.call().calculateLockedTokens(ursula2, 3)

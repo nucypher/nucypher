@@ -68,16 +68,19 @@ contract MinersEscrow is Issuer {
         uint256 maxReleasePeriods;
         uint256 releaseRate;
         // periods that confirmed but not yet mined
-        ConfirmedPeriodInfo[] confirmedPeriods;
+        // two values instead of array for optimisation
+        ConfirmedPeriodInfo confirmedPeriod1;
+        ConfirmedPeriodInfo confirmedPeriod2;
         // downtime
         uint256 lastActivePeriod;
         Downtime[] downtime;
         bytes32[] minerIds;
     }
 
-    uint256 constant MAX_PERIODS = 3;
+    uint256 constant EMPTY_CONFIRMED_PERIOD = 0;
     uint256 constant MAX_OWNERS = 50000;
     uint256 constant RESERVED_PERIOD = 0;
+    uint256 constant MAX_CHECKED_VALUES = 5;
 
     mapping (address => MinerInfo) minerInfo;
     address[] miners;
@@ -144,21 +147,21 @@ contract MinersEscrow is Issuer {
         MinerInfo storage info = minerInfo[_owner];
 
         // no confirmed periods, so current period may be release period
-        if (info.confirmedPeriods.length == 0) {
+        if (info.confirmedPeriod1.period == EMPTY_CONFIRMED_PERIOD &&
+            info.confirmedPeriod2.period == EMPTY_CONFIRMED_PERIOD) {
             uint256 lockedValue = info.lockedValue;
         } else {
-            uint256 i = info.confirmedPeriods.length - 1;
-            ConfirmedPeriodInfo storage confirmedPeriod = info.confirmedPeriods[i];
-            // last confirmed period is current period
-            if (confirmedPeriod.period == currentPeriod) {
-                return confirmedPeriod.lockedValue;
-            // last confirmed period is previous periods, so current period may be release period
-            } else if (confirmedPeriod.period < currentPeriod) {
-                lockedValue = confirmedPeriod.lockedValue;
-            // penultimate confirmed period is previous or current period, so get its lockedValue
-            } else if (info.confirmedPeriods.length > 1) {
-                return info.confirmedPeriods[info.confirmedPeriods.length - 2].lockedValue;
-            // no previous periods, so return saved lockedValue
+            // one of confirmed periods is current period
+            if (info.confirmedPeriod1.period == currentPeriod) {
+                return info.confirmedPeriod1.lockedValue;
+            } else if (info.confirmedPeriod2.period == currentPeriod) {
+                return info.confirmedPeriod2.lockedValue;
+            // both of confirmed periods are previous periods, so current period may be release period
+            } else if (info.confirmedPeriod1.period < currentPeriod &&
+                info.confirmedPeriod2.period < currentPeriod) {
+                lockedValue = info.confirmedPeriod1.period > info.confirmedPeriod2.period ?
+                    info.confirmedPeriod1.lockedValue : info.confirmedPeriod2.lockedValue;
+            // no previous periods (all of them are mined), so return saved lockedValue
             } else {
                 return info.lockedValue;
             }
@@ -217,39 +220,24 @@ contract MinersEscrow is Issuer {
         uint256 nextPeriod = currentPeriod.add(_periods);
 
         MinerInfo storage info = minerInfo[_owner];
-        if (info.confirmedPeriods.length > 0 &&
-            info.confirmedPeriods[info.confirmedPeriods.length - 1].period >= currentPeriod) {
-            ConfirmedPeriodInfo storage confirmedPeriod =
-                info.confirmedPeriods[info.confirmedPeriods.length - 1];
-            uint256 lockedTokens = confirmedPeriod.lockedValue;
-            uint256 period = confirmedPeriod.period;
+        // check future confirmed period first
+        if (info.confirmedPeriod1.period > currentPeriod) {
+            uint256 lockedTokens = info.confirmedPeriod1.lockedValue;
+            uint256 period = info.confirmedPeriod1.period;
+        } else if (info.confirmedPeriod2.period > currentPeriod) {
+            lockedTokens = info.confirmedPeriod2.lockedValue;
+            period = info.confirmedPeriod2.period;
         } else {
             lockedTokens = getLockedTokens(_owner);
             period = currentPeriod;
         }
-        uint256 periods = nextPeriod.sub(period);
 
+        uint256 periods = nextPeriod.sub(period);
         return calculateLockedTokens(_owner, false, lockedTokens, periods);
     }
 
-    /**
-    * @notice Calculate locked periods for owner from start period
-    * @param _owner Tokens owner
-    * @param _lockedTokens Locked tokens in start period
-    * @return Calculated locked periods
-    **/
-    function calculateLockedPeriods(
-        address _owner,
-        uint256 _lockedTokens
-    )
-        internal view returns (uint256)
-    {
-        MinerInfo storage info = minerInfo[_owner];
-        return _lockedTokens.divCeil(info.releaseRate).sub(uint(1));
-    }
 
     /**
-
     * @notice Pre-deposit tokens
     * @param _owners Tokens owners
     * @param _values Amount of token to deposit for each owner
@@ -274,7 +262,6 @@ contract MinersEscrow is Issuer {
                 value >= minAllowableLockedTokens &&
                 value <= maxAllowableLockedTokens &&
                 periods >= minReleasePeriods);
-            // TODO optimize
             miners.push(owner);
             info.lastActivePeriod = currentPeriod;
             info.value = value;
@@ -315,6 +302,7 @@ contract MinersEscrow is Issuer {
     **/
     function lock(uint256 _value, uint256 _periods) public onlyTokenOwner {
         require(_value != 0 || _periods != 0);
+        mint();
 
         uint256 lockedTokens = calculateLockedTokens(msg.sender, 1);
         MinerInfo storage info = minerInfo[msg.sender];
@@ -337,7 +325,6 @@ contract MinersEscrow is Issuer {
 
         confirmActivity(info.lockedValue);
         Locked(msg.sender, info.lockedValue, info.releaseRate);
-        mint();
     }
 
     /**
@@ -374,21 +361,27 @@ contract MinersEscrow is Issuer {
         MinerInfo storage info = minerInfo[msg.sender];
         uint256 nextPeriod = getCurrentPeriod() + 1;
 
-        if (info.confirmedPeriods.length > 0 &&
-            info.confirmedPeriods[info.confirmedPeriods.length - 1].period == nextPeriod) {
-            ConfirmedPeriodInfo storage confirmedPeriod =
-                info.confirmedPeriods[info.confirmedPeriods.length - 1];
+        // update lockedValue if the period has already been confirmed
+        if (info.confirmedPeriod1.period == nextPeriod) {
             lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod]
-                .add(_lockedValue.sub(confirmedPeriod.lockedValue));
-            confirmedPeriod.lockedValue = _lockedValue;
+                .add(_lockedValue.sub(info.confirmedPeriod1.lockedValue));
+            info.confirmedPeriod1.lockedValue = _lockedValue;
+            ActivityConfirmed(msg.sender, nextPeriod, _lockedValue);
+            return;
+        } else if (info.confirmedPeriod2.period == nextPeriod) {
+            lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod]
+                .add(_lockedValue.sub(info.confirmedPeriod2.lockedValue));
+            info.confirmedPeriod2.lockedValue = _lockedValue;
             ActivityConfirmed(msg.sender, nextPeriod, _lockedValue);
             return;
         }
 
-//        require(info.confirmedPeriods.length < MAX_PERIODS);
-        lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod]
-            .add(_lockedValue);
-        info.confirmedPeriods.push(ConfirmedPeriodInfo(nextPeriod, _lockedValue));
+        lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod].add(_lockedValue);
+        if (info.confirmedPeriod1.period == EMPTY_CONFIRMED_PERIOD) {
+            info.confirmedPeriod1 = ConfirmedPeriodInfo(nextPeriod, _lockedValue);
+        } else {
+            info.confirmedPeriod2 = ConfirmedPeriodInfo(nextPeriod, _lockedValue);
+        }
 
         uint256 currentPeriod = nextPeriod - 1;
         if (info.lastActivePeriod < currentPeriod) {
@@ -407,9 +400,10 @@ contract MinersEscrow is Issuer {
         uint256 currentPeriod = getCurrentPeriod();
         uint256 nextPeriod = currentPeriod + 1;
 
-        if (info.confirmedPeriods.length > 0 &&
-            info.confirmedPeriods[info.confirmedPeriods.length - 1].period >= nextPeriod) {
-           return;
+        // the period has already been confirmed
+        if (info.confirmedPeriod1.period == nextPeriod ||
+            info.confirmedPeriod2.period == nextPeriod) {
+            return;
         }
 
         uint256 lockedTokens = calculateLockedTokens(
@@ -423,49 +417,67 @@ contract MinersEscrow is Issuer {
     function mint() public onlyTokenOwner {
         uint256 previousPeriod = getCurrentPeriod().sub(uint(1));
         MinerInfo storage info = minerInfo[msg.sender];
-        uint256 numberPeriodsForMinting = info.confirmedPeriods.length;
-        if (numberPeriodsForMinting == 0 || info.confirmedPeriods[0].period > previousPeriod) {
+
+        if (info.confirmedPeriod1.period > previousPeriod &&
+            info.confirmedPeriod2.period > previousPeriod ||
+            info.confirmedPeriod1.period > previousPeriod &&
+            info.confirmedPeriod2.period == EMPTY_CONFIRMED_PERIOD ||
+            info.confirmedPeriod2.period > previousPeriod &&
+            info.confirmedPeriod1.period == EMPTY_CONFIRMED_PERIOD ||
+            info.confirmedPeriod1.period == EMPTY_CONFIRMED_PERIOD &&
+            info.confirmedPeriod2.period == EMPTY_CONFIRMED_PERIOD) {
             return;
         }
-
         uint256 currentLockedValue = getLockedTokens(msg.sender);
-        ConfirmedPeriodInfo storage last = info.confirmedPeriods[numberPeriodsForMinting - 1];
-        uint256 allLockedPeriods = last.lockedValue
-            .divCeil(info.releaseRate)
-            .sub(uint(1))
-            .add(numberPeriodsForMinting);
 
-        if (last.period > previousPeriod) {
-            numberPeriodsForMinting--;
+        ConfirmedPeriodInfo storage first;
+        ConfirmedPeriodInfo storage last;
+        if (info.confirmedPeriod1.period > info.confirmedPeriod2.period) {
+            last = info.confirmedPeriod1;
+            first = info.confirmedPeriod2;
+        } else {
+            first = info.confirmedPeriod1;
+            last = info.confirmedPeriod2;
         }
-        if (info.confirmedPeriods[numberPeriodsForMinting - 1].period > previousPeriod) {
-            numberPeriodsForMinting--;
+        uint256 allLockedPeriods = last.lockedValue.divCeil(info.releaseRate);
+
+        if (first.period != EMPTY_CONFIRMED_PERIOD) {
+            allLockedPeriods = allLockedPeriods.add(uint256(1));
         }
 
         uint256 reward = 0;
-        for(uint i = 0; i < numberPeriodsForMinting; ++i) {
+        if (first.period != EMPTY_CONFIRMED_PERIOD) {
             uint256 amount;
-            uint256 period = info.confirmedPeriods[i].period;
-            uint256 lockedValue = info.confirmedPeriods[i].lockedValue;
             allLockedPeriods--;
             (amount, info.decimals) = mint(
                 previousPeriod,
-                lockedValue,
-                lockedPerPeriod[period],
+                first.lockedValue,
+                lockedPerPeriod[first.period],
                 allLockedPeriods,
                 info.decimals);
             reward = reward.add(amount);
             // TODO remove if
             if (address(policyManager) != 0x0) {
-                policyManager.updateReward(msg.sender, period);
+                policyManager.updateReward(msg.sender, first.period);
             }
+            first.period = EMPTY_CONFIRMED_PERIOD;
+        }
+        if (last.period <= previousPeriod) {
+            allLockedPeriods--;
+            (amount, info.decimals) = mint(
+                previousPeriod,
+                last.lockedValue,
+                lockedPerPeriod[last.period],
+                allLockedPeriods,
+                info.decimals);
+            reward = reward.add(amount);
+            // TODO remove if
+            if (address(policyManager) != 0x0) {
+                policyManager.updateReward(msg.sender, last.period);
+            }
+            last.period = EMPTY_CONFIRMED_PERIOD;
         }
         info.value = info.value.add(reward);
-        // Copy not minted periods
-        for (i = 0; i < info.confirmedPeriods.length - numberPeriodsForMinting; i++) {
-            info.confirmedPeriods[i] = info.confirmedPeriods[numberPeriodsForMinting + i];
-        }
-        info.confirmedPeriods.length -= numberPeriodsForMinting;
 
         // Update lockedValue for current period
         info.lockedValue = currentLockedValue;
@@ -500,27 +512,31 @@ contract MinersEscrow is Issuer {
         for (uint256 i = _startIndex; i < miners.length; i++) {
             address current = miners[i];
             MinerInfo storage info = minerInfo[current];
-            if (info.confirmedPeriods.length == 0) {
-                continue;
-            }
-            ConfirmedPeriodInfo storage confirmedPeriod =
-                info.confirmedPeriods[info.confirmedPeriods.length - 1];
-            if (confirmedPeriod.period == currentPeriod) {
-                uint256 lockedTokens = calculateLockedTokens(
-                    current,
-                    true,
-                    confirmedPeriod.lockedValue,
-                    _periods);
-            } else if (info.confirmedPeriods.length > 1 &&
-                info.confirmedPeriods[info.confirmedPeriods.length - 2].period == currentPeriod) {
-                lockedTokens = calculateLockedTokens(
-                    current,
-                    true,
-                    confirmedPeriod.lockedValue,
-                    _periods - 1);
+
+            uint256 lockedValue;
+            uint256 periods = _periods;
+            if (info.confirmedPeriod1.period == currentPeriod) {
+                if (info.confirmedPeriod2.period > info.confirmedPeriod1.period) {
+                    lockedValue = info.confirmedPeriod2.lockedValue;
+                    periods--;
+                } else {
+                    lockedValue = info.confirmedPeriod1.lockedValue;
+                }
+            } else if (info.confirmedPeriod2.period == currentPeriod) {
+                if (info.confirmedPeriod1.period > info.confirmedPeriod2.period) {
+                    lockedValue = info.confirmedPeriod1.lockedValue;
+                    periods--;
+                } else {
+                    lockedValue = info.confirmedPeriod2.lockedValue;
+                }
             } else {
                 continue;
             }
+            uint256 lockedTokens = calculateLockedTokens(
+                current,
+                true,
+                lockedValue,
+                periods);
 
             if (_delta < distance + lockedTokens) {
                 stop = current;
@@ -579,11 +595,14 @@ contract MinersEscrow is Issuer {
         } else if (_field == MinerInfoField.ReleaseRate) {
             return bytes32(info.releaseRate);
         } else if (_field == MinerInfoField.ConfirmedPeriodsLength) {
-            return bytes32(info.confirmedPeriods.length);
+            return bytes32(2);
         } else if (_field == MinerInfoField.ConfirmedPeriod) {
-            return bytes32(info.confirmedPeriods[_index].period);
+            ConfirmedPeriodInfo storage periodInfo = _index == 0 ?
+                info.confirmedPeriod1 : info.confirmedPeriod2;
+            return bytes32(periodInfo.period);
         } else if (_field == MinerInfoField.ConfirmedPeriodLockedValue) {
-            return bytes32(info.confirmedPeriods[_index].lockedValue);
+            periodInfo = _index == 0 ? info.confirmedPeriod1 : info.confirmedPeriod2;
+            return bytes32(periodInfo.lockedValue);
         } else if (_field == MinerInfoField.LastActivePeriod) {
             return bytes32(info.lastActivePeriod);
         } else if (_field == MinerInfoField.DowntimeLength) {
@@ -633,21 +652,24 @@ contract MinersEscrow is Issuer {
             bytes32(uint8(MinerInfoField.MaxReleasePeriods)), miner, 0)) == info.maxReleasePeriods);
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
             bytes32(uint8(MinerInfoField.ReleaseRate)), miner, 0)) == info.releaseRate);
+        ConfirmedPeriodInfo storage confirmedPeriod = info.confirmedPeriod1;
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint8(MinerInfoField.ConfirmedPeriodsLength)), miner, 0)) == info.confirmedPeriods.length);
-        for (uint256 i = 0; i < info.confirmedPeriods.length; i++) {
-            ConfirmedPeriodInfo storage confirmedPeriod = info.confirmedPeriods[i];
-            require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint8(MinerInfoField.ConfirmedPeriod)), miner, bytes32(i))) == confirmedPeriod.period);
-            require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint8(MinerInfoField.ConfirmedPeriodLockedValue)), miner, bytes32(i))) ==
-                confirmedPeriod.lockedValue);
-        }
+            bytes32(uint8(MinerInfoField.ConfirmedPeriod)), miner, 0)) == confirmedPeriod.period);
+        require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
+            bytes32(uint8(MinerInfoField.ConfirmedPeriodLockedValue)), miner, 0)) ==
+            confirmedPeriod.lockedValue);
+        confirmedPeriod = info.confirmedPeriod2;
+        require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
+            bytes32(uint8(MinerInfoField.ConfirmedPeriod)), miner, 1)) == confirmedPeriod.period);
+        require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
+            bytes32(uint8(MinerInfoField.ConfirmedPeriodLockedValue)), miner, 1)) ==
+            confirmedPeriod.lockedValue);
+
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
             bytes32(uint8(MinerInfoField.LastActivePeriod)), miner, 0)) == info.lastActivePeriod);
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
             bytes32(uint8(MinerInfoField.DowntimeLength)), miner, 0)) == info.downtime.length);
-        for (i = 0; i < info.downtime.length && i < 10; i++) {
+        for (uint256 i = 0; i < info.downtime.length && i < MAX_CHECKED_VALUES; i++) {
             Downtime storage downtime = info.downtime[i];
             require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
                 bytes32(uint8(MinerInfoField.DowntimeStartPeriod)), miner, bytes32(i))) == downtime.startPeriod);
@@ -656,7 +678,7 @@ contract MinersEscrow is Issuer {
         }
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
             bytes32(uint8(MinerInfoField.MinerIdsLength)), miner, 0)) == info.minerIds.length);
-        for (i = 0; i < info.minerIds.length && i < 10; i++) {
+        for (i = 0; i < info.minerIds.length && i < MAX_CHECKED_VALUES; i++) {
             require(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
                 bytes32(uint8(MinerInfoField.MinerId)), miner, bytes32(i)) == info.minerIds[i]);
         }
