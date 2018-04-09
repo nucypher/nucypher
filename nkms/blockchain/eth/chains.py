@@ -1,7 +1,5 @@
 import random
 from abc import ABC
-from typing import List
-
 
 from nkms.config.configs import EthereumConfig
 
@@ -93,7 +91,7 @@ class TesterBlockchain(TheBlockchain):
         while self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber).timestamp < end_timestamp:
             self._chain.wait.for_block(self._chain.web3.eth.blockNumber + step)
 
-    def spawn_miners(self, miner_agent, addresses: list, locktime: int, random_amount=False) -> list():
+    def spawn_miners(self, miner_agent, addresses: list, locktime: int, random_amount=False) -> list:
         """
         Deposit and lock a random amount of tokens in the miner escrow
         from each address, "spawning" new Miners.
@@ -114,6 +112,7 @@ class TesterBlockchain(TheBlockchain):
         return miners
 
     def _global_airdrop(self, token_agent, amount: int):
+
         """Airdrops from creator address to all other addresses!"""
 
         _creator, *addresses = self._chain.web3.eth.accounts
