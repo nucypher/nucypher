@@ -1,7 +1,7 @@
 import pytest
 from ethereum.tester import TransactionFailed
 import os
-from populus.contracts.contract import PopulusContract
+from web3.contract import Contract
 
 
 CLIENT_FIELD = 0
@@ -58,7 +58,7 @@ def policy_manager(web3, chain, escrow, request):
         contract = web3.eth.contract(
             contract.abi,
             dispatcher.address,
-            ContractFactoryClass=PopulusContract)
+            ContractFactoryClass=Contract)
 
     tx = escrow.transact({'from': creator}).setPolicyManager(contract.address)
     chain.wait.for_receipt(tx)
@@ -608,7 +608,7 @@ def test_verifying_state(web3, chain):
     contract = web3.eth.contract(
         contract_library_v2.abi,
         dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
 
     # Upgrade to the second version
     assert address1 == contract.call().escrow().lower()

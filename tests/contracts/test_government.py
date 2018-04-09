@@ -1,6 +1,6 @@
 import pytest
 from ethereum.tester import TransactionFailed
-from populus.contracts.contract import PopulusContract
+from web3.contract import Contract
 
 
 NULL_ADDR = '0x' + '0' * 40
@@ -44,7 +44,7 @@ def escrow(web3, chain):
     escrow = web3.eth.contract(
         escrow_library.abi,
         escrow_dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
     return escrow
 
 
@@ -76,7 +76,7 @@ def test_voting(web3, chain, escrow, policy_manager):
     government = web3.eth.contract(
         government_library.abi,
         government_dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
 
     # Transfer ownership
     tx = government.transact({'from': creator}).transferOwnership(government.address)
@@ -250,7 +250,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     government = web3.eth.contract(
         government_library_v1.abi,
         government_dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
 
     # Deploy second version of the government contract
     government_library_v2, _ = chain.provider.deploy_contract(
@@ -450,7 +450,7 @@ def test_verifying_state(web3, chain):
     government = web3.eth.contract(
         government_library_v2.abi,
         government_dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
 
     # Upgrade to the second version
     tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_v2.address)

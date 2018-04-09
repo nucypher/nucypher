@@ -1,6 +1,6 @@
 import pytest
 from ethereum.tester import TransactionFailed
-from populus.contracts.contract import PopulusContract
+from web3.contract import Contract
 
 
 def test_dispatcher(web3, chain):
@@ -38,7 +38,7 @@ def test_dispatcher(web3, chain):
     contract_instance = web3.eth.contract(
         contract_interface.abi,
         dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
 
     # Only owner can change target address for dispatcher
     with pytest.raises(TransactionFailed):
@@ -128,7 +128,7 @@ def test_dispatcher(web3, chain):
     contract_instance = web3.eth.contract(
         contract2_lib.abi,
         dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
 
     # Check new method and finish upgrade method
     assert contract_instance.call().storageValueToCheck() == 1
@@ -182,7 +182,7 @@ def test_dispatcher(web3, chain):
     contract_instance = web3.eth.contract(
         contract1_lib.abi,
         dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
     tx = contract_instance.transact().createEvent(33)
     chain.wait.for_receipt(tx)
     events = contract_instance.pastEvents('EventV1').get()
@@ -197,7 +197,7 @@ def test_dispatcher(web3, chain):
     contract_instance = web3.eth.contract(
         contract2_lib.abi,
         dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
     assert dispatcher.call().target().lower() == contract3_lib.address.lower()
     assert contract_instance.call().returnValue() == 20
     assert contract_instance.call().getStorageValue() == 5
@@ -237,7 +237,7 @@ def test_dispatcher(web3, chain):
     contract_instance = web3.eth.contract(
         contract1_lib.abi,
         dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
     events = contract_instance.pastEvents('EventV1').get()
     assert 1 == len(events)
     assert 33 == events[0]['args']['value']
