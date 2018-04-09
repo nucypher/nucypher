@@ -62,28 +62,25 @@ class ContractDeployer:
 
         rules = (
             (self.is_armed is True, 'Contract not armed'),
-
             (self.is_deployed is not True, 'Contract already deployed'),
-
             (self.blockchain._chain.provider.are_contract_dependencies_available(self._contract_name),
-             'Blockchain contract dependencies unmet')
+             'Blockchain contract dependencies unmet'),
 
             )
 
-        reasons, ready = list(), True
-        for rule, failure_reason in rules:
-            if not rule:                            # If this rule fails...
-                ready = False                       # it's not ready to be deployed
-
+        disqualifications = list()
+        for failed_rule, failure_reason in rules:
+            if failed_rule is True:                           # If this rule fails...
                 if fail is True:
                     raise self.ContractDeploymentError(failure_reason)
                 else:
-                    reasons.append(failure_reason)  # ...and here's why
+                    disqualifications.append(failure_reason)  # ...and here's why
                     continue
 
-        return ready, reasons
+        is_ready = True if len(disqualifications) == 0 else False
+        return is_ready, disqualifications
 
-    def _ensure_contract_deployment(self) -> None:
+    def _ensure_contract_deployment(self) -> bool:
         """Raises ContractDeploymentError if the contract has not been armed and deployed."""
 
         if self._contract is None:
@@ -121,10 +118,10 @@ class ContractDeployer:
         # If the blockchain network is public, prompt the user
         if self.blockchain._network not in self.blockchain.test_chains:
             message = """
-            Are you sure you want to deploy {} on the {} network?
+            Are you sure you want to deploy {contract} on the {network} network?
             
-            Type {} to arm the deployer.
-            """.format(self._arming_word, self._contract_name, self.blockchain._network)
+            Type {word} to arm the deployer.
+            """.format(contract=self._contract_name, network=self.blockchain._network, word=self._arming_word)
 
             answer = input(message)
             if answer == self._arming_word:
@@ -184,7 +181,8 @@ class NuCypherKMSTokenDeployer(ContractDeployer, NuCypherTokenConfig):
 
 class DispatcherDeployer(ContractDeployer):
     """
-    Take another contract as an arg
+    Ethereum smart contract that acts as a proxy to another ethereum contract,
+    used as a means of "dispatching" the correct version of the contract to the client
     """
 
     _contract_name = 'Dispatcher'
@@ -194,7 +192,7 @@ class DispatcherDeployer(ContractDeployer):
         self.target_contract = target_contract
         super().__init__(blockchain=token_agent.blockchain)
 
-    def deploy(self):
+    def deploy(self) -> str:
         dispatcher_contract, txhash = self.blockchain._chain.provider.deploy_contract(
             'Dispatcher', deploy_args=[self.target_contract.address],
             deploy_transaction={'from': self.token_agent.origin})
@@ -242,7 +240,7 @@ class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
             deploy_contract(self._contract_name,
                             deploy_args=deploy_args,
                             deploy_transaction=origin_args)
-        deploy_receipt = self.blockchain.wait_for_receipt(deploy_txhash)
+        _deploy_receipt = self.blockchain.wait_for_receipt(deploy_txhash)
 
         # 2 - Deploy the dispatcher used for updating this contract #
         dispatcher_deployer = DispatcherDeployer(token_agent=self.token_agent, target_contract=the_escrow_contract)
@@ -262,11 +260,11 @@ class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
 
         # 3 - Transfer tokens to the miner escrow #
         reward_txhash = self.token_agent.transact(origin_args).transfer(the_escrow_contract.address, self.reward)
-        reward_receipt = self.blockchain.wait_for_receipt(reward_txhash)
+        _reward_receipt = self.blockchain.wait_for_receipt(reward_txhash)
 
         # 4 - Initialize the Miner Escrow contract
         init_txhash = the_escrow_contract.transact().initialize()
-        init_receipt = self.blockchain.wait_for_receipt(init_txhash)
+        _init_receipt = self.blockchain.wait_for_receipt(init_txhash)
 
         # Gather the transaction hashes
         deployment_transactions = {'deploy': deploy_txhash,

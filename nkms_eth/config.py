@@ -40,25 +40,6 @@ class NuCypherMinerConfig:
         __max_allowed_locked
     ]
 
-    class MinerInfoField(Enum):
-        MINERS_LENGTH = 0
-        MINER = 1
-        VALUE = 2
-        DECIMALS = 3
-        LOCKED_VALUE = 4
-        RELEASE = 5
-        MAX_RELEASE_PERIODS = 6
-        RELEASE_RATE = 7
-        CONFIRMED_PERIODS_LENGTH = 8
-        CONFIRMED_PERIOD = 9
-        CONFIRMED_PERIOD_LOCKED_VALUE = 10
-        LAST_ACTIVE_PERIOD_F = 11
-        DOWNTIME_LENGTH = 12
-        DOWNTIME_START_PERIOD = 13
-        DOWNTIME_END_PERIOD = 14
-        MINER_IDS_LENGTH = 15
-        MINER_ID = 16
-
     @property
     def null_address(self):
         return self._null_addr

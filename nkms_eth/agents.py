@@ -91,6 +91,25 @@ class MinerAgent(EthereumContractAgent):
     class NotEnoughUrsulas(Exception):
         pass
 
+    class MinerInfoField(Enum):
+        MINERS_LENGTH = 0
+        MINER = 1
+        VALUE = 2
+        DECIMALS = 3
+        LOCKED_VALUE = 4
+        RELEASE = 5
+        MAX_RELEASE_PERIODS = 6
+        RELEASE_RATE = 7
+        CONFIRMED_PERIODS_LENGTH = 8
+        CONFIRMED_PERIOD = 9
+        CONFIRMED_PERIOD_LOCKED_VALUE = 10
+        LAST_ACTIVE_PERIOD_F = 11
+        DOWNTIME_LENGTH = 12
+        DOWNTIME_START_PERIOD = 13
+        DOWNTIME_END_PERIOD = 14
+        MINER_IDS_LENGTH = 15
+        MINER_ID = 16
+
     def __init__(self, token_agent: NuCypherKMSTokenAgent):
         super().__init__(blockchain=token_agent.blockchain)  # TODO: public
         self.token_agent = token_agent
@@ -110,8 +129,10 @@ class MinerAgent(EthereumContractAgent):
         Miner addresses will be returned in the order in which they were added to the MinersEscrow's ledger
         """
 
-        # TODO - Partial;
-        info_reader = partial(self.read().getMinerInfo, self._deployer.MinerInfoField.MINERS_LENGTH.value, self._deployer._null_addr)
+        info_reader = partial(self.read().getMinerInfo,
+                              self.MinerInfoField.MINERS_LENGTH.value,
+                              self._deployer._null_addr)
+
         count = info_reader(0).encode('latin-1')
         count = self.blockchain._chain.web3.toInt(count)
 

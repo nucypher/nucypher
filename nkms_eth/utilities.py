@@ -1,4 +1,5 @@
 import random
+from typing import List
 
 from nkms_eth.actors import Miner
 from nkms_eth.agents import MinerAgent, EthereumContractAgent
@@ -20,21 +21,26 @@ class TesterBlockchain(TheBlockchain):
         while self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber).timestamp < end_timestamp:
             self._chain.wait.for_block(self._chain.web3.eth.blockNumber + step)
 
-    def spawn_miners(self, miner_agent: MinerAgent, addresses: list, locktime: int, m: int) -> None:
+    def spawn_miners(self, miner_agent: MinerAgent, addresses: list, locktime: int, random_amount=False) -> List[Miner]:
         """
         Deposit and lock a random amount of tokens in the miner escrow
         from each address, "spawning" new Miners.
         """
+        miners = list()
         for address in addresses:
             miner = Miner(miner_agent=miner_agent, address=address)
-            amount = miner.token_balance() // 2
+            miners.append(miner)
 
-            # amount = (10 + random.randrange(9000)) * m
+            if random_amount is True:
+                amount = (10 + random.randrange(9000)) * miner_agent._deployer._M
+            else:
+                amount = miner.token_balance() // 2    # stake half
             miner.stake(amount=amount, locktime=locktime, auto_switch_lock=True)
+
+        return miners
 
 
 class MockNuCypherKMSTokenDeployer(NuCypherKMSTokenDeployer):
-    _M = 10 ** 6    #TODO: Unify with config class's _M
 
     def _global_airdrop(self, amount: int):
         """Airdrops from creator address to all other addresses!"""
