@@ -1,7 +1,11 @@
 import random
 from abc import ABC
+from enum import Enum
+
 from functools import partial
 from typing import Set, Generator, List
+
+from web3.contract import Contract
 
 from nkms_eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer, PolicyManagerDeployer, ContractDeployer
 
@@ -19,7 +23,7 @@ class EthereumContractAgent(ABC):
     def __init__(self, blockchain, *args, **kwargs):
 
         self.blockchain = blockchain
-        self._contract = self.blockchain._chain.provider.get_contract(self._principal_contract_name)
+        # self._contract = Contract(address)
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -91,7 +95,7 @@ class MinerAgent(EthereumContractAgent):
     class NotEnoughUrsulas(Exception):
         pass
 
-    class MinerInfoField(Enum):
+    class MinerInfo(Enum):
         MINERS_LENGTH = 0
         MINER = 1
         VALUE = 2
@@ -130,7 +134,7 @@ class MinerAgent(EthereumContractAgent):
         """
 
         info_reader = partial(self.read().getMinerInfo,
-                              self.MinerInfoField.MINERS_LENGTH.value,
+                              self.MinerInfo.MINERS_LENGTH.value,
                               self._deployer._null_addr)
 
         count = info_reader(0).encode('latin-1')

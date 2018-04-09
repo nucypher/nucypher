@@ -151,7 +151,7 @@ class Miner(TokenActor):
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
 
-        token_amount_bytes = self.miner_agent.read().getMinerInfo(self.miner_agent._deployer.MinerInfoField.VALUE.value,
+        token_amount_bytes = self.miner_agent.read().getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
                                                                   self.address,
                                                                   0).encode('latin-1')
 
@@ -181,7 +181,7 @@ class Miner(TokenActor):
             raise self.StakingError('Locktime must be at least {}'.format(min_stake_time))
 
         if entire_balance is True:
-            balance_bytes = self.miner_agent.read().getMinerInfo(self.miner_agent._deployer.MinerInfoField.VALUE.value,
+            balance_bytes = self.miner_agent.read().getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
                                                                  self.address,
                                                                  0).encode('latin-1')
 
@@ -212,15 +212,15 @@ class Miner(TokenActor):
     def fetch_data(self) -> tuple:
         """Retrieve all asosciated contract data for this miner."""
 
-        count_bytes = self.miner_agent.read().getMinerInfo(self.miner_agent._deployer.MinerInfoField.MINER_IDS_LENGTH.value,
-                                                     self.address,
-                                                     0).encode('latin-1')  # TODO change when v4 of web3.py is released
+        count_bytes = self.miner_agent.read().getMinerInfo(self.miner_agent.MinerInfo.MINER_IDS_LENGTH.value,
+                                                           self.address,
+                                                           0).encode('latin-1')  # TODO change when v4 of web3.py is released
 
         count = self.blockchain._chain.web3.toInt(count_bytes)
 
         miner_ids = list()
         for index in range(count):
-            miner_id = self.miner_agent.read().getMinerInfo(self.miner_agent._deployer.MinerInfoField.MINER_ID.value,
+            miner_id = self.miner_agent.read().getMinerInfo(self.miner_agent.MinerInfo.MINER_ID.value,
                                                             self.address,
                                                             index)
             encoded_miner_id = miner_id.encode('latin-1')

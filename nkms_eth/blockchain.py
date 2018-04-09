@@ -25,7 +25,7 @@ class TheBlockchain(ABC):
     class IsAlreadyRunning(RuntimeError):
         pass
 
-    def __init__(self, populus_config: EthereumConfig=None):
+    def __init__(self, eth_config: EthereumConfig):
         """
         Configures a populus project and connects to blockchain.network.
         Transaction timeouts specified measured in seconds.
@@ -36,17 +36,12 @@ class TheBlockchain(ABC):
 
         # Singleton
         if TheBlockchain.__instance is not None:
-            message = '{} is already running. Use .get() to retrieve'.format(self._network)
+            message = '{} is already running on {}. Use .get() to retrieve'.format(self.__class__.__name__, self._network)
             raise TheBlockchain.IsAlreadyRunning(message)
         TheBlockchain.__instance = self
 
-        if populus_config is None:
-            populus_config = EthereumConfig()
-        self._populus_config = populus_config
-        self._project = populus_config.project
-
-        # Opens and preserves connection to a running populus blockchain
-        self._chain = self._project.get_chain(self._network).__enter__()
+        self._eth_config = eth_config
+        self._chain = eth_config.provider  # TODO
 
     @classmethod
     def get(cls):

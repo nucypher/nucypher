@@ -1,4 +1,7 @@
+import os
 from enum import Enum
+from pathlib import Path
+
 from os.path import dirname, join, abspath
 
 import appdirs
@@ -55,9 +58,11 @@ class NuCypherMinerConfig:
 
 class EthereumConfig:
     __python_project_name = 'nucypher-kms'
-    __default_solidity_dir = os.path.join()    # TODO
+    # __default_solidity_dir = os.path.join()    # TODO: NKMSConfig Classes
 
-    def __init__(self, registrar_path=None):
+    def __init__(self, provider, registrar_path=None):
+
+        self.provider = provider
 
         # This config is persistent and is created in user's .local directory
         if registrar_path is None:
@@ -67,7 +72,6 @@ class EthereumConfig:
         # Populus project config
         self._project_dir = join(dirname(abspath(nkms_eth.__file__)), 'project')
         self._populus_project = populus.Project(self._project_dir)
-
         self.project.config['chains.mainnetrpc.contracts.backends.JSONFile.settings.file_path'] = self._registrar_path
 
     @property
