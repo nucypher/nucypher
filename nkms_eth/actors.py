@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Tuple, List, Union
 
 from nkms_eth.agents import NuCypherKMSTokenAgent
-from nkms_eth.policies import BlockchainArrangement
 
 
 class TokenActor(ABC):
@@ -19,7 +18,7 @@ class TokenActor(ABC):
             address = address.hex()
         self.address = address
 
-        self._transactions = OrderedDict()    # Tracks
+        self._transactions = list()
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -63,26 +62,25 @@ class Miner(TokenActor):
         self.blockchain = self.token_agent.blockchain
 
         self.__locked_tokens = None
-        self._update_locked_tokens()
+        self.__update_locked_tokens()
 
-    def _update_locked_tokens(self) -> None:
+    def __update_locked_tokens(self) -> None:
         """Query the contract for the amount of locked tokens on this miner's eth address and cache it"""
 
         self.__locked_tokens = self.miner_agent.read().getLockedTokens(self.address)
 
     @property
-    def is_staking(self, query=True):
+    def is_staking(self):
         """Checks if this Miner currently has locked tokens."""
 
-        if query:
-            self._update_locked_tokens()
+        self.__update_locked_tokens()
         return bool(self.__locked_tokens > 0)
 
     @property
     def locked_tokens(self,):
         """Returns the amount of tokens this miner has locked."""
 
-        self._update_locked_tokens()
+        self.__update_locked_tokens()
         return self.__locked_tokens
 
     def _approve_escrow(self, amount: int) -> str:
@@ -91,7 +89,7 @@ class Miner(TokenActor):
         txhash = self.token_agent.transact({'from': self.address}).approve(self.miner_agent.contract_address, amount)
         self.blockchain.wait_for_receipt(txhash)
 
-        self._transactions[datetime.utcnow()] = txhash
+        self._transactions.append((datetime.utcnow(), txhash))
 
         return txhash
 
@@ -101,7 +99,7 @@ class Miner(TokenActor):
         deposit_txhash = self.miner_agent.transact({'from': self.address}).deposit(amount, locktime)
         self.blockchain.wait_for_receipt(deposit_txhash)
 
-        self._transactions[datetime.utcnow()] = deposit_txhash
+        self._transactions.append((datetime.utcnow(), deposit_txhash))
 
         return deposit_txhash
 
@@ -116,7 +114,7 @@ class Miner(TokenActor):
         lock_txhash = self.miner_agent.transact({'from': self.address}).switchLock()
         self.blockchain.wait_for_receipt(lock_txhash)
 
-        self._transactions[datetime.utcnow()] = lock_txhash
+        self._transactions.append((datetime.utcnow(), lock_txhash))
         return lock_txhash
 
     def _confirm_activity(self) -> str:
@@ -125,18 +123,18 @@ class Miner(TokenActor):
         txhash = self.miner_agent.transact({'from': self.address}).confirmActivity()
         self.blockchain.wait_for_receipt(txhash)
 
-        self._transactions[datetime.utcnow()] = txhash
+        self._transactions.append((datetime.utcnow(), txhash))
 
         return txhash
 
-    def mint(self) -> str:
+    def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the miner's account"""
 
         confirm_txhash = self.miner_agent.transact({'from': self.address, 'gas_price': 0}).confirmActivity()
         mint_txhash = self.miner_agent.transact({'from': self.address, 'gas_price': 0}).mint()
 
         self.blockchain.wait_for_receipt(mint_txhash)
-        self._transactions[datetime.utcnow()] = mint_txhash
+        self._transactions.append((datetime.utcnow(), mint_txhash))
 
         return confirm_txhash, mint_txhash
 
@@ -146,7 +144,7 @@ class Miner(TokenActor):
         policy_reward_txhash = policy_manager.transact({'from': self.address}).withdraw()
         self.blockchain.wait_for_receipt(policy_reward_txhash)
 
-        self._transactions[datetime.utcnow()] = policy_reward_txhash
+        self._transactions.append((datetime.utcnow(), policy_reward_txhash))
 
         return policy_reward_txhash
 
@@ -164,7 +162,7 @@ class Miner(TokenActor):
         reward_txhash = self.miner_agent.transact({'from': self.address}).withdraw(token_amount)
 
         self.blockchain.wait_for_receipt(reward_txhash)
-        self._transactions[datetime.utcnow()] = reward_txhash
+        self._transactions.append((datetime.utcnow(), reward_txhash))
 
         return reward_txhash
 
@@ -179,7 +177,8 @@ class Miner(TokenActor):
             raise self.StakingError("Specify an amount or entire balance, not both")
 
         if not locktime >= 0:
-            raise self.StakingError('Locktime must be at least {}'.format(0))
+            min_stake_time = self.miner_agent._deployer._min_release_periods
+            raise self.StakingError('Locktime must be at least {}'.format(min_stake_time))
 
         if entire_balance is True:
             balance_bytes = self.miner_agent.read().getMinerInfo(self.miner_agent._deployer.MinerInfoField.VALUE.value,
@@ -192,11 +191,11 @@ class Miner(TokenActor):
                 raise self.StakingError('Staking amount must be greater than zero.')
 
         approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, locktime=locktime)
-        staking_transactions[datetime.utcnow()] = initial_deposit_txhash
+        self._transactions.append((datetime.utcnow(), initial_deposit_txhash))
 
         if auto_switch_lock is True:
             lock_txhash = self.switch_lock()
-            staking_transactions[datetime.utcnow()] = lock_txhash
+            self._transactions.append((datetime.utcnow(), lock_txhash))
 
         return staking_transactions
 
@@ -206,16 +205,16 @@ class Miner(TokenActor):
         txhash = self.miner_agent.transact({'from': self.address}).setMinerId(data)
         self.blockchain.wait_for_receipt(txhash)
 
-        self._transactions[datetime.utcnow()] = txhash
+        self._transactions.append((datetime.utcnow(), txhash))
 
         return txhash
 
     def fetch_data(self) -> tuple:
-        """Retrieve all stored Miner IDs on this miner"""
+        """Retrieve all asosciated contract data for this miner."""
 
         count_bytes = self.miner_agent.read().getMinerInfo(self.miner_agent._deployer.MinerInfoField.MINER_IDS_LENGTH.value,
                                                      self.address,
-                                                     0).encode('latin-1') # TODO change when v4 of web3.py is released
+                                                     0).encode('latin-1')  # TODO change when v4 of web3.py is released
 
         count = self.blockchain._chain.web3.toInt(count_bytes)
 
