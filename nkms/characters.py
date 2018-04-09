@@ -11,7 +11,7 @@ from typing import Dict
 from typing import Union, List
 
 from constant_sorrow import constants, default_constant_splitter
-from nkms.config.config import KMSConfig
+from nkms.config.configs import KMSConfig
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH
 from nkms.crypto.kits import UmbralMessageKit

@@ -1,7 +1,10 @@
+import errno
 import json
 import os
+import stat
 from base64 import urlsafe_b64encode
 from pathlib import Path
+from typing import ClassVar
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -12,6 +15,8 @@ from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey
 from web3.auto import w3
 
+from nkms.config import utils
+from nkms.config.configs import _DEFAULT_CONFIGURATION_DIR, KMSConfigurationError
 from nkms.crypto.powers import SigningPower, EncryptingPower, CryptoPower
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
 
@@ -24,8 +29,8 @@ class KMSConfigurationError(RuntimeError):
     pass
 
 
-def validate_passphrase(passphrase) -> str:
-    """Validate a passphrase and return it or raise"""
+def validate_passphrase(passphrase) -> bool:
+    """Validate a passphrase and return True or raise an error with a failure reason"""
 
     rules = (
         (len(passphrase) >= 16, 'Passphrase is too short, must be >= 16 chars.'),
@@ -34,13 +39,12 @@ def validate_passphrase(passphrase) -> str:
     for rule, failure_message in rules:
         if not rule:
             raise KMSConfigurationError(failure_message)
-    else:
-        return passphrase
+    return True
 
 
 def _derive_master_key_from_passphrase(salt: bytes, passphrase: str) -> bytes:
     """
-    Uses Scrypt derivation to derive a master key for encrypting key material.
+    Uses Scrypt derivation to derive a  key for encrypting key material.
     See RFC 7914 for n, r, and p value selections.
     This takes around ~5 seconds to perform.
     """
@@ -95,25 +99,23 @@ def _decrypt_key(wrapping_key: bytes, nonce: bytes, enc_key_material: bytes) -> 
     """
     dec_key = SecretBox(wrapping_key).encrypt(enc_key_material, nonce)
     umbral_key = UmbralPrivateKey.from_bytes(dec_key)
-
     return umbral_key
 
 
 def _generate_encryption_keys() -> tuple:
     """Use pyUmbral keys to generate a new encrypting key pair"""
-
     privkey = UmbralPrivateKey.gen_key()
     pubkey = privkey.get_pubkey()
-
     return privkey, pubkey
 
 
-# TODO: Do we really want to use Umbral keys for signing?
-# TODO: Perhaps we can use Curve25519/EdDSA for signatures?
 def _generate_signing_keys() -> tuple:
+    """
+    TODO: Do we really want to use Umbral keys for signing?
+    TODO: Perhaps we can use Curve25519/EdDSA for signatures?
+    """
     privkey = UmbralPrivateKey.gen_key()
     pubkey = privkey.get_pubkey()
-
     return privkey, pubkey
 
 
@@ -129,32 +131,47 @@ def _parse_keyfile(keypath: str):
             return key_metadata
 
 
-def _save_keyfile(keypath: str, key_data: dict) -> None:
-    """Saves key data to a file"""
+def _save_private_keyfile(keypath: str, key_data: dict) -> str:
+    """
+    Creates a permissioned keyfile and save it to the local filesystem.
+    The file must be created in this call, and will fail if the path exists.
+    Returns the filepath string used to write the keyfile.
 
-    with open(keypath, 'w+') as keyfile:
+    Note: getting and setting the umask is not thread-safe!
 
-        # Check_if the file is empty
-        keyfile.seek(0)
-        check_byte = keyfile.read(1)
+    See linux open docs: http://man7.org/linux/man-pages/man2/open.2.html
+    ---------------------------------------------------------------------
+    O_CREAT - If pathname does not exist, create it as a regular file.
 
-        if len(check_byte) != 0:
-            message = "{} is not empty. Check your key path.".format(keypath)
-            raise KMSConfigurationError(message)
+    O_EXCL - Ensure that this call creates the file: if this flag is
+             specified in conjunction with O_CREAT, and pathname already
+             exists, then open() fails with the error EEXIST.
+    ---------------------------------------------------------------------
+    """
 
-        # Write the keydata to the file
-        keyfile.seek(0)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL    # Write, Create, Non-Existing
+    mode = stat.S_IRUSR | stat.S_IWUSR              # 0o600
+
+    try:
+        keyfile_descriptor = os.open(path=keypath, flags=flags, mode=mode)
+    finally:
+        os.umask(0)  # Set the umask to 0 after opening
+
+    # Write and destroy file descriptor reference
+    with os.fdopen(keyfile_descriptor, 'w') as keyfile:
         keyfile.write(json.dumps(key_data))
+        output_path = keyfile.name
+
+    del keyfile_descriptor
+    return output_path
 
 
 def _generate_transacting_keys(passphrase: str) -> dict:
-   """Create a new wallet address from the provided passphrase"""
-
-   entropy = os.urandom(32)   # max out entropy for keccak256
-   account = Account.create(extra_entropy=entropy)
-   encrypted_wallet_data = Account.encrypt(private_key=account.privateKey, password=passphrase)
-
-   return encrypted_wallet_data
+    """Create a new wallet address and private "transacting" key from the provided passphrase"""
+    entropy = os.urandom(32)   # max out entropy for keccak256
+    account = Account.create(extra_entropy=entropy)
+    encrypted_wallet_data = Account.encrypt(private_key=account.privateKey, password=passphrase)
+    return encrypted_wallet_data
 
 
 # TODO: Make these one function
@@ -170,8 +187,7 @@ def _get_decrypting_key(self, master_key: bytes = None) -> UmbralPrivateKey:
     wrap_key = _derive_wrapping_key_from_master_key(key_data['wrap_salt'], master_key)
     plain_key = _decrypt_key(wrap_key, key_data['nonce'], key_data['enc_key'])
 
-    umbral_key = UmbralPrivateKey.from_bytes(plain_key)
-    return umbral_key
+    return plain_key
 
 
 def _get_signing_key(self, master_key: bytes = None) -> UmbralPrivateKey:
@@ -186,8 +202,7 @@ def _get_signing_key(self, master_key: bytes = None) -> UmbralPrivateKey:
     wrap_key = _derive_wrapping_key_from_master_key(key_data['wrap_salt'], master_key)
     plain_key = _decrypt_key(wrap_key, key_data['nonce'], key_data['enc_key'])
 
-    umbral_key = UmbralPrivateKey.from_bytes(plain_key)
-    return umbral_key
+    return plain_key
 
 
 class KMSKeyring:
@@ -199,56 +214,61 @@ class KMSKeyring:
     Keyring filesystem tree
     ------------------------
     - keyring_root
-        - .pub
-        - keys
-            - .priv
+        - .private
+            - key.priv
+        - public
+            - key.pub
 
     """
 
-    __keyring_root = _CONFIG_ROOT
-    __default_public_key_dir = __keyring_root
-    __default_private_key_dir = os.path.join(_CONFIG_ROOT, 'keys')  # Base Dir
+    __default_keyring_root = os.path.join(_DEFAULT_CONFIGURATION_DIR, 'keyring')
 
-    __default_keyring_paths = {
-        'root_key': os.path.join(__default_private_key_dir, 'root_key.priv'),
-        'signing_key': os.path.join(__default_private_key_dir, 'signing_key.priv'),
-        'wallet': os.path.join(__default_private_key_dir, 'account.json')
+    __default_public_key_dir = os.path.join(__default_keyring_root, 'public')
+    __default_private_key_dir = os.path.join(__default_keyring_root, 'private')
+
+    __default_key_filepaths = {
+        'root': os.path.join(__default_private_key_dir, 'root_key.priv'),
+        'signing': os.path.join(__default_private_key_dir, 'signing_key.priv'),
+        'transacting': os.path.join(__default_private_key_dir, 'wallet.json')
     }
 
-    def __init__(self, private_key_dir: str = None, root_keypath: str = None, signing_keypath: str = None,
-                 wallet_keypath: str = None):
+    def __init__(self, root_key_path: str=None, signing_key_path: str=None, transacting_key_path: str=None):
+        """
+        Generates a KMSKeyring instance with the provided key paths,
+        falling back to default keyring paths.
+        """
 
-        # Check for a custom private key root directory
-        self.__private_key_dir = private_key_dir or self.__default_private_key_dir
+        # Check for a custom private key or keyring root directory to use when locating keys
+        self.__keyring_root = self.__default_keyring_root
+        self.__private_key_dir = self.__default_private_key_dir
 
-        # Check for any custom key paths
-        self.__root_keypath = root_keypath or self.__default_keyring_paths['root_key']
-        self.__signing_keypath = signing_keypath or self.__default_keyring_paths['signing_key']
-        self.__wallet_keypath = wallet_keypath or self.__default_keyring_paths['wallet']
+        # Check for any custom individual key paths
+        self.__root_keypath = root_key_path or self.__default_key_filepaths['root']
+        self.__signing_keypath = signing_key_path or self.__default_key_filepaths['signing']
+        self.__transacting_keypath = transacting_key_path or self.__default_key_filepaths['transacting']
 
-        # Key cache
+        # Setup key cache
         self.__derived_master_key = None
         self.__transacting_private_key = None
+
+        # Check that the keyring is reflected on the filesystem
+        for private_path in (self.__root_keypath, self.__signing_keypath, self.__transacting_keypath):
+            pass
 
     def __del__(self):
         self.lock()
 
-    # def _cache_transacting_key(self, passphrase) -> None:
-    #     """Decrypts and caches an ethereum key"""
-    #     key_data = _parse_keyfile(self.__wallet_keypath)
-    #     hex_bytes_privkey = Account.decrypt(keyfile_json=key_data, password=passphrase)
-    #     self.__transacting_privkey = hex_bytes_privkey
-
-    def lock(self):
+    def lock(self) -> None:
         self.__derived_master_key = None
         self.__transacting_private_key = None
-        return
 
-    def derive_crypto_power(self, power_class) -> CryptoPower:
+    def derive_crypto_power(self, power_class: ClassVar) -> CryptoPower:
         """
         Takes either a SigningPower or an EncryptingPower and returns
         a either a SigningPower or EncryptingPower with the coinciding
         private key.
+
+        TODO: TransactingPower
         """
         if power_class is SigningPower:
             umbral_privkey = _get_signing_key(self.__derived_master_key)
@@ -267,34 +287,36 @@ class KMSKeyring:
         return new_power
 
     @classmethod
-    def from_keys(cls, config_root: str = None):
-        """Generates a keyring object from existing keys on the local filesystem keys"""
-        config_root = config_root or _CONFIG_ROOT
-        pass
-
-    @classmethod
-    def _generate_default_keyring_tree(cls):
-        os.mkdir(cls.__keyring_root)
-        os.mkdir(cls.__k)
-
-    @classmethod
-    def generate(cls, passphrase, encryption=True, transacting=True):
+    def generate(cls, passphrase: str, encryption: bool=True, transacting: bool=True, output_path: str=None) -> 'KMSKeyring':
         """
         Generates new encryption, signing, and transacting keys encrypted with the passphrase,
-        respectively saving keyfiles on the local filesystem from default paths,
+        respectively saving keyfiles on the local filesystem from *default* paths,
         returning the corresponding Keyring instance.
         """
 
-        validate_passphrase(passphrase)
+        # Prepare and validate user input
+        _private_key_dir = output_path if output_path else cls.__default_private_key_dir
 
         if not encryption and not transacting:
             raise ValueError('Either "encryption" or "transacting" must be True to generate new keys.')
 
+        assert validate_passphrase(passphrase)
+
+        # Ensure the configuration base directory exists
+        utils.generate_confg_dir()
+
+        # Create the key directories with default paths. Raises OSError if dirs exist
+        os.mkdir(cls.__default_keyring_root, mode=0o755)    # keyring
+        os.mkdir(cls.__default_public_key_dir, mode=0o744)  # public
+        os.mkdir(_private_key_dir, mode=0o744)              # private
+
+        # Generate keys
+        keyring_args = dict()
         if encryption is True:
             enc_key, _ = _generate_encryption_keys()
             sig_key, _ = _generate_signing_keys()
 
-            salt = b'dead sea salt'  # TODO
+            salt = os.urandom(32)
 
             der_master_key = _derive_master_key_from_passphrase(salt, passphrase)
             der_wrap_key = _derive_wrapping_key_from_master_key(salt, der_master_key)
@@ -308,12 +330,17 @@ class KMSKeyring:
             enc_json['wrap_salt'] = urlsafe_b64encode(salt).decode()
             sig_json['wrap_salt'] = urlsafe_b64encode(salt).decode()
 
-            _save_keyfile(cls.__default_keyring_paths['root_key'], enc_json)  # Write to file
-            _save_keyfile(cls.__default_keyring_paths['signing_key'], sig_json)
+            rootkey_path = _save_private_keyfile(cls.__default_key_filepaths['root'], enc_json)  # Write to file
+            sigkey_path = _save_private_keyfile(cls.__default_key_filepaths['signing'], sig_json)
+
+            keyring_args.update(root_key_path=rootkey_path, signing_key_path=sigkey_path)
 
         if transacting is True:
             wallet = _generate_transacting_keys(passphrase)
-            _save_keyfile(cls.__default_keyring_paths['wallet'], wallet)
+            _wallet_path = _save_private_keyfile(cls.__default_key_filepaths['transacting'], wallet)
 
-        keyring_instance = cls()  # all defaults
+            keyring_args.update(transacting_key_path=_wallet_path)
+
+        # return an instance using the generated key paths
+        keyring_instance = cls(**keyring_args)
         return keyring_instance
