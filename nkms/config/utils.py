@@ -1,5 +1,6 @@
 import json
 import os
+import stat
 
 from nkms.config.keys import KMSKeyring
 from .configs import _DEFAULT_CONFIGURATION_DIR, KMSConfigurationError
@@ -16,6 +17,7 @@ def _save_private_keyfile(keypath: str, key_data: dict) -> str:
     See linux open docs: http://man7.org/linux/man-pages/man2/open.2.html
     ---------------------------------------------------------------------
     O_CREAT - If pathname does not exist, create it as a regular file.
+
 
     O_EXCL - Ensure that this call creates the file: if this flag is
              specified in conjunction with O_CREAT, and pathname already
@@ -86,4 +88,3 @@ def _bootstrap_config():
     """Do not actually use this."""
     passphrase = input("Enter passphrase >> ")
     return KMSKeyring.generate(passphrase=passphrase)
-

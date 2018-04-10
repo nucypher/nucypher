@@ -1,8 +1,6 @@
-import errno
-import json
 import os
-import stat
 from base64 import urlsafe_b64encode
+from pathlib import Path
 from typing import ClassVar
 
 from cryptography.hazmat.backends import default_backend
@@ -18,9 +16,12 @@ from nkms.config import utils
 from nkms.config.configs import _DEFAULT_CONFIGURATION_DIR, KMSConfigurationError
 from nkms.config.utils import _parse_keyfile, _save_private_keyfile
 from nkms.crypto.powers import SigningPower, EncryptingPower, CryptoPower
-from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
 
 w3.eth.enable_unaudited_features()
+
+
+_CONFIG_ROOT = os.path.join(str(Path.home()), '.nucypher')
+
 
 
 def validate_passphrase(passphrase) -> bool:

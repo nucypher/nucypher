@@ -1,0 +1,15 @@
+__pycache__
+*.pyc
+/.venv
+/*.egg-info
+/build
+/.cache
+*.so
+/MANIFEST
+/.tox
+.idea
+/logs
+/registrar.json
+/dist
+chains
+.pytest_cache
