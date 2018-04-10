@@ -3,7 +3,7 @@ from collections import OrderedDict
 from datetime import datetime
 from typing import Tuple, List, Union
 
-from nkms_eth.agents import NuCypherKMSTokenAgent
+from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent
 
 
 class TokenActor(ABC):

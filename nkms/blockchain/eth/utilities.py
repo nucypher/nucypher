@@ -1,11 +1,11 @@
 import random
 from typing import List
 
-from nkms_eth.actors import Miner
-from nkms_eth.agents import MinerAgent, EthereumContractAgent
-from nkms_eth.blockchain import TheBlockchain
-from nkms_eth.config import NuCypherMinerConfig
-from nkms_eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer
+from nkms.blockchain.eth.actors import Miner
+from nkms.blockchain.eth.agents import MinerAgent
+from nkms.blockchain.eth.blockchain import TheBlockchain
+from nkms.blockchain.eth.config import NuCypherMinerConfig
+from nkms.blockchain.eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer
 
 
 class TesterBlockchain(TheBlockchain):

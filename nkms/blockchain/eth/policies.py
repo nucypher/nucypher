@@ -1,4 +1,4 @@
-from nkms_eth.actors import Miner
+from nkms.blockchain.eth.actors import Miner
 
 
 class BlockchainArrangement:

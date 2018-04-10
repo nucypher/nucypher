@@ -1,9 +1,7 @@
 from typing import Tuple, Dict
-
-from populus.contracts.contract import PopulusContract
 from web3.contract import Contract
 
-from nkms_eth.config import NuCypherMinerConfig, NuCypherTokenConfig
+from nkms.blockchain.eth.config import NuCypherMinerConfig, NuCypherTokenConfig
 from .blockchain import TheBlockchain
 
 

@@ -11,7 +11,6 @@ from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 
 from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
-from nkms_eth.utilities import spawn_miners
 
 
 def test_all_ursulas_know_about_all_other_ursulas(ursulas):
