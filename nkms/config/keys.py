@@ -37,13 +37,13 @@ def validate_passphrase(passphrase) -> bool:
     return True
 
 
-def _derive_master_key_from_passphrase(salt: bytes, passphrase: str) -> bytes:
+def _derive_key_material_from_passphrase(salt: bytes, passphrase: str) -> bytes:
     """
     Uses Scrypt derivation to derive a  key for encrypting key material.
     See RFC 7914 for n, r, and p value selections.
     This takes around ~5 seconds to perform.
     """
-    master_key = Scrypt(
+    key_material = Scrypt(
         salt=salt,
         length=32,
         n=2**20,
@@ -52,10 +52,10 @@ def _derive_master_key_from_passphrase(salt: bytes, passphrase: str) -> bytes:
         backend=default_backend()
     ).derive(passphrase.encode())
 
-    return master_key
+    return key_material
 
 
-def _derive_wrapping_key_from_master_key(salt: bytes, master_key: bytes) -> bytes:
+def _derive_wrapping_key_from_key_material(salt: bytes, key_material: bytes) -> bytes:
     """
     Uses HKDF to derive a 32 byte wrapping key to encrypt key material with.
     """
@@ -65,7 +65,7 @@ def _derive_wrapping_key_from_master_key(salt: bytes, master_key: bytes) -> byte
         salt=salt,
         info=b'NuCypher-KMS-KeyWrap',
         backend=default_backend()
-    ).derive(master_key)
+    ).derive(key_material)
 
     return wrapping_key
 
@@ -171,7 +171,7 @@ class KMSKeyring:
         self.__transacting_keypath = transacting_key_path or self.__default_key_filepaths['transacting']
 
         # Setup key cache
-        self.__derived_master_key = None
+        self.__derived_key_material = None
         self.__transacting_private_key = None
 
         # Check that the keyring is reflected on the filesystem
@@ -185,26 +185,26 @@ class KMSKeyring:
         """Returns plaintext version of decrypting key."""
 
         # Checks for cached key
-        if self.__derived_master_key is None:
+        if self.__derived_key_material is None:
             message = 'The keyring cannot be used when it is locked.  Call .unlock first.'
             raise self.KeyringLocked(message)
 
         key_data = _parse_keyfile(key_path)
-        wrap_key = _derive_wrapping_key_from_master_key(key_data['wrap_salt'], self.__derived_master_key)
+        wrap_key = _derive_wrapping_key_from_key_material(key_data['wrap_salt'], self.__derived_key_material)
         plain_umbral_key = _decrypt_umbral_key(wrap_key, key_data['nonce'], key_data['enc_key'])
 
         return plain_umbral_key
 
     def unlock(self, passphrase: bytes) -> None:
-        if self.__derived_master_key is not None:
+        if self.__derived_key_material is not None:
             raise Exception('Keyring already unlocked')
 
-        derived_key = _derive_master_key_from_passphrase(passphrase=passphrase)
-        self.__derived_master_key = derived_key
+        derived_key = _derive_key_material_from_passphrase(passphrase=passphrase)
+        self.__derived_key_material = derived_key
 
     def lock(self) -> None:
         """Make efforts to remove references to the cached key data"""
-        self.__derived_master_key = None
+        self.__derived_key_material = None
         self.__transacting_private_key = None
 
     def derive_crypto_power(self, power_class: ClassVar) -> CryptoPower:
