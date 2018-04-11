@@ -60,14 +60,14 @@ def _derive_wrapping_key_from_key_material(salt: bytes, key_material: bytes) -> 
     Uses HKDF to derive a 32 byte wrapping key to encrypt key material with.
     """
     wrapping_key = HKDF(
-        algorithm=hashes.SHA512(),
-        length=32,
+        algorithm=hashes.BLAKE2b(64),
+        length=64,
         salt=salt,
         info=b'NuCypher-KMS-KeyWrap',
         backend=default_backend()
     ).derive(key_material)
 
-    return wrapping_key
+    return wrapping_key[:32]
 
 
 def _encrypt_umbral_key(wrapping_key: bytes, umbral_key: UmbralPrivateKey) -> dict:
