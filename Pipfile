@@ -25,6 +25,7 @@ eth-account = "*"
 "web3" = "*"
 appdirs = "*"
 populus = {git = "https://github.com/nucypher/Bropulus.git"}
+eth-tester = "*"
 
 [dev-packages]
 pytest = "*"

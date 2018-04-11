@@ -12,3 +12,7 @@ __pycache__
 _temp_test_datastore
 .mypy_cache
 .pytest_cache/
+/logs
+/registrar.json
+/dist
+chains

@@ -15,7 +15,7 @@ from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import key_splitter
 from bytestring_splitter import BytestringSplitter
-from nkms_eth.policies import BlockchainArrangement
+from nkms.blockchain.eth.policies import BlockchainArrangement
 from umbral.pre import Capsule
 from constant_sorrow import constants
 

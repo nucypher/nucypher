@@ -1,7 +1,5 @@
 from os.path import join, dirname, abspath
-
-import nkms_eth
-from nkms_eth.deployers import NuCypherKMSTokenDeployer
+from nkms.blockchain.eth.deployers import NuCypherKMSTokenDeployer
 
 
 def test_testerchain_creation(testerchain):
@@ -14,7 +12,7 @@ def test_testerchain_creation(testerchain):
 
 def test_nucypher_populus_project(testerchain):
 
-    populus_project_dir = join(dirname(abspath(nkms_eth.__file__)), 'project')
+    populus_project_dir = join(dirname(abspath(nkms.blockchain.eth.__file__)), 'project')
 
     # Check that populus paths are set...
 

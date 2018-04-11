@@ -5,7 +5,7 @@
 A simple Python script to deploy contracts and then estimate gas for different methods.
 """
 import random
-from nkms_eth.blockchain import project
+from nkms.blockchain.eth.blockchain import project
 
 TIMEOUT = 10
 MINING_COEFF = [10 ** 5, 10 ** 7]

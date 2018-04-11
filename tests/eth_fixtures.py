@@ -1,8 +1,8 @@
 import pytest
 
-from nkms_eth import utilities as utils
-from nkms_eth.blockchain import TheBlockchain
-from nkms_eth.agents import NuCypherKMSTokenAgent, MinerAgent
+from nkms.blockchain.eth import utilities as utils
+from nkms.blockchain.eth.blockchain import TheBlockchain
+from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
 
 
 @pytest.fixture(scope='function')

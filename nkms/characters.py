@@ -22,7 +22,7 @@ from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
 
-from nkms_eth.actors import PolicyAuthor
+from nkms.blockchain.eth.actors import PolicyAuthor
 
 from umbral import pre
 from umbral.keys import UmbralPublicKey

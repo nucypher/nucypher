@@ -1,8 +1,7 @@
-from populus.contracts.exceptions import NoKnownAddress
 from pytest import raises
 
-from nkms_eth.agents import NuCypherKMSTokenAgent, MinerAgent
-from nkms_eth.deployers import NuCypherKMSTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
+from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
+from nkms.blockchain.eth.deployers import NuCypherKMSTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 
 
 def test_token_deployer_and_agent(testerchain):
