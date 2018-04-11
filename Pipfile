@@ -22,6 +22,7 @@ constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = 
 bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git", ref = "eaa1df2433362190f30bc6e400570f0331980ebb"}
 appdirs = "*"
 populus = {git = "https://github.com/nucypher/Bropulus.git"}
+eth-tester = "*"
 
 [dev-packages]
 pytest = "*"
