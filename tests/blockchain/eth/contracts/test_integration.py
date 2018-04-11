@@ -265,24 +265,24 @@ def test_all(web3, chain, token, escrow, policy_manager):
 
     # Create policies
     policy_id_1 = os.urandom(20)
-    tx = policy_manager.transact({'from': alice1, 'value': 2 * 1000, 'gas_price': 0}) \
-        .createPolicy(policy_id_1, 5, [ursula1, ursula2])
+    tx = policy_manager.transact({'from': alice1, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0}) \
+        .createPolicy(policy_id_1, 5, 44, [ursula1, ursula2])
     chain.wait_for_receipt(tx)
     policy_id_2 = os.urandom(20)
-    tx = policy_manager.transact({'from': alice1, 'value': 2 * 1000, 'gas_price': 0}) \
-        .createPolicy(policy_id_2, 5, [ursula2, user_escrow_1.address])
+    tx = policy_manager.transact({'from': alice1, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0}) \
+        .createPolicy(policy_id_2, 5, 44, [ursula2, user_escrow_1.address])
     chain.wait_for_receipt(tx)
     policy_id_3 = os.urandom(20)
-    tx = policy_manager.transact({'from': alice2, 'value': 2 * 1000, 'gas_price': 0}) \
-        .createPolicy(policy_id_3, 5, [ursula1, user_escrow_1.address])
+    tx = policy_manager.transact({'from': alice2, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0}) \
+        .createPolicy(policy_id_3, 5, 44, [ursula1, user_escrow_1.address])
     chain.wait_for_receipt(tx)
     policy_id_4 = os.urandom(20)
-    tx = policy_manager.transact({'from': alice2, 'value': 2 * 1000, 'gas_price': 0}) \
-        .createPolicy(policy_id_4, 5, [ursula2, user_escrow_1.address])
+    tx = policy_manager.transact({'from': alice2, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0}) \
+        .createPolicy(policy_id_4, 5, 44, [ursula2, user_escrow_1.address])
     chain.wait_for_receipt(tx)
     policy_id_5 = os.urandom(20)
-    tx = policy_manager.transact({'from': alice2, 'value': 2 * 1000, 'gas_price': 0}) \
-        .createPolicy(policy_id_5, 5, [ursula1, ursula2])
+    tx = policy_manager.transact({'from': alice2, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0}) \
+        .createPolicy(policy_id_5, 5, 44, [ursula1, ursula2])
     chain.wait_for_receipt(tx)
 
     # Only Alice can revoke policy
@@ -292,7 +292,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     alice2_balance = web3.eth.getBalance(alice2)
     tx = policy_manager.transact({'from': alice2, 'gas_price': 0}).revokePolicy(policy_id_5)
     chain.wait_for_receipt(tx)
-    assert 8000 == web3.eth.getBalance(policy_manager.address)
+    assert 8440 == web3.eth.getBalance(policy_manager.address)
     assert alice2_balance + 2000 == web3.eth.getBalance(alice2)
     assert 1 == web3.toInt(
         policy_manager.call().getPolicyInfo(DISABLED_FIELD, policy_id_5, NULL_ADDR))
@@ -309,7 +309,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     tx = policy_manager.transact({'from': alice1, 'gas_price': 0}) \
         .revokeArrangement(policy_id_2, ursula2)
     chain.wait_for_receipt(tx)
-    assert 7000 == web3.eth.getBalance(policy_manager.address)
+    assert 7440 == web3.eth.getBalance(policy_manager.address)
     assert alice1_balance + 1000 == web3.eth.getBalance(alice1)
     assert 0 == web3.toInt(
         policy_manager.call().getPolicyInfo(DISABLED_FIELD, policy_id_2, NULL_ADDR))
