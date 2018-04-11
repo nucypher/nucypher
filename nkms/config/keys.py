@@ -92,7 +92,7 @@ def _decrypt_umbral_key(wrapping_key: bytes, nonce: bytes, enc_key_material: byt
     Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
     Returns a decrypted key as an UmbralPrivateKey.
     """
-    dec_key = SecretBox(wrapping_key).encrypt(enc_key_material, nonce)
+    dec_key = SecretBox(wrapping_key).decrypt(enc_key_material, nonce)
     umbral_key = UmbralPrivateKey.from_bytes(dec_key)
     return umbral_key
 
