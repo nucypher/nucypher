@@ -1,8 +1,7 @@
 from typing import Tuple, Dict
-
-from nkms.blockchain.eth.constants import NuCypherMinerConfig, NuCypherTokenConfig
 from web3.contract import Contract
 
+from nkms.blockchain.eth.config import NuCypherMinerConfig, NuCypherTokenConfig
 from .blockchain import TheBlockchain
 
 
