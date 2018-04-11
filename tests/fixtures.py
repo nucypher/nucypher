@@ -3,9 +3,9 @@ import os
 import pytest
 
 from constant_sorrow import constants
-from nkms.characters import Alice, Bob
+from nkms.characters import Alice, Bob, Enrique
 from nkms.crypto.kits import MessageKit
-from nkms.crypto.powers import SigningPower, EncryptingPower
+from nkms.crypto.powers import SigningPower, EncryptingPower, DelegatingPower
 from nkms.network import blockchain_client
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
@@ -19,18 +19,18 @@ import maya
 @pytest.fixture(scope="module")
 def idle_policy(alice, bob):
     """
-    Creates a PolicyGroup, in a manner typical of how Alice might do it, with a unique uri.
+    Creates a Policy, in a manner typical of how Alice might do it, with a unique uri (soon to be "label" - see #183)
     """
     alice.__resource_id += b"/unique-again"  # A unique name each time, like a path.
     n = NUMBER_OF_URSULAS_IN_NETWORK
 
-    policy_group = alice.create_policy(
+    policy = alice.create_policy(
         bob,
         alice.__resource_id,
         m=3,
         n=n,
     )
-    return policy_group
+    return policy
 
 
 @pytest.fixture(scope="module")
@@ -66,6 +66,11 @@ def bob():
 
 
 @pytest.fixture(scope="module")
+def enrique():
+    return Enrique()
+
+
+@pytest.fixture(scope="module")
 def ursulas():
     URSULAS = make_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT)
     yield URSULAS
@@ -90,10 +95,10 @@ def test_keystore():
 
 
 @pytest.fixture(scope="module")
-def alicebob_side_channel(alice):
+def capsule_side_channel(alice):
     plaintext = b"Welcome to the flippering."
-    ciphertext, capsule = pre.encrypt(alice.public_key(EncryptingPower), plaintext)
+    ciphertext, capsule = pre.encrypt(alice.public_key(DelegatingPower), plaintext)
     return MessageKit(ciphertext=ciphertext, capsule=capsule,
-                      alice_pubkey=alice.public_key(EncryptingPower))
+                      alice_pubkey=alice.public_key(DelegatingPower))
 
 

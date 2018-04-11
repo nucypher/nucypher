@@ -114,7 +114,7 @@ class EncryptingPower(KeyPairBasedPower):
 
 
 class DelegatingPower(KeyPairBasedPower):   
-    _keypair_class = SigningKeypair
-    not_found_error = NoSigningPower
+    _keypair_class = EncryptingKeypair
+    not_found_error = PowerUpError
     provides = ("generate_kfrags",)
 

@@ -19,7 +19,7 @@ from nkms.config.configs import KMSConfig
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH
 from nkms.crypto.kits import UmbralMessageKit
-from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
+from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import signature_splitter
 from nkms.network import blockchain_client
@@ -303,7 +303,7 @@ class FakePolicyAgent:  # TODO: #192
 
 class Alice(Character, PolicyAuthor):
     _server_class = NuCypherSeedOnlyDHTServer
-    _default_crypto_powerups = [SigningPower, EncryptingPower]
+    _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -320,7 +320,7 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
         bob_pubkey_enc = bob.public_key(EncryptingPower)
-        return self._crypto_power.power_ups(EncryptingPower).generate_kfrags(bob_pubkey_enc, m, n)
+        return self._crypto_power.power_ups(DelegatingPower).generate_kfrags(bob_pubkey_enc, m, n)
 
     def create_policy(self, bob: "Bob", uri: bytes, m: int, n: int):
         """
