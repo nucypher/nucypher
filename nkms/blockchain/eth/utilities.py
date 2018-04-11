@@ -4,7 +4,7 @@ from typing import List
 from nkms.blockchain.eth.actors import Miner
 from nkms.blockchain.eth.agents import MinerAgent
 from nkms.blockchain.eth.blockchain import TheBlockchain
-from nkms.blockchain.eth.constants import NuCypherMinerConfig
+from nkms.blockchain.eth.config import NuCypherMinerConfig
 from nkms.blockchain.eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer
 
 
