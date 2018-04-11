@@ -145,8 +145,10 @@ class KMSKeyring:
 
     __default_key_filepaths = {
         'root': os.path.join(__default_private_key_dir, 'root_key.priv'),
+        'root_pub': os.path.join(__default_public_key_dir, 'root_key.pub'),
         'signing': os.path.join(__default_private_key_dir, 'signing_key.priv'),
-        'transacting': os.path.join(__default_private_key_dir, 'wallet.json')
+        'signing_pub': os.path.join(__default_public_key_dir, 'signing_key.pub'),
+        'transacting': os.path.join(__default_private_key_dir, 'wallet.json'),
     }
 
     class KeyringError(Exception):
@@ -155,7 +157,11 @@ class KMSKeyring:
     class KeyringLocked(KeyringError):
         pass
 
-    def __init__(self, root_key_path: str=None, signing_key_path: str=None, transacting_key_path: str=None):
+    def __init__(self, root_key_path: str=None,
+                 pub_root_key_path: str=None,
+                 signing_key_path: str=None,
+                 pub_signing_key_path: str=None,
+                 transacting_key_path: str=None):
         """
         Generates a KMSKeyring instance with the provided key paths,
         falling back to default keyring paths.
@@ -169,6 +175,10 @@ class KMSKeyring:
         self.__root_keypath = root_key_path or self.__default_key_filepaths['root']
         self.__signing_keypath = signing_key_path or self.__default_key_filepaths['signing']
         self.__transacting_keypath = transacting_key_path or self.__default_key_filepaths['transacting']
+
+        # Check for any custom individual public key paths
+        self.__root_pub_keypath = pub_root_key_path or self.__default_key_filepaths['root_pub']
+        self.__signing_pub_keypath = pub_signing_key_path or self.__default_key_filepaths['signing_pub']
 
         # Setup key cache
         self.__derived_key_material = None
@@ -258,13 +268,16 @@ class KMSKeyring:
         # Generate keys
         keyring_args = dict()
         if encryption is True:
-            enc_key, _ = _generate_encryption_keys()
-            sig_key, _ = _generate_signing_keys()
+            enc_privkey, enc_pubkey = _generate_encryption_keys()
+            sig_privkey, enc_pubkey = _generate_signing_keys()
 
-            salt = os.urandom(32)
+            passphrase_salt = os.urandom(32)
+            enc_salt = os.urandom(32)
+            sig_salt = os.urandom(32)
 
-            der_master_key = _derive_master_key_from_passphrase(salt, passphrase)
-            der_wrap_key = _derive_wrapping_key_from_master_key(salt, der_master_key)
+            der_key_material = _derive_key_material_from_passphrase(passphrase_salt, passphrase)
+            enc_wrap_key = _derive_wrapping_key_from_key_material(enc_salt, der_key_material)
+            sig_wrap_key = _derive_wrapping_key_from_key_material(sig_salt, der_key_material)
 
             enc_json = _encrypt_umbral_key(der_wrap_key, enc_key)
             sig_json = _encrypt_umbral_key(der_wrap_key, sig_key)
@@ -274,11 +287,30 @@ class KMSKeyring:
 
             enc_json['wrap_salt'] = urlsafe_b64encode(salt).decode()
             sig_json['wrap_salt'] = urlsafe_b64encode(salt).decode()
-
-            rootkey_path = _save_private_keyfile(cls.__default_key_filepaths['root'], enc_json)  # Write to file
+            
+            # Write private keys to files
+            rootkey_path = _save_private_keyfile(cls.__default_key_filepaths['root'], enc_json)
             sigkey_path = _save_private_keyfile(cls.__default_key_filepaths['signing'], sig_json)
 
-            keyring_args.update(root_key_path=rootkey_path, signing_key_path=sigkey_path)
+            bytes_enc_pubkey = enc_pubkey.to_bytes(encoder=urlsafe_b64encoder)
+            bytes_sig_pubkey = sig_pubkey.to_bytes(encoder=urlsafe_b64encoder)
+
+            # Write public keys to files
+            rootkey_pub_path = _save_public_keyfile(
+                cls.__default_key_filepaths['root_pub'],
+                bytes_enc_pubkey
+            )
+            sigkey_pub_path = _save_public_keyfile(
+                cls.__default_key_filepaths['signing_pub'],
+                bytes_sig_pubkey
+            )
+
+            keyring_args.update(
+                root_key_path=rootkey_path,
+                pub_root_key_path=rootkey_pub_path,
+                signing_key_path=sigkey_path,
+                pub_signing_key_path=sigkey_pub_path
+            )
 
         if transacting is True:
             wallet = _generate_transacting_keys(passphrase)
