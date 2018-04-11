@@ -6,7 +6,6 @@ name = "pypi"
 [packages]
 rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "kms-dependency"}
 kademlia = {git = "https://github.com/nucypher/kademlia", ref = "kms-dependency"}
-lmdb = "*"
 PyNaCl = "*"
 "pysha3" = "*"
 bidict = "*"

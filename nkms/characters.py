@@ -9,23 +9,22 @@ from kademlia.network import Server
 from kademlia.utils import digest
 from typing import Dict
 from typing import Union, List
-
+from umbral import pre
+from umbral.keys import UmbralPublicKey
 from constant_sorrow import constants, default_constant_splitter
+from bytestring_splitter import RepeatingBytestringSplitter
+
 from nkms.blockchain.eth.actors import PolicyAuthor
-from nkms.config.config import KMSConfig
+from nkms.config.configs import KMSConfig
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH
 from nkms.crypto.kits import UmbralMessageKit
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
-from bytestring_splitter import RepeatingBytestringSplitter
+from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import signature_splitter
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
-
-from umbral import pre
-from umbral.keys import UmbralPublicKey
-from nkms.crypto.signature import Signature
 
 
 class Character(object):
@@ -62,7 +61,7 @@ class Character(object):
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
-        self.config = config if config is not None else KMSConfig.get_config()
+        # self.config = config if config is not None else KMSConfig.get_config()
         self.known_nodes = {}
         self.log = getLogger("characters")
 

@@ -3,8 +3,8 @@ import random
 
 import pytest
 
-from nkms_eth.actors import Miner
-from nkms_eth.agents import MinerAgent
+from nkms.blockchain.eth.actors import Miner
+from nkms.blockchain.eth.agents import MinerAgent
 
 
 def test_miner_locking_tokens(testerchain, mock_token_deployer, mock_miner_agent):

@@ -1,6 +1,6 @@
 import pytest
 
-from nkms_eth.utilities import MockNuCypherMinerConfig
+from nkms.blockchain.eth.utilities import MockNuCypherMinerConfig
 
 M = 10 ** 6
 

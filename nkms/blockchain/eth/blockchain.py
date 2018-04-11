@@ -1,5 +1,6 @@
 from abc import ABC
 
+from nkms.config.configs import EthereumConfig
 from nkms.blockchain.eth.config import EthereumConfig
 
 

@@ -6,7 +6,7 @@ A simple Python script to deploy contracts and then estimate gas for different m
 """
 
 
-from nkms_eth.agents import NuCypherKMSTokenAgent, MinerAgent
+from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
 import os
 
 from tests.utilities import TesterBlockchain

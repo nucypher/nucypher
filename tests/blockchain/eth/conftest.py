@@ -1,13 +1,13 @@
 import pytest
+from eth_tester import EthereumTester
 from web3 import Web3
 from web3.providers.eth_tester import EthereumTesterProvider
 
-from nkms_eth.agents import NuCypherKMSTokenAgent, MinerAgent, PolicyAgent
-from nkms_eth.blockchain import TheBlockchain
-from nkms_eth.config import EthereumConfig
-from nkms_eth.deployers import PolicyManagerDeployer
-from nkms_eth.utilities import TesterBlockchain, MockNuCypherKMSTokenDeployer, MockMinerEscrowDeployer, MockMinerAgent
-from eth_tester import EthereumTester
+from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent, PolicyAgent
+from nkms.blockchain.eth.blockchain import TheBlockchain
+from nkms.blockchain.eth.deployers import PolicyManagerDeployer
+from nkms.blockchain.eth.utilities import TesterBlockchain, MockNuCypherKMSTokenDeployer, MockMinerEscrowDeployer
+from nkms.config.configs import EthereumConfig
 
 
 @pytest.fixture(scope='session')

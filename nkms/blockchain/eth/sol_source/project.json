@@ -126,7 +126,7 @@
       "../../tests/contracts"
     ],
     "import_remappings": [
-      "contracts=nkms_eth/project/contracts"
+      "contracts=nkms/blockchain/eth/sol_source/contracts"
     ],
     "backend": {
       "settings": {
