@@ -253,7 +253,7 @@ class KMSKeyring:
         # Create the key directories with default paths. Raises OSError if dirs exist
         os.mkdir(cls.__default_keyring_root, mode=0o755)    # keyring
         os.mkdir(cls.__default_public_key_dir, mode=0o744)  # public
-        os.mkdir(_private_key_dir, mode=0o744)              # private
+        os.mkdir(_private_key_dir, mode=0o700)              # private
 
         # Generate keys
         keyring_args = dict()
