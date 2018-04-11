@@ -27,7 +27,6 @@ from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
 
 
-
 class Character(object):
     """
     A base-class for any character in our cryptography protocol narrative.
@@ -62,7 +61,7 @@ class Character(object):
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
-        self.config = config if config is not None else KMSConfig.get_config()
+        # self.config = config if config is not None else KMSConfig.get_config()
         self.known_nodes = {}
         self.log = getLogger("characters")
 

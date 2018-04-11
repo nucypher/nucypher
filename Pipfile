@@ -6,7 +6,6 @@ name = "pypi"
 [packages]
 rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "kms-dependency"}
 kademlia = {git = "https://github.com/nucypher/kademlia", ref = "kms-dependency"}
-lmdb = "*"
 PyNaCl = "*"
 "pysha3" = "*"
 bidict = "*"
@@ -23,7 +22,6 @@ constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = 
 bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git", ref = "eaa1df2433362190f30bc6e400570f0331980ebb"}
 appdirs = "*"
 populus = {git = "https://github.com/nucypher/Bropulus.git"}
-eth-tester = "*"
 
 [dev-packages]
 pytest = "*"
