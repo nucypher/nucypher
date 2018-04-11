@@ -5,7 +5,7 @@ import stat
 from .configs import _DEFAULT_CONFIGURATION_DIR, KMSConfigurationError
 
 
-def save_private_keyfile(keypath: str, key_data: dict) -> str:
+def _save_private_keyfile(keypath: str, key_data: dict) -> str:
     """
     Creates a permissioned keyfile and save it to the local filesystem.
     The file must be created in this call, and will fail if the path exists.
@@ -41,7 +41,7 @@ def save_private_keyfile(keypath: str, key_data: dict) -> str:
     return output_path
 
 
-def parse_keyfile(keypath: str):
+def _parse_keyfile(keypath: str):
     """Parses a keyfile and returns key metadata as a dict."""
 
     with open(keypath, 'r') as keyfile:

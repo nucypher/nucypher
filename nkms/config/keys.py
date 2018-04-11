@@ -14,7 +14,7 @@ from web3.auto import w3
 
 from nkms.config import utils
 from nkms.config.configs import _DEFAULT_CONFIGURATION_DIR, KMSConfigurationError
-from nkms.config.utils import parse_keyfile, save_private_keyfile
+from nkms.config.utils import _parse_keyfile, _save_private_keyfile
 from nkms.crypto.powers import SigningPower, EncryptingPower, CryptoPower
 
 w3.eth.enable_unaudited_features()
