@@ -1,13 +1,8 @@
-import os
-from enum import Enum
-from pathlib import Path
-
 from os.path import dirname, join, abspath
 
 import appdirs
 import populus
-
-import nkms_eth
+from nkms.blockchain import eth
 
 
 class NuCypherTokenConfig:
@@ -70,7 +65,7 @@ class EthereumConfig:
         self._registrar_path = registrar_path
 
         # Populus project config
-        self._project_dir = join(dirname(abspath(nkms_eth.__file__)), 'project')
+        self._project_dir = join(dirname(abspath(eth.__file__)), 'project')
         self._populus_project = populus.Project(self._project_dir)
         self.project.config['chains.mainnetrpc.contracts.backends.JSONFile.settings.file_path'] = self._registrar_path
 

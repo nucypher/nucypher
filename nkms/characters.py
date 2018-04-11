@@ -11,6 +11,7 @@ from typing import Dict
 from typing import Union, List
 
 from constant_sorrow import constants, default_constant_splitter
+from nkms.blockchain.eth.actors import PolicyAuthor
 from nkms.config.config import KMSConfig
 from nkms.crypto.api import secure_random, keccak_digest
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH
@@ -21,8 +22,6 @@ from nkms.crypto.splitters import signature_splitter
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
-
-from nkms_eth.actors import PolicyAuthor
 
 from umbral import pre
 from umbral.keys import UmbralPublicKey
@@ -357,7 +356,7 @@ class Alice(Character, PolicyAuthor):
             if not default_deposit:
                 deposit = networky_stuff.get_competitive_rate()
                 if deposit == NotImplemented:
-                    deposit = constants.NON_PAYMENT
+                    deposit = constants.NON_PAYMENT(b"0000000")
 
         policy = self.create_policy(bob, uri, m, n)
 

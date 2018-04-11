@@ -7,7 +7,7 @@ from typing import Set, Generator, List
 
 from web3.contract import Contract
 
-from nkms_eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer, PolicyManagerDeployer, ContractDeployer
+from nkms.blockchain.eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer, PolicyManagerDeployer, ContractDeployer
 
 
 class EthereumContractAgent(ABC):

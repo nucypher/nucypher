@@ -15,7 +15,7 @@ from nkms.crypto.powers import SigningPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import key_splitter
 from bytestring_splitter import BytestringSplitter
-from nkms_eth.policies import BlockchainArrangement
+from nkms.blockchain.eth.policies import BlockchainArrangement
 from umbral.pre import Capsule
 from constant_sorrow import constants
 
@@ -67,12 +67,12 @@ class Arrangement(BlockchainArrangement):
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
         arrangement_splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
-                                                              (bytes, 26))
+                                                              (bytes, 27))
         alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = arrangement_splitter(
             arrangement_as_bytes, return_remainder=True)
         expiration = maya.parse(expiration_bytes.decode())
         alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
-        return cls(alice=alice, hrac=hrac, expiration=expiration)
+        return cls(alice=alice, hrac=hrac, expiration=expiration, deposit=int(deposit_bytes))
 
     def publish(self, kfrag, ursula, negotiation_result):
         self.kfrag = kfrag

@@ -1,6 +1,6 @@
 from abc import ABC
 
-from nkms_eth.config import EthereumConfig
+from nkms.blockchain.eth.config import EthereumConfig
 
 
 class TheBlockchain(ABC):
