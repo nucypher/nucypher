@@ -33,10 +33,49 @@ def _save_private_keyfile(keypath: str, key_data: dict) -> str:
         os.umask(0)  # Set the umask to 0 after opening
 
     # Write and destroy file descriptor reference
-    with os.fdopen(keyfile_descriptor, 'w') as keyfile:
+    with os.fdopen(keyfile_descriptor, 'wb') as keyfile:
         keyfile.write(json.dumps(key_data))
         output_path = keyfile.name
 
+    # TODO: output_path is an integer, who knows why?
+    del keyfile_descriptor
+    return output_path
+
+
+def _save_public_keyfile(keypath: str, key_data: bytes) -> str:
+    """
+    Creates a permissioned keyfile and save it to the local filesystem.
+    The file must be created in this call, and will fail if the path exists.
+    Returns the filepath string used to write the keyfile.
+
+    Note: getting and setting the umask is not thread-safe!
+
+    See Linux open docs: http://man7.org/linux/man-pages/man2/open.2.html
+    ---------------------------------------------------------------------
+    O_CREAT - If pathname does not exist, create it as a regular file.
+
+
+    O_EXCL - Ensure that this call creates the file: if this flag is
+             specified in conjunction with O_CREAT, and pathname already
+             exists, then open() fails with the error EEXIST.
+    ---------------------------------------------------------------------
+    """
+
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL    # Write, Create, Non-Existing
+    mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH # 0o644
+
+    try:
+        keyfile_descriptor = os.open(path=keypath, flags=flags, mode=mode)
+    finally:
+        os.umask(0) # Set the umask to 0 after opening
+
+    # Write and destroy the file descriptor reference
+    with os.fdopen(keyfile_descriptor, 'wb') as keyfile:
+        # key data should be urlsafe_base64
+        keyfile.write(key_data)
+        output_path = keyfile.name
+
+    # TODO: output_path is an integer, who knows why?
     del keyfile_descriptor
     return output_path
 
