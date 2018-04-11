@@ -504,6 +504,10 @@ class Bob(Character):
         return self._ursulas[ursula_id]
 
 
+class Enrique(Character):
+    pass
+
+
 class Ursula(Character, ProxyRESTServer):
     _server_class = NuCypherDHTServer
     _alice_class = Alice
