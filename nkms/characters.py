@@ -171,26 +171,13 @@ class Character(object):
         :return: A tuple, (ciphertext, signature).  If sign==False,
             then signature will be NOT_SIGNED.
         """
-        recipient_pubkey_enc = recipient.public_key(EncryptingPower)
-        if sign:
-            if sign_plaintext:
-                # Sign first, encrypt second.
-                sig_header = constants.SIGNATURE_TO_FOLLOW
-                signature = self.stamp(plaintext)
-                ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + signature + plaintext)
-            else:
-                # Encrypt first, sign second.
-                sig_header = constants.SIGNATURE_IS_ON_CIPHERTEXT
-                ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
-                signature = self.stamp(ciphertext)
-            alice_pubkey = self.public_key(SigningPower)
-        else:
-            # Don't sign.
-            signature = sig_header = constants.NOT_SIGNED
-            alice_pubkey = None
-            ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
-        message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule, alice_pubkey=alice_pubkey)
+        signer = self.stamp if sign else constants.DO_NOT_SIGN.bool_value(False)
 
+        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_key(EncryptingPower),
+                                                  plaintext=plaintext,
+                                                  signer=signer,
+                                                  sign_plaintext=sign_plaintext
+                                                  )
         return message_kit, signature
 
     def verify_from(self,

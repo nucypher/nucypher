@@ -1,12 +1,15 @@
 from random import SystemRandom
+from typing import Union
 
 import sha3
+from constant_sorrow import constants
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from nkms.crypto.constants import BLAKE2B
+from nkms.crypto.kits import UmbralMessageKit
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
-
+from umbral import pre
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.backends import default_backend
@@ -126,3 +129,28 @@ def generate_self_signed_certificate(common_name, curve, private_key=None, days_
     cert = cert.add_extension(x509.SubjectAlternativeName([x509.DNSName(u"localhost")]), critical=False)
     cert = cert.sign(private_key, hashes.SHA512(), default_backend())
     return cert, private_key
+
+
+def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
+                    plaintext: bytes,
+                    signer: Union["SignatureStamp", None],
+                    sign_plaintext=True,
+                    ) -> tuple:
+    if signer:
+        if sign_plaintext:
+            # Sign first, encrypt second.
+            sig_header = constants.SIGNATURE_TO_FOLLOW
+            signature = signer(plaintext)
+            ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + signature + plaintext)
+        else:
+            # Encrypt first, sign second.
+            sig_header = constants.SIGNATURE_IS_ON_CIPHERTEXT
+            ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
+            signature = signer(ciphertext)
+    else:
+        # Don't sign.
+        signature = sig_header = constants.NOT_SIGNED
+        alice_pubkey = None
+        ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
+    message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule, sender_pubkey=signer)
+    return message_kit, signature
