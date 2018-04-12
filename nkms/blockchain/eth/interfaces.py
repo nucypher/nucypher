@@ -1,6 +1,35 @@
 import json
 
 
+def __write_registrar_file(self, registrar_data: dict, registrar_filepath: str) -> None:
+    """
+    Writes the registrar data dict as JSON to the registrar file. If no
+    file exists, it will create it and write the data. If a file does exist
+    and contains JSON data, it will _overwrite_ everything in it.
+    """
+    with open(registrar_filepath, 'a+') as registrar_file:
+        registrar_file.seek(0)
+        registrar_file.write(json.dumps(registrar_data))
+        registrar_file.truncate()
+
+
+def __read_registrar_file(self, registrar_filepath: str) -> dict:
+    """
+    Reads the registrar file and parses the JSON and returns a dict.
+    If the file is empty or the JSON is corrupt, it will return an empty
+    dict.
+    If you are modifying or updating the registrar file, you _must_ call
+    this function first to get the current state to append to the dict or
+    modify it because _write_registrar_file overwrites the file.
+    """
+    with open(registrar_filepath, 'r') as registrar_file:
+        try:
+            registrar_data = json.loads(registrar_file.read())
+        except json.decoder.JSONDecodeError:
+            registrar_data = dict()
+    return registrar_data
+
+
 class Registrar:
     """
     Records known contracts on the disk for future access and utility.
@@ -18,37 +47,29 @@ class Registrar:
         self._chain_name = chain_name or self.__DEFAULT_CHAIN_NAME
         self.__registrar_filepath = registrar_filepath or self.__DEFAULT_REGISTRAR_FILEPATH
 
-    def _write_registrar_file(self, registrar_data: dict) -> None:
+    @classmethod
+    def get_chains(cls, registrar_filepath: str=None):
         """
-        Writes the registrar data dict as JSON to the registrar file. If no
-        file exists, it will create it and write the data. If a file does exist
-        and contains JSON data, it will _overwrite_ everything in it.
+        Returns a dict of Registrar objects where the key is the chain name and
+        the value is the Registrar object for that chain.
+        Optionally, accepts a registrar filepath.
         """
-        with open(self.__registrar_filepath, 'a+') as registrar_file:
-            registrar_file.seek(0)
-            registrar_file.write(json.dumps(registrar_data))
-            registrar_file.truncate()
+        filepath = registrar_filepath or self.__DEFAULT_REGISTRAR_FILEPATH
+        instance = cls(registrar_filepath=filepath)
 
-    def _read_registrar_file(self) -> dict:
-        """
-        Reads the registrar file and parses the JSON and returns a dict.
-        If the file is empty or the JSON is corrupt, it will return an empty
-        dict.
-        If you are modifying or updating the registrar file, you _must_ call
-        this function first to get the current state to append to the dict or
-        modify it because _write_registrar_file overwrites the file.
-        """
-        with open(self.__registrar_filepath, 'r') as registrar_file:
-            try:
-                registrar_data = json.loads(registrar_file.read())
-            except json.decoder.JSONDecodeError:
-                registrar_data = dict()
-        return registrar_data
+        registrar_data = instance._read_registrar_file(filepath)
+        chain_names = registrar_data.keys()
+
+        chains = dict()
+        for chain_name in chain_names:
+            chains[chain_name] = cls(chain_name=chain_name,
+                                     registrar_filepath=filepath)
+        return chains
 
     def enroll(self, contract_name: str, contract_address: str, contract_abi: list):
         """
-        Enrolls a contract to the registrar by writing the abi information to
-        the filesystem as JSON. This can also be used to update the abi info
+        Enrolls a contract to the chain registrar by writing the abi information
+        to the filesystem as JSON. This can also be used to update the info
         under the specified `contract_name`.
 
         WARNING: Unless you are developing the KMS/work at NuCypher, you most
@@ -63,7 +84,19 @@ class Registrar:
             }
         }
 
-        registrar_data = self._read_registrar_file()
+        registrar_data = __read_registrar_file(self.__registrar_filepath)
         registrar_data.update(enrolled_contract)
 
-        self._write_registrar_file(registrar_data)
+        __write_registrar_file(registrar_data, self.__registrar_filepath)
+
+    def get_chain_data(self):
+        """
+        Returns all data from the current registrar chain as a dict.
+        If you haven't specified the chain name, it's probably the tester chain.
+        """
+        registrar_data = __read_registrar_file(self.__registrar_filepath)
+        try:
+            chain_data = registrar_data[self._chain_name]
+        except KeyError:
+            raise KeyError("Data does not exist for chain '{}'".format(self._chain_name))
+        return chain_data
