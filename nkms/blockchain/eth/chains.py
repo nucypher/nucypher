@@ -2,8 +2,6 @@ import random
 from abc import ABC
 from typing import List
 
-from nkms.blockchain.eth.actors import Miner
-from nkms.blockchain.eth.agents import MinerAgent, NuCypherKMSTokenAgent
 from nkms.config.configs import EthereumConfig
 
 
@@ -112,7 +110,7 @@ class TesterBlockchain(TheBlockchain):
 
         return miners
 
-    def _global_airdrop(self, token_agent: NuCypherKMSTokenAgent, amount: int):
+    def _global_airdrop(self, token_agent, amount: int):
         """Airdrops from creator address to all other addresses!"""
 
         _creator, *addresses = self._chain.web3.eth.accounts
