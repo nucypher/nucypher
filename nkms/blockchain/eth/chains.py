@@ -1,6 +1,7 @@
 import random
 from abc import ABC
 
+
 from nkms.config.configs import EthereumConfig
 
 
@@ -92,6 +93,7 @@ class TesterBlockchain(TheBlockchain):
             self._chain.wait.for_block(self._chain.web3.eth.blockNumber + step)
 
     def spawn_miners(self, miner_agent, addresses: list, locktime: int, random_amount=False) -> list:
+
         """
         Deposit and lock a random amount of tokens in the miner escrow
         from each address, "spawning" new Miners.
