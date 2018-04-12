@@ -1,8 +1,8 @@
 from typing import Tuple, Dict
 
-from nkms.blockchain.eth.constants import NuCypherMinerConfig, NuCypherTokenConfig
 from web3.contract import Contract
 
+from nkms.blockchain.eth.constants import NuCypherMinerConfig, NuCypherTokenConfig
 from .chains import TheBlockchain
 
 
@@ -343,7 +343,6 @@ class UserEscrowDeployer(ContractDeployer):
     """
 
     _contract_name = 'UserEscrow'  # TODO
-
 
     def __init__(self, miner_escrow_deployer, policy_deployer):
         self.miner_deployer = miner_escrow_deployer
