@@ -22,12 +22,11 @@ class CryptoKit:
 
 class MessageKit(CryptoKit):
 
-    _signature = constants.NOT_SIGNED
-
-    def __init__(self, capsule, sender_pubkey=None, ciphertext=None):
+    def __init__(self, capsule, sender_pubkey_sig=None, ciphertext=None, signature=constants.NOT_SIGNED):
         self.ciphertext = ciphertext
         self.capsule = capsule
-        self.sender_pubkey = sender_pubkey
+        self.sender_pubkey_sig = sender_pubkey_sig
+        self._signature = signature
 
     def to_bytes(self, include_alice_pubkey=True):
         # We include the capsule first.
@@ -35,8 +34,8 @@ class MessageKit(CryptoKit):
 
         # Then, before the ciphertext, we see if we're including alice's public key.
         # We want to put that first because it's typically of known length.
-        if include_alice_pubkey and self.sender_pubkey:
-            as_bytes += bytes(self.sender_pubkey)
+        if include_alice_pubkey and self.sender_pubkey_sig:
+            as_bytes += bytes(self.sender_pubkey_sig)
 
         as_bytes += self.ciphertext
         return as_bytes
@@ -51,3 +50,7 @@ class MessageKit(CryptoKit):
 
 class UmbralMessageKit(MessageKit):
     splitter = capsule_splitter + key_splitter
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.policy_pubkey = None

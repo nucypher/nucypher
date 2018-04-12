@@ -147,10 +147,14 @@ def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
             sig_header = constants.SIGNATURE_IS_ON_CIPHERTEXT
             ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
             signature = signer(ciphertext)
+        message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule,
+                                       sender_pubkey_sig=signer.as_umbral_pubkey(),
+                                       signature=signature)
     else:
         # Don't sign.
         signature = sig_header = constants.NOT_SIGNED
         alice_pubkey = None
         ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
-    message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule, sender_pubkey=signer)
+        message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule)
+
     return message_kit, signature
