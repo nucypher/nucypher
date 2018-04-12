@@ -198,13 +198,13 @@ class Character(object):
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
         """
+        sender_pubkey_sig = actor_whom_sender_claims_to_be.stamp.as_umbral_pubkey()
         with suppress(AttributeError):
-            if message_kit.alice_pubkey:
-                if not message_kit.alice_pubkey == actor_whom_sender_claims_to_be.public_key(SigningPower):
+            if message_kit.sender_pubkey_sig:
+                if not message_kit.sender_pubkey_sig == sender_pubkey_sig:
                     raise ValueError(
                         "This MessageKit doesn't appear to have come from {}".format(actor_whom_sender_claims_to_be))
 
-        alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
         signature_from_kit = None
 
         if decrypt:
@@ -234,7 +234,7 @@ class Character(object):
         signature_to_use = signature or signature_from_kit
 
         if signature_to_use:
-            is_valid = signature_to_use.verify(message, alice_pubkey)
+            is_valid = signature_to_use.verify(message, sender_pubkey_sig)
         else:
             # Meh, we didn't even get a signature.  Not much we can do.
             is_valid = False
