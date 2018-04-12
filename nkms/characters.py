@@ -7,7 +7,7 @@ import requests
 from collections import OrderedDict
 from kademlia.network import Server
 from kademlia.utils import digest
-from typing import Dict
+from typing import Dict, ClassVar
 from typing import Union, List
 from umbral import pre
 from umbral.keys import UmbralPublicKey
@@ -277,7 +277,7 @@ class Character(object):
     And finally, some miscellaneous but generally-applicable abilities:
     """
 
-    def public_key(self, power_up_class):
+    def public_key(self, power_up_class: ClassVar):
         """
         Pass a power_up_class, get the public key for this Character which corresponds to that
         class.
