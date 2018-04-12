@@ -72,15 +72,16 @@ class SignatureStamp(object):
     key as bytes.
     """
 
-    def __init__(self, character):
-        self.character = character
-
-    def __call__(self, *args, **kwargs):
-        return self.character.sign(*args, **kwargs)
+    def __init__(self, signing_keypair):
+        self._sign = signing_keypair.sign
+        self._as_bytes = bytes(signing_keypair.pubkey)
+        self._as_umbral_pubkey = signing_keypair.pubkey
 
     def __bytes__(self):
-        from nkms.crypto.powers import SigningPower
-        return bytes(self.character.public_key(SigningPower))
+        return self._as_bytes
+
+    def __call__(self, *args, **kwargs):
+        return self._sign(*args, **kwargs)
 
     def __hash__(self):
         return int.from_bytes(self, byteorder="big")
@@ -97,9 +98,11 @@ class SignatureStamp(object):
     def __len__(self):
         return len(bytes(self))
 
+    def __bool__(self):
+        return True
+
     def as_umbral_pubkey(self):
-        from nkms.crypto.powers import SigningPower
-        return self.character.public_key(SigningPower)
+        return self._as_umbral_pubkey
 
     def fingerprint(self):
         """
@@ -108,13 +111,3 @@ class SignatureStamp(object):
         :return: Hexdigest fingerprint of key (keccak-256) in bytes
         """
         return keccak_digest(bytes(self)).hex().encode()
-
-
-class StrangerStamp(SignatureStamp):
-    """
-    SignatureStamp of a stranger (ie, can only be used to glean public key, not to sign)
-    """
-
-    def __call__(self, *args, **kwargs):
-        message = "This isn't your SignatureStamp; it belongs to {} (a Stranger).  You can't sign with it."
-        raise TypeError(message.format(self.character))

@@ -19,7 +19,7 @@ from nkms.crypto.api import secure_random, keccak_digest, encrypt_and_sign
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH
 from nkms.crypto.kits import UmbralMessageKit
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower
-from nkms.crypto.signature import Signature, signature_splitter, SignatureStamp, StrangerStamp
+from nkms.crypto.signature import Signature, signature_splitter, SignatureStamp
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
@@ -70,7 +70,7 @@ class Character(object):
             crypto_power_ups = []
 
         if is_me:
-            self._stamp = SignatureStamp(self)
+            self._stamp = CharacterStamp(self)
 
             if attach_server:
                 self.attach_server()
@@ -595,3 +595,28 @@ class Ursula(Character, ProxyRESTServer):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
+
+
+class CharacterStamp(SignatureStamp):
+    """
+    A stamp meant to be used by a character.
+    """
+    def __init__(self, character):
+        self.character = character
+        self._sign = character.sign
+
+    def __bytes__(self):
+        return bytes(self.character.public_key(SigningPower))
+
+    def as_umbral_pubkey(self):
+        return self.character.public_key(SigningPower)
+
+
+class StrangerStamp(CharacterStamp):
+    """
+    SignatureStamp of a stranger (ie, can only be used to glean public key, not to sign)
+    """
+
+    def __call__(self, *args, **kwargs):
+        message = "This isn't your SignatureStamp; it belongs to {} (a Stranger).  You can't sign with it."
+        raise TypeError(message.format(self.character))
