@@ -103,6 +103,19 @@ def generate_confg_dir(path: str=None,) -> None:
         os.mkdir(path, mode=0o755)
 
 
+def validate_passphrase(passphrase) -> bool:
+    """Validate a passphrase and return True or raise an error with a failure reason"""
+
+    rules = (
+        (len(passphrase) >= 16, 'Passphrase is too short, must be >= 16 chars.'),
+    )
+
+    for rule, failure_message in rules:
+        if not rule:
+            raise KMSConfigurationError(failure_message)
+    return True
+
+
 def check_config_tree(configuration_dir: str=None) -> bool:
     path = configuration_dir if configuration_dir else _DEFAULT_CONFIGURATION_DIR
     if not os.path.exists(path):
@@ -122,7 +135,3 @@ def check_config_runtime() -> bool:
     return True
 
 
-def _bootstrap_config():
-    """Do not actually use this."""
-    passphrase = input("Enter passphrase >> ")
-    return KMSKeyring.generate(passphrase=passphrase)

@@ -1,3 +1,4 @@
+import nacl
 import os
 from base64 import urlsafe_b64encode
 from pathlib import Path
@@ -8,33 +9,20 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from eth_account import Account
+from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey
 from web3.auto import w3
 
 from nkms.config import utils
-from nkms.config.configs import _DEFAULT_CONFIGURATION_DIR, KMSConfigurationError
-from nkms.config.utils import _parse_keyfile, _save_private_keyfile
+from nkms.config.configs import _DEFAULT_CONFIGURATION_DIR
+from nkms.config.utils import _parse_keyfile, _save_private_keyfile, validate_passphrase, _save_public_keyfile
 from nkms.crypto.powers import SigningPower, EncryptingPower, CryptoPower
 
 w3.eth.enable_unaudited_features()
 
 
 _CONFIG_ROOT = os.path.join(str(Path.home()), '.nucypher')
-
-
-
-def validate_passphrase(passphrase) -> bool:
-    """Validate a passphrase and return True or raise an error with a failure reason"""
-
-    rules = (
-        (len(passphrase) >= 16, 'Passphrase is too short, must be >= 16 chars.'),
-    )
-
-    for rule, failure_message in rules:
-        if not rule:
-            raise KMSConfigurationError(failure_message)
-    return True
 
 
 def _derive_key_material_from_passphrase(salt: bytes, passphrase: str) -> bytes:
@@ -86,13 +74,16 @@ def _encrypt_umbral_key(wrapping_key: bytes, umbral_key: UmbralPrivateKey) -> di
     return crypto_data
 
 
-# TODO: Handle decryption failures
 def _decrypt_umbral_key(wrapping_key: bytes, nonce: bytes, enc_key_material: bytes) -> UmbralPrivateKey:
     """
     Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
     Returns a decrypted key as an UmbralPrivateKey.
     """
-    dec_key = SecretBox(wrapping_key).decrypt(enc_key_material, nonce)
+    try:
+        dec_key = SecretBox(wrapping_key).decrypt(enc_key_material, nonce)
+    except CryptoError:
+        raise  # TODO: Handle decryption failures
+
     umbral_key = UmbralPrivateKey.from_bytes(dec_key)
     return umbral_key
 
