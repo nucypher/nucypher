@@ -1,8 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import ClassVar, Dict
-from typing import Tuple
+from typing import Tuple, ClassVar, Dict
 
 from eth_tester import EthereumTester, PyEVMBackend
 from web3 import Web3, EthereumTesterProvider
@@ -206,7 +205,6 @@ class Provider:
 
     def __make_web3_contracts(self, interfaces, contract_factory: ClassVar=Contract, address=None):
         """Instantiate web3 Contracts from raw contract interface data with the supplied web3 provider"""
-
 
         if contract_factory is ConciseContract and address is None:
             raise Exception('Address must be provided when making concise contracts.')
