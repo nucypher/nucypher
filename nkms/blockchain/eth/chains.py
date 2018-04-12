@@ -1,9 +1,5 @@
 import random
 from abc import ABC
-<<<<<<< HEAD
-
-=======
->>>>>>> 157bf90... Minimal solc compilation to web3 contracts.
 
 from nkms.config.configs import EthereumConfig
 
