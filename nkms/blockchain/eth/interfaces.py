@@ -30,10 +30,35 @@ class Registrar:
     def _read_registrar_file(self) -> dict:
         """
         Reads the registrar file and parses the JSON and returns a dict.
+        If the file is empty or the JSON is corrupt, it will return an empty
+        dict.
         If you are modifying or updating the registrar file, you _must_ call
         this function first to get the current state to append to the dict or
         modify it because _write_registrar_file overwrites the file.
         """
         with open(self.__registrar_filepath, 'r') as registrar_file:
-            registrar_data = json.loads(registrar_file.read())
+            try:
+                registrar_data = json.loads(registrar_file.read())
+            except json.decoder.JSONDecodeError:
+                registrar_data = dict()
         return registrar_data
+
+    def enroll(self, contract_name: str, contract_address: str, contract_abi: list):
+        """
+        Enrolls a contract to the registrar by writing the abi information to
+        the filesystem as JSON.
+
+        WARNING: Unless you are developing the KMS/work at NuCypher, you most
+        likely won't ever need to use this.
+        """
+        enrolled_contract = {
+            contract_name: {
+                "addr": contract_address,
+                "abi": contract_abi
+            }
+        }
+
+        registrar_data = self._read_registrar_file()
+        registrar_data.update(enrolled_contract)
+
+        self._write_registrar_file(registrar_data)
