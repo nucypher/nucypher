@@ -1,7 +1,5 @@
 import random
 from abc import ABC
-from typing import List
-
 
 from nkms.config.configs import EthereumConfig
 
@@ -28,7 +26,7 @@ class TheBlockchain(ABC):
     class IsAlreadyRunning(RuntimeError):
         pass
 
-    def __init__(self, eth_config: EthereumConfig):
+    def __init__(self, config: EthereumConfig):
         """
         Configures a populus project and connects to blockchain.network.
         Transaction timeouts specified measured in seconds.
@@ -43,8 +41,7 @@ class TheBlockchain(ABC):
             raise TheBlockchain.IsAlreadyRunning(message)
         TheBlockchain.__instance = self
 
-        self._eth_config = eth_config
-        self._chain = eth_config.provider  # TODO
+        self.config = config
 
     @classmethod
     def get(cls):
@@ -53,12 +50,6 @@ class TheBlockchain(ABC):
             raise Exception('{} has not been created.'.format(class_name))
         return cls.__instance
 
-    def disconnect(self):
-        self._chain.__exit__(None, None, None)
-
-    def __del__(self):
-        self.disconnect()
-
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(network={})"
@@ -66,17 +57,17 @@ class TheBlockchain(ABC):
 
     def get_contract(self, name):
         """
-        Gets an existing contract from the network,
+        Gets an existing contract from the registrar,
         or raises populus.contracts.exceptions.UnknownContract
         if there is no contract data available for the name/identifier.
         """
-        return self._chain.provider.get_contract(name)
+        return self.config.provider.get_contract(name)
 
     def wait_for_receipt(self, txhash, timeout=None) -> None:
         if timeout is None:
             timeout = self._default_timeout
 
-        result = self._chain.wait.for_receipt(txhash, timeout=timeout)
+        result = self.config.wait.for_receipt(txhash, timeout=timeout)
         return result
 
 
@@ -88,7 +79,7 @@ class TesterBlockchain(TheBlockchain):
     def wait_time(self, wait_hours, step=50):
         """Wait the specified number of wait_hours by comparing block timestamps."""
 
-        end_timestamp = self._chain.web3.eth.getBlock(
+        end_timestamp = self.config.web3.eth.getBlock(
             self._chain.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
         while self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber).timestamp < end_timestamp:
             self._chain.wait.for_block(self._chain.web3.eth.blockNumber + step)

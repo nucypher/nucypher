@@ -1,12 +1,16 @@
 import json
 import os
-from abc import ABC
 from pathlib import Path
+from typing import List, Union
 
 import maya
-from os.path import join, dirname, abspath
+from eth_tester import EthereumTester, PyEVMBackend
+from web3 import Web3, EthereumTesterProvider
+from web3.contract import ConciseContract
+from web3.contract import Contract
+from web3.providers.tester import EthereumTesterProvider
 
-from nkms.blockchain import eth
+from nkms.blockchain.eth.sol.compile import compile_interfaces, SolidityConfig
 
 _DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
 
@@ -15,34 +19,48 @@ class KMSConfigurationError(RuntimeError):
     pass
 
 
-class BlockchainConfig(ABC):
-    pass
+class KMSProvider:
 
+    def __init__(self, provider=None, registrar=None):
 
-class EthereumConfig(BlockchainConfig):
-    __solididty_source_dir = join(dirname(abspath(eth.__file__)), 'sol_source')
-    __default_registrar_path = join(_DEFAULT_CONFIGURATION_DIR, 'registrar.json')
-
-    def __init__(self, provider, registrar_path=None):
-
+        if provider is None:
+            # https: // github.com / ethereum / eth - tester     # available-backends
+            eth_tester = EthereumTester(backend=PyEVMBackend())  # TODO: Discuss backend choice
+            provider = EthereumTesterProvider(ethereum_tester=eth_tester, api_endpoints=None)
         self.provider = provider
+        self.w3 = Web3(self.provider)
 
-        if registrar_path is None:
-            registrar_path = self.__default_registrar_path
-        self._registrar_path = registrar_path
+        self.__registrar = None
 
-        # Populus project config
-        # self._populus_project = populus.Project(self._project_dir)
-        # self.project.config['chains.mainnetrpc.contracts.backends.JSONFile.settings.file_path'] = self._registrar_path
+    def __make_web3_contracts(self, contract_factory: Union[ConciseContract, Contract]=ConciseContract, address=None) -> List[Contract]:
+        """Instantiate web3 Contracts from raw contract interface data with the supplied web3 provider"""
+        sol_config = SolidityConfig()
+        interfaces = compile_interfaces(config=sol_config)
 
-    # @property
-    # def project(self):
-    #     return self._populus_project
+        if contract_factory is ConciseContract and address is None:
+            raise Exception('Address must be provided when making concise contracts.')
+        elif contract_factory is Contract and address is not None:
+            raise Exception('Address must not be provided when making deployable, non-concise contracts')
+
+        web3_contracts = list()
+        for contract, interface in interfaces.items():
+            contract = self.w3.eth.contract(abi=interface['abi'],
+                                            bytecode=interface['bin'],
+                                            ContractFactoryClass=contract_factory)
+            web3_contracts.append(contract)
+
+        return web3_contracts
+
+    def get_contract(self):
+        pass
+
+    def deploy_contract(self):
+        pass
 
 
 class StakeConfig:
-    __minimum_stake_amount = 0  # TODO!!!
-    __minimum_stake_duration = 0
+    # __minimum_stake_amount = 0  # TODO
+    # __minimum_stake_duration = 0
 
     def __init__(self, amount: int, periods: int, start_datetime):
 
@@ -54,9 +72,9 @@ class StakeConfig:
     @classmethod
     def validate_stake(cls, amount: int, periods: int, start_datetime) -> bool:
         rules = (
-            (amount > cls.__minimum_stake_amount, 'Staking aount must be at least {min_amount}'),
+            # (amount > cls.__minimum_stake_amount, 'Staking aount must be at least {min_amount}'),  # TODO
             (start_datetime < maya.now(), 'Start date/time must not be in the past.'),
-            (periods > cls.__minimum_stake_duration, 'Staking duration must be at least {}'.format(cls.__minimum_stake_duration))
+            # (periods > cls.__minimum_stake_duration, 'Staking duration must be at least {}'.format(cls.__minimum_stake_duration))
         )
 
         for rule, failure_message in rules:
