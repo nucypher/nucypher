@@ -9,11 +9,13 @@ class Registrar:
     likely won't ever need to use this.
     """
     __DEFAULT_REGISTRAR_FILEPATH = None # TODO
+    __DEFAULT_CHAIN_NAME = 'tester'
 
     class NoKnownContract(KeyError):
         pass
 
-    def __init__(self, registrar_filepath: str=None):
+    def __init__(self, chain_name: str=None, registrar_filepath: str=None):
+        self._chain_name = chain_name or self.__DEFAULT_CHAIN_NAME
         self.__registrar_filepath = registrar_filepath or self.__DEFAULT_REGISTRAR_FILEPATH
 
     def _write_registrar_file(self, registrar_data: dict) -> None:
@@ -46,15 +48,18 @@ class Registrar:
     def enroll(self, contract_name: str, contract_address: str, contract_abi: list):
         """
         Enrolls a contract to the registrar by writing the abi information to
-        the filesystem as JSON.
+        the filesystem as JSON. This can also be used to update the abi info
+        under the specified `contract_name`.
 
         WARNING: Unless you are developing the KMS/work at NuCypher, you most
         likely won't ever need to use this.
         """
         enrolled_contract = {
-            contract_name: {
-                "addr": contract_address,
-                "abi": contract_abi
+                self._chain_name: {
+                    contract_name: {
+                        "addr": contract_address,
+                        "abi": contract_abi
+                }
             }
         }
 
