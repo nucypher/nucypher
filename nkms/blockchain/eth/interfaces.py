@@ -49,7 +49,6 @@ def _read_registrar_file(registrar_filepath: str) -> dict:
         raise RegistrarDoesNotExist("No Registrar exists at this filepath.")
     return registrar_data
 
-
 class Registrar:
     """
     Records known contracts on the disk for future access and utility.
@@ -88,8 +87,8 @@ class Registrar:
 
     def enroll(self, contract_name: str, contract_address: str, contract_abi: list) -> None:
         """
-        Enrolls a contract to the chain registrar by writing the abi information
-        to the filesystem as JSON. This can also be used to update the info
+        Enrolls a contract to the registrar by writing the abi information to
+        the filesystem as JSON. This can also be used to update the abi info
         under the specified `contract_name`.
 
         WARNING: Unless you are developing the KMS/work at NuCypher, you most
