@@ -76,7 +76,7 @@ class EncryptingKeypair(Keypair):
         cleartext = pre.decrypt(ciphertext=message_kit.ciphertext,
                                 capsule=message_kit.capsule,
                                 priv_key=self._privkey,
-                                alice_pub_key=message_kit.alice_pubkey)
+                                alice_pub_key=message_kit.sender_pubkey)
 
         return cleartext
 

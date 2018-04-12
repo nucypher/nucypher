@@ -3,9 +3,10 @@ import os
 import pytest
 
 from constant_sorrow import constants
-from nkms.characters import Alice, Bob, Enrique
+from nkms.characters import Alice, Bob
 from nkms.crypto.kits import MessageKit
-from nkms.crypto.powers import SigningPower, EncryptingPower, DelegatingPower
+from nkms.crypto.powers import DelegatingPower
+from nkms.data_sources import DataSource
 from nkms.network import blockchain_client
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
@@ -66,11 +67,6 @@ def bob():
 
 
 @pytest.fixture(scope="module")
-def enrique():
-    return Enrique()
-
-
-@pytest.fixture(scope="module")
 def ursulas():
     URSULAS = make_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT)
     yield URSULAS
@@ -95,10 +91,6 @@ def test_keystore():
 
 
 @pytest.fixture(scope="module")
-def capsule_side_channel(alice):
-    plaintext = b"Welcome to the flippering."
-    ciphertext, capsule = pre.encrypt(alice.public_key(DelegatingPower), plaintext)
-    return MessageKit(ciphertext=ciphertext, capsule=capsule,
-                      alice_pubkey=alice.public_key(DelegatingPower))
-
-
+def capsule_side_channel(enacted_policy):
+    data_source = DataSource(enacted_policy)
+    return data_source.encapsulate_single_message(b"Welcome to the flippering.")

@@ -137,7 +137,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_polic
     capsule_side_channel.capsule.attach_cfrag(new_cfrag)
 
 
-def test_bob_gathers_and_combines(enacted_policy, alice, bob, ursulas, capsule_side_channel):
+def test_bob_gathers_and_combines(enacted_policy, bob, ursulas, capsule_side_channel):
     # Bob has saved two WorkOrders so far.
     assert len(bob._saved_work_orders) == 2
 

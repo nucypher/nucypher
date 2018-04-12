@@ -198,7 +198,7 @@ class ProxyRESTServer(object):
         # group_payload_splitter = BytestringSplitter(PublicKey)
         # policy_payload_splitter = BytestringSplitter((KFrag, KFRAG_LENGTH))
 
-        alice = self._alice_class.from_public_keys({SigningPower: policy_message_kit.alice_pubkey})
+        alice = self._alice_class.from_public_keys({SigningPower: policy_message_kit.sender_pubkey})
 
         verified, cleartext = self.verify_from(alice, policy_message_kit, decrypt=True)
 

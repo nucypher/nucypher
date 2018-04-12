@@ -9,19 +9,17 @@ from kademlia.network import Server
 from kademlia.utils import digest
 from typing import Dict, ClassVar
 from typing import Union, List
-from umbral import pre
 from umbral.keys import UmbralPublicKey
 from constant_sorrow import constants, default_constant_splitter
 from bytestring_splitter import RepeatingBytestringSplitter
 
 from nkms.blockchain.eth.actors import PolicyAuthor
 from nkms.config.configs import KMSConfig
-from nkms.crypto.api import secure_random, keccak_digest
+from nkms.crypto.api import secure_random, keccak_digest, encrypt_and_sign
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH
 from nkms.crypto.kits import UmbralMessageKit
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower
-from nkms.crypto.signature import Signature
-from nkms.crypto.splitters import signature_splitter
+from nkms.crypto.signature import Signature, signature_splitter, SignatureStamp, StrangerStamp
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
@@ -491,10 +489,6 @@ class Bob(Character):
         return self._ursulas[ursula_id]
 
 
-class Enrique(Character):
-    pass
-
-
 class Ursula(Character, ProxyRESTServer):
     _server_class = NuCypherDHTServer
     _alice_class = Alice
@@ -601,55 +595,3 @@ class Ursula(Character, ProxyRESTServer):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
-
-
-class SignatureStamp(object):
-    """
-    Can be called to sign something or used to express the signing public
-    key as bytes.
-    """
-
-    def __init__(self, character):
-        self.character = character
-
-    def __call__(self, *args, **kwargs):
-        return self.character.sign(*args, **kwargs)
-
-    def __bytes__(self):
-        return bytes(self.character.public_key(SigningPower))
-
-    def __hash__(self):
-        return int.from_bytes(self, byteorder="big")
-
-    def __eq__(self, other):
-        return other == bytes(self)
-
-    def __add__(self, other):
-        return bytes(self) + other
-
-    def __radd__(self, other):
-        return other + bytes(self)
-
-    def __len__(self):
-        return len(bytes(self))
-
-    def as_umbral_pubkey(self):
-        return self.character.public_key(SigningPower)
-
-    def fingerprint(self):
-        """
-        Hashes the key using keccak-256 and returns the hexdigest in bytes.
-
-        :return: Hexdigest fingerprint of key (keccak-256) in bytes
-        """
-        return keccak_digest(bytes(self)).hex().encode()
-
-
-class StrangerStamp(SignatureStamp):
-    """
-    SignatureStamp of a stranger (ie, can only be used to glean public key, not to sign)
-    """
-
-    def __call__(self, *args, **kwargs):
-        message = "This isn't your SignatureStamp; it belongs to {} (a Stranger).  You can't sign with it."
-        raise TypeError(message.format(self.character))

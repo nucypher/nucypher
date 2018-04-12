@@ -24,10 +24,10 @@ class MessageKit(CryptoKit):
 
     _signature = constants.NOT_SIGNED
 
-    def __init__(self, capsule, alice_pubkey=None, ciphertext=None):
+    def __init__(self, capsule, sender_pubkey=None, ciphertext=None):
         self.ciphertext = ciphertext
         self.capsule = capsule
-        self.alice_pubkey = alice_pubkey
+        self.sender_pubkey = sender_pubkey
 
     def to_bytes(self, include_alice_pubkey=True):
         # We include the capsule first.
@@ -35,8 +35,8 @@ class MessageKit(CryptoKit):
 
         # Then, before the ciphertext, we see if we're including alice's public key.
         # We want to put that first because it's typically of known length.
-        if include_alice_pubkey and self.alice_pubkey:
-            as_bytes += bytes(self.alice_pubkey)
+        if include_alice_pubkey and self.sender_pubkey:
+            as_bytes += bytes(self.sender_pubkey)
 
         as_bytes += self.ciphertext
         return as_bytes
