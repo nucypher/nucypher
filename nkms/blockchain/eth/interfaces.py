@@ -187,4 +187,3 @@ class Provider:
         txhash = self.__contract_cache[contract_name].deploy(transaction=deploy_transaction)
         address = self.w3.eth.getTransactionReceipt(txhash)['contractAddress']
         return address, txhash
-
