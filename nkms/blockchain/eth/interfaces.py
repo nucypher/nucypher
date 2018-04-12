@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import List, Union, Tuple, ClassVar, Dict
+from typing import Tuple, ClassVar, Dict
 
 from eth_tester import EthereumTester, PyEVMBackend
 from web3 import Web3, EthereumTesterProvider
@@ -10,7 +10,6 @@ from web3.contract import Contract
 from web3.providers.tester import EthereumTesterProvider
 
 from nkms.blockchain.eth.sol.compile import compile_interfaces, SolidityConfig
-
 
 _DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
 
@@ -49,6 +48,35 @@ def _read_registrar_file(registrar_filepath: str) -> dict:
         raise RegistrarDoesNotExist("No Registrar exists at this filepath.")
     return registrar_data
 
+def __write_registrar_file(self, registrar_data: dict, registrar_filepath: str) -> None:
+    """
+    Writes the registrar data dict as JSON to the registrar file. If no
+    file exists, it will create it and write the data. If a file does exist
+    and contains JSON data, it will _overwrite_ everything in it.
+    """
+    with open(registrar_filepath, 'a+') as registrar_file:
+        registrar_file.seek(0)
+        registrar_file.write(json.dumps(registrar_data))
+        registrar_file.truncate()
+
+
+def __read_registrar_file(self, registrar_filepath: str) -> dict:
+    """
+    Reads the registrar file and parses the JSON and returns a dict.
+    If the file is empty or the JSON is corrupt, it will return an empty
+    dict.
+    If you are modifying or updating the registrar file, you _must_ call
+    this function first to get the current state to append to the dict or
+    modify it because _write_registrar_file overwrites the file.
+    """
+    with open(registrar_filepath, 'r') as registrar_file:
+        try:
+            registrar_data = json.loads(registrar_file.read())
+        except json.decoder.JSONDecodeError:
+            registrar_data = dict()
+    return registrar_data
+
+
 class Registrar:
     """
     Records known contracts on the disk for future access and utility.
@@ -77,6 +105,7 @@ class Registrar:
         instance = cls(registrar_filepath=filepath)
 
         registrar_data = _read_registrar_file(filepath)
+
         chain_names = registrar_data.keys()
 
         chains = dict()
@@ -87,8 +116,8 @@ class Registrar:
 
     def enroll(self, contract_name: str, contract_address: str, contract_abi: list) -> None:
         """
-        Enrolls a contract to the registrar by writing the abi information to
-        the filesystem as JSON. This can also be used to update the abi info
+        Enrolls a contract to the chain registrar by writing the abi information
+        to the filesystem as JSON. This can also be used to update the info
         under the specified `contract_name`.
 
         WARNING: Unless you are developing the KMS/work at NuCypher, you most
@@ -116,6 +145,7 @@ class Registrar:
         If you haven't specified the chain name, it's probably the tester chain.
         """
         registrar_data = _read_registrar_file(self.__registrar_filepath)
+
         try:
             chain_data = registrar_data[self._chain_name]
         except KeyError:
