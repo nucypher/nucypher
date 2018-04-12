@@ -48,7 +48,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
 
     # We'll test against just a single Ursula - here, we make a WorkOrder for just one.
     # We can pass any number of capsules as args; here we pass just one.
-    work_orders = bob.generate_work_orders(the_hrac, capsule_side_channel.capsule, num_ursulas=1)
+    work_orders = bob.generate_work_orders(the_hrac, capsule_side_channel[0].capsule, num_ursulas=1)
 
     # Again: one Ursula, one work_order.
     assert len(work_orders) == 1
@@ -72,7 +72,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     the_cfrag = cfrags[0]
 
     # Attach the CFrag to the Capsule.
-    capsule_side_channel.capsule.attach_cfrag(the_cfrag)
+    capsule_side_channel[0].capsule.attach_cfrag(the_cfrag)
 
     # Having received the cFrag, Bob also saved the WorkOrder as complete.
     assert len(bob._saved_work_orders) == 1
@@ -83,7 +83,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
     kfrag_bytes = ursula.datastore.get_policy_arrangement(
         work_order.kfrag_hrac.hex().encode()).k_frag
     the_kfrag = KFrag.from_bytes(kfrag_bytes)
-    the_correct_cfrag = pre.reencrypt(the_kfrag, capsule_side_channel.capsule)
+    the_correct_cfrag = pre.reencrypt(the_kfrag, capsule_side_channel[0].capsule)
     assert bytes(the_cfrag) == bytes(the_correct_cfrag)  # It's the correct cfrag!
 
     # Now we'll show that Ursula saved the correct WorkOrder.
@@ -95,12 +95,12 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, 
 def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_policy, alice, bob,
                                                                    ursulas, capsule_side_channel):
     # In our last episode, Bob made a WorkOrder for the capsule...
-    assert len(bob._saved_work_orders.by_capsule(capsule_side_channel.capsule)) == 1
+    assert len(bob._saved_work_orders.by_capsule(capsule_side_channel[0].capsule)) == 1
     # ...and he used it to obtain a CFrag from Ursula.
-    assert len(capsule_side_channel.capsule._attached_cfrags) == 1
+    assert len(capsule_side_channel[0].capsule._attached_cfrags) == 1
 
     # He can also get a dict of {Ursula:WorkOrder} by looking them up from the capsule.
-    workorders_by_capsule = bob._saved_work_orders.by_capsule(capsule_side_channel.capsule)
+    workorders_by_capsule = bob._saved_work_orders.by_capsule(capsule_side_channel[0].capsule)
 
     # Bob has just one WorkOrder from that one Ursula.
     assert len(workorders_by_capsule) == 1
@@ -108,7 +108,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_polic
 
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
     generated_work_orders = bob.generate_work_orders(enacted_policy.hrac(),
-                                                     capsule_side_channel.capsule,
+                                                     capsule_side_channel[0].capsule,
                                                      num_ursulas=1)
     id_of_this_new_ursula, new_work_order = list(generated_work_orders.items())[0]
 
@@ -134,10 +134,13 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_polic
     new_cfrag = cfrags[0]
 
     # Attach the CFrag to the Capsule.
-    capsule_side_channel.capsule.attach_cfrag(new_cfrag)
+    capsule_side_channel[0].capsule.attach_cfrag(new_cfrag)
 
 
 def test_bob_gathers_and_combines(enacted_policy, bob, ursulas, capsule_side_channel):
+    # The side channel is represented as a single MessageKit, which is all that Bob really needs.
+    the_message_kit, the_data_source = capsule_side_channel
+
     # Bob has saved two WorkOrders so far.
     assert len(bob._saved_work_orders) == 2
 
@@ -146,12 +149,12 @@ def test_bob_gathers_and_combines(enacted_policy, bob, ursulas, capsule_side_cha
 
     # Bob can't decrypt yet with just two CFrags.  He needs to gather at least m.
     with pytest.raises(pre.GenericUmbralError):
-        bob.decrypt(capsule_side_channel)
+        bob.decrypt(the_message_kit)
 
     number_left_to_collect = enacted_policy.m - len(bob._saved_work_orders)
 
     new_work_orders = bob.generate_work_orders(enacted_policy.hrac(),
-                                               capsule_side_channel.capsule,
+                                               the_message_kit.capsule,
                                                num_ursulas=number_left_to_collect)
     _id_of_yet_another_ursula, new_work_order = list(new_work_orders.items())[0]
 
@@ -159,8 +162,10 @@ def test_bob_gathers_and_combines(enacted_policy, bob, ursulas, capsule_side_cha
     # In the real world, we'll have a full Ursula node here.  But in this case, we need to fake it.
     new_work_order.ursula = ursulas[2]
     cfrags = bob.get_reencrypted_c_frags(networky_stuff, new_work_order)
-    capsule_side_channel.capsule.attach_cfrag(cfrags[0])
+    the_message_kit.capsule.attach_cfrag(cfrags[0])
 
     # Now.
     # At long last.
-    assert bob.decrypt(capsule_side_channel) == b'Welcome to the flippering.'
+    is_valid, cleartext = bob.verify_from(the_data_source, the_message_kit, decrypt=True)
+    assert cleartext == b'Welcome to the flippering.'
+    assert is_valid
