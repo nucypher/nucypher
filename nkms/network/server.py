@@ -1,27 +1,25 @@
 import asyncio
 import binascii
 import random
+from typing import ClassVar
 
-from apistar import http
+from apistar import http, Route, App
 from apistar.http import Response
+from bytestring_splitter import BytestringSplitter
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
+from umbral import pre
+from umbral.fragments import KFrag
 
 from nkms.crypto.kits import UmbralMessageKit
-from nkms.crypto.powers import EncryptingPower, SigningPower
-from bytestring_splitter import BytestringSplitter
+from nkms.crypto.powers import EncryptingPower, SigningPower, CryptoPower
 from nkms.keystore.threading import ThreadedSession
 from nkms.network.capabilities import SeedOnly, ServerCapability
 from nkms.network.node import NuCypherNode
 from nkms.network.protocols import NuCypherSeedOnlyProtocol, NuCypherHashProtocol, \
     dht_value_splitter
 from nkms.network.storage import SeedOnlyStorage
-from umbral import pre
-from umbral.fragments import KFrag
-
-from apistar.core import Route
-from apistar.frameworks.wsgi import WSGIApp as App
 
 
 class NuCypherDHTServer(Server):
@@ -104,6 +102,10 @@ class ProxyRESTServer(object):
         self.db_name = db_name
         self._rest_app = None
 
+    def public_key(self, power_class: ClassVar):
+        """Implemented on Ursula subclass"""
+        raise NotImplementedError
+
     def attach_rest_server(self, db_name):
 
         routes = [
@@ -156,14 +158,17 @@ class ProxyRESTServer(object):
         """
         REST endpoint for getting both signing and encrypting public keys.
         """
-        return Response(
-            content=bytes(self.public_key(SigningPower)) + bytes(self.public_key(EncryptingPower)),
-            content_type="application/octet-stream")
 
-    def consider_arrangement(self, hrac_as_hex, request: http.Request):
+        headers = {'Content-Type': 'application/octet-stream'}
+        response = Response(
+            content=bytes(self.public_key(SigningPower)) + bytes(self.public_key(EncryptingPower)),
+            headers=headers)
+
+        return response
+
+    def consider_arrangement(self, request: http.Request):
         from nkms.policy.models import Arrangement
-        arrangement, deposit_as_bytes = \
-            BytestringSplitter(Arrangement)(request.body, return_remainder=True)
+        arrangement, deposit_as_bytes = BytestringSplitter(Arrangement)(request.body, return_remainder=True)
         arrangement.deposit = deposit_as_bytes
 
         with ThreadedSession(self.db_engine) as session:
@@ -176,9 +181,9 @@ class ProxyRESTServer(object):
             )
         # TODO: Make the rest of this logic actually work - do something here
         # to decide if this Arrangement is worth accepting.
-        return Response(
-            b"This will eventually be an actual acceptance of the arrangement.",
-            content_type="application/octet-stream")
+
+        headers = {'Content-Type': 'application/octet-stream'}
+        return Response(b"This will eventually be an actual acceptance of the arrangement.", headers=headers)
 
     def set_policy(self, hrac_as_hex, request: http.Request):
         """
@@ -236,15 +241,17 @@ class ProxyRESTServer(object):
         # TODO: Put this in Ursula's datastore
         self._work_orders.append(work_order)
 
-        return Response(content=cfrag_byte_stream,
-                        content_type="application/octet-stream")
+        headers = {'Content-Type': 'application/octet-stream'}
+
+        return Response(content=cfrag_byte_stream, headers=headers)
 
     def provide_treasure_map(self, treasure_map_id_as_hex):
         # For now, grab the TreasureMap for the DHT storage.  Soon, no do that.  #TODO!
         treasure_map_id = binascii.unhexlify(treasure_map_id_as_hex)
         treasure_map_bytes = self.server.storage.get(digest(treasure_map_id))
-        return Response(content=treasure_map_bytes,
-                        content_type="application/octet-stream")
+        headers = {'Content-Type': 'application/octet-stream'}
+
+        return Response(content=treasure_map_bytes, headers=headers)
 
     def receive_treasure_map(self, treasure_map_id_as_hex, request: http.Request):
         # TODO: This function is the epitome of #172.
