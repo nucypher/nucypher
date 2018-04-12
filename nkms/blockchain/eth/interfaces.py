@@ -1,7 +1,8 @@
 import json
 import os
 from pathlib import Path
-from typing import Tuple, ClassVar, Dict
+from typing import ClassVar, Dict
+from typing import Tuple
 
 from eth_tester import EthereumTester, PyEVMBackend
 from web3 import Web3, EthereumTesterProvider
@@ -48,7 +49,10 @@ def _read_registrar_file(registrar_filepath: str) -> dict:
         raise RegistrarDoesNotExist("No Registrar exists at this filepath.")
     return registrar_data
 
-def __write_registrar_file(self, registrar_data: dict, registrar_filepath: str) -> None:
+
+
+
+def _write_registrar_file(registrar_data: dict, registrar_filepath: str) -> None:
     """
     Writes the registrar data dict as JSON to the registrar file. If no
     file exists, it will create it and write the data. If a file does exist
@@ -60,7 +64,7 @@ def __write_registrar_file(self, registrar_data: dict, registrar_filepath: str) 
         registrar_file.truncate()
 
 
-def __read_registrar_file(self, registrar_filepath: str) -> dict:
+def _read_registrar_file(registrar_filepath: str) -> dict:
     """
     Reads the registrar file and parses the JSON and returns a dict.
     If the file is empty or the JSON is corrupt, it will return an empty
@@ -202,6 +206,7 @@ class Provider:
 
     def __make_web3_contracts(self, interfaces, contract_factory: ClassVar=Contract, address=None):
         """Instantiate web3 Contracts from raw contract interface data with the supplied web3 provider"""
+
 
         if contract_factory is ConciseContract and address is None:
             raise Exception('Address must be provided when making concise contracts.')

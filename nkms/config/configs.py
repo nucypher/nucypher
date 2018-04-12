@@ -1,10 +1,8 @@
 import json
 import os
 from pathlib import Path
-from typing import List, Union
 
 import maya
-
 from eth_tester import EthereumTester, PyEVMBackend
 from web3 import Web3, EthereumTesterProvider
 from web3.contract import ConciseContract
