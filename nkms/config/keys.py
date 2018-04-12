@@ -14,7 +14,7 @@ from web3.auto import w3
 
 from nkms.config import utils
 from nkms.config.configs import _DEFAULT_CONFIGURATION_DIR, KMSConfigurationError
-from nkms.config.utils import parse_keyfile, save_private_keyfile
+from nkms.config.utils import _parse_keyfile, _save_private_keyfile
 from nkms.crypto.powers import SigningPower, EncryptingPower, CryptoPower
 
 w3.eth.enable_unaudited_features()
@@ -37,13 +37,13 @@ def validate_passphrase(passphrase) -> bool:
     return True
 
 
-def _derive_master_key_from_passphrase(salt: bytes, passphrase: str) -> bytes:
+def _derive_key_material_from_passphrase(salt: bytes, passphrase: str) -> bytes:
     """
     Uses Scrypt derivation to derive a  key for encrypting key material.
     See RFC 7914 for n, r, and p value selections.
     This takes around ~5 seconds to perform.
     """
-    master_key = Scrypt(
+    key_material = Scrypt(
         salt=salt,
         length=32,
         n=2**20,
@@ -52,22 +52,22 @@ def _derive_master_key_from_passphrase(salt: bytes, passphrase: str) -> bytes:
         backend=default_backend()
     ).derive(passphrase.encode())
 
-    return master_key
+    return key_material
 
 
-def _derive_wrapping_key_from_master_key(salt: bytes, master_key: bytes) -> bytes:
+def _derive_wrapping_key_from_key_material(salt: bytes, key_material: bytes) -> bytes:
     """
     Uses HKDF to derive a 32 byte wrapping key to encrypt key material with.
     """
     wrapping_key = HKDF(
-        algorithm=hashes.SHA512(),
-        length=32,
+        algorithm=hashes.BLAKE2b(64),
+        length=64,
         salt=salt,
         info=b'NuCypher-KMS-KeyWrap',
         backend=default_backend()
-    ).derive(master_key)
+    ).derive(key_material)
 
-    return wrapping_key
+    return wrapping_key[:32]
 
 
 def _encrypt_umbral_key(wrapping_key: bytes, umbral_key: UmbralPrivateKey) -> dict:
@@ -92,7 +92,7 @@ def _decrypt_umbral_key(wrapping_key: bytes, nonce: bytes, enc_key_material: byt
     Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
     Returns a decrypted key as an UmbralPrivateKey.
     """
-    dec_key = SecretBox(wrapping_key).encrypt(enc_key_material, nonce)
+    dec_key = SecretBox(wrapping_key).decrypt(enc_key_material, nonce)
     umbral_key = UmbralPrivateKey.from_bytes(dec_key)
     return umbral_key
 
@@ -145,8 +145,10 @@ class KMSKeyring:
 
     __default_key_filepaths = {
         'root': os.path.join(__default_private_key_dir, 'root_key.priv'),
+        'root_pub': os.path.join(__default_public_key_dir, 'root_key.pub'),
         'signing': os.path.join(__default_private_key_dir, 'signing_key.priv'),
-        'transacting': os.path.join(__default_private_key_dir, 'wallet.json')
+        'signing_pub': os.path.join(__default_public_key_dir, 'signing_key.pub'),
+        'transacting': os.path.join(__default_private_key_dir, 'wallet.json'),
     }
 
     class KeyringError(Exception):
@@ -155,7 +157,11 @@ class KMSKeyring:
     class KeyringLocked(KeyringError):
         pass
 
-    def __init__(self, root_key_path: str=None, signing_key_path: str=None, transacting_key_path: str=None):
+    def __init__(self, root_key_path: str=None,
+                 pub_root_key_path: str=None,
+                 signing_key_path: str=None,
+                 pub_signing_key_path: str=None,
+                 transacting_key_path: str=None):
         """
         Generates a KMSKeyring instance with the provided key paths,
         falling back to default keyring paths.
@@ -170,8 +176,12 @@ class KMSKeyring:
         self.__signing_keypath = signing_key_path or self.__default_key_filepaths['signing']
         self.__transacting_keypath = transacting_key_path or self.__default_key_filepaths['transacting']
 
+        # Check for any custom individual public key paths
+        self.__root_pub_keypath = pub_root_key_path or self.__default_key_filepaths['root_pub']
+        self.__signing_pub_keypath = pub_signing_key_path or self.__default_key_filepaths['signing_pub']
+
         # Setup key cache
-        self.__derived_master_key = None
+        self.__derived_key_material = None
         self.__transacting_private_key = None
 
         # Check that the keyring is reflected on the filesystem
@@ -185,26 +195,26 @@ class KMSKeyring:
         """Returns plaintext version of decrypting key."""
 
         # Checks for cached key
-        if self.__derived_master_key is None:
+        if self.__derived_key_material is None:
             message = 'The keyring cannot be used when it is locked.  Call .unlock first.'
             raise self.KeyringLocked(message)
 
         key_data = _parse_keyfile(key_path)
-        wrap_key = _derive_wrapping_key_from_master_key(key_data['wrap_salt'], self.__derived_master_key)
+        wrap_key = _derive_wrapping_key_from_key_material(key_data['wrap_salt'], self.__derived_key_material)
         plain_umbral_key = _decrypt_umbral_key(wrap_key, key_data['nonce'], key_data['enc_key'])
 
         return plain_umbral_key
 
     def unlock(self, passphrase: bytes) -> None:
-        if self.__derived_master_key is not None:
+        if self.__derived_key_material is not None:
             raise Exception('Keyring already unlocked')
 
-        derived_key = _derive_master_key_from_passphrase(passphrase=passphrase)
-        self.__derived_master_key = derived_key
+        derived_key = _derive_key_material_from_passphrase(passphrase=passphrase)
+        self.__derived_key_material = derived_key
 
     def lock(self) -> None:
         """Make efforts to remove references to the cached key data"""
-        self.__derived_master_key = None
+        self.__derived_key_material = None
         self.__transacting_private_key = None
 
     def derive_crypto_power(self, power_class: ClassVar) -> CryptoPower:
@@ -253,18 +263,21 @@ class KMSKeyring:
         # Create the key directories with default paths. Raises OSError if dirs exist
         os.mkdir(cls.__default_keyring_root, mode=0o755)    # keyring
         os.mkdir(cls.__default_public_key_dir, mode=0o744)  # public
-        os.mkdir(_private_key_dir, mode=0o744)              # private
+        os.mkdir(_private_key_dir, mode=0o700)              # private
 
         # Generate keys
         keyring_args = dict()
         if encryption is True:
-            enc_key, _ = _generate_encryption_keys()
-            sig_key, _ = _generate_signing_keys()
+            enc_privkey, enc_pubkey = _generate_encryption_keys()
+            sig_privkey, enc_pubkey = _generate_signing_keys()
 
-            salt = os.urandom(32)
+            passphrase_salt = os.urandom(32)
+            enc_salt = os.urandom(32)
+            sig_salt = os.urandom(32)
 
-            der_master_key = _derive_master_key_from_passphrase(salt, passphrase)
-            der_wrap_key = _derive_wrapping_key_from_master_key(salt, der_master_key)
+            der_key_material = _derive_key_material_from_passphrase(passphrase_salt, passphrase)
+            enc_wrap_key = _derive_wrapping_key_from_key_material(enc_salt, der_key_material)
+            sig_wrap_key = _derive_wrapping_key_from_key_material(sig_salt, der_key_material)
 
             enc_json = _encrypt_umbral_key(der_wrap_key, enc_key)
             sig_json = _encrypt_umbral_key(der_wrap_key, sig_key)
@@ -274,11 +287,30 @@ class KMSKeyring:
 
             enc_json['wrap_salt'] = urlsafe_b64encode(salt).decode()
             sig_json['wrap_salt'] = urlsafe_b64encode(salt).decode()
-
-            rootkey_path = _save_private_keyfile(cls.__default_key_filepaths['root'], enc_json)  # Write to file
+            
+            # Write private keys to files
+            rootkey_path = _save_private_keyfile(cls.__default_key_filepaths['root'], enc_json)
             sigkey_path = _save_private_keyfile(cls.__default_key_filepaths['signing'], sig_json)
 
-            keyring_args.update(root_key_path=rootkey_path, signing_key_path=sigkey_path)
+            bytes_enc_pubkey = enc_pubkey.to_bytes(encoder=urlsafe_b64encoder)
+            bytes_sig_pubkey = sig_pubkey.to_bytes(encoder=urlsafe_b64encoder)
+
+            # Write public keys to files
+            rootkey_pub_path = _save_public_keyfile(
+                cls.__default_key_filepaths['root_pub'],
+                bytes_enc_pubkey
+            )
+            sigkey_pub_path = _save_public_keyfile(
+                cls.__default_key_filepaths['signing_pub'],
+                bytes_sig_pubkey
+            )
+
+            keyring_args.update(
+                root_key_path=rootkey_path,
+                pub_root_key_path=rootkey_pub_path,
+                signing_key_path=sigkey_path,
+                pub_signing_key_path=sigkey_pub_path
+            )
 
         if transacting is True:
             wallet = _generate_transacting_keys(passphrase)
