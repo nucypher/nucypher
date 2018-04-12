@@ -1,7 +1,20 @@
 import json
+import os
+from pathlib import Path
+from typing import List, Union, Tuple
+
+from eth_tester import EthereumTester, PyEVMBackend
+from web3 import Web3, EthereumTesterProvider
+from web3.contract import ConciseContract
+from web3.contract import Contract
+from web3.providers.tester import EthereumTesterProvider
+
+from nkms.blockchain.eth.sol.compile import compile_interfaces, SolidityConfig
+
+_DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
 
 
-def __write_registrar_file(self, registrar_data: dict, registrar_filepath: str) -> None:
+def _write_registrar_file(registrar_data: dict, registrar_filepath: str) -> None:
     """
     Writes the registrar data dict as JSON to the registrar file. If no
     file exists, it will create it and write the data. If a file does exist
@@ -13,7 +26,7 @@ def __write_registrar_file(self, registrar_data: dict, registrar_filepath: str) 
         registrar_file.truncate()
 
 
-def __read_registrar_file(self, registrar_filepath: str) -> dict:
+def _read_registrar_file(registrar_filepath: str) -> dict:
     """
     Reads the registrar file and parses the JSON and returns a dict.
     If the file is empty or the JSON is corrupt, it will return an empty
@@ -54,7 +67,7 @@ class Registrar:
         the value is the Registrar object for that chain.
         Optionally, accepts a registrar filepath.
         """
-        filepath = registrar_filepath or self.__DEFAULT_REGISTRAR_FILEPATH
+        filepath = registrar_filepath or cls.__DEFAULT_REGISTRAR_FILEPATH
         instance = cls(registrar_filepath=filepath)
 
         registrar_data = _read_registrar_file(filepath)
@@ -84,10 +97,10 @@ class Registrar:
             }
         }
 
-        registrar_data = __read_registrar_file(self.__registrar_filepath)
+        registrar_data = _read_registrar_file(self.__registrar_filepath)
         registrar_data.update(enrolled_contract)
 
-        __write_registrar_file(registrar_data, self.__registrar_filepath)
+        _write_registrar_file(registrar_data, self.__registrar_filepath)
 
     def get_chain_data(self) -> dict:
         """
@@ -96,7 +109,7 @@ class Registrar:
         KeyError.
         If you haven't specified the chain name, it's probably the tester chain.
         """
-        registrar_data = __read_registrar_file(self.__registrar_filepath)
+        registrar_data = _read_registrar_file(self.__registrar_filepath)
         try:
             chain_data = registrar_data[self._chain_name]
         except KeyError:
@@ -121,3 +134,57 @@ class Registrar:
         raise self.NoKnownContract(
             "Could not identify a contract name or address with {}".format(identifier)
         )
+
+
+class Provider:
+    """
+    Interacts with a registrar in order to interface with compiled
+    ethereum contracts with the given provider backend.
+    """
+
+    def __init__(self, provider_backend=None, registrar: Registrar=None):
+
+        # Provider backend
+        if provider_backend is None:
+            # https: // github.com / ethereum / eth - tester     # available-backends
+            eth_tester = EthereumTester(backend=PyEVMBackend())  # TODO: Discuss backend choice
+            provider = EthereumTesterProvider(ethereum_tester=eth_tester, api_endpoints=None)
+        self.provider = provider
+        self.w3 = Web3(self.provider)
+
+        if registrar is None:
+            registrar = Registrar()  # TODO: makew default
+
+        self.__registrar = registrar
+        self.__contract_cache = self.__make_web3_contracts()
+
+    def __make_web3_contracts(self, contract_factory: Union[ConciseContract, Contract] = ConciseContract,
+                              address=None) -> List[Contract]:
+        """Instantiate web3 Contracts from raw contract interface data with the supplied web3 provider"""
+        sol_config = SolidityConfig()
+        interfaces = compile_interfaces(config=sol_config)
+
+        if contract_factory is ConciseContract and address is None:
+            raise Exception('Address must be provided when making concise contracts.')
+        elif contract_factory is Contract and address is not None:
+            raise Exception('Address must not be provided when making deployable, non-concise contracts')
+
+        web3_contracts = list()
+        for contract, interface in interfaces.items():
+            contract = self.w3.eth.contract(abi=interface['abi'],
+                                            bytecode=interface['bin'],  # Optional, needed for deployment
+                                            ContractFactoryClass=contract_factory)
+            web3_contracts.append(contract)
+
+        return web3_contracts
+
+    def get_contract(self, contract_name: str) -> ConciseContract:
+        contract = ConciseContract(self.__contract_cache[contract_name])
+        return contract
+
+    def deploy_contract(self, contract_name: str, deploy_transaction: dict) -> Tuple[str, str]:
+        # transaction = {'from': w3.eth.accounts[0], 'gas': 410000}
+        txhash = self.__contract_cache[contract_name].deploy(transaction=deploy_transaction)
+        address = self.w3.eth.getTransactionReceipt(txhash)['contractAddress']
+        return address, txhash
+
