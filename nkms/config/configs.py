@@ -1,16 +1,8 @@
 import json
 import os
 from pathlib import Path
-from typing import List, Union
 
 import maya
-from eth_tester import EthereumTester, PyEVMBackend
-from web3 import Web3, EthereumTesterProvider
-from web3.contract import ConciseContract
-from web3.contract import Contract
-from web3.providers.tester import EthereumTesterProvider
-
-from nkms.blockchain.eth.sol.compile import compile_interfaces, SolidityConfig
 
 _DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
 
