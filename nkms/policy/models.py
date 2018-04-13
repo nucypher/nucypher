@@ -11,7 +11,7 @@ from nkms.characters import Alice
 from nkms.characters import Bob, Ursula
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.constants import KECCAK_DIGEST_LENGTH
-from nkms.crypto.powers import SigningPower
+from nkms.crypto.powers import SigningPower, DelegatingPower
 from nkms.crypto.signature import Signature
 from nkms.crypto.splitters import key_splitter
 from bytestring_splitter import BytestringSplitter
@@ -271,6 +271,8 @@ class Policy(object):
                 arrangement.publish(kfrag, ursula, result)
                 # TODO: What if there weren't enough Arrangements approved to distribute n kfrags?  We need to raise NotEnoughQualifiedUrsulas.
 
+    def public_key(self):
+        return self.alice.public_key(DelegatingPower)
 
 class TreasureMap(object):
     def __init__(self, ursula_interface_ids=None):
