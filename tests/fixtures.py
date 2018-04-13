@@ -58,7 +58,7 @@ def alice(ursulas):
 
 
 @pytest.fixture(scope="module")
-def bob(alice, ursulas):
+def bob():
     BOB = Bob()
     BOB.server.listen(8475)
     EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
@@ -77,7 +77,7 @@ def ursulas():
 
 
 @pytest.fixture(scope="module")
-def treasure_map_is_set_on_dht(alice, enacted_policy):
+def treasure_map_is_set_on_dht(enacted_policy):
     enacted_policy.publish_treasure_map()
 
 

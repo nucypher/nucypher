@@ -70,7 +70,7 @@ class KeyStore(object):
             raise NotFound(
                 "No key with fingerprint {} found.".format(fingerprint))
 
-        pubkey = UmbralPublicKey.from_bytes(key.key_data, as_b64=False)
+        pubkey = UmbralPublicKey.from_bytes(key.key_data)
         return pubkey
 
     def del_key(self, fingerprint: bytes, session=None):
