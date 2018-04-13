@@ -63,8 +63,8 @@ class ContractDeployer:
         rules = (
             (self.is_armed is True, 'Contract not armed'),
             (self.is_deployed is not True, 'Contract already deployed'),
-            (self.blockchain._chain.provider.are_contract_dependencies_available(self._contract_name),
-             'Blockchain contract dependencies unmet'),
+            # (self.blockchain.provider.are_contract_dependencies_available(self._contract_name),
+            #  'Blockchain contract dependencies unmet'),
 
             )
 
@@ -89,7 +89,7 @@ class ContractDeployer:
             raise self.ContractDeploymentError(message)
 
         # http: // populus.readthedocs.io / en / latest / chain.contracts.html  # checking-availability-of-contracts
-        available = bool(self.blockchain._chain.provider.are_contract_dependencies_available(self._contract_name))
+        available = bool(self.blockchain.provider.are_contract_dependencies_available(self._contract_name))
         if not available:
             raise self.ContractDeploymentError('Contract is not available')
 
@@ -98,9 +98,9 @@ class ContractDeployer:
     def _wrap_government(self, dispatcher_contract: Contract, target_contract: Contract) -> Contract:
 
         # Wrap the contract
-        wrapped_contract = self.blockchain._chain.web3.eth.contract(target_contract.abi,
-                                                                    dispatcher_contract.address,
-                                                                    ContractFactoryClass=Contract)
+        wrapped_contract = self.blockchain.provider.web3.eth.contract(target_contract.abi,
+                                                                             dispatcher_contract.address,
+                                                                             ContractFactoryClass=Contract)
         return wrapped_contract
 
     def arm(self, fail_on_abort=True) -> None:
@@ -156,7 +156,7 @@ class NuCypherKMSTokenDeployer(ContractDeployer, NuCypherTokenConfig):
 
     def __init__(self, blockchain):
         super().__init__(blockchain=blockchain)
-        self._creator = self.blockchain.config.provider.get_accounts()[0]    # TODO: make swappable
+        self._creator = self.blockchain.provider.web3.eth.accounts[0]    # TODO: make swappable
 
     def deploy(self) -> str:
         """
@@ -169,7 +169,7 @@ class NuCypherKMSTokenDeployer(ContractDeployer, NuCypherTokenConfig):
         is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
         assert is_ready
 
-        the_nucypher_token_contract, deployment_txhash = self.blockchain._chain.provider.deploy_contract(
+        the_nucypher_token_contract, deployment_txhash = self.blockchain.provider.deploy_contract(
             self._contract_name,
             deploy_args=[self.saturation],
             deploy_transaction={'from': self._creator})
@@ -196,7 +196,7 @@ class DispatcherDeployer(ContractDeployer):
 
     def deploy(self) -> str:
 
-        dispatcher_contract, txhash = self.blockchain._chain.provider.deploy_contract(
+        dispatcher_contract, txhash = self.blockchain.provider.deploy_contract(
             'Dispatcher', deploy_args=[self.target_contract.address],
             deploy_transaction={'from': self.token_agent.origin})
 
@@ -241,7 +241,7 @@ class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
         origin_args = {'from': self.token_agent.origin}
 
         # 1 - Deploy #
-        the_escrow_contract, deploy_txhash = self.blockchain._chain.provider.\
+        the_escrow_contract, deploy_txhash = self.blockchain.provider.\
             deploy_contract(self._contract_name,
                             deploy_args=deploy_args,
                             deploy_transaction=origin_args)
@@ -300,7 +300,7 @@ class PolicyManagerDeployer(ContractDeployer):
         assert is_ready
 
         # Creator deploys the policy manager
-        the_policy_manager_contract, deploy_txhash = self.blockchain._chain.provider.deploy_contract(
+        the_policy_manager_contract, deploy_txhash = self.blockchain.provider.deploy_contract(
             self._contract_name,
             deploy_args=[self.miner_escrow_deployer.contract_address],
             deploy_transaction={'from': self.token_deployer.origin})
@@ -360,7 +360,7 @@ class UserEscrowDeployer(ContractDeployer):
                            self.policy_deployer.contract_address],
         deploy_transaction = {'from': self.token_deployer.contract_address}
 
-        the_user_escrow_contract, deploy_txhash = self.blockchain._chain.provider.deploy_contract(
+        the_user_escrow_contract, deploy_txhash = self.blockchain.provider.deploy_contract(
             self._contract_name,
             deploy_args=deployment_args,
             deploy_transaction=deploy_transaction)
