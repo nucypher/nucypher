@@ -1,12 +1,16 @@
 import datetime
 import os
+import tempfile
 
 import maya
 import pytest
 from constant_sorrow import constants
 from sqlalchemy.engine import create_engine
+from umbral import pre
 
 from nkms.characters import Alice, Bob
+from nkms.crypto.kits import MessageKit
+from nkms.crypto.powers import EncryptingPower
 from nkms.crypto.signature import SignatureStamp
 from nkms.data_sources import DataSource
 from nkms.keystore import keystore
@@ -97,3 +101,13 @@ def capsule_side_channel(enacted_policy):
                              signer=SignatureStamp(signing_keypair))
     message_kit, _signature = data_source.encapsulate_single_message(b"Welcome to the flippering.")
     return message_kit, data_source
+
+
+@pytest.fixture(scope="function")
+def tempfile_path():
+    """
+    User is responsible for closing the file given at the path.
+    """
+    _, path = tempfile.mkstemp()
+    yield path
+    os.remove(path)
