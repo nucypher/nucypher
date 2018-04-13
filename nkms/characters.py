@@ -546,7 +546,7 @@ class Ursula(Character, ProxyRESTServer):
             raise RuntimeError("Got a bad response: {}".format(response))
 
         key_splitter = RepeatingBytestringSplitter(
-            (UmbralPublicKey, PUBLIC_KEY_LENGTH, {"as_b64": False}))
+            (UmbralPublicKey, PUBLIC_KEY_LENGTH))
         signing_key, encrypting_key = key_splitter(response.content)
 
         stranger_ursula_from_public_keys = cls.from_public_keys(
