@@ -8,7 +8,7 @@ from nkms.blockchain.eth.interfaces import (
 
 def test_registrar_read_write(tempfile_path):
     # Test that the file is initally empty and returns an empty dict.
-    should_be_empty = _read_registrar_data(tempfile_path)
+    should_be_empty = _read_registrar_file(tempfile_path)
     assert should_be_empty == {}
 
     # Test that data can be written and read
@@ -33,7 +33,7 @@ def test_registrar_object(tempfile_path):
     assert should_be_empty == {}
 
     should_also_be_empty = Registrar.get_chains(tempfile_path)
-    assert should_also_be_empty = {}
+    assert should_also_be_empty == {}
 
     # Test contract enrollment and get_chain_data
     test_name = 'test_contract'
@@ -76,7 +76,7 @@ def test_registrar_object(tempfile_path):
 
     new_chain_registrar.enroll(test_name, test_addr, test_abi)
     updated_chains = Registrar.get_chains(tempfile_path)
-    assert new_chain_name in chains and 'tester' in chains
+    assert new_chain_name in updated_chains and 'tester' in updated_chains
 
     # Test NoKnownContract error
     with pytest.raises(Registrar.NoKnownContract):
