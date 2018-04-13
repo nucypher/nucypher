@@ -5,9 +5,7 @@ from typing import Tuple, ClassVar, Dict
 
 from eth_tester import EthereumTester, PyEVMBackend
 from web3 import Web3, EthereumTesterProvider
-from web3.contract import ConciseContract
-from web3.contract import Contract
-from web3.providers.tester import EthereumTesterProvider
+from web3.contract import ConciseContract, Contract
 
 from nkms.blockchain.eth.sol.compile import compile_interfaces, SolidityConfig
 
@@ -89,7 +87,7 @@ class Registrar:
     WARNING: Unless you are developing the KMS/work at NuCypher, you most
     likely won't ever need to use this.
     """
-    __DEFAULT_REGISTRAR_FILEPATH = None # TODO
+    __DEFAULT_REGISTRAR_FILEPATH = os.path.join(_DEFAULT_CONFIGURATION_DIR, 'registrar.json')
     __DEFAULT_CHAIN_NAME = 'tester'
 
     class NoKnownContract(KeyError):
@@ -189,7 +187,7 @@ class Provider:
         if provider_backend is None:
             # https: // github.com / ethereum / eth - tester     # available-backends
             eth_tester = EthereumTester(backend=PyEVMBackend())  # TODO: Discuss backend choice
-            provider_backend = EthereumTesterProvider(ethereum_tester=eth_tester, api_endpoints=None)
+            provider_backend = EthereumTesterProvider(ethereum_tester=eth_tester) # , api_endpoints=None)
         self.provider = provider_backend
         self.w3 = Web3(self.provider)
 
@@ -197,7 +195,9 @@ class Provider:
             registrar = Registrar()  # TODO: make a default
 
         self.__registrar = registrar
-        self.__contract_cache = self.cache_contracts()
+
+        self.__contract_cache = None  # set on the next line
+        self.cache_contracts(compile=True)
 
     @staticmethod
     def __compile(config: SolidityConfig=None) -> Dict[str, Contract]:
@@ -215,21 +215,21 @@ class Provider:
 
         web3_contracts = dict()
         for contract_name, interface in interfaces.items():
-
             bytecode = None if contract_factory is ConciseContract else interface['bin']
 
             contract = self.w3.eth.contract(abi=interface['abi'],
                                             bytecode=bytecode,  # Optional, needed for deployment
                                             ContractFactoryClass=contract_factory)
-            web3_contracts.update(contract_name=contract)
+            web3_contracts[contract_name] = contract
 
         return web3_contracts
 
-    def cache_contracts(self, compile=False):
-        """Loads from registrar or compiles"""
+    def cache_contracts(self, compile: bool=False) -> None:
+        """Loads from contract interface data registrar or compiles"""
         if compile is False:
-            records = list(self.__registrar.get_chain_data().keys())
-            interfaces = {}  # TODO
+            contract_records = self.__registrar.get_chain_data()
+            interfaces = {name: contract_records[name]['abi'] for name in contract_records}
+            contracts = self.__make_web3_contracts(interfaces)
         else:
             interfaces = self.__compile()
             contracts = self.__make_web3_contracts(interfaces)
@@ -239,16 +239,23 @@ class Provider:
         contract = ConciseContract(self.__contract_cache[contract_name])
         return contract
 
-    def deploy_contract(self, contract_name: str, deploy_transaction: dict) -> Tuple[str, str]:
-        # transaction = {'from': w3.eth.accounts[0], 'gas': 410000}
+    def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[str, str]:
 
-        txhash = self.__contract_cache[contract_name].deploy(transaction=deploy_transaction)
-        address = self.w3.eth.getTransactionReceipt(txhash)['contractAddress']
+        contract = self.__contract_cache[contract_name]
+        deploy_bytecode = contract.constructor(*args, **kwargs).buildTransaction()
 
-        cached_contract = self.__contract_cache[contract_name]  # TODO: Handlle KeyError
+        txhash = self.w3.eth.sendTransaction(deploy_bytecode)  # deploy!
 
-        self.__registrar.enroll(contract_name=contract_name,
-                                contract_address=address,
-                                contract_abi=cached_contract.abi)
+        receipt = self.w3.eth.getTransactionReceipt(txhash)
+        address = receipt['contractAddress']
+
+        try:
+            cached_contract = self.__contract_cache[contract_name]
+        except KeyError:
+            raise  # TODO
+        else:
+            self.__registrar.enroll(contract_name=contract_name,
+                                    contract_address=address,
+                                    contract_abi=cached_contract.abi)
 
         return address, txhash
