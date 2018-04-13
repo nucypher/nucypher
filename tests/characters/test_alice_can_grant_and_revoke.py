@@ -46,8 +46,8 @@ def test_alice_can_get_ursulas_keys_via_rest(alice, ursulas):
     mock_client = TestClient(ursulas[0].rest_app)
     response = mock_client.get('http://localhost/public_keys')
     splitter = BytestringSplitter(
-        (UmbralPublicKey, PUBLIC_KEY_LENGTH, {"as_b64": False}),
-        (UmbralPublicKey, PUBLIC_KEY_LENGTH, {"as_b64": False})
+        (UmbralPublicKey, PUBLIC_KEY_LENGTH),
+        (UmbralPublicKey, PUBLIC_KEY_LENGTH)
     )
     signing_key, encrypting_key = splitter(response.content)
     stranger_ursula_from_public_keys = Ursula.from_public_keys({SigningPower: signing_key,
