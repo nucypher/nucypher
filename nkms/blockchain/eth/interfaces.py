@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, ClassVar, Dict
 
 from eth_tester import EthereumTester, PyEVMBackend
 from web3 import Web3, EthereumTesterProvider
@@ -148,35 +148,51 @@ class Provider:
         if provider_backend is None:
             # https: // github.com / ethereum / eth - tester     # available-backends
             eth_tester = EthereumTester(backend=PyEVMBackend())  # TODO: Discuss backend choice
-            provider = EthereumTesterProvider(ethereum_tester=eth_tester, api_endpoints=None)
-        self.provider = provider
+            provider_backend = EthereumTesterProvider(ethereum_tester=eth_tester, api_endpoints=None)
+        self.provider = provider_backend
         self.w3 = Web3(self.provider)
 
         if registrar is None:
-            registrar = Registrar()  # TODO: makew default
+            registrar = Registrar()  # TODO: make a default
 
         self.__registrar = registrar
-        self.__contract_cache = self.__make_web3_contracts()
+        self.__contract_cache = self.cache_contracts()
 
-    def __make_web3_contracts(self, contract_factory: Union[ConciseContract, Contract] = ConciseContract,
-                              address=None) -> List[Contract]:
-        """Instantiate web3 Contracts from raw contract interface data with the supplied web3 provider"""
-        sol_config = SolidityConfig()
+    @staticmethod
+    def __compile(config: SolidityConfig=None) -> Dict[str, Contract]:
+        sol_config = config or SolidityConfig()
         interfaces = compile_interfaces(config=sol_config)
+        return interfaces
+
+    def __make_web3_contracts(self, interfaces, contract_factory: ClassVar=Contract, address=None):
+        """Instantiate web3 Contracts from raw contract interface data with the supplied web3 provider"""
 
         if contract_factory is ConciseContract and address is None:
             raise Exception('Address must be provided when making concise contracts.')
         elif contract_factory is Contract and address is not None:
             raise Exception('Address must not be provided when making deployable, non-concise contracts')
 
-        web3_contracts = list()
-        for contract, interface in interfaces.items():
+        web3_contracts = dict()
+        for contract_name, interface in interfaces.items():
+
+            bytecode = None if contract_factory is ConciseContract else interface['bin']
+
             contract = self.w3.eth.contract(abi=interface['abi'],
-                                            bytecode=interface['bin'],  # Optional, needed for deployment
+                                            bytecode=bytecode,  # Optional, needed for deployment
                                             ContractFactoryClass=contract_factory)
-            web3_contracts.append(contract)
+            web3_contracts.update(contract_name=contract)
 
         return web3_contracts
+
+    def cache_contracts(self, compile=False):
+        """Loads from registrar or compiles"""
+        if compile is False:
+            records = list(self.__registrar.get_chain_data().keys())
+            interfaces = {}  # TODO
+        else:
+            interfaces = self.__compile()
+            contracts = self.__make_web3_contracts(interfaces)
+        self.__contract_cache = contracts
 
     def get_contract(self, contract_name: str) -> ConciseContract:
         contract = ConciseContract(self.__contract_cache[contract_name])
@@ -184,6 +200,14 @@ class Provider:
 
     def deploy_contract(self, contract_name: str, deploy_transaction: dict) -> Tuple[str, str]:
         # transaction = {'from': w3.eth.accounts[0], 'gas': 410000}
+
         txhash = self.__contract_cache[contract_name].deploy(transaction=deploy_transaction)
         address = self.w3.eth.getTransactionReceipt(txhash)['contractAddress']
+
+        cached_contract = self.__contract_cache[contract_name]  # TODO: Handlle KeyError
+
+        self.__registrar.enroll(contract_name=contract_name,
+                                contract_address=address,
+                                contract_abi=cached_contract.abi)
+
         return address, txhash
