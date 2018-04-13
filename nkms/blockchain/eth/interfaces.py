@@ -25,7 +25,7 @@ def _write_registrar_file(registrar_data: dict, registrar_filepath: str) -> None
     file exists, it will create it and write the data. If a file does exist
     and contains JSON data, it will _overwrite_ everything in it.
     """
-    with open(registrar_filepath, 'a+') as registrar_file:
+    with open(registrar_filepath, 'w+') as registrar_file:
         registrar_file.seek(0)
         registrar_file.write(json.dumps(registrar_data))
         registrar_file.truncate()
@@ -42,6 +42,7 @@ def _read_registrar_file(registrar_filepath: str) -> dict:
     """
     try:
         with open(registrar_filepath, 'r') as registrar_file:
+            registrar_file.seek(0)
             registrar_data = json.loads(registrar_file.read())
     except json.decoder.JSONDecodeError:
         registrar_data = dict()
