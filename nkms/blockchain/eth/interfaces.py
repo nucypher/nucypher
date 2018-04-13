@@ -11,6 +11,7 @@ from web3.providers.tester import EthereumTesterProvider
 
 from nkms.blockchain.eth.sol.compile import compile_interfaces, SolidityConfig
 
+
 _DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
 
 
@@ -49,8 +50,6 @@ def _read_registrar_file(registrar_filepath: str) -> dict:
     return registrar_data
 
 
-
-
 def _write_registrar_file(registrar_data: dict, registrar_filepath: str) -> None:
     """
     Writes the registrar data dict as JSON to the registrar file. If no
@@ -72,11 +71,13 @@ def _read_registrar_file(registrar_filepath: str) -> dict:
     this function first to get the current state to append to the dict or
     modify it because _write_registrar_file overwrites the file.
     """
-    with open(registrar_filepath, 'r') as registrar_file:
-        try:
+    try:
+        with open(registrar_filepath, 'r') as registrar_file:
             registrar_data = json.loads(registrar_file.read())
-        except json.decoder.JSONDecodeError:
-            registrar_data = dict()
+    except json.decoder.JSONDecodeError:
+        registrar_data = dict()
+    except FileNotFoundError:
+        raise RegistrarDoesNotExist("No Registrar exists at this filepath.")
     return registrar_data
 
 
