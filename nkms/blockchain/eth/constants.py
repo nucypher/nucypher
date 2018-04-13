@@ -1,9 +1,9 @@
 class NuCypherTokenConfig:
     __subdigits = 18
-    _M = 10 ** __subdigits
-    __premine = int(1e9) * _M
-    __saturation = int(1e10) * _M
-    _reward = __saturation - __premine
+    _M = 10 ** __subdigits                                 # Unit designation
+    __initial_supply = int(1e9) * _M                       # Initial token supply
+    __saturation = int(3.89e9) * _M                        # Token supply cap
+    _remaining_supply = __saturation - __initial_supply    # Remaining supply
 
     @property
     def saturation(self):
@@ -11,21 +11,21 @@ class NuCypherTokenConfig:
 
 
 class NuCypherMinerConfig:
-    _hours_per_period = 24       # Hours
-    _min_release_periods = 30    # 720 Hours
-    __max_awarded_periods = 365
+    _hours_per_period = 24       # Hours in single period
+    _min_release_periods = 30    # 720 Hours minimum
+    __max_minting_periods = 365  # Maximum number of periods
 
-    __min_allowed_locked = 10 ** 6
-    __max_allowed_locked = 10 ** 7 * NuCypherTokenConfig._M
+    __min_allowed_locked = 15000 * NuCypherTokenConfig._M
+    __max_allowed_locked = int(4e6) * NuCypherTokenConfig._M
 
     _null_addr = '0x' + '0' * 40
-    __reward = NuCypherTokenConfig._reward
+    __remaining_supply = NuCypherTokenConfig._remaining_supply
 
-    __mining_coeff = [
+    __mining_coeff = [           # TODO
         _hours_per_period,
         2 * 10 ** 7,
-        __max_awarded_periods,
-        __max_awarded_periods,
+        __max_minting_periods,
+        __max_minting_periods,
         _min_release_periods,
         __min_allowed_locked,
         __max_allowed_locked
@@ -40,5 +40,5 @@ class NuCypherMinerConfig:
         return self.__mining_coeff
 
     @property
-    def reward(self):
-        return self.__reward
+    def remaining_supply(self):
+        return self.__remaining_supply
