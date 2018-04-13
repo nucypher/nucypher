@@ -1,7 +1,9 @@
+import random
 from abc import ABC
+from typing import List
+
 
 from nkms.config.configs import EthereumConfig
-from nkms.blockchain.eth.config import EthereumConfig
 
 
 class TheBlockchain(ABC):
@@ -77,8 +79,61 @@ class TheBlockchain(ABC):
         result = self._chain.wait.for_receipt(txhash, timeout=timeout)
         return result
 
-# class TestRpcBlockchain:
+
+class TesterBlockchain(TheBlockchain):
+    """Transient, in-memory, local, private chain"""
+
+    _network = 'tester'
+
+    def wait_time(self, wait_hours, step=50):
+        """Wait the specified number of wait_hours by comparing block timestamps."""
+
+        end_timestamp = self._chain.web3.eth.getBlock(
+            self._chain.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
+        while self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber).timestamp < end_timestamp:
+            self._chain.wait.for_block(self._chain.web3.eth.blockNumber + step)
+
+    def spawn_miners(self, miner_agent, addresses: list, locktime: int, random_amount=False) -> list():
+        """
+        Deposit and lock a random amount of tokens in the miner escrow
+        from each address, "spawning" new Miners.
+        """
+        from nkms.blockchain.eth.actors import Miner
+
+        miners = list()
+        for address in addresses:
+            miner = Miner(miner_agent=miner_agent, address=address)
+            miners.append(miner)
+
+            if random_amount is True:
+                amount = (10 + random.randrange(9000)) * miner_agent._deployer._M
+            else:
+                amount = miner.token_balance() // 2    # stake half
+            miner.stake(amount=amount, locktime=locktime, auto_switch_lock=True)
+
+        return miners
+
+    def _global_airdrop(self, token_agent, amount: int):
+        """Airdrops from creator address to all other addresses!"""
+
+        _creator, *addresses = self._chain.web3.eth.accounts
+
+        def txs():
+            for address in addresses:
+                txhash = token_agent.transact({'from': token_agent.origin}).transfer(address, amount)
+                yield txhash
+
+        receipts = list()
+        for tx in txs():    # One at a time
+            receipt = self.wait_for_receipt(tx)
+            receipts.append(receipt)
+        return receipts
+
+
+
+#
+# class TestRPCBlockchain:
 #
 #     _network = 'testrpc'
 #     _default_timeout = 60
-
+#
