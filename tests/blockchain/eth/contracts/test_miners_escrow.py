@@ -27,9 +27,7 @@ MINER_ID_FIELD = 16
 def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
-    token, _ = chain.provider.get_or_deploy_contract(
-        'NuCypherKMSToken', deploy_args=[2 * 10 ** 9],
-        deploy_transaction={'from': creator})
+    token, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', int(2e9))
     return token
 
 
@@ -39,14 +37,12 @@ def escrow_contract(web3, chain, token, request):
         creator = web3.eth.accounts[0]
         # Creator deploys the escrow
         contract, _ = chain.provider.get_or_deploy_contract(
-            'MinersEscrow', deploy_args=[
-                token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, max_allowed_locked_tokens],
-            deploy_transaction={'from': creator})
+            'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100,
+            max_allowed_locked_tokens
+        )
 
         if request.param:
-            dispatcher, _ = chain.provider.deploy_contract(
-                'Dispatcher', deploy_args=[contract.address],
-                deploy_transaction={'from': creator})
+            dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
 
             # Deploy second version of the government contract
             contract = web3.eth.contract(
@@ -430,8 +426,8 @@ def test_mining(web3, chain, token, escrow_contract):
     chain.wait.for_receipt(tx)
 
     policy_manager, _ = chain.provider.get_or_deploy_contract(
-        'PolicyManagerForMinersEscrowMock', deploy_args=[token.address, escrow.address],
-        deploy_transaction={'from': creator})
+        'PolicyManagerForMinersEscrowMock', token.address, escrow.address
+    )
     tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)
     chain.wait.for_receipt(tx)
 
@@ -746,16 +742,14 @@ def test_verifying_state(web3, chain, token):
 
     # Deploy contract
     contract_library_v1, _ = chain.provider.get_or_deploy_contract(
-        'MinersEscrow', deploy_args=[token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, 1500],
-        deploy_transaction={'from': creator})
-    dispatcher, _ = chain.provider.deploy_contract(
-        'Dispatcher', deploy_args=[contract_library_v1.address],
-        deploy_transaction={'from': creator})
+        'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100, 1500
+    )
+    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract_library_v1.address)
 
     # Deploy second version of the contract
     contract_library_v2, _ = chain.provider.deploy_contract(
-        'MinersEscrowV2Mock', deploy_args=[token.address, 2, 2, 2, 2, 2, 2, 2, 2],
-        deploy_transaction={'from': creator})
+        'MinersEscrowV2Mock', token.address, 2, 2, 2, 2, 2, 2, 2, 2
+    )
     contract = web3.eth.contract(
         contract_library_v2.abi,
         dispatcher.address,
@@ -764,8 +758,8 @@ def test_verifying_state(web3, chain, token):
 
     # Initialize contract and miner
     policy_manager, _ = chain.provider.get_or_deploy_contract(
-        'PolicyManagerForMinersEscrowMock', deploy_args=[token.address, contract.address],
-        deploy_transaction={'from': creator})
+        'PolicyManagerForMinersEscrowMock', token.address, contract.address
+    )
     tx = contract.transact({'from': creator}).setPolicyManager(policy_manager.address)
     chain.wait.for_receipt(tx)
     tx = contract.transact().initialize()
@@ -790,8 +784,8 @@ def test_verifying_state(web3, chain, token):
 
     # Can't upgrade to the previous version or to the bad version
     contract_library_bad, _ = chain.provider.deploy_contract(
-        'MinersEscrowBad', deploy_args=[token.address, 2, 2, 2, 2, 2, 2, 2],
-        deploy_transaction={'from': creator})
+        'MinersEscrowBad', token.address, 2, 2, 2, 2, 2, 2, 2
+    )
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
         chain.wait.for_receipt(tx)

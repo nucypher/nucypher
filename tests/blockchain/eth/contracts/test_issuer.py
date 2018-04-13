@@ -19,8 +19,8 @@ def test_issuer(web3, chain, token):
 
     # Creator deploys the issuer
     issuer, _ = chain.provider.get_or_deploy_contract(
-        'IssuerMock', deploy_args=[token.address, 1, 10 ** 46, 10 ** 7, 10 ** 7],
-        deploy_transaction={'from': creator})
+        'IssuerMock', token.address, 1, 10 ** 46, int(1e7), int(1e7)
+    )
 
     # Give Miner tokens for reward and initialize contract
     reserved_reward = 2 * 10 ** 40 - 10 ** 30
@@ -67,8 +67,8 @@ def test_inflation_rate(web3, chain, token):
 
     # Creator deploys the miner
     issuer, _ = chain.provider.get_or_deploy_contract(
-        'IssuerMock', deploy_args=[token.address, 1, 2 * 10 ** 19, 1, 1],
-        deploy_transaction={'from': creator})
+        'IssuerMock', token.address, 1, 2 * 10 ** 19, 1, 1
+    )
 
     # Give Miner tokens for reward and initialize contract
     tx = token.transact({'from': creator}).transfer(issuer.address, 2 * 10 ** 40 - 10 ** 30)
@@ -109,16 +109,12 @@ def test_verifying_state(web3, chain, token):
 
     # Deploy contract
     contract_library_v1, _ = chain.provider.get_or_deploy_contract(
-        'Issuer', deploy_args=[token.address, 1, 1, 1, 1],
-        deploy_transaction={'from': creator})
-    dispatcher, _ = chain.provider.deploy_contract(
-        'Dispatcher', deploy_args=[contract_library_v1.address],
-        deploy_transaction={'from': creator})
+        'Issuer', token.address, 1, 1, 1, 1
+    )
+    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract_library_v1.address)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = chain.provider.deploy_contract(
-        'IssuerV2Mock', deploy_args=[token.address, 2, 2, 2, 2],
-        deploy_transaction={'from': creator})
+    contract_library_v2, _ = chain.provider.deploy_contract('IssuerV2Mock', token.address, 2, 2, 2, 2)
     contract = web3.eth.contract(
         contract_library_v2.abi,
         dispatcher.address,
@@ -144,9 +140,7 @@ def test_verifying_state(web3, chain, token):
     assert 3 == contract.call().valueToCheck()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = chain.provider.deploy_contract(
-        'IssuerBad', deploy_args=[token.address, 2, 2, 2, 2],
-        deploy_transaction={'from': creator})
+    contract_library_bad, _ = chain.provider.deploy_contract('IssuerBad', token.address, 2, 2, 2, 2)
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
         chain.wait.for_receipt(tx)
