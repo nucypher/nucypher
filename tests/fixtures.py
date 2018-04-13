@@ -4,33 +4,33 @@ import pytest
 
 from constant_sorrow import constants
 from nkms.characters import Alice, Bob
-from nkms.crypto.kits import MessageKit
-from nkms.crypto.powers import SigningPower, EncryptingPower
+from nkms.crypto.signature import SignatureStamp
+from nkms.data_sources import DataSource
+from nkms.keystore.keypairs import SigningKeypair
 from nkms.network import blockchain_client
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
 from sqlalchemy.engine import create_engine
 from nkms.keystore import keystore
 from nkms.keystore.db import Base
-from umbral import pre
 import maya
 
 
 @pytest.fixture(scope="module")
 def idle_policy(alice, bob):
     """
-    Creates a PolicyGroup, in a manner typical of how Alice might do it, with a unique uri.
+    Creates a Policy, in a manner typical of how Alice might do it, with a unique uri (soon to be "label" - see #183)
     """
     alice.__resource_id += b"/unique-again"  # A unique name each time, like a path.
     n = NUMBER_OF_URSULAS_IN_NETWORK
 
-    policy_group = alice.create_policy(
+    policy = alice.create_policy(
         bob,
         alice.__resource_id,
         m=3,
         n=n,
     )
-    return policy_group
+    return policy
 
 
 @pytest.fixture(scope="module")
@@ -90,10 +90,9 @@ def test_keystore():
 
 
 @pytest.fixture(scope="module")
-def alicebob_side_channel(alice):
-    plaintext = b"Welcome to the flippering."
-    ciphertext, capsule = pre.encrypt(alice.public_key(EncryptingPower), plaintext)
-    return MessageKit(ciphertext=ciphertext, capsule=capsule,
-                      alice_pubkey=alice.public_key(EncryptingPower))
-
-
+def capsule_side_channel(enacted_policy):
+    signing_keypair = SigningKeypair()
+    data_source = DataSource(policy_pubkey_enc=enacted_policy.public_key(),
+                             signer=SignatureStamp(signing_keypair))
+    message_kit, _signature = data_source.encapsulate_single_message(b"Welcome to the flippering.")
+    return message_kit, data_source

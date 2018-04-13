@@ -76,7 +76,7 @@ class EncryptingKeypair(Keypair):
         cleartext = pre.decrypt(ciphertext=message_kit.ciphertext,
                                 capsule=message_kit.capsule,
                                 priv_key=self._privkey,
-                                alice_pub_key=message_kit.alice_pubkey)
+                                alice_pub_key=message_kit.policy_pubkey)
 
         return cleartext
 
@@ -114,6 +114,5 @@ class SigningKeypair(Keypair):
         return Signature.from_bytes(signature_der_bytes, der_encoded=True)
 
     def generate_self_signed_cert(self, common_name):
-        # TODO: Let's have a shortcut method for getting the cryptography key(s).
         cryptography_key = self._privkey.to_cryptography_privkey()
         return generate_self_signed_certificate(common_name, default_curve(), cryptography_key)

@@ -62,6 +62,7 @@ class CryptoPowerUp(object):
 
 
 class KeyPairBasedPower(CryptoPowerUp):
+    confers_public_key = True
     _keypair_class = keypairs.Keypair
 
     def __init__(self,
@@ -101,14 +102,19 @@ class KeyPairBasedPower(CryptoPowerUp):
 
 
 class SigningPower(KeyPairBasedPower):
-    confers_public_key = True
     _keypair_class = SigningKeypair
     not_found_error = NoSigningPower
     provides = ("sign", "generate_self_signed_cert")
 
 
 class EncryptingPower(KeyPairBasedPower):
-    confers_public_key = True
     _keypair_class = EncryptingKeypair
     not_found_error = NoEncryptingPower
-    provides = ("decrypt", "generate_kfrags")
+    provides = ("decrypt",)
+
+
+class DelegatingPower(KeyPairBasedPower):   
+    _keypair_class = EncryptingKeypair
+    not_found_error = PowerUpError
+    provides = ("generate_kfrags",)
+

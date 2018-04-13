@@ -9,19 +9,17 @@ from kademlia.network import Server
 from kademlia.utils import digest
 from typing import Dict, ClassVar
 from typing import Union, List
-from umbral import pre
 from umbral.keys import UmbralPublicKey
 from constant_sorrow import constants, default_constant_splitter
 from bytestring_splitter import RepeatingBytestringSplitter
 
 from nkms.blockchain.eth.actors import PolicyAuthor
 from nkms.config.configs import KMSConfig
-from nkms.crypto.api import secure_random, keccak_digest
+from nkms.crypto.api import secure_random, keccak_digest, encrypt_and_sign
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH
 from nkms.crypto.kits import UmbralMessageKit
-from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower
-from nkms.crypto.signature import Signature
-from nkms.crypto.splitters import signature_splitter
+from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
+from nkms.crypto.signature import Signature, signature_splitter, SignatureStamp, StrangerStamp
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
@@ -71,14 +69,6 @@ class Character(object):
         if not crypto_power_ups:
             crypto_power_ups = []
 
-        if is_me:
-            self._stamp = SignatureStamp(self)
-
-            if attach_server:
-                self.attach_server()
-        else:
-            self._stamp = StrangerStamp(self)
-
         if crypto_power:
             self._crypto_power = crypto_power
         elif crypto_power_ups:
@@ -87,6 +77,16 @@ class Character(object):
         else:
             self._crypto_power = CryptoPower(self._default_crypto_powerups,
                                              generate_keys_if_needed=is_me)
+        if is_me:
+            try:
+                self._stamp = SignatureStamp(self._crypto_power.power_ups(SigningPower).keypair)
+            except NoSigningPower:
+                self._stamp = constants.NO_SIGNING_POWER
+
+            if attach_server:
+                self.attach_server()
+        else:
+            self._stamp = StrangerStamp(self._crypto_power.power_ups(SigningPower).keypair)
 
     def __eq__(self, other):
         return bytes(self.stamp) == bytes(other.stamp)
@@ -136,7 +136,9 @@ class Character(object):
 
     @property
     def stamp(self):
-        if not self._stamp:
+        if self._stamp is constants.NO_SIGNING_POWER:
+            raise NoSigningPower
+        elif not self._stamp:
             raise AttributeError("SignatureStamp has not been set up yet.")
         else:
             return self._stamp
@@ -171,26 +173,13 @@ class Character(object):
         :return: A tuple, (ciphertext, signature).  If sign==False,
             then signature will be NOT_SIGNED.
         """
-        recipient_pubkey_enc = recipient.public_key(EncryptingPower)
-        if sign:
-            if sign_plaintext:
-                # Sign first, encrypt second.
-                sig_header = constants.SIGNATURE_TO_FOLLOW
-                signature = self.stamp(plaintext)
-                ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + signature + plaintext)
-            else:
-                # Encrypt first, sign second.
-                sig_header = constants.SIGNATURE_IS_ON_CIPHERTEXT
-                ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
-                signature = self.stamp(ciphertext)
-            alice_pubkey = self.public_key(SigningPower)
-        else:
-            # Don't sign.
-            signature = sig_header = constants.NOT_SIGNED
-            alice_pubkey = None
-            ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
-        message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule, alice_pubkey=alice_pubkey)
+        signer = self.stamp if sign else constants.DO_NOT_SIGN
 
+        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_key(EncryptingPower),
+                                                  plaintext=plaintext,
+                                                  signer=signer,
+                                                  sign_plaintext=sign_plaintext
+                                                  )
         return message_kit, signature
 
     def verify_from(self,
@@ -213,13 +202,13 @@ class Character(object):
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
         """
+        sender_pubkey_sig = actor_whom_sender_claims_to_be.stamp.as_umbral_pubkey()
         with suppress(AttributeError):
-            if message_kit.alice_pubkey:
-                if not message_kit.alice_pubkey == actor_whom_sender_claims_to_be.public_key(SigningPower):
+            if message_kit.sender_pubkey_sig:
+                if not message_kit.sender_pubkey_sig == sender_pubkey_sig:
                     raise ValueError(
                         "This MessageKit doesn't appear to have come from {}".format(actor_whom_sender_claims_to_be))
 
-        alice_pubkey = actor_whom_sender_claims_to_be.public_key(SigningPower)
         signature_from_kit = None
 
         if decrypt:
@@ -249,7 +238,7 @@ class Character(object):
         signature_to_use = signature or signature_from_kit
 
         if signature_to_use:
-            is_valid = signature_to_use.verify(message, alice_pubkey)
+            is_valid = signature_to_use.verify(message, sender_pubkey_sig)
         else:
             # Meh, we didn't even get a signature.  Not much we can do.
             is_valid = False
@@ -303,7 +292,7 @@ class FakePolicyAgent:  # TODO: #192
 
 class Alice(Character, PolicyAuthor):
     _server_class = NuCypherSeedOnlyDHTServer
-    _default_crypto_powerups = [SigningPower, EncryptingPower]
+    _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -320,7 +309,7 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
         bob_pubkey_enc = bob.public_key(EncryptingPower)
-        return self._crypto_power.power_ups(EncryptingPower).generate_kfrags(bob_pubkey_enc, m, n)
+        return self._crypto_power.power_ups(DelegatingPower).generate_kfrags(bob_pubkey_enc, m, n)
 
     def create_policy(self, bob: "Bob", uri: bytes, m: int, n: int):
         """
@@ -610,55 +599,3 @@ class Ursula(Character, ProxyRESTServer):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
-
-
-class SignatureStamp(object):
-    """
-    Can be called to sign something or used to express the signing public
-    key as bytes.
-    """
-
-    def __init__(self, character):
-        self.character = character
-
-    def __call__(self, *args, **kwargs):
-        return self.character.sign(*args, **kwargs)
-
-    def __bytes__(self):
-        return bytes(self.character.public_key(SigningPower))
-
-    def __hash__(self):
-        return int.from_bytes(self, byteorder="big")
-
-    def __eq__(self, other):
-        return other == bytes(self)
-
-    def __add__(self, other):
-        return bytes(self) + other
-
-    def __radd__(self, other):
-        return other + bytes(self)
-
-    def __len__(self):
-        return len(bytes(self))
-
-    def as_umbral_pubkey(self):
-        return self.character.public_key(SigningPower)
-
-    def fingerprint(self):
-        """
-        Hashes the key using keccak-256 and returns the hexdigest in bytes.
-
-        :return: Hexdigest fingerprint of key (keccak-256) in bytes
-        """
-        return keccak_digest(bytes(self)).hex().encode()
-
-
-class StrangerStamp(SignatureStamp):
-    """
-    SignatureStamp of a stranger (ie, can only be used to glean public key, not to sign)
-    """
-
-    def __call__(self, *args, **kwargs):
-        message = "This isn't your SignatureStamp; it belongs to {} (a Stranger).  You can't sign with it."
-        raise TypeError(message.format(self.character))
