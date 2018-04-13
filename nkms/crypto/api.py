@@ -133,10 +133,12 @@ def generate_self_signed_certificate(common_name, curve, private_key=None, days_
 
 def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
                     plaintext: bytes,
-                    signer: Union["SignatureStamp", None],
+                    signer: Union["SignatureStamp", "_Constant"],
                     sign_plaintext=True,
                     ) -> tuple:
-    if signer:
+
+    if signer is not constants.DO_NOT_SIGN:
+        # The caller didn't expressly tell us not to sign; we'll sign.
         if sign_plaintext:
             # Sign first, encrypt second.
             sig_header = constants.SIGNATURE_TO_FOLLOW

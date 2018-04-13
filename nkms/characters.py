@@ -18,8 +18,8 @@ from nkms.config.configs import KMSConfig
 from nkms.crypto.api import secure_random, keccak_digest, encrypt_and_sign
 from nkms.crypto.constants import PUBLIC_KEY_LENGTH
 from nkms.crypto.kits import UmbralMessageKit
-from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower
-from nkms.crypto.signature import Signature, signature_splitter, SignatureStamp
+from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
+from nkms.crypto.signature import Signature, signature_splitter, SignatureStamp, StrangerStamp
 from nkms.network import blockchain_client
 from nkms.network.protocols import dht_value_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
@@ -69,14 +69,6 @@ class Character(object):
         if not crypto_power_ups:
             crypto_power_ups = []
 
-        if is_me:
-            self._stamp = CharacterStamp(self)
-
-            if attach_server:
-                self.attach_server()
-        else:
-            self._stamp = StrangerStamp(self)
-
         if crypto_power:
             self._crypto_power = crypto_power
         elif crypto_power_ups:
@@ -85,6 +77,16 @@ class Character(object):
         else:
             self._crypto_power = CryptoPower(self._default_crypto_powerups,
                                              generate_keys_if_needed=is_me)
+        if is_me:
+            try:
+                self._stamp = SignatureStamp(self._crypto_power.power_ups(SigningPower).keypair)
+            except NoSigningPower:
+                self._stamp = constants.NO_SIGNING_POWER
+
+            if attach_server:
+                self.attach_server()
+        else:
+            self._stamp = StrangerStamp(self._crypto_power.power_ups(SigningPower).keypair)
 
     def __eq__(self, other):
         return bytes(self.stamp) == bytes(other.stamp)
@@ -134,7 +136,9 @@ class Character(object):
 
     @property
     def stamp(self):
-        if not self._stamp:
+        if self._stamp is constants.NO_SIGNING_POWER:
+            raise NoSigningPower
+        elif not self._stamp:
             raise AttributeError("SignatureStamp has not been set up yet.")
         else:
             return self._stamp
@@ -169,7 +173,7 @@ class Character(object):
         :return: A tuple, (ciphertext, signature).  If sign==False,
             then signature will be NOT_SIGNED.
         """
-        signer = self.stamp if sign else constants.DO_NOT_SIGN.bool_value(False)
+        signer = self.stamp if sign else constants.DO_NOT_SIGN
 
         message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_key(EncryptingPower),
                                                   plaintext=plaintext,
@@ -595,28 +599,3 @@ class Ursula(Character, ProxyRESTServer):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
-
-
-class CharacterStamp(SignatureStamp):
-    """
-    A stamp meant to be used by a character.
-    """
-    def __init__(self, character):
-        self.character = character
-        self._sign = character.sign
-
-    def __bytes__(self):
-        return bytes(self.character.public_key(SigningPower))
-
-    def as_umbral_pubkey(self):
-        return self.character.public_key(SigningPower)
-
-
-class StrangerStamp(CharacterStamp):
-    """
-    SignatureStamp of a stranger (ie, can only be used to glean public key, not to sign)
-    """
-
-    def __call__(self, *args, **kwargs):
-        message = "This isn't your SignatureStamp; it belongs to {} (a Stranger).  You can't sign with it."
-        raise TypeError(message.format(self.character))

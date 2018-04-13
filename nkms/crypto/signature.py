@@ -111,3 +111,13 @@ class SignatureStamp(object):
         :return: Hexdigest fingerprint of key (keccak-256) in bytes
         """
         return keccak_digest(bytes(self)).hex().encode()
+
+
+class StrangerStamp(SignatureStamp):
+    """
+    SignatureStamp of a stranger (ie, can only be used to glean public key, not to sign)
+    """
+
+    def __call__(self, *args, **kwargs):
+        message = "This isn't your SignatureStamp; it belongs to (a Stranger).  You can't sign with it."
+        raise TypeError(message)
