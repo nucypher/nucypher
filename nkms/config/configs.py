@@ -11,16 +11,6 @@ class KMSConfigurationError(RuntimeError):
     pass
 
 
-class EthereumConfig:
-    """
-    TODO: Unmock
-    """
-
-    def __init__(self, registrar=None, provider=None):
-        self.registrar = registrar
-        self.provider = provider
-
-
 class StakeConfig:
     # __minimum_stake_amount = 0  # TODO
     # __minimum_stake_duration = 0

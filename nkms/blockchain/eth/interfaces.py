@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Tuple, ClassVar, Dict
+from typing import Tuple, ClassVar, Dict, Union
 
 from eth_tester import EthereumTester, PyEVMBackend
 from web3 import Web3, EthereumTesterProvider

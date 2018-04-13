@@ -1,7 +1,7 @@
 import random
 from abc import ABC
 
-from nkms.config.configs import EthereumConfig
+from nkms.blockchain.eth.interfaces import Provider
 
 
 class TheBlockchain(ABC):
@@ -26,7 +26,7 @@ class TheBlockchain(ABC):
     class IsAlreadyRunning(RuntimeError):
         pass
 
-    def __init__(self, config: EthereumConfig):
+    def __init__(self, provider=Provider()):
         """
         Configures a populus project and connects to blockchain.network.
         Transaction timeouts specified measured in seconds.
@@ -41,7 +41,7 @@ class TheBlockchain(ABC):
             raise TheBlockchain.IsAlreadyRunning(message)
         TheBlockchain.__instance = self
 
-        self.config = config
+        self.provider = provider
 
     @classmethod
     def get(cls):
@@ -67,7 +67,7 @@ class TheBlockchain(ABC):
         if timeout is None:
             timeout = self._default_timeout
 
-        result = self.config.wait.for_receipt(txhash, timeout=timeout)
+        result = self.provider.web3.wait.for_receipt(txhash, timeout=timeout)
         return result
 
 
@@ -79,10 +79,10 @@ class TesterBlockchain(TheBlockchain):
     def wait_time(self, wait_hours, step=50):
         """Wait the specified number of wait_hours by comparing block timestamps."""
 
-        end_timestamp = self.config.web3.eth.getBlock(
-            self._chain.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
-        while self._chain.web3.eth.getBlock(self._chain.web3.eth.blockNumber).timestamp < end_timestamp:
-            self._chain.wait.for_block(self._chain.web3.eth.blockNumber + step)
+        end_timestamp = self.provider.web3.eth.getBlock(
+            self.provider.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
+        while self.provider.web3.eth.getBlock(self.provider.web3.eth.blockNumber).timestamp < end_timestamp:
+            self.provider.web3.wait.for_block(self.provider.web3.eth.blockNumber + step)
 
     def spawn_miners(self, miner_agent, addresses: list, locktime: int, random_amount=False) -> list():
         """
@@ -107,7 +107,7 @@ class TesterBlockchain(TheBlockchain):
     def _global_airdrop(self, token_agent, amount: int):
         """Airdrops from creator address to all other addresses!"""
 
-        _creator, *addresses = self._chain.web3.eth.accounts
+        _creator, *addresses = self.provider.web3.eth.accounts
 
         def txs():
             for address in addresses:
