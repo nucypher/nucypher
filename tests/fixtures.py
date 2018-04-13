@@ -1,5 +1,6 @@
 import datetime
 import os
+import tempfile
 
 import maya
 import pytest
@@ -99,3 +100,11 @@ def alicebob_side_channel(alice):
                       alice_pubkey=alice.public_key(EncryptingPower))
 
 
+@pytest.fixture(scope="function")
+def tempfile_path():
+    """
+    User is responsible for closing the file given at the path.
+    """
+    _, path = tempfile.mkstemp()
+    yield path
+    os.remove(path)
