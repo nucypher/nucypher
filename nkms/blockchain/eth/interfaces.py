@@ -156,15 +156,21 @@ class Provider:
             eth_tester = EthereumTester(backend=PyEVMBackend())  # TODO: Discuss backend choice
             provider_backend = EthereumTesterProvider(ethereum_tester=eth_tester) # , api_endpoints=None)
         self.provider = provider_backend
-        self.w3 = Web3(self.provider)
+        self.web3 = Web3(self.provider)
 
         if registrar is None:
-            registrar = Registrar()  # TODO: make a default
+            registrar = Registrar(chain_name='tester')  # TODO: move to config
 
         self.__registrar = registrar
 
         self.__contract_cache = None  # set on the next line
         self.cache_contracts(compile=True)
+
+    class ProviderError(Exception):
+        pass
+
+    class UnknownContract(KeyError):
+        pass
 
     @staticmethod
     def __compile(config: SolidityConfig=None) -> Dict[str, Contract]:
@@ -172,21 +178,17 @@ class Provider:
         interfaces = compile_interfaces(config=sol_config)
         return interfaces
 
-    def __make_web3_contracts(self, interfaces, contract_factory: ClassVar=Contract, address=None):
+    def __make_web3_contracts(self, interfaces, contract_factory=Union[Contract, ConciseContract]):
         """Instantiate web3 Contracts from raw contract interface data with the supplied web3 provider"""
-
-        if contract_factory is ConciseContract and address is None:
-            raise Exception('Address must be provided when making concise contracts.')
-        elif contract_factory is Contract and address is not None:
-            raise Exception('Address must not be provided when making deployable, non-concise contracts')
 
         web3_contracts = dict()
         for contract_name, interface in interfaces.items():
             bytecode = None if contract_factory is ConciseContract else interface['bin']
 
-            contract = self.w3.eth.contract(abi=interface['abi'],
-                                            bytecode=bytecode,  # Optional, needed for deployment
-                                            ContractFactoryClass=contract_factory)
+            contract = self.web3.eth.contract(abi=interface['abi'],
+                                              bytecode=bytecode,  # Optional, needed for deployment
+                                              ContractFactoryClass=Contract)
+
             web3_contracts[contract_name] = contract
 
         return web3_contracts
@@ -194,26 +196,31 @@ class Provider:
     def cache_contracts(self, compile: bool=False) -> None:
         """Loads from contract interface data registrar or compiles"""
         if compile is False:
-            contract_records = self.__registrar.get_chain_data()
-            interfaces = {name: contract_records[name]['abi'] for name in contract_records}
-            contracts = self.__make_web3_contracts(interfaces)
+            interface_records = self.__registrar.get_chain_data()
+            contract_factory = ConciseContract
+            contracts = self.__make_web3_contracts(interface_records, contract_factory)
         else:
             interfaces = self.__compile()
-            contracts = self.__make_web3_contracts(interfaces)
+            contract_factory = Contract
+            contracts = self.__make_web3_contracts(interfaces, contract_factory)
         self.__contract_cache = contracts
 
-    def get_contract(self, contract_name: str) -> ConciseContract:
-        contract = ConciseContract(self.__contract_cache[contract_name])
-        return contract
+    def __get_cached_contract(self, contract_name):
+        try:
+            contract = self.__contract_cache[contract_name]
+        except KeyError:
+            raise self.UnknownContract('{} is not a known contract.'.format(contract_name))
+        else:
+            return contract
 
     def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[str, str]:
+        contract = self.__get_cached_contract(contract_name)
 
-        contract = self.__contract_cache[contract_name]
         deploy_bytecode = contract.constructor(*args, **kwargs).buildTransaction()
 
-        txhash = self.w3.eth.sendTransaction(deploy_bytecode)  # deploy!
+        txhash = self.web3.eth.sendTransaction(deploy_bytecode)  # deploy!
 
-        receipt = self.w3.eth.getTransactionReceipt(txhash)
+        receipt = self.web3.eth.getTransactionReceipt(txhash)
         address = receipt['contractAddress']
 
         try:
@@ -226,3 +233,14 @@ class Provider:
                                     contract_abi=cached_contract.abi)
 
         return address, txhash
+
+    def get_or_deploy_contract(self, contract_name, *args, **kwargs):
+
+        try:
+            contract = self.__get_cached_contract(contract_name)
+            txhash = None
+        except self.UnknownContract:
+            address, txhash = self.deploy_contract(contract_name, *args, **kwargs)
+            contract = self.__get_cached_contract(contract_name)
+
+        return contract, txhash
