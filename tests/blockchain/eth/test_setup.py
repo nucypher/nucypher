@@ -1,4 +1,6 @@
 from os.path import join, dirname, abspath
+
+import nkms
 from nkms.blockchain.eth.deployers import NuCypherKMSTokenDeployer
 
 
