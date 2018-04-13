@@ -13,7 +13,7 @@ class KMSConfigurationError(RuntimeError):
 
 class EthereumConfig:
     """
-    TODO
+    TODO: Unmock
     """
 
     def __init__(self, registrar=None, provider=None):
