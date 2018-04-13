@@ -1,8 +1,8 @@
 import pytest
 from ethereum.tester import TransactionFailed
 import os
-from populus.contracts.contract import PopulusContract
 
+from web3.contract import Contract
 
 MINERS_LENGTH = 0
 MINER = 1
@@ -66,7 +66,7 @@ def escrow(web3, chain, token):
     contract = web3.eth.contract(
         contract.abi,
         dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
     return contract
 
 
@@ -87,7 +87,7 @@ def policy_manager(web3, chain, escrow):
     contract = web3.eth.contract(
         contract.abi,
         dispatcher.address,
-        ContractFactoryClass=PopulusContract)
+        ContractFactoryClass=Contract)
 
     tx = escrow.transact({'from': creator}).setPolicyManager(contract.address)
     chain.wait.for_receipt(tx)

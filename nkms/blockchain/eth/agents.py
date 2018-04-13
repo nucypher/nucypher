@@ -1,13 +1,12 @@
 import random
 from abc import ABC
 from enum import Enum
-
-from functools import partial
 from typing import Set, Generator, List
 
-from web3.contract import Contract
+from functools import partial
 
-from nkms.blockchain.eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer, PolicyManagerDeployer, ContractDeployer
+from nkms.blockchain.eth.deployers import MinerEscrowDeployer, NuCypherKMSTokenDeployer, PolicyManagerDeployer, \
+    ContractDeployer
 
 
 class EthereumContractAgent(ABC):

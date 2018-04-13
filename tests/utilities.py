@@ -1,11 +1,8 @@
 import asyncio
 
-import pytest
-import requests
-
 from apistar.test import TestClient
-from nkms.characters import Ursula
 
+from nkms.characters import Ursula
 from nkms.network.node import NetworkyStuff
 from nkms.policy.models import ArrangementResponse
 

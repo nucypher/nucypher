@@ -1,4 +1,6 @@
 from os.path import join, dirname, abspath
+
+import nkms
 from nkms.blockchain.eth.deployers import NuCypherKMSTokenDeployer
 
 
@@ -7,21 +9,12 @@ def test_testerchain_creation(testerchain):
     assert testerchain._network == 'tester'
 
     # ... and that there are already some blocks mined
-    assert testerchain._chain.web3.eth.blockNumber >= 0
+    assert testerchain.provider.web3.eth.blockNumber >= 0
 
 
-def test_nucypher_populus_project(testerchain):
-
-    populus_project_dir = join(dirname(abspath(nkms.blockchain.eth.__file__)), 'project')
-
+def test_nucypher_contract_compiled(testerchain):
     # Check that populus paths are set...
-
-    # ...on the testerchain's config class
-    assert testerchain._populus_config._project_dir == populus_project_dir
-
-    # ...and on the testerchain/blockchain class itself
-    assert testerchain._project.project_dir == populus_project_dir
 
     # Ensure that solidity smart contacts are available, post-compile.
     token_contract_identifier = NuCypherKMSTokenDeployer(blockchain=testerchain)._contract_name
-    assert token_contract_identifier in testerchain._project.compiled_contract_data
+    assert token_contract_identifier in testerchain.provider._Provider__contract_cache
