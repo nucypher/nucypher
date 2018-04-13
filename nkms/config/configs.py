@@ -11,43 +11,14 @@ class KMSConfigurationError(RuntimeError):
     pass
 
 
-class KMSProvider:
+class EthereumConfig:
+    """
+    TODO
+    """
 
-    def __init__(self, provider=None, registrar=None):
-
-        if provider is None:
-            # https: // github.com / ethereum / eth - tester     # available-backends
-            eth_tester = EthereumTester(backend=PyEVMBackend())  # TODO: Discuss backend choice
-            provider = EthereumTesterProvider(ethereum_tester=eth_tester, api_endpoints=None)
+    def __init__(self, registrar=None, provider=None):
+        self.registrar = registrar
         self.provider = provider
-        self.w3 = Web3(self.provider)
-
-        self.__registrar = None
-
-    def __make_web3_contracts(self, contract_factory: Union[ConciseContract, Contract]=ConciseContract, address=None) -> List[Contract]:
-        """Instantiate web3 Contracts from raw contract interface data with the supplied web3 provider"""
-        sol_config = SolidityConfig()
-        interfaces = compile_interfaces(config=sol_config)
-
-        if contract_factory is ConciseContract and address is None:
-            raise Exception('Address must be provided when making concise contracts.')
-        elif contract_factory is Contract and address is not None:
-            raise Exception('Address must not be provided when making deployable, non-concise contracts')
-
-        web3_contracts = list()
-        for contract, interface in interfaces.items():
-            contract = self.w3.eth.contract(abi=interface['abi'],
-                                            bytecode=interface['bin'],
-                                            ContractFactoryClass=contract_factory)
-            web3_contracts.append(contract)
-
-        return web3_contracts
-
-    def get_contract(self):
-        pass
-
-    def deploy_contract(self):
-        pass
 
 
 class StakeConfig:
