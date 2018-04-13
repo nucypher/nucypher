@@ -22,11 +22,9 @@ def test_actor_without_signing_power_cannot_sign():
     with pytest.raises(NoSigningPower) as e_info:
         non_signer.stamp("something")
 
-    # ...or as a way to cast the public key to bytes or tuple.
+    # ...or as a way to cast the (non-existent) public key to bytes.
     with pytest.raises(NoSigningPower) as e_info:
         bytes(non_signer.stamp)
-    with pytest.raises(NoSigningPower) as e_info:
-        tuple(non_signer.stamp)
 
 
 def test_actor_with_signing_power_can_sign():
