@@ -6,9 +6,7 @@ from ethereum.tester import TransactionFailed
 def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
-    token, _ = chain.provider.get_or_deploy_contract(
-        'NuCypherKMSToken', deploy_args=[2 * 10 ** 9],
-        deploy_transaction={'from': creator})
+    token, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', 2 * 10 ** 9)
     return token
 
 
@@ -16,9 +14,7 @@ def token(web3, chain):
 def escrow(web3, chain, token):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
-    contract, _ = chain.provider.get_or_deploy_contract(
-        'MinersEscrowForUserEscrowMock', deploy_args=[token.address],
-        deploy_transaction={'from': creator})
+    contract, _ = chain.provider.get_or_deploy_contract('MinersEscrowForUserEscrowMock', token.address)
 
     # Give escrow some coins
     tx = token.transact({'from': creator}).transfer(contract.address, 10000)
@@ -39,9 +35,7 @@ def user_escrow(web3, chain, token, escrow, policy_manager):
     user = web3.eth.accounts[1]
 
     # Creator deploys the user escrow
-    contract, _ = chain.provider.get_or_deploy_contract(
-        'UserEscrow', deploy_args=[token.address, escrow.address, policy_manager.address],
-        deploy_transaction={'from': creator})
+    contract, _ = chain.provider.get_or_deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address)
 
     # Transfer ownership
     tx = contract.transact({'from': creator}).transferOwnership(user)

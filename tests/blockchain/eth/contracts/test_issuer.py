@@ -7,9 +7,7 @@ from web3.contract import Contract
 def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
-    token, _ = chain.provider.get_or_deploy_contract(
-        'NuCypherKMSToken', deploy_args=[2 * 10 ** 40],
-        deploy_transaction={'from': creator})
+    token, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', 2 * 10 ** 40)
     return token
 
 
@@ -19,8 +17,7 @@ def test_issuer(web3, chain, token):
 
     # Creator deploys the issuer
     issuer, _ = chain.provider.get_or_deploy_contract(
-        'IssuerMock', deploy_args=[token.address, 1, 10 ** 46, 10 ** 7, 10 ** 7],
-        deploy_transaction={'from': creator})
+        'IssuerMock', token.address, 1, 10 ** 46, 10 ** 7, 10 ** 7)
 
     # Give Miner tokens for reward and initialize contract
     reserved_reward = 2 * 10 ** 40 - 10 ** 30

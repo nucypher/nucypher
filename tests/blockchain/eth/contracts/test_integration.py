@@ -43,9 +43,7 @@ NULL_ADDR = '0x' + '0' * 40
 def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
-    contract, _ = chain.provider.get_or_deploy_contract(
-        'NuCypherKMSToken', deploy_args=[2 * 10 ** 9],
-        deploy_transaction={'from': creator})
+    contract, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', 2 * 10 ** 9)
     return contract
 
 
@@ -54,19 +52,20 @@ def escrow(web3, chain, token):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
     contract, _ = chain.provider.get_or_deploy_contract(
-        'MinersEscrow', deploy_args=[
-            token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, 2000],
-        deploy_transaction={'from': creator})
+        'MinersEscrow',
+        token.address,
+        1,
+        4 * 2 * 10 ** 7,
+        4,
+        4,
+        2,
+        100,
+        2000)
 
-    dispatcher, _ = chain.provider.deploy_contract(
-        'Dispatcher', deploy_args=[contract.address],
-        deploy_transaction={'from': creator})
+    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
 
     # Deploy second version of the government contract
-    contract = web3.eth.contract(
-        contract.abi,
-        dispatcher.address,
-        ContractFactoryClass=Contract)
+    contract = web3.eth.contract(contract.abi, dispatcher.address, ContractFactoryClass=Contract)
     return contract
 
 
@@ -75,19 +74,11 @@ def policy_manager(web3, chain, escrow):
     creator = web3.eth.accounts[0]
 
     # Creator deploys the policy manager
-    contract, _ = chain.provider.get_or_deploy_contract(
-        'PolicyManager', deploy_args=[escrow.address],
-        deploy_transaction={'from': creator})
-
-    dispatcher, _ = chain.provider.deploy_contract(
-        'Dispatcher', deploy_args=[contract.address],
-        deploy_transaction={'from': creator})
+    contract, _ = chain.provider.get_or_deploy_contract('PolicyManager', escrow.address)
+    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
 
     # Deploy second version of the government contract
-    contract = web3.eth.contract(
-        contract.abi,
-        dispatcher.address,
-        ContractFactoryClass=Contract)
+    contract = web3.eth.contract(contract.abi, dispatcher.address, ContractFactoryClass=Contract)
 
     tx = escrow.transact({'from': creator}).setPolicyManager(contract.address)
     chain.wait.for_receipt(tx)
@@ -142,18 +133,14 @@ def test_all(web3, chain, token, escrow, policy_manager):
     chain.wait.for_receipt(tx)
 
     # Deposit some tokens to the user escrow and lock them
-    user_escrow_1, _ = chain.provider.deploy_contract(
-        'UserEscrow', deploy_args=[token.address, escrow.address, policy_manager.address],
-        deploy_transaction={'from': creator})
+    user_escrow_1, _ = chain.provider.deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address)
     tx = user_escrow_1.transact({'from': creator}).transferOwnership(ursula3)
     chain.wait.for_receipt(tx)
     tx = token.transact({'from': creator}).approve(user_escrow_1.address, 10000)
     chain.wait.for_receipt(tx)
     tx = user_escrow_1.transact({'from': creator}).initialDeposit(10000, 20 * 60 * 60)
     chain.wait.for_receipt(tx)
-    user_escrow_2, _ = chain.provider.deploy_contract(
-        'UserEscrow', deploy_args=[token.address, escrow.address, policy_manager.address],
-        deploy_transaction={'from': creator})
+    user_escrow_2, _ = chain.provider.deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address)
     tx = user_escrow_2.transact({'from': creator}).transferOwnership(ursula4)
     chain.wait.for_receipt(tx)
     tx = token.transact({'from': creator}).approve(user_escrow_2.address, 10000)
