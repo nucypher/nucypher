@@ -9,9 +9,10 @@ from kademlia.network import Server
 from kademlia.utils import digest
 from typing import Dict, ClassVar
 from typing import Union, List
+
+from bytestring_splitter import BytestringSplitter
 from umbral.keys import UmbralPublicKey
 from constant_sorrow import constants, default_constant_splitter
-from bytestring_splitter import RepeatingBytestringSplitter
 
 from nkms.blockchain.eth.actors import PolicyAuthor
 from nkms.config.configs import KMSConfig
@@ -277,13 +278,25 @@ class Character(object):
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
-    def learn_about_nodes(self, address, port):
+    def learn_about_nodes(self, networky_stuff, address, port):
         """
         Sends a request to node_url to find out about known nodes.
         """
-        # TODO: Find out about other known nodes, not just this one.  #175
-        node = Ursula.from_rest_url(address, port)
-        self.known_nodes[node.interface_dht_key()] = node
+        response = networky_stuff.get_nodes_via_rest(address, port)
+        signature, nodes = signature_splitter(response.content, return_remainder=True)
+        # TODO: Although not treasure map-related, this has a whiff of #172.
+        ursula_interface_splitter = dht_value_splitter + BytestringSplitter((bytes, 15))
+        split_nodes = ursula_interface_splitter.repeat(nodes)
+        new_nodes = {}
+        for node in split_nodes:
+            # Notice that we don't use "interface_hrac" - see #228.
+            header, sig, pubkey, interface_hrac, interface = node
+            if sig.verify(keccak_digest(interface), pubkey):
+                self.known_nodes[pubkey] = msgpack.loads(interface)
+                new_nodes[pubkey] = msgpack.loads(interface)
+            else:
+                self.log.warn("Discovered node with bad signature: {}".format(node))
+        return new_nodes
 
 
 class FakePolicyAgent:  # TODO: #192
@@ -529,8 +542,8 @@ class Ursula(Character, ProxyRESTServer):
         return ursula
 
     @classmethod
-    def from_rest_url(cls, address, port):
-        response = requests.get("{}:{}/public_keys".format(address, port), verify=False)  # TODO: TLS-only.
+    def from_rest_url(cls, networky_stuff, address, port):
+        response = networky_stuff.ursula_from_rest_interface(address, port)
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 

@@ -3,7 +3,6 @@ from constant_sorrow import constants
 
 
 class CryptoKit:
-    return_remainder_when_splitting = True
     splitter = None
 
     @classmethod
@@ -49,8 +48,14 @@ class MessageKit(CryptoKit):
 
 
 class UmbralMessageKit(MessageKit):
+    return_remainder_when_splitting = True
     splitter = capsule_splitter + key_splitter
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.policy_pubkey = None
+
+    @classmethod
+    def from_bytes(cls, some_bytes):
+        capsule, sender_pubkey_sig, ciphertext = cls.split_bytes(some_bytes)
+        return cls(capsule=capsule, sender_pubkey_sig=sender_pubkey_sig, ciphertext=ciphertext)

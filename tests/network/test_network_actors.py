@@ -50,7 +50,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     assert digest(illegal_key) in ursula.server.protocol.illegal_keys_seen
 
 
-def test_alice_finds_ursula(alice, ursulas):
+def test_alice_finds_ursula_via_dht(alice, ursulas):
     """
     With the help of any Ursula, Alice can find a specific Ursula.
     """
@@ -63,6 +63,15 @@ def test_alice_finds_ursula(alice, ursulas):
     assert header == constants.BYTESTRING_IS_URSULA_IFACE_INFO
     port = msgpack.loads(interface_info)[0]
     assert port == URSULA_PORT + ursula_index
+
+
+def test_alice_finds_ursula_via_rest(alice, ursulas):
+    networky_stuff = MockNetworkyStuff(ursulas)
+    new_nodes = alice.learn_about_nodes(networky_stuff, address="https://localhost", port=ursulas[0].rest_port)
+    assert len(new_nodes) == len(ursulas)
+
+    for ursula in ursulas:
+        assert ursula.stamp.as_umbral_pubkey() in new_nodes
 
 
 def test_alice_creates_policy_group_with_correct_hrac(idle_policy):

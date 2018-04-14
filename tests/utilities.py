@@ -29,7 +29,7 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
     URSULAS = []
     for _u in range(how_many_ursulas):
         port = ursula_starting_port + _u
-        _URSULA = Ursula(dht_port=port, dht_interface="127.0.0.1", db_name="test-{}".format(port))
+        _URSULA = Ursula(dht_port=port, dht_interface="127.0.0.1", db_name="test-{}".format(port), rest_port=port+100)  # TODO: Make ports unstupid and more clear.
 
         class MockDatastoreThreadPool(object):
             def callInThread(self, f, *args, **kwargs):
@@ -86,4 +86,26 @@ class MockNetworkyStuff(NetworkyStuff):
     def get_treasure_map_from_node(self, node, map_id):
         mock_client = TestClient(node.rest_app)
         return mock_client.get("http://localhost/treasure_map/{}".format(map_id.hex()))
+
+    def ursula_from_rest_interface(self, address, port):
+        for ursula in self.ursulas:
+            if ursula.rest_port == port:
+                rest_app = ursula.rest_app
+                break
+        else:
+            raise RuntimeError("Can't find that one - did you spin up the right test ursulas?")
+        mock_client = TestClient(ursula.rest_app)
+        response = mock_client.get("http://localhost/public_keys")
+        return response
+
+    def get_nodes_via_rest(self, address, port):
+        for ursula in self.ursulas:
+            if ursula.rest_port == port:
+                rest_app = ursula.rest_app
+                break
+        else:
+            raise RuntimeError("Can't find that one - did you spin up the right test ursulas?")
+        mock_client = TestClient(ursula.rest_app)
+        response = mock_client.get("http://localhost/list_nodes")
+        return response
 
