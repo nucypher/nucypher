@@ -21,6 +21,9 @@ class NuCypherHashProtocol(KademliaProtocol):
         super().__init__(sourceNode, storage, ksize, *args, **kwargs)
         self.router = NuCypherRoutingTable(self, ksize, sourceNode)
         self.illegal_keys_seen = []
+        # TODO: This is the wrong way to do this.  See #227.
+        self.treasure_maps = {}
+        self.ursulas = {}
 
     def check_node_for_storage(self, node):
         try:
@@ -91,6 +94,10 @@ class NuCypherHashProtocol(KademliaProtocol):
         if do_store:
             self.log.info("Storing k/v: {} / {}".format(key, value))
             self.storage[key] = value
+            if value.startswith(bytes(constants.BYTESTRING_IS_URSULA_IFACE_INFO)):
+                self.ursulas[key] = value
+            if value.startswith(bytes(constants.BYTESTRING_IS_TREASURE_MAP)):
+                self.treasure_maps[key] = value
 
         return do_store
 

@@ -5,7 +5,6 @@ from typing import ClassVar
 
 from apistar import http, Route, App
 from apistar.http import Response
-from bytestring_splitter import BytestringSplitter
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
@@ -13,7 +12,7 @@ from umbral import pre
 from umbral.fragments import KFrag
 
 from nkms.crypto.kits import UmbralMessageKit
-from nkms.crypto.powers import EncryptingPower, SigningPower, CryptoPower
+from nkms.crypto.powers import EncryptingPower, SigningPower
 from nkms.keystore.threading import ThreadedSession
 from nkms.network.capabilities import SeedOnly, ServerCapability
 from nkms.network.node import NuCypherNode
@@ -117,6 +116,8 @@ class ProxyRESTServer(object):
                   self.reencrypt_via_rest),
             Route('/public_keys', 'GET',
                   self.get_signing_and_encrypting_public_keys),
+            Route('/list_nodes', 'GET',
+                  self.list_all_active_nodes_about_which_we_know),
             Route('/consider_arrangement',
                   'POST',
                   self.consider_arrangement),
@@ -166,15 +167,20 @@ class ProxyRESTServer(object):
 
         return response
 
+    def list_all_active_nodes_about_which_we_know(self):
+        headers = {'Content-Type': 'application/octet-stream'}
+        ursulas_as_bytes = bytes().join(self.server.protocol.ursulas.values())
+        signature = self.stamp(ursulas_as_bytes)
+        return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
+
     def consider_arrangement(self, request: http.Request):
         from nkms.policy.models import Arrangement
-        arrangement, deposit_as_bytes = BytestringSplitter(Arrangement)(request.body, return_remainder=True)
-        arrangement.deposit = deposit_as_bytes
+        arrangement = Arrangement.from_bytes(request.body)
 
         with ThreadedSession(self.db_engine) as session:
             self.datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
-                arrangement.deposit,
+                bytes(arrangement.deposit),
                 hrac=arrangement.hrac.hex().encode(),
                 alice_pubkey_sig=arrangement.alice.stamp,
                 session=session,

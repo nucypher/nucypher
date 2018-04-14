@@ -24,7 +24,9 @@ class Arrangement(BlockchainArrangement):
     """
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
-    _EXPECTED_LENGTH = 99
+    _EXPECTED_LENGTH = 106
+    splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
+                                                              (bytes, 27), (bytes, 7))
 
     def __init__(self, alice, hrac, expiration, deposit=None, ursula=None,
                  kfrag=constants.UNKNOWN_KFRAG, alices_signature=None):
@@ -66,10 +68,8 @@ class Arrangement(BlockchainArrangement):
 
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
-        arrangement_splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
-                                                              (bytes, 27))
-        alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = arrangement_splitter(
-            arrangement_as_bytes, return_remainder=True)
+        # Still unclear how to arrive at the correct number of bytes to represent a deposit.  See #148.
+        alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.parse(expiration_bytes.decode())
         alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
         return cls(alice=alice, hrac=hrac, expiration=expiration, deposit=int(deposit_bytes))
