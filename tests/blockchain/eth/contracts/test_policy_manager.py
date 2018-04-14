@@ -29,9 +29,8 @@ def escrow(web3, chain):
     node3 = web3.eth.accounts[5]
     # Creator deploys the escrow
     escrow, _ = chain.provider.get_or_deploy_contract(
-        'MinersEscrowForPolicyMock',
-        deploy_args=[[node1, node2, node3], MINUTES_IN_PERIOD],
-        deploy_transaction={'from': creator})
+        'MinersEscrowForPolicyMock', [node1, node2, node3], MINUTES_IN_PERIOD
+    )
     return escrow
 
 
@@ -42,17 +41,15 @@ def policy_manager(web3, chain, escrow, request):
 
     # Creator deploys the policy manager
     contract, _ = chain.provider.get_or_deploy_contract(
-        'PolicyManager', deploy_args=[escrow.address],
-        deploy_transaction={'from': creator})
+        'PolicyManager', escrow.address
+    )
 
     # Give client some ether
     tx = web3.eth.sendTransaction({'from': web3.eth.coinbase, 'to': client, 'value': 10000})
     chain.wait.for_receipt(tx)
 
     if request.param:
-        dispatcher, _ = chain.provider.deploy_contract(
-            'Dispatcher', deploy_args=[contract.address],
-            deploy_transaction={'from': creator})
+        dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
 
         # Deploy second version of the government contract
         contract = web3.eth.contract(
@@ -594,17 +591,11 @@ def test_verifying_state(web3, chain):
     address2 = web3.eth.accounts[2].lower()
 
     # Deploy contract
-    contract_library_v1, _ = chain.provider.get_or_deploy_contract(
-        'PolicyManager', deploy_args=[address1],
-        deploy_transaction={'from': creator})
-    dispatcher, _ = chain.provider.deploy_contract(
-        'Dispatcher', deploy_args=[contract_library_v1.address],
-        deploy_transaction={'from': creator})
+    contract_library_v1, _ = chain.provider.get_or_deploy_contract('PolicyManager', address1)
+    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract_library_v1.address)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = chain.provider.deploy_contract(
-        'PolicyManagerV2Mock', deploy_args=[address2],
-        deploy_transaction={'from': creator})
+    contract_library_v2, _ = chain.provider.deploy_contract('PolicyManagerV2Mock', address2)
     contract = web3.eth.contract(
         contract_library_v2.abi,
         dispatcher.address,
@@ -621,9 +612,7 @@ def test_verifying_state(web3, chain):
     assert 3 == contract.call().valueToCheck()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = chain.provider.deploy_contract(
-        'PolicyManagerBad', deploy_args=[address2],
-        deploy_transaction={'from': creator})
+    contract_library_bad, _ = chain.provider.deploy_contract('PolicyManagerBad', address2)
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
         chain.wait.for_receipt(tx)

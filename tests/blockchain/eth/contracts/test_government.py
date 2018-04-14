@@ -35,12 +35,11 @@ def escrow(web3, chain):
 
     # Creator deploys the escrow
     escrow_library, _ = chain.provider.get_or_deploy_contract(
-        'MinersEscrowV1Mock', deploy_args=[
-            [node1, node2, node3], [1, 2, 3]],
-        deploy_transaction={'from': creator})
+        'MinersEscrowV1Mock', [node1, node2, node3], [1, 2, 3]
+    )
     escrow_dispatcher, _ = chain.provider.deploy_contract(
-        'Dispatcher', deploy_args=[escrow_library.address],
-        deploy_transaction={'from': creator})
+        'Dispatcher', escrow_library.address
+    )
     escrow = web3.eth.contract(
         escrow_library.abi,
         escrow_dispatcher.address,
@@ -52,11 +51,8 @@ def escrow(web3, chain):
 def policy_manager(web3, chain):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
-    policy_manager, _ = chain.provider.get_or_deploy_contract(
-        'PolicyManagerV1Mock', deploy_transaction={'from': creator})
-    dispatcher, _ = chain.provider.deploy_contract(
-        'Dispatcher', deploy_args=[policy_manager.address],
-        deploy_transaction={'from': creator})
+    policy_manager, _ = chain.provider.get_or_deploy_contract('PolicyManagerV1Mock')
+    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', policy_manager.address)
     return dispatcher
 
 
@@ -68,11 +64,11 @@ def test_voting(web3, chain, escrow, policy_manager):
 
     # Deploy contract
     government_library, _ = chain.provider.get_or_deploy_contract(
-        'Government', deploy_args=[escrow.address, policy_manager.address, 1],
-        deploy_transaction={'from': creator})
+        'Government', escrow.address, policy_manager.address, 1,
+    )
     government_dispatcher, _ = chain.provider.deploy_contract(
-        'Dispatcher', deploy_args=[government_library.address],
-        deploy_transaction={'from': creator})
+        'Dispatcher', government_library.address
+    )
     government = web3.eth.contract(
         government_library.abi,
         government_dispatcher.address,
@@ -93,8 +89,8 @@ def test_voting(web3, chain, escrow, policy_manager):
 
     # Deploy second version of the government contract
     government_library_v2, _ = chain.provider.deploy_contract(
-        'Government', deploy_args=[escrow.address, policy_manager.address, 1],
-        deploy_transaction={'from': creator})
+        'Government', escrow.address, policy_manager.address, 1,
+    )
     assert government_library.address.lower() != government_library_v2.address.lower()
 
     # Only tokens owner can create voting
@@ -242,11 +238,11 @@ def test_upgrade(web3, chain, escrow, policy_manager):
 
     # Deploy contract
     government_library_v1, _ = chain.provider.get_or_deploy_contract(
-        'Government', deploy_args=[escrow.address, policy_manager.address, 1],
-        deploy_transaction={'from': creator})
+        'Government', escrow.address, policy_manager.address, 1,
+    )
     government_dispatcher, _ = chain.provider.deploy_contract(
-        'Dispatcher', deploy_args=[government_library_v1.address],
-        deploy_transaction={'from': creator})
+        'Dispatcher', government_library_v1.address,
+    )
     government = web3.eth.contract(
         government_library_v1.abi,
         government_dispatcher.address,
@@ -254,19 +250,18 @@ def test_upgrade(web3, chain, escrow, policy_manager):
 
     # Deploy second version of the government contract
     government_library_v2, _ = chain.provider.deploy_contract(
-        'Government', deploy_args=[escrow.address, policy_manager.address, 1],
-        deploy_transaction={'from': creator})
+        'Government', escrow.address, policy_manager.address, 1,
+    )
     # Get first version of the escrow contract
     escrow_library_v1 = chain.provider.get_contract('MinersEscrowV1Mock')
     # Deploy second version of the escrow contract
     escrow_library_v2, _ = chain.provider.deploy_contract(
-        'MinersEscrowV1Mock', deploy_args=[[node1], [1]],
-        deploy_transaction={'from': creator})
+        'MinersEscrowV1Mock', [node1], [1],
+    )
     # Get first version of the policy manager contract
     policy_manager_library_v1 = chain.provider.get_contract('PolicyManagerV1Mock')
     # Deploy second version of the policy manager contract
-    policy_manager_library_v2, _ = chain.provider.deploy_contract(
-        'PolicyManagerV1Mock', deploy_transaction={'from': creator})
+    policy_manager_library_v2, _ = chain.provider.deploy_contract('PolicyManagerV1Mock')
 
     # Transfer ownership
     tx = government.transact({'from': creator}).transferOwnership(government.address)
@@ -437,16 +432,16 @@ def test_verifying_state(web3, chain):
 
     # Deploy contract
     government_library_v1, _ = chain.provider.get_or_deploy_contract(
-        'Government', deploy_args=[address1, address2, 1],
-        deploy_transaction={'from': creator})
+        'Government', address1, address2, 1,
+    )
     government_dispatcher, _ = chain.provider.deploy_contract(
-        'Dispatcher', deploy_args=[government_library_v1.address],
-        deploy_transaction={'from': creator})
+        'Dispatcher', government_library_v1.address,
+    )
 
     # Deploy second version of the government contract
     government_library_v2, _ = chain.provider.deploy_contract(
-        'GovernmentV2Mock', deploy_args=[address2, address1, 2],
-        deploy_transaction={'from': creator})
+        'GovernmentV2Mock', address2, address1, 2,
+    )
     government = web3.eth.contract(
         government_library_v2.abi,
         government_dispatcher.address,
@@ -464,8 +459,7 @@ def test_verifying_state(web3, chain):
     assert 3 == government.call().valueToCheck()
 
     # Can't upgrade to the previous version or to the bad version
-    government_library_bad, _ = chain.provider.deploy_contract(
-        'GovernmentBad', deploy_transaction={'from': creator})
+    government_library_bad, _ = chain.provider.deploy_contract('GovernmentBad')
     with pytest.raises(TransactionFailed):
         tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_v1.address)
         chain.wait.for_receipt(tx)
