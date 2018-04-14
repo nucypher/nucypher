@@ -79,10 +79,9 @@ class TesterBlockchain(TheBlockchain):
     def wait_time(self, wait_hours, step=50):
         """Wait the specified number of wait_hours by comparing block timestamps."""
 
-        end_timestamp = self.provider.web3.eth.getBlock(
-            self.provider.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
-        while self.provider.web3.eth.getBlock(self.provider.web3.eth.blockNumber).timestamp < end_timestamp:
-            self.provider.web3.wait.for_block(self.provider.web3.eth.blockNumber + step)
+        end_timestamp = self.provider.web3.eth.getBlock(self.provider.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
+        return self.provider.web3.eth.web3.testing.timeTravel(end_timestamp)
+
 
     def spawn_miners(self, miner_agent, addresses: list, locktime: int, random_amount=False) -> list:
 
