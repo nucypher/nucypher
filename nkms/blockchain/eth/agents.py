@@ -22,7 +22,7 @@ class EthereumContractAgent(ABC):
     def __init__(self, blockchain, *args, **kwargs):
 
         self.blockchain = blockchain
-        # self._contract = Contract(address)
+        self._contract = blockchain.provider.get_contract(self._principal_contract_name)
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -42,7 +42,7 @@ class EthereumContractAgent(ABC):
 
     @property
     def origin(self) -> str:
-        return self.blockchain._chain.web3.eth.accounts[0]    # TODO: make swappable
+        return self.blockchain.provider.web3.eth.accounts[0]    # TODO: make swappable
 
     def read(self):
         """

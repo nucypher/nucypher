@@ -209,13 +209,14 @@ class Provider:
     def __make_web3_contracts(self, interfaces, contract_factory=Union[Contract, ConciseContract]):
         """Instantiate web3 Contracts from raw contract interface data with the supplied web3 provider"""
 
+
         web3_contracts = dict()
         for contract_name, interface in interfaces.items():
             bytecode = None if contract_factory is ConciseContract else interface['bin']
 
             contract = self.web3.eth.contract(abi=interface['abi'],
-                                              bytecode=bytecode,  # Optional, needed for deployment
-                                              ContractFactoryClass=Contract)
+                                                   bytecode=bytecode,  # Optional, needed for deployment
+                                                   ContractFactoryClass=Contract)
 
             web3_contracts[contract_name] = contract
 
@@ -247,12 +248,13 @@ class Provider:
         deploy_bytecode = contract.constructor(*args, **kwargs).buildTransaction()
 
         txhash = self.web3.eth.sendTransaction(deploy_bytecode)  # deploy!
-
-        receipt = self.web3.eth.getTransactionReceipt(txhash)
+        receipt = self.web3.eth.waitForTransactionReceipt(txhash)
+        # receipt = self.web3.eth.getTransactionReceipt(txhash)
         address = receipt['contractAddress']
 
         try:
             cached_contract = self.__contract_cache[contract_name]
+            contract = contract(address=address)
         except KeyError:
             raise  # TODO
         else:
@@ -260,15 +262,18 @@ class Provider:
                                     contract_address=address,
                                     contract_abi=cached_contract.abi)
 
-        return address, txhash
+        return contract, txhash
+
+    def get_contract(self, contract_name: str=None):
+        contract_data = self.__registrar.get_contract_data(contract_name)
+        contract = self.web3.eth.contract(abi=contract_data['abi'], address=contract_data['addr'])
+        return contract
 
     def get_or_deploy_contract(self, contract_name, *args, **kwargs):
-
         try:
-            contract = self.__get_cached_contract(contract_name)
+            contract = self.get_contract(contract_name=contract_name)
             txhash = None
-        except self.UnknownContract:
-            address, txhash = self.deploy_contract(contract_name, *args, **kwargs)
-            contract = self.__get_cached_contract(contract_name)
+        except Registrar.NoKnownContract:
+            contract, txhash = self.deploy_contract(contract_name, *args, **kwargs)
 
         return contract, txhash

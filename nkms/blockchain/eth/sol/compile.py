@@ -40,11 +40,8 @@ def compile_interfaces(config: SolidityConfig=SolidityConfig()) -> dict:
     for source_dir in config._contract_source_dirs:
         sol_contract_paths.extend(glob.iglob(source_dir+'/**/*.sol', recursive=True))
 
-    compiled_sol = compile_files(sol_contract_paths)
+    compiled_sol = compile_files(sol_contract_paths, import_remappings=["contracts="+config._contract_source_dirs[0]]) # TODO
 
-    interfaces = dict()
-    for contract_name, contract_path in zip(config.contract_names, sol_contract_paths):
-        contract_interface = compiled_sol['{}:{}'.format(contract_path, contract_name)]
-        interfaces[contract_name] = contract_interface
+    interfaces = {name.split(':')[-1]: compiled_sol[name] for name in compiled_sol}
 
     return interfaces

@@ -67,7 +67,7 @@ class TheBlockchain(ABC):
         if timeout is None:
             timeout = self._default_timeout
 
-        result = self.provider.web3.wait.for_receipt(txhash, timeout=timeout)
+        result = self.provider.web3.eth.waitForTransactionReceipt(txhash)
         return result
 
 

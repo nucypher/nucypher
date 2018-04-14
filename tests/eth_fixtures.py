@@ -1,19 +1,36 @@
+import os
 import pytest
+import tempfile
 
 from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
 from nkms.blockchain.eth.agents import PolicyAgent
 from nkms.blockchain.eth.chains import TheBlockchain, TesterBlockchain
 from nkms.blockchain.eth.deployers import PolicyManagerDeployer, NuCypherKMSTokenDeployer
 from nkms.blockchain.eth.utilities import MockMinerEscrowDeployer
+from nkms.blockchain.eth.interfaces import Registrar, Provider
 
 
 @pytest.fixture(scope='session')
-def chain():
+def tester_registrar():
+    _, filepath = tempfile.mkstemp()
+    tester_registrar = Registrar(chain_name='tester', registrar_filepath=filepath)
+    yield tester_registrar
+    os.remove(filepath)
 
-    testerchain = TesterBlockchain()
-    yield testerchain
 
-    del testerchain
+@pytest.fixture(scope='session')
+def tester_provider(tester_registrar):
+    tester_provider = Provider(registrar=tester_registrar)
+    yield tester_provider
+
+
+@pytest.fixture(scope='session')
+def chain(tester_provider):
+
+    chain = TesterBlockchain(provider=tester_provider)
+    yield chain
+
+    del chain
     TheBlockchain._TheBlockchain__instance = None
 
 
@@ -23,8 +40,8 @@ def web3(chain):
 
 
 @pytest.fixture()
-def mock_token_deployer(testerchain):
-    token_deployer = NuCypherKMSTokenDeployer(blockchain=testerchain)
+def mock_token_deployer(chain):
+    token_deployer = NuCypherKMSTokenDeployer(blockchain=chain)
     token_deployer.arm()
     token_deployer.deploy()
     yield token_deployer
@@ -51,8 +68,8 @@ def mock_policy_manager_deployer(mock_token_deployer):
 #
 
 @pytest.fixture()
-def token_agent(testerchain, mock_token_deployer):
-    token = NuCypherKMSTokenAgent(blockchain=testerchain)
+def token_agent(chain, mock_token_deployer):
+    token = NuCypherKMSTokenAgent(blockchain=chain)
     yield token
 
 

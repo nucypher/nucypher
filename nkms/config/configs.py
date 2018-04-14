@@ -56,7 +56,7 @@ class PolicyConfig:
 
 
 class NetworkConfig:
-    __default_db_name = 'kms_datastore.db'
+    __default_db_name = 'kms_datastore.db'  # TODO
     __default_db_path = os.path.join(_DEFAULT_CONFIGURATION_DIR , __default_db_name)
     __default_port = 5867
 

@@ -4,14 +4,14 @@ from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
 from nkms.blockchain.eth.deployers import NuCypherKMSTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 
 
-def test_token_deployer_and_agent(testerchain):
+def test_token_deployer_and_agent(chain):
 
     # Trying to get token from blockchain before it's been published fails
     # with raises(NoKnownAddress):
-    #     NuCypherKMSTokenAgent(blockchain=testerchain)
+    #     NuCypherKMSTokenAgent(blockchain=chain)
 
     # The big day...
-    deployer = NuCypherKMSTokenDeployer(blockchain=testerchain)
+    deployer = NuCypherKMSTokenDeployer(blockchain=chain)
 
     with raises(NuCypherKMSTokenDeployer.ContractDeploymentError):
         deployer.deploy()
@@ -21,7 +21,7 @@ def test_token_deployer_and_agent(testerchain):
     deployer.deploy()
 
     # Create a token instance
-    token_agent = NuCypherKMSTokenAgent(blockchain=testerchain)
+    token_agent = NuCypherKMSTokenAgent(blockchain=chain)
 
     # Make sure we got the name right
     deployer_contract_identifier = NuCypherKMSTokenDeployer._contract_name
@@ -35,14 +35,14 @@ def test_token_deployer_and_agent(testerchain):
     # assert token().totalSupply() == 10 ** 9 - 1    # TODO
 
     # Retrieve the token from the blockchain
-    same_token_agent = NuCypherKMSTokenAgent(blockchain=testerchain)
+    same_token_agent = NuCypherKMSTokenAgent(blockchain=chain)
 
     # Compare the contract address for equality
     assert token_agent.contract_address == same_token_agent.contract_address
     assert token_agent == same_token_agent  # __eq__
 
 
-def test_deploy_ethereum_contracts(testerchain):
+def test_deploy_ethereum_contracts(chain):
     """
     Launch all ethereum contracts:
     - NuCypherKMSToken
@@ -52,11 +52,11 @@ def test_deploy_ethereum_contracts(testerchain):
     - Issuer
     """
 
-    token_deployer = NuCypherKMSTokenDeployer(blockchain=testerchain)
+    token_deployer = NuCypherKMSTokenDeployer(blockchain=chain)
     token_deployer.arm()
     token_deployer.deploy()
 
-    token_agent = NuCypherKMSTokenAgent(blockchain=testerchain)
+    token_agent = NuCypherKMSTokenAgent(blockchain=chain)
 
     miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent)
     miner_escrow_deployer.arm()
