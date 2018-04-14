@@ -1,16 +1,33 @@
+import os
 import pytest
+import tempfile
 
 from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
 from nkms.blockchain.eth.agents import PolicyAgent
 from nkms.blockchain.eth.chains import TheBlockchain, TesterBlockchain
 from nkms.blockchain.eth.deployers import PolicyManagerDeployer, NuCypherKMSTokenDeployer
 from nkms.blockchain.eth.utilities import MockMinerEscrowDeployer
+from nkms.blockchain.eth.interfaces import Registrar, Provider
 
 
 @pytest.fixture(scope='session')
-def chain():
+def tester_registrar():
+    _, filepath = tempfile.mkstemp()
+    tester_registrar = Registrar(chain_name='tester', registrar_filepath=filepath)
+    yield tester_registrar
+    os.remove(filepath)
 
-    testerchain = TesterBlockchain()
+
+@pytest.fixture(scope='session')
+def tester_provider(tester_registrar):
+    tester_provider = Provider(registrar=tester_registrar)
+    yield tester_provider
+
+
+@pytest.fixture(scope='session')
+def chain(tester_provider):
+
+    testerchain = TesterBlockchain(provider=tester_provider)
     yield testerchain
 
     del testerchain
