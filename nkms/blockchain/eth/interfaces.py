@@ -176,7 +176,6 @@ class Provider:
     def __make_web3_contracts(self, interfaces, contract_factory=Union[Contract, ConciseContract]):
         """Instantiate web3 Contracts from raw contract interface data with the supplied web3 provider"""
 
-
         web3_contracts = dict()
         for contract_name, interface in interfaces.items():
             bytecode = None if contract_factory is ConciseContract else interface['bin']
