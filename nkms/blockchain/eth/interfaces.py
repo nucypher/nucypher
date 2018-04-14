@@ -240,7 +240,7 @@ class Provider:
         try:
             contract = self.get_contract(contract_name=contract_name)
             txhash = None
-        except Registrar.NoKnownContract:
+        except (KeyError, Registrar.NoKnownContract):
             contract, txhash = self.deploy_contract(contract_name, *args, **kwargs)
 
         return contract, txhash

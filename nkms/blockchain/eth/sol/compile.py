@@ -9,6 +9,8 @@ from solc import install_solc
 
 import nkms
 from nkms.blockchain import eth
+from tests.blockchain.eth import contracts
+
 
 class SolidityConfig:
     version = 'v0.4.20'
@@ -23,7 +25,7 @@ class SolidityConfig:
 
     _contract_source_dirs = [
         join(dirname(abspath(eth.__file__)), 'sol', 'source', 'contracts'),
-        join(Path.home(), 'Git', 'nucypher-kms', 'tests', 'blockchain', 'eth', 'contracts', 'contracts'),  # TODO: no
+        join(os.path.dirname(os.path.abspath(contracts.__file__)), 'contracts')
     ]
 
     def __init__(self):
