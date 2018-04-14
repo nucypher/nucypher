@@ -13,20 +13,20 @@ from tests.utilities import TesterBlockchain
 
 
 def main():
-    testerchain = TesterBlockchain()
-    chain, web3 = testerchain._chain, testerchain._chain.web3
+    chain = TesterBlockchain()
+    web3 = chain.web3
     creator, ursula1, ursula2, ursula3, alice1, *everyone_else = web3.eth.accounts
 
     print("Web3 providers are", web3.providers)
 
     # TODO: Updatae to agents and deployers
     # Create an ERC20 token
-    token = NuCypherKMSToken(blockchain=testerchain)
+    token = NuCypherKMSToken(blockchain=chain)
     token.arm()
     token.deploy()
 
     # Creator deploys the escrow
-    escrow = Escrow(blockchain=testerchain, token=token)
+    escrow = Escrow(blockchain=chain, token=token)
     escrow.arm()
     escrow.deploy()
 
@@ -76,7 +76,7 @@ def main():
     chain.wait.for_receipt(tx)
 
     # Wait 1 period and confirm activity
-    testerchain.wait_time(1)
+    chain.wait_time(1)
     print("First confirm activity = " + str(escrow.contract.estimateGas({'from': ursula1}).confirmActivity()))
     tx = escrow.transact({'from': ursula1}).confirmActivity()
     chain.wait.for_receipt(tx)
@@ -88,7 +88,7 @@ def main():
     chain.wait.for_receipt(tx)
 
     # Wait 1 period and mint tokens
-    testerchain.wait_time(1)
+    chain.wait_time(1)
     print("First mining = " + str(escrow.contract.estimateGas({'from': ursula1}).mint()))
     tx = escrow.transact({'from': ursula1}).mint()
     chain.wait.for_receipt(tx)
@@ -125,7 +125,7 @@ def main():
     tx = escrow.transact({'from': ursula3}).switchLock()
     chain.wait.for_receipt(tx)
     #
-    testerchain.wait_time(1)
+    chain.wait_time(1)
     print("First locking tokens = " + str(escrow.contract.estimateGas({'from': ursula1}).lock(10 ** 6, 0)))
     tx = escrow.transact({'from': ursula1}).lock(10 ** 6, 0)
     chain.wait.for_receipt(tx)
@@ -137,7 +137,7 @@ def main():
     chain.wait.for_receipt(tx)
 
     # Wait 1 period and withdraw tokens
-    testerchain.wait_time(1)
+    chain.wait_time(1)
     print("First withdraw = " + str(escrow.contract.estimateGas({'from': ursula1}).withdraw(1)))
     tx = escrow.transact({'from': ursula1}).withdraw(1)
     chain.wait.for_receipt(tx)
@@ -149,7 +149,7 @@ def main():
     chain.wait.for_receipt(tx)
 
     # Wait 1 period and confirm activity
-    testerchain.wait_time(1)
+    chain.wait_time(1)
     print("First confirm activity after downtime = " + str(escrow.contract.estimateGas({'from': ursula1}).confirmActivity()))
     tx = escrow.transact({'from': ursula1}).confirmActivity()
     chain.wait.for_receipt(tx)
@@ -172,7 +172,7 @@ def main():
     chain.wait.for_receipt(tx)
 
     # Wait 1 period and mint tokens
-    testerchain.wait_time(1)
+    chain.wait_time(1)
     print("First mining again = " + str(escrow.contract.estimateGas({'from': ursula1}).mint()))
     tx = escrow.transact({'from': ursula1}).mint()
     chain.wait.for_receipt(tx)
@@ -219,7 +219,7 @@ def main():
     tx = policy_manager.transact({'from': alice1, 'value': 10000})\
         .createPolicy(policy_id_1, number_of_periods, [ursula2])
     chain.wait.for_receipt(tx)
-    testerchain.wait_time(1)
+    chain.wait_time(1)
     print("Second creating policy (1 node, " + str(number_of_periods) + " periods) = " +
           str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
               .createPolicy(policy_id_2, number_of_periods, [ursula2])))
@@ -234,13 +234,13 @@ def main():
     chain.wait.for_receipt(tx)
 
     # Mine and revoke policy
-    testerchain.wait_time(10)
+    chain.wait_time(10)
     tx = escrow.transact({'from': ursula2}).confirmActivity()
     chain.wait.for_receipt(tx)
     tx = escrow.transact({'from': ursula1}).confirmActivity()
     chain.wait.for_receipt(tx)
 
-    testerchain.wait_time(1)
+    chain.wait_time(1)
     print("First mining after downtime = " + str(escrow.contract.estimateGas({'from': ursula1}).mint()))
     tx = escrow.transact({'from': ursula1}).mint()
     chain.wait.for_receipt(tx)
@@ -248,7 +248,7 @@ def main():
     tx = escrow.transact({'from': ursula2}).mint()
     chain.wait.for_receipt(tx)
 
-    testerchain.wait_time(10)
+    chain.wait_time(10)
     print("First revoking policy after downtime = " +
           str(policy_manager.estimateGas({'from': alice1}).revokePolicy(policy_id_1)))
     tx = policy_manager.transact({'from': alice1}).revokePolicy(policy_id_1)

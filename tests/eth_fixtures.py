@@ -27,10 +27,10 @@ def tester_provider(tester_registrar):
 @pytest.fixture(scope='session')
 def chain(tester_provider):
 
-    testerchain = TesterBlockchain(provider=tester_provider)
-    yield testerchain
+    chain = TesterBlockchain(provider=tester_provider)
+    yield chain
 
-    del testerchain
+    del chain
     TheBlockchain._TheBlockchain__instance = None
 
 
@@ -40,8 +40,8 @@ def web3(chain):
 
 
 @pytest.fixture()
-def mock_token_deployer(testerchain):
-    token_deployer = NuCypherKMSTokenDeployer(blockchain=testerchain)
+def mock_token_deployer(chain):
+    token_deployer = NuCypherKMSTokenDeployer(blockchain=chain)
     token_deployer.arm()
     token_deployer.deploy()
     yield token_deployer
@@ -68,8 +68,8 @@ def mock_policy_manager_deployer(mock_token_deployer):
 #
 
 @pytest.fixture()
-def token_agent(testerchain, mock_token_deployer):
-    token = NuCypherKMSTokenAgent(blockchain=testerchain)
+def token_agent(chain, mock_token_deployer):
+    token = NuCypherKMSTokenAgent(blockchain=chain)
     yield token
 
 
