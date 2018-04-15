@@ -6,8 +6,7 @@
 import datetime
 import sys
 
-import requests
-
+from examples.sandbox_resources import SandboxNetworkyStuff
 from nkms.characters import Alice, Bob, Ursula
 from nkms.crypto.kits import MessageKit
 from nkms.crypto.powers import SigningPower, EncryptingPower
@@ -17,27 +16,6 @@ from umbral import pre
 ALICE = Alice()
 BOB = Bob()
 URSULA = Ursula.from_rest_url(address="https://localhost", port="3550")
-
-
-class SandboxNetworkyStuff(NetworkyStuff):
-    def find_ursula(self, contract=None):
-        ursula = Ursula.as_discovered_on_network(dht_port=None, dht_interface=None,
-                                                 rest_address="https://localhost", rest_port=3550,
-                                                 powers_and_keys={
-                                                    SigningPower: URSULA.stamp.as_umbral_pubkey(),
-                                                    EncryptingPower: URSULA.public_key(EncryptingPower)
-                                                 }
-                                                 )
-        response = requests.post("https://localhost:3550/consider_contract", bytes(contract), verify=False)
-        response.was_accepted = True
-        return ursula, response
-
-    def enact_policy(self, ursula, hrac, payload):
-        response = requests.post('{}:{}/kFrag/{}'.format(ursula.rest_address, ursula.rest_port, hrac.hex()),
-                                 payload, verify=False)
-        # TODO: Something useful here and it's probably ready to go down into NetworkyStuff.
-        return response.status_code == 200
-
 
 networky_stuff = SandboxNetworkyStuff()
 
@@ -49,7 +27,6 @@ uri = b"secret/files/and/stuff"
 ALICE.learn_about_nodes(address="https://localhost", port="3550")
 
 # Alice grants to Bob.
-
 policy = ALICE.grant(BOB, uri, networky_stuff, m=1, n=n,
                      expiration=policy_end_datetime)
 policy.publish_treasure_map(networky_stuff, use_dht=False)

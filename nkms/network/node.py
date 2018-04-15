@@ -1,8 +1,8 @@
 import requests
 from kademlia.node import Node
 
+from bytestring_splitter import BytestringSplitter
 from nkms.crypto.constants import CFRAG_LENGTH
-from bytestring_splitter import RepeatingBytestringSplitter
 from nkms.network.capabilities import ServerCapability
 
 from umbral.fragments import CapsuleFrag
@@ -38,7 +38,7 @@ class NetworkyStuff(object):
 
     def reencrypt(self, work_order):
         ursula_rest_response = self.send_work_order_payload_to_ursula(work_order)
-        cfrags = RepeatingBytestringSplitter((CapsuleFrag, CFRAG_LENGTH))(ursula_rest_response.content)
+        cfrags = BytestringSplitter((CapsuleFrag, CFRAG_LENGTH)).repeat(ursula_rest_response.content)
         work_order.complete(cfrags)  # TODO: We'll do verification of Ursula's signature here.  #141
         return cfrags
 
@@ -56,7 +56,9 @@ class NetworkyStuff(object):
 
     def send_work_order_payload_to_ursula(self, work_order):
         payload = work_order.payload()
-
         hrac_as_hex = work_order.kfrag_hrac.hex()
         return requests.post('{}/kFrag/{}/reencrypt'.format(work_order.ursula.rest_url(), hrac_as_hex),
                              payload, verify=False)
+
+    def ursula_from_rest_interface(self, address, port):
+        return requests.get("{}:{}/list_nodes".format(address, port), verify=False)  # TODO: TLS-only.
