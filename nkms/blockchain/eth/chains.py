@@ -1,4 +1,5 @@
 import random
+import time
 from abc import ABC
 
 from nkms.blockchain.eth.interfaces import Provider
@@ -76,10 +77,16 @@ class TesterBlockchain(TheBlockchain):
 
     _network = 'tester'
 
-    def wait_time(self, wait_hours):
+    def wait_time(self, hours=None, seconds=None):
         """Wait the specified number of wait_hours by comparing block timestamps."""
+        if hours:
+            duration = hours * 60 * 60
+        elif seconds:
+            duration = seconds
+        else:
+            raise Exception("Invalid time")
 
-        end_timestamp = self.provider.web3.eth.getBlock('latest').timestamp + wait_hours * 60 * 60
+        end_timestamp = self.provider.web3.eth.getBlock('latest').timestamp + duration
         self.provider.web3.eth.web3.testing.timeTravel(end_timestamp)
         self.provider.web3.eth.web3.testing.mine(1)
 

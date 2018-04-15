@@ -37,7 +37,7 @@ class ContractDeployer:
             return address
 
     @property
-    def displatcher(self):
+    def dispatcher(self):
         return self.__dispatcher
 
     @property
@@ -235,12 +235,12 @@ class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
         assert is_ready
 
         # Build deployment arguments
-        deploy_args = [self.token_agent.contract_address] + self.mining_coefficient    # config
         origin_args = {'from': self.token_agent.origin}
 
         # 1 - Deploy #
-        the_escrow_contract, deploy_txhash = self.blockchain.provider.\
-            deploy_contract(self._contract_name, *deploy_args)
+        the_escrow_contract, deploy_txhash = self.blockchain.provider.deploy_contract(self._contract_name,
+                                                                                      self.token_agent.contract_address,
+                                                                                      *self.mining_coefficient)
         _deploy_receipt = self.blockchain.wait_for_receipt(deploy_txhash)
 
         # 2 - Deploy the dispatcher used for updating this contract #

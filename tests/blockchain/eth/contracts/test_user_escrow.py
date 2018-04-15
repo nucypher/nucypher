@@ -1,5 +1,5 @@
 import pytest
-from ethereum.tester import TransactionFailed
+from eth_tester.exceptions import TransactionFailed
 
 
 @pytest.fixture()
@@ -43,17 +43,10 @@ def user_escrow(web3, chain, token, escrow, policy_manager):
     return contract
 
 
-def wait_time(chain, wait_seconds):
-    web3 = chain.web3
-    step = 1
-    end_timestamp = web3.eth.getBlock(web3.eth.blockNumber).timestamp + wait_seconds
-    while web3.eth.getBlock(web3.eth.blockNumber).timestamp < end_timestamp:
-        chain.wait.for_block(web3.eth.blockNumber + step)
-
-
 def test_escrow(web3, chain, token, user_escrow):
     creator = web3.eth.accounts[0]
     user = web3.eth.accounts[1]
+    deposits = user_escrow.eventFilter('Deposited')
 
     # Deposit some tokens to the user escrow and lock them
     tx = token.transact({'from': creator}).approve(user_escrow.address, 2000)
@@ -65,10 +58,10 @@ def test_escrow(web3, chain, token, user_escrow):
     assert 1000 >= user_escrow.call().getLockedTokens()
     assert 950 <= user_escrow.call().getLockedTokens()
 
-    events = user_escrow.pastEvents('Deposited').get()
+    events = deposits.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert creator.lower() == event_args['sender'].lower()
+    assert creator == event_args['sender']
     assert 1000 == event_args['value']
     assert 1000 == event_args['duration']
 
@@ -87,6 +80,8 @@ def test_escrow(web3, chain, token, user_escrow):
     chain.wait_for_receipt(tx)
     assert 2000 == token.call().balanceOf(user_escrow.address)
 
+    withdraws = user_escrow.eventFilter('Withdrawn')
+
     # Only user can withdraw available tokens
     with pytest.raises(TransactionFailed):
         tx = user_escrow.transact({'from': creator}).withdraw(100)
@@ -96,14 +91,15 @@ def test_escrow(web3, chain, token, user_escrow):
     assert 1000 == token.call().balanceOf(user)
     assert 1000 == token.call().balanceOf(user_escrow.address)
 
-    events = user_escrow.pastEvents('Withdrawn').get()
+    events = withdraws.get_all_entries()
+
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user.lower() == event_args['owner'].lower()
+    assert user == event_args['owner']
     assert 1000 == event_args['value']
 
     # Wait some time
-    wait_time(chain, 500)
+    chain.wait_time(seconds=500)
     assert 500 >= user_escrow.call().getLockedTokens()
     assert 450 <= user_escrow.call().getLockedTokens()
 
@@ -112,30 +108,36 @@ def test_escrow(web3, chain, token, user_escrow):
     chain.wait_for_receipt(tx)
     assert 1500 == token.call().balanceOf(user)
 
-    events = user_escrow.pastEvents('Withdrawn').get()
+    # events = user_escrow.pastEvents('Withdrawn').get()
+    events = withdraws.get_all_entries()
+
     assert 2 == len(events)
     event_args = events[1]['args']
-    assert user.lower() == event_args['owner'].lower()
+    assert user == event_args['owner']
     assert 500 == event_args['value']
 
     # Wait more time and withdraw all
-    wait_time(chain, 500)
+    chain.wait_time(seconds=500)
     assert 0 == user_escrow.call().getLockedTokens()
     tx = user_escrow.transact({'from': user}).withdraw(500)
     chain.wait_for_receipt(tx)
     assert 0 == token.call().balanceOf(user_escrow.address)
     assert 2000 == token.call().balanceOf(user)
 
-    events = user_escrow.pastEvents('Withdrawn').get()
+    # events = user_escrow.pastEvents('Withdrawn').get()
+    events = withdraws.get_all_entries()
+
     assert 3 == len(events)
     event_args = events[2]['args']
-    assert user.lower() == event_args['owner'].lower()
+    assert user == event_args['owner']
     assert 500 == event_args['value']
 
 
 def test_miner(web3, chain, token, escrow, user_escrow):
     creator = web3.eth.accounts[0]
     user = web3.eth.accounts[1]
+
+    deposits = user_escrow.eventFilter('Deposited')
 
     # Deposit some tokens to the user escrow and lock them
     tx = token.transact({'from': creator}).approve(user_escrow.address, 1000)
@@ -145,7 +147,9 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     tx = token.transact({'from': creator}).transfer(user_escrow.address, 1000)
     chain.wait_for_receipt(tx)
     assert 2000 == token.call().balanceOf(user_escrow.address)
-    assert 1 == len(user_escrow.pastEvents('Deposited').get())
+
+    events = deposits.get_all_entries()
+    assert 1 == len(events)
 
     # Only user can deposit tokens to the miner escrow
     with pytest.raises(TransactionFailed):
@@ -156,10 +160,12 @@ def test_miner(web3, chain, token, escrow, user_escrow):
         tx = user_escrow.transact({'from': user}).minerDeposit(10000, 5)
         chain.wait_for_receipt(tx)
 
+    miner_deposits = user_escrow.eventFilter('DepositedAsMiner')
+
     # Deposit some tokens to the miners escrow
     tx = user_escrow.transact({'from': user}).minerDeposit(1500, 5)
     chain.wait_for_receipt(tx)
-    assert user_escrow.address.lower() == escrow.call().node().lower()
+    assert user_escrow.address == escrow.call().node()
     assert 1500 == escrow.call().value()
     assert 1500 == escrow.call().lockedValue()
     assert 5 == escrow.call().periods()
@@ -167,10 +173,11 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert 11500 == token.call().balanceOf(escrow.address)
     assert 500 == token.call().balanceOf(user_escrow.address)
 
-    events = user_escrow.pastEvents('DepositedAsMiner').get()
+    events = miner_deposits.get_all_entries()
+
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user.lower() == event_args['owner'].lower()
+    assert user == event_args['owner']
     assert 1500 == event_args['value']
     assert 5 == event_args['periods']
 
@@ -199,6 +206,14 @@ def test_miner(web3, chain, token, escrow, user_escrow):
         tx = escrow.transact({'from': user}).withdrawAll()
         chain.wait_for_receipt(tx)
 
+    locks = user_escrow.eventFilter('Locked')
+    switches = user_escrow.eventFilter('LockSwitched')
+    confirms = user_escrow.eventFilter('ActivityConfirmed')
+    mints = user_escrow.eventFilter('Mined')
+    miner_withdraws = user_escrow.eventFilter('WithdrawnAsMiner')
+    withdraws = user_escrow.eventFilter('Withdrawn')
+
+
     # Use methods through the user escrow
     tx = user_escrow.transact({'from': user}).lock(100, 1)
     chain.wait_for_receipt(tx)
@@ -225,31 +240,35 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert 9000 == token.call().balanceOf(escrow.address)
     assert 3000 == token.call().balanceOf(user_escrow.address)
 
-    events = user_escrow.pastEvents('Locked').get()
+    events = locks.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user.lower() == event_args['owner'].lower()
+    assert user == event_args['owner']
     assert 100 == event_args['value']
     assert 1 == event_args['periods']
-    events = user_escrow.pastEvents('LockSwitched').get()
+
+    events = switches.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user.lower() == event_args['owner'].lower()
-    events = user_escrow.pastEvents('ActivityConfirmed').get()
+    assert user == event_args['owner']
+
+    events = confirms.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user.lower() == event_args['owner'].lower()
-    events = user_escrow.pastEvents('Mined').get()
+    assert user == event_args['owner']
+
+    events = mints.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user.lower() == event_args['owner'].lower()
-    events = user_escrow.pastEvents('WithdrawnAsMiner').get()
+    assert user == event_args['owner']
+
+    events = miner_withdraws.get_all_entries()
     assert 2 == len(events)
     event_args = events[0]['args']
-    assert user.lower() == event_args['owner'].lower()
+    assert user == event_args['owner']
     assert 1500 == event_args['value']
     event_args = events[1]['args']
-    assert user.lower() == event_args['owner'].lower()
+    assert user == event_args['owner']
     assert 1000 == event_args['value']
 
     # User can withdraw reward for mining but no more than locked
@@ -261,10 +280,10 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert 2000 == token.call().balanceOf(user_escrow.address)
     assert 1000 == token.call().balanceOf(user)
 
-    events = user_escrow.pastEvents('Withdrawn').get()
+    events = withdraws.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user.lower() == event_args['owner'].lower()
+    assert user == event_args['owner']
     assert 1000 == event_args['value']
 
 
@@ -295,6 +314,9 @@ def test_policy(web3, chain, policy_manager, user_escrow):
     tx = web3.eth.sendTransaction({'from': web3.eth.coinbase, 'to': policy_manager.address, 'value': 10000})
     chain.wait_for_receipt(tx)
 
+    miner_collections = user_escrow.eventFilter('RewardWithdrawnAsMiner')
+    rewards = user_escrow.eventFilter('RewardWithdrawn')
+
     # Withdraw reward reward
     tx = user_escrow.transact({'from': user, 'gas_price': 0}).policyRewardWithdraw()
     chain.wait_for_receipt(tx)
@@ -305,13 +327,15 @@ def test_policy(web3, chain, policy_manager, user_escrow):
     assert user_balance + 10000 == web3.eth.getBalance(user)
     assert 0 == web3.eth.getBalance(user_escrow.address)
 
-    events = user_escrow.pastEvents('RewardWithdrawnAsMiner').get()
+    events = miner_collections.get_all_entries()
+
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user.lower() == event_args['owner'].lower()
+    assert user == event_args['owner']
     assert 10000 == event_args['value']
-    events = user_escrow.pastEvents('RewardWithdrawn').get()
+
+    events = rewards.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert user.lower() == event_args['owner'].lower()
+    assert user == event_args['owner']
     assert 10000 == event_args['value']

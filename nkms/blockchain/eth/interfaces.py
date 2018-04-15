@@ -44,37 +44,6 @@ def _read_registrar_file(registrar_filepath: str) -> dict:
     return registrar_data
 
 
-def _write_registrar_file(registrar_data: dict, registrar_filepath: str) -> None:
-    """
-    Writes the registrar data dict as JSON to the registrar file. If no
-    file exists, it will create it and write the data. If a file does exist
-    and contains JSON data, it will _overwrite_ everything in it.
-    """
-    with open(registrar_filepath, 'a+') as registrar_file:
-        registrar_file.seek(0)
-        registrar_file.write(json.dumps(registrar_data))
-        registrar_file.truncate()
-
-
-def _read_registrar_file(registrar_filepath: str) -> dict:
-    """
-    Reads the registrar file and parses the JSON and returns a dict.
-    If the file is empty or the JSON is corrupt, it will return an empty
-    dict.
-    If you are modifying or updating the registrar file, you _must_ call
-    this function first to get the current state to append to the dict or
-    modify it because _write_registrar_file overwrites the file.
-    """
-    try:
-        with open(registrar_filepath, 'r') as registrar_file:
-            registrar_data = json.loads(registrar_file.read())
-    except json.decoder.JSONDecodeError:
-        registrar_data = dict()
-    except FileNotFoundError:
-        raise RegistrarDoesNotExist("No Registrar exists at this filepath.")
-    return registrar_data
-
-
 class Registrar:
     """
     Records known contracts on the disk for future access and utility.
@@ -237,14 +206,16 @@ class Provider:
         try:
             contract = self.__contract_cache[contract_name]
         except KeyError:
-            raise self.UnknownContract('{} is not a known contract.'.format(contract_name))
+            raise self.UnknownContract('{} is not a compiled contract.'.format(contract_name))
         else:
             return contract
 
     def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[str, str]:
         contract = self.__get_cached_contract(contract_name)
 
-        deploy_bytecode = contract.constructor(*args, **kwargs).buildTransaction()
+        transaction = {'from': self.web3.eth.coinbase}
+
+        deploy_bytecode = contract.constructor(*args, **kwargs).buildTransaction(transaction)
 
         txhash = self.web3.eth.sendTransaction(deploy_bytecode)  # deploy!
         receipt = self.web3.eth.waitForTransactionReceipt(txhash)

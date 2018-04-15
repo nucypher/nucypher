@@ -1,6 +1,6 @@
 import pytest
-from ethereum.tester import TransactionFailed
 from web3.contract import Contract
+from eth_tester.exceptions import TransactionFailed
 
 
 @pytest.fixture()
@@ -24,9 +24,12 @@ def test_issuer(web3, chain, token):
     reserved_reward = 2 * 10 ** 40 - 10 ** 30
     tx = token.transact({'from': creator}).transfer(issuer.address, reserved_reward)
     chain.wait_for_receipt(tx)
+
+    events = issuer.eventFilter('Initialized')
     tx = issuer.transact().initialize()
     chain.wait_for_receipt(tx)
-    events = issuer.pastEvents('Initialized').get()
+    events = events.get_all_entries()
+
     assert 1 == len(events)
     assert reserved_reward == events[0]['args']['reservedReward']
     balance = token.call().balanceOf(issuer.address)
@@ -114,8 +117,8 @@ def test_verifying_state(web3, chain, token):
     # Deploy second version of the contract
     contract_library_v2, _ = chain.provider.deploy_contract('IssuerV2Mock', token.address, 2, 2, 2, 2)
     contract = web3.eth.contract(
-        contract_library_v2.abi,
-        dispatcher.address,
+        abi=contract_library_v2.abi,
+        address=dispatcher.address,
         ContractFactoryClass=Contract)
 
     # Give Miner tokens for reward and initialize contract
