@@ -204,14 +204,16 @@ class Provider:
         try:
             contract = self.__contract_cache[contract_name]
         except KeyError:
-            raise self.UnknownContract('{} is not a known contract.'.format(contract_name))
+            raise self.UnknownContract('{} is not a compiled contract.'.format(contract_name))
         else:
             return contract
 
     def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[str, str]:
         contract = self.__get_cached_contract(contract_name)
 
-        deploy_bytecode = contract.constructor(*args, **kwargs).buildTransaction()
+        transaction = {'from': self.web3.eth.coinbase}
+
+        deploy_bytecode = contract.constructor(*args, **kwargs).buildTransaction(transaction)
 
         txhash = self.web3.eth.sendTransaction(deploy_bytecode)  # deploy!
         receipt = self.web3.eth.waitForTransactionReceipt(txhash)

@@ -1,5 +1,5 @@
 import pytest
-from ethereum.tester import TransactionFailed
+from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
 
@@ -21,30 +21,28 @@ def test_dispatcher(web3, chain):
     contract2_lib, _ = chain.provider.get_or_deploy_contract('ContractV2', deploy_args=[1])
     contract3_lib, _ = chain.provider.get_or_deploy_contract('ContractV3', deploy_args=[2])
     contract2_bad_lib, _ = chain.provider.get_or_deploy_contract('ContractV2Bad')
-    dispatcher, _ = chain.provider.get_or_deploy_contract(
-            'Dispatcher', deploy_args=[contract1_lib.address],
-            deploy_transaction={'from': creator})
-    assert dispatcher.call().target().lower() == contract1_lib.address
+    dispatcher, _ = chain.provider.get_or_deploy_contract('Dispatcher', contract1_lib.address)
+    assert dispatcher.call().target() == contract1_lib.address
 
     events = dispatcher.pastEvents('Upgraded').get()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert '0x' + '0' * 40 == event_args['from']
-    assert contract1_lib.address.lower() == event_args['to'].lower()
+    assert contract1_lib.address == event_args['to']
     assert creator == event_args['owner']
 
     # Assign dispatcher address as contract.
     # In addition to the interface can be used ContractV1, ContractV2 or ContractV3 ABI
     contract_instance = web3.eth.contract(
-        contract_interface.abi,
-        dispatcher.address,
+        abi=contract_interface.abi,
+        address=dispatcher.address,
         ContractFactoryClass=Contract)
 
     # Only owner can change target address for dispatcher
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': account}).upgrade(contract2_lib.address)
         chain.wait.for_receipt(tx)
-    assert dispatcher.call().target().lower() == contract1_lib.address.lower()
+    assert dispatcher.call().target() == contract1_lib.address
 
     # Check values before upgrade
     assert contract_instance.call().getStorageValue() == 1
@@ -80,18 +78,18 @@ def test_dispatcher(web3, chain):
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
         chain.wait.for_receipt(tx)
-    assert dispatcher.call().target().lower() == contract1_lib.address
+    assert dispatcher.call().target() == contract1_lib.address
 
     # Upgrade contract
     tx = dispatcher.transact({'from': creator}).upgrade(contract2_lib.address)
     chain.wait.for_receipt(tx)
-    assert dispatcher.call().target().lower() == contract2_lib.address.lower()
+    assert dispatcher.call().target() == contract2_lib.address
 
     events = dispatcher.pastEvents('Upgraded').get()
     assert 2 == len(events)
     event_args = events[1]['args']
-    assert contract1_lib.address.lower() == event_args['from'].lower()
-    assert contract2_lib.address.lower() == event_args['to'].lower()
+    assert contract1_lib.address == event_args['from']
+    assert contract2_lib.address == event_args['to']
     assert creator == event_args['owner']
 
     # Check values after upgrade
@@ -126,8 +124,8 @@ def test_dispatcher(web3, chain):
 
     # Changes ABI to ContractV2 for using additional methods
     contract_instance = web3.eth.contract(
-        contract2_lib.abi,
-        dispatcher.address,
+        abi=contract2_lib.abi,
+        address=dispatcher.address,
         ContractFactoryClass=Contract)
 
     # Check new method and finish upgrade method
@@ -145,12 +143,12 @@ def test_dispatcher(web3, chain):
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
         chain.wait.for_receipt(tx)
-    assert dispatcher.call().target().lower() == contract2_lib.address.lower()
+    assert dispatcher.call().target() == contract2_lib.address
 
     # But can rollback
     tx = dispatcher.transact({'from': creator}).rollback()
     chain.wait.for_receipt(tx)
-    assert dispatcher.call().target().lower() == contract1_lib.address
+    assert dispatcher.call().target() == contract1_lib.address
     assert contract_instance.call().getArrayValueLength() == 2
     assert contract_instance.call().getArrayValue(0) == 12
     assert contract_instance.call().getArrayValue(1) == 232
@@ -162,15 +160,15 @@ def test_dispatcher(web3, chain):
     events = dispatcher.pastEvents('RolledBack').get()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert contract2_lib.address.lower() == event_args['from'].lower()
-    assert contract1_lib.address.lower() == event_args['to'].lower()
+    assert contract2_lib.address == event_args['from']
+    assert contract1_lib.address == event_args['to']
     assert creator == event_args['owner']
 
     # Can't upgrade to the bad version
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
         chain.wait.for_receipt(tx)
-    assert dispatcher.call().target().lower() == contract1_lib.address.lower()
+    assert dispatcher.call().target() == contract1_lib.address
 
     # Check dynamically sized value
     # TODO uncomment after fixing dispatcher
@@ -180,8 +178,8 @@ def test_dispatcher(web3, chain):
 
     # Create Event
     contract_instance = web3.eth.contract(
-        contract1_lib.abi,
-        dispatcher.address,
+        abi=contract1_lib.abi,
+        address=dispatcher.address,
         ContractFactoryClass=Contract)
     tx = contract_instance.transact().createEvent(33)
     chain.wait.for_receipt(tx)
@@ -195,10 +193,10 @@ def test_dispatcher(web3, chain):
     tx = dispatcher.transact({'from': creator}).upgrade(contract3_lib.address)
     chain.wait.for_receipt(tx)
     contract_instance = web3.eth.contract(
-        contract2_lib.abi,
-        dispatcher.address,
+        abi=contract2_lib.abi,
+        address=dispatcher.address,
         ContractFactoryClass=Contract)
-    assert dispatcher.call().target().lower() == contract3_lib.address.lower()
+    assert dispatcher.call().target() == contract3_lib.address
     assert contract_instance.call().returnValue() == 20
     assert contract_instance.call().getStorageValue() == 5
     assert contract_instance.call().getArrayValueLength() == 2
@@ -220,12 +218,12 @@ def test_dispatcher(web3, chain):
     events = dispatcher.pastEvents('Upgraded').get()
     assert 4 == len(events)
     event_args = events[2]['args']
-    assert contract1_lib.address.lower() == event_args['from'].lower()
-    assert contract2_lib.address.lower() == event_args['to'].lower()
+    assert contract1_lib.address == event_args['from']
+    assert contract2_lib.address == event_args['to']
     assert creator == event_args['owner']
     event_args = events[3]['args']
-    assert contract2_lib.address.lower() == event_args['from'].lower()
-    assert contract3_lib.address.lower() == event_args['to'].lower()
+    assert contract2_lib.address == event_args['from']
+    assert contract3_lib.address == event_args['to']
     assert creator == event_args['owner']
 
     # Create and check events
@@ -235,8 +233,8 @@ def test_dispatcher(web3, chain):
     assert 1 == len(events)
     assert 22 == events[0]['args']['value']
     contract_instance = web3.eth.contract(
-        contract1_lib.abi,
-        dispatcher.address,
+        abi=contract1_lib.abi,
+        address=dispatcher.address,
         ContractFactoryClass=Contract)
     events = contract_instance.pastEvents('EventV1').get()
     assert 1 == len(events)

@@ -2,6 +2,8 @@ import os
 import pytest
 import tempfile
 
+from web3.contract import Contract
+
 from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
 from nkms.blockchain.eth.agents import PolicyAgent
 from nkms.blockchain.eth.chains import TheBlockchain, TesterBlockchain
@@ -10,7 +12,7 @@ from nkms.blockchain.eth.utilities import MockMinerEscrowDeployer
 from nkms.blockchain.eth.interfaces import Registrar, Provider
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def tester_registrar():
     _, filepath = tempfile.mkstemp()
     tester_registrar = Registrar(chain_name='tester', registrar_filepath=filepath)
@@ -18,13 +20,13 @@ def tester_registrar():
     os.remove(filepath)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def tester_provider(tester_registrar):
     tester_provider = Provider(registrar=tester_registrar)
     yield tester_provider
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def chain(tester_provider):
 
     chain = TesterBlockchain(provider=tester_provider)
@@ -34,7 +36,7 @@ def chain(tester_provider):
     TheBlockchain._TheBlockchain__instance = None
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def web3(chain):
     yield chain.provider.web3
 
@@ -99,7 +101,7 @@ def escrow_contract(web3, chain, token):
     # Creator deploys the escrow
 
     contract, _ = chain.provider.get_or_deploy_contract(
-        'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100, 1e9
+        'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100, int(1e9)
     )
 
     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
