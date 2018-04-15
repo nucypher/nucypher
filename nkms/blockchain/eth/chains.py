@@ -76,12 +76,12 @@ class TesterBlockchain(TheBlockchain):
 
     _network = 'tester'
 
-    def wait_time(self, wait_hours, step=50):
+    def wait_time(self, wait_hours):
         """Wait the specified number of wait_hours by comparing block timestamps."""
 
-        end_timestamp = self.provider.web3.eth.getBlock(self.provider.web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
-        return self.provider.web3.eth.web3.testing.timeTravel(end_timestamp)
-
+        end_timestamp = self.provider.web3.eth.getBlock('latest').timestamp + wait_hours * 60 * 60
+        self.provider.web3.eth.web3.testing.timeTravel(end_timestamp)
+        self.provider.web3.eth.web3.testing.mine(1)
 
     def spawn_miners(self, miner_agent, addresses: list, locktime: int, random_amount=False) -> list():
         """
