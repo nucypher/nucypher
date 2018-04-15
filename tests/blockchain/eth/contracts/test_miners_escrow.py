@@ -23,35 +23,6 @@ MINER_IDS_FIELD_LENGTH = 15
 MINER_ID_FIELD = 16
 
 
-@pytest.fixture()
-def token(web3, chain):
-    creator = web3.eth.accounts[0]
-    # Create an ERC20 token
-    token, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', int(2e9))
-    return token
-
-
-@pytest.fixture(params=[False, True])
-def escrow_contract(web3, chain, token, request):
-    def make_escrow(max_allowed_locked_tokens):
-        creator = web3.eth.accounts[0]
-        # Creator deploys the escrow
-
-        contract, _ = chain.provider.get_or_deploy_contract(
-            'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100,
-            max_allowed_locked_tokens
-        )
-
-        if request.param:
-            dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
-
-            # Deploy second version of the government contract
-            contract = web3.eth.contract(contract.abi, dispatcher.address, ContractFactoryClass=Contract)
-        return contract
-
-    return make_escrow
-
-
 # TODO extract method
 def wait_time(chain, wait_hours):
     web3 = chain.web3

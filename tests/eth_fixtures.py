@@ -83,3 +83,27 @@ def mock_miner_agent(token_agent, mock_token_deployer, mock_miner_escrow_deploye
 def mock_policy_agent(mock_miner_agent, token_agent, mock_token_deployer, mock_miner_escrow_deployer):
     policy_agent = PolicyAgent(miner_agent=mock_miner_agent)
     yield policy_agent
+
+
+@pytest.fixture()
+def token(web3, chain):
+    creator = web3.eth.accounts[0]
+    # Create an ERC20 token
+    token, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', int(2e9))
+    return token
+
+
+@pytest.fixture()
+def escrow_contract(web3, chain, token):
+    creator = web3.eth.accounts[0]
+    # Creator deploys the escrow
+
+    contract, _ = chain.provider.get_or_deploy_contract(
+        'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100, 1e9
+    )
+
+    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
+
+    # Deploy second version of the government contract
+    contract = web3.eth.contract(contract.abi, dispatcher.address, ContractFactoryClass=Contract)
+    return contract
