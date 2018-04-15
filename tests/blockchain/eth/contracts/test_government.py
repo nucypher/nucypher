@@ -64,7 +64,11 @@ def test_voting(web3, chain, escrow, policy_manager):
     government = web3.eth.contract(
         abi=government_library.abi,
         address=government_dispatcher.address,
-        ContractFactoryClass=Contract)
+        ContractFactoryClass=Contract
+    )
+
+    voting_created_log = government.eventFilter('VotingCreated')
+    upgrade_committed_log = government.eventFilter('UpgradeCommitted')
 
     # Transfer ownership
     tx = government.transact({'from': creator}).transferOwnership(government.address)
@@ -218,13 +222,13 @@ def test_voting(web3, chain, escrow, policy_manager):
     assert FINISHED_STATE == government.call().getVotingState()
 
     # Check events
-    events = government.pastEvents('VotingCreated').get()
+    events = voting_created_log.get_all_entries()
     assert 4 == len(events)
-    events = government.pastEvents('UpgradeCommitted').get()
+    events = upgrade_committed_log.get_all_entries()
     assert 1 == len(events)
 
 
-def test_upgrade(web3, chain, escrow, policy_manager):
+def test_upgrade(web3, chain, escrow, policy_manager, token):
     creator = web3.eth.accounts[0]
     node1 = web3.eth.accounts[1]
 
@@ -238,22 +242,28 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     government = web3.eth.contract(
         abi=government_library_v1.abi,
         address=government_dispatcher.address,
-        ContractFactoryClass=Contract)
+        ContractFactoryClass=Contract
+    )
 
     # Deploy second version of the government contract
     government_library_v2, _ = chain.provider.deploy_contract(
         'Government', escrow.address, policy_manager.address, 1,
     )
     # Get first version of the escrow contract
-    escrow_library_v1 = chain.provider.get_contract('MinersEscrowV1Mock')
+    escrow_library_v1, _ = chain.provider.get_or_deploy_contract(
+        'MinersEscrowV1Mock', [node1], [1]
+    )
     # Deploy second version of the escrow contract
     escrow_library_v2, _ = chain.provider.deploy_contract(
-        'MinersEscrowV1Mock', [node1], [1],
+        'MinersEscrowV2Mock', token.address, 1, int(8e7), 4, 4, 2, 100, 1500, 2
     )
     # Get first version of the policy manager contract
-    policy_manager_library_v1 = chain.provider.get_contract('PolicyManagerV1Mock')
+    policy_manager_library_v1 = chain.provider.get_or_contract('PolicyManagerV1Mock')
     # Deploy second version of the policy manager contract
-    policy_manager_library_v2, _ = chain.provider.deploy_contract('PolicyManagerV1Mock')
+    policy_manager_library_v2, _ = chain.provider.deploy_contract('PolicyMangerV2Mock')
+
+    voting_created_log = government.eventFilter('VotingCreated')
+    upgrade_committed_log = government.eventFilter('UpgradeCommitted')
 
     # Transfer ownership
     tx = government.transact({'from': creator}).transferOwnership(government.address)
@@ -268,7 +278,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
         UPGRADE_GOVERNMENT, government_library_v2.address)
     chain.wait_for_receipt(tx)
 
-    events = government.pastEvents('VotingCreated').get()
+    events = voting_created_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert 1 == event_args['votingNumber']
@@ -282,7 +292,8 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert government_library_v2.address == government_dispatcher.call().target()
 
-    events = government.pastEvents('UpgradeCommitted').get()
+    events = government.events.UpgradeCommitted()
+    events = upgrade_committed_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert 1 == event_args['votingNumber']
@@ -293,7 +304,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     tx = government.transact({'from': node1}).createVoting(ROLLBACK_GOVERNMENT, NULL_ADDR)
     chain.wait_for_receipt(tx)
 
-    events = government.pastEvents('VotingCreated').get()
+    events = voting_created_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
     assert 2 == event_args['votingNumber']
@@ -307,7 +318,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert government_library_v1.address == government_dispatcher.call().target()
 
-    events = government.pastEvents('UpgradeCommitted').get()
+    events = upgrade_committed_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
     assert 2 == event_args['votingNumber']
@@ -319,7 +330,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
         UPGRADE_ESCROW, escrow_library_v2.address)
     chain.wait_for_receipt(tx)
 
-    events = government.pastEvents('VotingCreated').get()
+    events = voting_created_log.get_all_entries()
     assert 3 == len(events)
     event_args = events[2]['args']
     assert 3 == event_args['votingNumber']
@@ -333,7 +344,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert escrow_library_v2.address == escrow.call().target()
 
-    events = government.pastEvents('UpgradeCommitted').get()
+    events = upgrade_committed_log.get_all_entries()
     assert 3 == len(events)
     event_args = events[2]['args']
     assert 3 == event_args['votingNumber']
@@ -344,7 +355,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     tx = government.transact({'from': node1}).createVoting(ROLLBACK_ESCROW, NULL_ADDR)
     chain.wait_for_receipt(tx)
 
-    events = government.pastEvents('VotingCreated').get()
+    events = voting_created_log.get_all_entries()
     assert 4 == len(events)
     event_args = events[3]['args']
     assert 4 == event_args['votingNumber']
@@ -358,7 +369,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert escrow_library_v1.address == escrow.call().target()
 
-    events = government.pastEvents('UpgradeCommitted').get()
+    events = upgrade_committed_log.get_all_entries()
     assert 4 == len(events)
     event_args = events[3]['args']
     assert 4 == event_args['votingNumber']
@@ -370,7 +381,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
         UPGRADE_POLICY_MANAGER, policy_manager_library_v2.address)
     chain.wait_for_receipt(tx)
 
-    events = government.pastEvents('VotingCreated').get()
+    events = voting_created_log.get_all_entries()
     assert 5 == len(events)
     event_args = events[4]['args']
     assert 5 == event_args['votingNumber']
@@ -384,7 +395,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert policy_manager_library_v2.address == policy_manager.call().target()
 
-    events = government.pastEvents('UpgradeCommitted').get()
+    events = upgrade_committed_log.get_all_entries()
     assert 5 == len(events)
     event_args = events[4]['args']
     assert 5 == event_args['votingNumber']
@@ -395,7 +406,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     tx = government.transact({'from': node1}).createVoting(ROLLBACK_POLICY_MANAGER, NULL_ADDR)
     chain.wait_for_receipt(tx)
 
-    events = government.pastEvents('VotingCreated').get()
+    events = voting_created_log.get_all_entries()
     assert 6 == len(events)
     event_args = events[5]['args']
     assert 6 == event_args['votingNumber']
@@ -409,7 +420,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert policy_manager_library_v1.address == policy_manager.call().target()
 
-    events = government.pastEvents('UpgradeCommitted').get()
+    events = upgrade_committed_log.get_all_entries()
     assert 6 == len(events)
     event_args = events[5]['args']
     assert 6 == event_args['votingNumber']
