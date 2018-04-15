@@ -5,7 +5,6 @@ import pytest
 from constant_sorrow import constants
 from kademlia.utils import digest
 
-from constant_sorrow import constants
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.kits import UmbralMessageKit
 from nkms.network import blockchain_client
