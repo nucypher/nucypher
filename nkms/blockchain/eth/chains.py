@@ -1,8 +1,7 @@
 import random
-import time
 from abc import ABC
 
-from nkms.blockchain.eth.interfaces import Provider
+from nkms.blockchain.eth.interfaces import ContractProvider
 
 
 class TheBlockchain(ABC):
@@ -27,22 +26,22 @@ class TheBlockchain(ABC):
     class IsAlreadyRunning(RuntimeError):
         pass
 
-    def __init__(self, provider=Provider()):
+    def __init__(self, contract_provider: ContractProvider):
         """
         Configures a populus project and connects to blockchain.network.
         Transaction timeouts specified measured in seconds.
 
         http://populus.readthedocs.io/en/latest/chain.wait.html
-
         """
 
         # Singleton
         if TheBlockchain.__instance is not None:
-            message = '{} is already running on {}. Use .get() to retrieve'.format(self.__class__.__name__, self._network)
+            message = '{} is already running on {}. Use .get() to retrieve'.format(self.__class__.__name__,
+                                                                                   self._network)
             raise TheBlockchain.IsAlreadyRunning(message)
         TheBlockchain.__instance = self
 
-        self.provider = provider
+        self.provider = contract_provider
 
     @classmethod
     def get(cls):
@@ -68,7 +67,7 @@ class TheBlockchain(ABC):
         if timeout is None:
             timeout = self._default_timeout
 
-        result = self.provider.web3.eth.waitForTransactionReceipt(txhash)
+        result = self.provider.w3.eth.waitForTransactionReceipt(txhash)
         return result
 
 
@@ -86,9 +85,9 @@ class TesterBlockchain(TheBlockchain):
         else:
             raise Exception("Invalid time")
 
-        end_timestamp = self.provider.web3.eth.getBlock('latest').timestamp + duration
-        self.provider.web3.eth.web3.testing.timeTravel(end_timestamp)
-        self.provider.web3.eth.web3.testing.mine(1)
+        end_timestamp = self.provider.w3.eth.getBlock('latest').timestamp + duration
+        self.provider.w3.eth.web3.testing.timeTravel(end_timestamp)
+        self.provider.w3.eth.web3.testing.mine(1)
 
     def spawn_miners(self, miner_agent, addresses: list, locktime: int, random_amount=False) -> list:
 
@@ -114,7 +113,7 @@ class TesterBlockchain(TheBlockchain):
     def _global_airdrop(self, token_agent, amount: int):
         """Airdrops from creator address to all other addresses!"""
 
-        _creator, *addresses = self.provider.web3.eth.accounts
+        _creator, *addresses = self.provider.w3.eth.accounts
 
         def txs():
             for address in addresses:

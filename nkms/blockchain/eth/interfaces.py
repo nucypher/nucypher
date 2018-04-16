@@ -1,14 +1,12 @@
 import json
 import os
 from pathlib import Path
-from typing import Tuple, ClassVar, Dict, Union
+from typing import Tuple
 
-from eth_tester import EthereumTester, PyEVMBackend
-from web3 import Web3, EthereumTesterProvider
-from web3.contract import ConciseContract, Contract
+from web3 import Web3
+from web3.contract import Contract
 
-from nkms.blockchain.eth.sol.compile import compile_interfaces, SolidityConfig
-
+from nkms.blockchain.eth.sol.compile import SolidityCompiler
 
 _DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
 
@@ -54,7 +52,10 @@ class Registrar:
     __DEFAULT_REGISTRAR_FILEPATH = os.path.join(_DEFAULT_CONFIGURATION_DIR, 'registrar.json')
     __DEFAULT_CHAIN_NAME = 'tester'
 
-    class NoKnownContract(KeyError):
+    class UnknownContract(KeyError):
+        pass
+
+    class UnknownChain(KeyError):
         pass
 
     def __init__(self, chain_name: str=None, registrar_filepath: str=None):
@@ -77,8 +78,7 @@ class Registrar:
 
         chains = dict()
         for chain_name in chain_names:
-            chains[chain_name] = cls(chain_name=chain_name,
-                                     registrar_filepath=filepath)
+            chains[chain_name] = cls(chain_name=chain_name, registrar_filepath=filepath)
         return chains
 
     def enroll(self, contract_name: str, contract_address: str, contract_abi: list) -> None:
@@ -116,7 +116,7 @@ class Registrar:
         try:
             chain_data = registrar_data[self._chain_name]
         except KeyError:
-            raise KeyError("Data does not exist for chain '{}'".format(self._chain_name))
+            raise self.UnknownChain("Data does not exist for chain '{}'".format(self._chain_name))
         return chain_data
 
     def get_contract_data(self, identifier: str=None) -> dict:
@@ -134,116 +134,83 @@ class Registrar:
             for contract_name, contract_data in chain_data.items():
                 if contract_data['addr'] == identifier:
                     return contract_data
-        raise self.NoKnownContract(
-            "Could not identify a contract name or address with {}".format(identifier)
-        )
+
+        error_message = "Could not identify a contract name or address with {}".format(identifier)
+        raise self.UnknownContract(error_message)
 
 
-class Provider:
+class ContractProvider:
     """
-    Interacts with a registrar in order to interface with compiled
-    ethereum contracts with the given provider backend.
+    Interacts with a solidity compiler and a registrar in order to instantiate compiled
+    ethereum contracts with the given web3 provider backend.
     """
 
-    def __init__(self, provider_backend=None, registrar: Registrar=None):
+    def __init__(self, provider_backend,
+                 registrar: Registrar,
+                 deployer_address:str =None,
+                 sol_compiler: SolidityCompiler=None):
 
-        # Provider backend
-        if provider_backend is None:
-            # https: // github.com / ethereum / eth - tester     # available-backends
-            eth_tester = EthereumTester(backend=PyEVMBackend())  # TODO: Discuss backend choice
-            provider_backend = EthereumTesterProvider(ethereum_tester=eth_tester) # , api_endpoints=None)
-        self.provider = provider_backend
-        self.web3 = Web3(self.provider)
+        self.__provider_backend = provider_backend
+        self.w3 = Web3(self.__provider_backend)
 
-        if registrar is None:
-            registrar = Registrar(chain_name='tester')  # TODO: move to config
+        if deployer_address is None:
+            deployer_address = self.w3.eth.coinbase
+        self.deployer_address = deployer_address
+
+        if sol_compiler is not None:
+            recompile = True
+        else:
+            recompile = False
+        self.__recompile = recompile
+        self.__sol_compiler = sol_compiler
+
+        if self.__recompile is True:
+            interfaces = self.__sol_compiler.compile()
+        else:
+            interfaces = self.__registrar.get_chain_data()
 
         self.__registrar = registrar
-
-        self.__contract_cache = None  # set on the next line
-        self.cache_contracts(compile=True)
+        self.__raw_contract_cache = interfaces
 
     class ProviderError(Exception):
         pass
 
-    class UnknownContract(KeyError):
-        pass
+    def get_contract(self, contract_name: str=None) -> Contract:
+        contract_data = self.__registrar.get_contract_data(contract_name)
+        contract = self.w3.eth.contract(abi=contract_data['abi'], address=contract_data['addr'])
+        return contract
 
-    @staticmethod
-    def __compile(config: SolidityConfig=None) -> Dict[str, Contract]:
-        sol_config = config or SolidityConfig()
-        interfaces = compile_interfaces(config=sol_config)
-        return interfaces
-
-    def __make_web3_contracts(self, interfaces, contract_factory=Union[Contract, ConciseContract]):
-        """Instantiate web3 Contracts from raw contract interface data with the supplied web3 provider"""
-
-        web3_contracts = dict()
-        for contract_name, interface in interfaces.items():
-            bytecode = None if contract_factory is ConciseContract else interface['bin']
-
-            contract = self.web3.eth.contract(abi=interface['abi'],
-                                                   bytecode=bytecode,  # Optional, needed for deployment
-                                                   ContractFactoryClass=Contract)
-
-            web3_contracts[contract_name] = contract
-
-        return web3_contracts
-
-    def cache_contracts(self, compile: bool=False) -> None:
-        """Loads from contract interface data registrar or compiles"""
-        if compile is False:
-            interface_records = self.__registrar.get_chain_data()
-            contract_factory = ConciseContract
-            contracts = self.__make_web3_contracts(interface_records, contract_factory)
-        else:
-            interfaces = self.__compile()
-            contract_factory = Contract
-            contracts = self.__make_web3_contracts(interfaces, contract_factory)
-        self.__contract_cache = contracts
-
-    def __get_cached_contract(self, contract_name):
+    def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:
         try:
-            contract = self.__contract_cache[contract_name]
+            interface = self.__raw_contract_cache[contract_name]
         except KeyError:
-            raise self.UnknownContract('{} is not a compiled contract.'.format(contract_name))
-        else:
-            return contract
+            raise self.ProviderError('{} is not a compiled contract.'.format(contract_name))
 
-    def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[str, str]:
-        contract = self.__get_cached_contract(contract_name)
+        contract = self.w3.eth.contract(abi=interface['abi'],
+                                        bytecode=interface['bin'],
+                                        ContractFactoryClass=Contract)
 
-        transaction = {'from': self.web3.eth.coinbase}
+        deploy_transaction = {'from': self.deployer_address}
+        deploy_bytecode = contract.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
 
-        deploy_bytecode = contract.constructor(*args, **kwargs).buildTransaction(transaction)
+        txhash = self.w3.eth.sendTransaction(deploy_bytecode)  # deploy!
+        receipt = self.w3.eth.waitForTransactionReceipt(txhash)
 
-        txhash = self.web3.eth.sendTransaction(deploy_bytecode)  # deploy!
-        receipt = self.web3.eth.waitForTransactionReceipt(txhash)
-        # receipt = self.web3.eth.getTransactionReceipt(txhash)
         address = receipt['contractAddress']
+        contract = contract(address=address)
 
-        try:
-            cached_contract = self.__contract_cache[contract_name]
-            contract = contract(address=address)
-        except KeyError:
-            raise  # TODO
-        else:
-            self.__registrar.enroll(contract_name=contract_name,
-                                    contract_address=address,
-                                    contract_abi=cached_contract.abi)
+        # Commit to registrar
+        self.__registrar.enroll(contract_name=contract_name,
+                                contract_address=address,
+                                contract_abi=interface['abi'])
 
         return contract, txhash
 
-    def get_contract(self, contract_name: str=None):
-        contract_data = self.__registrar.get_contract_data(contract_name)
-        contract = self.web3.eth.contract(abi=contract_data['abi'], address=contract_data['addr'])
-        return contract
-
-    def get_or_deploy_contract(self, contract_name, *args, **kwargs):
+    def get_or_deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:
         try:
             contract = self.get_contract(contract_name=contract_name)
             txhash = None
-        except (KeyError, Registrar.NoKnownContract):
+        except (Registrar.UnknownContract, Registrar.UnknownChain):
             contract, txhash = self.deploy_contract(contract_name, *args, **kwargs)
 
         return contract, txhash
