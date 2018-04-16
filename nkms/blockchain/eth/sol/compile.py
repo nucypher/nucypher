@@ -49,7 +49,3 @@ class SolidityCompiler:
         interfaces = {name.split(':')[-1]: compiled_sol[name] for name in compiled_sol}
 
         return interfaces
-
-
-
-

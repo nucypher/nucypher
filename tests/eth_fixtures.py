@@ -53,6 +53,7 @@ def web3(tester_provider):
 def chain(tester_provider):
     chain = TesterBlockchain(contract_provider=tester_provider)
     yield chain
+
     del chain
     TheBlockchain._TheBlockchain__instance = None
 

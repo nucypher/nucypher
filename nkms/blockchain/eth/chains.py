@@ -27,6 +27,7 @@ class TheBlockchain(ABC):
         pass
 
     def __init__(self, contract_provider: ContractProvider):
+
         """
         Configures a populus project and connects to blockchain.network.
         Transaction timeouts specified measured in seconds.
@@ -68,6 +69,7 @@ class TheBlockchain(ABC):
             timeout = self._default_timeout
 
         result = self.provider.w3.eth.waitForTransactionReceipt(txhash)
+
         return result
 
 

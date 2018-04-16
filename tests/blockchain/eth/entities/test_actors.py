@@ -42,6 +42,7 @@ def test_mine_then_withdraw_tokens(chain, mock_token_deployer, token_agent, mock
     mock_token_deployer._global_airdrop(amount=10000)
 
     _origin, *everybody = chain._chain.w3.eth.accounts
+
     ursula_address, *everyone_else = everybody
 
     miner = Miner(miner_agent=mock_miner_agent, address=ursula_address)
@@ -119,6 +120,7 @@ def test_publish_miner_datastore(chain, mock_token_deployer, mock_miner_agent):
     mock_token_deployer._global_airdrop(amount=10000)    # weeee
 
     miner_addr = chain._chain.w3.eth.accounts[1]
+
     miner = Miner(miner_agent=mock_miner_agent, address=miner_addr)
 
     balance = miner.token_balance()

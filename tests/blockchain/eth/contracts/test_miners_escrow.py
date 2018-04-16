@@ -711,7 +711,6 @@ def test_verifying_state(web3, chain, token):
 
     # Deploy contract
     contract_library_v1, _ = chain.provider.get_or_deploy_contract(
-
         'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100, 1500
     )
     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract_library_v1.address)
@@ -729,6 +728,7 @@ def test_verifying_state(web3, chain, token):
 
     # Initialize contract and miner
     policy_manager, _ = chain.provider.get_or_deploy_contract('PolicyManagerForMinersEscrowMock', token.address, contract.address)
+
     tx = contract.transact({'from': creator}).setPolicyManager(policy_manager.address)
     chain.wait.for_receipt(tx)
     tx = contract.transact().initialize()
@@ -755,6 +755,7 @@ def test_verifying_state(web3, chain, token):
     contract_library_bad, _ = chain.provider.deploy_contract(
         'MinersEscrowBad', token.address, 2, 2, 2, 2, 2, 2, 2
     )
+
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
         chain.wait.for_receipt(tx)
