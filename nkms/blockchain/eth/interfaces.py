@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Union, List
 
 from web3 import Web3
 from web3.contract import Contract
@@ -103,12 +103,6 @@ class Registrar:
         registrar_data[self._chain_name].update(reg_contract_data)
         self.__write(registrar_data)
 
-        reg_contract_data = registrar_data.get(self._chain_name, dict())
-        reg_contract_data.update(contract_data)
-
-        registrar_data[self._chain_name].update(reg_contract_data)
-        self.__write(registrar_data)
-
     def dump_chain(self) -> dict:
         """
         Returns all data from the current registrar chain as a dict.
@@ -124,7 +118,20 @@ class Registrar:
             raise self.UnknownChain("Data does not exist for chain '{}'".format(self._chain_name))
         return chain_data
 
-    def dump_contract(self, identifier: str=None) -> dict:
+    def lookup_contract(self, contract_name: str) -> List[dict]:
+        chain_data = self.dump_chain()
+        contracts = list()
+        for _address, contract_data in chain_data.items():
+            if contract_data['name'] == contract_name:
+                contracts.append(contract_data)
+
+        if len(contracts) > 0:
+            return contracts
+        else:
+            message = "Could not identify a contract name or address with {}".format(contract_name)
+            raise self.UnknownContract(message)
+
+    def dump_contract(self, address: str=None) -> dict:
         """
         Returns contracts in a list that match the provided identifier on a
         given chain. It first attempts to use identifier as a contract name.
@@ -132,20 +139,12 @@ class Registrar:
         If no contract is found, it will raise NoKnownContract.
         """
         chain_data = self.dump_chain()
-        if identifier in chain_data:
-            contract_data = chain_data[identifier]
+        try:
+            contract_data = chain_data[address]
+        except KeyError:
+            raise self.UnknownContract('No known contract with address {}'.format(address))
+        else:
             return contract_data
-        else:
-            contracts = list()
-            for _, contract_data in chain_data.items():
-                if contract_data['name'] == identifier:
-                    contracts.append(contract_data)
-        if contracts:
-            return contracts
-        else:
-            raise self.NoKnownContract(
-                "Could not identify a contract name or address with {}".format(identifier)
-            )
 
 
 class ContractProvider:
@@ -184,12 +183,23 @@ class ContractProvider:
     class ProviderError(Exception):
         pass
 
-    def get_contract(self, contract_name: str=None) -> Contract:
-        contract_data = self.__registrar.dump_contract(contract_name)
-        contract = self.w3.eth.contract(abi=contract_data['abi'], address=contract_data['addr'])
+    def get_contract(self, address: str) -> Contract:
+        """Instantiate a deployed contract from registrar data"""
+        contract_data = self.__registrar.dump_contract(address=address)
+        contract = self.w3.eth.contract(abi=contract_data['abi'], address=address)
         return contract
 
+    def get_contract_address(self, contract_name: str) -> List[str]:
+        """Retrieve all known addresses for this contract"""
+        contracts = self.__registrar.lookup_contract(contract_name=contract_name)
+        addresses = [c['addr'] for c in contracts]
+        return addresses
+
     def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:
+        """
+        Retrieve compiled interface data from the cache and
+        return an instantiated deployed contract
+        """
         try:
             interface = self.__raw_contract_cache[contract_name]
         except KeyError:
@@ -218,7 +228,7 @@ class ContractProvider:
     def get_or_deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:
 
         try:
-            contract = self.get_contract(contract_name=contract_name)
+            contract = self.get_contract(address=contract_name)
             txhash = None
         except (Registrar.UnknownContract, Registrar.UnknownChain):
             contract, txhash = self.deploy_contract(contract_name, *args, **kwargs)
