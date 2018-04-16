@@ -87,7 +87,8 @@ class Registrar:
         contract_data = {
             contract_addr: {
                 "name": contract_name,
-                "abi": contract_abi
+                "abi": contract_abi,
+                "addr": contract_addr
             }
         }
 
