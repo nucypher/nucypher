@@ -83,6 +83,9 @@ class Registrar:
         Enrolls a contract to the chain registrar by writing the abi information
         to the filesystem as JSON. This can also be used to update the info
         under the specified `contract_name`.
+
+        WARNING: Unless you are developing the KMS/work at NuCypher, you most
+        likely won't ever need to use this.
         """
         contract_data = {
             contract_addr: {
@@ -93,6 +96,12 @@ class Registrar:
         }
 
         registrar_data = self.__read()
+
+        reg_contract_data = registrar_data.get(self._chain_name, dict())
+        reg_contract_data.update(contract_data)
+
+        registrar_data[self._chain_name].update(reg_contract_data)
+        self.__write(registrar_data)
 
         reg_contract_data = registrar_data.get(self._chain_name, dict())
         reg_contract_data.update(contract_data)
@@ -127,12 +136,16 @@ class Registrar:
             contract_data = chain_data[identifier]
             return contract_data
         else:
-            for contract_name, contract_data in chain_data.items():
+            contracts = list()
+            for _, contract_data in chain_data.items():
                 if contract_data['name'] == identifier:
-                    return contract_data
-
-        error_message = "Could not identify a contract name or address with {}".format(identifier)
-        raise self.UnknownContract(error_message)
+                    contracts.append(contract_data)
+        if contracts:
+            return contracts
+        else:
+            raise self.NoKnownContract(
+                "Could not identify a contract name or address with {}".format(identifier)
+            )
 
 
 class ContractProvider:
@@ -203,6 +216,7 @@ class ContractProvider:
         return contract, txhash
 
     def get_or_deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:
+
         try:
             contract = self.get_contract(contract_name=contract_name)
             txhash = None

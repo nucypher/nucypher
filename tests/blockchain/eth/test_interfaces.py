@@ -38,7 +38,6 @@ def test_registrar_object(tempfile_path):
     test_abi = ['fake', 'data']
     test_registrar.enroll(test_name, test_addr, test_abi)
 
-
     chain_data = test_registrar.dump_chain()
     assert test_name in chain_data
     assert chain_data[test_name]['addr'] == test_addr
