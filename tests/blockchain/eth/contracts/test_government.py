@@ -228,7 +228,7 @@ def test_voting(web3, chain, escrow, policy_manager):
     assert 1 == len(events)
 
 
-def test_upgrade(web3, chain, escrow, policy_manager, token):
+def test_upgrade(web3, chain, escrow, policy_manager):
     creator = web3.eth.accounts[0]
     node1 = web3.eth.accounts[1]
 

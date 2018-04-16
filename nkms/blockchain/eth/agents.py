@@ -42,7 +42,7 @@ class EthereumContractAgent(ABC):
 
     @property
     def origin(self) -> str:
-        return self.blockchain.provider.web3.eth.accounts[0]    # TODO: make swappable
+        return self.blockchain.provider.w3.eth.coinbase    # TODO: make swappable
 
     def read(self):
         """

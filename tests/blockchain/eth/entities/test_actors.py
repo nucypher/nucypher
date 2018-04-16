@@ -11,7 +11,7 @@ def test_miner_locking_tokens(chain, mock_token_deployer, mock_miner_agent):
 
     mock_token_deployer._global_airdrop(amount=10000)    # weeee
 
-    miner = Miner(miner_agent=mock_miner_agent, address=chain._chain.web3.eth.accounts[1])
+    miner = Miner(miner_agent=mock_miner_agent, address=chain._chain.w3.eth.accounts[1])
 
     an_amount_of_tokens = 1000 * mock_token_deployer._M
     miner.stake(amount=an_amount_of_tokens, locktime=mock_miner_agent._deployer._min_release_periods, auto_switch_lock=False)
@@ -41,7 +41,7 @@ def test_mine_then_withdraw_tokens(chain, mock_token_deployer, token_agent, mock
 
     mock_token_deployer._global_airdrop(amount=10000)
 
-    _origin, *everybody = chain._chain.web3.eth.accounts
+    _origin, *everybody = chain._chain.w3.eth.accounts
     ursula_address, *everyone_else = everybody
 
     miner = Miner(miner_agent=mock_miner_agent, address=ursula_address)
@@ -100,7 +100,7 @@ def test_mine_then_withdraw_tokens(chain, mock_token_deployer, token_agent, mock
 def test_sample_miners(chain, mock_token_deployer, mock_miner_agent):
     mock_token_deployer._global_airdrop(amount=10000)
 
-    _origin, *everyone_else = chain._chain.web3.eth.accounts[1:]
+    _origin, *everyone_else = chain._chain.w3.eth.accounts[1:]
 
     chain.spawn_miners(addresses=everyone_else, locktime=100,
                               miner_agent=mock_miner_agent, m=mock_miner_agent.token_agent._deployer._M)
@@ -118,7 +118,7 @@ def test_sample_miners(chain, mock_token_deployer, mock_miner_agent):
 def test_publish_miner_datastore(chain, mock_token_deployer, mock_miner_agent):
     mock_token_deployer._global_airdrop(amount=10000)    # weeee
 
-    miner_addr = chain._chain.web3.eth.accounts[1]
+    miner_addr = chain._chain.w3.eth.accounts[1]
     miner = Miner(miner_agent=mock_miner_agent, address=miner_addr)
 
     balance = miner.token_balance()

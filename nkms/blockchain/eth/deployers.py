@@ -156,7 +156,7 @@ class NuCypherKMSTokenDeployer(ContractDeployer, NuCypherTokenConfig):
 
     def __init__(self, blockchain):
         super().__init__(blockchain=blockchain)
-        self._creator = self.blockchain.provider.web3.eth.accounts[0]    # TODO: make swappable
+        self._creator = self.blockchain.provider.w3.eth.accounts[0]    # TODO: make swappable
 
     def deploy(self) -> str:
         """

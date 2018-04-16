@@ -64,7 +64,7 @@ def policy_manager(web3, chain, escrow, request):
 
 
 def wait_time(chain, wait_periods):
-    web3 = chain.web3
+    web3 = chain.w3
     step = 1
     end_timestamp = web3.eth.getBlock(web3.eth.blockNumber).timestamp + wait_periods * 60 * MINUTES_IN_PERIOD
     while web3.eth.getBlock(web3.eth.blockNumber).timestamp < end_timestamp:
