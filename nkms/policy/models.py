@@ -114,18 +114,18 @@ class Policy(object):
     """
     _ursula = None
 
-    def __init__(self, alice, bob=None, kfrags=(constants.UNKNOWN_KFRAG,), uri=None, m=None, alices_signature=constants.NOT_SIGNED):
+    def __init__(self, alice, bob=None, kfrags=(constants.UNKNOWN_KFRAG,),
+                 label=None, m=None, alices_signature=constants.NOT_SIGNED):
 
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.
-        :param uri: The identity of the resource to which Bob is granted access.
+        :param label: The identity of the resource to which Bob is granted access.
         """
         self.alice = alice
         self.bob = bob
         self.kfrags = kfrags
-        self.uri = uri
-        self.m = m
-        self.treasure_map = TreasureMap()
+        self.uri = label
+        self.treasure_map = TreasureMap(m=m)
         self._accepted_arrangements = OrderedDict()
 
         self.alices_signature = alices_signature
@@ -195,7 +195,7 @@ class Policy(object):
         """
         return keccak_digest(bytes(self.alice.stamp) + self.hrac())
 
-    def publish_treasure_map(self, networky_stuff=None, use_dht=True):
+    def publish_treasure_map(self, networky_stuff=None, use_dht=False):
         if networky_stuff is None and use_dht is False:
             raise ValueError("Can't engage the REST swarm without networky stuff.")
         tmap_message_kit, signature_for_bob = self.alice.encrypt_for(
@@ -210,10 +210,13 @@ class Policy(object):
         map_id = self.treasure_map_dht_key()
 
         if use_dht:
+            # Instead of self.alice, let's say self.author.  See #230.
             setter = self.alice.server.set(map_id, constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
             event_loop = asyncio.get_event_loop()
             event_loop.run_until_complete(setter)
         else:
+            if not self.alice.known_nodes:
+                raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
             for node in self.alice.known_nodes.values():
                 response = networky_stuff.push_treasure_map_to_node(node, map_id, constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
                 # TODO: Do something here based on success or failure
@@ -274,15 +277,20 @@ class Policy(object):
     def public_key(self):
         return self.alice.public_key(DelegatingPower)
 
+
 class TreasureMap(object):
-    def __init__(self, ursula_interface_ids=None):
-        self.ids = ursula_interface_ids or []
+    def __init__(self, m, ursula_interface_ids=None):
+        self.m = m
+        self.ids = set(ursula_interface_ids or set())
 
     def packed_payload(self):
-        return msgpack.dumps([bytes(ursula_id) for ursula_id in self.ids])
+        return msgpack.dumps(self.nodes_as_bytes() + [self.m])
+
+    def nodes_as_bytes(self):
+        return [bytes(ursula_id) for ursula_id in self.ids]
 
     def add_ursula(self, ursula):
-        self.ids.append(ursula.interface_dht_key())
+        self.ids.add(bytes(ursula.stamp))
 
     def __eq__(self, other):
         return self.ids == other.ids
@@ -319,7 +327,7 @@ class WorkOrder(object):
 
     @classmethod
     def construct_by_bob(cls, kfrag_hrac, capsules, ursula, bob):
-        receipt_bytes = b"wo:" + ursula.interface_dht_key()  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
+        receipt_bytes = b"wo:" + ursula.interface_information()  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
         receipt_signature = bob.stamp(receipt_bytes)
         return cls(bob, kfrag_hrac, capsules, receipt_bytes, receipt_signature,
                    ursula)
