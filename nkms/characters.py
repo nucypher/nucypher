@@ -400,33 +400,64 @@ class Bob(Character):
         from nkms.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
 
-    def follow_treasure_map(self, hrac):
-        for ursula_interface_id in self.treasure_maps[hrac]:
-            if ursula_interface_id in self.known_nodes:
-                # If we already know about this Ursula,
-                # we needn't learn about it again.
-                continue
+    def follow_treasure_map(self, hrac, using_dht=False):
 
-            # TODO: perform this part concurrently.
-            value = self.server.get_now(ursula_interface_id)
+        treasure_map = self.treasure_maps[hrac]
+        number_of_known_treasure_ursulas = 0
+        if not using_dht:
+            for ursula_interface_id in treasure_map:
+                pubkey = UmbralPublicKey.from_bytes(ursula_interface_id)
+                if pubkey in self.known_nodes:
+                    number_of_known_treasure_ursulas += 1
 
-            # TODO: Make this much prettier
-            header, signature, ursula_pubkey_sig, _hrac, (
-                port, interface, ttl) = dht_value_splitter(value, msgpack_remainder=True)
+            newly_discovered_nodes = {}
+            nodes_to_check = iter(self.known_nodes.values())
 
-            if header != constants.BYTESTRING_IS_URSULA_IFACE_INFO:
-                raise TypeError("Unknown DHT value.  How did this get on the network?")
+            while number_of_known_treasure_ursulas < treasure_map.m:
+                try:
+                    node_to_check = next(nodes_to_check)
+                except StopIteration:
+                    raise self.NotEnoughUrsulas(
+                        "Unable to follow the TreasureMap; we just don't know enough nodes to ask about this.  Maybe try using the DHT instead.")
 
-            # TODO: If we're going to implement TTL, it will be here.
-            self.known_nodes[ursula_interface_id] = \
-                Ursula.as_discovered_on_network(
-                    dht_port=port,
-                    dht_interface=interface,
-                    powers_and_keys=({SigningPower: ursula_pubkey_sig})
-                )
+                new_nodes = self.learn_about_nodes(node_to_check.rest_address,
+                                                   node_to_check.rest_port)
+                for new_node_pubkey in new_nodes.keys():
+                    if new_node_pubkey in treasure_map:
+                        number_of_known_treasure_ursulas += 1
+                newly_discovered_nodes.update(new_nodes)
 
-    def get_treasure_map(self, policy, networky_stuff, using_dht=False):
-        map_id = policy.treasure_map_dht_key()
+            self.known_nodes.update(newly_discovered_nodes)
+            return newly_discovered_nodes, number_of_known_treasure_ursulas
+        else:
+            for ursula_interface_id in self.treasure_maps[hrac]:
+                pubkey = UmbralPublicKey.from_bytes(ursula_interface_id)
+                if ursula_interface_id in self.known_nodes:
+                    # If we already know about this Ursula,
+                    # we needn't learn about it again.
+                    continue
+
+                if using_dht:
+                    # TODO: perform this part concurrently.
+                    value = self.server.get_now(ursula_interface_id)
+
+                    # TODO: Make this much prettier
+                    header, signature, ursula_pubkey_sig, _hrac, (
+                        port, interface, ttl) = dht_value_splitter(value, msgpack_remainder=True)
+
+                    if header != constants.BYTESTRING_IS_URSULA_IFACE_INFO:
+                        raise TypeError("Unknown DHT value.  How did this get on the network?")
+
+                # TODO: If we're going to implement TTL, it will be here.
+                self.known_nodes[ursula_interface_id] = \
+                    Ursula.as_discovered_on_network(
+                        dht_port=port,
+                        dht_interface=interface,
+                        powers_and_keys=({SigningPower: ursula_pubkey_sig})
+                    )
+
+    def get_treasure_map(self, alice, hrac, using_dht=False):
+        map_id = keccak_digest(bytes(alice.stamp) + hrac)
 
         if using_dht:
             ursula_coro = self.server.get(map_id)
