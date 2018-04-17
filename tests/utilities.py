@@ -68,64 +68,53 @@ class MockNetworkyStuff(NetworkyStuff):
             raise self.NotEnoughQualifiedUrsulas
         mock_client = TestClient(ursula.rest_app)
         response = mock_client.post("http://localhost/consider_arrangement", bytes(arrangement))
+        assert response.status_code == 200
         return ursula, MockArrangementResponse()
 
     def enact_policy(self, ursula, hrac, payload):
-        mock_client = TestClient(ursula.rest_app)
+        rest_app = self._get_rest_app_by_port(ursula.rest_port)
+        mock_client = TestClient(rest_app)
         response = mock_client.post('http://localhost/kFrag/{}'.format(hrac.hex()), payload)
+        assert response.status_code == 200
         return True, ursula.stamp.as_umbral_pubkey()
 
+    def _get_rest_app_by_port(self, port):
+        for ursula in self._ursulas.values():
+            if ursula.rest_port == port:
+                rest_app = ursula.rest_app
+                break
+        else:
+            raise RuntimeError(
+                "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
+        return rest_app
+
     def send_work_order_payload_to_ursula(self, work_order):
-        mock_client = TestClient(work_order.ursula.rest_app)
+        rest_app = self._get_rest_app_by_port(work_order.ursula.rest_port)
+        mock_client = TestClient(rest_app)
         payload = work_order.payload()
         hrac_as_hex = work_order.kfrag_hrac.hex()
         return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(hrac_as_hex), payload)
 
     def get_treasure_map_from_node(self, node, map_id):
-        for ursula in self._ursulas.values():
-            if ursula.rest_port == node.rest_port:
-                rest_app = ursula.rest_app
-                break
-        else:
-            raise RuntimeError(
-                "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
-        mock_client = TestClient(ursula.rest_app)
+        rest_app = self._get_rest_app_by_port(node.rest_port)
+        mock_client = TestClient(rest_app)
         return mock_client.get("http://localhost/treasure_map/{}".format(map_id.hex()))
 
     def ursula_from_rest_interface(self, address, port):
-        for ursula in self._ursulas.values():
-            if ursula.rest_port == port:
-                rest_app = ursula.rest_app
-                break
-        else:
-            raise RuntimeError(
-                "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
-        mock_client = TestClient(ursula.rest_app)
+        rest_app = self._get_rest_app_by_port(port)
+        mock_client = TestClient(rest_app)
         response = mock_client.get("http://localhost/public_keys")
         return response
 
     def get_nodes_via_rest(self, address, port):
-        for ursula in self._ursulas.values():
-            if ursula.rest_port == port:
-                rest_app = ursula.rest_app
-                break
-        else:
-            raise RuntimeError("Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
-        mock_client = TestClient(ursula.rest_app)
+        rest_app = self._get_rest_app_by_port(port)
+        mock_client = TestClient(rest_app)
         response = mock_client.get("http://localhost/list_nodes")
         return response
 
     def push_treasure_map_to_node(self, node, map_id, map_payload):
-        port = node.rest_port
-        for ursula in self._ursulas.values():
-            if ursula.rest_port == port:
-                rest_app = ursula.rest_app
-                break
-        else:
-            raise RuntimeError(
-                "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
-        mock_client = TestClient(ursula.rest_app)
+        rest_app = self._get_rest_app_by_port(node.rest_port)
+        mock_client = TestClient(rest_app)
         response = mock_client.post("http://localhost/treasure_map/{}".format(map_id.hex()),
                       data=map_payload, verify=False)
         return response
-

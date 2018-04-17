@@ -420,7 +420,7 @@ class Bob(Character):
                     raise self.NotEnoughUrsulas(
                         "Unable to follow the TreasureMap; we just don't know enough nodes to ask about this.  Maybe try using the DHT instead.")
 
-                new_nodes = self.learn_about_nodes(node_to_check.rest_address,
+                new_nodes = self.learn_about_nodes(node_to_check.ip_address,
                                                    node_to_check.rest_port)
                 for new_node_pubkey in new_nodes.keys():
                     if new_node_pubkey in treasure_map:
@@ -540,8 +540,8 @@ class Bob(Character):
 
         return generated_work_orders
 
-    def get_reencrypted_c_frags(self, networky_stuff, work_order):
-        cfrags = networky_stuff.reencrypt(work_order)
+    def get_reencrypted_c_frags(self, work_order):
+        cfrags = self.network_middleware.reencrypt(work_order)
         if not len(work_order) == len(cfrags):
             raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
         for counter, capsule in enumerate(work_order.capsules):
