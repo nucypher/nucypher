@@ -37,6 +37,10 @@ class SolidityCompiler:
         version = version if version is not None else self.__default_version
         return install_solc(version)  # TODO: fix path
 
+    @classmethod
+    def from_json_config(self):
+        pass
+
     def compile(self) -> dict:
         """Executes the compiler"""
         sol_contract_paths = list()

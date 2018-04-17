@@ -228,7 +228,7 @@ def test_voting(web3, chain, escrow, policy_manager):
     assert 1 == len(events)
 
 
-def test_upgrade(web3, chain, escrow, policy_manager, token):
+def test_upgrade(web3, chain, escrow, policy_manager):
     creator = web3.eth.accounts[0]
     node1 = web3.eth.accounts[1]
 
@@ -367,6 +367,7 @@ def test_upgrade(web3, chain, escrow, policy_manager, token):
     chain.wait_time(1)
     tx = government.transact({'from': node1}).commitUpgrade()
     chain.wait_for_receipt(tx)
+
     assert escrow_library_v1.address == escrow.call().target()
 
     events = upgrade_committed_log.get_all_entries()

@@ -23,6 +23,35 @@ MINER_IDS_FIELD_LENGTH = 15
 MINER_ID_FIELD = 16
 
 
+@pytest.fixture()
+def token(web3, chain):
+    creator = web3.eth.accounts[0]
+    # Create an ERC20 token
+    token, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', 2 * 10 ** 9)
+    return token
+
+
+@pytest.fixture(params=[False, True])
+def escrow_contract(web3, chain, token, request):
+    def make_escrow(max_allowed_locked_tokens):
+        creator = web3.eth.accounts[0]
+        # Creator deploys the escrow
+        contract, _ = chain.provider.get_or_deploy_contract(
+            'MinersEscrow', token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, max_allowed_locked_tokens)
+
+        if request.param:
+            dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
+
+            # Deploy second version of the government contract
+            contract = web3.eth.contract(
+                abi=contract.abi,
+                address=dispatcher.address,
+                ContractFactoryClass=Contract)
+        return contract
+
+    return make_escrow
+
+
 # TODO extract method
 def wait_time(chain, wait_hours):
     web3 = chain.w3
@@ -40,29 +69,29 @@ def test_escrow(web3, chain, token, escrow_contract):
 
     # Give Ursula and Ursula(2) some coins
     tx = token.transact({'from': creator}).transfer(ursula1, 10000)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = token.transact({'from': creator}).transfer(ursula2, 10000)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 10000 == token.call().balanceOf(ursula1)
     assert 10000 == token.call().balanceOf(ursula2)
 
     # Ursula and Ursula(2) give Escrow rights to transfer
     tx = token.transact({'from': ursula1}).approve(escrow.address, 3000)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 3000 == token.call().allowance(ursula1, escrow.address)
     tx = token.transact({'from': ursula2}).approve(escrow.address, 1100)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1100 == token.call().allowance(ursula2, escrow.address)
 
     # Ursula's withdrawal attempt won't succeed because nothing to withdraw
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).withdraw(100)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # And can't lock because nothing to lock
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).lock(500, 2)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # Check that nothing is locked
     assert 0 == escrow.call().getLockedTokens(ursula1)
@@ -72,25 +101,25 @@ def test_escrow(web3, chain, token, escrow_contract):
     # Ursula can't deposit tokens before Escrow initialization
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).deposit(1, 1)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # Initialize Escrow contract
     tx = escrow.transact().initialize()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Ursula can't deposit and lock too low value
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).deposit(1, 1)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # And can't deposit and lock too high value
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).deposit(1501, 1)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # Ursula and Ursula(2) transfer some tokens to the escrow and lock them
     tx = escrow.transact({'from': ursula1}).deposit(1000, 1)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1000 == token.call().balanceOf(escrow.address)
     assert 9000 == token.call().balanceOf(ursula1)
     assert 1000 == escrow.call().getLockedTokens(ursula1)
@@ -117,7 +146,7 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert 1000 == event_args['value']
 
     tx = escrow.transact({'from': ursula1}).switchLock()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 500 == escrow.call().calculateLockedTokens(ursula1, 2)
     events = escrow.pastEvents('LockSwitched').get()
     assert 1 == len(events)
@@ -126,7 +155,7 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert event_args['release']
 
     tx = escrow.transact({'from': ursula1}).switchLock()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1000 == escrow.call().calculateLockedTokens(ursula1, 2)
     events = escrow.pastEvents('LockSwitched').get()
     assert 2 == len(events)
@@ -135,7 +164,7 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert not event_args['release']
 
     tx = escrow.transact({'from': ursula2}).deposit(500, 2)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1500 == token.call().balanceOf(escrow.address)
     assert 9500 == token.call().balanceOf(ursula2)
     assert 500 == escrow.call().getLockedTokens(ursula2)
@@ -169,13 +198,13 @@ def test_escrow(web3, chain, token, escrow_contract):
     # Ursula's withdrawal attempt won't succeed
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).withdraw(100)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
     assert 1500 == token.call().balanceOf(escrow.address)
     assert 9000 == token.call().balanceOf(ursula1)
 
     # Ursula can deposit more tokens
     tx = escrow.transact({'from': ursula1}).confirmActivity()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     events = escrow.pastEvents('ActivityConfirmed').get()
     assert 3 == len(events)
     event_args = events[2]['args']
@@ -184,7 +213,7 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert 1000 == event_args['value']
 
     tx = escrow.transact({'from': ursula1}).deposit(500, 0)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 2000 == token.call().balanceOf(escrow.address)
     assert 8500 == token.call().balanceOf(ursula1)
     events = escrow.pastEvents('ActivityConfirmed').get()
@@ -197,11 +226,11 @@ def test_escrow(web3, chain, token, escrow_contract):
     # But can't deposit too high value
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).deposit(1, 0)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # Ursula starts unlocking
     tx = escrow.transact({'from': ursula1}).switchLock()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 750 == escrow.call().calculateLockedTokens(ursula1, 2)
 
     # Wait 1 period and checks locking
@@ -210,14 +239,14 @@ def test_escrow(web3, chain, token, escrow_contract):
 
     # Confirm activity and wait 1 period
     tx = escrow.transact({'from': ursula1}).confirmActivity()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     wait_time(chain, 1)
     assert 750 == escrow.call().getLockedTokens(ursula1)
     assert 0 == escrow.call().calculateLockedTokens(ursula1, 1)
 
     # And Ursula can withdraw some tokens
     tx = escrow.transact({'from': ursula1}).withdraw(100)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1900 == token.call().balanceOf(escrow.address)
     assert 8600 == token.call().balanceOf(ursula1)
     events = escrow.pastEvents('Withdrawn').get()
@@ -229,18 +258,18 @@ def test_escrow(web3, chain, token, escrow_contract):
     # But Ursula can't withdraw all without mining for locked value
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).withdraw(1400)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # And Ursula can't lock again too low value
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).lock(1, 1)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # Ursula can deposit and lock more tokens
     tx = escrow.transact({'from': ursula1}).deposit(500, 0)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': ursula1}).lock(100, 0)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Locked tokens will be updated in next period
     # Release rate will be updated too because of the end of previous locking
@@ -248,7 +277,7 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert 600 == escrow.call().calculateLockedTokens(ursula1, 1)
     assert 600 == escrow.call().calculateLockedTokens(ursula1, 2)
     tx = escrow.transact({'from': ursula1}).switchLock()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 300 == escrow.call().calculateLockedTokens(ursula1, 2)
     assert 0 == escrow.call().calculateLockedTokens(ursula1, 3)
     wait_time(chain, 1)
@@ -258,7 +287,7 @@ def test_escrow(web3, chain, token, escrow_contract):
 
     # Ursula can increase lock
     tx = escrow.transact({'from': ursula1}).lock(500, 2)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 600 == escrow.call().getLockedTokens(ursula1)
     assert 800 == escrow.call().calculateLockedTokens(ursula1, 1)
     assert 500 == escrow.call().calculateLockedTokens(ursula1, 2)
@@ -269,9 +298,9 @@ def test_escrow(web3, chain, token, escrow_contract):
 
     # Ursula(2) starts unlocking and increases lock by deposit more tokens
     tx = escrow.transact({'from': ursula2}).deposit(500, 0)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': ursula2}).switchLock()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 500 == escrow.call().getLockedTokens(ursula2)
     assert 1000 == escrow.call().calculateLockedTokens(ursula2, 1)
     assert 500 == escrow.call().calculateLockedTokens(ursula2, 2)
@@ -281,14 +310,14 @@ def test_escrow(web3, chain, token, escrow_contract):
 
     # And increases locked time
     tx = escrow.transact({'from': ursula2}).lock(0, 2)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1000 == escrow.call().getLockedTokens(ursula2)
     assert 500 == escrow.call().calculateLockedTokens(ursula2, 1)
     assert 0 == escrow.call().calculateLockedTokens(ursula2, 2)
 
     # Ursula(2) increases lock by small amount of tokens
     tx = escrow.transact({'from': ursula2}).deposit(100, 0)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 600 == escrow.call().calculateLockedTokens(ursula2, 1)
     assert 100 == escrow.call().calculateLockedTokens(ursula2, 2)
     assert 0 == escrow.call().calculateLockedTokens(ursula2, 3)
@@ -307,9 +336,9 @@ def test_locked_distribution(web3, chain, token, escrow_contract):
 
     # Give Escrow tokens for reward and initialize contract
     tx = token.transact({'from': creator}).transfer(escrow.address, 10 ** 9)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = escrow.transact().initialize()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     miners = web3.eth.accounts[1:]
     amount = token.call().balanceOf(creator) // 2
@@ -318,16 +347,16 @@ def test_locked_distribution(web3, chain, token, escrow_contract):
     # Airdrop
     for miner in miners:
         tx = token.transact({'from': creator}).transfer(miner, amount)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
         amount = amount // 2
 
     # Lock
     for index, miner in enumerate(miners):
         balance = token.call().balanceOf(miner)
         tx = token.transact({'from': miner}).approve(escrow.address, balance)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
         tx = escrow.transact({'from': miner}).deposit(balance, index + 2)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # Check current period
     address_stop, index_stop, shift = escrow.call().findCumSum(0, 1, 1)
@@ -343,7 +372,7 @@ def test_locked_distribution(web3, chain, token, escrow_contract):
     # And confirm activity
     for miner in miners:
         tx = escrow.transact({'from': miner}).confirmActivity()
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     address_stop, index_stop, shift = escrow.call().findCumSum(0, n_locked // 3, 1)
     assert miners[0].lower() == address_stop.lower()
@@ -390,41 +419,41 @@ def test_mining(web3, chain, token, escrow_contract):
 
     # Give Escrow tokens for reward and initialize contract
     tx = token.transact({'from': creator}).transfer(escrow.address, 10 ** 9)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = escrow.transact().initialize()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     policy_manager, _ = chain.provider.get_or_deploy_contract(
         'PolicyManagerForMinersEscrowMock', token.address, escrow.address
     )
     tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Give Ursula and Ursula(2) some coins
     tx = token.transact({'from': creator}).transfer(ursula1, 10000)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = token.transact({'from': creator}).transfer(ursula2, 10000)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Ursula can't confirm and mint because no locked tokens
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).mint()
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).confirmActivity()
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # Ursula and Ursula(2) give Escrow rights to transfer
     tx = token.transact({'from': ursula1}).approve(escrow.address, 2000)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = token.transact({'from': ursula2}).approve(escrow.address, 500)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Ursula and Ursula(2) transfer some tokens to the escrow and lock them
     tx = escrow.transact({'from': ursula1}).deposit(1000, 1)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': ursula2}).deposit(500, 2)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Using locked tokens starts from next period
     assert 0 == escrow.call().getAllLockedTokens()
@@ -432,25 +461,25 @@ def test_mining(web3, chain, token, escrow_contract):
     # Ursula can't use method from Miner contract
     with pytest.raises(TypeError):
         tx = escrow.transact({'from': ursula1}).mint(ursula1, 1, 1, 1, 1, 1)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # Only Ursula confirm next period
     wait_time(chain, 1)
     assert 1500 == escrow.call().getAllLockedTokens()
     tx = escrow.transact({'from': ursula1}).confirmActivity()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Checks that no error
     tx = escrow.transact({'from': ursula1}).confirmActivity()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Ursula and Ursula(2) mint tokens for last periods
     wait_time(chain, 1)
     assert 1000 == escrow.call().getAllLockedTokens()
     tx = escrow.transact({'from': ursula1}).mint()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': ursula2}).mint()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1050 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula1, 0).encode('latin-1'))
     assert 521 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula2, 0).encode('latin-1'))
 
@@ -473,29 +502,29 @@ def test_mining(web3, chain, token, escrow_contract):
 
     # Only Ursula confirm activity for next period
     tx = escrow.transact({'from': ursula1}).switchLock()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': ursula1}).confirmActivity()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Ursula can't confirm next period because end of locking
     wait_time(chain, 1)
     assert 500 == escrow.call().getAllLockedTokens()
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).confirmActivity()
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # But Ursula(2) can
     tx = escrow.transact({'from': ursula2}).confirmActivity()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Ursula mint tokens for next period
     wait_time(chain, 1)
     assert 500 == escrow.call().getAllLockedTokens()
     tx = escrow.transact({'from': ursula1}).mint()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     # But Ursula(2) can't get reward because she did not confirmed activity
     tx = escrow.transact({'from': ursula2}).mint()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1163 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula1, 0).encode('latin-1'))
     assert 521 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula2, 0).encode('latin-1'))
 
@@ -513,13 +542,13 @@ def test_mining(web3, chain, token, escrow_contract):
 
     # Ursula(2) confirm next period and mint tokens
     tx = escrow.transact({'from': ursula2}).switchLock()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': ursula2}).confirmActivity()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     wait_time(chain, 2)
     assert 0 == escrow.call().getAllLockedTokens()
     tx = escrow.transact({'from': ursula2}).mint()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1163 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula1, 0).encode('latin-1'))
     assert 634 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula2, 0).encode('latin-1'))
 
@@ -537,17 +566,17 @@ def test_mining(web3, chain, token, escrow_contract):
 
     # Ursula can't confirm and get reward because no locked tokens
     tx = escrow.transact({'from': ursula1}).mint()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1163 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula1, 0).encode('latin-1'))
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': ursula1}).confirmActivity()
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # Ursula can lock some tokens again
     tx = escrow.transact({'from': ursula1}).lock(500, 4)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': ursula1}).switchLock()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 500 == escrow.call().getLockedTokens(ursula1)
     assert 500 == escrow.call().calculateLockedTokens(ursula1, 1)
     assert 375 == escrow.call().calculateLockedTokens(ursula1, 2)
@@ -555,19 +584,19 @@ def test_mining(web3, chain, token, escrow_contract):
     assert 0 == escrow.call().calculateLockedTokens(ursula1, 5)
     # And can increase lock
     tx = escrow.transact({'from': ursula1}).lock(100, 0)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 600 == escrow.call().getLockedTokens(ursula1)
     assert 600 == escrow.call().calculateLockedTokens(ursula1, 1)
     assert 450 == escrow.call().calculateLockedTokens(ursula1, 2)
     assert 0 == escrow.call().calculateLockedTokens(ursula1, 5)
     tx = escrow.transact({'from': ursula1}).lock(0, 2)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 600 == escrow.call().getLockedTokens(ursula1)
     assert 600 == escrow.call().calculateLockedTokens(ursula1, 1)
     assert 450 == escrow.call().calculateLockedTokens(ursula1, 2)
     assert 0 == escrow.call().calculateLockedTokens(ursula1, 5)
     tx = escrow.transact({'from': ursula1}).deposit(800, 1)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1400 == escrow.call().getLockedTokens(ursula1)
     assert 1400 == escrow.call().calculateLockedTokens(ursula1, 1)
     assert 1000 == escrow.call().calculateLockedTokens(ursula1, 3)
@@ -576,7 +605,7 @@ def test_mining(web3, chain, token, escrow_contract):
 
     # Ursula(2) can withdraw all
     tx = escrow.transact({'from': ursula2}).withdraw(634)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 10134 == token.call().balanceOf(ursula2)
 
     events = escrow.pastEvents('Withdrawn').get()
@@ -599,16 +628,16 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
 
     # Initialize Escrow contract
     tx = escrow.transact().initialize()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Grant access to transfer tokens
     tx = token.transact({'from': creator}).approve(escrow.address, 10000)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Deposit tokens for 1 owner
     owner = web3.eth.accounts[1]
     tx = escrow.transact({'from': creator}).preDeposit([owner], [1000], [10])
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1000 == token.call().balanceOf(escrow.address)
     assert 1000 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, owner, 0).encode('latin-1'))
     assert 1000 == escrow.call().getLockedTokens(owner)
@@ -618,27 +647,27 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[1]], [1000], [10])
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # Can't pre-deposit tokens with too low or too high value
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[2]], [1], [10])
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[2]], [1501], [10])
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[2]], [500], [1])
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # Deposit tokens for multiple owners
     owners = web3.eth.accounts[2:7]
     tx = escrow.transact({'from': creator}).preDeposit(
         owners, [100, 200, 300, 400, 500], [50, 100, 150, 200, 250])
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 2500 == token.call().balanceOf(escrow.address)
     for index, owner in enumerate(owners):
         assert 100 * (index + 1) == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, owner, 0).encode('latin-1'))
@@ -681,25 +710,25 @@ def test_miner_id(web3, chain, token, escrow_contract):
 
     # Initialize contract and miner
     tx = escrow.transact().initialize()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = token.transact({'from': creator}).transfer(miner, 1000)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     balance = token.call().balanceOf(miner)
     tx = token.transact({'from': miner}).approve(escrow.address, balance)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': miner}).deposit(balance, 1)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Set miner ids
     miner_id = os.urandom(32)
     tx = escrow.transact({'from': miner}).setMinerId(miner_id)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 1 == web3.toInt(escrow.call().getMinerInfo(MINER_IDS_FIELD_LENGTH, miner, 0).encode('latin-1'))
     # TODO change when v4 of web3.py is released
     assert miner_id == escrow.call().getMinerInfo(MINER_ID_FIELD, miner, 0).encode('latin-1')
     miner_id = os.urandom(32)
     tx = escrow.transact({'from': miner}).setMinerId(miner_id)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 2 == web3.toInt(escrow.call().getMinerInfo(MINER_IDS_FIELD_LENGTH, miner, 0).encode('latin-1'))
     # TODO change when v4 of web3.py is released
     assert miner_id == escrow.call().getMinerInfo(MINER_ID_FIELD, miner, 1).encode('latin-1')
@@ -721,8 +750,8 @@ def test_verifying_state(web3, chain, token):
     )
 
     contract = web3.eth.contract(
-        contract_library_v2.abi,
-        dispatcher.address,
+        abi=contract_library_v2.abi,
+        address=dispatcher.address,
         ContractFactoryClass=Contract)
     assert 1500 == contract.call().maxAllowableLockedTokens()
 
@@ -730,25 +759,25 @@ def test_verifying_state(web3, chain, token):
     policy_manager, _ = chain.provider.get_or_deploy_contract('PolicyManagerForMinersEscrowMock', token.address, contract.address)
 
     tx = contract.transact({'from': creator}).setPolicyManager(policy_manager.address)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = contract.transact().initialize()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = token.transact({'from': creator}).transfer(miner, 1000)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     balance = token.call().balanceOf(miner)
     tx = token.transact({'from': miner}).approve(contract.address, balance)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     tx = contract.transact({'from': miner}).deposit(balance, 1000)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Upgrade to the second version
     tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v2.address)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert contract_library_v2.address.lower() == dispatcher.call().target().lower()
     assert 1500 == contract.call().maxAllowableLockedTokens()
     assert 2 == contract.call().valueToCheck()
     tx = contract.transact({'from': creator}).setValueToCheck(3)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 3 == contract.call().valueToCheck()
 
     # Can't upgrade to the previous version or to the bad version
@@ -758,20 +787,20 @@ def test_verifying_state(web3, chain, token):
 
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # But can rollback
     tx = dispatcher.transact({'from': creator}).rollback()
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert contract_library_v1.address.lower() == dispatcher.call().target().lower()
     with pytest.raises(TransactionFailed):
         tx = contract.transact({'from': creator}).setValueToCheck(2)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
 
     # Try to upgrade to the bad version
     with pytest.raises(TransactionFailed):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)

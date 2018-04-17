@@ -62,9 +62,7 @@ def test_deploy_ethereum_contracts(chain):
     miner_escrow_deployer.arm()
     miner_escrow_deployer.deploy()
 
-    miner_agent = MinerAgent(token_agent=token_agent)
-
-    policy_manager_contract = PolicyManagerDeployer(miner_agent=miner_agent)
+    policy_manager_contract = PolicyManagerDeployer(miner_escrow_deployer=miner_escrow_deployer)
     policy_manager_contract.arm()
     policy_manager_contract.deploy()
 

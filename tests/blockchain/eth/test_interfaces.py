@@ -39,12 +39,13 @@ def test_registrar_object(tempfile_path):
     test_registrar.enroll(test_name, test_addr, test_abi)
 
     chain_data = test_registrar.dump_chain()
-    assert test_name in chain_data
-    assert chain_data[test_name]['addr'] == test_addr
-    assert chain_data[test_name]['abi'] == test_abi
+    assert test_addr in chain_data
+    assert chain_data[test_addr]['name'] == test_name
+    assert chain_data[test_addr]['addr'] == test_addr
+    assert chain_data[test_addr]['abi'] == test_abi
 
     # Test dump_contract via identifier
-    contract_by_name = test_registrar.dump_contract(test_name)
+    contract_by_name = test_registrar.dump_contract(test_addr)
     assert contract_by_name['addr'] == test_addr
     assert contract_by_name['abi'] == test_abi
 
@@ -58,23 +59,19 @@ def test_registrar_object(tempfile_path):
     new_test_addr = '0xBEEFDEAD'
     test_registrar.enroll(test_name, new_test_addr, test_abi)
 
-    test_contract = test_registrar.dump_contract(test_name)
+    test_contract = test_registrar.dump_contract(new_test_addr)
     assert test_contract['addr'] == new_test_addr
     assert test_contract['abi'] == test_abi
 
     # Test new chain via new registrar object
     new_chain_name = 'not_tester'
     new_chain_registrar = Registrar(chain_name=new_chain_name, registrar_filepath=tempfile_path)
-    chains = Registrar.get_chains(tempfile_path)
+    chains = Registrar.get_registrars(tempfile_path)
     assert new_chain_name not in chains # Not written yet, shouldn't be there
 
-    with pytest.raises(KeyError):
-        new_chain_registrar.dump_chain()
-
-    new_chain_registrar.enroll(test_name, test_addr, test_abi)
-    updated_chains = Registrar.get_chains(tempfile_path)
+    new_chain_registrar.enroll(new_chain_name, new_test_addr, test_abi)
+    updated_chains = Registrar.get_registrars(tempfile_path)
     assert new_chain_name in updated_chains and 'tester' in updated_chains
 
-    # Test NoKnownContract error
-    with pytest.raises(Registrar.NoKnownContract):
+    with pytest.raises(Registrar.UnknownContract):
         test_registrar.dump_contract('This should not exist')
