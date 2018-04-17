@@ -384,6 +384,7 @@ class Alice(Character, PolicyAuthor):
         policy.match_kfrags_to_found_ursulas(found_ursulas)
         # REST call happens here, as does population of TreasureMap.
         policy.enact(networky_stuff)
+        policy.publish_treasure_map(networky_stuff)
 
         return policy  # Now with TreasureMap affixed!
 
