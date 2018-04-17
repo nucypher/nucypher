@@ -1,10 +1,11 @@
 import os
+import shutil
 import tempfile
 
 import pytest
 from eth_tester import EthereumTester, PyEVMBackend
-from web3 import EthereumTesterProvider
-from web3.contract import Contract
+from geth import DevGethProcess
+from web3 import EthereumTesterProvider, IPCProvider, Web3
 
 from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
 from nkms.blockchain.eth.agents import PolicyAgent
@@ -16,51 +17,83 @@ from nkms.blockchain.eth.utilities import MockMinerEscrowDeployer
 
 
 @pytest.fixture(scope='session')
-def sol_compiler():
+def solidity_compiler():
     compiler = SolidityCompiler()
     yield compiler
 
 
 @pytest.fixture(scope='module')
-def tester_registrar():
+def registrar():
     _, filepath = tempfile.mkstemp()
-    tester_registrar = Registrar(chain_name='tester', registrar_filepath=filepath)
-    yield tester_registrar
+    registrar = Registrar(chain_name='tester', registrar_filepath=filepath)
+    yield registrar
     os.remove(filepath)
 
 
 @pytest.fixture(scope='module')
-def tester_provider(tester_registrar, sol_compiler):
+def geth_ipc_provider(registrar, solidity_compiler):
     """
     Provider backend
     https: // github.com / ethereum / eth - tester     # available-backends
     """
-    eth_tester = EthereumTester(backend=PyEVMBackend())
-    test_provider = EthereumTesterProvider(ethereum_tester=eth_tester)  # , api_endpoints=None)
+    #
+    # spin-up geth
+    #
+    testing_dir = tempfile.mkdtemp()
+    chain_name = 'nkms_tester'
+    geth = DevGethProcess(chain_name=chain_name, base_dir=testing_dir)
+    geth.start()
+
+    geth.wait_for_ipc(timeout=2)
+    assert geth.is_running
+    assert geth.is_alive
+
+    ipc_provider = IPCProvider(os.path.join(testing_dir, chain_name, 'geth.ipc'))
+    tester_provider = ContractProvider(provider_backend=ipc_provider,
+                                       registrar=registrar,
+                                       sol_compiler=solidity_compiler)
+
+    yield tester_provider
+    #
+    # Teardown
+    #
+    geth.stop()
+    shutil.rmtree(testing_dir)
+    assert geth.is_stopped
+
+
+@pytest.fixture(scope='module')
+def pyevm_provider(registrar, solidity_compiler):
+    """
+    Provider backend
+    https: // github.com / ethereum / eth - tester     # available-backends
+    """
+    eth_tester = EthereumTester(backend=PyEVMBackend(), auto_mine_transactions=True)
+    test_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
     tester_provider = ContractProvider(provider_backend=test_provider,
-                                       registrar=tester_registrar,
-                                       sol_compiler=sol_compiler)
+                                       registrar=registrar,
+                                       sol_compiler=solidity_compiler)
     yield tester_provider
 
 
 @pytest.fixture(scope='module')
-def web3(tester_provider):
-    yield tester_provider.w3
+def web3(pyevm_provider):
+    yield pyevm_provider.w3
 
 
 @pytest.fixture(scope='module')
-def chain(tester_provider):
-    chain = TesterBlockchain(contract_provider=tester_provider)
+def chain(pyevm_provider):
+    chain = TesterBlockchain(contract_provider=pyevm_provider)
     yield chain
 
     del chain
     TheBlockchain._TheBlockchain__instance = None
 
 
-#
+# 
 # API #
-#
+# 
 
 
 @pytest.fixture()
@@ -109,25 +142,25 @@ def mock_policy_agent(mock_miner_agent, token_agent, mock_token_deployer, mock_m
     yield policy_agent
 
 
-@pytest.fixture()
-def token(web3, chain):
-    creator = web3.eth.accounts[0]
-    # Create an ERC20 token
-    token, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', int(2e9))
-    return token
+# @pytest.fixture()
+# def token(web3, chain):
+#     creator = web3.eth.accounts[0]
+#     # Create an ERC20 token
+#     token, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', int(2e9))
+#     return token
 
-
-@pytest.fixture()
-def escrow_contract(web3, chain, token):
-    creator = web3.eth.accounts[0]
-    # Creator deploys the escrow
-
-    contract, _ = chain.provider.get_or_deploy_contract(
-        'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100, int(1e9)
-    )
-
-    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
-
-    # Deploy second version of the government contract
-    contract = web3.eth.contract(contract.abi, dispatcher.address, ContractFactoryClass=Contract)
-    return contract
+#
+# @pytest.fixture()
+# def escrow_contract(web3, chain, token):
+#     creator = web3.eth.accounts[0]
+#     # Creator deploys the escrow
+#
+#     contract, _ = chain.provider.get_or_deploy_contract(
+#         'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100, int(1e9)
+#     )
+#
+#     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
+#
+#     # Deploy second version of the government contract
+#     contract = web3.eth.contract(contract.abi, dispatcher.address, ContractFactoryClass=Contract)
+#     return contract
