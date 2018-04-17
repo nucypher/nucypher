@@ -281,25 +281,36 @@ class Character(object):
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
-    def learn_about_nodes(self, networky_stuff, address, port):
+    def learn_about_nodes(self, address, port):
         """
         Sends a request to node_url to find out about known nodes.
         """
-        response = networky_stuff.get_nodes_via_rest(address, port)
+        response = self.network_middleware.get_nodes_via_rest(address, port)
         signature, nodes = signature_splitter(response.content, return_remainder=True)
         # TODO: Although not treasure map-related, this has a whiff of #172.
-        ursula_interface_splitter = dht_value_splitter + BytestringSplitter((bytes, 15))
+        ursula_interface_splitter = dht_value_splitter + BytestringSplitter((bytes, 17))
         split_nodes = ursula_interface_splitter.repeat(nodes)
         new_nodes = {}
-        for node in split_nodes:
-            # Notice that we don't use "interface_hrac" - see #228.
-            header, sig, pubkey, interface_hrac, interface = node
-            if sig.verify(keccak_digest(interface), pubkey):
-                self.known_nodes[pubkey] = msgpack.loads(interface)
-                new_nodes[pubkey] = msgpack.loads(interface)
-            else:
-                self.log.warn("Discovered node with bad signature: {}".format(node))
+        for node_meta in split_nodes:
+            header, sig, pubkey, interface_info = node_meta
+            if not pubkey in self.known_nodes:
+                if sig.verify(keccak_digest(interface_info), pubkey):
+                    address, dht_port, rest_port = msgpack.loads(interface_info)
+                    new_nodes[pubkey] = \
+                        Ursula.as_discovered_on_network(
+                            rest_port=rest_port,
+                            dht_port=dht_port,
+                            ip_address=address.decode("utf-8"),
+                            powers_and_keys=({SigningPower: pubkey})
+                        )
+                else:
+                    self.log.warn("Discovered node with bad signature: {}".format(node_meta))
         return new_nodes
+
+    def network_bootstrap(self, node_list):
+        for node_addr, port in node_list:
+            new_nodes = self.learn_about_nodes(node_addr, port)
+        self.known_nodes.update(new_nodes)
 
 
 class FakePolicyAgent:  # TODO: #192
