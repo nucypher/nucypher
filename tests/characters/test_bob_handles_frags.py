@@ -5,24 +5,68 @@ from umbral import pre
 from umbral.fragments import KFrag
 
 
-def test_bob_can_follow_treasure_map(enacted_policy, ursulas, alice, bob):
-    """
-    Upon receiving a TreasureMap, Bob populates his list of Ursulas with the correct number.
-    """
+def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_policy, bob):
 
-    # Simulate Bob finding a TreasureMap on the DHT.
-    # A test to show that Bob can do this can be found in test_network_actors.
+    # Assume for the moment that Bob has already received a TreasureMap, perhaps via a side channel.
     hrac, treasure_map = enacted_policy.hrac(), enacted_policy.treasure_map
     bob.treasure_maps[hrac] = treasure_map
 
     # Bob knows of no Ursulas.
     assert len(bob.known_nodes) == 0
 
-    # ...until he follows the TreasureMap.
-    bob.follow_treasure_map(hrac)
+    # He can't successfully follow the TreasureMap until he learns of a node to ask.
+    with pytest.raises(bob.NotEnoughUrsulas):
+        bob.follow_treasure_map(hrac)
 
-    # Now he knows of all the Ursulas.
-    assert len(bob.known_nodes) == len(treasure_map)
+
+@pytest.mark.usefixtures("treasure_map_is_set_on_dht")
+def test_bob_can_follow_treasure_map(enacted_policy, ursulas, bob, alice):
+    """
+    Similar to above, but this time, we'll show that if Bob can connect to a single node, he can
+    learn enough to follow the TreasureMap.
+
+    Also, we'll get the TreasureMap from the hrac alone (ie, not via a side channel).
+    """
+    hrac = enacted_policy.hrac()
+
+    # Bob knows of no Ursulas.
+    assert len(bob.known_nodes) == 0
+
+    # Now Bob will ask just a single Ursula to tell him of the nodes about which she's aware.
+    bob.network_bootstrap([("127.0.0.1", ursulas[0].rest_port)])
+
+    # Success!  This Ursula knew about all the nodes on the network!
+    assert len(bob.known_nodes) == len(ursulas)
+
+    # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
+    bob.get_treasure_map(alice, hrac)
+    newly_discovered, total_known = bob.follow_treasure_map(hrac)
+
+    # He finds that he didn't need to discover any new nodes...
+    assert len(newly_discovered) == 0
+
+    # ...because he already knew of all the Ursulas on the map.
+    assert total_known == len(enacted_policy.treasure_map)
+
+
+def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_policy, ursulas, bob):
+    # Again, let's assume that he received the TreasureMap via a side channel.
+    hrac, treasure_map = enacted_policy.hrac(), enacted_policy.treasure_map
+    bob.treasure_maps[hrac] = treasure_map
+
+    # Now, let's create a scenario in which Bob knows of only one node.
+    k, v = bob.known_nodes.popitem()
+    bob.known_nodes = {k: v}
+    assert len(bob.known_nodes) == 1
+
+    # This time, when he follows the TreasureMap...
+    newly_discovered, total_known = bob.follow_treasure_map(hrac)
+
+    # The newly discovered nodes are all those in the TreasureMap except the one about which he already knew.
+    assert len(newly_discovered) == len(treasure_map) - 1
+
+    # ...and his total known now matches the length of the TreasureMap.
+    assert total_known == len(treasure_map)
 
 
 def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, alice, bob, ursulas,
@@ -145,13 +189,13 @@ def test_bob_gathers_and_combines(enacted_policy, bob, ursulas, capsule_side_cha
     assert len(bob._saved_work_orders) == 2
 
     # ...but the policy requires us to collect more cfrags.
-    assert len(bob._saved_work_orders) < enacted_policy.m
+    assert len(bob._saved_work_orders) < enacted_policy.treasure_map.m
 
     # Bob can't decrypt yet with just two CFrags.  He needs to gather at least m.
     with pytest.raises(pre.GenericUmbralError):
         bob.decrypt(the_message_kit)
 
-    number_left_to_collect = enacted_policy.m - len(bob._saved_work_orders)
+    number_left_to_collect = enacted_policy.treasure_map.m - len(bob._saved_work_orders)
 
     new_work_orders = bob.generate_work_orders(enacted_policy.hrac(),
                                                the_message_kit.capsule,
