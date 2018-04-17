@@ -8,38 +8,39 @@ import sys
 
 from examples.sandbox_resources import SandboxNetworkyStuff
 from nkms.characters import Alice, Bob, Ursula
-from nkms.crypto.kits import MessageKit
-from nkms.crypto.powers import SigningPower, EncryptingPower
+from nkms.crypto.api import keccak_digest
+from nkms.data_sources import DataSource
 from nkms.network.node import NetworkyStuff
-from umbral import pre
+import maya
+
+# Some basic setup.
 
 ALICE = Alice()
 BOB = Bob()
-URSULA = Ursula.from_rest_url(address="https://localhost", port="3550")
+URSULA = Ursula.from_rest_url(NetworkyStuff(), address="localhost", port=3601)
+network_middleware = SandboxNetworkyStuff([URSULA])
 
-networky_stuff = SandboxNetworkyStuff()
-
-policy_end_datetime = datetime.datetime.now() + datetime.timedelta(days=5)
+# Here are our Policy details.
+policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+m = 1
 n = 1
-uri = b"secret/files/and/stuff"
+label = b"secret/files/and/stuff"
 
-# Alice gets on the network and discovers Ursula, presumably from the blockchain.
-ALICE.learn_about_nodes(address="https://localhost", port="3550")
+
+# Alice gets on the network and, knowing about at least one Ursula,
+# Is able to discover all Ursulas.
+ALICE.network_bootstrap([("localhost", 3601)])
 
 # Alice grants to Bob.
-policy = ALICE.grant(BOB, uri, networky_stuff, m=1, n=n,
+policy = ALICE.grant(BOB, label, network_middleware, m=m, n=n,
                      expiration=policy_end_datetime)
-policy.publish_treasure_map(networky_stuff, use_dht=False)
 hrac, treasure_map = policy.hrac(), policy.treasure_map
 
-# Bob learns about Ursula, gets the TreasureMap, and follows it.
-BOB.learn_about_nodes(address="https://localhost", port="3550")
-networky_stuff = NetworkyStuff()
-BOB.get_treasure_map(policy, networky_stuff)
-BOB.follow_treasure_map(hrac)
+# Bob can re-assemble the hrac himself with knowledge he already has.
+hrac = keccak_digest(bytes(ALICE.stamp) + bytes(BOB.stamp) + label)
+BOB.join_policy(ALICE, hrac, node_list=[("localhost", 3601)])
 
 # Now, Alice and Bob are ready for some throughput.
-
 finnegans_wake = open(sys.argv[1], 'rb')
 
 start_time = datetime.datetime.now()
@@ -55,16 +56,10 @@ for counter, plaintext in enumerate(finnegans_wake):
         print("PREs per second: {}".format(counter / seconds))
         print("********************************")
 
-    ciphertext, capsule = pre.encrypt(ALICE.public_key(EncryptingPower), plaintext)
+    data_source = DataSource(policy_pubkey_enc=policy.public_key())
+    message_kit, _signature = data_source.encapsulate_single_message(plaintext)
 
-    message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule,
-                      alice_pubkey=ALICE.public_key(EncryptingPower))
+    delivered_cleartext = BOB.retrieve(hrac=hrac, message_kit=message_kit, data_source=data_source)
 
-    work_orders = BOB.generate_work_orders(hrac, capsule)
-    print(plaintext)
-    cfrags = BOB.get_reencrypted_c_frags(networky_stuff, work_orders[bytes(URSULA.stamp)])
-
-    capsule.attach_cfrag(cfrags[0])
-    delivered_cleartext = pre.decrypt(capsule, BOB._crypto_power._power_ups[EncryptingPower].keypair._privkey, ciphertext, ALICE.public_key(EncryptingPower))
     assert plaintext == delivered_cleartext
     print("Retrieved: {}".format(delivered_cleartext))
