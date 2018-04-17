@@ -56,6 +56,8 @@ class Registrar:
             with open(self.__registrar_filepath, 'r') as registrar_file:
                 registrar_file.seek(0)
                 registrar_data = json.loads(registrar_file.read())
+                if self._chain_name not in registrar_data:
+                    registrar_data[self._chain_name] = dict()
         except (json.decoder.JSONDecodeError, FileNotFoundError):
             registrar_data = {self._chain_name: dict()}
         return registrar_data
@@ -189,6 +191,19 @@ class ContractProvider:
         contract = self.w3.eth.contract(abi=contract_data['abi'], address=address)
         return contract
 
+    def get_contract_factory(self, contract_name):
+        """Retrieve compiled interface data from the cache and return web3 contract"""
+        try:
+            interface = self.__raw_contract_cache[contract_name]
+        except KeyError:
+            raise self.ProviderError('{} is not a compiled contract.'.format(contract_name))
+
+        contract = self.w3.eth.contract(abi=interface['abi'],
+                                        bytecode=interface['bin'],
+                                        ContractFactoryClass=Contract)
+
+        return contract
+
     def get_contract_address(self, contract_name: str) -> List[str]:
         """Retrieve all known addresses for this contract"""
         contracts = self.__registrar.lookup_contract(contract_name=contract_name)
@@ -200,33 +215,29 @@ class ContractProvider:
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract
         """
-        try:
-            interface = self.__raw_contract_cache[contract_name]
-        except KeyError:
-            raise self.ProviderError('{} is not a compiled contract.'.format(contract_name))
 
-        contract = self.w3.eth.contract(abi=interface['abi'],
-                                        bytecode=interface['bin'],
-                                        ContractFactoryClass=Contract)
+        contract_factory = self.get_contract_factory(contract_name=contract_name)
 
-        deploy_transaction = {'from': self.deployer_address}
-        deploy_bytecode = contract.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
+        deploy_transaction = {'from': self.deployer_address, 'gas': 2_400_000}
+        deploy_bytecode = contract_factory.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
 
         txhash = self.w3.eth.sendTransaction(deploy_bytecode)  # deploy!
         receipt = self.w3.eth.waitForTransactionReceipt(txhash)
 
+        # self.w3.eth.web3.testing.mine(10)
+
         address = receipt['contractAddress']
-        contract = contract(address=address)
+        contract = contract_factory(address=address)
 
         # Commit to registrar
         self.__registrar.enroll(contract_name=contract_name,
                                 contract_addr=address,
-                                contract_abi=interface['abi'])
+                                contract_abi=contract_factory.abi)
 
         return contract, txhash
 
     def get_or_deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:
-
+        """Check the registrar for a deployed contract, or deploy it from compiled sources."""
         try:
             contract = self.get_contract(address=contract_name)
             txhash = None

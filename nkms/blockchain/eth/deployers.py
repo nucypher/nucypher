@@ -98,9 +98,9 @@ class ContractDeployer:
     def _wrap_government(self, dispatcher_contract: Contract, target_contract: Contract) -> Contract:
 
         # Wrap the contract
-        wrapped_contract = self.blockchain.provider.web3.eth.contract(target_contract.abi,
-                                                                             dispatcher_contract.address,
-                                                                             ContractFactoryClass=Contract)
+        wrapped_contract = self.blockchain.provider.w3.eth.contract(abi=target_contract.abi,
+                                                                    address=dispatcher_contract.address,
+                                                                    ContractFactoryClass=Contract)
         return wrapped_contract
 
     def arm(self, fail_on_abort=True) -> None:
