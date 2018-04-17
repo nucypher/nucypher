@@ -467,10 +467,11 @@ class Bob(Character):
             if not self.known_nodes:
                 # TODO: Try to find more Ursulas on the blockchain.
                 raise self.NotEnoughUrsulas
-            tmap_message_kit = self.get_treasure_map_from_known_ursulas(networky_stuff, map_id)
+            tmap_message_kit = self.get_treasure_map_from_known_ursulas(self.network_middleware,
+                                                                        map_id)
 
         verified, packed_node_list = self.verify_from(
-            policy.alice, tmap_message_kit,
+            alice, tmap_message_kit,
             decrypt=True
         )
 
@@ -478,8 +479,10 @@ class Bob(Character):
             return constants.NOT_FROM_ALICE
         else:
             from nkms.policy.models import TreasureMap
-            treasure_map = TreasureMap(msgpack.loads(packed_node_list))
-            self.treasure_maps[policy.hrac()] = treasure_map
+            node_list = msgpack.loads(packed_node_list)
+            m = node_list.pop()
+            treasure_map = TreasureMap(m=m, ursula_interface_ids=node_list)
+            self.treasure_maps[hrac] = treasure_map
             return treasure_map
 
     def get_treasure_map_from_known_ursulas(self, networky_stuff, map_id):
@@ -495,7 +498,7 @@ class Bob(Character):
             if response.status_code == 200 and response.content:
                 # TODO: Make this prettier
                 header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = \
-                    dht_value_splitter(response.content, return_remainder=True)
+                    dht_with_hrac_splitter(response.content, return_remainder=True)
                 tmap_messaage_kit = UmbralMessageKit.from_bytes(encrypted_treasure_map)
                 return tmap_messaage_kit
             else:
@@ -518,7 +521,7 @@ class Bob(Character):
                     capsules))
 
         for ursula_dht_key in treasure_map_to_use:
-            ursula = self.known_nodes[ursula_dht_key]
+            ursula = self.known_nodes[UmbralPublicKey.from_bytes(ursula_dht_key)]
 
             capsules_to_include = []
             for capsule in capsules:
@@ -551,20 +554,48 @@ class Bob(Character):
     def get_ursula(self, ursula_id):
         return self._ursulas[ursula_id]
 
+    def join_policy(self, alice, hrac, using_dht=False, node_list=None):
+        # TODO: unfuckify this
+        if node_list:
+            self.network_bootstrap(node_list)
+        self.get_treasure_map(alice, hrac, using_dht=using_dht)
+        self.follow_treasure_map(hrac, using_dht=using_dht)
+
+    def retrieve(self, hrac, message_kit, data_source):
+        treasure_map = self.treasure_maps[hrac]
+
+        # First, a quick sanity check to make sure we know about at least m nodes.
+        known_nodes_as_bytes = set([bytes(n) for n in self.known_nodes.keys()])
+        intersection = treasure_map.ids.intersection(known_nodes_as_bytes)
+
+        if len(intersection) < treasure_map.m:
+            raise RuntimeError("Not enough known nodes.  Try following the TreasureMap again.")
+
+        work_orders = self.generate_work_orders(hrac, message_kit.capsule)
+        for node_id in self.treasure_maps[hrac]:
+            node = self.known_nodes[UmbralPublicKey.from_bytes(node_id)]
+            cfrags = self.get_reencrypted_c_frags(self.network_middleware, work_orders[bytes(node.stamp)])
+            message_kit.capsule.attach_cfrag(cfrags[0])
+        verified, delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
+
+        if verified:
+            return delivered_cleartext
+        else:
+            raise RuntimeError("Not verified - replace this with real message.")
+
 
 class Ursula(Character, ProxyRESTServer):
     _server_class = NuCypherDHTServer
     _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def __init__(self, dht_port=None, dht_interface=None, dht_ttl=0,
-                 rest_address=None, rest_port=None, db_name=None,
+    def __init__(self, dht_port=None, ip_address=None, dht_ttl=0,
+                 rest_port=None, db_name=None,
                  *args, **kwargs):
         self.dht_port = dht_port
-        self.dht_interface = dht_interface
-        self.dht_ttl = 0
+        self.ip_address = ip_address
         self._work_orders = []
-        ProxyRESTServer.__init__(self, rest_address, rest_port, db_name)
+        ProxyRESTServer.__init__(self, rest_port, db_name)
         super().__init__(*args, **kwargs)
 
     @property
@@ -576,14 +607,12 @@ class Ursula(Character, ProxyRESTServer):
             return self._rest_app
 
     @classmethod
-    def as_discovered_on_network(cls, dht_port, dht_interface,
-                                 rest_address=None, rest_port=None,
-                                 powers_and_keys=()):
+    def as_discovered_on_network(cls, dht_port=None, ip_address=None,
+                                 rest_port=None, powers_and_keys=()):
         # TODO: We also need the encrypting public key here.
         ursula = cls.from_public_keys(powers_and_keys)
         ursula.dht_port = dht_port
-        ursula.dht_interface = dht_interface
-        ursula.rest_address = rest_address
+        ursula.ip_address = ip_address
         ursula.rest_port = rest_port
         return ursula
 
@@ -593,13 +622,13 @@ class Ursula(Character, ProxyRESTServer):
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 
-        key_splitter = RepeatingBytestringSplitter(
+        key_splitter = BytestringSplitter(
             (UmbralPublicKey, PUBLIC_KEY_LENGTH))
-        signing_key, encrypting_key = key_splitter(response.content)
+        signing_key, encrypting_key = key_splitter.repeat(response.content)
 
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: signing_key, EncryptingPower: encrypting_key},
-            rest_address=address,
+            ip_address=address,
             rest_port=port
         )
 
@@ -615,32 +644,25 @@ class Ursula(Character, ProxyRESTServer):
         super().attach_server(ksize, alpha, id, storage)
         self.attach_rest_server(db_name=self.db_name)
 
-    def listen(self):
-        return self.server.listen(self.dht_port, self.dht_interface)
+    def dht_listen(self):
+        return self.server.listen(self.dht_port, self.ip_address)
 
-    def dht_interface_info(self):
-        return self.dht_port, self.dht_interface, self.dht_ttl
+    def interface_information(self):
+        return msgpack.dumps((self.ip_address,
+                       self.dht_port,
+                       self.rest_port))
 
-    def interface_dht_key(self):
-        return bytes(self.stamp)
-        # return self.InterfaceDHTKey(self.stamp, self.interface_hrac())
-
-    def interface_dht_value(self):
-        signature = self.stamp(self.interface_hrac())
-        return (
-                constants.BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.stamp + self.interface_hrac()
-                + msgpack.dumps(self.dht_interface_info())
-        )
-
-    def interface_hrac(self):
-        return keccak_digest(msgpack.dumps(self.dht_interface_info()))
+    def interface_info_with_metadata(self):
+        interface_info = self.interface_information()
+        signature = self.stamp(keccak_digest(interface_info))
+        return constants.BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.stamp + interface_info
 
     def publish_dht_information(self):
         if not self.dht_port and self.dht_interface:
             raise RuntimeError("Must listen before publishing interface information.")
 
-        dht_key = self.interface_dht_key()
-        value = self.interface_dht_value()
+        dht_key = bytes(self.stamp)
+        value = self.interface_info_with_metadata()
         setter = self.server.set(key=dht_key, value=value)
         blockchain_client._ursulas_on_blockchain.append(dht_key)
         loop = asyncio.get_event_loop()
