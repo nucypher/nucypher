@@ -1,9 +1,7 @@
 import asyncio
 from contextlib import suppress
 from logging import getLogger
-
 import msgpack
-import requests
 from collections import OrderedDict
 from kademlia.network import Server
 from kademlia.utils import digest
@@ -11,6 +9,7 @@ from typing import Dict, ClassVar
 from typing import Union, List
 
 from bytestring_splitter import BytestringSplitter
+from nkms.network.node import NetworkyStuff
 from umbral.keys import UmbralPublicKey
 from constant_sorrow import constants, default_constant_splitter
 
@@ -22,7 +21,7 @@ from nkms.crypto.kits import UmbralMessageKit
 from nkms.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
 from nkms.crypto.signature import Signature, signature_splitter, SignatureStamp, StrangerStamp
 from nkms.network import blockchain_client
-from nkms.network.protocols import dht_value_splitter
+from nkms.network.protocols import dht_value_splitter, dht_with_hrac_splitter
 from nkms.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
 
 
@@ -38,7 +37,8 @@ class Character(object):
     address = "This is a fake address."  # TODO: #192
 
     def __init__(self, attach_server=True, crypto_power: CryptoPower=None,
-                 crypto_power_ups=None, is_me=True, config: "KMSConfig"=None) -> None:
+                 crypto_power_ups=None, is_me=True, network_middleware=None,
+                 config: "KMSConfig"=None) -> None:
         """
         :param attach_server:  Whether to attach a Server when this Character is
             born.
@@ -79,6 +79,7 @@ class Character(object):
             self._crypto_power = CryptoPower(self._default_crypto_powerups,
                                              generate_keys_if_needed=is_me)
         if is_me:
+            self.network_middleware = network_middleware or NetworkyStuff()
             try:
                 self._stamp = SignatureStamp(self._crypto_power.power_ups(SigningPower).keypair)
             except NoSigningPower:
@@ -87,6 +88,8 @@ class Character(object):
             if attach_server:
                 self.attach_server()
         else:
+            if network_middleware is not None:
+                raise TypeError("Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
             self._stamp = StrangerStamp(self._crypto_power.power_ups(SigningPower).keypair)
 
     def __eq__(self, other):
