@@ -16,7 +16,7 @@ class TheBlockchain(ABC):
     """
 
     _network = NotImplemented
-    _default_timeout = NotImplemented
+    _default_timeout = 120
     __instance = None
 
     test_chains = ('tester', )
@@ -35,7 +35,7 @@ class TheBlockchain(ABC):
         http://populus.readthedocs.io/en/latest/chain.wait.html
         """
 
-        # Singleton
+        # Singleton #
         if TheBlockchain.__instance is not None:
             message = '{} is already running on {}. Use .get() to retrieve'.format(self.__class__.__name__,
                                                                                    self._network)
@@ -77,6 +77,17 @@ class TesterBlockchain(TheBlockchain):
     """Transient, in-memory, local, private chain"""
 
     _network = 'tester'
+    __default_nodes = 9
+    __insecure_passphrase = 'this-is-not-a-secure-password'
+
+    def __init__(self, nodes: int=__default_nodes, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__node_addresses = list()
+        for _ in range(nodes):
+            address = self.provider.w3.personal.newAccount(self.__insecure_passphrase)
+            self.provider.w3.personal.unlockAccount(address, self.__insecure_passphrase)
+            self.__node_addresses.append(address)
+        self.__global_airdrop(amount=1000000)
 
     def wait_time(self, hours=None, seconds=None):
         """Wait the specified number of wait_hours by comparing block timestamps."""
@@ -105,28 +116,24 @@ class TesterBlockchain(TheBlockchain):
             miners.append(miner)
 
             if random_amount is True:
-                amount = (10 + random.randrange(9000)) * miner_agent._deployer._M
+                min_stake = miner_agent._min_allowed_locked    #TODO
+                max_stake = miner_agent._max_allowed_locked
+                amount = random.randint(min_stake, max_stake)
             else:
                 amount = miner.token_balance() // 2    # stake half
             miner.stake(amount=amount, locktime=locktime, auto_switch_lock=True)
 
         return miners
 
-    def _global_airdrop(self, token_agent, amount: int):
+    def __global_airdrop(self, amount: int) -> None:
         """Airdrops from creator address to all other addresses!"""
+        coinbase, *addresses = self.provider.w3.eth.accounts
 
-        _creator, *addresses = self.provider.w3.eth.accounts
-
-        def txs():
-            for address in addresses:
-                txhash = token_agent.transact({'from': token_agent.origin}).transfer(address, amount)
-                yield txhash
-
-        receipts = list()
-        for tx in txs():    # One at a time
-            receipt = self.wait_for_receipt(tx)
-            receipts.append(receipt)
-        return receipts
+        for address in addresses:
+            tx = {'to': address,
+                  'from': coinbase,
+                  'value': amount}
+            _txhash = self.provider.w3.eth.sendTransaction(tx)
 
 
 

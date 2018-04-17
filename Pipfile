@@ -34,6 +34,10 @@ appdirs = "*"
 codecov = "*"
 py-solc = "*"
 ipdb = "*"
+ethereum = "*"
+py-evm = "*"
+eth-tester = "==0.1.0b23"
+py-geth = "*"
 
 [pipenv]
 allow_prereleases = true

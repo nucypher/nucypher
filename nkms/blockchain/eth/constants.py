@@ -15,8 +15,8 @@ class NuCypherMinerConfig:
     _min_release_periods = 30    # 720 Hours minimum
     __max_minting_periods = 365  # Maximum number of periods
 
-    __min_allowed_locked = 15000 * NuCypherTokenConfig._M
-    __max_allowed_locked = int(4e6) * NuCypherTokenConfig._M
+    _min_allowed_locked = 15000 * NuCypherTokenConfig._M
+    _max_allowed_locked = int(4e6) * NuCypherTokenConfig._M
 
     _null_addr = '0x' + '0' * 40
     __remaining_supply = NuCypherTokenConfig._remaining_supply
@@ -27,8 +27,8 @@ class NuCypherMinerConfig:
         __max_minting_periods,
         __max_minting_periods,
         _min_release_periods,
-        __min_allowed_locked,
-        __max_allowed_locked
+        _min_allowed_locked,
+        _max_allowed_locked
     ]
 
     @property
