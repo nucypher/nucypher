@@ -1,33 +1,35 @@
-import glob
+import distutils
+import itertools
 import os
 
-from os.path import join, dirname, abspath
-from solc import compile_files
-from solc import install_solc
-
-from nkms.blockchain import eth
-from nkms.config.configs import _DEFAULT_CONFIGURATION_DIR
-from tests.blockchain.eth import contracts
+from os.path import abspath, dirname
+from solc import install_solc, compile_files
 
 
 class SolidityCompiler:
-    __default_version = 'v0.4.21'
-    __default_configuration_path = os.path.join(_DEFAULT_CONFIGURATION_DIR, 'compiler.json')
-    __default_sol_binary_path = os.path.join(os.environ['VIRTUAL_ENV'], 'bin', 'solc')   # TODO: Does not work with pytest w/o intervention
+    __default_version = 'v0.4.22'
+    __default_configuration_path = os.path.join(dirname(abspath(__file__)), './compiler.json')
 
-    def __init__(self, solc_binary_path=None, configuration_path=None):
-        solc_binary_path = solc_binary_path if solc_binary_path is not None else self.__default_sol_binary_path
-        configuration_path = configuration_path if configuration_path is not None else self.__default_configuration_path
+    __bin_path = os.path.dirname(distutils.spawn.find_executable('python'))
+    __default_sol_binary_path = os.path.join(__bin_path, 'solc')
 
-        self.__sol_binary_path = solc_binary_path
+    __default_contract_dir = os.path.join(dirname(abspath(__file__)), 'source', 'contracts')
+    __default_chain_name = 'tester'
+
+    def __init__(self, solc_binary_path=None, configuration_path=None,
+                 chain_name=None, contract_dir=None, test_contract_dir=None):
+
+        # Compiler binary and root solidity source code directory
+        self.__sol_binary_path = solc_binary_path if solc_binary_path is not None else self.__default_sol_binary_path
+        self._solidity_source_dir = contract_dir if contract_dir is not None else self.__default_contract_dir
+        self._test_solidity_source_dir = test_contract_dir
+
+        # JSON config
+        self.__configuration_path = configuration_path if configuration_path is not None else self.__default_configuration_path
+        self._chain_name = chain_name if chain_name is not None else self.__default_chain_name
+
+        # Set the local env's solidity compiler binary
         os.environ['SOLC_BINARY'] = self.__sol_binary_path
-
-        self.__configuration_path = configuration_path
-
-        self._contract_source_dirs = [  # TODO: Deprecate for standard compile
-            join(dirname(abspath(eth.__file__)), 'sol', 'source', 'contracts'),
-            join(os.path.dirname(os.path.abspath(contracts.__file__)), 'contracts')
-        ]
 
     def install_compiler(self, version=None):
         """
@@ -37,19 +39,36 @@ class SolidityCompiler:
         version = version if version is not None else self.__default_version
         return install_solc(version)  # TODO: fix path
 
-    @classmethod
-    def from_json_config(self):
-        pass
-
     def compile(self) -> dict:
-        """Executes the compiler"""
-        sol_contract_paths = list()
-        for source_dir in self._contract_source_dirs:
-            sol_contract_paths.extend(glob.iglob(source_dir + '/**/*.sol', recursive=True))
+        """Executes the compiler with parameters specified in the json config"""
 
-        remapping_dirs = ["contracts={}".format(self._contract_source_dirs[0])]
-        compiled_sol = compile_files(sol_contract_paths, import_remappings=remapping_dirs)
+        source_paths = set()
+        source_walker = os.walk(top=self._solidity_source_dir, topdown=True)
+        if self._test_solidity_source_dir:
+            test_source_walker = os.walk(top=self._test_solidity_source_dir, topdown=True)
+            source_walker = itertools.chain(source_walker, test_source_walker)
 
-        interfaces = {name.split(':')[-1]: compiled_sol[name] for name in compiled_sol}
+        for root, dirs, files in source_walker:
+            for filename in files:
+                if filename.endswith('.sol'):
+                    source_paths.add(os.path.join(root, filename))
 
+        # Compile with remappings
+        # https://github.com/ethereum/py-solc
+        project_root = dirname(self._solidity_source_dir)
+
+        remappings = ["contracts={}".format(self._solidity_source_dir),
+                      "zeppelin={}".format(os.path.join(project_root, 'zeppelin')),
+                      "proxy={}".format(os.path.join(project_root, 'proxy'))
+                      ]
+
+        compiled_interfaces = compile_files(source_files=source_paths,
+                                            import_remappings=remappings,
+                                            allow_paths=project_root,
+                                            )
+                                            # libraries="AdditionalMath:0x00000000000000000000 Heap:0xABCDEF0123456"
+                                            #           "LinkedList::0x00000000000000000000 Heap:0xABCDEF0123456")
+
+        # Cleanup the compiled data keys
+        interfaces = {name.split(':')[-1]: compiled_interfaces[name] for name in compiled_interfaces}
         return interfaces
