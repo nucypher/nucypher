@@ -5,7 +5,6 @@ from typing import ClassVar
 
 from apistar import http, Route, App
 from apistar.http import Response
-from bytestring_splitter import BytestringSplitter
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
@@ -13,12 +12,12 @@ from umbral import pre
 from umbral.fragments import KFrag
 
 from nkms.crypto.kits import UmbralMessageKit
-from nkms.crypto.powers import EncryptingPower, SigningPower, CryptoPower
+from nkms.crypto.powers import EncryptingPower, SigningPower
 from nkms.keystore.threading import ThreadedSession
 from nkms.network.capabilities import SeedOnly, ServerCapability
 from nkms.network.node import NuCypherNode
 from nkms.network.protocols import NuCypherSeedOnlyProtocol, NuCypherHashProtocol, \
-    dht_value_splitter
+    dht_value_splitter, dht_with_hrac_splitter
 from nkms.network.storage import SeedOnlyStorage
 
 
@@ -96,8 +95,7 @@ class NuCypherSeedOnlyDHTServer(NuCypherDHTServer):
 
 class ProxyRESTServer(object):
 
-    def __init__(self, rest_address, rest_port, db_name):
-        self.rest_address = rest_address
+    def __init__(self, rest_port, db_name):
         self.rest_port = rest_port
         self.db_name = db_name
         self._rest_app = None
@@ -117,6 +115,8 @@ class ProxyRESTServer(object):
                   self.reencrypt_via_rest),
             Route('/public_keys', 'GET',
                   self.get_signing_and_encrypting_public_keys),
+            Route('/list_nodes', 'GET',
+                  self.list_all_active_nodes_about_which_we_know),
             Route('/consider_arrangement',
                   'POST',
                   self.consider_arrangement),
@@ -145,14 +145,12 @@ class ProxyRESTServer(object):
         self.db_engine = engine
 
     def rest_url(self):
-        return "{}:{}".format(self.rest_address, self.rest_port)
+        return "{}:{}".format(self.ip_address, self.rest_port)
 
-    # """
+
+    #####################################
     # Actual REST Endpoints and utilities
-    # """
-    # def find_ursulas_by_ids(self, request: http.Request):
-    #
-    #
+    #####################################
 
     def get_signing_and_encrypting_public_keys(self):
         """
@@ -166,15 +164,21 @@ class ProxyRESTServer(object):
 
         return response
 
+    def list_all_active_nodes_about_which_we_know(self):
+        headers = {'Content-Type': 'application/octet-stream'}
+        ursulas_as_bytes = bytes().join(self.server.protocol.ursulas.values())
+        ursulas_as_bytes += self.interface_info_with_metadata()
+        signature = self.stamp(ursulas_as_bytes)
+        return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
+
     def consider_arrangement(self, request: http.Request):
         from nkms.policy.models import Arrangement
-        arrangement, deposit_as_bytes = BytestringSplitter(Arrangement)(request.body, return_remainder=True)
-        arrangement.deposit = deposit_as_bytes
+        arrangement = Arrangement.from_bytes(request.body)
 
         with ThreadedSession(self.db_engine) as session:
-            self.datastore.add_policy_arrangement(
+            new_policyarrangement = self.datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
-                arrangement.deposit,
+                bytes(arrangement.deposit),
                 hrac=arrangement.hrac.hex().encode(),
                 alice_pubkey_sig=arrangement.alice.stamp,
                 session=session,
@@ -183,6 +187,7 @@ class ProxyRESTServer(object):
         # to decide if this Arrangement is worth accepting.
 
         headers = {'Content-Type': 'application/octet-stream'}
+        # TODO: Make this a legit response #234.
         return Response(b"This will eventually be an actual acceptance of the arrangement.", headers=headers)
 
     def set_policy(self, hrac_as_hex, request: http.Request):
@@ -248,25 +253,31 @@ class ProxyRESTServer(object):
     def provide_treasure_map(self, treasure_map_id_as_hex):
         # For now, grab the TreasureMap for the DHT storage.  Soon, no do that.  #TODO!
         treasure_map_id = binascii.unhexlify(treasure_map_id_as_hex)
-        treasure_map_bytes = self.server.storage.get(digest(treasure_map_id))
         headers = {'Content-Type': 'application/octet-stream'}
 
-        return Response(content=treasure_map_bytes, headers=headers)
+        try:
+            treasure_map_bytes = self.server.storage[digest(treasure_map_id)]
+            response = Response(content=treasure_map_bytes, headers=headers)
+        except KeyError:
+            response = Response("No Treasure Map with ID {}".format(treasure_map_id),
+                                status_code=404, headers=headers)
+
+        return response
 
     def receive_treasure_map(self, treasure_map_id_as_hex, request: http.Request):
         # TODO: This function is the epitome of #172.
         treasure_map_id = binascii.unhexlify(treasure_map_id_as_hex)
 
         header, signature_for_ursula, pubkey_sig_alice, hrac, tmap_message_kit = \
-            dht_value_splitter(request.body, return_remainder=True)
+            dht_with_hrac_splitter(request.body, return_remainder=True)
         # TODO: This next line is possibly the worst in the entire codebase at the moment.  #172.
         # Also TODO: TTL?
         do_store = self.server.protocol.determine_legality_of_dht_key(
                     signature_for_ursula, pubkey_sig_alice, tmap_message_kit,
                     hrac, digest(treasure_map_id), request.body)
         if do_store:
-            # TODO: Stop storing things in the protocol storage.  Do this better.
-            # TODO: Propagate to other nodes.
+            # TODO: Stop storing things in the protocol storage.  Do this better.  #227
+            # TODO: Propagate to other nodes.  #235
             self.server.protocol.storage[digest(treasure_map_id)] = request.body
             return # TODO: Proper response here.
         else:

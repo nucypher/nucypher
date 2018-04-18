@@ -9,7 +9,7 @@ import os
 
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from hendrix.deploy.ssl import HendrixDeployTLS
+from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from nkms.characters import Ursula
 from OpenSSL.crypto import X509
@@ -19,14 +19,14 @@ from nkms.crypto.api import generate_self_signed_certificate
 
 DB_NAME = "non-mining-proxy-node"
 
-_URSULA = Ursula(dht_port=3501, dht_interface="localhost", db_name=DB_NAME)
-_URSULA.listen()
+_URSULA = Ursula(dht_port=3501, rest_port=3601, ip_address="localhost", db_name=DB_NAME)
+_URSULA.dht_listen()
 
 CURVE = ec.SECP256R1
 cert, private_key = generate_self_signed_certificate(_URSULA.stamp.fingerprint().decode(), CURVE)
 
 deployer = HendrixDeployTLS("start",
-                            {"wsgi":_URSULA.rest_app, "https_port": 3550},
+                            {"wsgi":_URSULA.rest_app, "https_port": _URSULA.rest_port},
                             key=private_key,
                             cert=X509.from_cryptography(cert),
                             context_factory=ExistingKeyTLSContextFactory,

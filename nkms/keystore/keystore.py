@@ -138,6 +138,9 @@ class KeyStore(object):
         
         policy_arrangement = session.query(PolicyArrangement).filter_by(hrac=hrac_as_hex.encode()).first()
 
+        if policy_arrangement is None:
+            raise NotFound("Can't attach a kfrag to non-existent Arrangement with hrac {}".format(hrac_as_hex))
+
         if policy_arrangement.alice_pubkey_sig.key_data != alice.stamp:
             raise alice.SuspiciousActivity
 

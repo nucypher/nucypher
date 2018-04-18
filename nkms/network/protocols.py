@@ -11,9 +11,8 @@ from nkms.network.node import NuCypherNode
 from nkms.network.routing import NuCypherRoutingTable
 from umbral.keys import UmbralPublicKey
 
-dht_value_splitter = default_constant_splitter + BytestringSplitter(Signature,
-                                        (UmbralPublicKey, PUBLIC_KEY_LENGTH),
-                                        (bytes, KECCAK_DIGEST_LENGTH))
+dht_value_splitter = default_constant_splitter + BytestringSplitter(Signature, (UmbralPublicKey, PUBLIC_KEY_LENGTH))
+dht_with_hrac_splitter = dht_value_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH))
 
 
 class NuCypherHashProtocol(KademliaProtocol):
@@ -21,6 +20,9 @@ class NuCypherHashProtocol(KademliaProtocol):
         super().__init__(sourceNode, storage, ksize, *args, **kwargs)
         self.router = NuCypherRoutingTable(self, ksize, sourceNode)
         self.illegal_keys_seen = []
+        # TODO: This is the wrong way to do this.  See #227.
+        self.treasure_maps = {}
+        self.ursulas = {}
 
     def check_node_for_storage(self, node):
         try:
@@ -75,9 +77,16 @@ class NuCypherHashProtocol(KademliaProtocol):
         self.log.debug("got a store request from %s" % str(sender))
 
         # TODO: Why is this logic here?  This is madness.  See #172.
-        if value.startswith(bytes(constants.BYTESTRING_IS_URSULA_IFACE_INFO)) or value.startswith(
-                bytes(constants.BYTESTRING_IS_TREASURE_MAP)):
-            header, signature, sender_pubkey_sig, hrac, message = dht_value_splitter(
+        if value.startswith(bytes(constants.BYTESTRING_IS_URSULA_IFACE_INFO)):
+            header, signature, sender_pubkey_sig, message = dht_value_splitter(
+                value, return_remainder=True)
+
+            # TODO: TTL?
+            hrac = keccak_digest(message)
+            do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig, message,
+                                                          hrac, key, value)
+        elif value.startswith(bytes(constants.BYTESTRING_IS_TREASURE_MAP)):
+            header, signature, sender_pubkey_sig, hrac, message = dht_with_hrac_splitter(
                 value, return_remainder=True)
 
             # TODO: TTL?
@@ -91,6 +100,10 @@ class NuCypherHashProtocol(KademliaProtocol):
         if do_store:
             self.log.info("Storing k/v: {} / {}".format(key, value))
             self.storage[key] = value
+            if value.startswith(bytes(constants.BYTESTRING_IS_URSULA_IFACE_INFO)):
+                self.ursulas[key] = value
+            if value.startswith(bytes(constants.BYTESTRING_IS_TREASURE_MAP)):
+                self.treasure_maps[key] = value
 
         return do_store
 
