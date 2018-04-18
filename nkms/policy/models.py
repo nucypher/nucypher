@@ -166,13 +166,6 @@ class Policy(object):
 
     def hrac(self):
         """
-        A convenience method for generating an hrac for this instance.
-        """
-        return self.hrac_for(self.alice, self.bob, self.uri)
-
-    @staticmethod
-    def hrac_for(alice, bob, uri):
-        """
         The "hashed resource authentication code".
 
         A hash of:
@@ -183,7 +176,7 @@ class Policy(object):
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
         """
-        return keccak_digest(bytes(alice.stamp) + bytes(bob.stamp) + uri)
+        return keccak_digest(bytes(self.public_key()) + bytes(self.bob.stamp) + self.uri)
 
     def treasure_map_dht_key(self):
         """
