@@ -15,14 +15,16 @@ class EthereumContractAgent(ABC):
     """
 
     _principal_contract_name = NotImplemented
+    __contract_address = NotImplemented
 
     class ContractNotDeployed(ContractDeployer.ContractDeploymentError):
         pass
 
     def __init__(self, blockchain, *args, **kwargs):
-
         self.blockchain = blockchain
-        self._contract = blockchain.provider.get_contract(self._principal_contract_name)
+
+        address = blockchain.provider.get_contract_address(contract_name=self._principal_contract_name)[-1]  # TODO
+        self._contract = blockchain.provider.get_contract(address)
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -42,7 +44,7 @@ class EthereumContractAgent(ABC):
 
     @property
     def origin(self) -> str:
-        return self.blockchain.provider.web3.eth.accounts[0]    # TODO: make swappable
+        return self.blockchain.provider.w3.eth.coinbase    # TODO: make swappable
 
     def read(self):
         """
@@ -72,11 +74,6 @@ class NuCypherKMSTokenAgent(EthereumContractAgent):
 
     _deployer = NuCypherKMSTokenDeployer
     _principal_contract_name = NuCypherKMSTokenDeployer._contract_name
-
-    def registrar(self):
-        """Retrieve all known addresses for this contract"""
-        all_known_address = self.blockchain._chain.registrar.get_contract_address(self._principal_contract_name)
-        return all_known_address
 
 
 class MinerAgent(EthereumContractAgent):

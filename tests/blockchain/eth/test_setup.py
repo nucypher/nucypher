@@ -1,6 +1,3 @@
-from os.path import join, dirname, abspath
-
-import nkms
 from nkms.blockchain.eth.deployers import NuCypherKMSTokenDeployer
 
 
@@ -9,7 +6,7 @@ def test_chain_creation(chain):
     assert chain._network == 'tester'
 
     # ... and that there are already some blocks mined
-    assert chain.provider.web3.eth.blockNumber >= 0
+    assert chain.provider.w3.eth.blockNumber >= 0
 
 
 def test_nucypher_contract_compiled(chain):
@@ -17,4 +14,4 @@ def test_nucypher_contract_compiled(chain):
 
     # Ensure that solidity smart contacts are available, post-compile.
     token_contract_identifier = NuCypherKMSTokenDeployer(blockchain=chain)._contract_name
-    assert token_contract_identifier in chain.provider._Provider__contract_cache
+    assert token_contract_identifier in chain.provider._ContractProvider__raw_contract_cache

@@ -98,9 +98,9 @@ class ContractDeployer:
     def _wrap_government(self, dispatcher_contract: Contract, target_contract: Contract) -> Contract:
 
         # Wrap the contract
-        wrapped_contract = self.blockchain.provider.web3.eth.contract(target_contract.abi,
-                                                                             dispatcher_contract.address,
-                                                                             ContractFactoryClass=Contract)
+        wrapped_contract = self.blockchain.provider.w3.eth.contract(abi=target_contract.abi,
+                                                                    address=dispatcher_contract.address,
+                                                                    ContractFactoryClass=Contract)
         return wrapped_contract
 
     def arm(self, fail_on_abort=True) -> None:
@@ -156,7 +156,7 @@ class NuCypherKMSTokenDeployer(ContractDeployer, NuCypherTokenConfig):
 
     def __init__(self, blockchain):
         super().__init__(blockchain=blockchain)
-        self._creator = self.blockchain.provider.web3.eth.accounts[0]    # TODO: make swappable
+        self._creator = self.blockchain.provider.w3.eth.accounts[0]    # TODO: make swappable
 
     def deploy(self) -> str:
         """

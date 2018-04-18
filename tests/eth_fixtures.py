@@ -1,15 +1,24 @@
 import os
-import pytest
 import tempfile
 
+import pytest
+from eth_tester import EthereumTester, PyEVMBackend
+from web3 import EthereumTesterProvider
 from web3.contract import Contract
 
 from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
 from nkms.blockchain.eth.agents import PolicyAgent
 from nkms.blockchain.eth.chains import TheBlockchain, TesterBlockchain
 from nkms.blockchain.eth.deployers import PolicyManagerDeployer, NuCypherKMSTokenDeployer
+from nkms.blockchain.eth.interfaces import Registrar, ContractProvider
+from nkms.blockchain.eth.sol.compile import SolidityCompiler
 from nkms.blockchain.eth.utilities import MockMinerEscrowDeployer
-from nkms.blockchain.eth.interfaces import Registrar, Provider
+
+
+@pytest.fixture(scope='session')
+def sol_compiler():
+    compiler = SolidityCompiler()
+    yield compiler
 
 
 @pytest.fixture(scope='module')
@@ -21,24 +30,37 @@ def tester_registrar():
 
 
 @pytest.fixture(scope='module')
-def tester_provider(tester_registrar):
-    tester_provider = Provider(registrar=tester_registrar)
+def tester_provider(tester_registrar, sol_compiler):
+    """
+    Provider backend
+    https: // github.com / ethereum / eth - tester     # available-backends
+    """
+    eth_tester = EthereumTester(backend=PyEVMBackend())
+    test_provider = EthereumTesterProvider(ethereum_tester=eth_tester)  # , api_endpoints=None)
+
+    tester_provider = ContractProvider(provider_backend=test_provider,
+                                       registrar=tester_registrar,
+                                       sol_compiler=sol_compiler)
     yield tester_provider
 
 
 @pytest.fixture(scope='module')
-def chain(tester_provider):
+def web3(tester_provider):
+    yield tester_provider.w3
 
-    chain = TesterBlockchain(provider=tester_provider)
+
+@pytest.fixture(scope='module')
+def chain(tester_provider):
+    chain = TesterBlockchain(contract_provider=tester_provider)
     yield chain
 
     del chain
     TheBlockchain._TheBlockchain__instance = None
 
 
-@pytest.fixture(scope='module')
-def web3(chain):
-    yield chain.provider.web3
+#
+# API #
+#
 
 
 @pytest.fixture()

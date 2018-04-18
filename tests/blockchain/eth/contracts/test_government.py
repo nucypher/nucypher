@@ -17,7 +17,6 @@ ROLLBACK_ESCROW = 4
 ROLLBACK_POLICY_MANAGER = 5
 
 
-
 @pytest.fixture()
 def escrow(web3, chain):
     creator = web3.eth.accounts[0]
@@ -29,7 +28,8 @@ def escrow(web3, chain):
     escrow_library, _ = chain.provider.get_or_deploy_contract(
         'MinersEscrowV1Mock', [node1, node2, node3], [1, 2, 3]
     )
-    escrow_dispatcher, _ = chain.provider.deploy_contract(
+
+    escrow_dispatcher, _ = chain.provider.get_or_deploy_contract(
         'Dispatcher', escrow_library.address
     )
     escrow = web3.eth.contract(
@@ -228,7 +228,7 @@ def test_voting(web3, chain, escrow, policy_manager):
     assert 1 == len(events)
 
 
-def test_upgrade(web3, chain, escrow, policy_manager, token):
+def test_upgrade(web3, chain, escrow, policy_manager):
     creator = web3.eth.accounts[0]
     node1 = web3.eth.accounts[1]
 
@@ -255,12 +255,12 @@ def test_upgrade(web3, chain, escrow, policy_manager, token):
     )
     # Deploy second version of the escrow contract
     escrow_library_v2, _ = chain.provider.deploy_contract(
-        'MinersEscrowV2Mock', token.address, 1, int(8e7), 4, 4, 2, 100, 1500, 2
+        'MinersEscrowV1Mock', [node1], [1]
     )
     # Get first version of the policy manager contract
-    policy_manager_library_v1 = chain.provider.get_or_contract('PolicyManagerV1Mock')
+    policy_manager_library_v1, _ = chain.provider.get_or_deploy_contract('PolicyManagerV1Mock')
     # Deploy second version of the policy manager contract
-    policy_manager_library_v2, _ = chain.provider.deploy_contract('PolicyMangerV2Mock')
+    policy_manager_library_v2, _ = chain.provider.deploy_contract('PolicyManagerV1Mock')
 
     voting_created_log = government.eventFilter('VotingCreated')
     upgrade_committed_log = government.eventFilter('UpgradeCommitted')
@@ -367,6 +367,7 @@ def test_upgrade(web3, chain, escrow, policy_manager, token):
     chain.wait_time(1)
     tx = government.transact({'from': node1}).commitUpgrade()
     chain.wait_for_receipt(tx)
+
     assert escrow_library_v1.address == escrow.call().target()
 
     events = upgrade_committed_log.get_all_entries()
