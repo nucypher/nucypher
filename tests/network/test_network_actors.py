@@ -84,7 +84,7 @@ def test_alice_creates_policy_group_with_correct_hrac(idle_policy):
     bob = idle_policy.bob
 
     assert idle_policy.hrac() == keccak_digest(
-        bytes(alice.stamp) + bytes(bob.stamp) + alice.__resource_id)
+        bytes(idle_policy.public_key()) + bytes(bob.stamp) + alice.__resource_id)
 
 
 def test_alice_sets_treasure_map_on_network(enacted_policy, ursulas):
@@ -154,13 +154,13 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy, ursula
 
     # If Bob doesn't know about any Ursulas, he can't find the TreasureMap via the REST swarm:
     with pytest.raises(bob.NotEnoughUrsulas):
-        treasure_map_from_wire = bob.get_treasure_map(enacted_policy.alice, enacted_policy.hrac())
+        treasure_map_from_wire = bob.get_treasure_map(enacted_policy.alice.stamp, enacted_policy.hrac())
 
     # Let's imagine he has learned about some - say, from the blockchain.
     bob.known_nodes = {u.interface_info_with_metadata(): u for u in ursulas}
 
     # Now try.
-    treasure_map_from_wire = bob.get_treasure_map(enacted_policy.alice, enacted_policy.hrac())
+    treasure_map_from_wire = bob.get_treasure_map(enacted_policy.alice.stamp, enacted_policy.hrac())
 
     assert enacted_policy.treasure_map == treasure_map_from_wire
 

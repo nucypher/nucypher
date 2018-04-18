@@ -1,5 +1,4 @@
 import inspect
-
 from nkms.keystore import keypairs
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey
@@ -75,10 +74,16 @@ class KeyPairBasedPower(CryptoPowerUp):
         elif keypair:
             self.keypair = keypair
         else:
-            # They didn't pass a keypair; we'll make one with the bytes (if any)
-            # they provided.
+            # They didn't pass a keypair; we'll make one with the bytes or
+            # UmbralPublicKey if they provided such a thing.
             if pubkey:
-                key_to_pass_to_keypair = pubkey
+                try:
+                    key_to_pass_to_keypair = pubkey.as_umbral_pubkey()
+                except AttributeError:
+                    try:
+                        key_to_pass_to_keypair = UmbralPublicKey.from_bytes(pubkey)
+                    except TypeError:
+                        key_to_pass_to_keypair = pubkey
             else:
                 # They didn't even pass pubkey_bytes.  We'll generate a keypair.
                 key_to_pass_to_keypair = UmbralPrivateKey.gen_key()
