@@ -1,11 +1,12 @@
 import os
-import shutil
 import tempfile
+from os.path import abspath, dirname
 
 import pytest
+import shutil
 from eth_tester import EthereumTester, PyEVMBackend
 from geth import DevGethProcess
-from web3 import EthereumTesterProvider, IPCProvider, Web3
+from web3 import EthereumTesterProvider, IPCProvider
 
 from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
 from nkms.blockchain.eth.agents import PolicyAgent
@@ -14,11 +15,13 @@ from nkms.blockchain.eth.deployers import PolicyManagerDeployer, NuCypherKMSToke
 from nkms.blockchain.eth.interfaces import Registrar, ContractProvider
 from nkms.blockchain.eth.sol.compile import SolidityCompiler
 from nkms.blockchain.eth.utilities import MockMinerEscrowDeployer
+from tests.blockchain.eth import contracts
 
 
 @pytest.fixture(scope='session')
 def solidity_compiler():
-    compiler = SolidityCompiler()
+    test_contracts_dir = os.path.join(dirname(abspath(contracts.__file__)), 'contracts')
+    compiler = SolidityCompiler(test_contract_dir=test_contracts_dir)
     yield compiler
 
 
@@ -113,8 +116,8 @@ def mock_miner_escrow_deployer(token_agent):
 
 
 @pytest.fixture()
-def mock_policy_manager_deployer(mock_token_deployer):
-    policy_manager_deployer = PolicyManagerDeployer(token_deployer=mock_token_deployer)
+def mock_policy_manager_deployer(mock_miner_escrow_deployer):
+    policy_manager_deployer = PolicyManagerDeployer(miner_escrow_deployer=mock_token_deployer)
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
     yield policy_manager_deployer
