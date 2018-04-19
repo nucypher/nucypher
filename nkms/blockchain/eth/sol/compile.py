@@ -1,3 +1,4 @@
+import distutils
 import itertools
 import os
 
@@ -6,10 +7,12 @@ from solc import install_solc, compile_files
 
 
 class SolidityCompiler:
-    __default_version = 'v0.4.21'  # TODO: Update to 4.22
+    __default_version = 'v0.4.22'
     __default_configuration_path = os.path.join(dirname(abspath(__file__)), './compiler.json')
 
-    __default_sol_binary_path = os.path.join(os.environ['VIRTUAL_ENV'], 'bin', 'solc')  # TODO: Does not work with pytest w/o intervention
+    __bin_path = os.path.dirname(distutils.spawn.find_executable('python'))
+    __default_sol_binary_path = os.path.join(__bin_path, 'solc')
+
     __default_contract_dir = os.path.join(dirname(abspath(__file__)), 'source', 'contracts')
     __default_chain_name = 'tester'
 
@@ -52,10 +55,19 @@ class SolidityCompiler:
 
         # Compile with remappings
         # https://github.com/ethereum/py-solc
-        remappings = ["contracts={}".format(self._solidity_source_dir)]
+        project_root = dirname(self._solidity_source_dir)
+
+        remappings = ["contracts={}".format(self._solidity_source_dir),
+                      "zeppelin={}".format(os.path.join(project_root, 'zeppelin')),
+                      "proxy={}".format(os.path.join(project_root, 'proxy'))
+                      ]
+
         compiled_sol = compile_files(source_files=source_paths,
                                      import_remappings=remappings,
+                                     allow_paths=project_root,
                                      optimize=True)
+                                     # libraries="AdditionalMath:0x00000000000000000000 Heap:0xABCDEF0123456"
+                                     #           "LinkedList::0x00000000000000000000 Heap:0xABCDEF0123456")
 
         # Cleanup the compiled data keys
         interfaces = {name.split(':')[-1]: compiled_sol[name] for name in compiled_sol}
