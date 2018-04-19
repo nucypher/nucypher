@@ -6,6 +6,7 @@ import "./zeppelin/ownership/Ownable.sol";
 import "./zeppelin/math/SafeMath.sol";
 import "./NuCypherKMSToken.sol";
 import "./MinersEscrow.sol";
+import "./PolicyManager.sol";
 
 
 /**
