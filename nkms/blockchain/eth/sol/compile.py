@@ -48,7 +48,7 @@ class SolidityCompiler:
             sol_contract_paths.extend(glob.iglob(source_dir + '/**/*.sol', recursive=True))
 
         remapping_dirs = ["contracts={}".format(self._contract_source_dirs[0])]
-        compiled_sol = compile_files(sol_contract_paths, import_remappings=remapping_dirs)
+        compiled_sol = compile_files(sol_contract_paths, import_remappings=remapping_dirs, optimize=True)
 
         interfaces = {name.split(':')[-1]: compiled_sol[name] for name in compiled_sol}
 
