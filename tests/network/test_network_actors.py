@@ -84,7 +84,7 @@ def test_alice_creates_policy_group_with_correct_hrac(idle_policy):
     bob = idle_policy.bob
 
     assert idle_policy.hrac() == keccak_digest(
-        bytes(idle_policy.public_key()) + bytes(bob.stamp) + alice.__resource_id)
+        bytes(alice.stamp) + bytes(bob.stamp) + alice.__resource_id)
 
 
 def test_alice_sets_treasure_map_on_network(enacted_policy, ursulas):

@@ -8,7 +8,6 @@ from umbral import pre
 from umbral.config import default_curve
 from nkms.crypto.kits import MessageKit
 from nkms.crypto.signature import Signature
-from typing import List
 
 
 class Keypair(object):
@@ -79,20 +78,6 @@ class EncryptingKeypair(Keypair):
                                 alice_pub_key=message_kit.policy_pubkey)
 
         return cleartext
-
-    def generate_kfrags(self, bob_pubkey_enc, m, n) -> List:
-        """
-        Generates re-encryption key frags ("KFrags") and returns them.
-
-        These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
-        that he can activate the Capsule.
-        :param bob_pubkey_enc: Bob's public key
-        :param m: Minimum number of KFrags needed to rebuild ciphertext
-        :param n: Total number of rekey shares to generate
-        """
-        alice_priv_enc = self._privkey
-        kfrags = pre.split_rekey(alice_priv_enc, bob_pubkey_enc, m, n)
-        return kfrags
 
 
 class SigningKeypair(Keypair):

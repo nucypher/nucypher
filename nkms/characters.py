@@ -73,11 +73,9 @@ class Character(object):
         if crypto_power:
             self._crypto_power = crypto_power
         elif crypto_power_ups:
-            self._crypto_power = CryptoPower(power_ups=crypto_power_ups,
-                                             generate_keys_if_needed=is_me)
+            self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
         else:
-            self._crypto_power = CryptoPower(self._default_crypto_powerups,
-                                             generate_keys_if_needed=is_me)
+            self._crypto_power = CryptoPower(self._default_crypto_powerups)
         if is_me:
             self.network_middleware = network_middleware or NetworkyStuff()
             try:
@@ -326,7 +324,7 @@ class Alice(Character, PolicyAuthor):
         super().__init__(*args, **kwargs)
         PolicyAuthor.__init__(self, self.address, policy_agent=FakePolicyAgent())
 
-    def generate_kfrags(self, bob, m, n) -> List:
+    def generate_kfrags(self, bob, label, m, n) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
 
@@ -337,20 +335,21 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
         bob_pubkey_enc = bob.public_key(EncryptingPower)
-        return self._crypto_power.power_ups(DelegatingPower).generate_kfrags(bob_pubkey_enc, m, n)
+        return self._crypto_power.power_ups(DelegatingPower).generate_kfrags(bob_pubkey_enc, label, m, n)
 
-    def create_policy(self, bob: "Bob", uri: bytes, m: int, n: int):
+    def create_policy(self, bob: "Bob", label: bytes, m: int, n: int):
         """
         Create a Policy to share uri with bob.
         Generates KFrags and attaches them.
         """
-        kfrags = self.generate_kfrags(bob, m, n)
+        public_key, kfrags = self.generate_kfrags(bob, label, m, n)
         from nkms.policy.models import Policy
         policy = Policy.from_alice(
             alice=self,
+            label=label,
             bob=bob,
             kfrags=kfrags,
-            uri=uri,
+            public_key=public_key,
             m=m,
         )
 
@@ -558,18 +557,16 @@ class Bob(Character):
     def get_ursula(self, ursula_id):
         return self._ursulas[ursula_id]
 
-    def join_policy(self, policy_pubkey, label, alice_pubkey_sig=None,
+    def join_policy(self, label, alice_pubkey_sig,
                     using_dht=False, node_list=None, verify_sig=True):
-        if verify_sig and not alice_pubkey_sig:
-            raise ValueError("Can't verify the signature without Alice's key.")
-        hrac = keccak_digest(bytes(policy_pubkey) + bytes(self.stamp) + label)
+        hrac = keccak_digest(bytes(alice_pubkey_sig) + bytes(self.stamp) + label)
         if node_list:
             self.network_bootstrap(node_list)
         self.get_treasure_map(alice_pubkey_sig, hrac, using_dht=using_dht, verify_sig=verify_sig)
         self.follow_treasure_map(hrac, using_dht=using_dht)
 
-    def retrieve(self, message_kit, data_source):
-        hrac = keccak_digest(bytes(data_source.policy_pubkey) + self.stamp + data_source.label)
+    def retrieve(self, message_kit, data_source, alice_pubkey_sig):
+        hrac = keccak_digest(bytes(alice_pubkey_sig) + self.stamp + data_source.label)
         treasure_map = self.treasure_maps[hrac]
 
         # First, a quick sanity check to make sure we know about at least m nodes.
