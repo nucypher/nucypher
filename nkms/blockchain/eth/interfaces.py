@@ -157,14 +157,14 @@ class ContractProvider:
 
     def __init__(self, provider_backend,
                  registrar: Registrar,
-                 deployer_address:str =None,
+                 deployer_address: str=None,
                  sol_compiler: SolidityCompiler=None):
 
         self.__provider_backend = provider_backend
         self.w3 = Web3(self.__provider_backend)
 
         if deployer_address is None:
-            deployer_address = self.w3.eth.coinbase
+            deployer_address = self.w3.eth.coinbase  # coinbase # etherbase
         self.deployer_address = deployer_address
 
         if sol_compiler is not None:

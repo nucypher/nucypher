@@ -9,9 +9,7 @@ from nkms.blockchain.eth.agents import MinerAgent
 
 def test_miner_locking_tokens(chain, mock_token_deployer, mock_miner_agent):
 
-    mock_token_deployer._global_airdrop(amount=10000)    # weeee
-
-    miner = Miner(miner_agent=mock_miner_agent, address=chain._chain.w3.eth.accounts[1])
+    miner = Miner(miner_agent=mock_miner_agent, address=chain.provider.w3.eth.accounts[1])
 
     an_amount_of_tokens = 1000 * mock_token_deployer._M
     miner.stake(amount=an_amount_of_tokens, locktime=mock_miner_agent._deployer._min_release_periods, auto_switch_lock=False)
@@ -39,9 +37,7 @@ def test_mine_then_withdraw_tokens(chain, mock_token_deployer, token_agent, mock
     - Miner (Ursula) mints new tokens
     """
 
-    mock_token_deployer._global_airdrop(amount=10000)
-
-    _origin, *everybody = chain._chain.w3.eth.accounts
+    _origin, *everybody = chain.provider.w3.eth.accounts
 
     ursula_address, *everyone_else = everybody
 
@@ -98,10 +94,9 @@ def test_mine_then_withdraw_tokens(chain, mock_token_deployer, token_agent, mock
     assert final_balance > initial_balance
 
 
-def test_sample_miners(chain, mock_token_deployer, mock_miner_agent):
-    mock_token_deployer._global_airdrop(amount=10000)
+def test_sample_miners(chain, mock_miner_agent):
 
-    _origin, *everyone_else = chain._chain.w3.eth.accounts[1:]
+    _origin, *everyone_else = chain.provider.w3.eth.accounts[1:]
 
     chain.spawn_miners(addresses=everyone_else, locktime=100,
                               miner_agent=mock_miner_agent, m=mock_miner_agent.token_agent._deployer._M)
@@ -116,10 +111,9 @@ def test_sample_miners(chain, mock_token_deployer, mock_miner_agent):
     assert len(set(miners)) == 3
 
 
-def test_publish_miner_datastore(chain, mock_token_deployer, mock_miner_agent):
-    mock_token_deployer._global_airdrop(amount=10000)    # weeee
+def test_publish_miner_datastore(chain, mock_miner_agent):
 
-    miner_addr = chain._chain.w3.eth.accounts[1]
+    miner_addr = chain.provider.w3.eth.accounts[1]
 
     miner = Miner(miner_agent=mock_miner_agent, address=miner_addr)
 
