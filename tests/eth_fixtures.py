@@ -37,32 +37,85 @@ def registrar():
 def geth_ipc_provider(registrar, solidity_compiler):
     """
     Provider backend
-    https: // github.com / ethereum / eth - tester     # available-backends
+    https:// github.com/ethereum/eth-tester
     """
-    #
-    # spin-up geth
-    #
-    testing_dir = tempfile.mkdtemp()
-    chain_name = 'nkms_tester'
-    geth = DevGethProcess(chain_name=chain_name, base_dir=testing_dir)
-    geth.start()
 
-    geth.wait_for_ipc(timeout=2)
-    assert geth.is_running
-    assert geth.is_alive
-
-    ipc_provider = IPCProvider(os.path.join(testing_dir, chain_name, 'geth.ipc'))
+    ipc_provider = IPCProvider(ipc_path=os.path.join('/tmp/geth.ipc'))
     tester_provider = ContractProvider(provider_backend=ipc_provider,
                                        registrar=registrar,
                                        sol_compiler=solidity_compiler)
 
+    tester_provider.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+
+    # Generate 9 additional unlocked accounts with 1M ether each
+    insecure_passphrase = 'this-is-not-a-secure-password'
+    for _ in range(9):
+        address = tester_provider.w3.personal.newAccount(insecure_passphrase)
+        tester_provider.w3.personal.unlockAccount(address=address, passphrase=insecure_passphrase)
+
+        tx = {'to': address,
+              'from': tester_provider.w3.eth.coinbase,
+              'value': 1000000}
+        _txhash = tester_provider.w3.eth.sendTransaction(tx)
+
     yield tester_provider
+
+
+@pytest.fixture(scope='module')
+def auto_geth_ipc_provider(registrar, solidity_compiler):
+    """
+    Provider backend
+    https: // github.com / ethereum / eth - tester     # available-backends
+    """
+
+    #
+    # spin-up geth
+    #
+
+    testing_dir = tempfile.mkdtemp()
+    chain_name = 'nkms_tester'
+
+    class NKMSGeth(LoggingMixin, DevGethProcess):
+        pass
+
+    geth = DevGethProcess(chain_name=chain_name, base_dir=testing_dir)
+    geth.start()
+
+    geth.wait_for_ipc(timeout=30)
+    geth.wait_for_dag(timeout=120)
+    assert geth.is_dag_generated
+    assert geth.is_running
+    assert geth.is_alive
+
+    ipc_provider = IPCProvider(ipc_path=os.path.join(testing_dir, chain_name, 'geth.ipc'))
+    tester_provider = ContractProvider(provider_backend=ipc_provider,
+                                       registrar=registrar,
+                                       sol_compiler=solidity_compiler)
+
+    tester_provider.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+
+    # Generate 9 additional unlocked accounts with 1M ether each
+    insecure_passphrase = 'this-is-not-a-secure-password'
+    for _ in range(9):
+        address = tester_provider.w3.personal.newAccount(insecure_passphrase)
+        tester_provider.w3.personal.unlockAccount(address, insecure_passphrase)
+
+        tx = {'to': address,
+              'from': tester_provider.w3.eth.coinbase,
+              'value': 1000000}
+
+        _txhash = tester_provider.w3.eth.sendTransaction(tx)
+
+    assert len(geth.accounts) == 10
+    yield tester_provider
+
     #
     # Teardown
     #
     geth.stop()
-    shutil.rmtree(testing_dir)
     assert geth.is_stopped
+    assert not geth.is_alive
+    shutil.rmtree(testing_dir)
 
 
 @pytest.fixture(scope='module')
