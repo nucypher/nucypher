@@ -1,0 +1,6 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "Issuer.sol": {"urls": ["Issuer.sol"]}
+  }
+}
