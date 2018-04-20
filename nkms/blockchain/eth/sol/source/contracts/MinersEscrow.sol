@@ -1,11 +1,10 @@
 pragma solidity ^0.4.18;
 
 
-import "./zeppelin/token/ERC20/SafeERC20.sol";
-import "./zeppelin/math/Math.sol";
+import "zeppelin/token/ERC20/SafeERC20.sol";
+import "zeppelin/math/Math.sol";
 import "./lib/AdditionalMath.sol";
-import "./Issuer.sol";
-import "./PolicyManager.sol";
+import "contracts/Issuer.sol";
 
 /**
 * @notice PolicyManager interface
@@ -17,7 +16,7 @@ contract PolicyManagerInterface {
 
 
 /**
-* @notice Contract holds and locks nodes tokens.
+* @notice Contract holds and locks nodes tokens.self._solidity_source_dir
 Each node that lock its tokens will receive some compensation
 **/
 contract MinersEscrow is Issuer {
@@ -87,7 +86,7 @@ contract MinersEscrow is Issuer {
     uint256 public minReleasePeriods;
     uint256 public minAllowableLockedTokens;
     uint256 public maxAllowableLockedTokens;
-    PolicyManager public policyManager;
+    PolicyManagerInterface public policyManager;
 
     /**
     * @notice Constructor sets address of token contract and coefficients for mining
@@ -478,7 +477,7 @@ contract MinersEscrow is Issuer {
     * @param _startIndex Starting point
     * @param _delta How much to step
     * @param _periods Amount of periods to get locked tokens
-    * @dev
+    *
              _startIndex
                 v
       |-------->*--------------->*---->*------------->|
@@ -537,7 +536,7 @@ contract MinersEscrow is Issuer {
     /**
     * @notice Set policy manager address
     **/
-    function setPolicyManager(PolicyManager _policyManager) external onlyOwner {
+    function setPolicyManager(PolicyManagerInterface _policyManager) external onlyOwner {
         require(address(policyManager) == 0x0 &&
             _policyManager.escrow() == address(this));
         policyManager = _policyManager;

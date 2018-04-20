@@ -1,7 +1,7 @@
 pragma solidity ^0.4.18;
 
 
-import "contracts/proxy/Government.sol";
+import "proxy/Government.sol";
 
 
 /**

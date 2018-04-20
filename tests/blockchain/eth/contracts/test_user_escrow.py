@@ -6,7 +6,7 @@ from eth_tester.exceptions import TransactionFailed
 def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
-    token, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', int(2e9))
+    token, _ = chain.provider.deploy_contract('NuCypherKMSToken', int(2e9))
     return token
 
 
@@ -14,7 +14,7 @@ def token(web3, chain):
 def escrow(web3, chain, token):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
-    contract, _ = chain.provider.get_or_deploy_contract('MinersEscrowForUserEscrowMock', token.address)
+    contract, _ = chain.provider.deploy_contract('MinersEscrowForUserEscrowMock', token.address)
 
     # Give escrow some coins
     tx = token.transact({'from': creator}).transfer(contract.address, 10000)
@@ -35,7 +35,7 @@ def user_escrow(web3, chain, token, escrow, policy_manager):
     user = web3.eth.accounts[1]
 
     # Creator deploys the user escrow
-    contract, _ = chain.provider.get_or_deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address)
+    contract, _ = chain.provider.deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address)
 
     # Transfer ownership
     tx = contract.transact({'from': creator}).transferOwnership(user)

@@ -141,12 +141,12 @@ class Registrar:
         If no contract is found, it will raise NoKnownContract.
         """
         chain_data = self.dump_chain()
-        try:
-            contract_data = chain_data[address]
-        except KeyError:
-            raise self.UnknownContract('No known contract with address {}'.format(address))
-        else:
-            return contract_data
+        if address in chain_data:
+            return chain_data[address]
+        for contract_identifier, contract_data in chain_data.items():
+            if contract_data['name'] == address:
+                return contract_data
+        raise self.UnknownContract('No known contract with address {}'.format(address))
 
 
 class ContractProvider:
@@ -188,7 +188,7 @@ class ContractProvider:
     def get_contract(self, address: str) -> Contract:
         """Instantiate a deployed contract from registrar data"""
         contract_data = self.__registrar.dump_contract(address=address)
-        contract = self.w3.eth.contract(abi=contract_data['abi'], address=address)
+        contract = self.w3.eth.contract(abi=contract_data['abi'], address=contract_data['addr'])
         return contract
 
     def get_contract_factory(self, contract_name):
@@ -220,6 +220,8 @@ class ContractProvider:
 
         deploy_transaction = {'from': self.deployer_address, 'gas': 2_400_000}
         deploy_bytecode = contract_factory.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
+        if len(deploy_bytecode['data']) > 1000:
+            print("!!! " + contract_name + " : " + str(len(deploy_bytecode['data'])))
 
         txhash = self.w3.eth.sendTransaction(deploy_bytecode)  # deploy!
         receipt = self.w3.eth.waitForTransactionReceipt(txhash)

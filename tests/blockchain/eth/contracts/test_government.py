@@ -233,7 +233,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     node1 = web3.eth.accounts[1]
 
     # Deploy contract
-    government_library_v1, _ = chain.provider.get_or_deploy_contract(
+    government_library_v1, _ = chain.provider.deploy_contract(
         'Government', escrow.address, policy_manager.address, 1,
     )
     government_dispatcher, _ = chain.provider.deploy_contract(
@@ -250,15 +250,15 @@ def test_upgrade(web3, chain, escrow, policy_manager):
         'Government', escrow.address, policy_manager.address, 1,
     )
     # Get first version of the escrow contract
-    escrow_library_v1, _ = chain.provider.get_or_deploy_contract(
-        'MinersEscrowV1Mock', [node1], [1]
+    escrow_library_v1 = chain.provider.get_contract(
+        'MinersEscrowV1Mock'
     )
     # Deploy second version of the escrow contract
     escrow_library_v2, _ = chain.provider.deploy_contract(
         'MinersEscrowV1Mock', [node1], [1]
     )
     # Get first version of the policy manager contract
-    policy_manager_library_v1, _ = chain.provider.get_or_deploy_contract('PolicyManagerV1Mock')
+    policy_manager_library_v1 = chain.provider.get_contract('PolicyManagerV1Mock')
     # Deploy second version of the policy manager contract
     policy_manager_library_v2, _ = chain.provider.deploy_contract('PolicyManagerV1Mock')
 
@@ -435,7 +435,7 @@ def test_verifying_state(web3, chain):
     address2 = web3.eth.accounts[2]
 
     # Deploy contract
-    government_library_v1, _ = chain.provider.get_or_deploy_contract(
+    government_library_v1, _ = chain.provider.deploy_contract(
         'Government', address1, address2, 1,
     )
     government_dispatcher, _ = chain.provider.deploy_contract(
