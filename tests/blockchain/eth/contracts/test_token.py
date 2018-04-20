@@ -14,7 +14,7 @@ def test_create_token(web3, chain):
     account2 = web3.eth.accounts[2]
 
     # Create an ERC20 token
-    token, txhash = chain.provider.get_or_deploy_contract('NuCypherKMSToken', 10 ** 9)
+    token, txhash = chain.provider.deploy_contract('NuCypherKMSToken', 10 ** 9)
     assert txhash is not None
 
     # Account balances

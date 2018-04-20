@@ -43,7 +43,7 @@ NULL_ADDR = '0x' + '0' * 40
 def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
-    contract, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', 2 * 10 ** 9)
+    contract, _ = chain.provider.deploy_contract('NuCypherKMSToken', 2 * 10 ** 9)
     return contract
 
 
@@ -51,7 +51,7 @@ def token(web3, chain):
 def escrow(web3, chain, token):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
-    contract, _ = chain.provider.get_or_deploy_contract(
+    contract, _ = chain.provider.deploy_contract(
         'MinersEscrow',
         token.address,
         1,
@@ -74,7 +74,7 @@ def policy_manager(web3, chain, escrow):
     creator = web3.eth.accounts[0]
 
     # Creator deploys the policy manager
-    contract, _ = chain.provider.get_or_deploy_contract('PolicyManager', escrow.address)
+    contract, _ = chain.provider.deploy_contract('PolicyManager', escrow.address)
     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
 
     # Deploy second version of the government contract

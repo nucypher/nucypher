@@ -235,13 +235,3 @@ class ContractProvider:
                                 contract_abi=contract_factory.abi)
 
         return contract, txhash
-
-    def get_or_deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:
-        """Check the registrar for a deployed contract, or deploy it from compiled sources."""
-        try:
-            contract = self.get_contract(address=contract_name)
-            txhash = None
-        except (Registrar.UnknownContract, Registrar.UnknownChain):
-            contract, txhash = self.deploy_contract(contract_name, *args, **kwargs)
-
-        return contract, txhash

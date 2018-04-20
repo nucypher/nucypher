@@ -17,11 +17,11 @@ def test_dispatcher(web3, chain):
     contract_interface = chain.provider.get_contract_factory('ContractInterface')
 
     # Deploy contracts and dispatcher for them
-    contract1_lib, _ = chain.provider.get_or_deploy_contract('ContractV1', 1)
-    contract2_lib, _ = chain.provider.get_or_deploy_contract('ContractV2', 1)
-    contract3_lib, _ = chain.provider.get_or_deploy_contract('ContractV3', 2)
-    contract2_bad_lib, _ = chain.provider.get_or_deploy_contract('ContractV2Bad')
-    dispatcher, _ = chain.provider.get_or_deploy_contract('Dispatcher', contract1_lib.address)
+    contract1_lib, _ = chain.provider.deploy_contract('ContractV1', 1)
+    contract2_lib, _ = chain.provider.deploy_contract('ContractV2', 1)
+    contract3_lib, _ = chain.provider.deploy_contract('ContractV3', 2)
+    contract2_bad_lib, _ = chain.provider.deploy_contract('ContractV2Bad')
+    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract1_lib.address)
 
     upgrades = dispatcher.eventFilter('Upgraded')
     assert dispatcher.call().target() == contract1_lib.address

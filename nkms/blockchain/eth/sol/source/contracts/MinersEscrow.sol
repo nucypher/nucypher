@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.18;
 
 
 import "./zeppelin/token/ERC20/SafeERC20.sol";
@@ -6,6 +6,14 @@ import "./zeppelin/math/Math.sol";
 import "./lib/AdditionalMath.sol";
 import "./Issuer.sol";
 import "./PolicyManager.sol";
+
+/**
+* @notice PolicyManager interface
+**/
+contract PolicyManagerInterface {
+    function updateReward(address _node, uint256 _period) external;
+    function escrow() public view returns (address);
+}
 
 
 /**
@@ -92,7 +100,7 @@ contract MinersEscrow is Issuer {
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     **/
-    constructor(
+    function MinersEscrow(
         NuCypherKMSToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,
@@ -276,7 +284,7 @@ contract MinersEscrow is Issuer {
             info.releaseRate = Math.max256(value.divCeil(periods), 1);
             info.release = false;
             allValue = allValue.add(value);
-            emit Deposited(owner, value, periods);
+            Deposited(owner, value, periods);
         }
 
         token.safeTransferFrom(msg.sender, address(this), allValue);
@@ -298,7 +306,7 @@ contract MinersEscrow is Issuer {
         info.value = info.value.add(_value);
         token.safeTransferFrom(msg.sender, address(this), _value);
         lock(_value, _periods);
-        emit Deposited(msg.sender, _value, _periods);
+        Deposited(msg.sender, _value, _periods);
     }
 
     /**
@@ -329,7 +337,7 @@ contract MinersEscrow is Issuer {
         require(info.lockedValue <= maxAllowableLockedTokens);
 
         confirmActivity(info.lockedValue);
-        emit Locked( msg.sender, info.lockedValue, info.releaseRate);
+        Locked(msg.sender, info.lockedValue, info.releaseRate);
         mint();
     }
 
@@ -339,7 +347,7 @@ contract MinersEscrow is Issuer {
     function switchLock() public onlyTokenOwner {
         MinerInfo storage info = minerInfo[msg.sender];
         info.release = !info.release;
-        emit LockSwitched(msg.sender, info.release);
+        LockSwitched(msg.sender, info.release);
     }
 
     /**
@@ -355,7 +363,7 @@ contract MinersEscrow is Issuer {
             _value <= info.value.sub(lockedTokens));
         info.value -= _value;
         token.safeTransfer(msg.sender, _value);
-        emit Withdrawn(msg.sender, _value);
+        Withdrawn(msg.sender, _value);
     }
 
     /**
@@ -374,7 +382,7 @@ contract MinersEscrow is Issuer {
             lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod]
                 .add(_lockedValue.sub(confirmedPeriod.lockedValue));
             confirmedPeriod.lockedValue = _lockedValue;
-            emit ActivityConfirmed(msg.sender, nextPeriod, _lockedValue);
+            ActivityConfirmed(msg.sender, nextPeriod, _lockedValue);
             return;
         }
 
@@ -388,7 +396,7 @@ contract MinersEscrow is Issuer {
             info.downtime.push(Downtime(info.lastActivePeriod + 1, currentPeriod));
         }
         info.lastActivePeriod = nextPeriod;
-        emit ActivityConfirmed(msg.sender, nextPeriod, _lockedValue);
+        ActivityConfirmed(msg.sender, nextPeriod, _lockedValue);
     }
 
     /**
@@ -462,7 +470,7 @@ contract MinersEscrow is Issuer {
 
         // Update lockedValue for current period
         info.lockedValue = currentLockedValue;
-        emit Mined(msg.sender, previousPeriod, reward);
+        Mined(msg.sender, previousPeriod, reward);
     }
 
     /**
