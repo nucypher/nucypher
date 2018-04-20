@@ -25,7 +25,7 @@ contract MinersEscrowForPolicyMock {
     * @param _nodes Addresses of nodes that allow to use policy manager
     * @param _minutesPerPeriod Size of period in minutes
     **/
-    function MinersEscrowForPolicyMock(address[] _nodes, uint256 _minutesPerPeriod) public {
+    constructor(address[] _nodes, uint256 _minutesPerPeriod) public {
         for (uint256 i = 0; i < _nodes.length; i++) {
             nodes[_nodes[i]] = true;
         }

@@ -28,7 +28,7 @@ def escrow(web3, chain):
     node2 = web3.eth.accounts[4]
     node3 = web3.eth.accounts[5]
     # Creator deploys the escrow
-    escrow, _ = chain.provider.get_or_deploy_contract(
+    escrow, _ = chain.provider.deploy_contract(
         'MinersEscrowForPolicyMock', [node1, node2, node3], MINUTES_IN_PERIOD
     )
     return escrow
@@ -40,7 +40,7 @@ def policy_manager(web3, chain, escrow, request):
     client = web3.eth.accounts[1]
 
     # Creator deploys the policy manager
-    contract, _ = chain.provider.get_or_deploy_contract(
+    contract, _ = chain.provider.deploy_contract(
         'PolicyManager', escrow.address
     )
 
@@ -591,7 +591,7 @@ def test_verifying_state(web3, chain):
     address2 = web3.eth.accounts[2]
 
     # Deploy contract
-    contract_library_v1, _ = chain.provider.get_or_deploy_contract('PolicyManager', address1)
+    contract_library_v1, _ = chain.provider.deploy_contract('PolicyManager', address1)
     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract_library_v1.address)
 
     # Deploy second version of the contract

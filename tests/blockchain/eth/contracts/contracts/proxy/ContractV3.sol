@@ -8,7 +8,7 @@ contract ContractV3 is ContractV2 {
 
     uint public anotherStorageValue;
 
-    function ContractV3(uint _storageValueToCheck)
+    constructor(uint _storageValueToCheck)
         public
         ContractV2(_storageValueToCheck)
     {

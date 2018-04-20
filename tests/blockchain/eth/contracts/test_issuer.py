@@ -16,7 +16,7 @@ def test_issuer(web3, chain, token):
     ursula = web3.eth.accounts[1]
 
     # Creator deploys the issuer
-    issuer, _ = chain.provider.get_or_deploy_contract(
+    issuer, _ = chain.provider.deploy_contract(
         'IssuerMock', token.address, 1, 10 ** 46, int(1e7), int(1e7)
     )
 
@@ -109,7 +109,7 @@ def test_verifying_state(web3, chain, token):
     creator = web3.eth.accounts[0]
 
     # Deploy contract
-    contract_library_v1, _ = chain.provider.get_or_deploy_contract(
+    contract_library_v1, _ = chain.provider.deploy_contract(
         'Issuer', token.address, 1, 1, 1, 1
     )
     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract_library_v1.address)

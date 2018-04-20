@@ -12,7 +12,7 @@ contract IssuerV2Mock is Issuer {
 
     uint256 public valueToCheck;
 
-    function IssuerV2Mock(
+    constructor(
         NuCypherKMSToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,

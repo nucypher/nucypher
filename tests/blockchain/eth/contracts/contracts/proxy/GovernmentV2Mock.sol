@@ -11,7 +11,7 @@ contract GovernmentV2Mock is Government {
 
     uint256 public valueToCheck;
 
-    function GovernmentV2Mock(
+    constructor(
         Dispatcher _escrow,
         Dispatcher _policyManager,
         uint256 _votingDurationHours

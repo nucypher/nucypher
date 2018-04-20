@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "contracts/NuCypherKMSToken.sol";
@@ -39,7 +39,7 @@ contract Issuer is Upgradeable {
     * @param _lockedPeriodsCoefficient Locked blocks coefficient (k1)
     * @param _awardedPeriods Max periods that will be additionally awarded
     **/
-    function Issuer(
+    constructor(
         NuCypherKMSToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,
@@ -89,7 +89,7 @@ contract Issuer is Upgradeable {
         uint256 currentTotalSupply = futureSupply.sub(reservedReward);
         totalSupply[currentIndex] = currentTotalSupply;
         totalSupply[currentIndex ^ NEGATION] = currentTotalSupply;
-        Initialized(reservedReward);
+        emit Initialized(reservedReward);
     }
 
     /**

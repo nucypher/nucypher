@@ -36,7 +36,7 @@ contract ContractV2 is ContractInterface, Upgradeable {
     uint[] public updatedDynamicallySizedValue;
     uint public storageValueToCheck;
 
-    function ContractV2(uint _storageValueToCheck) public {
+    constructor(uint _storageValueToCheck) public {
         storageValueToCheck = _storageValueToCheck;
     }
 
@@ -190,6 +190,6 @@ contract ContractV2 is ContractInterface, Upgradeable {
     }
 
     function createEvent(uint8 _value) public {
-        EventV2(_value);
+        emit EventV2(_value);
     }
 }

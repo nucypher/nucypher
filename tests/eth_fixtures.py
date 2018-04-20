@@ -149,7 +149,7 @@ def mock_policy_agent(mock_miner_agent, token_agent, mock_token_deployer, mock_m
 # def token(web3, chain):
 #     creator = web3.eth.accounts[0]
 #     # Create an ERC20 token
-#     token, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', int(2e9))
+#     token, _ = chain.provider.deploy_contract('NuCypherKMSToken', int(2e9))
 #     return token
 
 #
@@ -158,7 +158,7 @@ def mock_policy_agent(mock_miner_agent, token_agent, mock_token_deployer, mock_m
 #     creator = web3.eth.accounts[0]
 #     # Creator deploys the escrow
 #
-#     contract, _ = chain.provider.get_or_deploy_contract(
+#     contract, _ = chain.provider.deploy_contract(
 #         'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100, int(1e9)
 #     )
 #

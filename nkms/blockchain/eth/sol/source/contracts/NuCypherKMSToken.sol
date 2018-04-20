@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "zeppelin/token/ERC20/BurnableToken.sol";
@@ -11,16 +11,13 @@ import "zeppelin/token/ERC20/DetailedERC20.sol";
 * @notice ERC20 token which can be burned by their owners
 * @dev Optional approveAndCall() functionality to notify a contract if an approve() has occurred.
 **/
-contract NuCypherKMSToken is StandardToken, DetailedERC20, BurnableToken {
+contract NuCypherKMSToken is StandardToken, DetailedERC20('NuCypher KMS', 'KMS', 18), BurnableToken {
 
     /**
     * @notice Set amount of tokens
     * @param _initialAmount Initial amount of tokens
     **/
-    function NuCypherKMSToken (uint256 _initialAmount)
-        public
-        DetailedERC20('NuCypher KMS', 'KMS', 18)
-    {
+    constructor (uint256 _initialAmount) public {
         balances[msg.sender] = _initialAmount;
         totalSupply_ = _initialAmount;
         Transfer(0x0, msg.sender, _initialAmount);

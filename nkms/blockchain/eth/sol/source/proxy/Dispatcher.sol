@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "./Upgradeable.sol";
@@ -18,10 +18,10 @@ contract Dispatcher is Upgradeable {
     /**
     * @param _target Target contract address
     **/
-    function Dispatcher(address _target) public {
+    constructor(address _target) public {
         target = _target;
         require(target.delegatecall(bytes4(keccak256("finishUpgrade(address)")), target));
-        Upgraded(0x0, _target, msg.sender);
+        emit Upgraded(0x0, _target, msg.sender);
     }
 
     /**
@@ -34,7 +34,7 @@ contract Dispatcher is Upgradeable {
         previousTarget = target;
         target = _target;
         require(target.delegatecall(bytes4(keccak256("finishUpgrade(address)")), target));
-        Upgraded(previousTarget, _target, msg.sender);
+        emit Upgraded(previousTarget, _target, msg.sender);
     }
 
     function verifyState(address _testTarget) public onlyOwner {
@@ -49,7 +49,7 @@ contract Dispatcher is Upgradeable {
     **/
     function rollback() public onlyOwner {
         require(previousTarget != 0x0);
-        RolledBack(target, previousTarget, msg.sender);
+        emit RolledBack(target, previousTarget, msg.sender);
         verifyUpgradeableState(previousTarget, target);
         target = previousTarget;
         previousTarget = 0x0;

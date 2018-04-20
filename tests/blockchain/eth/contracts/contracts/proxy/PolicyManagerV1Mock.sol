@@ -9,7 +9,7 @@ import "proxy/Upgradeable.sol";
 **/
 contract PolicyManagerV1Mock is Upgradeable {
 
-    function PolicyManagerV1Mock() public {}
+    constructor() public {}
     function verifyState(address) public {}
     function finishUpgrade(address) public {}
 

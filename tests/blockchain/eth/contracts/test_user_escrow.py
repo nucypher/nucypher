@@ -25,7 +25,7 @@ def escrow(web3, chain, token):
 
 @pytest.fixture()
 def policy_manager(chain):
-    contract, _ = chain.provider.get_or_deploy_contract('PolicyManagerForUserEscrowMock')
+    contract, _ = chain.provider.deploy_contract('PolicyManagerForUserEscrowMock')
     return contract
 
 

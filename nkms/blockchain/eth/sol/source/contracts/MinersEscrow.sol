@@ -14,6 +14,7 @@ contract PolicyManagerInterface {
     function escrow() public view returns (address);
 }
 
+
 /**
 * @notice Contract holds and locks nodes tokens.self._solidity_source_dir
 Each node that lock its tokens will receive some compensation

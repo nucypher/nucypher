@@ -27,7 +27,7 @@ MINER_ID_FIELD = 16
 def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
-    token, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', 2 * 10 ** 9)
+    token, _ = chain.provider.deploy_contract('NuCypherKMSToken', 2 * 10 ** 9)
     return token
 
 
@@ -36,7 +36,7 @@ def escrow_contract(web3, chain, token, request):
     def make_escrow(max_allowed_locked_tokens):
         creator = web3.eth.accounts[0]
         # Creator deploys the escrow
-        contract, _ = chain.provider.get_or_deploy_contract(
+        contract, _ = chain.provider.deploy_contract(
             'MinersEscrow', token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, max_allowed_locked_tokens)
 
         if request.param:
@@ -423,7 +423,7 @@ def test_mining(web3, chain, token, escrow_contract):
     tx = escrow.transact().initialize()
     chain.wait_for_receipt(tx)
 
-    policy_manager, _ = chain.provider.get_or_deploy_contract(
+    policy_manager, _ = chain.provider.deploy_contract(
         'PolicyManagerForMinersEscrowMock', token.address, escrow.address
     )
     tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)
@@ -745,7 +745,7 @@ def test_verifying_state(web3, chain, token):
     miner = web3.eth.accounts[1]
 
     # Deploy contract
-    contract_library_v1, _ = chain.provider.get_or_deploy_contract(
+    contract_library_v1, _ = chain.provider.deploy_contract(
         'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100, 1500
     )
     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract_library_v1.address)
@@ -762,7 +762,7 @@ def test_verifying_state(web3, chain, token):
     assert 1500 == contract.call().maxAllowableLockedTokens()
 
     # Initialize contract and miner
-    policy_manager, _ = chain.provider.get_or_deploy_contract('PolicyManagerForMinersEscrowMock', token.address, contract.address)
+    policy_manager, _ = chain.provider.deploy_contract('PolicyManagerForMinersEscrowMock', token.address, contract.address)
 
     tx = contract.transact({'from': creator}).setPolicyManager(policy_manager.address)
     chain.wait_for_receipt(tx)

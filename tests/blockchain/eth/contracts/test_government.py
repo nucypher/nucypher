@@ -25,11 +25,11 @@ def escrow(web3, chain):
     node3 = web3.eth.accounts[3]
 
     # Creator deploys the escrow
-    escrow_library, _ = chain.provider.get_or_deploy_contract(
+    escrow_library, _ = chain.provider.deploy_contract(
         'MinersEscrowV1Mock', [node1, node2, node3], [1, 2, 3]
     )
 
-    escrow_dispatcher, _ = chain.provider.get_or_deploy_contract(
+    escrow_dispatcher, _ = chain.provider.deploy_contract(
         'Dispatcher', escrow_library.address
     )
     escrow = web3.eth.contract(
@@ -43,7 +43,7 @@ def escrow(web3, chain):
 def policy_manager(web3, chain):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
-    policy_manager, _ = chain.provider.get_or_deploy_contract('PolicyManagerV1Mock')
+    policy_manager, _ = chain.provider.deploy_contract('PolicyManagerV1Mock')
     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', policy_manager.address)
     return dispatcher
 
@@ -55,7 +55,7 @@ def test_voting(web3, chain, escrow, policy_manager):
     node3 = web3.eth.accounts[3]
 
     # Deploy contract
-    government_library, _ = chain.provider.get_or_deploy_contract(
+    government_library, _ = chain.provider.deploy_contract(
         'Government', escrow.address, policy_manager.address, 1,
     )
     government_dispatcher, _ = chain.provider.deploy_contract(

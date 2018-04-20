@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -102,7 +102,7 @@ contract PolicyManager is Upgradeable {
     * @notice Constructor sets address of the escrow contract
     * @param _escrow Escrow contract
     **/
-    function PolicyManager(MinersEscrow _escrow) public {
+    constructor(MinersEscrow _escrow) public {
         require(address(_escrow) != 0x0);
         escrow = _escrow;
     }
@@ -156,7 +156,7 @@ contract PolicyManager is Upgradeable {
             arrangement.active = true;
         }
 
-        PolicyCreated(_policyId, msg.sender, _nodes);
+        emit PolicyCreated(_policyId, msg.sender, _nodes);
     }
 
     /**
@@ -187,7 +187,7 @@ contract PolicyManager is Upgradeable {
         require(reward != 0);
         node.reward = 0;
         msg.sender.transfer(reward);
-        Withdrawn(msg.sender, reward);
+        emit Withdrawn(msg.sender, reward);
     }
 
     /**
@@ -206,13 +206,13 @@ contract PolicyManager is Upgradeable {
             }
             uint256 nodeRefundValue = revokeArrangement(policy, node, endPeriod);
             refundValue = refundValue.add(nodeRefundValue);
-            ArrangementRevoked(_policyId, msg.sender, node, nodeRefundValue);
+            emit ArrangementRevoked(_policyId, msg.sender, node, nodeRefundValue);
         }
         policy.disabled = true;
         if (refundValue > 0) {
             msg.sender.transfer(refundValue);
         }
-        PolicyRevoked(_policyId, msg.sender, refundValue);
+        emit PolicyRevoked(_policyId, msg.sender, refundValue);
     }
 
     /**
@@ -232,7 +232,7 @@ contract PolicyManager is Upgradeable {
         if (refundValue > 0) {
             msg.sender.transfer(refundValue);
         }
-        ArrangementRevoked(_policyId, msg.sender, _node, refundValue);
+        emit ArrangementRevoked(_policyId, msg.sender, _node, refundValue);
     }
 
     /**
@@ -276,7 +276,7 @@ contract PolicyManager is Upgradeable {
                 numberOfActive--;
             }
             refundValue = refundValue.add(nodeRefundValue);
-            RefundForArrangement(_policyId, msg.sender, node, nodeRefundValue);
+            emit RefundForArrangement(_policyId, msg.sender, node, nodeRefundValue);
         }
         if (refundValue > 0) {
             msg.sender.transfer(refundValue);
@@ -284,7 +284,7 @@ contract PolicyManager is Upgradeable {
         if (numberOfActive == 0) {
             policy.disabled = true;
         }
-        RefundForPolicy(_policyId, msg.sender, refundValue);
+        emit RefundForPolicy(_policyId, msg.sender, refundValue);
     }
 
     /**
@@ -306,7 +306,7 @@ contract PolicyManager is Upgradeable {
         if (refundValue > 0) {
             msg.sender.transfer(refundValue);
         }
-        RefundForArrangement(_policyId, msg.sender, _node, refundValue);
+        emit RefundForArrangement(_policyId, msg.sender, _node, refundValue);
     }
 
     /**
