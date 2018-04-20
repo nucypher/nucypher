@@ -157,14 +157,14 @@ class ContractProvider:
 
     def __init__(self, provider_backend,
                  registrar: Registrar,
-                 deployer_address:str =None,
+                 deployer_address: str=None,
                  sol_compiler: SolidityCompiler=None):
 
         self.__provider_backend = provider_backend
         self.w3 = Web3(self.__provider_backend)
 
         if deployer_address is None:
-            deployer_address = self.w3.eth.coinbase
+            deployer_address = self.w3.eth.coinbase  # coinbase # etherbase
         self.deployer_address = deployer_address
 
         if sol_compiler is not None:
@@ -218,22 +218,25 @@ class ContractProvider:
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)
 
-        deploy_transaction = {'from': self.deployer_address, 'gas': 2_400_000}
+        deploy_transaction = {'from': self.deployer_address}
         deploy_bytecode = contract_factory.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
+
+        # TODO: logging
+        contract_sizes = dict()
         if len(deploy_bytecode['data']) > 1000:
-            print("!!! " + contract_name + " : " + str(len(deploy_bytecode['data'])))
+            contract_sizes[contract_name] = str(len(deploy_bytecode['data']))
 
-        txhash = self.w3.eth.sendTransaction(deploy_bytecode)  # deploy!
+        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
+
+        txhash = contract_factory.constructor(*args, **kwargs).transact(transaction=deploy_transaction)
         receipt = self.w3.eth.waitForTransactionReceipt(txhash)
-
-        # self.w3.eth.web3.testing.mine(10)
 
         address = receipt['contractAddress']
         contract = contract_factory(address=address)
 
         # Commit to registrar
         self.__registrar.enroll(contract_name=contract_name,
-                                contract_addr=address,
+                                contract_addr=contract.address,
                                 contract_abi=contract_factory.abi)
 
         return contract, txhash

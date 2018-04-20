@@ -117,7 +117,7 @@ def mock_miner_escrow_deployer(token_agent):
 
 @pytest.fixture()
 def mock_policy_manager_deployer(mock_miner_escrow_deployer):
-    policy_manager_deployer = PolicyManagerDeployer(miner_escrow_deployer=mock_token_deployer)
+    policy_manager_deployer = PolicyManagerDeployer(miner_agent=mock_token_deployer)
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
     yield policy_manager_deployer

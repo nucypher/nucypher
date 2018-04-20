@@ -169,14 +169,11 @@ class NuCypherKMSTokenDeployer(ContractDeployer, NuCypherTokenConfig):
         is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
         assert is_ready
 
-        the_nucypher_token_contract, deployment_txhash = self.blockchain.provider.deploy_contract(
-            self._contract_name,
-            self.saturation)
+        _contract, deployment_txhash = self.blockchain.provider.deploy_contract(
+                                       self._contract_name,
+                                       self.saturation)
 
-        self.blockchain.wait_for_receipt(deployment_txhash)
-        self._contract = the_nucypher_token_contract
-        self.deployment_receipt = deployment_txhash
-
+        self._contract = _contract
         return self.deployment_receipt
 
 
@@ -238,10 +235,10 @@ class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
         origin_args = {'from': self.token_agent.origin}
 
         # 1 - Deploy #
-        the_escrow_contract, deploy_txhash = self.blockchain.provider.deploy_contract(self._contract_name,
-                                                                                      self.token_agent.contract_address,
-                                                                                      *self.mining_coefficient)
-        _deploy_receipt = self.blockchain.wait_for_receipt(deploy_txhash)
+        the_escrow_contract, deploy_txhash, = \
+            self.blockchain.provider.deploy_contract(self._contract_name,
+                                                     self.token_agent.contract_address,
+                                                     *self.mining_coefficient)
 
         # 2 - Deploy the dispatcher used for updating this contract #
         dispatcher_deployer = DispatcherDeployer(token_agent=self.token_agent, target_contract=the_escrow_contract)
@@ -286,10 +283,12 @@ class PolicyManagerDeployer(ContractDeployer):
 
     _contract_name = 'PolicyManager'
 
-    def __init__(self, miner_escrow_deployer):
-        self.token_deployer = miner_escrow_deployer.token_agent
-        self.miner_escrow_deployer = miner_escrow_deployer
-        super().__init__(blockchain=self.miner_escrow_deployer.blockchain)
+    def __init__(self, miner_agent):
+        # self.token_deployer = miner_escrow_deployer.token_agent
+        # self.miner_escrow_deployer = miner_escrow_deployer
+        self.token_agent = miner_agent.token_agent
+        self.miner_agent = miner_agent
+        super().__init__(blockchain=self.miner_agent.blockchain)
 
     def deploy(self) -> Dict[str, str]:
         is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
@@ -297,9 +296,9 @@ class PolicyManagerDeployer(ContractDeployer):
 
         # Creator deploys the policy manager
         the_policy_manager_contract, deploy_txhash = self.blockchain.provider.deploy_contract(
-            self._contract_name, self.miner_escrow_deployer.contract_address)
+            self._contract_name, self.miner_agent.contract_address)
 
-        dispatcher_deployer = DispatcherDeployer(token_agent=self.token_deployer, target_contract=the_policy_manager_contract)
+        dispatcher_deployer = DispatcherDeployer(token_agent=self.token_agent, target_contract=the_policy_manager_contract)
         dispatcher_deployer.arm(fail_on_abort=True)
         dispatcher_deploy_txhash = dispatcher_deployer.deploy()
 
@@ -315,7 +314,7 @@ class PolicyManagerDeployer(ContractDeployer):
         the_policy_manager_contract = wrapped_policy_manager_contract
 
         # Configure the MinerEscrow by setting the PolicyManager
-        policy_setter_txhash = self.miner_escrow_deployer.transact({'from': self.token_deployer.origin}).\
+        policy_setter_txhash = self.miner_agent.transact({'from': self.token_agent.origin}).\
             setPolicyManager(the_policy_manager_contract.address)
 
         self.blockchain.wait_for_receipt(policy_setter_txhash)

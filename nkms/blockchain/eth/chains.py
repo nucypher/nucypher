@@ -62,14 +62,11 @@ class TheBlockchain(ABC):
         or raises populus.contracts.exceptions.UnknownContract
         if there is no contract data available for the name/identifier.
         """
-        return self.config.provider.get_contract(name)
+        return self.provider.get_contract(name)
 
     def wait_for_receipt(self, txhash, timeout=None) -> None:
-        if timeout is None:
-            timeout = self._default_timeout
-
-        result = self.provider.w3.eth.waitForTransactionReceipt(txhash)
-
+        timeout = timeout if timeout is not None else self._default_timeout
+        result = self.provider.w3.eth.waitForTransactionReceipt(txhash, timeout=timeout)
         return result
 
 
@@ -77,17 +74,14 @@ class TesterBlockchain(TheBlockchain):
     """Transient, in-memory, local, private chain"""
 
     _network = 'tester'
-    __default_nodes = 9
-    __insecure_passphrase = 'this-is-not-a-secure-password'
 
-    def __init__(self, nodes: int=__default_nodes, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.__node_addresses = list()
-        for _ in range(nodes):
-            address = self.provider.w3.personal.newAccount(self.__insecure_passphrase)
-            self.provider.w3.personal.unlockAccount(address, self.__insecure_passphrase)
-            self.__node_addresses.append(address)
-        self.__global_airdrop(amount=1000000)
+
+    def wait_for_receipt(self, txhash, timeout=None) -> None:
+        timeout = timeout if timeout is not None else self._default_timeout
+        result = self.provider.w3.eth.waitForTransactionReceipt(txhash, timeout=timeout)
+        return result
 
     def wait_time(self, hours=None, seconds=None):
         """Wait the specified number of wait_hours by comparing block timestamps."""
@@ -125,7 +119,7 @@ class TesterBlockchain(TheBlockchain):
 
         return miners
 
-    def __global_airdrop(self, amount: int) -> None:
+    def _global_airdrop(self, amount: int) -> None:
         """Airdrops from creator address to all other addresses!"""
         coinbase, *addresses = self.provider.w3.eth.accounts
 

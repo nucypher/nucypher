@@ -32,7 +32,7 @@ def test_token_deployer_and_agent(chain):
 
     # Check that the token contract has tokens
     assert token_agent.read().totalSupply() != 0
-    # assert token().totalSupply() == 10 ** 9 - 1    # TODO
+    # assert token().totalSupply() == int(1e9) * _M     # TODO
 
     # Retrieve the token from the blockchain
     same_token_agent = NuCypherKMSTokenAgent(blockchain=chain)
@@ -65,6 +65,3 @@ def test_deploy_ethereum_contracts(chain):
     policy_manager_contract = PolicyManagerDeployer(miner_escrow_deployer=miner_escrow_deployer)
     policy_manager_contract.arm()
     policy_manager_contract.deploy()
-
-
-
