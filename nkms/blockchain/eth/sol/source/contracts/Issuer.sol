@@ -1,9 +1,9 @@
 pragma solidity ^0.4.18;
 
 
-import "./NuCypherKMSToken.sol";
-import "./zeppelin/math/SafeMath.sol";
-import "./proxy/Upgradeable.sol";
+import "contracts/NuCypherKMSToken.sol";
+import "zeppelin/math/SafeMath.sol";
+import "proxy/Upgradeable.sol";
 
 
 /**

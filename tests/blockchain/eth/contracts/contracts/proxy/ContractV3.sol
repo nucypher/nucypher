@@ -18,10 +18,6 @@ contract ContractV3 is ContractV2 {
         anotherStorageValue = _value * 2;
     }
 
-    function getAnotherStorageValue() public view returns (uint) {
-        return storageValue;
-    }
-
     function verifyState(address _testTarget) public onlyOwner {
         super.verifyState(_testTarget);
         require(uint(delegateGet(_testTarget, "anotherStorageValue()")) == anotherStorageValue);

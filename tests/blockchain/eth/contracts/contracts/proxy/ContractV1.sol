@@ -2,7 +2,7 @@ pragma solidity ^0.4.18;
 
 
 import "./ContractInterface.sol";
-import "contracts/proxy/Upgradeable.sol";
+import "proxy/Upgradeable.sol";
 
 
 /**
