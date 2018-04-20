@@ -7,7 +7,7 @@ from eth_tester.exceptions import TransactionFailed
 def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
-    token, _ = chain.provider.get_or_deploy_contract('NuCypherKMSToken', 2 * 10 ** 40)
+    token, _ = chain.provider.deploy_contract('NuCypherKMSToken', 2 * 10 ** 40)
     return token
 
 
@@ -67,7 +67,7 @@ def test_inflation_rate(web3, chain, token):
     ursula = web3.eth.accounts[1]
 
     # Creator deploys the miner
-    issuer, _ = chain.provider.get_or_deploy_contract(
+    issuer, _ = chain.provider.deploy_contract(
         'IssuerMock', token.address, 1, 2 * 10 ** 19, 1, 1
     )
 

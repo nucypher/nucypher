@@ -57,10 +57,8 @@ class SolidityCompiler:
         # https://github.com/ethereum/py-solc
         project_root = dirname(self._solidity_source_dir)
 
-        remappings = ["contracts={}".format(self._solidity_source_dir),
-                      "zeppelin={}".format(os.path.join(project_root, 'zeppelin')),
-                      "proxy={}".format(os.path.join(project_root, 'proxy'))
-                      ]
+        remapping_dirs = ["contracts={}".format(self._contract_source_dirs[0])]
+        compiled_sol = compile_files(sol_contract_paths, import_remappings=remapping_dirs, optimize=True)
 
         compiled_interfaces = compile_files(source_files=source_paths,
                                             import_remappings=remappings,
