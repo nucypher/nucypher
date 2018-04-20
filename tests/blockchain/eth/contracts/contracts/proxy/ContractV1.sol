@@ -39,7 +39,7 @@ contract ContractV1 is ContractInterface, Upgradeable {
     mapping (uint => Structure2) public mappingStructures;
     uint public mappingStructuresLength;
 
-    function ContractV1(uint _storageValue) public {
+    constructor(uint _storageValue) public {
         storageValue = _storageValue;
     }
 
@@ -172,6 +172,6 @@ contract ContractV1 is ContractInterface, Upgradeable {
     }
 
     function createEvent(uint256 _value) public {
-        EventV1(_value);
+        emit EventV1(_value);
     }
 }

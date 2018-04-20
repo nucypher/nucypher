@@ -10,7 +10,7 @@ import "contracts/NuCypherKMSToken.sol";
 **/
 contract IssuerMock is Issuer {
 
-    function IssuerMock(
+    constructor(
         NuCypherKMSToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,

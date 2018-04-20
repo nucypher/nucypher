@@ -17,7 +17,7 @@ contract MinersEscrowForUserEscrowMock {
     uint256 public confirmedPeriod;
     bool public unlock;
 
-    function MinersEscrowForUserEscrowMock(NuCypherKMSToken _token) public {
+    constructor(NuCypherKMSToken _token) public {
         token = _token;
     }
 

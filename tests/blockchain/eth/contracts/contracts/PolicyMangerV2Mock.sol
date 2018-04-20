@@ -12,7 +12,7 @@ contract PolicyManagerV2Mock is PolicyManager {
 
     uint256 public valueToCheck;
 
-    function PolicyManagerV2Mock(MinersEscrow _escrow) public PolicyManager(_escrow) {
+    constructor(MinersEscrow _escrow) public PolicyManager(_escrow) {
     }
 
     function setValueToCheck(uint256 _valueToCheck) public {

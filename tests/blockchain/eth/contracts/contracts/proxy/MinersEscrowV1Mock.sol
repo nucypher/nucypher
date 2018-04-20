@@ -16,7 +16,7 @@ contract MinersEscrowV1Mock is Upgradeable {
     * @param _nodes Addresses of nodes
     * @param _lockedTokens Locked tokens for nodes
     **/
-    function MinersEscrowV1Mock(address[] _nodes, uint256[] _lockedTokens) public {
+    constructor(address[] _nodes, uint256[] _lockedTokens) public {
         for (uint256 i = 0; i < _nodes.length ; i++) {
             lockedTokens[_nodes[i]] = _lockedTokens[i];
         }

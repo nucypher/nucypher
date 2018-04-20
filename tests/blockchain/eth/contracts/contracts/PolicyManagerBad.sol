@@ -10,7 +10,7 @@ import "contracts/MinersEscrow.sol";
 **/
 contract PolicyManagerBad is PolicyManager {
 
-    function PolicyManagerBad(MinersEscrow _escrow) public PolicyManager(_escrow) {
+    constructor(MinersEscrow _escrow) public PolicyManager(_escrow) {
     }
 
     function getNodeInfo(PolicyManager.NodeInfoField, address, uint256)
