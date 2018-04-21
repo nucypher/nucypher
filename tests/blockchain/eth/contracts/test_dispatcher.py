@@ -50,30 +50,30 @@ def test_dispatcher(web3, chain):
     # Check values before upgrade
     assert contract_instance.call().getStorageValue() == 1
     assert contract_instance.call().returnValue() == 10
-    tx = contract_instance.transact().setStorageValue(5)
+    tx = contract_instance.transact({'from': creator}).setStorageValue(5)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getStorageValue() == 5
-    tx = contract_instance.transact().pushArrayValue(12)
+    tx = contract_instance.transact({'from': creator}).pushArrayValue(12)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getArrayValueLength() == 1
     assert contract_instance.call().getArrayValue(0) == 12
-    tx = contract_instance.transact().pushArrayValue(232)
+    tx = contract_instance.transact({'from': creator}).pushArrayValue(232)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getArrayValueLength() == 2
     assert contract_instance.call().getArrayValue(1) == 232
-    tx = contract_instance.transact().setMappingValue(14, 41)
+    tx = contract_instance.transact({'from': creator}).setMappingValue(14, 41)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getMappingValue(14) == 41
-    tx = contract_instance.transact().pushStructureValue1(3)
+    tx = contract_instance.transact({'from': creator}).pushStructureValue1(3)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getStructureValue1(0) == 3
-    tx = contract_instance.transact().pushStructureArrayValue1(0, 11)
+    tx = contract_instance.transact({'from': creator}).pushStructureArrayValue1(0, 11)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getStructureArrayValue1(0, 0) == 11
-    tx = contract_instance.transact().pushStructureValue2(4)
+    tx = contract_instance.transact({'from': creator}).pushStructureValue2(4)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getStructureValue2(0) == 4
-    tx = contract_instance.transact().pushStructureArrayValue2(0, 12)
+    tx = contract_instance.transact({'from': creator}).pushStructureArrayValue2(0, 12)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getStructureArrayValue2(0, 0) == 12
 
@@ -99,29 +99,29 @@ def test_dispatcher(web3, chain):
     # Check values after upgrade
     assert contract_instance.call().returnValue() == 20
     assert contract_instance.call().getStorageValue() == 5
-    tx = contract_instance.transact().setStorageValue(5)
+    tx = contract_instance.transact({'from': creator}).setStorageValue(5)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getStorageValue() == 10
     assert contract_instance.call().getArrayValueLength() == 2
     assert contract_instance.call().getArrayValue(0) == 12
     assert contract_instance.call().getArrayValue(1) == 232
-    tx = contract_instance.transact().setMappingValue(13, 31)
+    tx = contract_instance.transact({'from': creator}).setMappingValue(13, 31)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getMappingValue(14) == 41
     assert contract_instance.call().getMappingValue(13) == 31
-    tx = contract_instance.transact().pushStructureValue1(4)
+    tx = contract_instance.transact({'from': creator}).pushStructureValue1(4)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getStructureValue1(0) == 3
     assert contract_instance.call().getStructureValue1(1) == 4
-    tx = contract_instance.transact().pushStructureArrayValue1(0, 12)
+    tx = contract_instance.transact({'from': creator}).pushStructureArrayValue1(0, 12)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getStructureArrayValue1(0, 0) == 11
     assert contract_instance.call().getStructureArrayValue1(0, 1) == 12
-    tx = contract_instance.transact().pushStructureValue2(5)
+    tx = contract_instance.transact({'from': creator}).pushStructureValue2(5)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getStructureValue2(0) == 4
     assert contract_instance.call().getStructureValue2(1) == 5
-    tx = contract_instance.transact().pushStructureArrayValue2(0, 13)
+    tx = contract_instance.transact({'from': creator}).pushStructureArrayValue2(0, 13)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getStructureArrayValue2(0, 0) == 12
     assert contract_instance.call().getStructureArrayValue2(0, 1) == 13
@@ -134,7 +134,7 @@ def test_dispatcher(web3, chain):
 
     # Check new method and finish upgrade method
     assert contract_instance.call().storageValueToCheck() == 1
-    tx = contract_instance.transact().setStructureValueToCheck2(0, 55)
+    tx = contract_instance.transact({'from': creator}).setStructureValueToCheck2(0, 55)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getStructureValueToCheck2(0) == 55
 
@@ -159,7 +159,7 @@ def test_dispatcher(web3, chain):
     assert contract_instance.call().getArrayValue(0) == 12
     assert contract_instance.call().getArrayValue(1) == 232
     assert contract_instance.call().getStorageValue() == 1
-    tx = contract_instance.transact().setStorageValue(5)
+    tx = contract_instance.transact({'from': creator}).setStorageValue(5)
     chain.wait_for_receipt(tx)
     assert contract_instance.call().getStorageValue() == 5
 
@@ -172,14 +172,14 @@ def test_dispatcher(web3, chain):
     assert creator == event_args['owner']
 
     # Can't upgrade to the bad version
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
         chain.wait_for_receipt(tx)
     assert dispatcher.call().target() == contract1_lib.address
 
     # Check dynamically sized value
     # TODO uncomment after fixing dispatcher
-    # tx = contract_instance.transact().setDynamicallySizedValue('Hola')
+    # tx = contract_instance.transact({'from': creator}).setDynamicallySizedValue('Hola')
     # chain.wait_for_receipt(tx)
     # assert contract_instance.call().getDynamicallySizedValue() == 'Hola'
 
@@ -190,7 +190,7 @@ def test_dispatcher(web3, chain):
     #     ContractFactoryClass=Contract)
     # test_events = contract_instance.eventFilter('EventV1')
     # events = test_events.get_all_entries()
-    # tx = contract_instance.transact().createEvent(33)
+    # tx = contract_instance.transact({'from': creator}).createEvent(33)
     # chain.wait_for_receipt(tx)
     # assert 1 == len(events)
     # assert 33 == events[0]['args']['value']
@@ -237,7 +237,7 @@ def test_dispatcher(web3, chain):
     # assert creator == event_args['owner']
     #
     # # Create and check events
-    # tx = contract_instance.transact().createEvent(22)
+    # tx = contract_instance.transact({'from': creator}).createEvent(22)
     # chain.wait_for_receipt(tx)
     # events = contract_instance.pastEvents('EventV2').get()
     # assert 1 == len(events)

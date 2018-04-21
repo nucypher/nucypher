@@ -24,16 +24,16 @@ def test_linked_list(web3, chain):
     # assert instance.call().seek(HEAD, address2, NEXT) == NULL
 
     # Insert new value
-    tx = instance.transact().insert(HEAD, address2, NEXT)
+    tx = instance.transact({'from': address1}).insert(HEAD, address2, NEXT)
     chain.wait_for_receipt(tx)
     assert instance.call().exists()
     assert instance.call().sizeOf() == 1
     assert instance.call().valueExists(address2)
 
     # Insert more values
-    tx = instance.transact().insert(address2, address1, PREV)
+    tx = instance.transact({'from': address1}).insert(address2, address1, PREV)
     chain.wait_for_receipt(tx)
-    tx = instance.transact().insert(address2, address3, NEXT)
+    tx = instance.transact({'from': address1}).insert(address2, address3, NEXT)
     chain.wait_for_receipt(tx)
     assert instance.call().sizeOf() == 3
 
@@ -42,7 +42,7 @@ def test_linked_list(web3, chain):
 
     # Remove middle value
     assert instance.call().remove(address2) == address2
-    tx = instance.transact().remove(address2)
+    tx = instance.transact({'from': address1}).remove(address2)
     chain.wait_for_receipt(tx)
     assert instance.call().sizeOf() == 2
 
@@ -53,7 +53,7 @@ def test_linked_list(web3, chain):
 
     # Remove another value
     assert instance.call().remove(address3) == address3
-    tx = instance.transact().remove(address3)
+    tx = instance.transact({'from': address1}).remove(address3)
     chain.wait_for_receipt(tx)
     assert instance.call().sizeOf() == 1
 
@@ -64,7 +64,7 @@ def test_linked_list(web3, chain):
 
     # Remove last value
     assert instance.call().remove(address1).lower() == address1.lower()
-    tx = instance.transact().remove(address1)
+    tx = instance.transact({'from': address1}).remove(address1)
     chain.wait_for_receipt(tx)
     assert instance.call().sizeOf() == 0
 
@@ -74,11 +74,11 @@ def test_linked_list(web3, chain):
     assert node[1] == HEAD
 
     # Push values
-    tx = instance.transact().push(address2, NEXT)
+    tx = instance.transact({'from': address1}).push(address2, NEXT)
     chain.wait_for_receipt(tx)
-    tx = instance.transact().push(address3, PREV)
+    tx = instance.transact({'from': address1}).push(address3, PREV)
     chain.wait_for_receipt(tx)
-    tx = instance.transact().push(address1, NEXT)
+    tx = instance.transact({'from': address1}).push(address1, NEXT)
     chain.wait_for_receipt(tx)
     assert instance.call().sizeOf() == 3
 
@@ -93,9 +93,9 @@ def test_linked_list(web3, chain):
     # Pop values
     assert instance.call().pop(NEXT).lower() == address1.lower()
     assert instance.call().pop(PREV).lower() == address3.lower()
-    tx = instance.transact().pop(NEXT)
+    tx = instance.transact({'from': address1}).pop(NEXT)
     chain.wait_for_receipt(tx)
-    tx = instance.transact().pop(PREV)
+    tx = instance.transact({'from': address1}).pop(PREV)
     chain.wait_for_receipt(tx)
     assert instance.call().sizeOf() == 1
 

@@ -129,7 +129,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     reward = 10 ** 9
     tx = token.transact({'from': creator}).transfer(escrow.address, reward)
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().initialize()
+    tx = escrow.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
 
     # Deposit some tokens to the user escrow and lock them

@@ -261,7 +261,7 @@ class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
         _reward_receipt = self.blockchain.wait_for_receipt(reward_txhash)
 
         # 4 - Initialize the Miner Escrow contract
-        init_txhash = the_escrow_contract.transact().initialize()
+        init_txhash = the_escrow_contract.transact(origin_args).initialize()
         _init_receipt = self.blockchain.wait_for_receipt(init_txhash)
 
         # Gather the transaction hashes

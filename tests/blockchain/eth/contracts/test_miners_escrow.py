@@ -331,7 +331,7 @@ def test_locked_distribution(web3, chain, token, escrow_contract):
     # Give Escrow tokens for reward and initialize contract
     tx = token.transact({'from': creator}).transfer(escrow.address, 10 ** 9)
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().initialize()
+    tx = escrow.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
 
     miners = web3.eth.accounts[1:]
@@ -420,7 +420,7 @@ def test_mining(web3, chain, token, escrow_contract):
     # Give Escrow tokens for reward and initialize contract
     tx = token.transact({'from': creator}).transfer(escrow.address, 10 ** 9)
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().initialize()
+    tx = escrow.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
 
     policy_manager, _ = chain.provider.deploy_contract(
@@ -634,7 +634,7 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
     deposit_log = escrow.eventFilter('Deposited')
 
     # Initialize Escrow contract
-    tx = escrow.transact().initialize()
+    tx = escrow.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
 
     # Grant access to transfer tokens
@@ -716,7 +716,7 @@ def test_miner_id(web3, chain, token, escrow_contract):
     miner = web3.eth.accounts[1]
 
     # Initialize contract and miner
-    tx = escrow.transact().initialize()
+    tx = escrow.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
     tx = token.transact({'from': creator}).transfer(miner, 1000)
     chain.wait_for_receipt(tx)
@@ -768,7 +768,7 @@ def test_verifying_state(web3, chain, token):
 
     tx = contract.transact({'from': creator}).setPolicyManager(policy_manager.address)
     chain.wait_for_receipt(tx)
-    tx = contract.transact().initialize()
+    tx = contract.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
     tx = token.transact({'from': creator}).transfer(miner, 1000)
     chain.wait_for_receipt(tx)

@@ -348,7 +348,7 @@ def test_refund(web3, chain, escrow, policy_manager):
     tx = policy_manager.transact({'from': client, 'value': value, 'gas_price': 0}) \
         .createPolicy(policy_id, number_of_periods, [node1])
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().setLastActivePeriod(escrow.call().getCurrentPeriod())
+    tx = escrow.transact({'from': creator}).setLastActivePeriod(escrow.call().getCurrentPeriod())
     chain.wait_for_receipt(tx)
 
     # Wait and refund all
@@ -468,15 +468,15 @@ def test_refund(web3, chain, escrow, policy_manager):
     period += 1
     tx = escrow.transact({'from': node1}).mint(period, 2)
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().pushDowntimePeriod(period + 2, period + 3)
+    tx = escrow.transact({'from': creator}).pushDowntimePeriod(period + 2, period + 3)
     chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': node1}).mint(period + 4, 1)
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().pushDowntimePeriod(period + 5, period + 7)
+    tx = escrow.transact({'from': creator}).pushDowntimePeriod(period + 5, period + 7)
     chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': node1}).mint(period + 8, 1)
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().setLastActivePeriod(period + 8)
+    tx = escrow.transact({'from': creator}).setLastActivePeriod(period + 8)
     chain.wait_for_receipt(tx)
     assert 80 == web3.toInt(policy_manager.call().getNodeInfo(REWARD_FIELD, node1, 0))
 
@@ -543,13 +543,13 @@ def test_refund(web3, chain, escrow, policy_manager):
 
     # Mint some periods
     period += 1
-    tx = escrow.transact().pushDowntimePeriod(period, period)
+    tx = escrow.transact({'from': creator}).pushDowntimePeriod(period, period)
     chain.wait_for_receipt(tx)
     for x in range(3):
         period += 1
         tx = escrow.transact({'from': node1}).mint(period, 1)
         chain.wait_for_receipt(tx)
-    tx = escrow.transact().setLastActivePeriod(period)
+    tx = escrow.transact({'from': creator}).setLastActivePeriod(period)
     chain.wait_for_receipt(tx)
     assert 140 == web3.toInt(policy_manager.call().getNodeInfo(REWARD_FIELD, node1, 0))
 
