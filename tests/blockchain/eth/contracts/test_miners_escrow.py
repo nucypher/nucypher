@@ -437,10 +437,10 @@ def test_mining(web3, chain, token, escrow_contract):
     chain.wait_for_receipt(tx)
 
     # Ursula can't confirm and mint because no locked tokens
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).mint()
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).confirmActivity()
         chain.wait_for_receipt(tx)
 
@@ -511,7 +511,7 @@ def test_mining(web3, chain, token, escrow_contract):
     # Ursula can't confirm next period because end of locking
     chain.wait_time(hours=1)
     assert 500 == escrow.call().getAllLockedTokens()
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).confirmActivity()
         chain.wait_for_receipt(tx)
 
@@ -574,7 +574,7 @@ def test_mining(web3, chain, token, escrow_contract):
     chain.wait_for_receipt(tx)
     assert 1163 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula1, 0))
 
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).confirmActivity()
         chain.wait_for_receipt(tx)
 
@@ -651,21 +651,21 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
     assert 10 == web3.toInt(escrow.call().getMinerInfo(MAX_RELEASE_PERIODS_FIELD, owner, 0))
 
     # Can't pre-deposit tokens again for same owner
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[1]], [1000], [10])
         chain.wait_for_receipt(tx)
 
     # Can't pre-deposit tokens with too low or too high value
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[2]], [1], [10])
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[2]], [1501], [10])
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[2]], [500], [1])
         chain.wait_for_receipt(tx)
@@ -794,10 +794,10 @@ def test_verifying_state(web3, chain, token):
         'MinersEscrowBad', token.address, 2, 2, 2, 2, 2, 2, 2
     )
 
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
         chain.wait_for_receipt(tx)
 
@@ -806,11 +806,11 @@ def test_verifying_state(web3, chain, token):
 
     chain.wait_for_receipt(tx)
     assert contract_library_v1.address == dispatcher.call().target()
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.transact({'from': creator}).setValueToCheck(2)
         chain.wait_for_receipt(tx)
 
     # Try to upgrade to the bad version
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
         chain.wait_for_receipt(tx)

@@ -66,12 +66,12 @@ def test_escrow(web3, chain, token, user_escrow):
     assert 1000 == event_args['duration']
 
     # Can't deposit tokens again
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.transact({'from': creator}).initialDeposit(1000, 1000)
         chain.wait_for_receipt(tx)
 
     # Can't withdraw before unlocking
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.transact({'from': user}).withdraw(100)
         chain.wait_for_receipt(tx)
 
@@ -83,7 +83,7 @@ def test_escrow(web3, chain, token, user_escrow):
     withdraws = user_escrow.eventFilter('Withdrawn')
 
     # Only user can withdraw available tokens
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.transact({'from': creator}).withdraw(100)
         chain.wait_for_receipt(tx)
     tx = user_escrow.transact({'from': user}).withdraw(1000)
@@ -152,11 +152,11 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert 1 == len(events)
 
     # Only user can deposit tokens to the miner escrow
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.transact({'from': creator}).minerDeposit(1000, 5)
         chain.wait_for_receipt(tx)
     # Can't deposit more than amount in the user escrow
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.transact({'from': user}).minerDeposit(10000, 5)
         chain.wait_for_receipt(tx)
 
@@ -182,27 +182,27 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert 5 == event_args['periods']
 
     # Can't withdraw because of locking
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.transact({'from': user}).withdraw(100)
         chain.wait_for_receipt(tx)
 
     # Can't use the miners escrow directly
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': user}).lock(100, 1)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': user}).switchLock()
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': user}).confirmActivity()
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': user}).mint()
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': user}).withdraw(100)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': user}).withdrawAll()
         chain.wait_for_receipt(tx)
 
@@ -272,7 +272,7 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert 1000 == event_args['value']
 
     # User can withdraw reward for mining but no more than locked
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.transact({'from': user}).withdraw(2500)
         chain.wait_for_receipt(tx)
     tx = user_escrow.transact({'from': user}).withdraw(1000)
@@ -293,18 +293,18 @@ def test_policy(web3, chain, policy_manager, user_escrow):
     user_balance = web3.eth.getBalance(user)
 
     # Only user can withdraw reward
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.transact({'from': creator, 'gas_price': 0}).policyRewardWithdraw()
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.transact({'from': creator, 'gas_price': 0}).rewardWithdraw()
         chain.wait_for_receipt(tx)
 
     # Nothing to reward
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.transact({'from': user, 'gas_price': 0}).policyRewardWithdraw()
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow.transact({'from': user, 'gas_price': 0}).rewardWithdraw()
         chain.wait_for_receipt(tx)
     assert user_balance == web3.eth.getBalance(user)

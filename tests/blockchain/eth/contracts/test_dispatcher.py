@@ -42,7 +42,7 @@ def test_dispatcher(web3, chain):
         ContractFactoryClass=Contract)
 
     # Only owner can change target address for dispatcher
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': account}).upgrade(contract2_lib.address)
         chain.wait_for_receipt(tx)
     assert dispatcher.call().target() == contract1_lib.address
@@ -78,7 +78,7 @@ def test_dispatcher(web3, chain):
     assert contract_instance.call().getStructureArrayValue2(0, 0) == 12
 
     # Can't upgrade to bad version
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
         chain.wait_for_receipt(tx)
     assert dispatcher.call().target() == contract1_lib.address
@@ -139,12 +139,12 @@ def test_dispatcher(web3, chain):
     assert contract_instance.call().getStructureValueToCheck2(0) == 55
 
     # Can't downgrade to first version due to storage
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract1_lib.address)
         chain.wait_for_receipt(tx)
 
     # And can't upgrade to bad version
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract2_bad_lib.address)
         chain.wait_for_receipt(tx)
     assert dispatcher.call().target() == contract2_lib.address

@@ -142,10 +142,10 @@ def test_verifying_state(web3, chain, token):
 
     # Can't upgrade to the previous version or to the bad version
     contract_library_bad, _ = chain.provider.deploy_contract('IssuerBad', token.address, 2, 2, 2, 2)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
         chain.wait_for_receipt(tx)
 
@@ -157,11 +157,11 @@ def test_verifying_state(web3, chain, token):
     assert 3600 == contract.call().secondsPerPeriod()
     assert 1 == contract.call().lockedPeriodsCoefficient()
     assert 1 == contract.call().awardedPeriods()
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.transact({'from': creator}).setValueToCheck(2)
         chain.wait_for_receipt(tx)
 
     # Try to upgrade to the bad version
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
         chain.wait_for_receipt(tx)
