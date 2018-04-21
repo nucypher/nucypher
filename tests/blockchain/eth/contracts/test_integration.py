@@ -193,9 +193,9 @@ def test_all(web3, chain, token, escrow, policy_manager):
     tx = escrow.transact({'from': creator}).preDeposit([ursula2], [1000], [10])
     chain.wait_for_receipt(tx)
     assert reward + 1000 == token.call().balanceOf(escrow.address)
-    assert 1000 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula2, 0).encode('latin-1'))
+    assert 1000 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula2, 0))
     assert 1000 == escrow.call().getLockedTokens(ursula2)
-    assert 10 == web3.toInt(escrow.call().getMinerInfo(MAX_RELEASE_PERIODS_FIELD, ursula2, 0).encode('latin-1'))
+    assert 10 == web3.toInt(escrow.call().getMinerInfo(MAX_RELEASE_PERIODS_FIELD, ursula2, 0))
 
     # Can't pre-deposit tokens again for same owner
     with pytest.raises(TransactionFailed):
@@ -223,14 +223,14 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert 1000 == escrow.call().calculateLockedTokens(ursula1, 2)
 
     # Wait 1 period and deposit from one more Ursula
-    wait_time(chain, 1)
+    chain.wait_time(hours=1)
     tx = user_escrow_1.transact({'from': ursula3}).minerDeposit(1000, 10)
     chain.wait_for_receipt(tx)
-    assert 1000 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, user_escrow_1.address, 0).encode('latin-1'))
+    assert 1000 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, user_escrow_1.address, 0))
     assert 1000 == escrow.call().getLockedTokens(user_escrow_1.address)
     assert 10 == web3.toInt(
-        escrow.call().getMinerInfo(MAX_RELEASE_PERIODS_FIELD, user_escrow_1.address, 0).encode('latin-1'))
-    assert 0 == web3.toInt(escrow.call().getMinerInfo(RELEASE_FIELD, user_escrow_1.address, 0).encode('latin-1'))
+        escrow.call().getMinerInfo(MAX_RELEASE_PERIODS_FIELD, user_escrow_1.address, 0))
+    assert 0 == web3.toInt(escrow.call().getMinerInfo(RELEASE_FIELD, user_escrow_1.address, 0))
     assert reward + 3000 == token.call().balanceOf(escrow.address)
     assert 9000 == token.call().balanceOf(user_escrow_1.address)
 
@@ -247,7 +247,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     tx = escrow.transact({'from': ursula1}).confirmActivity()
     chain.wait_for_receipt(tx)
 
-    wait_time(chain, 1)
+    chain.wait_time(hours=1)
     tx = escrow.transact({'from': ursula1}).confirmActivity()
     chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': ursula2}).confirmActivity()
@@ -255,7 +255,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     tx = user_escrow_1.transact({'from': ursula3}).confirmActivity()
     chain.wait_for_receipt(tx)
 
-    wait_time(chain, 1)
+    chain.wait_time(hours=1)
     tx = escrow.transact({'from': ursula1}).confirmActivity()
     chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': ursula2}).confirmActivity()
@@ -295,7 +295,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert 8000 == web3.eth.getBalance(policy_manager.address)
     assert alice2_balance + 2000 == web3.eth.getBalance(alice2)
     assert 1 == web3.toInt(
-        policy_manager.call().getPolicyInfo(DISABLED_FIELD, policy_id_5, NULL_ADDR).encode('latin-1'))
+        policy_manager.call().getPolicyInfo(DISABLED_FIELD, policy_id_5, NULL_ADDR))
 
     # Can't revoke again
     with pytest.raises(TransactionFailed):
@@ -312,7 +312,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert 7000 == web3.eth.getBalance(policy_manager.address)
     assert alice1_balance + 1000 == web3.eth.getBalance(alice1)
     assert 0 == web3.toInt(
-        policy_manager.call().getPolicyInfo(DISABLED_FIELD, policy_id_2, NULL_ADDR).encode('latin-1'))
+        policy_manager.call().getPolicyInfo(DISABLED_FIELD, policy_id_2, NULL_ADDR))
 
     # Can't revoke again
     with pytest.raises(TransactionFailed):
@@ -320,7 +320,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
         chain.wait_for_receipt(tx)
 
     # Wait, confirm activity, mint
-    wait_time(chain, 1)
+    chain.wait_time(hours=1)
     tx = escrow.transact({'from': ursula1}).confirmActivity()
     chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': ursula2}).confirmActivity()
@@ -328,7 +328,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     tx = user_escrow_1.transact({'from': ursula3}).confirmActivity()
     chain.wait_for_receipt(tx)
 
-    wait_time(chain, 1)
+    chain.wait_time(hours=1)
     tx = policy_manager.transact({'from': alice2, 'gas_price': 0})\
         .revokeArrangement(policy_id_3, user_escrow_1.address)
     chain.wait_for_receipt(tx)
@@ -340,16 +340,16 @@ def test_all(web3, chain, token, escrow, policy_manager):
     tx = user_escrow_1.transact({'from': ursula3}).confirmActivity()
     chain.wait_for_receipt(tx)
 
-    wait_time(chain, 1)
+    chain.wait_time(hours=1)
     tx = escrow.transact({'from': ursula1}).confirmActivity()
     chain.wait_for_receipt(tx)
 
-    wait_time(chain, 1)
+    chain.wait_time(hours=1)
     tx = escrow.transact({'from': ursula1}).confirmActivity()
     chain.wait_for_receipt(tx)
 
     # Withdraw reward and refund
-    wait_time(chain, 3)
+    chain.wait_time(hours=3)
     ursula1_balance = web3.eth.getBalance(ursula1)
     tx = policy_manager.transact({'from': ursula1, 'gas_price': 0}).withdraw()
     chain.wait_for_receipt(tx)
@@ -394,9 +394,9 @@ def test_all(web3, chain, token, escrow, policy_manager):
         chain.wait_for_receipt(tx)
         tx = user_escrow_1.transact({'from': ursula3}).confirmActivity()
         chain.wait_for_receipt(tx)
-        wait_time(chain, 1)
+        chain.wait_time(hours=1)
 
-    wait_time(chain, 1)
+    chain.wait_time(hours=1)
     tx = escrow.transact({'from': ursula1}).mint()
     chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': ursula2}).mint()
@@ -411,13 +411,13 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert 0 == escrow.call().getLockedTokens(user_escrow_1.address)
     assert 0 == escrow.call().getLockedTokens(user_escrow_2.address)
 
-    tokens_amount = web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula1, 0).encode('latin-1'))
+    tokens_amount = web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula1, 0))
     tx = escrow.transact({'from': ursula1}).withdraw(tokens_amount)
     chain.wait_for_receipt(tx)
-    tokens_amount = web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula2, 0).encode('latin-1'))
+    tokens_amount = web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula2, 0))
     tx = escrow.transact({'from': ursula2}).withdraw(tokens_amount)
     chain.wait_for_receipt(tx)
-    tokens_amount = web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, user_escrow_1.address, 0).encode('latin-1'))
+    tokens_amount = web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, user_escrow_1.address, 0))
     tx = user_escrow_1.transact({'from': ursula3}).minerWithdraw(tokens_amount)
     chain.wait_for_receipt(tx)
     assert 10000 < token.call().balanceOf(ursula1)
@@ -425,7 +425,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert 10000 < token.call().balanceOf(user_escrow_1.address)
 
     # Unlock and withdraw all tokens in UserEscrow
-    wait_time(chain, 1)
+    chain.wait_time(hours=1)
     assert 0 == user_escrow_1.call().getLockedTokens()
     assert 0 == user_escrow_2.call().getLockedTokens()
     tokens_amount = token.call().balanceOf(user_escrow_1.address)
