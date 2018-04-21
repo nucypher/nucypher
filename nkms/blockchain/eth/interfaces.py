@@ -86,8 +86,7 @@ class Registrar:
         to the filesystem as JSON. This can also be used to update the info
         under the specified `contract_name`.
 
-        WARNING: Unless you are developing the KMS/work at NuCypher, you most
-        likely won't ever need to use this.
+        Note: Unless you are developing the KMS, you most likely won't ever need to use this.
         """
         contract_data = {
             contract_addr: {
@@ -121,7 +120,13 @@ class Registrar:
         return chain_data
 
     def lookup_contract(self, contract_name: str) -> List[dict]:
+        """
+        Search the registarar for all contracts that match a given
+        contract name and return them in a list.
+        """
+
         chain_data = self.dump_chain()
+
         contracts = list()
         for _address, contract_data in chain_data.items():
             if contract_data['name'] == contract_name:
@@ -140,13 +145,17 @@ class Registrar:
         If no name is found, it will attempt to use identifier as an address.
         If no contract is found, it will raise NoKnownContract.
         """
+
         chain_data = self.dump_chain()
         if address in chain_data:
             return chain_data[address]
+
+        # Fallback, search by name
         for contract_identifier, contract_data in chain_data.items():
             if contract_data['name'] == address:
                 return contract_data
-        raise self.UnknownContract('No known contract with address {}'.format(address))
+        else:
+            raise self.UnknownContract('No known contract with address {}'.format(address))
 
 
 class ContractProvider:
@@ -160,13 +169,14 @@ class ContractProvider:
                  deployer_address: str=None,
                  sol_compiler: SolidityCompiler=None):
 
-        self.__provider_backend = provider_backend
-        self.w3 = Web3(self.__provider_backend)
+        self.w3 = Web3(provider_backend)
 
+        # TODO: Move to deployers?
         if deployer_address is None:
-            deployer_address = self.w3.eth.coinbase  # coinbase # etherbase
+            deployer_address = self.w3.eth.coinbase  # coinbase / etherbase
         self.deployer_address = deployer_address
 
+        # if a SolidityCompiler class instance was passed, compile from sources
         if sol_compiler is not None:
             recompile = True
         else:
@@ -179,17 +189,12 @@ class ContractProvider:
         else:
             interfaces = self.__registrar.dump_chain()
 
+        # Setup the registrar and base contract factory cahche
         self.__registrar = registrar
         self.__raw_contract_cache = interfaces
 
     class ProviderError(Exception):
         pass
-
-    def get_contract(self, address: str) -> Contract:
-        """Instantiate a deployed contract from registrar data"""
-        contract_data = self.__registrar.dump_contract(address=address)
-        contract = self.w3.eth.contract(abi=contract_data['abi'], address=contract_data['addr'])
-        return contract
 
     def get_contract_factory(self, contract_name):
         """Retrieve compiled interface data from the cache and return web3 contract"""
@@ -216,27 +221,39 @@ class ContractProvider:
         return an instantiated deployed contract
         """
 
+        #
+        # Build the deployment tx #
+        #
         contract_factory = self.get_contract_factory(contract_name=contract_name)
-
-        deploy_transaction = {'from': self.deployer_address}
+        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
         deploy_bytecode = contract_factory.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
 
-        # TODO: logging
+        # TODO: Logging
         contract_sizes = dict()
         if len(deploy_bytecode['data']) > 1000:
             contract_sizes[contract_name] = str(len(deploy_bytecode['data']))
 
-        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
-
+        #
+        # Transmit the deployment tx #
+        #
         txhash = contract_factory.constructor(*args, **kwargs).transact(transaction=deploy_transaction)
+
+        # Wait for receipt
         receipt = self.w3.eth.waitForTransactionReceipt(txhash)
-
         address = receipt['contractAddress']
-        contract = contract_factory(address=address)
 
-        # Commit to registrar
+        #
+        # Instantiate & enroll contract
+        #
+        contract = contract_factory(address=address)
         self.__registrar.enroll(contract_name=contract_name,
                                 contract_addr=contract.address,
                                 contract_abi=contract_factory.abi)
 
         return contract, txhash
+
+    def get_contract(self, address: str) -> Contract:
+        """Instantiate a deployed contract from registrar data"""
+        contract_data = self.__registrar.dump_contract(address=address)
+        contract = self.w3.eth.contract(abi=contract_data['abi'], address=contract_data['addr'])
+        return contract
