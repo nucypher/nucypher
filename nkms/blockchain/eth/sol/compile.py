@@ -64,9 +64,7 @@ class SolidityCompiler:
         compiled_sol = compile_files(source_files=source_paths,
                                      import_remappings=remappings,
                                      allow_paths=project_root,
-                                     optimize=True)
-                                     # libraries="AdditionalMath:0x00000000000000000000 Heap:0xABCDEF0123456"
-                                     #           "LinkedList::0x00000000000000000000 Heap:0xABCDEF0123456")
+                                     optimize=10)
 
         # Cleanup the compiled data keys
         interfaces = {name.split(':')[-1]: compiled_sol[name] for name in compiled_sol}

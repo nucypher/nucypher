@@ -1,12 +1,17 @@
 import os
+import signal
+import subprocess
 import tempfile
-from os.path import abspath, dirname
 
 import pytest
 import shutil
+import time
 from eth_tester import EthereumTester, PyEVMBackend
-from geth import DevGethProcess
-from web3 import EthereumTesterProvider, IPCProvider
+from geth import LoggingMixin, DevGethProcess
+from os.path import abspath, dirname
+from tests.blockchain.eth.utilities import MockMinerEscrowDeployer
+from web3 import EthereumTesterProvider, IPCProvider, Web3
+from web3.middleware import geth_poa_middleware
 
 from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
 from nkms.blockchain.eth.agents import PolicyAgent
@@ -14,9 +19,12 @@ from nkms.blockchain.eth.chains import TheBlockchain, TesterBlockchain
 from nkms.blockchain.eth.deployers import PolicyManagerDeployer, NuCypherKMSTokenDeployer
 from nkms.blockchain.eth.interfaces import Registrar, ContractProvider
 from nkms.blockchain.eth.sol.compile import SolidityCompiler
-from nkms.blockchain.eth.utilities import MockMinerEscrowDeployer
-from tests.blockchain.eth import contracts
+from tests.blockchain.eth import contracts, utilities
 
+
+#
+# Session fixtures
+#
 
 @pytest.fixture(scope='session')
 def solidity_compiler():
@@ -24,46 +32,43 @@ def solidity_compiler():
     compiler = SolidityCompiler(test_contract_dir=test_contracts_dir)
     yield compiler
 
-
-@pytest.fixture(scope='module')
-def registrar():
-    _, filepath = tempfile.mkstemp()
-    registrar = Registrar(chain_name='tester', registrar_filepath=filepath)
-    yield registrar
-    os.remove(filepath)
+#
+# Web3 provider backends
+#
 
 
-@pytest.fixture(scope='module')
-def geth_ipc_provider(registrar, solidity_compiler):
+@pytest.fixture(scope='session')
+def manual_geth_dev_ipc_provider():
     """
     Provider backend
     https:// github.com/ethereum/eth-tester
     """
-
     ipc_provider = IPCProvider(ipc_path=os.path.join('/tmp/geth.ipc'))
     tester_provider = ContractProvider(provider_backend=ipc_provider,
                                        registrar=registrar,
                                        sol_compiler=solidity_compiler)
-
-    tester_provider.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
-
-    # Generate 9 additional unlocked accounts with 1M ether each
-    insecure_passphrase = 'this-is-not-a-secure-password'
-    for _ in range(9):
-        address = tester_provider.w3.personal.newAccount(insecure_passphrase)
-        tester_provider.w3.personal.unlockAccount(address, passphrase=insecure_passphrase)
-
-        tx = {'to': address,
-              'from': tester_provider.w3.eth.coinbase,
-              'value': 1000000 * 10 ** 18}
-
-        _txhash = tester_provider.w3.eth.sendTransaction(tx)
-
-    yield tester_provider
+    yield ipc_provider
 
 
-@pytest.fixture(scope='module')
-def auto_geth_ipc_provider(registrar, solidity_compiler):
+@pytest.fixture(scope='session')
+def auto_geth_dev_ipc_provider():
+    """
+    Provider backend
+    https:// github.com/ethereum/eth-tester
+    """
+    geth_cmd = ["geth --dev"]  # WARNING: changing this may have undesireable effects.
+    geth_process = subprocess.Popen(geth_cmd, stdout=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+
+    time.sleep(2)  #TODO: better wait with file socket
+
+    ipc_provider = IPCProvider(ipc_path=os.path.join('/tmp/geth.ipc'))
+
+    yield ipc_provider
+    os.killpg(os.getpgid(geth_process.pid), signal.SIGTERM)
+
+
+@pytest.fixture(scope='session')
+def auto_geth_ipc_provider():
     """
     Provider backend
     https: // github.com / ethereum / eth - tester     # available-backends
@@ -89,26 +94,8 @@ def auto_geth_ipc_provider(registrar, solidity_compiler):
     assert geth.is_alive
 
     ipc_provider = IPCProvider(ipc_path=os.path.join(testing_dir, chain_name, 'geth.ipc'))
-    tester_provider = ContractProvider(provider_backend=ipc_provider,
-                                       registrar=registrar,
-                                       sol_compiler=solidity_compiler)
 
-    tester_provider.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
-
-    # Generate 9 additional unlocked accounts with 1M ether each
-    insecure_passphrase = 'this-is-not-a-secure-password'
-    for _ in range(9):
-        address = tester_provider.w3.personal.newAccount(insecure_passphrase)
-        tester_provider.w3.personal.unlockAccount(address, insecure_passphrase)
-
-        tx = {'to': address,
-              'from': tester_provider.w3.eth.coinbase,
-              'value': 1000000}
-
-        _txhash = tester_provider.w3.eth.sendTransaction(tx)
-
-    assert len(geth.accounts) == 10
-    yield tester_provider
+    yield ipc_provider
 
     #
     # Teardown
@@ -119,29 +106,52 @@ def auto_geth_ipc_provider(registrar, solidity_compiler):
     shutil.rmtree(testing_dir)
 
 
-@pytest.fixture(scope='module')
-def pyevm_provider(registrar, solidity_compiler):
+@pytest.fixture(scope='session')
+def pyevm_provider():
     """
     Provider backend
     https: // github.com / ethereum / eth - tester     # available-backends
     """
+    # TODO:     # eth_tester.backend.chain.header.gas_limit = 4626271
     eth_tester = EthereumTester(backend=PyEVMBackend(), auto_mine_transactions=True)
-    test_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
+    pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
+    yield pyevm_provider
 
-    tester_provider = ContractProvider(provider_backend=test_provider,
-                                       registrar=registrar,
-                                       sol_compiler=solidity_compiler)
+
+@pytest.fixture(scope='session')
+def web3(auto_geth_dev_ipc_provider):
+
+    w3 = Web3(providers=auto_geth_dev_ipc_provider)
+    w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+
+    assert len(w3.eth.accounts) == 1
+    _txhashes = utilities.generate_accounts(w3=w3, quantity=9)
+    assert len(w3.eth.accounts) == 10
+
+    yield w3
+
+
+#
+# Module Fixtures
+#
+
+@pytest.fixture(scope='module')
+def contract_provider(web3, registrar, solidity_compiler):
+    tester_provider = ContractProvider(provider_backend=web3, registrar=registrar, sol_compiler=solidity_compiler)
     yield tester_provider
 
 
 @pytest.fixture(scope='module')
-def web3(geth_ipc_provider):
-    yield geth_ipc_provider.w3
+def registrar():
+    _, filepath = tempfile.mkstemp()
+    registrar = Registrar(chain_name='tester', registrar_filepath=filepath)
+    yield registrar
+    os.remove(filepath)
 
 
 @pytest.fixture(scope='module')
-def chain(geth_ipc_provider):
-    chain = TesterBlockchain(contract_provider=geth_ipc_provider)
+def chain(contract_provider):
+    chain = TesterBlockchain(contract_provider=contract_provider)
     yield chain
 
     del chain
@@ -197,27 +207,3 @@ def mock_miner_agent(token_agent, mock_token_deployer, mock_miner_escrow_deploye
 def mock_policy_agent(mock_miner_agent, token_agent, mock_token_deployer, mock_miner_escrow_deployer):
     policy_agent = PolicyAgent(miner_agent=mock_miner_agent)
     yield policy_agent
-
-
-# @pytest.fixture()
-# def token(web3, chain):
-#     creator = web3.eth.accounts[0]
-#     # Create an ERC20 token
-#     token, _ = chain.provider.deploy_contract('NuCypherKMSToken', int(2e9))
-#     return token
-
-#
-# @pytest.fixture()
-# def escrow_contract(web3, chain, token):
-#     creator = web3.eth.accounts[0]
-#     # Creator deploys the escrow
-#
-#     contract, _ = chain.provider.deploy_contract(
-#         'MinersEscrow', token.address, 1, int(8e7), 4, 4, 2, 100, int(1e9)
-#     )
-#
-#     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
-#
-#     # Deploy second version of the government contract
-#     contract = web3.eth.contract(contract.abi, dispatcher.address, ContractFactoryClass=Contract)
-#     return contract

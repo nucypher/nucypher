@@ -164,12 +164,12 @@ class ContractProvider:
     ethereum contracts with the given web3 provider backend.
     """
 
-    def __init__(self, provider_backend,
+    def __init__(self, provider_backend: Web3,
                  registrar: Registrar,
                  deployer_address: str=None,
                  sol_compiler: SolidityCompiler=None):
 
-        self.w3 = Web3(provider_backend)
+        self.w3 = provider_backend
 
         # TODO: Move to deployers?
         if deployer_address is None:
