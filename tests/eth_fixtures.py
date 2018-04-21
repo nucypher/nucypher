@@ -51,11 +51,12 @@ def geth_ipc_provider(registrar, solidity_compiler):
     insecure_passphrase = 'this-is-not-a-secure-password'
     for _ in range(9):
         address = tester_provider.w3.personal.newAccount(insecure_passphrase)
-        tester_provider.w3.personal.unlockAccount(address=address, passphrase=insecure_passphrase)
+        tester_provider.w3.personal.unlockAccount(address, passphrase=insecure_passphrase)
 
         tx = {'to': address,
               'from': tester_provider.w3.eth.coinbase,
-              'value': 1000000}
+              'value': 1000000 * 10 ** 18}
+
         _txhash = tester_provider.w3.eth.sendTransaction(tx)
 
     yield tester_provider
@@ -134,13 +135,13 @@ def pyevm_provider(registrar, solidity_compiler):
 
 
 @pytest.fixture(scope='module')
-def web3(pyevm_provider):
-    yield pyevm_provider.w3
+def web3(geth_ipc_provider):
+    yield geth_ipc_provider.w3
 
 
 @pytest.fixture(scope='module')
-def chain(pyevm_provider):
-    chain = TesterBlockchain(contract_provider=pyevm_provider)
+def chain(geth_ipc_provider):
+    chain = TesterBlockchain(contract_provider=geth_ipc_provider)
     yield chain
 
     del chain
