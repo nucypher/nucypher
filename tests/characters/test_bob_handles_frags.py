@@ -39,7 +39,7 @@ def test_bob_can_follow_treasure_map(enacted_policy, ursulas, bob, alice):
     assert len(bob.known_nodes) == len(ursulas)
 
     # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
-    bob.get_treasure_map(alice, hrac)
+    bob.get_treasure_map(alice.stamp, hrac)
     newly_discovered, total_known = bob.follow_treasure_map(hrac)
 
     # He finds that he didn't need to discover any new nodes...

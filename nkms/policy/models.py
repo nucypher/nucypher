@@ -114,17 +114,18 @@ class Policy(object):
     """
     _ursula = None
 
-    def __init__(self, alice, bob=None, kfrags=(constants.UNKNOWN_KFRAG,),
-                 label=None, m=None, alices_signature=constants.NOT_SIGNED):
+    def __init__(self, alice, label, bob=None, kfrags=(constants.UNKNOWN_KFRAG,),
+                 public_key=None, m=None, alices_signature=constants.NOT_SIGNED):
 
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.
         :param label: The identity of the resource to which Bob is granted access.
         """
         self.alice = alice
+        self.label = label
         self.bob = bob
         self.kfrags = kfrags
-        self.uri = label
+        self.public_key = public_key
         self.treasure_map = TreasureMap(m=m)
         self._accepted_arrangements = OrderedDict()
 
@@ -155,23 +156,17 @@ class Policy(object):
     @staticmethod
     def from_alice(kfrags,
                    alice,
+                   label,
                    bob,
-                   uri,
+                   public_key,
                    m,
                    ):
         # TODO: What happened to Alice's signature - don't we include it here?
-        policy = Policy(alice, bob, kfrags, uri, m)
+        policy = Policy(alice, label, bob, kfrags, public_key, m)
 
         return policy
 
     def hrac(self):
-        """
-        A convenience method for generating an hrac for this instance.
-        """
-        return self.hrac_for(self.alice, self.bob, self.uri)
-
-    @staticmethod
-    def hrac_for(alice, bob, uri):
         """
         The "hashed resource authentication code".
 
@@ -183,7 +178,7 @@ class Policy(object):
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
         """
-        return keccak_digest(bytes(alice.stamp) + bytes(bob.stamp) + uri)
+        return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
     def treasure_map_dht_key(self):
         """
@@ -273,9 +268,6 @@ class Policy(object):
                 kfrag = self.assign_kfrag_to_arrangement(arrangement)
                 arrangement.publish(kfrag, ursula, result)
                 # TODO: What if there weren't enough Arrangements approved to distribute n kfrags?  We need to raise NotEnoughQualifiedUrsulas.
-
-    def public_key(self):
-        return self.alice.public_key(DelegatingPower)
 
 
 class TreasureMap(object):

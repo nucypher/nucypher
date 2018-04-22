@@ -93,7 +93,7 @@ def test_keystore():
 @pytest.fixture(scope="module")
 def capsule_side_channel(enacted_policy):
     signing_keypair = SigningKeypair()
-    data_source = DataSource(policy_pubkey_enc=enacted_policy.public_key(),
+    data_source = DataSource(policy_pubkey_enc=enacted_policy.public_key,
                              signer=SignatureStamp(signing_keypair))
     message_kit, _signature = data_source.encapsulate_single_message(b"Welcome to the flippering.")
     return message_kit, data_source

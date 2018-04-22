@@ -73,11 +73,9 @@ class Character(object):
         if crypto_power:
             self._crypto_power = crypto_power
         elif crypto_power_ups:
-            self._crypto_power = CryptoPower(power_ups=crypto_power_ups,
-                                             generate_keys_if_needed=is_me)
+            self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
         else:
-            self._crypto_power = CryptoPower(self._default_crypto_powerups,
-                                             generate_keys_if_needed=is_me)
+            self._crypto_power = CryptoPower(self._default_crypto_powerups)
         if is_me:
             self.network_middleware = network_middleware or NetworkyStuff()
             try:
@@ -304,7 +302,8 @@ class Character(object):
                             powers_and_keys=({SigningPower: pubkey})
                         )
                 else:
-                    self.log.warn("Discovered node with bad signature: {}".format(node_meta))
+                    message = "Suspicious Activity: Discovered node with bad signature: {}.  Propagated by: {}:{}".format(node_meta, address, port)
+                    self.log.warn(message)
         return new_nodes
 
     def network_bootstrap(self, node_list):
@@ -325,7 +324,7 @@ class Alice(Character, PolicyAuthor):
         super().__init__(*args, **kwargs)
         PolicyAuthor.__init__(self, self.address, policy_agent=FakePolicyAgent())
 
-    def generate_kfrags(self, bob, m, n) -> List:
+    def generate_kfrags(self, bob, label, m, n) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
 
@@ -336,27 +335,27 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
         bob_pubkey_enc = bob.public_key(EncryptingPower)
-        return self._crypto_power.power_ups(DelegatingPower).generate_kfrags(bob_pubkey_enc, m, n)
+        return self._crypto_power.power_ups(DelegatingPower).generate_kfrags(bob_pubkey_enc, label, m, n)
 
-    def create_policy(self, bob: "Bob", uri: bytes, m: int, n: int):
+    def create_policy(self, bob: "Bob", label: bytes, m: int, n: int):
         """
         Create a Policy to share uri with bob.
         Generates KFrags and attaches them.
         """
-        kfrags = self.generate_kfrags(bob, m, n)
+        public_key, kfrags = self.generate_kfrags(bob, label, m, n)
         from nkms.policy.models import Policy
         policy = Policy.from_alice(
             alice=self,
+            label=label,
             bob=bob,
             kfrags=kfrags,
-            uri=uri,
+            public_key=public_key,
             m=m,
         )
 
         return policy
 
-    def grant(self, bob, uri, networky_stuff,
-              m=None, n=None, expiration=None, deposit=None):
+    def grant(self, bob, uri, m=None, n=None, expiration=None, deposit=None):
         if not m:
             # TODO: get m from config  #176
             raise NotImplementedError
@@ -369,7 +368,7 @@ class Alice(Character, PolicyAuthor):
         if not deposit:
             default_deposit = None  # TODO: Check default deposit in config.  #176
             if not default_deposit:
-                deposit = networky_stuff.get_competitive_rate()
+                deposit = self.network_middleware.get_competitive_rate()
                 if deposit == NotImplemented:
                     deposit = constants.NON_PAYMENT(b"0000000")
 
@@ -379,12 +378,12 @@ class Alice(Character, PolicyAuthor):
         # by trying differet
         # deposits and expirations on a limited number of Ursulas.
         # Users may decide to inject some market strategies here.
-        found_ursulas = policy.find_ursulas(networky_stuff, deposit,
+        found_ursulas = policy.find_ursulas(self.network_middleware, deposit,
                                             expiration, num_ursulas=n)
         policy.match_kfrags_to_found_ursulas(found_ursulas)
         # REST call happens here, as does population of TreasureMap.
-        policy.enact(networky_stuff)
-        policy.publish_treasure_map(networky_stuff)
+        policy.enact(self.network_middleware)
+        policy.publish_treasure_map(self.network_middleware)
 
         return policy  # Now with TreasureMap affixed!
 
@@ -456,8 +455,8 @@ class Bob(Character):
                         powers_and_keys=({SigningPower: ursula_pubkey_sig})
                     )
 
-    def get_treasure_map(self, alice, hrac, using_dht=False):
-        map_id = keccak_digest(bytes(alice.stamp) + hrac)
+    def get_treasure_map(self, alice_pubkey_sig, hrac, using_dht=False, verify_sig=True):
+        map_id = keccak_digest(alice_pubkey_sig + hrac)
 
         if using_dht:
             ursula_coro = self.server.get(map_id)
@@ -470,10 +469,14 @@ class Bob(Character):
             tmap_message_kit = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                         map_id)
 
-        verified, packed_node_list = self.verify_from(
-            alice, tmap_message_kit,
-            decrypt=True
-        )
+        if verify_sig:
+            alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
+            verified, packed_node_list = self.verify_from(
+                alice, tmap_message_kit,
+                decrypt=True
+            )
+        else:
+            assert False
 
         if not verified:
             return constants.NOT_FROM_ALICE
@@ -554,14 +557,16 @@ class Bob(Character):
     def get_ursula(self, ursula_id):
         return self._ursulas[ursula_id]
 
-    def join_policy(self, alice, hrac, using_dht=False, node_list=None):
-        # TODO: unfuckify this
+    def join_policy(self, label, alice_pubkey_sig,
+                    using_dht=False, node_list=None, verify_sig=True):
+        hrac = keccak_digest(bytes(alice_pubkey_sig) + bytes(self.stamp) + label)
         if node_list:
             self.network_bootstrap(node_list)
-        self.get_treasure_map(alice, hrac, using_dht=using_dht)
+        self.get_treasure_map(alice_pubkey_sig, hrac, using_dht=using_dht, verify_sig=verify_sig)
         self.follow_treasure_map(hrac, using_dht=using_dht)
 
-    def retrieve(self, hrac, message_kit, data_source):
+    def retrieve(self, message_kit, data_source, alice_pubkey_sig):
+        hrac = keccak_digest(bytes(alice_pubkey_sig) + self.stamp + data_source.label)
         treasure_map = self.treasure_maps[hrac]
 
         # First, a quick sanity check to make sure we know about at least m nodes.
@@ -574,7 +579,7 @@ class Bob(Character):
         work_orders = self.generate_work_orders(hrac, message_kit.capsule)
         for node_id in self.treasure_maps[hrac]:
             node = self.known_nodes[UmbralPublicKey.from_bytes(node_id)]
-            cfrags = self.get_reencrypted_c_frags(self.network_middleware, work_orders[bytes(node.stamp)])
+            cfrags = self.get_reencrypted_c_frags(work_orders[bytes(node.stamp)])
             message_kit.capsule.attach_cfrag(cfrags[0])
         verified, delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
 
