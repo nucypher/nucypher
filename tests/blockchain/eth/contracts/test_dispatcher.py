@@ -26,13 +26,13 @@ def test_dispatcher(web3, chain):
     upgrades = dispatcher.events.Upgraded.createFilter(fromBlock=0)
     assert dispatcher.call().target() == contract1_lib.address
 
-    # events = upgrades.get_all_entries()
-    # assert 1 == len(events)
+    events = upgrades.get_all_entries()
+    assert 1 == len(events)
 
-    # event_args = events[0]['args']
-    # assert '0x' + '0' * 40 == event_args['from']
-    # assert contract1_lib.address == event_args['to']
-    # assert creator == event_args['owner']
+    event_args = events[0]['args']
+    assert '0x' + '0' * 40 == event_args['from']
+    assert contract1_lib.address == event_args['to']
+    assert creator == event_args['owner']
 
     # Assign dispatcher address as contract.
     # In addition to the interface can be used ContractV1, ContractV2 or ContractV3 ABI
@@ -88,13 +88,13 @@ def test_dispatcher(web3, chain):
     chain.wait_for_receipt(tx)
     assert dispatcher.call().target() == contract2_lib.address
 
-    # events = upgrades.get_all_entries()
-    # assert 2 == len(events)
-    #
-    # event_args = events[1]['args']
-    # assert contract1_lib.address == event_args['from']
-    # assert contract2_lib.address == event_args['to']
-    # assert creator == event_args['owner']
+    events = upgrades.get_all_entries()
+    assert 2 == len(events)
+
+    event_args = events[1]['args']
+    assert contract1_lib.address == event_args['from']
+    assert contract2_lib.address == event_args['to']
+    assert creator == event_args['owner']
 
     # Check values after upgrade
     assert contract_instance.call().returnValue() == 20
@@ -224,28 +224,35 @@ def test_dispatcher(web3, chain):
     assert contract_instance.call().getStructureValueToCheck2(0) == 55
     assert contract_instance.call().storageValueToCheck() == 2
 
-    # events = upgrades.get_all_entries()
-    #
-    # assert 4 == len(events)
-    # event_args = events[2]['args']
-    # assert contract1_lib.address == event_args['from']
-    # assert contract2_lib.address == event_args['to']
-    # assert creator == event_args['owner']
-    # event_args = events[3]['args']
-    # assert contract2_lib.address == event_args['from']
-    # assert contract3_lib.address == event_args['to']
-    # assert creator == event_args['owner']
-    #
-    # # Create and check events
-    # tx = contract_instance.transact({'from': creator}).createEvent(22)
-    # chain.wait_for_receipt(tx)
-    # events = contract_instance.pastEvents('EventV2').get()
-    # assert 1 == len(events)
-    # assert 22 == events[0]['args']['value']
+    events = upgrades.get_all_entries()
+
+    assert 4 == len(events)
+    event_args = events[2]['args']
+    assert contract1_lib.address == event_args['from']
+    assert contract2_lib.address == event_args['to']
+    assert creator == event_args['owner']
+    event_args = events[3]['args']
+    assert contract2_lib.address == event_args['from']
+    assert contract3_lib.address == event_args['to']
+    assert creator == event_args['owner']
+
+    # Create and check events
+    tx = contract_instance.transact({'from': creator}).createEvent(22)
+    chain.wait_for_receipt(tx)
+    test_eventv2_log = contract_instance.events.EventV2.createFilter(fromBlock=0)
+    events = test_eventv2_log.get_all_entries()
+
+    assert 1 == len(events)
+    assert 22 == events[0]['args']['value']
+
+    # TODO
     # contract_instance = web3.eth.contract(
     #     abi=contract1_lib.abi,
     #     address=dispatcher.address,
     #     ContractFactoryClass=Contract)
-    # events = contract_instance.pastEvents('EventV1').get()
+    #
+    # test_eventv1_log = contract_instance.events.EventV1.createFilter(fromBlock=0)
+    # events = test_eventv1_log.get_all_entries()
+    #
     # assert 1 == len(events)
     # assert 33 == events[0]['args']['value']
