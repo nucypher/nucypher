@@ -49,7 +49,7 @@ def test_linked_list(web3, chain):
     # Check node
     node = instance.call().getLinks(address1)
     assert node[0] == HEAD
-    assert node[1].lower() == address3.lower()
+    assert node[1] == address3
 
     # Remove another value
     assert instance.call().remove(address3) == address3
@@ -63,7 +63,7 @@ def test_linked_list(web3, chain):
     assert node[1] == HEAD
 
     # Remove last value
-    assert instance.call().remove(address1).lower() == address1.lower()
+    assert instance.call().remove(address1) == address1
     tx = instance.transact({'from': address1}).remove(address1)
     chain.wait_for_receipt(tx)
     assert instance.call().sizeOf() == 0
@@ -84,15 +84,15 @@ def test_linked_list(web3, chain):
 
     # Check nodes
     node = instance.call().getLinks(address3)
-    assert node[0].lower() == address2.lower()
+    assert node[0] == address2
     assert node[1] == HEAD
     node = instance.call().getLinks(address1)
     assert node[0] == HEAD
-    assert node[1].lower() == address2.lower()
+    assert node[1] == address2
 
     # Pop values
-    assert instance.call().pop(NEXT).lower() == address1.lower()
-    assert instance.call().pop(PREV).lower() == address3.lower()
+    assert instance.call().pop(NEXT) == address1
+    assert instance.call().pop(PREV) == address3
     tx = instance.transact({'from': address1}).pop(NEXT)
     chain.wait_for_receipt(tx)
     tx = instance.transact({'from': address1}).pop(PREV)

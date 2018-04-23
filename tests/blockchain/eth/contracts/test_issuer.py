@@ -131,7 +131,7 @@ def test_verifying_state(web3, chain, token):
     assert 1 == contract.call().miningCoefficient()
     tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v2.address)
     chain.wait_for_receipt(tx)
-    assert contract_library_v2.address.lower() == dispatcher.call().target().lower()
+    assert contract_library_v2.address == dispatcher.call().target()
     assert 2 == contract.call().miningCoefficient()
     assert 2 * 3600 == contract.call().secondsPerPeriod()
     assert 2 == contract.call().lockedPeriodsCoefficient()
@@ -152,7 +152,7 @@ def test_verifying_state(web3, chain, token):
     # But can rollback
     tx = dispatcher.transact({'from': creator}).rollback()
     chain.wait_for_receipt(tx)
-    assert contract_library_v1.address.lower() == dispatcher.call().target().lower()
+    assert contract_library_v1.address == dispatcher.call().target()
     assert 1 == contract.call().miningCoefficient()
     assert 3600 == contract.call().secondsPerPeriod()
     assert 1 == contract.call().lockedPeriodsCoefficient()
