@@ -38,15 +38,12 @@ def solidity_compiler():
 
 
 @pytest.fixture(scope='session')
-def manual_geth_dev_ipc_provider():
+def manual_geth_ipc_provider():
     """
     Provider backend
     https:// github.com/ethereum/eth-tester
     """
     ipc_provider = IPCProvider(ipc_path=os.path.join('/tmp/geth.ipc'))
-    tester_provider = ContractProvider(provider_backend=ipc_provider,
-                                       registrar=registrar,
-                                       sol_compiler=solidity_compiler)
     yield ipc_provider
 
 
@@ -56,10 +53,11 @@ def auto_geth_dev_ipc_provider():
     Provider backend
     https:// github.com/ethereum/eth-tester
     """
+    # TODO: logging
     geth_cmd = ["geth --dev"]  # WARNING: changing this may have undesireable effects.
     geth_process = subprocess.Popen(geth_cmd, stdout=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
 
-    time.sleep(2)  #TODO: better wait with file socket
+    time.sleep(10)  #TODO: better wait with file socket
 
     ipc_provider = IPCProvider(ipc_path=os.path.join('/tmp/geth.ipc'))
 
@@ -78,23 +76,26 @@ def auto_geth_ipc_provider():
     # spin-up geth
     #
 
-    testing_dir = tempfile.mkdtemp()
-    chain_name = 'nkms_tester'
+    class IPCDevGethProcess(LoggingMixin, DevGethProcess):
+        data_dir = tempfile.mkdtemp()
+        chain_name = 'tester'
+        ipc_path = os.path.join(data_dir, chain_name, 'geth.ipc')
 
-    class NKMSGeth(LoggingMixin, DevGethProcess):
-        pass
+        def __init__(self, *args, **kwargs):
+            super().__init__(chain_name=self.chain_name,
+                             base_dir=self.data_dir,
+                             *args, **kwargs)
 
-    geth = DevGethProcess(chain_name=chain_name, base_dir=testing_dir)
+    geth = IPCDevGethProcess()
     geth.start()
 
     geth.wait_for_ipc(timeout=30)
-    geth.wait_for_dag(timeout=120)
+    geth.wait_for_dag(timeout=600)  # 10 min
     assert geth.is_dag_generated
     assert geth.is_running
     assert geth.is_alive
 
-    ipc_provider = IPCProvider(ipc_path=os.path.join(testing_dir, chain_name, 'geth.ipc'))
-
+    ipc_provider = IPCProvider(ipc_path=geth.ipc_path)
     yield ipc_provider
 
     #
@@ -103,7 +104,7 @@ def auto_geth_ipc_provider():
     geth.stop()
     assert geth.is_stopped
     assert not geth.is_alive
-    shutil.rmtree(testing_dir)
+    shutil.rmtree(geth.data_dir)
 
 
 @pytest.fixture(scope='session')
@@ -113,7 +114,9 @@ def pyevm_provider():
     https: // github.com / ethereum / eth - tester     # available-backends
     """
     # TODO:     # eth_tester.backend.chain.header.gas_limit = 4626271
-    eth_tester = EthereumTester(backend=PyEVMBackend(), auto_mine_transactions=True)
+    eth_tester = EthereumTester(backend=PyEVMBackend(),
+                                auto_mine_transactions=True)
+
     pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
     yield pyevm_provider
 
