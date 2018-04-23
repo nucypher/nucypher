@@ -128,7 +128,7 @@ def web3(auto_geth_dev_ipc_provider):
     w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
     assert len(w3.eth.accounts) == 1
-    _txhashes = utilities.generate_accounts(w3=w3, quantity=9)
+    utilities.generate_accounts(w3=w3, quantity=9)
     assert len(w3.eth.accounts) == 10
 
     yield w3
@@ -155,6 +155,7 @@ def registrar():
 @pytest.fixture(scope='module')
 def chain(contract_provider):
     chain = TesterBlockchain(contract_provider=contract_provider)
+
     one_million_ether = 10 ** 6 * 10 ** 18  # wei -> ether
     chain._global_airdrop(amount=one_million_ether)
 
