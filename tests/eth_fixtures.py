@@ -155,6 +155,9 @@ def registrar():
 @pytest.fixture(scope='module')
 def chain(contract_provider):
     chain = TesterBlockchain(contract_provider=contract_provider)
+    one_million_ether = 10 ** 6 * 10 ** 18  # wei -> ether
+    chain._global_airdrop(amount=one_million_ether)
+
     yield chain
 
     del chain

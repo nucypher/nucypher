@@ -1,5 +1,6 @@
 import random
 from abc import ABC
+from typing import List
 
 from nkms.blockchain.eth.interfaces import ContractProvider
 
@@ -119,17 +120,16 @@ class TesterBlockchain(TheBlockchain):
 
         return miners
 
-    def _global_airdrop(self, amount: int) -> None:
+    def _global_airdrop(self, amount: int) -> List[str]:
         """Airdrops from creator address to all other addresses!"""
         coinbase, *addresses = self.provider.w3.eth.accounts
 
+        tx_hashes = list()
         for address in addresses:
-            tx = {'to': address,
-                  'from': coinbase,
-                  'value': amount}
-            _txhash = self.provider.w3.eth.sendTransaction(tx)
-
-
+            tx = {'to': address, 'from': coinbase, 'value': amount}
+            txhash = self.provider.w3.eth.sendTransaction(tx)
+            tx_hashes.append(txhash)
+        return tx_hashes
 
 #
 # class TestRPCBlockchain:
