@@ -8,6 +8,9 @@ from constant_sorrow import constants
 from sqlalchemy.engine import create_engine
 
 from nkms.characters import Alice, Bob
+from nkms.keystore import keystore
+from nkms.keystore.db import Base
+
 from nkms.crypto.signature import SignatureStamp
 from nkms.data_sources import DataSource
 from nkms.keystore import keystore
@@ -40,7 +43,6 @@ def enacted_policy(idle_policy, ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = constants.NON_PAYMENT
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
-    # contract = Contract(idle_policy.n, deposit, contract_end_datetime)
 
     networky_stuff = MockNetworkyStuff(ursulas)
     found_ursulas = idle_policy.find_ursulas(networky_stuff, deposit, expiration=contract_end_datetime)
@@ -52,18 +54,17 @@ def enacted_policy(idle_policy, ursulas):
 
 @pytest.fixture(scope="module")
 def alice(ursulas):
-    ALICE = Alice()
+    ALICE = Alice(network_middleware=MockNetworkyStuff(ursulas))
     ALICE.server.listen(8471)
     ALICE.__resource_id = b"some_resource_id"
     EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", u.dht_port) for u in ursulas]))
+    ALICE.network_bootstrap([("127.0.0.1", u.rest_port) for u in ursulas])
     return ALICE
 
 
 @pytest.fixture(scope="module")
-def bob():
-    BOB = Bob()
-    BOB.server.listen(8475)
-    EVENT_LOOP.run_until_complete(BOB.server.bootstrap([("127.0.0.1", URSULA_PORT)]))
+def bob(ursulas):
+    BOB = Bob(network_middleware=MockNetworkyStuff(ursulas))
     return BOB
 
 
@@ -79,8 +80,9 @@ def ursulas():
 
 
 @pytest.fixture(scope="module")
-def treasure_map_is_set_on_dht(enacted_policy):
-    enacted_policy.publish_treasure_map()
+def treasure_map_is_set_on_dht(enacted_policy, ursulas):
+    networky_stuff = MockNetworkyStuff(ursulas)
+    enacted_policy.publish_treasure_map(networky_stuff, use_dht=True)
 
 
 @pytest.fixture(scope="module")
@@ -94,7 +96,7 @@ def test_keystore():
 @pytest.fixture(scope="module")
 def capsule_side_channel(enacted_policy):
     signing_keypair = SigningKeypair()
-    data_source = DataSource(policy_pubkey_enc=enacted_policy.public_key(),
+    data_source = DataSource(policy_pubkey_enc=enacted_policy.public_key,
                              signer=SignatureStamp(signing_keypair))
     message_kit, _signature = data_source.encapsulate_single_message(b"Welcome to the flippering.")
     return message_kit, data_source

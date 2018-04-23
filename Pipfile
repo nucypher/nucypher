@@ -19,7 +19,7 @@ pyumbral = {git = "https://github.com/nucypher/pyumbral.git"}
 requests = "*"
 hendrix = {git = "https://github.com/hendrix/hendrix", ref = "tags/3.0.0rc1"}
 constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "kms-depend"}
-bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git", ref = "eaa1df2433362190f30bc6e400570f0331980ebb"}
+bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git", ref = "kms-depend"}
 appdirs = "*"
 eth-tester = "==0.1.0b23"
 py-evm = "*"

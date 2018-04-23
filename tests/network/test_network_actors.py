@@ -8,7 +8,7 @@ from kademlia.utils import digest
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.kits import UmbralMessageKit
 from nkms.network import blockchain_client
-from nkms.network.protocols import dht_value_splitter
+from nkms.network.protocols import dht_value_splitter, dht_with_hrac_splitter
 from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
 
 
@@ -37,7 +37,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     assert ursula.server.protocol.illegal_keys_seen == []
 
     # Vladimir does almost everything right....
-    value = vladimir.interface_dht_value()
+    value = vladimir.interface_info_with_metadata()
 
     # Except he sets an illegal key for his interface.
     illegal_key = b"Not allowed to set arbitrary key for this."
@@ -49,19 +49,32 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     assert digest(illegal_key) in ursula.server.protocol.illegal_keys_seen
 
 
-def test_alice_finds_ursula(alice, ursulas):
+def test_alice_finds_ursula_via_dht(alice, ursulas):
     """
     With the help of any Ursula, Alice can find a specific Ursula.
     """
     ursula_index = 1
     all_ursulas = blockchain_client._ursulas_on_blockchain
     value = alice.server.get_now(all_ursulas[ursula_index])
-    header, _signature, _ursula_pubkey_sig, _hrac, interface_info = dht_value_splitter(value,
+    header, _signature, _ursula_pubkey_sig, interface_info = dht_value_splitter(value,
                                                                                return_remainder=True)
 
     assert header == constants.BYTESTRING_IS_URSULA_IFACE_INFO
-    port = msgpack.loads(interface_info)[0]
+    port = msgpack.loads(interface_info)[1]
     assert port == URSULA_PORT + ursula_index
+
+
+def test_alice_finds_ursula_via_rest(alice, ursulas):
+    networky_stuff = MockNetworkyStuff(ursulas)
+
+    # Imagine alice knows of nobody.
+    alice.known_nodes = {}
+
+    new_nodes = alice.learn_about_nodes(address="https://localhost", port=ursulas[0].rest_port)
+    assert len(new_nodes) == len(ursulas)
+
+    for ursula in ursulas:
+        assert ursula.stamp.as_umbral_pubkey() in new_nodes
 
 
 def test_alice_creates_policy_group_with_correct_hrac(idle_policy):
@@ -79,7 +92,8 @@ def test_alice_sets_treasure_map_on_network(enacted_policy, ursulas):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
     """
-    _, packed_encrypted_treasure_map, _, _ = enacted_policy.publish_treasure_map()
+    networky_stuff = MockNetworkyStuff(ursulas)
+    _, packed_encrypted_treasure_map, _, _ = enacted_policy.publish_treasure_map(networky_stuff=networky_stuff, use_dht=True)
 
     treasure_map_as_set_on_network = ursulas[0].server.storage[
         digest(enacted_policy.treasure_map_dht_key())]
@@ -112,7 +126,7 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ur
     treasure_map_as_set_on_network = ursulas[0].server.storage[
         digest(enacted_policy.treasure_map_dht_key())]
 
-    header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_value_splitter(
+    header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = dht_with_hrac_splitter(
         treasure_map_as_set_on_network, return_remainder=True)
 
     assert header == constants.BYTESTRING_IS_TREASURE_MAP
@@ -141,13 +155,13 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy, ursula
 
     # If Bob doesn't know about any Ursulas, he can't find the TreasureMap via the REST swarm:
     with pytest.raises(bob.NotEnoughUrsulas):
-        treasure_map_from_wire = bob.get_treasure_map(enacted_policy, networky_stuff)
+        treasure_map_from_wire = bob.get_treasure_map(enacted_policy.alice.stamp, enacted_policy.hrac())
 
     # Let's imagine he has learned about some - say, from the blockchain.
-    bob.known_nodes = {u.interface_dht_key(): u for u in ursulas}
+    bob.known_nodes = {u.interface_info_with_metadata(): u for u in ursulas}
 
     # Now try.
-    treasure_map_from_wire = bob.get_treasure_map(enacted_policy, networky_stuff)
+    treasure_map_from_wire = bob.get_treasure_map(enacted_policy.alice.stamp, enacted_policy.hrac())
 
     assert enacted_policy.treasure_map == treasure_map_from_wire
 
@@ -159,10 +173,10 @@ def test_treaure_map_is_legit(enacted_policy):
     alice = enacted_policy.alice
     for ursula_interface_id in enacted_policy.treasure_map:
         value = alice.server.get_now(ursula_interface_id)
-        header, signature, ursula_pubkey_sig, hrac, interface_info = dht_value_splitter(value,
+        header, signature, ursula_pubkey_sig, interface_info = dht_value_splitter(value,
                                                                                 return_remainder=True)
         assert header == constants.BYTESTRING_IS_URSULA_IFACE_INFO
-        port = msgpack.loads(interface_info)[0]
+        port = msgpack.loads(interface_info)[1]
         legal_ports = range(NUMBER_OF_URSULAS_IN_NETWORK, NUMBER_OF_URSULAS_IN_NETWORK + URSULA_PORT)
         assert port in legal_ports
 

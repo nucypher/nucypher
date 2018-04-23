@@ -1,69 +1,76 @@
 # This is an example of Alice setting a Policy on the NuCypher network.
 # In this example, Alice uses n=1, which is almost always a bad idea.  Don't do it.
 
-# WIP w/ hendrix@8227c4abcb37ee6d27528a13ec22d55ee106107f
+# WIP w/ hendrix@3.0.0
 
 import datetime
 import sys
 
-import requests
-
+from examples.sandbox_resources import SandboxNetworkyStuff
 from nkms.characters import Alice, Bob, Ursula
-from nkms.crypto.kits import MessageKit
-from nkms.crypto.powers import SigningPower, EncryptingPower
+from nkms.data_sources import DataSource
 from nkms.network.node import NetworkyStuff
-from umbral import pre
+import maya
 
-ALICE = Alice()
-BOB = Bob()
-URSULA = Ursula.from_rest_url(address="https://localhost", port="3550")
-
-
-class SandboxNetworkyStuff(NetworkyStuff):
-    def find_ursula(self, contract=None):
-        ursula = Ursula.as_discovered_on_network(dht_port=None, dht_interface=None,
-                                                 rest_address="https://localhost", rest_port=3550,
-                                                 powers_and_keys={
-                                                    SigningPower: URSULA.stamp.as_umbral_pubkey(),
-                                                    EncryptingPower: URSULA.public_key(EncryptingPower)
-                                                 }
-                                                 )
-        response = requests.post("https://localhost:3550/consider_contract", bytes(contract), verify=False)
-        response.was_accepted = True
-        return ursula, response
-
-    def enact_policy(self, ursula, hrac, payload):
-        response = requests.post('{}:{}/kFrag/{}'.format(ursula.rest_address, ursula.rest_port, hrac.hex()),
-                                 payload, verify=False)
-        # TODO: Something useful here and it's probably ready to go down into NetworkyStuff.
-        return response.status_code == 200
+# This is already running in another process.
+URSULA = Ursula.from_rest_url(NetworkyStuff(), address="localhost", port=3601)
+network_middleware = SandboxNetworkyStuff([URSULA])
 
 
-networky_stuff = SandboxNetworkyStuff()
+#########
+# Alice #
+#########
 
-policy_end_datetime = datetime.datetime.now() + datetime.timedelta(days=5)
+ALICE = Alice(network_middleware=network_middleware)
+
+# Here are our Policy details.
+policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+m = 1
 n = 1
-uri = b"secret/files/and/stuff"
+label = b"secret/files/and/stuff"
 
-# Alice gets on the network and discovers Ursula, presumably from the blockchain.
-ALICE.learn_about_nodes(address="https://localhost", port="3550")
+
+# Alice gets on the network and, knowing about at least one Ursula,
+# Is able to discover all Ursulas.
+ALICE.network_bootstrap([("localhost", 3601)])
 
 # Alice grants to Bob.
-
-policy = ALICE.grant(BOB, uri, networky_stuff, m=1, n=n,
+BOB = Bob()
+policy = ALICE.grant(BOB, label, m=m, n=n,
                      expiration=policy_end_datetime)
-policy.publish_treasure_map(networky_stuff, use_dht=False)
-hrac, treasure_map = policy.hrac(), policy.treasure_map
 
-# Bob learns about Ursula, gets the TreasureMap, and follows it.
-BOB.learn_about_nodes(address="https://localhost", port="3550")
-networky_stuff = NetworkyStuff()
-BOB.get_treasure_map(policy, networky_stuff)
-BOB.follow_treasure_map(hrac)
+# Alice puts her public key somewhere for Bob to find later...
+alices_pubkey_saved_for_posterity = bytes(ALICE.stamp)
 
-# Now, Alice and Bob are ready for some throughput.
+# ...and then disappears from the internet.
+del ALICE
+# (this is optional of course - she may wish to remain in order to create
+# new policies in the future.  The point is - she is no longer obligated.
 
+#####################
+# some time passes. #
+# ...               #
+# And now for Bob.  #
+#####################
+
+# Bob wants to join the policy so that he can receive any future
+# data shared on it.
+# He needs a few piece of knowledge to do that.
+BOB.join_policy(label,  # The label - he needs to know what data he's after.
+                alices_pubkey_saved_for_posterity,  # To verify the signature, he'll need Alice's public key.
+                verify_sig=True,  # And yes, he usually wants to verify that signature.
+                # He can also bootstrap himself onto the network more quickly
+                # by providing a list of known nodes at this time.
+                node_list=[("localhost", 3601)]
+                )
+
+# Now that Bob has joined the Policy, let's show how DataSources
+# can share data with the members of this Policy and then how Bob retrieves it.
 finnegans_wake = open(sys.argv[1], 'rb')
+
+# We'll also keep track of some metadata to gauge performance.
+# You can safely ignore from here until...
+################################################################################
 
 start_time = datetime.datetime.now()
 
@@ -78,16 +85,58 @@ for counter, plaintext in enumerate(finnegans_wake):
         print("PREs per second: {}".format(counter / seconds))
         print("********************************")
 
-    ciphertext, capsule = pre.encrypt(ALICE.public_key(EncryptingPower), plaintext)
 
-    message_kit = MessageKit(ciphertext=ciphertext, capsule=capsule,
-                      alice_pubkey=ALICE.public_key(EncryptingPower))
+################################################################################
+# ...here.  OK, pay attention again.
+# Now it's time for...
 
-    work_orders = BOB.generate_work_orders(hrac, capsule)
-    print(plaintext)
-    cfrags = BOB.get_reencrypted_c_frags(networky_stuff, work_orders[bytes(URSULA.stamp)])
+    #####################
+    # Using DataSources #
+    #####################
 
-    capsule.attach_cfrag(cfrags[0])
-    delivered_cleartext = pre.decrypt(capsule, BOB._crypto_power._power_ups[EncryptingPower].keypair._privkey, ciphertext, ALICE.public_key(EncryptingPower))
+    # Now Alice has set a Policy and Bob has joined it.
+    # You're ready to make some DataSources and encrypt for Bob.
+
+    # It may also be helpful to imagine that you have multiple Bobs,
+    # multiple Labels, or both.
+
+    # First we make a DataSource for this policy.
+    data_source = DataSource(policy_pubkey_enc=policy.public_key)
+
+    # Here's how we generate a MessageKit for the Policy.  We also get a signature
+    # here, which can be passed via a side-channel (or posted somewhere public as
+    # testimony) and verified if desired.  In this case, the plaintext is a
+    # single passage from James Joyce's Finnegan's Wake.
+    # The matter of whether encryption makes the passage more or less readable
+    # is left to the reader to determine.
+    message_kit, _signature = data_source.encapsulate_single_message(plaintext)
+
+    # The DataSource will want to be able to be verified by Bob, so it leaves
+    # its Public Key somewhere.
+    data_source_public_key = bytes(data_source.stamp)
+
+    # It can save the MessageKit somewhere (IPFS, etc) and then it too can
+    # choose to disappear (although it may also opt to continue transmitting
+    # as many messages as may be appropriate).
+    del data_source
+
+    ###############
+    # Back to Bob #
+    ###############
+
+    # Bob needs to reconstruct the DataSource.
+    datasource_as_understood_by_bob = DataSource.from_public_keys(
+        policy_public_key=policy.public_key,
+        datasource_public_key=data_source_public_key,
+        label=label
+    )
+
+    # Now Bob can retrieve the original message.  He just needs the MessageKit
+    # and the DataSource which produced it.
+    delivered_cleartext = BOB.retrieve(message_kit=message_kit,
+                                       data_source=datasource_as_understood_by_bob,
+                                       alice_pubkey_sig=alices_pubkey_saved_for_posterity)
+
+    # We show that indeed this is the passage originally encrypted by the DataSource.
     assert plaintext == delivered_cleartext
     print("Retrieved: {}".format(delivered_cleartext))

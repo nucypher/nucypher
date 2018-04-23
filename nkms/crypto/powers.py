@@ -1,8 +1,10 @@
 import inspect
+from typing import List, Union
 
 from nkms.keystore import keypairs
 from nkms.keystore.keypairs import SigningKeypair, EncryptingKeypair
-from umbral.keys import UmbralPublicKey, UmbralPrivateKey
+from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
+from umbral import pre
 
 
 class PowerUpError(TypeError):
@@ -18,11 +20,10 @@ class NoEncryptingPower(PowerUpError):
 
 
 class CryptoPower(object):
-    def __init__(self, power_ups=None, generate_keys_if_needed=False):
+    def __init__(self, power_ups=None):
         self._power_ups = {}
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
         self.public_keys = {}
-        self.generate_keys = generate_keys_if_needed
 
         if power_ups is not None:
             for power_up in power_ups:
@@ -36,8 +37,7 @@ class CryptoPower(object):
             power_up_instance = power_up
         elif CryptoPowerUp in inspect.getmro(power_up):
             power_up_class = power_up
-            power_up_instance = power_up(
-                generate_keys_if_needed=self.generate_keys)
+            power_up_instance = power_up()
         else:
             raise TypeError(
                 ("power_up must be a subclass of CryptoPowerUp or an instance "
@@ -75,10 +75,16 @@ class KeyPairBasedPower(CryptoPowerUp):
         elif keypair:
             self.keypair = keypair
         else:
-            # They didn't pass a keypair; we'll make one with the bytes (if any)
-            # they provided.
+            # They didn't pass a keypair; we'll make one with the bytes or
+            # UmbralPublicKey if they provided such a thing.
             if pubkey:
-                key_to_pass_to_keypair = pubkey
+                try:
+                    key_to_pass_to_keypair = pubkey.as_umbral_pubkey()
+                except AttributeError:
+                    try:
+                        key_to_pass_to_keypair = UmbralPublicKey.from_bytes(pubkey)
+                    except TypeError:
+                        key_to_pass_to_keypair = pubkey
             else:
                 # They didn't even pass pubkey_bytes.  We'll generate a keypair.
                 key_to_pass_to_keypair = UmbralPrivateKey.gen_key()
@@ -101,6 +107,13 @@ class KeyPairBasedPower(CryptoPowerUp):
         return self.keypair.pubkey
 
 
+class DerivedKeyBasedPower(CryptoPowerUp):
+    """
+    Rather than rely on an established KeyPair, this type of power
+    derives a key at moments defined by the user.
+    """
+
+
 class SigningPower(KeyPairBasedPower):
     _keypair_class = SigningKeypair
     not_found_error = NoSigningPower
@@ -113,8 +126,23 @@ class EncryptingPower(KeyPairBasedPower):
     provides = ("decrypt",)
 
 
-class DelegatingPower(KeyPairBasedPower):   
-    _keypair_class = EncryptingKeypair
-    not_found_error = PowerUpError
-    provides = ("generate_kfrags",)
+class DelegatingPower(DerivedKeyBasedPower):
 
+    def __init__(self):
+        self.umbral_keying_material = UmbralKeyingMaterial()
+
+    def generate_kfrags(self, bob_pubkey_enc, label, m, n) -> Union[UmbralPublicKey, List]:
+        """
+        Generates re-encryption key frags ("KFrags") and returns them.
+
+        These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
+        that he can activate the Capsule.
+        :param bob_pubkey_enc: Bob's public key
+        :param m: Minimum number of KFrags needed to rebuild ciphertext
+        :param n: Total number of rekey shares to generate
+        """
+        # TODO: salt?
+
+        __private_key = self.umbral_keying_material.derive_privkey_by_label(label)
+        kfrags = pre.split_rekey(__private_key, bob_pubkey_enc, m, n)
+        return __private_key.get_pubkey(), kfrags
