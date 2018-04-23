@@ -67,8 +67,8 @@ def test_voting(web3, chain, escrow, policy_manager):
         ContractFactoryClass=Contract
     )
 
-    voting_created_log = government.eventFilter('VotingCreated')
-    upgrade_committed_log = government.eventFilter('UpgradeCommitted')
+    voting_created_log = government.events.VotingCreated.createFilter(fromBlock=0)
+    upgrade_committed_log = government.events.UpgradeCommitted.createFilter(fromBlock=0)
 
     # Transfer ownership
     tx = government.transact({'from': creator}).transferOwnership(government.address)
@@ -262,8 +262,8 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     policy_manager_library_v2, _ = chain.provider.deploy_contract('PolicyManagerV1Mock')
     policy_manager_library_v2 = policy_manager_library_v2.address
 
-    voting_created_log = government.eventFilter('VotingCreated')
-    upgrade_committed_log = government.eventFilter('UpgradeCommitted')
+    voting_created_log = government.events.VotingCreated.createFilter(fromBlock=0)
+    upgrade_committed_log = government.events.UpgradeCommitted.createFilter(fromBlock=0)
 
     # Transfer ownership
     tx = government.transact({'from': creator}).transferOwnership(government.address)

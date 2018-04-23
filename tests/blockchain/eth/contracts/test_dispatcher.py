@@ -23,7 +23,7 @@ def test_dispatcher(web3, chain):
     contract2_bad_lib, _ = chain.provider.deploy_contract('ContractV2Bad')
     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract1_lib.address)
 
-    upgrades = dispatcher.eventFilter('Upgraded')
+    upgrades = dispatcher.events.Upgraded.createFilter(fromBlock=0)
     assert dispatcher.call().target() == contract1_lib.address
 
     # events = upgrades.get_all_entries()
@@ -149,7 +149,7 @@ def test_dispatcher(web3, chain):
         chain.wait_for_receipt(tx)
     assert dispatcher.call().target() == contract2_lib.address
 
-    rollbacks = dispatcher.eventFilter('RolledBack')
+    rollbacks = dispatcher.events.RolledBack.createFilter(fromBlock=0)
 
     # But can rollback
     tx = dispatcher.transact({'from': creator}).rollback()
@@ -188,7 +188,7 @@ def test_dispatcher(web3, chain):
     #     abi=contract1_lib.abi,
     #     address=dispatcher.address,
     #     ContractFactoryClass=Contract)
-    # test_events = contract_instance.eventFilter('EventV1')
+    # test_events = contract_instance.events.EventV1.createFilter(fromBlock=0)
     # events = test_events.get_all_entries()
     # tx = contract_instance.transact({'from': creator}).createEvent(33)
     # chain.wait_for_receipt(tx)

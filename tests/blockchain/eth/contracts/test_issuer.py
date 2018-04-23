@@ -25,7 +25,7 @@ def test_issuer(web3, chain, token):
     tx = token.transact({'from': creator}).transfer(issuer.address, reserved_reward)
     chain.wait_for_receipt(tx)
 
-    events = issuer.eventFilter('Initialized')
+    events = issuer.events.Initialized.createFilter(fromBlock=0)
     tx = issuer.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
     events = events.get_all_entries()

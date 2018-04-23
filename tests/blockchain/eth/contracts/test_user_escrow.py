@@ -46,7 +46,7 @@ def user_escrow(web3, chain, token, escrow, policy_manager):
 def test_escrow(web3, chain, token, user_escrow):
     creator = web3.eth.accounts[0]
     user = web3.eth.accounts[1]
-    deposits = user_escrow.eventFilter('Deposited')
+    deposits = user_escrow.events.Deposited.createFilter(fromBlock=0)
 
     # Deposit some tokens to the user escrow and lock them
     tx = token.transact({'from': creator}).approve(user_escrow.address, 2000)
@@ -80,7 +80,7 @@ def test_escrow(web3, chain, token, user_escrow):
     chain.wait_for_receipt(tx)
     assert 2000 == token.call().balanceOf(user_escrow.address)
 
-    withdraws = user_escrow.eventFilter('Withdrawn')
+    withdraws = user_escrow.events.Withdrawn.createFilter(fromBlock=0)
 
     # Only user can withdraw available tokens
     with pytest.raises((TransactionFailed, ValueError)):
@@ -137,7 +137,7 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     creator = web3.eth.accounts[0]
     user = web3.eth.accounts[1]
 
-    deposits = user_escrow.eventFilter('Deposited')
+    deposits = user_escrow.events.Deposited.createFilter(fromBlock=0)
 
     # Deposit some tokens to the user escrow and lock them
     tx = token.transact({'from': creator}).approve(user_escrow.address, 1000)
@@ -160,7 +160,7 @@ def test_miner(web3, chain, token, escrow, user_escrow):
         tx = user_escrow.transact({'from': user}).minerDeposit(10000, 5)
         chain.wait_for_receipt(tx)
 
-    miner_deposits = user_escrow.eventFilter('DepositedAsMiner')
+    miner_deposits = user_escrow.events.DepositedAsMiner.createFilter(fromBlock=0)
 
     # Deposit some tokens to the miners escrow
     tx = user_escrow.transact({'from': user}).minerDeposit(1500, 5)
@@ -206,12 +206,12 @@ def test_miner(web3, chain, token, escrow, user_escrow):
         tx = escrow.transact({'from': user}).withdrawAll()
         chain.wait_for_receipt(tx)
 
-    locks = user_escrow.eventFilter('Locked')
-    switches = user_escrow.eventFilter('LockSwitched')
-    confirms = user_escrow.eventFilter('ActivityConfirmed')
-    mints = user_escrow.eventFilter('Mined')
-    miner_withdraws = user_escrow.eventFilter('WithdrawnAsMiner')
-    withdraws = user_escrow.eventFilter('Withdrawn')
+    locks = user_escrow.events.Locked.createFilter(fromBlock=0)
+    switches = user_escrow.events.LockSwitched.createFilter(fromBlock=0)
+    confirms = user_escrow.events.ActivityConfirmed.createFilter(fromBlock=0)
+    mints = user_escrow.events.Mined.createFilter(fromBlock=0)
+    miner_withdraws = user_escrow.events.WithdrawnAsMiner.createFilter(fromBlock=0)
+    withdraws = user_escrow.events.Withdrawn.createFilter(fromBlock=0)
 
 
     # Use methods through the user escrow
@@ -314,8 +314,8 @@ def test_policy(web3, chain, policy_manager, user_escrow):
     tx = web3.eth.sendTransaction({'from': web3.eth.coinbase, 'to': policy_manager.address, 'value': 10000})
     chain.wait_for_receipt(tx)
 
-    miner_collections = user_escrow.eventFilter('RewardWithdrawnAsMiner')
-    rewards = user_escrow.eventFilter('RewardWithdrawn')
+    miner_collections = user_escrow.events.RewardWithdrawnAsMiner.createFilter(fromBlock=0)
+    rewards = user_escrow.events.RewardWithdrawn.createFilter(fromBlock=0)
 
     # Withdraw reward reward
     tx = user_escrow.transact({'from': user, 'gas_price': 0}).policyRewardWithdraw()

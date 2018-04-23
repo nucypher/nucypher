@@ -55,11 +55,11 @@ def test_escrow(web3, chain, token, escrow_contract):
     creator = web3.eth.accounts[0]
     ursula1 = web3.eth.accounts[1]
     ursula2 = web3.eth.accounts[2]
-    deposit_log = escrow.eventFilter('Deposited')
-    lock_log = escrow.eventFilter('Locked')
-    activity_log = escrow.eventFilter('ActivityConfirmed')
-    switching_lock_log = escrow.eventFilter('LockSwitched')
-    withdraw_log = escrow.eventFilter('Withdrawn')
+    deposit_log = escrow.events.Deposited.createFilter(fromBlock=0)
+    lock_log = escrow.events.Locked.createFilter(fromBlock=0)
+    activity_log = escrow.events.ActivityConfirmed.createFilter(fromBlock=0)
+    switching_lock_log = escrow.events.LockSwitched.createFilter(fromBlock=0)
+    withdraw_log = escrow.events.Withdrawn.createFilter(fromBlock=0)
 
     # Give Ursula and Ursula(2) some coins
     tx = token.transact({'from': creator}).transfer(ursula1, 10000)
@@ -410,12 +410,13 @@ def test_mining(web3, chain, token, escrow_contract):
     creator = web3.eth.accounts[0]
     ursula1 = web3.eth.accounts[1]
     ursula2 = web3.eth.accounts[2]
-    mining_log = escrow.eventFilter('Mined')
-    deposit_log = escrow.eventFilter('Deposited')
-    lock_log = escrow.eventFilter('Locked')
-    activity_log = escrow.eventFilter('ActivityConfirmed')
-    switching_lock_log = escrow.eventFilter('LockSwitched')
-    withdraw_log = escrow.eventFilter('Withdrawn')
+
+    mining_log = escrow.events.Mined.createFilter(fromBlock=0)
+    deposit_log = escrow.events.Deposited.createFilter(fromBlock=0)
+    lock_log = escrow.events.Locked.createFilter(fromBlock=0)
+    activity_log = escrow.events.ActivityConfirmed.createFilter(fromBlock=0)
+    switching_lock_log = escrow.events.LockSwitched.createFilter(fromBlock=0)
+    withdraw_log = escrow.events.Withdrawn.createFilter(fromBlock=0)
 
     # Give Escrow tokens for reward and initialize contract
     tx = token.transact({'from': creator}).transfer(escrow.address, 10 ** 9)
@@ -631,7 +632,7 @@ def test_mining(web3, chain, token, escrow_contract):
 def test_pre_deposit(web3, chain, token, escrow_contract):
     escrow = escrow_contract(1500)
     creator = web3.eth.accounts[0]
-    deposit_log = escrow.eventFilter('Deposited')
+    deposit_log = escrow.events.Deposited.createFilter(fromBlock=0)
 
     # Initialize Escrow contract
     tx = escrow.transact({'from': creator}).initialize()
