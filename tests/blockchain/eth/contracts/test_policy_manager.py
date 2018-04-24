@@ -60,7 +60,7 @@ def policy_manager(web3, chain, escrow, request):
 
 
 def wait_time(chain, wait_periods):
-    chain.wait_time(seconds=wait_periods * 60 * MINUTES_IN_PERIOD)
+    chain.time_travel(seconds=wait_periods * 60 * MINUTES_IN_PERIOD)
 
 
 MINUTES_IN_PERIOD = 10

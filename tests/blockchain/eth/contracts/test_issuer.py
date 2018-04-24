@@ -20,12 +20,13 @@ def test_issuer(web3, chain, token):
         'IssuerMock', token.address, 1, 10 ** 46, int(1e7), int(1e7)
     )
 
+    events = issuer.events.Initialized.createFilter(fromBlock=0)
+
     # Give Miner tokens for reward and initialize contract
     reserved_reward = 2 * 10 ** 40 - 10 ** 30
     tx =  token.functions.transfer(issuer.address, reserved_reward).transact({'from': creator})
     chain.wait_for_receipt(tx)
 
-    events = issuer.events.Initialized.createFilter(fromBlock=0)
     tx = issuer.functions.initialize().transact({'from': creator})
     chain.wait_for_receipt(tx)
     events = events.get_all_entries()

@@ -223,7 +223,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert 1000 == escrow.functions.calculateLockedTokens(ursula1, 2).call()
 
     # Wait 1 period and deposit from one more Ursula
-    chain.wait_time(hours=1)
+    chain.time_travel(hours=1)
     tx = user_escrow_1.functions.minerDeposit(1000, 10).transact({'from': ursula3})
     chain.wait_for_receipt(tx)
     assert 1000 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, user_escrow_1.address, 0).call())
@@ -246,7 +246,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     chain.wait_for_receipt(tx)
 
-    chain.wait_time(hours=1)
+    chain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     chain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
@@ -254,7 +254,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     tx = user_escrow_1.functions.confirmActivity().transact({'from': ursula3})
     chain.wait_for_receipt(tx)
 
-    chain.wait_time(hours=1)
+    chain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     chain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
@@ -318,7 +318,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
         chain.wait_for_receipt(tx)
 
     # Wait, confirm activity, mint
-    chain.wait_time(hours=1)
+    chain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     chain.wait_for_receipt(tx)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
@@ -326,7 +326,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     tx = user_escrow_1.functions.confirmActivity().transact({'from': ursula3})
     chain.wait_for_receipt(tx)
 
-    chain.wait_time(hours=1)
+    chain.time_travel(hours=1)
     tx = policy_manager.functions.revokeArrangement(policy_id_3, user_escrow_1.address).transact({'from': alice2, 'gas_price': 0})
 
     chain.wait_for_receipt(tx)
@@ -338,16 +338,16 @@ def test_all(web3, chain, token, escrow, policy_manager):
     tx = user_escrow_1.functions.confirmActivity().transact({'from': ursula3})
     chain.wait_for_receipt(tx)
 
-    chain.wait_time(hours=1)
+    chain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     chain.wait_for_receipt(tx)
 
-    chain.wait_time(hours=1)
+    chain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     chain.wait_for_receipt(tx)
 
     # Withdraw reward and refund
-    chain.wait_time(hours=3)
+    chain.time_travel(hours=3)
     ursula1_balance = web3.eth.getBalance(ursula1)
     tx = policy_manager.functions.withdraw().transact({'from': ursula1, 'gas_price': 0})
     chain.wait_for_receipt(tx)
@@ -392,9 +392,9 @@ def test_all(web3, chain, token, escrow, policy_manager):
         chain.wait_for_receipt(tx)
         tx = user_escrow_1.functions.confirmActivity().transact({'from': ursula3})
         chain.wait_for_receipt(tx)
-        chain.wait_time(hours=1)
+        chain.time_travel(hours=1)
 
-    chain.wait_time(hours=1)
+    chain.time_travel(hours=1)
     tx = escrow.functions.mint().transact({'from': ursula1})
     chain.wait_for_receipt(tx)
     tx = escrow.functions.mint().transact({'from': ursula2})
@@ -423,7 +423,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert 10000 < token.functions.balanceOf(user_escrow_1.address).call()
 
     # Unlock and withdraw all tokens in UserEscrow
-    chain.wait_time(hours=1)
+    chain.time_travel(hours=1)
     assert 0 == user_escrow_1.functions.getLockedTokens().call()
     assert 0 == user_escrow_2.functions.getLockedTokens().call()
     tokens_amount = token.functions.balanceOf(user_escrow_1.address).call()

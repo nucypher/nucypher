@@ -99,7 +99,7 @@ def test_escrow(web3, chain, token, user_escrow):
     assert 1000 == event_args['value']
 
     # Wait some time
-    chain.wait_time(seconds=500)
+    chain.time_travel(seconds=500)
     assert 500 >= user_escrow.functions.getLockedTokens().call()
     assert 450 <= user_escrow.functions.getLockedTokens().call()
 
@@ -117,7 +117,7 @@ def test_escrow(web3, chain, token, user_escrow):
     assert 500 == event_args['value']
 
     # Wait more time and withdraw all
-    chain.wait_time(seconds=500)
+    chain.time_travel(seconds=500)
     assert 0 == user_escrow.functions.getLockedTokens().call()
     tx =  user_escrow.functions.withdraw(500).transact({'from': user})
     chain.wait_for_receipt(tx)

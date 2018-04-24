@@ -131,7 +131,7 @@ def test_voting(web3, chain, escrow, policy_manager):
         chain.wait_for_receipt(tx)
 
     # Wait until the end of voting
-    chain.wait_time(1)
+    chain.time_travel(1)
     assert FINISHED_STATE == government.functions.getVotingState().call()
     assert government_library.address == government_dispatcher.functions.target().call()
     assert 1 == government.functions.votingNumber().call()
@@ -166,7 +166,7 @@ def test_voting(web3, chain, escrow, policy_manager):
     assert ACTIVE_STATE == government.functions.getVotingState().call()
 
     # Wait until the end of voting
-    chain.wait_time(1)
+    chain.time_travel(1)
     assert UPGRADE_WAITING_STATE == government.functions.getVotingState().call()
     assert government_library.address == government_dispatcher.functions.target().call()
     assert 2 == government.functions.votingNumber().call()
@@ -197,7 +197,7 @@ def test_voting(web3, chain, escrow, policy_manager):
     assert 0 == government.functions.votesAgainst().call()
 
     # Wait until the end of voting
-    chain.wait_time(1)
+    chain.time_travel(1)
     assert FINISHED_STATE == government.functions.getVotingState().call()
 
     # Create voting for update Government contract again with equal voting
@@ -216,7 +216,7 @@ def test_voting(web3, chain, escrow, policy_manager):
     assert 3 == government.functions.votesAgainst().call()
 
     # Wait until the end of voting
-    chain.wait_time(1)
+    chain.time_travel(1)
     assert FINISHED_STATE == government.functions.getVotingState().call()
 
     # Check events
@@ -243,6 +243,9 @@ def test_upgrade(web3, chain, escrow, policy_manager):
         ContractFactoryClass=Contract
     )
 
+    voting_created_log = government.events.VotingCreated.createFilter(fromBlock=0)
+    upgrade_committed_log = government.events.UpgradeCommitted.createFilter(fromBlock=0)
+
     # Deploy second version of the government contract
     government_library_v2, _ = chain.provider.deploy_contract(
         'Government', escrow.address, policy_manager.address, 1,
@@ -259,9 +262,6 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     # Deploy second version of the policy manager contract
     policy_manager_library_v2, _ = chain.provider.deploy_contract('PolicyManagerV1Mock')
     policy_manager_library_v2 = policy_manager_library_v2.address
-
-    voting_created_log = government.events.VotingCreated.createFilter(fromBlock=0)
-    upgrade_committed_log = government.events.UpgradeCommitted.createFilter(fromBlock=0)
 
     # Transfer ownership
     tx =  government.functions.transferOwnership(government.address).transact({'from': creator})
@@ -284,7 +284,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
 
     tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    chain.wait_time(1)
+    chain.time_travel(1)
     tx = government.functions.commitUpgrade().transact({'from': node1})
     chain.wait_for_receipt(tx)
     assert government_library_v2.address == government_dispatcher.functions.target().call()
@@ -310,7 +310,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
 
     tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    chain.wait_time(1)
+    chain.time_travel(1)
     tx = government.functions.commitUpgrade().transact({'from': node1})
     chain.wait_for_receipt(tx)
     assert government_library_v1.address == government_dispatcher.functions.target().call()
@@ -335,7 +335,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
 
     tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    chain.wait_time(1)
+    chain.time_travel(1)
     tx = government.functions.commitUpgrade().transact({'from': node1})
     chain.wait_for_receipt(tx)
     assert escrow_library_v2 == escrow.functions.target().call()
@@ -360,7 +360,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
 
     tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    chain.wait_time(1)
+    chain.time_travel(1)
     tx = government.functions.commitUpgrade().transact({'from': node1})
     chain.wait_for_receipt(tx)
 
@@ -386,7 +386,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
 
     tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    chain.wait_time(1)
+    chain.time_travel(1)
     tx = government.functions.commitUpgrade().transact({'from': node1})
     chain.wait_for_receipt(tx)
     assert policy_manager_library_v2 == policy_manager.functions.target().call()
@@ -411,7 +411,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
 
     tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    chain.wait_time(1)
+    chain.time_travel(1)
     tx = government.functions.commitUpgrade().transact({'from': node1})
     chain.wait_for_receipt(tx)
     assert policy_manager_library_v1 == policy_manager.functions.target().call()
