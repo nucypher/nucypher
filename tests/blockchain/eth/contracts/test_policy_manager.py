@@ -28,9 +28,7 @@ def escrow(web3, chain):
     node2 = web3.eth.accounts[4]
     node3 = web3.eth.accounts[5]
     # Creator deploys the escrow
-    escrow, _ = chain.provider.deploy_contract(
-        'MinersEscrowForPolicyMock', [node1, node2, node3], MINUTES_IN_PERIOD
-    )
+    escrow, _ = chain.provider.deploy_contract('MinersEscrowForPolicyMock', [node1, node2, node3], MINUTES_IN_PERIOD)
     return escrow
 
 
@@ -40,9 +38,7 @@ def policy_manager(web3, chain, escrow, request):
     client = web3.eth.accounts[1]
 
     # Creator deploys the policy manager
-    contract, _ = chain.provider.deploy_contract(
-        'PolicyManager', escrow.address
-    )
+    contract, _ = chain.provider.deploy_contract('PolicyManager', escrow.address)
 
     # Give client some ether
     tx = web3.eth.sendTransaction({'from': web3.eth.coinbase, 'to': client, 'value': 10000})
@@ -57,7 +53,7 @@ def policy_manager(web3, chain, escrow, request):
             address=dispatcher.address,
             ContractFactoryClass=Contract)
 
-    tx =  escrow.functions.setPolicyManager(contract.address).transact({'from': creator})
+    tx = escrow.functions.setPolicyManager(contract.address).transact({'from': creator})
     chain.wait_for_receipt(tx)
 
     return contract
