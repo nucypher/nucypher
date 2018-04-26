@@ -20,7 +20,7 @@ def test_issuer(web3, chain, token):
         'IssuerMock', token.address, 1, 10 ** 46, int(1e7), int(1e7)
     )
 
-    events = issuer.events.Initialized.createFilter(fromBlock=0)
+    events = issuer.events.Initialized.createFilter(fromBlock='latest')
 
     # Give Miner tokens for reward and initialize contract
     reserved_reward = 2 * 10 ** 40 - 10 ** 30
