@@ -20,7 +20,7 @@ contract NuCypherKMSToken is StandardToken, DetailedERC20('NuCypher KMS', 'KMS',
     constructor (uint256 _initialAmount) public {
         balances[msg.sender] = _initialAmount;
         totalSupply_ = _initialAmount;
-        Transfer(0x0, msg.sender, _initialAmount);
+        emit Transfer(0x0, msg.sender, _initialAmount);
     }
 
     /**

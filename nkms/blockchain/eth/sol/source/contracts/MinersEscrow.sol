@@ -25,7 +25,13 @@ contract MinersEscrow is Issuer {
 
     event Deposited(address indexed owner, uint256 value, uint256 periods);
     event Locked(address indexed owner, uint256 value, uint256 firstPeriod, uint256 lastPeriod);
-    event Divided(address indexed owner, uint256 oldValue, uint256 newValue, uint256 periods);
+    event Divided(
+        address indexed owner,
+        uint256 oldValue,
+        uint256 lastPeriod,
+        uint256 newValue,
+        uint256 periods
+    );
     event Withdrawn(address indexed owner, uint256 value);
     event ActivityConfirmed(address indexed owner, uint256 indexed period, uint256 value);
     event Mined(address indexed owner, uint256 indexed period, uint256 value);
@@ -99,7 +105,7 @@ contract MinersEscrow is Issuer {
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked
     * @param _maxAllowableLockedTokens Max amount of tokens that can be locked
     **/
-    function MinersEscrow(
+    constructor(
         NuCypherKMSToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,
@@ -138,13 +144,12 @@ contract MinersEscrow is Issuer {
     * @param _owner Tokens owner
     **/
     function getLockedTokens(address _owner, uint256 _periods)
-        public view returns (uint256)
+        public view returns (uint256 lockedValue)
     {
         uint256 currentPeriod = getCurrentPeriod();
         uint256 nextPeriod = currentPeriod.add(_periods);
         MinerInfo storage info = minerInfo[_owner];
 
-        uint256 lockedValue = 0;
         for (uint256 i = 0; i < info.stakes.length; i++) {
             StakeInfo storage stake = info.stakes[i];
             if (stake.firstPeriod <= nextPeriod &&
@@ -157,9 +162,8 @@ contract MinersEscrow is Issuer {
     /**
     * @notice Get locked tokens value for owner in future period
     * @param _owner Tokens owner
-    * @param _periods Number of periods after current that need to calculate
     **/
-    function getLockedTokens(address _owner, uint256 _periods)
+    function getLockedTokens(address _owner)
         public view returns (uint256)
     {
         return getLockedTokens(_owner, 0);
@@ -200,9 +204,9 @@ contract MinersEscrow is Issuer {
             miners.push(owner);
             info.lastActivePeriod = currentPeriod;
             info.value = value;
-            info.stakes.push(StakeInfo(currentPeriod.add(1), currentPeriod.add(periods)), value);
+            info.stakes.push(StakeInfo(currentPeriod.add(uint256(1)), currentPeriod.add(periods), value));
             allValue = allValue.add(value);
-            Deposited(owner, value, periods);
+            emit Deposited(owner, value, periods);
         }
 
         token.safeTransferFrom(msg.sender, address(this), allValue);
@@ -211,7 +215,7 @@ contract MinersEscrow is Issuer {
     /**
     * @notice Deposit tokens
     * @param _value Amount of token to deposit
-    * @param _periods Amount of periods during which tokens will be unlocked
+    * @param _periods Amount of periods during which tokens will be locked
     **/
     function deposit(uint256 _value, uint256 _periods) public isInitialized {
         require(_value != 0);
@@ -224,13 +228,13 @@ contract MinersEscrow is Issuer {
         info.value = info.value.add(_value);
         token.safeTransferFrom(msg.sender, address(this), _value);
         lock(_value, _periods);
-        Deposited(msg.sender, _value, _periods);
+        emit Deposited(msg.sender, _value, _periods);
     }
 
     /**
     * @notice Lock some tokens or increase lock
     * @param _value Amount of tokens which should lock
-    * @param _periods Amount of periods during which tokens will be unlocked
+    * @param _periods Amount of periods during which tokens will be locked
     **/
     function lock(uint256 _value, uint256 _periods) public onlyTokenOwner {
         require(_value != 0 || _periods != 0);
@@ -245,30 +249,43 @@ contract MinersEscrow is Issuer {
             _periods >= minLockedPeriods);
 
         uint256 currentPeriod = getCurrentPeriod();
-        info.stakes.push(StakeInfo(currentPeriod.add(1), currentPeriod.add(_periods)), _value);
+        info.stakes.push(StakeInfo(currentPeriod.add(uint256(1)), currentPeriod.add(_periods), _value));
 
         confirmActivity(_value + lockedTokens, _value);
-        Locked(msg.sender, _value, currentPeriod + 1, currentPeriod + _periods);
+        emit Locked(msg.sender, _value, currentPeriod + 1, currentPeriod + _periods);
     }
 
     /**
     * @notice Divide stake into two parts
-    * @param _index Index of stake
-    * @param _value New stake value
+    * @param _oldValue Old stake value
+    * @param _lastPeriod Last period of stake
+    * @param _newValue New stake value
     * @param _periods Amount of periods for extending stake
     **/
-    function divideStake(uint256 _index, uint256 _value, uint256 _periods)
+    function divideStake(
+        uint256 _oldValue,
+        uint256 _lastPeriod,
+        uint256 _newValue,
+        uint256 _periods
+    )
         public onlyTokenOwner
     {
-        require(_value >= minAllowableLockedTokens);
+        require(_newValue >= minAllowableLockedTokens && _periods > 0);
         MinerInfo storage info = minerInfo[msg.sender];
-        require(_index < info.stakes.length);
-        StakeInfo storage stake = info.stakes[_index];
-        require(stake.lockedValue.sub(_value) >= minAllowableLockedTokens);
-        Divided(msg.sender, stake.lockedValue, _value, _periods);
-        stake.lockedValue -= _value;
-        info.stakes.push(StakeInfo(stake.firstPeriod, stake.lastPeriod.add(_periods)), _value);
-        Locked(msg.sender, _value, stake.firstPeriod, stake.lastPeriod + _periods);
+        for (uint256 index = 0; index < info.stakes.length; index++) {
+            StakeInfo storage stake = info.stakes[index];
+            if (stake.lockedValue == _oldValue &&
+                stake.lastPeriod == _lastPeriod) {
+                break;
+            }
+        }
+        // TODO lastPeriod can be equal current period but need to call confirmActivity
+        require(index < info.stakes.length && stake.lastPeriod >= getCurrentPeriod().add(uint256(1)));
+        stake.lockedValue = stake.lockedValue.sub(_newValue);
+        require(stake.lockedValue >= minAllowableLockedTokens);
+        info.stakes.push(StakeInfo(stake.firstPeriod, stake.lastPeriod.add(_periods), _newValue));
+        emit Divided(msg.sender, _oldValue, _lastPeriod, _newValue, _periods);
+        emit Locked(msg.sender, _newValue, stake.firstPeriod, stake.lastPeriod + _periods);
     }
 
     /**
@@ -284,7 +301,7 @@ contract MinersEscrow is Issuer {
             _value <= info.value.sub(lockedTokens));
         info.value -= _value;
         token.safeTransfer(msg.sender, _value);
-        Withdrawn(msg.sender, _value);
+        emit Withdrawn(msg.sender, _value);
     }
 
     /**
@@ -301,11 +318,11 @@ contract MinersEscrow is Issuer {
         // update lockedValue if the period has already been confirmed
         if (info.confirmedPeriod1 == nextPeriod) {
             lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod].add(_additional);
-            ActivityConfirmed(msg.sender, nextPeriod, _additional);
+            emit ActivityConfirmed(msg.sender, nextPeriod, _additional);
             return;
         } else if (info.confirmedPeriod2 == nextPeriod) {
             lockedPerPeriod[nextPeriod] = lockedPerPeriod[nextPeriod].add(_additional);
-            ActivityConfirmed(msg.sender, nextPeriod, _additional);
+            emit ActivityConfirmed(msg.sender, nextPeriod, _additional);
             return;
         }
 
@@ -321,7 +338,7 @@ contract MinersEscrow is Issuer {
             info.downtime.push(Downtime(info.lastActivePeriod + 1, currentPeriod));
         }
         info.lastActivePeriod = nextPeriod;
-        ActivityConfirmed(msg.sender, nextPeriod, _lockedValue);
+        emit ActivityConfirmed(msg.sender, nextPeriod, _lockedValue);
     }
 
     /**
@@ -372,16 +389,27 @@ contract MinersEscrow is Issuer {
         }
 
         uint256 reward = 0;
-        if (first != EMPTY_CONFIRMED_PERIOD) {
-            reward = reward.add(mint(info, first, previousPeriod));
-            first = EMPTY_CONFIRMED_PERIOD; // TODO check
+        if (info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD &&
+            info.confirmedPeriod1 < info.confirmedPeriod2) {
+            reward = reward.add(mint(info, info.confirmedPeriod1, previousPeriod));
+            info.confirmedPeriod1 = EMPTY_CONFIRMED_PERIOD;
+        } else if (info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD &&
+            info.confirmedPeriod2 < info.confirmedPeriod1) {
+            reward = reward.add(mint(info, info.confirmedPeriod2, previousPeriod));
+            info.confirmedPeriod2 = EMPTY_CONFIRMED_PERIOD;
         }
-        if (last <= previousPeriod) {
-            reward = reward.add(mint(info, last, previousPeriod));
-            last = EMPTY_CONFIRMED_PERIOD; // TODO check
+        if (info.confirmedPeriod2 <= previousPeriod &&
+            info.confirmedPeriod2 > info.confirmedPeriod1) {
+            reward = reward.add(mint(info, info.confirmedPeriod2, previousPeriod));
+            info.confirmedPeriod2 = EMPTY_CONFIRMED_PERIOD;
+        } else if (info.confirmedPeriod1 <= previousPeriod &&
+            info.confirmedPeriod1 > info.confirmedPeriod2) {
+            reward = reward.add(mint(info, info.confirmedPeriod1, previousPeriod));
+            info.confirmedPeriod1 = EMPTY_CONFIRMED_PERIOD;
         }
+
         info.value = info.value.add(reward);
-        Mined(msg.sender, previousPeriod, reward);
+        emit Mined(msg.sender, previousPeriod, reward);
     }
 
     /**
@@ -390,7 +418,6 @@ contract MinersEscrow is Issuer {
     function mint(MinerInfo storage info, uint256 period, uint256 previousPeriod)
         internal returns (uint256 reward)
     {
-        uint256 reward = 0;
         uint256 amount;
         for (uint256 i = 0; i < info.stakes.length; i++) {
             StakeInfo storage stake =  info.stakes[i];
@@ -400,14 +427,14 @@ contract MinersEscrow is Issuer {
                     previousPeriod,
                     stake.lockedValue,
                     lockedPerPeriod[period],
-                    stake.lastPeriod.sub(period).add(uint256(1)),
+                    stake.lastPeriod.sub(period),
                     info.decimals);
                 reward = reward.add(amount);
             }
         }
         // TODO remove if
         if (address(policyManager) != 0x0) {
-            policyManager.updateReward(msg.sender, first);
+            policyManager.updateReward(msg.sender, period);
         }
     }
 
@@ -440,10 +467,10 @@ contract MinersEscrow is Issuer {
             address current = miners[i];
             MinerInfo storage info = minerInfo[current];
             if (info.confirmedPeriod1 != currentPeriod &&
-                info.confirmedPeriod2 == currentPeriod) {
+                info.confirmedPeriod2 != currentPeriod) {
                 continue;
             }
-            uint256 lockedTokens = getLockedTokens(current, periods);
+            uint256 lockedTokens = getLockedTokens(current, _periods);
             if (_delta < distance.add(lockedTokens)) {
                 stop = current;
                 stopIndex = i;
@@ -521,8 +548,8 @@ contract MinersEscrow is Issuer {
 
     function verifyState(address _testTarget) public onlyOwner {
         super.verifyState(_testTarget);
-        require(uint256(delegateGet(_testTarget, "minReleasePeriods()")) ==
-            minReleasePeriods);
+        require(uint256(delegateGet(_testTarget, "minLockedPeriods()")) ==
+            minLockedPeriods);
         require(uint256(delegateGet(_testTarget, "minAllowableLockedTokens()")) ==
             minAllowableLockedTokens);
         require(uint256(delegateGet(_testTarget, "maxAllowableLockedTokens()")) ==
@@ -550,17 +577,17 @@ contract MinersEscrow is Issuer {
             bytes32(uint8(MinerInfoField.StakesLength)), miner, 0)) == info.stakes.length);
         for (uint256 i = 0; i < info.stakes.length && i < MAX_CHECKED_VALUES; i++) {
             require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint8(MinerInfoField.StakeFirstPeriod)), miner, i)) == info.stakes[i].firstPeriod);
+                bytes32(uint8(MinerInfoField.StakeFirstPeriod)), miner, bytes32(i))) == info.stakes[i].firstPeriod);
             require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint8(MinerInfoField.StakeLastPeriod)), miner, i)) == info.stakes[i].lastPeriod);
+                bytes32(uint8(MinerInfoField.StakeLastPeriod)), miner, bytes32(i))) == info.stakes[i].lastPeriod);
             require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint8(MinerInfoField.StakeLockedValue)), miner, i)) == info.stakes[i].lockedValue);
+                bytes32(uint8(MinerInfoField.StakeLockedValue)), miner, bytes32(i))) == info.stakes[i].lockedValue);
         }
 
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint8(MinerInfoField.ConfirmedPeriod1)), miner, 0)) == confirmedPeriod1);
+            bytes32(uint8(MinerInfoField.ConfirmedPeriod1)), miner, 0)) == info.confirmedPeriod1);
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint8(MinerInfoField.ConfirmedPeriod2)), miner, 0)) == confirmedPeriod2);
+            bytes32(uint8(MinerInfoField.ConfirmedPeriod2)), miner, 0)) == info.confirmedPeriod2);
 
         require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
             bytes32(uint8(MinerInfoField.LastActivePeriod)), miner, 0)) == info.lastActivePeriod);
@@ -585,7 +612,7 @@ contract MinersEscrow is Issuer {
         super.finishUpgrade(_target);
         MinersEscrow escrow = MinersEscrow(_target);
         policyManager = escrow.policyManager();
-        minReleasePeriods = escrow.minReleasePeriods();
+        minLockedPeriods = escrow.minLockedPeriods();
         minAllowableLockedTokens = escrow.minAllowableLockedTokens();
         maxAllowableLockedTokens = escrow.maxAllowableLockedTokens();
 

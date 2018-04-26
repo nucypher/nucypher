@@ -169,7 +169,6 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert 1500 == escrow.call().value()
     assert 1500 == escrow.call().lockedValue()
     assert 5 == escrow.call().periods()
-    assert not escrow.call().unlock()
     assert 11500 == token.call().balanceOf(escrow.address)
     assert 500 == token.call().balanceOf(user_escrow.address)
 
@@ -191,7 +190,7 @@ def test_miner(web3, chain, token, escrow, user_escrow):
         tx = escrow.transact({'from': user}).lock(100, 1)
         chain.wait_for_receipt(tx)
     with pytest.raises(TransactionFailed):
-        tx = escrow.transact({'from': user}).switchLock()
+        tx = escrow.transact({'from': user}).divideStake(1500, 5, 100, 1)
         chain.wait_for_receipt(tx)
     with pytest.raises(TransactionFailed):
         tx = escrow.transact({'from': user}).confirmActivity()
@@ -207,12 +206,11 @@ def test_miner(web3, chain, token, escrow, user_escrow):
         chain.wait_for_receipt(tx)
 
     locks = user_escrow.eventFilter('Locked')
-    switches = user_escrow.eventFilter('LockSwitched')
+    divides = user_escrow.eventFilter('Divided')
     confirms = user_escrow.eventFilter('ActivityConfirmed')
     mints = user_escrow.eventFilter('Mined')
     miner_withdraws = user_escrow.eventFilter('WithdrawnAsMiner')
     withdraws = user_escrow.eventFilter('Withdrawn')
-
 
     # Use methods through the user escrow
     tx = user_escrow.transact({'from': user}).lock(100, 1)
@@ -220,9 +218,11 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert 1500 == escrow.call().value()
     assert 1600 == escrow.call().lockedValue()
     assert 6 == escrow.call().periods()
-    tx = user_escrow.transact({'from': user}).switchLock()
+    tx = user_escrow.transact({'from': user}).divideStake(1600, 6, 100, 1)
     chain.wait_for_receipt(tx)
-    assert escrow.call().unlock()
+    assert 1500 == escrow.call().value()
+    assert 1700 == escrow.call().lockedValue()
+    assert 7 == escrow.call().periods()
     tx = user_escrow.transact({'from': user}).confirmActivity()
     chain.wait_for_receipt(tx)
     assert 1 == escrow.call().confirmedPeriod()
@@ -247,10 +247,14 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert 100 == event_args['value']
     assert 1 == event_args['periods']
 
-    events = switches.get_all_entries()
+    events = divides.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert user == event_args['owner']
+    assert 1600 == event_args['oldValue']
+    assert 100 == event_args['newValue']
+    assert 6 == event_args['lastPeriod']
+    assert 1 == event_args['periods']
 
     events = confirms.get_all_entries()
     assert 1 == len(events)

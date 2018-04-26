@@ -22,7 +22,13 @@ contract UserEscrow is Ownable {
     event DepositedAsMiner(address indexed owner, uint256 value, uint256 periods);
     event WithdrawnAsMiner(address indexed owner, uint256 value);
     event Locked(address indexed owner, uint256 value, uint256 periods);
-    event LockSwitched(address indexed owner);
+    event Divided(
+        address indexed owner,
+        uint256 oldValue,
+        uint256 lastPeriod,
+        uint256 newValue,
+        uint256 periods
+    );
     event ActivityConfirmed(address indexed owner);
     event Mined(address indexed owner);
     event RewardWithdrawnAsMiner(address indexed owner, uint256 value);
@@ -96,7 +102,7 @@ contract UserEscrow is Ownable {
     /**
     * @notice Deposit tokens to the miners escrow
     * @param _value Amount of token to deposit
-    * @param _periods Amount of periods during which tokens will be unlocked
+    * @param _periods Amount of periods during which tokens will be locked
     **/
     function minerDeposit(uint256 _value, uint256 _periods) public onlyOwner {
         require(token.balanceOf(address(this)) > _value);
@@ -117,19 +123,30 @@ contract UserEscrow is Ownable {
     /**
     * @notice Lock some tokens or increase lock in the miners escrow
     * @param _value Amount of tokens which should lock
-    * @param _periods Amount of periods during which tokens will be unlocked
+    * @param _periods Amount of periods during which tokens will be locked
     **/
     function lock(uint256 _value, uint256 _periods) public onlyOwner {
         escrow.lock(_value, _periods);
-        emit Locked( owner, _value, _periods);
+        emit Locked(owner, _value, _periods);
     }
 
     /**
-    * @notice Switch lock in the miners escrow
+    * @notice Divide stake into two parts
+    * @param _oldValue Old stake value
+    * @param _lastPeriod Last period of stake
+    * @param _newValue New stake value
+    * @param _periods Amount of periods for extending stake
     **/
-    function switchLock() public onlyOwner {
-        escrow.switchLock();
-        emit LockSwitched(owner);
+    function divideStake(
+        uint256 _oldValue,
+        uint256 _lastPeriod,
+        uint256 _newValue,
+        uint256 _periods
+    )
+        public onlyOwner
+    {
+        escrow.divideStake(_oldValue, _lastPeriod, _newValue, _periods);
+        emit Divided(owner, _oldValue, _lastPeriod, _newValue, _periods);
     }
 
     /**
@@ -152,16 +169,16 @@ contract UserEscrow is Ownable {
     * @notice Withdraw available reward from the policy manager to the user escrow
     **/
     function policyRewardWithdraw() public onlyOwner {
-        uint256 balance = this.balance;
+        uint256 balance = address(this).balance;
         policyManager.withdraw();
-        emit RewardWithdrawnAsMiner(owner, this.balance - balance);
+        emit RewardWithdrawnAsMiner(owner, address(this).balance - balance);
     }
 
     /**
     * @notice Withdraw available reward to the owner
     **/
     function rewardWithdraw() public onlyOwner {
-        uint256 balance = this.balance;
+        uint256 balance = address(this).balance;
         require(balance != 0);
         owner.transfer(balance);
         emit RewardWithdrawn(owner, balance);

@@ -282,11 +282,11 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
                                   'value': int((0.5 * rate + rate * number_of_periods) * 3),
                                   'gas_price': 0})\
         .createPolicy(policy_id_3, number_of_periods, int(0.5 * rate), [node1, node2, node3])
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 3 * value + 1.5 * rate == web3.eth.getBalance(policy_manager.address)
     assert client_balance - int(3 * value + 1.5 * rate) == web3.eth.getBalance(client)
     assert client == web3.toChecksumAddress(
-        policy_manager.call().getPolicyInfo(CLIENT_FIELD, policy_id_3, NULL_ADDR))
+        policy_manager.call().getPolicyInfo(CLIENT_FIELD, policy_id_3, NULL_ADDR)[12:])
     assert rate == web3.toInt(
         policy_manager.call().getPolicyInfo(RATE_FIELD, policy_id_3, NULL_ADDR))
     assert 0.5 * rate == web3.toInt(
@@ -307,7 +307,7 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
 
     tx = policy_manager.transact({'from': client, 'gas_price': 0}) \
         .revokeArrangement(policy_id_3, node1)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 2 * value + rate == web3.eth.getBalance(policy_manager.address)
     assert client_balance - (2 * value + rate) == web3.eth.getBalance(client)
     assert 0 == web3.toInt(
@@ -322,7 +322,7 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     assert value + 0.5 * rate == event_args['value']
 
     tx = policy_manager.transact({'from': client, 'gas_price': 0}).revokePolicy(policy_id_3)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 0 == web3.eth.getBalance(policy_manager.address)
     assert client_balance == web3.eth.getBalance(client)
     assert 1 == web3.toInt(
@@ -404,7 +404,7 @@ def test_reward(web3, chain, escrow, policy_manager):
         period += 1
     assert 120 == web3.toInt(policy_manager.call().getNodeInfo(REWARD_FIELD, node1, 0))
     tx = escrow.transact({'from': node1, 'gas_price': 0}).mint(period, 1)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     assert 120 == web3.toInt(policy_manager.call().getNodeInfo(REWARD_FIELD, node1, 0))
 
     # Withdraw
@@ -422,19 +422,19 @@ def test_reward(web3, chain, escrow, policy_manager):
     # Create policy
     tx = policy_manager.transact({'from': client, 'value': int(2 * value + rate)}) \
         .createPolicy(policy_id_2, number_of_periods, int(0.5 * rate), [node2, node3])
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
 
     # Mint some periods
     period = escrow.call().getCurrentPeriod()
     tx = escrow.transact({'from': node2, 'gas_price': 0}).mint(period, 5)
-    chain.wait.for_receipt(tx)
+    chain.wait_for_receipt(tx)
     period += 5
     assert 90 == web3.toInt(policy_manager.call().getNodeInfo(REWARD_FIELD, node2, 0))
 
     # Mint more periods
     for x in range(6):
         tx = escrow.transact({'from': node2, 'gas_price': 0}).mint(period, 1)
-        chain.wait.for_receipt(tx)
+        chain.wait_for_receipt(tx)
         period += 1
     assert 210 == web3.toInt(policy_manager.call().getNodeInfo(REWARD_FIELD, node2, 0))
 
