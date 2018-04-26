@@ -238,9 +238,9 @@ def test_dispatcher(web3, chain):
     assert creator == event_args['owner']
 
     # Create and check events
-    tx =  contract_instance.functions.createEvent(22).transact({'from': creator})
+    tx = contract_instance.functions.createEvent(22).transact({'from': creator})
     chain.wait_for_receipt(tx)
-    test_eventv2_log = contract_instance.events.EventV2.createFilter(fromBlock='latest')
+    test_eventv2_log = contract_instance.events.EventV2.createFilter(fromBlock=0)
     events = test_eventv2_log.get_all_entries()
     assert 1 == len(events)
     assert 22 == events[0]['args']['value']
