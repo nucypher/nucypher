@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Tuple, Union, List
+from typing import Tuple, List
 
 from web3 import Web3
 from web3.contract import Contract

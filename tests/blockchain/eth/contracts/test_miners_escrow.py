@@ -586,12 +586,14 @@ def test_mining(web3, chain, token, escrow_contract):
     event_args = events[2]['args']
     assert ursula1 == event_args['owner']
     assert 106 == event_args['value']
+
     assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
 
     # Ursula can't confirm and get reward because no locked tokens
     tx = escrow.functions.mint().transact({'from': ursula1})
     chain.wait_for_receipt(tx)
     assert 1152 == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
+
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.confirmActivity().transact({'from': ursula1})
         chain.wait_for_receipt(tx)
