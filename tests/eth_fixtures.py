@@ -23,7 +23,7 @@ from tests.blockchain.eth.utilities import MockMinerEscrowDeployer, TesterPyEVMB
 
 
 #
-# Session fixtures
+# Provider Fixtures
 #
 
 
@@ -97,7 +97,7 @@ def auto_geth_ipc_provider():
     shutil.rmtree(geth.data_dir)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def pyevm_provider():
     """
     Provider backend
@@ -112,6 +112,11 @@ def pyevm_provider():
     yield pyevm_provider
 
 
+#
+# Blockchain Fixtures
+#
+
+
 @pytest.fixture(scope='session')
 def solidity_compiler():
     test_contracts_dir = os.path.join(dirname(abspath(contracts.__file__)), 'contracts')
@@ -119,12 +124,7 @@ def solidity_compiler():
     yield compiler
 
 
-#
-# Module Fixtures
-#
-
-
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def web3(pyevm_provider):
 
     w3 = Web3(providers=pyevm_provider)
