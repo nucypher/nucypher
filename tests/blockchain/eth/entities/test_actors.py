@@ -6,7 +6,9 @@ from nucypher.blockchain.eth.agents import MinerAgent
 
 
 @pytest.mark.skip("Last 5 stubborn blockchain tests.")
-def test_miner_locking_tokens(chain, mock_token_deployer, mock_miner_agent):
+def test_miner_locking_tokens(chain, token_agent, mock_token_deployer, mock_miner_agent):
+
+    chain._token_airdrop(token_agent=token_agent, amount=10000)
 
     miner = Miner(miner_agent=mock_miner_agent, address=chain.provider.w3.eth.accounts[1])
 
@@ -14,16 +16,16 @@ def test_miner_locking_tokens(chain, mock_token_deployer, mock_miner_agent):
     miner.stake(amount=an_amount_of_tokens, locktime=mock_miner_agent._deployer._min_locked_periods)
 
     # Verify that the escrow is allowed to receive tokens
-    # assert mock_miner_agent.token_agent.read().allowance(miner.address, mock_miner_agent.contract_address) == 0
+    assert mock_miner_agent.token_agent.contract.functions.allowance(miner.address, mock_miner_agent.contract_address).call() == 0
 
     # Stake starts after one period
-    # assert miner.token_balance() == 0
-    # assert mock_miner_agent.read().getLockedTokens(miner.address) == 0
+    assert miner.token_balance() == 0
+    assert mock_miner_agent.contract.functions.getLockedTokens(miner.address).call() == 0
 
     # Wait for it...
     chain.time_travel(mock_miner_agent._deployer._hours_per_period)
 
-    assert mock_miner_agent.read().getLockedTokens(miner.address) == an_amount_of_tokens
+    assert mock_miner_agent.contract.functions.getLockedTokens(miner.address).call() == an_amount_of_tokens
 
 
 @pytest.mark.skip("Last 5 stubborn blockchain tests.")
@@ -60,10 +62,10 @@ def test_mine_then_withdraw_tokens(chain, mock_token_deployer, token_agent, mock
     assert miner.locked_tokens == half_of_stake
 
     # Ensure the MinerEscrow contract is allowed to receive tokens form Alice
-    # assert miner.token_agent.read().allowance(miner.address, miner.miner_agent.contract_address) == half_of_stake
+    # assert miner.token_agent.contract.functions.allowance(miner.address, miner.miner_agent.contract_address).call() == half_of_stake
 
     # Blockchain staking starts after one period
-    # assert mock_miner_agent.read().getAllLockedTokens() == 0
+    # assert mock_miner_agent.contract.functions.getAllLockedTokens().call() == 0
 
     # Wait for it...
     # chain.wait_time(2)
@@ -139,6 +141,9 @@ def test_publish_miner_datastore(chain, mock_miner_agent):
     assert len(stored_miner_ids) == 2
     assert another_mock_miner_id == stored_miner_ids[1]
 
-    supposedly_the_same_miner_id = mock_miner_agent.read().getMinerId(miner_addr, 1)
+    supposedly_the_same_miner_id = mock_miner_agent.contract.functions \
+        .getMinerInfo(mock_miner_agent._deployer.MinerInfoField.MINER_ID.value,
+                      miner_addr, 1).call()
+
     assert another_mock_miner_id == supposedly_the_same_miner_id
 

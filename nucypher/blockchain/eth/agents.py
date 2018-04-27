@@ -24,19 +24,23 @@ class EthereumContractAgent(ABC):
         self.blockchain = blockchain
 
         address = blockchain.provider.get_contract_address(contract_name=self._principal_contract_name)[-1]  # TODO
-        self._contract = blockchain.provider.get_contract(address)
+        self.__contract = blockchain.provider.get_contract(address)
 
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(blockchain={}, contract={})"
-        return r.format(class_name, self.blockchain, self._contract)
+        return r.format(class_name, self.blockchain, self.__contract)
 
     def __eq__(self, other):
         return bool(self.contract_address == other.contract_address)
 
     @property
+    def contract(self):
+        return self.__contract
+
+    @property
     def contract_address(self):
-        return self._contract.address
+        return self.__contract.address
 
     @property
     def contract_name(self) -> str:
@@ -46,28 +50,11 @@ class EthereumContractAgent(ABC):
     def origin(self) -> str:
         return self.blockchain.provider.w3.eth.coinbase    # TODO: make swappable
 
-    def read(self):
-        """
-        Returns an object that exposes the contract instance functions.
-
-        This method is intended for use with method chaining,
-        results in zero state changes, and costs zero gas.
-        Useful as a dry-run before sending an actual transaction.
-
-        See more on interacting with contract instances in the Populus docs:
-        http://populus.readthedocs.io/en/latest/dev_cycle.part-07.html#call-an-instance-function
-        """
-        return self._contract.call()
-
-    def transact(self, payload: dict):
-        """Packs kwargs into payload dictionary and transmits an eth contract transaction"""
-        return self._contract.transact(payload)
-
     def get_balance(self, address: str=None) -> int:
         """Get the balance of a token address, or of this contract address"""
         if address is None:
             address = self.contract_address
-        return self.read().balanceOf(address)
+        return self.contract.functions.balanceOf(address).call()
 
 
 class NucypherTokenAgent(EthereumContractAgent):
@@ -117,10 +104,16 @@ class MinerAgent(EthereumContractAgent):
         Miner addresses will be returned in the order in which they were added to the MinersEscrow's ledger
         """
 
-        count = self.read().getMinersLength()
+        info_reader = partial(self.contract.functions.getMinerInfo,
+                              self.MinerInfo.MINERS_LENGTH.value, self._deployer._null_addr
+                              # ___,
+                              )
 
+        count_bytes = info_reader(0).call()
+        count = self.blockchain.provider.w3.toInt(count_bytes)
         for index in range(count):
-            yield self.read().miners(index)
+            addr = info_reader(index).call()
+            yield self.blockchain.provider.w3.toChecksumAddress(addr)
 
     def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:
         """
@@ -147,7 +140,7 @@ class MinerAgent(EthereumContractAgent):
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
-        n_tokens = self.read().getAllLockedTokens()
+        n_tokens = self.contract.functions.getAllLockedTokens().call()
 
         if not n_tokens > 0:
             raise self.NotEnoughUrsulas('There are no locked tokens.')
@@ -158,7 +151,7 @@ class MinerAgent(EthereumContractAgent):
 
             addrs, addr, index, shift = set(), self._deployer._null_addr, 0, 0
             for delta in deltas:
-                addr, index, shift = self.read().findCumSum(index, delta + shift, duration)
+                addr, index, shift = self.contract.functions.findCumSum(index, delta + shift, duration).call()
                 addrs.add(addr)
 
             if len(addrs) >= quantity:
@@ -173,7 +166,7 @@ class PolicyAgent(EthereumContractAgent):
     _principal_contract_name = PolicyManagerDeployer._contract_name
 
     def fetch_arrangement_data(self, arrangement_id: bytes) -> list:
-        blockchain_record = self.read().policies(arrangement_id)
+        blockchain_record = self.contract.functions.policies(arrangement_id).call()
         return blockchain_record
 
     def revoke_arrangement(self, arrangement_id: bytes, author, gas_price: int):
@@ -181,6 +174,6 @@ class PolicyAgent(EthereumContractAgent):
         Revoke by arrangement ID; Only the policy author can revoke the policy
         """
 
-        txhash = self.transact({'from': author.address, 'gas_price': gas_price}).revokePolicy(arrangement_id)
+        txhash = self.contract.functions.revokePolicy(arrangement_id).transact({'from': author.address, 'gas_price': gas_price})
         self.blockchain.wait_for_receipt(txhash)
         return txhash

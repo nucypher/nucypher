@@ -31,7 +31,7 @@ def test_token_deployer_and_agent(chain):
     assert len(token_agent.contract_address) == 42
 
     # Check that the token contract has tokens
-    assert token_agent.read().totalSupply() != 0
+    assert token_agent.contract.functions.totalSupply().call() != 0
     # assert token().totalSupply() == int(1e9) * _M     # TODO
 
     # Retrieve the token from the blockchain
