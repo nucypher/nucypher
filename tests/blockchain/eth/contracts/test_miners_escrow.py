@@ -25,7 +25,6 @@ MINER_ID_FIELD = 16
 
 @pytest.fixture()
 def token(web3, chain):
-    creator = web3.eth.accounts[0]
     # Create an ERC20 token
     token, _ = chain.provider.deploy_contract('NuCypherKMSToken', 2 * 10 ** 9)
     return token
@@ -34,7 +33,6 @@ def token(web3, chain):
 @pytest.fixture(params=[False, True])
 def escrow_contract(web3, chain, token, request):
     def make_escrow(max_allowed_locked_tokens):
-        creator = web3.eth.accounts[0]
         # Creator deploys the escrow
         contract, _ = chain.provider.deploy_contract(
             'MinersEscrow', token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, max_allowed_locked_tokens)
@@ -80,12 +78,12 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert 1100 == token.call().allowance(ursula2, escrow.address)
 
     # Ursula's withdrawal attempt won't succeed because nothing to withdraw
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).withdraw(100)
         chain.wait_for_receipt(tx)
 
     # And can't lock because nothing to lock
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).lock(500, 2)
         chain.wait_for_receipt(tx)
 
@@ -95,21 +93,21 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert 0 == escrow.call().getLockedTokens(web3.eth.accounts[3])
 
     # Ursula can't deposit tokens before Escrow initialization
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).deposit(1, 1)
         chain.wait_for_receipt(tx)
 
     # Initialize Escrow contract
-    tx = escrow.transact().initialize()
+    tx = escrow.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
 
     # Ursula can't deposit and lock too low value
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).deposit(1, 1)
         chain.wait_for_receipt(tx)
 
     # And can't deposit and lock too high value
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).deposit(1501, 1)
         chain.wait_for_receipt(tx)
 
@@ -192,7 +190,7 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert 1500 == escrow.call().getAllLockedTokens()
 
     # Ursula's withdrawal attempt won't succeed
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).withdraw(100)
         chain.wait_for_receipt(tx)
     assert 1500 == token.call().balanceOf(escrow.address)
@@ -220,7 +218,7 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert 1500 == event_args['value']
 
     # But can't deposit too high value
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).deposit(1, 0)
         chain.wait_for_receipt(tx)
 
@@ -252,12 +250,12 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert 100 == event_args['value']
 
     # But Ursula can't withdraw all without mining for locked value
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).withdraw(1400)
         chain.wait_for_receipt(tx)
 
     # And Ursula can't lock again too low value
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).lock(1, 1)
         chain.wait_for_receipt(tx)
 
@@ -333,7 +331,7 @@ def test_locked_distribution(web3, chain, token, escrow_contract):
     # Give Escrow tokens for reward and initialize contract
     tx = token.transact({'from': creator}).transfer(escrow.address, 10 ** 9)
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().initialize()
+    tx = escrow.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
 
     miners = web3.eth.accounts[1:]
@@ -422,7 +420,7 @@ def test_mining(web3, chain, token, escrow_contract):
     # Give Escrow tokens for reward and initialize contract
     tx = token.transact({'from': creator}).transfer(escrow.address, 10 ** 9)
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().initialize()
+    tx = escrow.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
 
     policy_manager, _ = chain.provider.deploy_contract(
@@ -439,10 +437,10 @@ def test_mining(web3, chain, token, escrow_contract):
     chain.wait_for_receipt(tx)
 
     # Ursula can't confirm and mint because no locked tokens
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).mint()
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).confirmActivity()
         chain.wait_for_receipt(tx)
 
@@ -513,7 +511,7 @@ def test_mining(web3, chain, token, escrow_contract):
     # Ursula can't confirm next period because end of locking
     chain.wait_time(hours=1)
     assert 500 == escrow.call().getAllLockedTokens()
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).confirmActivity()
         chain.wait_for_receipt(tx)
 
@@ -576,7 +574,7 @@ def test_mining(web3, chain, token, escrow_contract):
     chain.wait_for_receipt(tx)
     assert 1163 == web3.toInt(escrow.call().getMinerInfo(VALUE_FIELD, ursula1, 0))
 
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).confirmActivity()
         chain.wait_for_receipt(tx)
 
@@ -636,7 +634,7 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
     deposit_log = escrow.eventFilter('Deposited')
 
     # Initialize Escrow contract
-    tx = escrow.transact().initialize()
+    tx = escrow.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
 
     # Grant access to transfer tokens
@@ -653,21 +651,21 @@ def test_pre_deposit(web3, chain, token, escrow_contract):
     assert 10 == web3.toInt(escrow.call().getMinerInfo(MAX_RELEASE_PERIODS_FIELD, owner, 0))
 
     # Can't pre-deposit tokens again for same owner
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[1]], [1000], [10])
         chain.wait_for_receipt(tx)
 
     # Can't pre-deposit tokens with too low or too high value
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[2]], [1], [10])
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[2]], [1501], [10])
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': creator}).preDeposit(
             [web3.eth.accounts[2]], [500], [1])
         chain.wait_for_receipt(tx)
@@ -718,7 +716,7 @@ def test_miner_id(web3, chain, token, escrow_contract):
     miner = web3.eth.accounts[1]
 
     # Initialize contract and miner
-    tx = escrow.transact().initialize()
+    tx = escrow.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
     tx = token.transact({'from': creator}).transfer(miner, 1000)
     chain.wait_for_receipt(tx)
@@ -734,13 +732,13 @@ def test_miner_id(web3, chain, token, escrow_contract):
 
     chain.wait_for_receipt(tx)
     assert 1 == web3.toInt(escrow.call().getMinerInfo(MINER_IDS_FIELD_LENGTH, miner, 0))
-    
+
     assert miner_id == escrow.call().getMinerInfo(MINER_ID_FIELD, miner, 0)
     miner_id = os.urandom(32)
     tx = escrow.transact({'from': miner}).setMinerId(miner_id)
     chain.wait_for_receipt(tx)
     assert 2 == web3.toInt(escrow.call().getMinerInfo(MINER_IDS_FIELD_LENGTH, miner, 0))
-    
+
     assert miner_id == escrow.call().getMinerInfo(MINER_ID_FIELD, miner, 1)
 
 
@@ -770,7 +768,7 @@ def test_verifying_state(web3, chain, token):
 
     tx = contract.transact({'from': creator}).setPolicyManager(policy_manager.address)
     chain.wait_for_receipt(tx)
-    tx = contract.transact().initialize()
+    tx = contract.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
     tx = token.transact({'from': creator}).transfer(miner, 1000)
     chain.wait_for_receipt(tx)
@@ -796,10 +794,10 @@ def test_verifying_state(web3, chain, token):
         'MinersEscrowBad', token.address, 2, 2, 2, 2, 2, 2, 2
     )
 
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
         chain.wait_for_receipt(tx)
 
@@ -808,11 +806,11 @@ def test_verifying_state(web3, chain, token):
 
     chain.wait_for_receipt(tx)
     assert contract_library_v1.address == dispatcher.call().target()
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.transact({'from': creator}).setValueToCheck(2)
         chain.wait_for_receipt(tx)
 
     # Try to upgrade to the bad version
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
         chain.wait_for_receipt(tx)

@@ -1,6 +1,6 @@
 import pytest
 
-from nkms.blockchain.eth.utilities import MockNuCypherMinerConfig
+from tests.blockchain.eth.utilities import MockNuCypherMinerConfig
 
 M = 10 ** 6
 
@@ -11,7 +11,7 @@ def test_get_swarm(chain, mock_miner_agent):
 
     creator, *addresses = chain.provider.w3.eth.accounts
 
-    chain.spawn_miners(addresses=addresses, miner_agent=mock_miner_agent, locktime=1, m=M)
+    chain.spawn_miners(addresses=addresses, miner_agent=mock_miner_agent, locktime=1)
 
     default_period_duration = MockNuCypherMinerConfig._hours_per_period
     chain.wait_time(default_period_duration)

@@ -27,7 +27,7 @@ def test_create_token(web3, chain):
     assert token.call().symbol() == 'KMS'
 
     # Cannot send ethers to the contract
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = web3.eth.sendTransaction({'from': account1, 'to': token.address, 'value': 10 ** 9})
         chain.wait_for_receipt(tx)
 

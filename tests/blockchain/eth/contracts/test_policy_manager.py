@@ -91,16 +91,16 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     policy_refund_log = policy_manager.eventFilter('RefundForPolicy')
 
     # Try create policy for bad node
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client, 'value': value})\
             .createPolicy(policy_id, 1, [bad_node])
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client, 'value': value})\
             .createPolicy(policy_id, 1, [node1, bad_node])
         chain.wait_for_receipt(tx)
     # Try create policy with no ETH
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client})\
             .createPolicy(policy_id, 1, [node1])
         chain.wait_for_receipt(tx)
@@ -133,13 +133,13 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     # assert node == event_args['nodes'][0]
 
     # Try to create policy again
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client, 'value': value}) \
             .createPolicy(policy_id, number_of_periods, [node1])
         chain.wait_for_receipt(tx)
 
     # Only client can revoke policy
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': creator}).revokePolicy(policy_id)
         chain.wait_for_receipt(tx)
     tx = policy_manager.transact({'from': client, 'gas_price': 0}).revokePolicy(policy_id)
@@ -163,10 +163,10 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     assert value == event_args['value']
 
     # Can't revoke again
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client}).revokePolicy(policy_id)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client}).revokeArrangement(policy_id, node1)
         chain.wait_for_receipt(tx)
 
@@ -196,7 +196,7 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     # assert node == event_args['node']
 
     # Can't revoke nonexistent arrangement
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client}).revokeArrangement(policy_id_2, web3.eth.accounts[6])
         chain.wait_for_receipt(tx)
 
@@ -218,7 +218,7 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     assert value == event_args['value']
 
     # Can't revoke again
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client}).revokeArrangement(policy_id_2, node1)
         chain.wait_for_receipt(tx)
 
@@ -252,10 +252,10 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     assert 2 * value == event_args['value']
 
     # Can't revoke again
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client}).revokePolicy(policy_id_2)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client}).revokeArrangement(policy_id_2, node1)
         chain.wait_for_receipt(tx)
 
@@ -285,12 +285,12 @@ def test_reward(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
 
     # Nothing to withdraw
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': node1}).withdraw()
         chain.wait_for_receipt(tx)
 
     # Can't update reward directly
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': node1}).updateReward(node1, period + 1)
         chain.wait_for_receipt(tx)
 
@@ -348,7 +348,7 @@ def test_refund(web3, chain, escrow, policy_manager):
     tx = policy_manager.transact({'from': client, 'value': value, 'gas_price': 0}) \
         .createPolicy(policy_id, number_of_periods, [node1])
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().setLastActivePeriod(escrow.call().getCurrentPeriod())
+    tx = escrow.transact({'from': creator}).setLastActivePeriod(escrow.call().getCurrentPeriod())
     chain.wait_for_receipt(tx)
 
     # Wait and refund all
@@ -401,10 +401,10 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert 20 == event_args['value']
 
     # Can't refund again
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client}).refund(policy_id)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client}).refund(policy_id, node1)
         chain.wait_for_receipt(tx)
 
@@ -456,11 +456,11 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert 0 == event_args['value']
 
     # Try to refund nonexistent policy
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client}).refund(policy_id_3)
         chain.wait_for_receipt(tx)
     # Node try to refund by node
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': node1}).refund(policy_id_2)
         chain.wait_for_receipt(tx)
 
@@ -468,15 +468,15 @@ def test_refund(web3, chain, escrow, policy_manager):
     period += 1
     tx = escrow.transact({'from': node1}).mint(period, 2)
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().pushDowntimePeriod(period + 2, period + 3)
+    tx = escrow.transact({'from': creator}).pushDowntimePeriod(period + 2, period + 3)
     chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': node1}).mint(period + 4, 1)
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().pushDowntimePeriod(period + 5, period + 7)
+    tx = escrow.transact({'from': creator}).pushDowntimePeriod(period + 5, period + 7)
     chain.wait_for_receipt(tx)
     tx = escrow.transact({'from': node1}).mint(period + 8, 1)
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().setLastActivePeriod(period + 8)
+    tx = escrow.transact({'from': creator}).setLastActivePeriod(period + 8)
     chain.wait_for_receipt(tx)
     assert 80 == web3.toInt(policy_manager.call().getNodeInfo(REWARD_FIELD, node1, 0))
 
@@ -501,7 +501,7 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert 3 == len(events)
 
     # Can't refund arrangement again
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': client}).refund(policy_id, node1)
         chain.wait_for_receipt(tx)
 
@@ -543,13 +543,13 @@ def test_refund(web3, chain, escrow, policy_manager):
 
     # Mint some periods
     period += 1
-    tx = escrow.transact().pushDowntimePeriod(period, period)
+    tx = escrow.transact({'from': creator}).pushDowntimePeriod(period, period)
     chain.wait_for_receipt(tx)
     for x in range(3):
         period += 1
         tx = escrow.transact({'from': node1}).mint(period, 1)
         chain.wait_for_receipt(tx)
-    tx = escrow.transact().setLastActivePeriod(period)
+    tx = escrow.transact({'from': creator}).setLastActivePeriod(period)
     chain.wait_for_receipt(tx)
     assert 140 == web3.toInt(policy_manager.call().getNodeInfo(REWARD_FIELD, node1, 0))
 
@@ -621,10 +621,10 @@ def test_verifying_state(web3, chain):
 
     # Can't upgrade to the previous version or to the bad version
     contract_library_bad, _ = chain.provider.deploy_contract('PolicyManagerBad', address2)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
         chain.wait_for_receipt(tx)
 
@@ -633,11 +633,11 @@ def test_verifying_state(web3, chain):
     chain.wait_for_receipt(tx)
     assert contract_library_v1.address == dispatcher.call().target()
     assert address1 == contract.call().escrow()
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.transact({'from': creator}).setValueToCheck(2)
         chain.wait_for_receipt(tx)
 
     # Try to upgrade to the bad version
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
         chain.wait_for_receipt(tx)

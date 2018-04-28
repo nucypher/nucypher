@@ -76,10 +76,10 @@ def test_voting(web3, chain, escrow, policy_manager):
 
     # Check that there are no voting before it's creation
     assert FINISHED_STATE == government.call().getVotingState()
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government.transact({'from': node1}).vote(True)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government.transact({'from': creator}).commitUpgrade()
         chain.wait_for_receipt(tx)
 
@@ -90,7 +90,7 @@ def test_voting(web3, chain, escrow, policy_manager):
     assert government_library.address != government_library_v2.address
 
     # Only tokens owner can create voting
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government.transact({'from': creator}).createVoting(
             UPGRADE_GOVERNMENT, government_library_v2.address)
         chain.wait_for_receipt(tx)
@@ -107,11 +107,11 @@ def test_voting(web3, chain, escrow, policy_manager):
     assert 0 == government.call().votesAgainst()
 
     # Can't commit upgrade before end of voting
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government.transact({'from': creator}).commitUpgrade()
         chain.wait_for_receipt(tx)
     # Can't create new voting before end of previous voting
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government.transact({'from': creator}).createVoting(
             UPGRADE_GOVERNMENT, government_library_v2.address)
         chain.wait_for_receipt(tx)
@@ -128,7 +128,7 @@ def test_voting(web3, chain, escrow, policy_manager):
     assert ACTIVE_STATE == government.call().getVotingState()
 
     # Can't vote again
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government.transact({'from': node2}).vote(False)
         chain.wait_for_receipt(tx)
 
@@ -139,11 +139,11 @@ def test_voting(web3, chain, escrow, policy_manager):
     assert 1 == government.call().votingNumber()
 
     # Can't vote after the ending
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government.transact({'from': node3}).vote(False)
         chain.wait_for_receipt(tx)
     # Can't commit upgrade because nodes votes against upgrade
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government.transact({'from': creator}).commitUpgrade()
         chain.wait_for_receipt(tx)
 
@@ -174,11 +174,11 @@ def test_voting(web3, chain, escrow, policy_manager):
     assert 2 == government.call().votingNumber()
 
     # Can't vote after the ending
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government.transact({'from': node3}).vote(True)
         chain.wait_for_receipt(tx)
     # Can't create new voting before upgrading
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government.transact({'from': creator}).createVoting(
             UPGRADE_GOVERNMENT, government_library_v2.address)
         chain.wait_for_receipt(tx)
@@ -464,10 +464,10 @@ def test_verifying_state(web3, chain):
 
     # Can't upgrade to the previous version or to the bad version
     government_library_bad, _ = chain.provider.deploy_contract('GovernmentBad')
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_v1.address)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_bad.address)
         chain.wait_for_receipt(tx)
 
@@ -478,11 +478,11 @@ def test_verifying_state(web3, chain):
     assert address1 == government.call().escrow()
     assert address2 == government.call().policyManager()
     assert 60 * 60 == government.call().votingDurationSeconds()
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government.transact({'from': creator}).setValueToCheck(2)
         chain.wait_for_receipt(tx)
 
     # Try to upgrade to the bad version
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_bad.address)
         chain.wait_for_receipt(tx)

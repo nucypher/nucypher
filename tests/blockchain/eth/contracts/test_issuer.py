@@ -26,7 +26,7 @@ def test_issuer(web3, chain, token):
     chain.wait_for_receipt(tx)
 
     events = issuer.eventFilter('Initialized')
-    tx = issuer.transact().initialize()
+    tx = issuer.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
     events = events.get_all_entries()
 
@@ -35,8 +35,8 @@ def test_issuer(web3, chain, token):
     balance = token.call().balanceOf(issuer.address)
 
     # Can't initialize second time
-    with pytest.raises(TransactionFailed):
-        tx = issuer.transact().initialize()
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = issuer.transact({'from': creator}).initialize()
         chain.wait_for_receipt(tx)
 
     # Mint some tokens
@@ -74,7 +74,7 @@ def test_inflation_rate(web3, chain, token):
     # Give Miner tokens for reward and initialize contract
     tx = token.transact({'from': creator}).transfer(issuer.address, 2 * 10 ** 40 - 10 ** 30)
     chain.wait_for_receipt(tx)
-    tx = issuer.transact().initialize()
+    tx = issuer.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
 
     # Mint some tokens
@@ -124,7 +124,7 @@ def test_verifying_state(web3, chain, token):
     # Give Miner tokens for reward and initialize contract
     tx = token.transact({'from': creator}).transfer(contract.address, 10000)
     chain.wait_for_receipt(tx)
-    tx = contract.transact().initialize()
+    tx = contract.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
 
     # Upgrade to the second version
@@ -142,10 +142,10 @@ def test_verifying_state(web3, chain, token):
 
     # Can't upgrade to the previous version or to the bad version
     contract_library_bad, _ = chain.provider.deploy_contract('IssuerBad', token.address, 2, 2, 2, 2)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_v1.address)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
         chain.wait_for_receipt(tx)
 
@@ -157,11 +157,11 @@ def test_verifying_state(web3, chain, token):
     assert 3600 == contract.call().secondsPerPeriod()
     assert 1 == contract.call().lockedPeriodsCoefficient()
     assert 1 == contract.call().awardedPeriods()
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.transact({'from': creator}).setValueToCheck(2)
         chain.wait_for_receipt(tx)
 
     # Try to upgrade to the bad version
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.transact({'from': creator}).upgrade(contract_library_bad.address)
         chain.wait_for_receipt(tx)

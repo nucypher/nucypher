@@ -121,7 +121,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     chain.wait_for_receipt(tx)
 
     # Ursula can't deposit tokens before Escrow initialization
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).deposit(1, 1)
         chain.wait_for_receipt(tx)
 
@@ -129,7 +129,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     reward = 10 ** 9
     tx = token.transact({'from': creator}).transfer(escrow.address, reward)
     chain.wait_for_receipt(tx)
-    tx = escrow.transact().initialize()
+    tx = escrow.transact({'from': creator}).initialize()
     chain.wait_for_receipt(tx)
 
     # Deposit some tokens to the user escrow and lock them
@@ -157,12 +157,12 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert 9500 <= user_escrow_2.call().getLockedTokens()
 
     # Ursula's withdrawal attempt won't succeed because nothing to withdraw
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).withdraw(100)
         chain.wait_for_receipt(tx)
 
     # And can't lock because nothing to lock
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).lock(500, 2)
         chain.wait_for_receipt(tx)
 
@@ -176,12 +176,12 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert 0 == escrow.call().getLockedTokens(everyone_else[0])
 
     # Ursula can't deposit and lock too low value
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).deposit(1, 1)
         chain.wait_for_receipt(tx)
 
     # And can't deposit and lock too high value
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': ursula1}).deposit(2001, 1)
         chain.wait_for_receipt(tx)
 
@@ -198,18 +198,18 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert 10 == web3.toInt(escrow.call().getMinerInfo(MAX_RELEASE_PERIODS_FIELD, ursula2, 0))
 
     # Can't pre-deposit tokens again for same owner
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': creator}).preDeposit([ursula2], [1000], [10])
         chain.wait_for_receipt(tx)
 
     # Can't pre-deposit tokens with too low or too high value
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': creator}).preDeposit([ursula3], [1], [10])
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': creator}).preDeposit([ursula3], [10**6], [10])
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.transact({'from': creator}).preDeposit([ursula3], [500], [1])
         chain.wait_for_receipt(tx)
 
@@ -235,11 +235,11 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert 9000 == token.call().balanceOf(user_escrow_1.address)
 
     # Only user can deposit tokens to the miner escrow
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow_1.transact({'from': creator}).minerDeposit(1000, 5)
         chain.wait_for_receipt(tx)
     # Can't deposit more than amount in the user escrow
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow_1.transact({'from': ursula3}).minerDeposit(10000, 5)
         chain.wait_for_receipt(tx)
 
@@ -286,7 +286,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     chain.wait_for_receipt(tx)
 
     # Only Alice can revoke policy
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': ursula1}).revokePolicy(policy_id_5)
         chain.wait_for_receipt(tx)
     alice2_balance = web3.eth.getBalance(alice2)
@@ -298,10 +298,10 @@ def test_all(web3, chain, token, escrow, policy_manager):
         policy_manager.call().getPolicyInfo(DISABLED_FIELD, policy_id_5, NULL_ADDR))
 
     # Can't revoke again
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': alice2}).revokePolicy(policy_id_5)
         chain.wait_for_receipt(tx)
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': alice2}).revokeArrangement(policy_id_5, ursula1)
         chain.wait_for_receipt(tx)
 
@@ -315,7 +315,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
         policy_manager.call().getPolicyInfo(DISABLED_FIELD, policy_id_2, NULL_ADDR))
 
     # Can't revoke again
-    with pytest.raises(TransactionFailed):
+    with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.transact({'from': alice1}).revokeArrangement(policy_id_2, ursula2)
         chain.wait_for_receipt(tx)
 
