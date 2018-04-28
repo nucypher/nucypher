@@ -84,7 +84,7 @@ class TesterBlockchain(TheBlockchain):
         result = self.provider.w3.eth.waitForTransactionReceipt(txhash, timeout=timeout)
         return result
 
-    def wait_time(self, hours=None, seconds=None):
+    def time_travel(self, hours=None, seconds=None):
         """Wait the specified number of wait_hours by comparing block timestamps."""
         if hours:
             duration = hours * 60 * 60

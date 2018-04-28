@@ -67,20 +67,20 @@ def test_voting(web3, chain, escrow, policy_manager):
         ContractFactoryClass=Contract
     )
 
-    voting_created_log = government.eventFilter('VotingCreated')
-    upgrade_committed_log = government.eventFilter('UpgradeCommitted')
+    voting_created_log = government.events.VotingCreated.createFilter(fromBlock=0)
+    upgrade_committed_log = government.events.UpgradeCommitted.createFilter(fromBlock=0)
 
     # Transfer ownership
-    tx = government.transact({'from': creator}).transferOwnership(government.address)
+    tx =  government.functions.transferOwnership(government.address).transact({'from': creator})
     chain.wait_for_receipt(tx)
 
     # Check that there are no voting before it's creation
-    assert FINISHED_STATE == government.call().getVotingState()
+    assert FINISHED_STATE == government.functions.getVotingState().call()
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.transact({'from': node1}).vote(True)
+        tx =  government.functions.vote(True).transact({'from': node1})
         chain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.transact({'from': creator}).commitUpgrade()
+        tx = government.functions.commitUpgrade().transact({'from': creator})
         chain.wait_for_receipt(tx)
 
     # Deploy second version of the government contract
@@ -91,91 +91,89 @@ def test_voting(web3, chain, escrow, policy_manager):
 
     # Only tokens owner can create voting
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.transact({'from': creator}).createVoting(
-            UPGRADE_GOVERNMENT, government_library_v2.address)
+        tx = government.functions.createVoting(UPGRADE_GOVERNMENT, government_library_v2.address).transact({'from': creator})
         chain.wait_for_receipt(tx)
 
     # Create voting for update Government contract
-    tx = government.transact({'from': node1}).createVoting(
-        UPGRADE_GOVERNMENT, government_library_v2.address)
+    tx = government.functions.createVoting(UPGRADE_GOVERNMENT, government_library_v2.address).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    assert 1 == government.call().votingNumber()
-    assert UPGRADE_GOVERNMENT == government.call().votingType()
-    assert government_library_v2.address == government.call().newAddress()
-    assert ACTIVE_STATE == government.call().getVotingState()
-    assert 0 == government.call().votesFor()
-    assert 0 == government.call().votesAgainst()
+
+    assert 1 == government.functions.votingNumber().call()
+    assert UPGRADE_GOVERNMENT == government.functions.votingType().call()
+    assert government_library_v2.address == government.functions.newAddress().call()
+    assert ACTIVE_STATE == government.functions.getVotingState().call()
+    assert 0 == government.functions.votesFor().call()
+    assert 0 == government.functions.votesAgainst().call()
 
     # Can't commit upgrade before end of voting
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.transact({'from': creator}).commitUpgrade()
+        tx = government.functions.commitUpgrade().transact({'from': creator})
         chain.wait_for_receipt(tx)
     # Can't create new voting before end of previous voting
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.transact({'from': creator}).createVoting(
-            UPGRADE_GOVERNMENT, government_library_v2.address)
+        tx = government.functions.createVoting(UPGRADE_GOVERNMENT, government_library_v2.address).transact({'from': creator})
         chain.wait_for_receipt(tx)
 
     # Nodes vote against update
-    tx = government.transact({'from': node1}).vote(True)
+    tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    assert 1 == government.call().votesFor()
-    assert 0 == government.call().votesAgainst()
-    tx = government.transact({'from': node2}).vote(False)
+    assert 1 == government.functions.votesFor().call()
+    assert 0 == government.functions.votesAgainst().call()
+    tx =  government.functions.vote(False).transact({'from': node2})
     chain.wait_for_receipt(tx)
-    assert 1 == government.call().votesFor()
-    assert 2 == government.call().votesAgainst()
-    assert ACTIVE_STATE == government.call().getVotingState()
+    assert 1 == government.functions.votesFor().call()
+    assert 2 == government.functions.votesAgainst().call()
+    assert ACTIVE_STATE == government.functions.getVotingState().call()
 
     # Can't vote again
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.transact({'from': node2}).vote(False)
+        tx =  government.functions.vote(False).transact({'from': node2})
         chain.wait_for_receipt(tx)
 
     # Wait until the end of voting
-    chain.wait_time(1)
-    assert FINISHED_STATE == government.call().getVotingState()
-    assert government_library.address == government_dispatcher.call().target()
-    assert 1 == government.call().votingNumber()
+    chain.time_travel(1)
+    assert FINISHED_STATE == government.functions.getVotingState().call()
+    assert government_library.address == government_dispatcher.functions.target().call()
+    assert 1 == government.functions.votingNumber().call()
 
     # Can't vote after the ending
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.transact({'from': node3}).vote(False)
+        tx =  government.functions.vote(False).transact({'from': node3})
         chain.wait_for_receipt(tx)
     # Can't commit upgrade because nodes votes against upgrade
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.transact({'from': creator}).commitUpgrade()
+        tx = government.functions.commitUpgrade().transact({'from': creator})
         chain.wait_for_receipt(tx)
 
     # Create voting for update Government contract again
-    tx = government.transact({'from': node1}).createVoting(
-        UPGRADE_GOVERNMENT, government_library_v2.address)
+    tx = government.functions.createVoting(UPGRADE_GOVERNMENT, government_library_v2.address).transact({'from': node1})
+
     chain.wait_for_receipt(tx)
-    assert 2 == government.call().votingNumber()
-    assert UPGRADE_GOVERNMENT == government.call().votingType()
-    assert government_library_v2.address == government.call().newAddress()
-    assert ACTIVE_STATE == government.call().getVotingState()
-    assert 0 == government.call().votesFor()
-    assert 0 == government.call().votesAgainst()
+    assert 2 == government.functions.votingNumber().call()
+    assert UPGRADE_GOVERNMENT == government.functions.votingType().call()
+    assert government_library_v2.address == government.functions.newAddress().call()
+    assert ACTIVE_STATE == government.functions.getVotingState().call()
+    assert 0 == government.functions.votesFor().call()
+    assert 0 == government.functions.votesAgainst().call()
 
     # Nodes vote for update
-    tx = government.transact({'from': node1}).vote(False)
+    tx = government.functions.vote(False).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    tx = government.transact({'from': node2}).vote(True)
+    tx = government.functions.vote(True).transact({'from': node2})
     chain.wait_for_receipt(tx)
-    assert 2 == government.call().votesFor()
-    assert 1 == government.call().votesAgainst()
-    assert ACTIVE_STATE == government.call().getVotingState()
+    assert 2 == government.functions.votesFor().call()
+    assert 1 == government.functions.votesAgainst().call()
+    assert ACTIVE_STATE == government.functions.getVotingState().call()
 
     # Wait until the end of voting
-    chain.wait_time(1)
-    assert UPGRADE_WAITING_STATE == government.call().getVotingState()
-    assert government_library.address == government_dispatcher.call().target()
-    assert 2 == government.call().votingNumber()
+    chain.time_travel(1)
+    assert UPGRADE_WAITING_STATE == government.functions.getVotingState().call()
+    assert government_library.address == government_dispatcher.functions.target().call()
+    assert 2 == government.functions.votingNumber().call()
 
     # Can't vote after the ending
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.transact({'from': node3}).vote(True)
+        tx = government.functions.vote(True).transact({'from': node3})
         chain.wait_for_receipt(tx)
     # Can't create new voting before upgrading
     with pytest.raises((TransactionFailed, ValueError)):
@@ -184,42 +182,42 @@ def test_voting(web3, chain, escrow, policy_manager):
         chain.wait_for_receipt(tx)
 
     # Commit upgrade
-    tx = government.transact({'from': node2}).commitUpgrade()
+    tx = government.functions.commitUpgrade().transact({'from': node2})
     chain.wait_for_receipt(tx)
-    assert FINISHED_STATE == government.call().getVotingState()
-    assert government_library_v2.address == government_dispatcher.call().target()
+    assert FINISHED_STATE == government.functions.getVotingState().call()
+    assert government_library_v2.address == government_dispatcher.functions.target().call()
 
     # Create voting for update Government contract again without voting
     tx = government.transact({'from': node2}).createVoting(
         UPGRADE_GOVERNMENT, government_library.address)
     chain.wait_for_receipt(tx)
-    assert 3 == government.call().votingNumber()
-    assert ACTIVE_STATE == government.call().getVotingState()
-    assert 0 == government.call().votesFor()
-    assert 0 == government.call().votesAgainst()
+    assert 3 == government.functions.votingNumber().call()
+    assert ACTIVE_STATE == government.functions.getVotingState().call()
+    assert 0 == government.functions.votesFor().call()
+    assert 0 == government.functions.votesAgainst().call()
 
     # Wait until the end of voting
-    chain.wait_time(1)
-    assert FINISHED_STATE == government.call().getVotingState()
+    chain.time_travel(1)
+    assert FINISHED_STATE == government.functions.getVotingState().call()
 
     # Create voting for update Government contract again with equal voting
-    tx = government.transact({'from': node3}).createVoting(
-        UPGRADE_GOVERNMENT, government_library.address)
+    tx = government.functions.createVoting(UPGRADE_GOVERNMENT, government_library.address).transact({'from': node3})
     chain.wait_for_receipt(tx)
-    assert 4 == government.call().votingNumber()
-    assert ACTIVE_STATE == government.call().getVotingState()
-    tx = government.transact({'from': node1}).vote(False)
+
+    assert 4 == government.functions.votingNumber().call()
+    assert ACTIVE_STATE == government.functions.getVotingState().call()
+    tx =  government.functions.vote(False).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    tx = government.transact({'from': node2}).vote(False)
+    tx =  government.functions.vote(False).transact({'from': node2})
     chain.wait_for_receipt(tx)
-    tx = government.transact({'from': node3}).vote(True)
+    tx =  government.functions.vote(True).transact({'from': node3})
     chain.wait_for_receipt(tx)
-    assert 3 == government.call().votesFor()
-    assert 3 == government.call().votesAgainst()
+    assert 3 == government.functions.votesFor().call()
+    assert 3 == government.functions.votesAgainst().call()
 
     # Wait until the end of voting
-    chain.wait_time(1)
-    assert FINISHED_STATE == government.call().getVotingState()
+    chain.time_travel(1)
+    assert FINISHED_STATE == government.functions.getVotingState().call()
 
     # Check events
     events = voting_created_log.get_all_entries()
@@ -245,37 +243,36 @@ def test_upgrade(web3, chain, escrow, policy_manager):
         ContractFactoryClass=Contract
     )
 
+    voting_created_log = government.events.VotingCreated.createFilter(fromBlock=0)
+    upgrade_committed_log = government.events.UpgradeCommitted.createFilter(fromBlock=0)
+
     # Deploy second version of the government contract
     government_library_v2, _ = chain.provider.deploy_contract(
         'Government', escrow.address, policy_manager.address, 1,
     )
     # Get first version of the escrow contract
-    escrow_library_v1 = escrow.call().target()
+    escrow_library_v1 = escrow.functions.target().call()
     # Deploy second version of the escrow contract
     escrow_library_v2, _ = chain.provider.deploy_contract(
         'MinersEscrowV1Mock', [node1], [1]
     )
     escrow_library_v2 = escrow_library_v2.address
     # Get first version of the policy manager contract
-    policy_manager_library_v1 = policy_manager.call().target()
+    policy_manager_library_v1 = policy_manager.functions.target().call()
     # Deploy second version of the policy manager contract
     policy_manager_library_v2, _ = chain.provider.deploy_contract('PolicyManagerV1Mock')
     policy_manager_library_v2 = policy_manager_library_v2.address
 
-    voting_created_log = government.eventFilter('VotingCreated')
-    upgrade_committed_log = government.eventFilter('UpgradeCommitted')
-
     # Transfer ownership
-    tx = government.transact({'from': creator}).transferOwnership(government.address)
+    tx =  government.functions.transferOwnership(government.address).transact({'from': creator})
     chain.wait_for_receipt(tx)
-    tx = escrow.transact({'from': creator}).transferOwnership(government.address)
+    tx =  escrow.functions.transferOwnership(government.address).transact({'from': creator})
     chain.wait_for_receipt(tx)
-    tx = policy_manager.transact({'from': creator}).transferOwnership(government.address)
+    tx =  policy_manager.functions.transferOwnership(government.address).transact({'from': creator})
     chain.wait_for_receipt(tx)
 
     # Vote and upgrade government contract
-    tx = government.transact({'from': node1}).createVoting(
-        UPGRADE_GOVERNMENT, government_library_v2.address)
+    tx = government.functions.createVoting(UPGRADE_GOVERNMENT, government_library_v2.address).transact({'from': node1})
     chain.wait_for_receipt(tx)
 
     events = voting_created_log.get_all_entries()
@@ -285,12 +282,12 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert UPGRADE_GOVERNMENT == event_args['votingType']
     assert government_library_v2.address == event_args['newAddress']
 
-    tx = government.transact({'from': node1}).vote(True)
+    tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    chain.wait_time(1)
-    tx = government.transact({'from': node1}).commitUpgrade()
+    chain.time_travel(1)
+    tx = government.functions.commitUpgrade().transact({'from': node1})
     chain.wait_for_receipt(tx)
-    assert government_library_v2.address == government_dispatcher.call().target()
+    assert government_library_v2.address == government_dispatcher.functions.target().call()
 
     events = government.events.UpgradeCommitted()
     events = upgrade_committed_log.get_all_entries()
@@ -301,7 +298,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert government_library_v2.address == event_args['newAddress']
 
     # Vote and rollback government contract
-    tx = government.transact({'from': node1}).createVoting(ROLLBACK_GOVERNMENT, NULL_ADDR)
+    tx =  government.functions.createVoting(ROLLBACK_GOVERNMENT, NULL_ADDR).transact({'from': node1})
     chain.wait_for_receipt(tx)
 
     events = voting_created_log.get_all_entries()
@@ -311,12 +308,12 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert ROLLBACK_GOVERNMENT == event_args['votingType']
     assert NULL_ADDR == event_args['newAddress']
 
-    tx = government.transact({'from': node1}).vote(True)
+    tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    chain.wait_time(1)
-    tx = government.transact({'from': node1}).commitUpgrade()
+    chain.time_travel(1)
+    tx = government.functions.commitUpgrade().transact({'from': node1})
     chain.wait_for_receipt(tx)
-    assert government_library_v1.address == government_dispatcher.call().target()
+    assert government_library_v1.address == government_dispatcher.functions.target().call()
 
     events = upgrade_committed_log.get_all_entries()
     assert 2 == len(events)
@@ -326,8 +323,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert NULL_ADDR == event_args['newAddress']
 
     # Vote and upgrade escrow contract
-    tx = government.transact({'from': node1}).createVoting(
-        UPGRADE_ESCROW, escrow_library_v2)
+    tx = government.functions.createVoting(UPGRADE_ESCROW, escrow_library_v2).transact({'from': node1})
     chain.wait_for_receipt(tx)
 
     events = voting_created_log.get_all_entries()
@@ -337,12 +333,12 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert UPGRADE_ESCROW == event_args['votingType']
     assert escrow_library_v2 == event_args['newAddress']
 
-    tx = government.transact({'from': node1}).vote(True)
+    tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    chain.wait_time(1)
-    tx = government.transact({'from': node1}).commitUpgrade()
+    chain.time_travel(1)
+    tx = government.functions.commitUpgrade().transact({'from': node1})
     chain.wait_for_receipt(tx)
-    assert escrow_library_v2 == escrow.call().target()
+    assert escrow_library_v2 == escrow.functions.target().call()
 
     events = upgrade_committed_log.get_all_entries()
     assert 3 == len(events)
@@ -352,7 +348,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert escrow_library_v2 == event_args['newAddress']
 
     # Vote and rollback escrow contract
-    tx = government.transact({'from': node1}).createVoting(ROLLBACK_ESCROW, NULL_ADDR)
+    tx =  government.functions.createVoting(ROLLBACK_ESCROW, NULL_ADDR).transact({'from': node1})
     chain.wait_for_receipt(tx)
 
     events = voting_created_log.get_all_entries()
@@ -362,13 +358,13 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert ROLLBACK_ESCROW == event_args['votingType']
     assert NULL_ADDR == event_args['newAddress']
 
-    tx = government.transact({'from': node1}).vote(True)
+    tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    chain.wait_time(1)
-    tx = government.transact({'from': node1}).commitUpgrade()
+    chain.time_travel(1)
+    tx = government.functions.commitUpgrade().transact({'from': node1})
     chain.wait_for_receipt(tx)
 
-    assert escrow_library_v1 == escrow.call().target()
+    assert escrow_library_v1 == escrow.functions.target().call()
 
     events = upgrade_committed_log.get_all_entries()
     assert 4 == len(events)
@@ -378,8 +374,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert NULL_ADDR == event_args['newAddress']
 
     # Vote and upgrade policy manager contract
-    tx = government.transact({'from': node1}).createVoting(
-        UPGRADE_POLICY_MANAGER, policy_manager_library_v2)
+    tx = government.functions.createVoting(UPGRADE_POLICY_MANAGER, policy_manager_library_v2).transact({'from': node1})
     chain.wait_for_receipt(tx)
 
     events = voting_created_log.get_all_entries()
@@ -389,12 +384,12 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert UPGRADE_POLICY_MANAGER == event_args['votingType']
     assert policy_manager_library_v2 == event_args['newAddress']
 
-    tx = government.transact({'from': node1}).vote(True)
+    tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    chain.wait_time(1)
-    tx = government.transact({'from': node1}).commitUpgrade()
+    chain.time_travel(1)
+    tx = government.functions.commitUpgrade().transact({'from': node1})
     chain.wait_for_receipt(tx)
-    assert policy_manager_library_v2 == policy_manager.call().target()
+    assert policy_manager_library_v2 == policy_manager.functions.target().call()
 
     events = upgrade_committed_log.get_all_entries()
     assert 5 == len(events)
@@ -404,7 +399,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert policy_manager_library_v2 == event_args['newAddress']
 
     # Vote and rollback policy manager contract
-    tx = government.transact({'from': node1}).createVoting(ROLLBACK_POLICY_MANAGER, NULL_ADDR)
+    tx =  government.functions.createVoting(ROLLBACK_POLICY_MANAGER, NULL_ADDR).transact({'from': node1})
     chain.wait_for_receipt(tx)
 
     events = voting_created_log.get_all_entries()
@@ -414,12 +409,12 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert ROLLBACK_POLICY_MANAGER == event_args['votingType']
     assert NULL_ADDR == event_args['newAddress']
 
-    tx = government.transact({'from': node1}).vote(True)
+    tx =  government.functions.vote(True).transact({'from': node1})
     chain.wait_for_receipt(tx)
-    chain.wait_time(1)
-    tx = government.transact({'from': node1}).commitUpgrade()
+    chain.time_travel(1)
+    tx = government.functions.commitUpgrade().transact({'from': node1})
     chain.wait_for_receipt(tx)
-    assert policy_manager_library_v1 == policy_manager.call().target()
+    assert policy_manager_library_v1 == policy_manager.functions.target().call()
 
     events = upgrade_committed_log.get_all_entries()
     assert 6 == len(events)
@@ -452,37 +447,37 @@ def test_verifying_state(web3, chain):
         ContractFactoryClass=Contract)
 
     # Upgrade to the second version
-    tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_v2.address)
+    tx =  government_dispatcher.functions.upgrade(government_library_v2.address).transact({'from': creator})
     chain.wait_for_receipt(tx)
-    assert government_library_v2.address == government_dispatcher.call().target()
-    assert address2 == government.call().escrow()
-    assert address1 == government.call().policyManager()
-    assert 2 * 60 * 60 == government.call().votingDurationSeconds()
-    tx = government.transact({'from': creator}).setValueToCheck(3)
+    assert government_library_v2.address == government_dispatcher.functions.target().call()
+    assert address2 == government.functions.escrow().call()
+    assert address1 == government.functions.policyManager().call()
+    assert 2 * 60 * 60 == government.functions.votingDurationSeconds().call()
+    tx =  government.functions.setValueToCheck(3).transact({'from': creator})
     chain.wait_for_receipt(tx)
-    assert 3 == government.call().valueToCheck()
+    assert 3 == government.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
     government_library_bad, _ = chain.provider.deploy_contract('GovernmentBad')
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_v1.address)
+        tx =  government_dispatcher.functions.upgrade(government_library_v1.address).transact({'from': creator})
         chain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_bad.address)
+        tx =  government_dispatcher.functions.upgrade(government_library_bad.address).transact({'from': creator})
         chain.wait_for_receipt(tx)
 
     # But can rollback
-    tx = government_dispatcher.transact({'from': creator}).rollback()
+    tx = government_dispatcher.functions.rollback().transact({'from': creator})
     chain.wait_for_receipt(tx)
-    assert government_library_v1.address == government_dispatcher.call().target()
-    assert address1 == government.call().escrow()
-    assert address2 == government.call().policyManager()
-    assert 60 * 60 == government.call().votingDurationSeconds()
+    assert government_library_v1.address == government_dispatcher.functions.target().call()
+    assert address1 == government.functions.escrow().call()
+    assert address2 == government.functions.policyManager().call()
+    assert 60 * 60 == government.functions.votingDurationSeconds().call()
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.transact({'from': creator}).setValueToCheck(2)
+        tx =  government.functions.setValueToCheck(2).transact({'from': creator})
         chain.wait_for_receipt(tx)
 
     # Try to upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = government_dispatcher.transact({'from': creator}).upgrade(government_library_bad.address)
+        tx =  government_dispatcher.functions.upgrade(government_library_bad.address).transact({'from': creator})
         chain.wait_for_receipt(tx)
