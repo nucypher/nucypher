@@ -6,10 +6,9 @@ import tempfile
 import pytest
 import shutil
 import time
-from eth_tester import EthereumTester, PyEVMBackend
+from eth_tester import EthereumTester
 from geth import LoggingMixin, DevGethProcess
 from os.path import abspath, dirname
-from tests.blockchain.eth.utilities import MockMinerEscrowDeployer
 from web3 import EthereumTesterProvider, IPCProvider, Web3
 from web3.middleware import geth_poa_middleware
 
@@ -20,20 +19,11 @@ from nkms.blockchain.eth.deployers import PolicyManagerDeployer, NuCypherKMSToke
 from nkms.blockchain.eth.interfaces import Registrar, ContractProvider
 from nkms.blockchain.eth.sol.compile import SolidityCompiler
 from tests.blockchain.eth import contracts, utilities
+from tests.blockchain.eth.utilities import MockMinerEscrowDeployer, TesterPyEVMBackend
 
 
 #
 # Session fixtures
-#
-
-@pytest.fixture(scope='session')
-def solidity_compiler():
-    test_contracts_dir = os.path.join(dirname(abspath(contracts.__file__)), 'contracts')
-    compiler = SolidityCompiler(test_contract_dir=test_contracts_dir)
-    yield compiler
-
-#
-# Web3 provider backends
 #
 
 
@@ -113,30 +103,39 @@ def pyevm_provider():
     Provider backend
     https: // github.com / ethereum / eth - tester     # available-backends
     """
-    # TODO:     # eth_tester.backend.chain.header.gas_limit = 4626271
-    eth_tester = EthereumTester(backend=PyEVMBackend(),
-                                auto_mine_transactions=True)
+    overrides = {'gas_limit': 4626271}
+    pyevm_backend = TesterPyEVMBackend(genesis_overrides=overrides)
 
+    eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
     pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
+
     yield pyevm_provider
 
 
 @pytest.fixture(scope='session')
-def web3(auto_geth_dev_ipc_provider):
-
-    w3 = Web3(providers=auto_geth_dev_ipc_provider)
-    w3.middleware_stack.inject(geth_poa_middleware, layer=0)
-
-    assert len(w3.eth.accounts) == 1
-    utilities.generate_accounts(w3=w3, quantity=9)
-    assert len(w3.eth.accounts) == 10
-
-    yield w3
+def solidity_compiler():
+    test_contracts_dir = os.path.join(dirname(abspath(contracts.__file__)), 'contracts')
+    compiler = SolidityCompiler(test_contract_dir=test_contracts_dir)
+    yield compiler
 
 
 #
 # Module Fixtures
 #
+
+
+@pytest.fixture(scope='session')
+def web3(pyevm_provider):
+
+    w3 = Web3(providers=pyevm_provider)
+    w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+
+    if len(w3.eth.accounts) == 1:
+        utilities.generate_accounts(w3=w3, quantity=9)
+    assert len(w3.eth.accounts) == 10
+
+    yield w3
+
 
 @pytest.fixture(scope='module')
 def contract_provider(web3, registrar, solidity_compiler):
@@ -153,11 +152,12 @@ def registrar():
 
 
 @pytest.fixture(scope='module')
-def chain(contract_provider):
+def chain(contract_provider, airdrop=False):
     chain = TesterBlockchain(contract_provider=contract_provider)
 
-    one_million_ether = 10 ** 6 * 10 ** 18  # wei -> ether
-    chain._global_airdrop(amount=one_million_ether)
+    if airdrop:
+        one_million_ether = 10 ** 6 * 10 ** 18  # wei -> ether
+        chain._global_airdrop(amount=one_million_ether)
 
     yield chain
 
@@ -166,11 +166,11 @@ def chain(contract_provider):
 
 
 # 
-# API #
+# Deployers #
 # 
 
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def mock_token_deployer(chain):
     token_deployer = NuCypherKMSTokenDeployer(blockchain=chain)
     token_deployer.arm()
@@ -178,7 +178,7 @@ def mock_token_deployer(chain):
     yield token_deployer
 
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def mock_miner_escrow_deployer(token_agent):
     escrow = MockMinerEscrowDeployer(token_agent=token_agent)
     escrow.arm()
@@ -186,7 +186,7 @@ def mock_miner_escrow_deployer(token_agent):
     yield escrow
 
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def mock_policy_manager_deployer(mock_miner_escrow_deployer):
     policy_manager_deployer = PolicyManagerDeployer(miner_agent=mock_token_deployer)
     policy_manager_deployer.arm()
@@ -195,22 +195,23 @@ def mock_policy_manager_deployer(mock_miner_escrow_deployer):
 
 
 #
+# Agents #
 # Unused args preserve fixture dependency order #
 #
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def token_agent(chain, mock_token_deployer):
     token = NuCypherKMSTokenAgent(blockchain=chain)
     yield token
 
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def mock_miner_agent(token_agent, mock_token_deployer, mock_miner_escrow_deployer):
     miner_agent = MinerAgent(token_agent=token_agent)
     yield miner_agent
 
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def mock_policy_agent(mock_miner_agent, token_agent, mock_token_deployer, mock_miner_escrow_deployer):
     policy_agent = PolicyAgent(miner_agent=mock_miner_agent)
     yield policy_agent
