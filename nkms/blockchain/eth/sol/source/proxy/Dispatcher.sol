@@ -5,8 +5,7 @@ import "./Upgradeable.sol";
 
 
 /**
-* @dev Based on https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/UpgradableContractProxyOLD.sol
-* TODO When python TestRPC will have Byzantium hard fork then should use https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/UpgradableContractProxy.sol
+* @dev Based on https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/UpgradableContractProxy.sol
 * @notice Proxying requests to other contracts.
 * Client should use ABI of real contract and address of this contract
 **/
@@ -71,25 +70,14 @@ contract Dispatcher is Upgradeable {
     **/
     function () public payable {
         assert(target != 0x0);
-
-        address upgradableContractMem = target;
-        uint32 size = 96;
-
-        assembly {
-            let freeMemAddress := mload(0x40)
-            mstore(0x40, add(freeMemAddress, calldatasize))
-            calldatacopy(freeMemAddress, 0x0, calldatasize)
-
-//            switch delegatecall(gas, upgradableContractMem, freeMemAddress, calldatasize, 0, 0)
-            switch delegatecall(gas, upgradableContractMem, freeMemAddress, calldatasize, 0, size)
-                case 0 {
-                    revert(0x0, 0)
-                }
-                default {
-//                    returndatacopy(0x0, 0x0, returndatasize)
-//                    return(0x0, returndatasize)
-                    return(0x0, size)
-                }
+        bool callSuccess = target.delegatecall(msg.data);
+        if (callSuccess) {
+            assembly {
+                returndatacopy(0x0, 0x0, returndatasize)
+                return(0x0, returndatasize)
+            }
+        } else {
+            revert();
         }
     }
 

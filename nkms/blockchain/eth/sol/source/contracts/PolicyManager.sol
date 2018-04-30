@@ -53,10 +53,11 @@ contract PolicyManager is Upgradeable {
         IndexOfDowntimePeriods,
         LastRefundedPeriod,
         ArrangementDisabled,
-        Rate,
+        RewardRate,
         StartPeriod,
         LastPeriod,
-        Disabled
+        Disabled,
+        FirstReward
     }
 
     enum NodeInfoField {
@@ -78,7 +79,8 @@ contract PolicyManager is Upgradeable {
         address[] nodes;
 
         // policy for activity periods
-        uint256 rate;
+        uint256 rewardRate;
+        uint256 firstReward;
         uint256 startPeriod;
         uint256 lastPeriod;
         bool disabled;
@@ -111,22 +113,23 @@ contract PolicyManager is Upgradeable {
     * @notice Create policy by client
     * @dev Generate policy id before creation
     * @param _policyId Policy id
-    * @param _numberOfPeriods Duration of the policy in periods
+    * @param _numberOfPeriods Duration of the policy in periods except first period
+    * @param _firstReward Reward for first period
     * @param _nodes Nodes that will handle policy
     **/
     function createPolicy(
         bytes20 _policyId,
         uint256 _numberOfPeriods,
+        uint256 _firstReward,
         address[] _nodes
     )
         public payable
     {
         require(
-            policies[_policyId].rate == 0 &&
+            _policyId != RESERVED_POLICY_ID &&
+            policies[_policyId].rewardRate == 0 &&
             _numberOfPeriods != 0 &&
-            msg.value > 0 &&
-            msg.value % _numberOfPeriods % _nodes.length == 0 &&
-            _policyId != RESERVED_POLICY_ID
+            msg.value > 0
         );
         Policy storage policy = policies[_policyId];
         policy.client = msg.sender;
@@ -134,21 +137,24 @@ contract PolicyManager is Upgradeable {
         uint256 currentPeriod = escrow.getCurrentPeriod();
         policy.startPeriod = currentPeriod.add(uint(1));
         policy.lastPeriod = currentPeriod.add(_numberOfPeriods);
-        uint256 feeByPeriod = msg.value.div(_numberOfPeriods).div(_nodes.length);
-        policy.rate = feeByPeriod;
+        policy.rewardRate = msg.value.div(_nodes.length).sub(_firstReward).div(_numberOfPeriods);
+        policy.firstReward = _firstReward;
+        require(policy.rewardRate > _firstReward &&
+            (_firstReward + policy.rewardRate * _numberOfPeriods) * _nodes.length  == msg.value);
         uint256 endPeriod = policy.lastPeriod.add(uint(1));
+        uint256 startReward = policy.rewardRate - _firstReward;
 
         policy.nodes = _nodes;
         for (uint256 i = 0; i < _nodes.length; i++) {
-            require(escrow.getLockedTokens(_nodes[i]) != 0 &&
-                _nodes[i] != RESERVED_NODE);
+            require(escrow.getLockedTokens(_nodes[i]) != 0 && _nodes[i] != RESERVED_NODE);
             NodeInfo storage node = nodes[_nodes[i]];
+            node.rewardDelta[currentPeriod] = node.rewardDelta[currentPeriod].add(_firstReward);
             node.rewardDelta[policy.startPeriod] = node.rewardDelta[policy.startPeriod]
-                .add(feeByPeriod);
-            node.rewardDelta[endPeriod] = node.rewardDelta[endPeriod].sub(feeByPeriod);
+                .add(startReward);
+            node.rewardDelta[endPeriod] = node.rewardDelta[endPeriod].sub(policy.rewardRate);
             // TODO node should pay for this
             if (node.lastMinedPeriod == 0) {
-                node.lastMinedPeriod = currentPeriod;
+                node.lastMinedPeriod = currentPeriod.sub(uint256(1));
             }
             ArrangementInfo storage arrangement = policy.arrangements[_nodes[i]];
             arrangement.indexOfDowntimePeriods =
@@ -248,10 +254,10 @@ contract PolicyManager is Upgradeable {
         NodeInfo storage node = nodes[_node];
         ArrangementInfo storage arrangement = _policy.arrangements[_node];
         node.rewardDelta[arrangement.lastRefundedPeriod] =
-            node.rewardDelta[arrangement.lastRefundedPeriod].sub(_policy.rate);
-        node.rewardDelta[_endPeriod] = node.rewardDelta[_endPeriod].add(_policy.rate);
+            node.rewardDelta[arrangement.lastRefundedPeriod].sub(_policy.rewardRate);
+        node.rewardDelta[_endPeriod] = node.rewardDelta[_endPeriod].add(_policy.rewardRate);
         refundValue = refundValue.add(
-            _endPeriod.sub(arrangement.lastRefundedPeriod).mul(_policy.rate));
+            _endPeriod.sub(arrangement.lastRefundedPeriod).mul(_policy.rewardRate));
         _policy.arrangements[_node].active = false;
     }
 
@@ -315,7 +321,7 @@ contract PolicyManager is Upgradeable {
     * @param _node Node for calculation
     **/
     //TODO extract checkRefund method
-    function calculateRefund(Policy storage _policy, address _node) internal returns (uint256) {
+    function calculateRefund(Policy storage _policy, address _node) internal returns (uint256 refundValue) {
         ArrangementInfo storage arrangement = _policy.arrangements[_node];
         uint256 maxPeriod = Math.min256(escrow.getCurrentPeriod(), _policy.lastPeriod);
         uint256 minPeriod = Math.max256(_policy.startPeriod, arrangement.lastRefundedPeriod);
@@ -339,7 +345,7 @@ contract PolicyManager is Upgradeable {
                 break;
             }
         }
-        arrangement.indexOfDowntimePeriods = i;
+
         uint256 lastActivePeriod =
             uint256(escrow.getMinerInfo(MinersEscrow.MinerInfoField.LastActivePeriod, _node, 0));
         if (i == length && lastActivePeriod < maxPeriod) {
@@ -347,9 +353,25 @@ contract PolicyManager is Upgradeable {
                 maxPeriod.sub(Math.max256(
                     minPeriod.sub(uint(1)), lastActivePeriod)));
         }
-        arrangement.lastRefundedPeriod = maxPeriod.add(uint(1));
 
-        return _policy.rate.mul(downtimePeriods);
+        // TODO refactor
+        if (arrangement.lastRefundedPeriod == 0) {
+            if (lastActivePeriod < _policy.startPeriod - 1) {
+                refundValue = _policy.firstReward;
+            } else if (arrangement.indexOfDowntimePeriods < length) {
+                startPeriod = uint256(escrow.getMinerInfo(MinersEscrow.MinerInfoField.DowntimeStartPeriod,
+                    _node, arrangement.indexOfDowntimePeriods));
+                endPeriod = uint256(escrow.getMinerInfo(MinersEscrow.MinerInfoField.DowntimeEndPeriod,
+                    _node, arrangement.indexOfDowntimePeriods));
+                if (_policy.startPeriod > startPeriod && _policy.startPeriod - 1 <= endPeriod) {
+                    refundValue = _policy.firstReward;
+                }
+            }
+        }
+        refundValue = refundValue.add(_policy.rewardRate.mul(downtimePeriods));
+
+        arrangement.indexOfDowntimePeriods = i;
+        arrangement.lastRefundedPeriod = maxPeriod.add(uint(1));
     }
 
     /**
@@ -385,8 +407,8 @@ contract PolicyManager is Upgradeable {
         Policy storage policy = policies[_policyId];
         if (_field == PolicyInfoField.Client) {
             return bytes32(policy.client);
-        } else if (_field == PolicyInfoField.Rate) {
-            return bytes32(policy.rate);
+        } else if (_field == PolicyInfoField.RewardRate) {
+            return bytes32(policy.rewardRate);
         } else if (_field == PolicyInfoField.StartPeriod) {
             return bytes32(policy.startPeriod);
         } else if (_field == PolicyInfoField.LastPeriod) {
@@ -399,6 +421,8 @@ contract PolicyManager is Upgradeable {
             return bytes32(policy.arrangements[_node].lastRefundedPeriod);
         } else if (_field == PolicyInfoField.ArrangementDisabled) {
             return !policy.arrangements[_node].active ? bytes32(1) : bytes32(0);
+        } else if (_field == PolicyInfoField.FirstReward) {
+            return bytes32(policy.firstReward);
         }
     }
 
@@ -429,7 +453,9 @@ contract PolicyManager is Upgradeable {
         require(address(delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
             bytes32(uint8(PolicyInfoField.Client)), RESERVED_POLICY_ID, 0x0)) == policy.client);
         require(uint256(delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
-            bytes32(uint8(PolicyInfoField.Rate)), RESERVED_POLICY_ID, 0x0)) == policy.rate);
+            bytes32(uint8(PolicyInfoField.RewardRate)), RESERVED_POLICY_ID, 0x0)) == policy.rewardRate);
+        require(uint256(delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
+            bytes32(uint8(PolicyInfoField.FirstReward)), RESERVED_POLICY_ID, 0x0)) == policy.firstReward);
         require(uint256(delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
             bytes32(uint8(PolicyInfoField.StartPeriod)), RESERVED_POLICY_ID, 0x0)) == policy.startPeriod);
         require(uint256(delegateGet(_testTarget, "getPolicyInfo(uint8,bytes20,address)",
@@ -468,7 +494,8 @@ contract PolicyManager is Upgradeable {
         policy.client = owner;
         policy.startPeriod = 1;
         policy.lastPeriod = 2;
-        policy.rate = 3;
+        policy.rewardRate = 3;
+        policy.firstReward = 4;
         policy.disabled = true;
         policy.nodes.push(RESERVED_NODE);
         policy.arrangements[RESERVED_NODE].indexOfDowntimePeriods = 11;

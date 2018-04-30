@@ -96,19 +96,18 @@ class MinerAgent(EthereumContractAgent):
         MINER = 1
         VALUE = 2
         DECIMALS = 3
-        LOCKED_VALUE = 4
-        RELEASE = 5
-        MAX_RELEASE_PERIODS = 6
-        RELEASE_RATE = 7
-        CONFIRMED_PERIODS_LENGTH = 8
-        CONFIRMED_PERIOD = 9
-        CONFIRMED_PERIOD_LOCKED_VALUE = 10
-        LAST_ACTIVE_PERIOD_F = 11
-        DOWNTIME_LENGTH = 12
-        DOWNTIME_START_PERIOD = 13
-        DOWNTIME_END_PERIOD = 14
-        MINER_IDS_LENGTH = 15
-        MINER_ID = 16
+        STAKES_LENGTH = 4
+        STAKE_FIRST_PERIOD = 5
+        STAKE_LAST_PERIOD_ = 6
+        STAKE_LOCKED_VALUE = 7
+        LAST_ACTIVE_PERIOD = 8
+        DOWNTIME_LENGTH = 9
+        DOWNTIME_START_PERIOD = 10
+        DOWNTIME_END_PERIOD = 11
+        MINER_IDS_LENGTH = 12
+        MINER_ID = 13
+        CONFIRMED_PERIOD_1 = 14
+        CONFIRMED_PERIOD_2 = 15
 
     def __init__(self, token_agent: NuCypherKMSTokenAgent):
         super().__init__(blockchain=token_agent.blockchain)  # TODO: public

@@ -23,6 +23,7 @@ def test_dispatcher(web3, chain):
     contract2_bad_lib, _ = chain.provider.deploy_contract('ContractV2Bad')
     dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract1_lib.address)
 
+    rollbacks = dispatcher.events.RolledBack.createFilter(fromBlock=0)
     upgrades = dispatcher.events.Upgraded.createFilter(fromBlock=0)
     assert dispatcher.functions.target().call() == contract1_lib.address
 
@@ -149,8 +150,6 @@ def test_dispatcher(web3, chain):
         chain.wait_for_receipt(tx)
     assert dispatcher.functions.target().call() == contract2_lib.address
 
-    rollbacks = dispatcher.events.RolledBack.createFilter(fromBlock=0)
-
     # But can rollback
     tx = dispatcher.functions.rollback().transact({'from': creator})
     chain.wait_for_receipt(tx)
@@ -164,7 +163,6 @@ def test_dispatcher(web3, chain):
     assert contract_instance.functions.getStorageValue().call() == 5
 
     events = rollbacks.get_all_entries()
-
     assert 1 == len(events)
     event_args = events[0]['args']
     assert contract2_lib.address == event_args['from']
@@ -225,7 +223,6 @@ def test_dispatcher(web3, chain):
     assert contract_instance.functions.storageValueToCheck().call() == 2
 
     events = upgrades.get_all_entries()
-
     assert 4 == len(events)
     event_args = events[2]['args']
     assert contract1_lib.address == event_args['from']
@@ -241,7 +238,6 @@ def test_dispatcher(web3, chain):
     chain.wait_for_receipt(tx)
     test_eventv2_log = contract_instance.events.EventV2.createFilter(fromBlock=0)
     events = test_eventv2_log.get_all_entries()
-
     assert 1 == len(events)
     assert 22 == events[0]['args']['value']
 
