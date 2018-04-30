@@ -1,3 +1,4 @@
+.gitignore
 __pycache__
 *.pyc
 /.venv
@@ -16,3 +17,6 @@ _temp_test_datastore
 /registrar.json
 /dist
 chains
+*logs*
+*.ipynb*
+.ethash

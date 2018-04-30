@@ -22,7 +22,7 @@ def test_miner_locking_tokens(chain, mock_token_deployer, mock_miner_agent):
     # assert mock_miner_agent.read().getLockedTokens(miner.address) == 0
 
     # Wait for it...
-    chain.wait_time(mock_miner_agent._deployer._hours_per_period)
+    chain.time_travel(mock_miner_agent._deployer._hours_per_period)
 
     assert mock_miner_agent.read().getLockedTokens(miner.address) == an_amount_of_tokens
 
@@ -80,12 +80,12 @@ def test_mine_then_withdraw_tokens(chain, mock_token_deployer, token_agent, mock
 
 
     # ...wait more...
-    chain.wait_time(mock_miner_agent._deployer._hours_per_period)
+    chain.time_travel(mock_miner_agent._deployer._hours_per_period)
 
     # miner.confirm_activity()
 
     # ...wait more...
-    chain.wait_time(mock_miner_agent._deployer._hours_per_period)
+    chain.time_travel(mock_miner_agent._deployer._hours_per_period)
 
     miner.mint()
     miner.collect_staking_reward()
@@ -101,7 +101,7 @@ def test_sample_miners(chain, mock_miner_agent):
     chain.spawn_miners(addresses=everyone_else, locktime=100,
                               miner_agent=mock_miner_agent, m=mock_miner_agent.token_agent._deployer._M)
 
-    chain.wait_time(mock_miner_agent._deployer._hours_per_period)
+    chain.time_travel(mock_miner_agent._deployer._hours_per_period)
 
     with pytest.raises(MinerAgent.NotEnoughUrsulas):
         mock_miner_agent.sample(quantity=100)  # Waay more than we have deployed
