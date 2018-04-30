@@ -533,8 +533,8 @@ def test_mining(web3, chain, token, escrow_contract):
     chain.wait_for_receipt(tx)
     tx = escrow.functions.mint().transact({'from': ursula2})
     chain.wait_for_receipt(tx)
-    assert 1046 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula1, 0)).call()
-    assert 521 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula2, 0)).call()
+    assert 1046 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula1, 0).call())
+    assert 521 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula2, 0).call())
 
     events = mining_log.get_all_entries()
     assert 2 == len(events)
@@ -584,8 +584,8 @@ def test_mining(web3, chain, token, escrow_contract):
     # But Ursula(2) can't get reward because she did not confirm activity
     tx = escrow.functions.mint().transact({'from': ursula2})
     chain.wait_for_receipt(tx)
-    assert 1152 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula1, 0)).call()
-    assert 521 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula2, 0)).call()
+    assert 1152 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula1, 0).call())
+    assert 521 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula2, 0).call())
 
     assert 3 == policy_manager.functions.getPeriodsLength(ursula1).call()
     assert 1 == policy_manager.functions.getPeriodsLength(ursula2).call()
@@ -617,8 +617,8 @@ def test_mining(web3, chain, token, escrow_contract):
     chain.time_travel(hours=5)
     tx = escrow.functions.mint().transact({'from': ursula2})
     chain.wait_for_receipt(tx)
-    assert 1152 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula1, 0)).call()
-    assert 842 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula2, 0)).call()
+    assert 1152 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula1, 0).call())
+    assert 842 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula2, 0).call())
 
     events = mining_log.get_all_entries()
     assert 4 == len(events)

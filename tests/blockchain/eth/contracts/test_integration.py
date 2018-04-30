@@ -276,23 +276,23 @@ def test_all(web3, chain, token, escrow, policy_manager):
 
     # Create policies
     policy_id_1 = os.urandom(20)
-    tx = policy_manager.functions.createPolicy(policy_id_1, 5, [ursula1, ursula2]).transact({'from': alice1, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
+    tx = policy_manager.functions.createPolicy(policy_id_1, 5, 44, [ursula1, ursula2]).transact({'from': alice1, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
 
     chain.wait_for_receipt(tx)
     policy_id_2 = os.urandom(20)
-    tx = policy_manager.functions.createPolicy(policy_id_2, 5, [ursula2, user_escrow_1.address]).transact({'from': alice1, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
+    tx = policy_manager.functions.createPolicy(policy_id_2, 5, 44, [ursula2, user_escrow_1.address]).transact({'from': alice1, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
 
     chain.wait_for_receipt(tx)
     policy_id_3 = os.urandom(20)
-    tx = policy_manager.functions.createPolicy(policy_id_3, 5, [ursula1, user_escrow_1.address]).transact({'from': alice2, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
+    tx = policy_manager.functions.createPolicy(policy_id_3, 5, 44, [ursula1, user_escrow_1.address]).transact({'from': alice2, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
 
     chain.wait_for_receipt(tx)
     policy_id_4 = os.urandom(20)
-    tx = policy_manager.functions.createPolicy(policy_id_4, 5, [ursula2, user_escrow_1.address]).transact({'from': alice2, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
+    tx = policy_manager.functions.createPolicy(policy_id_4, 5, 44, [ursula2, user_escrow_1.address]).transact({'from': alice2, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
 
     chain.wait_for_receipt(tx)
     policy_id_5 = os.urandom(20)
-    tx = policy_manager.functions.createPolicy(policy_id_5, 5, [ursula1, ursula2]).transact({'from': alice2, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
+    tx = policy_manager.functions.createPolicy(policy_id_5, 5, 44, [ursula1, ursula2]).transact({'from': alice2, 'value': 2 * 1000 + 2 * 44, 'gas_price': 0})
 
     chain.wait_for_receipt(tx)
 

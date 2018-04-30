@@ -466,8 +466,7 @@ def test_refund(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 0 == web3.eth.getBalance(policy_manager.address)
     assert client_balance == web3.eth.getBalance(client)
-    assert 1 == web3.toInt(
-        policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id, NULL_ADDR)).call()
+    assert 1 == web3.toInt(policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id, NULL_ADDR).call())
 
     events = arrangement_refund_log.get_all_entries()
     assert 2 == len(events)
