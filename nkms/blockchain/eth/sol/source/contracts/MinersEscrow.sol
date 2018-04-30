@@ -1,8 +1,7 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
-import "zeppelin/math/Math.sol";
 import "./lib/AdditionalMath.sol";
 import "contracts/Issuer.sol";
 
@@ -70,8 +69,13 @@ contract MinersEscrow is Issuer {
         uint256 value;
         uint256 decimals;
         StakeInfo[] stakes;
-        // periods that confirmed but not yet mined
-        // two values instead of array for optimisation
+        /*
+        * Periods that confirmed but not yet mined, two values instead of array for optimisation.
+        * lock() and confirmActivity() methods include mint() method so may be only two confirmed
+        * but not yet mined periods - current and next periods. There is no order between them because of
+        * storage savings. So each time should check values of both variables.
+        * EMPTY_CONFIRMED_PERIOD constant is used as removed value
+        */
         uint256 confirmedPeriod1;
         uint256 confirmedPeriod2;
         // downtime
@@ -80,8 +84,13 @@ contract MinersEscrow is Issuer {
         bytes32[] minerIds;
     }
 
+    /*
+    * Used as removed value for confirmedPeriod1(2).
+    * Non zero value decreases gas usage in some executions of confirmActivity() method
+    * but increases gas usage in mint() method. In both cases confirmActivity()
+    * with one execution of mint() method consume the same amount of gas
+    */
     uint256 constant EMPTY_CONFIRMED_PERIOD = 0;
-    uint256 constant MAX_OWNERS = 50000;
     uint256 constant RESERVED_PERIOD = 0;
     uint256 constant MAX_CHECKED_VALUES = 5;
 
@@ -186,7 +195,6 @@ contract MinersEscrow is Issuer {
         public isInitialized onlyOwner
     {
         require(_owners.length != 0 &&
-            miners.length.add(_owners.length) <= MAX_OWNERS &&
             _owners.length == _values.length &&
             _owners.length == _periods.length);
         uint256 currentPeriod = getCurrentPeriod();
@@ -221,7 +229,6 @@ contract MinersEscrow is Issuer {
         require(_value != 0);
         MinerInfo storage info = minerInfo[msg.sender];
         if (minerInfo[msg.sender].value == 0) {
-            require(miners.length < MAX_OWNERS);
             miners.push(msg.sender);
             info.lastActivePeriod = getCurrentPeriod();
         }

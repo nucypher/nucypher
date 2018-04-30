@@ -24,7 +24,6 @@ CONFIRMED_PERIOD_2_FIELD = 15
 
 @pytest.fixture()
 def token(web3, chain):
-    creator = web3.eth.accounts[0]
     # Create an ERC20 token
     token, _ = chain.provider.deploy_contract('NuCypherKMSToken', 2 * 10 ** 9)
     return token
@@ -33,15 +32,12 @@ def token(web3, chain):
 @pytest.fixture(params=[False, True])
 def escrow_contract(web3, chain, token, request):
     def make_escrow(max_allowed_locked_tokens):
-        creator = web3.eth.accounts[0]
         # Creator deploys the escrow
         contract, _ = chain.provider.deploy_contract(
             'MinersEscrow', token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, max_allowed_locked_tokens)
 
         if request.param:
             dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
-
-            # Deploy second version of the government contract
             contract = web3.eth.contract(
                 abi=contract.abi,
                 address=dispatcher.address,
@@ -646,8 +642,6 @@ def test_mining(web3, chain, token, escrow_contract):
     assert 5 == len(lock_log.get_all_entries())
     assert 1 == len(divides_log.get_all_entries())
     assert 6 == len(activity_log.get_all_entries())
-
-    # TODO test max miners
 
 
 def test_pre_deposit(web3, chain, token, escrow_contract):

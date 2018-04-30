@@ -15,6 +15,7 @@ contract MinersEscrowInterface {
 /**
 * @notice Contract for version voting
 **/
+// TODO there must be a way to cancel upgrade if there are errors
 contract Government is Upgradeable {
     using SafeMath for uint256;
 
