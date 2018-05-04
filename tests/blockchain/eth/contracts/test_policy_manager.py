@@ -5,26 +5,19 @@ from web3.contract import Contract
 
 
 CLIENT_FIELD = 0
-INDEX_OF_DOWNTIME_PERIODS_FIELD = 1
-LAST_REFUNDED_PERIOD_FIELD = 2
-ARRANGEMENT_DISABLED_FIELD = 3
-RATE_FIELD = 4
-START_PERIOD_FIELD = 5
-LAST_PERIOD_FIELD = 6
-DISABLED_FIELD = 7
-FIRST_REWARD_FIELD = 8
+RATE_FIELD = 1
+FIRST_REWARD_FIELD = 2
+START_PERIOD_FIELD = 3
+LAST_PERIOD_FIELD = 4
+DISABLED_FIELD = 5
 
 REWARD_FIELD = 0
 REWARD_RATE_FIELD = 1
 LAST_MINED_PERIOD_FIELD = 2
-REWARD_DELTA_FIELD = 3
-
-NULL_ADDR = '0x' + '0' * 40
 
 
 @pytest.fixture()
 def escrow(web3, chain):
-    creator = web3.eth.accounts[0]
     node1 = web3.eth.accounts[3]
     node2 = web3.eth.accounts[4]
     node3 = web3.eth.accounts[5]
@@ -74,12 +67,7 @@ value = rate * number_of_periods
 
 
 def test_create_revoke(web3, chain, escrow, policy_manager):
-    creator = web3.eth.accounts[0]
-    client = web3.eth.accounts[1]
-    bad_node = web3.eth.accounts[2]
-    node1 = web3.eth.accounts[3]
-    node2 = web3.eth.accounts[4]
-    node3 = web3.eth.accounts[5]
+    creator, client, bad_node, node1, node2, node3, *everyone_else = web3.eth.accounts
     client_balance = web3.eth.getBalance(client)
     policy_created_log = policy_manager.events.PolicyCreated.createFilter(fromBlock=0)
     arrangement_revoked_log = policy_manager.events.ArrangementRevoked.createFilter(fromBlock=0)
@@ -108,23 +96,22 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert value == web3.eth.getBalance(policy_manager.address)
     assert client_balance - 200 == web3.eth.getBalance(client)
-    # getPolicyInfo returns 32 bytes, where first 12 bytes is zero because of address format
-    assert client == web3.toChecksumAddress(policy_manager.functions.getPolicyInfo(CLIENT_FIELD, policy_id, NULL_ADDR).call()[12:])
-    assert rate == web3.toInt(policy_manager.functions.getPolicyInfo(RATE_FIELD, policy_id, NULL_ADDR).call())
-    assert 0 == web3.toInt(policy_manager.functions.getPolicyInfo(FIRST_REWARD_FIELD, policy_id, NULL_ADDR).call())
-    assert period + 1 == web3.toInt(policy_manager.functions.getPolicyInfo(START_PERIOD_FIELD, policy_id, NULL_ADDR).call())
-    assert period + 10 == web3.toInt(policy_manager.functions.getPolicyInfo(LAST_PERIOD_FIELD, policy_id, NULL_ADDR).call())
-    assert 0 == web3.toInt(policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id, NULL_ADDR).call())
+    policy = policy_manager.functions.policies(policy_id).call()
+    assert client == policy[CLIENT_FIELD]
+    assert rate == policy[RATE_FIELD]
+    assert 0 == policy[FIRST_REWARD_FIELD]
+    assert period + 1 == policy[START_PERIOD_FIELD]
+    assert period + 10 == policy[LAST_PERIOD_FIELD]
+    assert not policy[DISABLED_FIELD]
     assert 1 == policy_manager.functions.getPolicyNodesLength(policy_id).call()
     assert node1 == policy_manager.functions.getPolicyNode(policy_id, 0).call()
 
     events = policy_created_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    
     assert policy_id == event_args['policyId']
     assert client == event_args['client']
-    # assert node == event_args['nodes'][0]
+    # assert node1 == event_args['nodes'][0]
 
     # Try to create policy again
     with pytest.raises((TransactionFailed, ValueError)):
@@ -135,23 +122,20 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.revokePolicy(policy_id).transact({'from': creator})
         chain.wait_for_receipt(tx)
-
     tx = policy_manager.functions.revokePolicy(policy_id).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
-
-    assert 1 == web3.toInt(policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id, NULL_ADDR).call())
+    assert policy_manager.functions.policies(policy_id).call()[DISABLED_FIELD]
 
     events = policy_revoked_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-
     assert policy_id == event_args['policyId']
     assert client == event_args['client']
     assert value == event_args['value']
     events = arrangement_revoked_log.get_all_entries()
     assert 1 == len(events)
-    event_args = events[0]['args']
 
+    event_args = events[0]['args']
     assert policy_id == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
@@ -171,21 +155,17 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 6 * value == web3.eth.getBalance(policy_manager.address)
     assert client_balance - 6 * value == web3.eth.getBalance(client)
-    assert client == web3.toChecksumAddress(
-        policy_manager.functions.getPolicyInfo(CLIENT_FIELD, policy_id_2, NULL_ADDR).call()[12:])
-    assert 2 * rate == web3.toInt(policy_manager.functions.getPolicyInfo(RATE_FIELD, policy_id_2, NULL_ADDR).call())
-    assert 0 == web3.toInt(policy_manager.functions.getPolicyInfo(FIRST_REWARD_FIELD, policy_id_2, NULL_ADDR).call())
-    assert period + 1 == web3.toInt(
-        policy_manager.functions.getPolicyInfo(START_PERIOD_FIELD, policy_id_2, NULL_ADDR).call())
-    assert period + 10 == web3.toInt(
-        policy_manager.functions.getPolicyInfo(LAST_PERIOD_FIELD, policy_id_2, NULL_ADDR).call())
-    assert 0 == web3.toInt(
-        policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id_2, NULL_ADDR).call())
+    policy = policy_manager.functions.policies(policy_id_2).call()
+    assert client == policy[CLIENT_FIELD]
+    assert 2 * rate == policy[RATE_FIELD]
+    assert 0 == policy[FIRST_REWARD_FIELD]
+    assert period + 1 == policy[START_PERIOD_FIELD]
+    assert period + 10 == policy[LAST_PERIOD_FIELD]
+    assert not policy[DISABLED_FIELD]
 
     events = policy_created_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     # assert node == event_args['node']
@@ -199,13 +179,11 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 4 * value == web3.eth.getBalance(policy_manager.address)
     assert client_balance - 4 * value == web3.eth.getBalance(client)
-    assert 0 == web3.toInt(
-        policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id_2, NULL_ADDR).call())
+    assert not policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     events = arrangement_revoked_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
@@ -220,19 +198,17 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 0 == web3.eth.getBalance(policy_manager.address)
     assert client_balance == web3.eth.getBalance(client)
-    assert 1 == web3.toInt(
-        policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id_2, NULL_ADDR).call())
+    assert policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     events = arrangement_revoked_log.get_all_entries()
     assert 4 == len(events)
     event_args = events[2]['args']
-
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node2 == event_args['node']
     assert 2 * value == event_args['value']
-    event_args = events[3]['args']
 
+    event_args = events[3]['args']
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node3 == event_args['node']
@@ -271,13 +247,13 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 3 * value + 1.5 * rate == web3.eth.getBalance(policy_manager.address)
     assert client_balance - int(3 * value + 1.5 * rate) == web3.eth.getBalance(client)
-    assert client == web3.toChecksumAddress(
-        policy_manager.functions.getPolicyInfo(CLIENT_FIELD, policy_id_3, NULL_ADDR).call()[12:])
-    assert rate == web3.toInt(policy_manager.functions.getPolicyInfo(RATE_FIELD, policy_id_3, NULL_ADDR).call())
-    assert 0.5 * rate == web3.toInt(policy_manager.functions.getPolicyInfo(FIRST_REWARD_FIELD, policy_id_3, NULL_ADDR).call())
-    assert period + 1 == web3.toInt(policy_manager.functions.getPolicyInfo(START_PERIOD_FIELD, policy_id_3, NULL_ADDR).call())
-    assert period + 10 == web3.toInt(policy_manager.functions.getPolicyInfo(LAST_PERIOD_FIELD, policy_id_3, NULL_ADDR).call())
-    assert 0 == web3.toInt(policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id_3, NULL_ADDR).call())
+    policy = policy_manager.functions.policies(policy_id_3).call()
+    assert client == policy[CLIENT_FIELD]
+    assert rate == policy[RATE_FIELD]
+    assert 0.5 * rate == policy[FIRST_REWARD_FIELD]
+    assert period + 1 == policy[START_PERIOD_FIELD]
+    assert period + 10 == policy[LAST_PERIOD_FIELD]
+    assert not policy[DISABLED_FIELD]
 
     events = policy_created_log.get_all_entries()
     assert 3 == len(events)
@@ -290,7 +266,7 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 2 * value + rate == web3.eth.getBalance(policy_manager.address)
     assert client_balance - (2 * value + rate) == web3.eth.getBalance(client)
-    assert 0 == web3.toInt(policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id_3, NULL_ADDR).call())
+    assert not policy_manager.functions.policies(policy_id_3).call()[DISABLED_FIELD]
 
     events = arrangement_revoked_log.get_all_entries()
     assert 5 == len(events)
@@ -304,7 +280,7 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 0 == web3.eth.getBalance(policy_manager.address)
     assert client_balance == web3.eth.getBalance(client)
-    assert 1 == web3.toInt(policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id_3, NULL_ADDR).call())
+    assert policy_manager.functions.policies(policy_id_3).call()[DISABLED_FIELD]
 
     events = arrangement_revoked_log.get_all_entries()
     assert 7 == len(events)
@@ -313,11 +289,13 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     assert client == event_args['client']
     assert node2 == event_args['node']
     assert value + 0.5 * rate == event_args['value']
+
     event_args = events[6]['args']
     assert policy_id_3 == event_args['policyId']
     assert client == event_args['client']
     assert node3 == event_args['node']
     assert value + 0.5 * rate == event_args['value']
+
     events = policy_revoked_log.get_all_entries()
     assert 3 == len(events)
     event_args = events[2]['args']
@@ -340,7 +318,7 @@ def test_reward(web3, chain, escrow, policy_manager):
     period = escrow.functions.getCurrentPeriod().call()
     tx = escrow.functions.mint(period, 1).transact({'from': node1, 'gas_price': 0})
     chain.wait_for_receipt(tx)
-    assert 0 == web3.toInt(policy_manager.functions.getNodeInfo(REWARD_FIELD, node1, 0).call())
+    assert 0 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     # Create policy
     tx = policy_manager.functions.createPolicy(policy_id, number_of_periods, 0, [node1, node3]).transact({'from': client, 'value': 2 * value})
@@ -360,7 +338,7 @@ def test_reward(web3, chain, escrow, policy_manager):
     tx = escrow.functions.mint(period, 5).transact({'from': node1, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     period += 5
-    assert 80 == web3.toInt(policy_manager.functions.getNodeInfo(REWARD_FIELD, node1, 0).call())
+    assert 80 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     # Withdraw
     tx = policy_manager.functions.withdraw().transact({'from': node1, 'gas_price': 0})
@@ -379,10 +357,10 @@ def test_reward(web3, chain, escrow, policy_manager):
         tx = escrow.functions.mint(period, 1).transact({'from': node1, 'gas_price': 0})
         chain.wait_for_receipt(tx)
         period += 1
-    assert 120 == web3.toInt(policy_manager.functions.getNodeInfo(REWARD_FIELD, node1, 0).call())
+    assert 120 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
     tx = escrow.functions.mint(period, 1).transact({'from': node1, 'gas_price': 0})
     chain.wait_for_receipt(tx)
-    assert 120 == web3.toInt(policy_manager.functions.getNodeInfo(REWARD_FIELD, node1, 0).call())
+    assert 120 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     # Withdraw
     tx = policy_manager.functions.withdraw().transact({'from': node1, 'gas_price': 0})
@@ -406,14 +384,14 @@ def test_reward(web3, chain, escrow, policy_manager):
     tx = escrow.functions.mint(period, 5).transact({'from': node2, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     period += 5
-    assert 90 == web3.toInt(policy_manager.functions.getNodeInfo(REWARD_FIELD, node2, 0).call())
+    assert 90 == policy_manager.functions.nodes(node2).call()[REWARD_FIELD]
 
     # Mint more periods
     for x in range(6):
         tx = escrow.functions.mint(period, 1).transact({'from': node2, 'gas_price': 0})
         chain.wait_for_receipt(tx)
         period += 1
-    assert 210 == web3.toInt(policy_manager.functions.getNodeInfo(REWARD_FIELD, node2, 0).call())
+    assert 210 == policy_manager.functions.nodes(node2).call()[REWARD_FIELD]
 
 
 def test_refund(web3, chain, escrow, policy_manager):
@@ -438,25 +416,23 @@ def test_refund(web3, chain, escrow, policy_manager):
 
     # Wait and refund all
     wait_time(chain, 9)
-    tx =  policy_manager.functions.refund(policy_id).transact({'from': client, 'gas_price': 0})
+    tx = policy_manager.functions.refund(policy_id).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 20 == web3.eth.getBalance(policy_manager.address)
     assert client_balance - 20 == web3.eth.getBalance(client)
-    assert client == web3.toChecksumAddress(
-        policy_manager.functions.getPolicyInfo(CLIENT_FIELD, policy_id, NULL_ADDR).call()[12:])
+    assert client == policy_manager.functions.policies(policy_id).call()[CLIENT_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    
     assert policy_id == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
     assert 190 == event_args['value']
+
     events = policy_refund_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    
     assert policy_id == event_args['policyId']
     assert client == event_args['client']
     assert 190 == event_args['value']
@@ -466,30 +442,29 @@ def test_refund(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 0 == web3.eth.getBalance(policy_manager.address)
     assert client_balance == web3.eth.getBalance(client)
-    assert 1 == web3.toInt(policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id, NULL_ADDR).call())
+    assert policy_manager.functions.policies(policy_id).call()[DISABLED_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-    
     assert policy_id == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
     assert 20 == event_args['value']
+
     events = policy_refund_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-    
     assert policy_id == event_args['policyId']
     assert client == event_args['client']
     assert 20 == event_args['value']
 
     # Can't refund again
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  policy_manager.functions.refund(policy_id).transact({'from': client})
+        tx = policy_manager.functions.refund(policy_id).transact({'from': client})
         chain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  policy_manager.functions.refund(policy_id, node1).transact({'from': client})
+        tx = policy_manager.functions.refund(policy_id, node1).transact({'from': client})
         chain.wait_for_receipt(tx)
 
     # Create policy again
@@ -508,36 +483,36 @@ def test_refund(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 3 * value + 1.5 * rate == web3.eth.getBalance(policy_manager.address)
     assert client_balance - int(3 * value + 1.5 * rate) == web3.eth.getBalance(client)
+
     events = arrangement_refund_log.get_all_entries()
     assert 6 == len(events)
     event_args = events[2]['args']
-    
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
     assert 0 == event_args['value']
+
     event_args = events[3]['args']
-    
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node2 == event_args['node']
     assert 0 == event_args['value']
+
     event_args = events[4]['args']
-    
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node3 == event_args['node']
     assert 0 == event_args['value']
+
     event_args = events[5]['args']
-    
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
     assert 0 == event_args['value']
     events = policy_refund_log.get_all_entries()
     assert 3 == len(events)
+
     event_args = events[2]['args']
-    
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert 0 == event_args['value']
@@ -567,59 +542,56 @@ def test_refund(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     tx = escrow.functions.setLastActivePeriod(period + 8).transact({'from': creator})
     chain.wait_for_receipt(tx)
-    assert 90 == web3.toInt(policy_manager.functions.getNodeInfo(REWARD_FIELD, node1, 0).call())
+    assert 90 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     # Wait and refund
     wait_time(chain, 10)
-    tx =  policy_manager.functions.refund(policy_id_2, node1).transact({'from': client, 'gas_price': 0})
+    tx = policy_manager.functions.refund(policy_id_2, node1).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 2 * value + 90 + rate == web3.eth.getBalance(policy_manager.address)
     assert client_balance - (2 * value + 90 + rate) == web3.eth.getBalance(client)
-    assert 0 == web3.toInt(
-        policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id_2, NULL_ADDR).call())
+    assert not policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
     assert 7 == len(events)
     event_args = events[6]['args']
-    
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
     assert 120 == event_args['value']
+
     events = policy_refund_log.get_all_entries()
     assert 3 == len(events)
 
     # Can't refund arrangement again
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  policy_manager.functions.refund(policy_id, node1).transact({'from': client})
+        tx = policy_manager.functions.refund(policy_id, node1).transact({'from': client})
         chain.wait_for_receipt(tx)
 
     # But can refund others
-    tx =  policy_manager.functions.refund(policy_id_2).transact({'from': client, 'gas_price': 0})
+    tx = policy_manager.functions.refund(policy_id_2).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 3 * 90 == web3.eth.getBalance(policy_manager.address)
     assert client_balance - 3 * 90 == web3.eth.getBalance(client)
-    assert 1 == web3.toInt(
-        policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id_2, NULL_ADDR).call())
+    assert policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
     assert 9 == len(events)
     event_args = events[7]['args']
-    
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node2 == event_args['node']
     assert 120 == event_args['value']
+
     event_args = events[8]['args']
-    
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node3 == event_args['node']
     assert 120 == event_args['value']
+
     events = policy_refund_log.get_all_entries()
     assert 4 == len(events)
     event_args = events[3]['args']
-    
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert 2 * 120 == event_args['value']
@@ -640,7 +612,7 @@ def test_refund(web3, chain, escrow, policy_manager):
         chain.wait_for_receipt(tx)
     tx = escrow.functions.setLastActivePeriod(period).transact({'from': creator})
     chain.wait_for_receipt(tx)
-    assert 150 == web3.toInt(policy_manager.functions.getNodeInfo(REWARD_FIELD, node1, 0).call())
+    assert 150 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     # Client revokes policy
     wait_time(chain, 4)
@@ -648,25 +620,24 @@ def test_refund(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 60 + 3 * 90 == web3.eth.getBalance(policy_manager.address)
     assert client_balance - (60 + 3 * 90) == web3.eth.getBalance(client)
-    assert 1 == web3.toInt(
-        policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id_3, NULL_ADDR).call())
+    assert policy_manager.functions.policies(policy_id_3).call()[DISABLED_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
     assert 9 == len(events)
     events = policy_refund_log.get_all_entries()
     assert 4 == len(events)
+
     events = arrangement_revoked_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    
     assert policy_id_3 == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
     assert 150 == event_args['value']
+
     events = policy_revoked_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    
     assert policy_id_3 == event_args['policyId']
     assert client == event_args['client']
     assert 150 == event_args['value']
@@ -674,9 +645,9 @@ def test_refund(web3, chain, escrow, policy_manager):
     # Minting is useless after revoke
     for x in range(20):
         period += 1
-        tx =  escrow.functions.mint(period, 1).transact({'from': node1})
+        tx = escrow.functions.mint(period, 1).transact({'from': node1})
         chain.wait_for_receipt(tx)
-    assert 150 == web3.toInt(policy_manager.functions.getNodeInfo(REWARD_FIELD, node1, 0).call())
+    assert 150 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     events = policy_created_log.get_all_entries()
     assert 3 == len(events)
@@ -700,11 +671,11 @@ def test_verifying_state(web3, chain):
 
     # Upgrade to the second version
     assert address1 == contract.functions.escrow().call()
-    tx =  dispatcher.functions.upgrade(contract_library_v2.address).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract_library_v2.address).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert contract_library_v2.address == dispatcher.functions.target().call()
     assert address2 == contract.functions.escrow().call()
-    tx =  contract.functions.setValueToCheck(3).transact({'from': creator})
+    tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert 3 == contract.functions.valueToCheck().call()
 
@@ -730,4 +701,3 @@ def test_verifying_state(web3, chain):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_bad.address).transact({'from': creator})
         chain.wait_for_receipt(tx)
-

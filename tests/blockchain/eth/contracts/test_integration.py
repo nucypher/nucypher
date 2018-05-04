@@ -4,44 +4,27 @@ import os
 
 from web3.contract import Contract
 
-MINERS_LENGTH = 0
-MINER = 1
-VALUE_FIELD = 2
-DECIMALS_FIELD = 3
-STAKES_FIELD_LENGTH = 4
-STAKE_FIRST_PERIOD_FIELD = 5
-STAKE_LAST_PERIOD_FIELD = 6
-STAKE_LOCKED_VALUE_FIELD = 7
-LAST_ACTIVE_PERIOD_FIELD = 8
-DOWNTIME_FIELD_LENGTH = 9
-DOWNTIME_START_PERIOD_FIELD = 10
-DOWNTIME_END_PERIOD_FIELD = 11
-MINER_IDS_FIELD_LENGTH = 12
-MINER_ID_FIELD = 13
-CONFIRMED_PERIOD_1_FIELD = 14
-CONFIRMED_PERIOD_2_FIELD = 15
+
+VALUE_FIELD = 0
+DECIMALS_FIELD = 1
+CONFIRMED_PERIOD_1_FIELD = 2
+CONFIRMED_PERIOD_2_FIELD = 3
+LAST_ACTIVE_PERIOD_FIELD = 4
 
 CLIENT_FIELD = 0
-INDEX_OF_DOWNTIME_PERIODS_FIELD = 1
-LAST_REFUNDED_PERIOD_FIELD = 2
-ARRANGEMENT_DISABLED_FIELD = 3
-RATE_FIELD = 4
-START_PERIOD_FIELD = 5
-LAST_PERIOD_FIELD = 6
-DISABLED_FIELD = 7
-FIRST_REWARD_FIELD = 8
+RATE_FIELD = 1
+FIRST_REWARD_FIELD = 2
+START_PERIOD_FIELD = 3
+LAST_PERIOD_FIELD = 4
+DISABLED_FIELD = 5
 
 REWARD_FIELD = 0
 REWARD_RATE_FIELD = 1
 LAST_MINED_PERIOD_FIELD = 2
-REWARD_DELTA_FIELD = 3
-
-NULL_ADDR = '0x' + '0' * 40
 
 
 @pytest.fixture()
-def token(web3, chain):
-    creator = web3.eth.accounts[0]
+def token(chain):
     # Create an ERC20 token
     contract, _ = chain.provider.deploy_contract('NuCypherKMSToken', 2 * 10 ** 9)
     return contract
@@ -49,7 +32,6 @@ def token(web3, chain):
 
 @pytest.fixture()
 def escrow(web3, chain, token):
-    creator = web3.eth.accounts[0]
     # Creator deploys the escrow
     contract, _ = chain.provider.deploy_contract(
         'MinersEscrow',
@@ -84,14 +66,6 @@ def policy_manager(web3, chain, escrow):
     chain.wait_for_receipt(tx)
 
     return contract
-
-
-def wait_time(chain, wait_hours):
-    web3 = chain.w3
-    step = 50
-    end_timestamp = web3.eth.getBlock(web3.eth.blockNumber).timestamp + wait_hours * 60 * 60
-    while web3.eth.getBlock(web3.eth.blockNumber).timestamp < end_timestamp:
-        chain.wait.for_block(web3.eth.blockNumber + step)
 
 
 def test_all(web3, chain, token, escrow, policy_manager):
@@ -193,7 +167,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     tx = escrow.functions.preDeposit([ursula2], [1000], [10]).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert reward + 1000 == token.functions.balanceOf(escrow.address).call()
-    assert 1000 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula2, 0).call())
+    assert 1000 == escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 10).call()
@@ -229,7 +203,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     chain.time_travel(hours=1)
     tx = user_escrow_1.functions.minerDeposit(1000, 10).transact({'from': ursula3})
     chain.wait_for_receipt(tx)
-    assert 1000 == web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, user_escrow_1.address, 0).call())
+    assert 1000 == escrow.functions.minerInfo(user_escrow_1.address).call()[VALUE_FIELD]
     assert 0 == escrow.functions.getLockedTokens(user_escrow_1.address).call()
     assert 1000 == escrow.functions.getLockedTokens(user_escrow_1.address, 1).call()
     assert 1000 == escrow.functions.getLockedTokens(user_escrow_1.address, 10).call()
@@ -247,11 +221,11 @@ def test_all(web3, chain, token, escrow, policy_manager):
         chain.wait_for_receipt(tx)
 
     # Divide stakes
-    tx = escrow.functions.divideStake(1000, escrow.call().getCurrentPeriod() + 9, 500, 9).transact({'from': ursula2})
+    tx = escrow.functions.divideStake(1000, escrow.functions.getCurrentPeriod().call() + 9, 500, 9).transact({'from': ursula2})
     chain.wait_for_receipt(tx)
-    tx = escrow.functions.divideStake(1000, escrow.call().getCurrentPeriod() + 9, 500, 9).transact({'from': ursula1})
+    tx = escrow.functions.divideStake(1000, escrow.functions.getCurrentPeriod().call() + 9, 500, 9).transact({'from': ursula1})
     chain.wait_for_receipt(tx)
-    tx = user_escrow_1.functions.divideStake(1000, escrow.call().getCurrentPeriod() + 10, 500, 8).transact({'from': ursula3})
+    tx = user_escrow_1.functions.divideStake(1000, escrow.functions.getCurrentPeriod().call() + 10, 500, 8).transact({'from': ursula3})
     chain.wait_for_receipt(tx)
 
     # Confirm activity
@@ -305,7 +279,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 8440 == web3.eth.getBalance(policy_manager.address)
     assert alice2_balance + 2000 == web3.eth.getBalance(alice2)
-    assert 1 == web3.toInt(policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id_5, NULL_ADDR).call())
+    assert policy_manager.functions.policies(policy_id_5).call()[DISABLED_FIELD]
 
     # Can't revoke again
     with pytest.raises((TransactionFailed, ValueError)):
@@ -321,8 +295,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 7440 == web3.eth.getBalance(policy_manager.address)
     assert alice1_balance + 1000 == web3.eth.getBalance(alice1)
-    assert 0 == web3.toInt(
-        policy_manager.functions.getPolicyInfo(DISABLED_FIELD, policy_id_2, NULL_ADDR).call())
+    assert not policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     # Can't revoke again
     with pytest.raises((TransactionFailed, ValueError)):
@@ -340,7 +313,6 @@ def test_all(web3, chain, token, escrow, policy_manager):
 
     chain.time_travel(hours=1)
     tx = policy_manager.functions.revokeArrangement(policy_id_3, user_escrow_1.address).transact({'from': alice2, 'gas_price': 0})
-
     chain.wait_for_receipt(tx)
 
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
@@ -414,13 +386,13 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert 0 == escrow.functions.getLockedTokens(user_escrow_1.address).call()
     assert 0 == escrow.functions.getLockedTokens(user_escrow_2.address).call()
 
-    tokens_amount = web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula1, 0).call())
+    tokens_amount = escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
     tx = escrow.functions.withdraw(tokens_amount).transact({'from': ursula1})
     chain.wait_for_receipt(tx)
-    tokens_amount = web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, ursula2, 0).call())
+    tokens_amount = escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
     tx = escrow.functions.withdraw(tokens_amount).transact({'from': ursula2})
     chain.wait_for_receipt(tx)
-    tokens_amount = web3.toInt(escrow.functions.getMinerInfo(VALUE_FIELD, user_escrow_1.address, 0).call())
+    tokens_amount = escrow.functions.minerInfo(user_escrow_1.address).call()[VALUE_FIELD]
     tx = user_escrow_1.functions.minerWithdraw(tokens_amount).transact({'from': ursula3})
     chain.wait_for_receipt(tx)
     assert 10000 < token.functions.balanceOf(ursula1).call()
