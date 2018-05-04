@@ -4,12 +4,6 @@ from web3.contract import Contract
 
 
 def test_dispatcher(web3, chain):
-    """
-    These are tests for Dispatcher taken from github:
-    https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/test/UpgradableContractProxyTest.js
-    but some of the tests are converted from javascript to python
-    """
-
     creator = web3.eth.accounts[0]
     account = web3.eth.accounts[1]
 
@@ -29,7 +23,6 @@ def test_dispatcher(web3, chain):
 
     events = upgrades.get_all_entries()
     assert 1 == len(events)
-
     event_args = events[0]['args']
     assert '0x' + '0' * 40 == event_args['from']
     assert contract1_lib.address == event_args['to']
@@ -70,13 +63,19 @@ def test_dispatcher(web3, chain):
     assert contract_instance.functions.getStructureValue1(0).call() == 3
     tx =  contract_instance.functions.pushStructureArrayValue1(0, 11).transact({'from': creator})
     chain.wait_for_receipt(tx)
+    tx =  contract_instance.functions.pushStructureArrayValue1(0, 111).transact({'from': creator})
+    chain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureArrayValue1(0, 0).call() == 11
+    assert contract_instance.functions.getStructureArrayValue1(0, 1).call() == 111
     tx =  contract_instance.functions.pushStructureValue2(4).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureValue2(0).call() == 4
     tx =  contract_instance.functions.pushStructureArrayValue2(0, 12).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureArrayValue2(0, 0).call() == 12
+    tx = contract_instance.functions.setDynamicallySizedValue('Hola').transact({'from': creator})
+    chain.wait_for_receipt(tx)
+    assert contract_instance.functions.getDynamicallySizedValue().call() == 'Hola'
 
     # Can't upgrade to bad version
     with pytest.raises((TransactionFailed, ValueError)):
@@ -117,7 +116,8 @@ def test_dispatcher(web3, chain):
     tx =  contract_instance.functions.pushStructureArrayValue1(0, 12).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureArrayValue1(0, 0).call() == 11
-    assert contract_instance.functions.getStructureArrayValue1(0, 1).call() == 12
+    assert contract_instance.functions.getStructureArrayValue1(0, 1).call() == 111
+    assert contract_instance.functions.getStructureArrayValue1(0, 2).call() == 12
     tx =  contract_instance.functions.pushStructureValue2(5).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureValue2(0).call() == 4
@@ -126,6 +126,10 @@ def test_dispatcher(web3, chain):
     chain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureArrayValue2(0, 0).call() == 12
     assert contract_instance.functions.getStructureArrayValue2(0, 1).call() == 13
+    assert contract_instance.functions.getDynamicallySizedValue().call() == 'Hola'
+    tx = contract_instance.functions.setDynamicallySizedValue('Hello').transact({'from': creator})
+    chain.wait_for_receipt(tx)
+    assert contract_instance.functions.getDynamicallySizedValue().call() == 'Hello'
 
     # Changes ABI to ContractV2 for using additional methods
     contract_instance = web3.eth.contract(
@@ -175,23 +179,17 @@ def test_dispatcher(web3, chain):
         chain.wait_for_receipt(tx)
     assert dispatcher.functions.target().call() == contract1_lib.address
 
-    # Check dynamically sized value
-    # TODO uncomment after fixing dispatcher
-    # tx =  contract_instance.functions.setDynamicallySizedValue('Hola').transact({'from': creator})
-    # chain.wait_for_receipt(tx)
-    # assert contract_instance.functions.getDynamicallySizedValue().call() == 'Hola'
-
-    # # Create Event
-    # contract_instance = web3.eth.contract(
-    #     abi=contract1_lib.abi,
-    #     address=dispatcher.address,
-    #     ContractFactoryClass=Contract)
-    # test_events = contract_instance.events.EventV1.createFilter(fromBlock=0)
-    # events = test_events.get_all_entries()
-    # tx =  contract_instance.functions.createEvent(33).transact({'from': creator})
-    # chain.wait_for_receipt(tx)
-    # assert 1 == len(events)
-    # assert 33 == events[0]['args']['value']
+    # Create Event
+    contract_instance = web3.eth.contract(
+        abi=contract1_lib.abi,
+        address=dispatcher.address,
+        ContractFactoryClass=Contract)
+    test_events = contract_instance.events.EventV1.createFilter(fromBlock=0)
+    tx = contract_instance.functions.createEvent(33).transact({'from': creator})
+    chain.wait_for_receipt(tx)
+    events = test_events.get_all_entries()
+    assert 1 == len(events)
+    assert 33 == events[0]['args']['value']
 
     # Upgrade to version 3
     tx =  dispatcher.functions.upgrade(contract2_lib.address).transact({'from': creator})
@@ -214,14 +212,18 @@ def test_dispatcher(web3, chain):
     assert contract_instance.functions.getStructureValue1(0).call() == 3
     assert contract_instance.functions.getStructureValue1(1).call() == 4
     assert contract_instance.functions.getStructureArrayValue1(0, 0).call() == 11
-    assert contract_instance.functions.getStructureArrayValue1(0, 1).call() == 12
+    assert contract_instance.functions.getStructureArrayValue1(0, 1).call() == 111
+    assert contract_instance.functions.getStructureArrayValue1(0, 2).call() == 12
     assert contract_instance.functions.getStructureValue2(0).call() == 4
     assert contract_instance.functions.getStructureValue2(1).call() == 5
     assert contract_instance.functions.getStructureArrayValue2(0, 0).call() == 12
     assert contract_instance.functions.getStructureArrayValue2(0, 1).call() == 13
     assert contract_instance.functions.getStructureValueToCheck2(0).call() == 55
     assert contract_instance.functions.storageValueToCheck().call() == 2
+    assert contract_instance.functions.getDynamicallySizedValue().call() == 'Hello'
 
+    # bug? with duplicate entries
+    upgrades = dispatcher.events.Upgraded.createFilter(fromBlock=0)
     events = upgrades.get_all_entries()
     assert 4 == len(events)
     event_args = events[2]['args']
@@ -241,14 +243,11 @@ def test_dispatcher(web3, chain):
     assert 1 == len(events)
     assert 22 == events[0]['args']['value']
 
-    # TODO
-    # contract_instance = web3.eth.contract(
-    #     abi=contract1_lib.abi,
-    #     address=dispatcher.address,
-    #     ContractFactoryClass=Contract)
-    #
-    # test_eventv1_log = contract_instance.events.EventV1.createFilter(fromBlock=0)
-    # events = test_eventv1_log.get_all_entries()
-    #
-    # assert 1 == len(events)
-    # assert 33 == events[0]['args']['value']
+    contract_instance = web3.eth.contract(
+        abi=contract1_lib.abi,
+        address=dispatcher.address,
+        ContractFactoryClass=Contract)
+    test_eventv1_log = contract_instance.events.EventV1.createFilter(fromBlock=0)
+    events = test_eventv1_log.get_all_entries()
+    assert 1 == len(events)
+    assert 33 == events[0]['args']['value']

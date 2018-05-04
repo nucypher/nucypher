@@ -6,8 +6,9 @@ import "zeppelin/ownership/Ownable.sol";
 
 /**
 * @notice Base contract for upgradeable contract
-* @dev Implementation contract should realize verifyState(address testTarget) method
-* by checking storage variables (see verifyState(address testTarget) in Dispatcher)
+* @dev Inherited contract should implement verifyState(address) method by checking storage variables
+* (see verifyState(address) in Dispatcher). Also contract  should implement finishUpgrade(address)
+* if it is using constructor parameters by coping this parameters to the dispatcher storage
 **/
 contract Upgradeable is Ownable {
 
@@ -36,105 +37,85 @@ contract Upgradeable is Ownable {
     function finishUpgrade(address _target) public /*onlyOwner*/;
 
     /**
-    * @dev Simple method for call function without parameters.
-    * Result should not exceed 32 bytes
+    * @dev Base method to get data
+    * @param _target Target to call
+    * @param _signature Method signature
+    * @param _numberOfArguments Number of used arguments
+    * @param _argument1 First method argument
+    * @param _argument2 Second method argument
+    * @return Address in memory where the data is located
     **/
-    //TODO fix return size
-    function delegateGet(address _testTarget, string _signature)
-        internal returns (bytes32 result)
+    function delegateGetData(
+        address _target,
+        string _signature,
+        uint8 _numberOfArguments,
+        bytes32 _argument1,
+        bytes32 _argument2
+    )
+        internal returns (bytes32 memoryAddress)
     {
         bytes4 targetCall = bytes4(keccak256(_signature));
         assembly {
-            let free := mload(0x40)
-            mstore(free, targetCall)
-            let retVal := delegatecall(gas, _testTarget, free, 4, free, 32)
-            result := mload(free)
-        }
-    }
-
-    /**
-    * @dev Simple method for call function with one parameter.
-    * Result should not exceed 32 bytes
-    **/
-    //TODO fix return size
-    function delegateGet(address _testTarget, string _signature, bytes32 _argument)
-        internal returns (bytes32 result)
-    {
-        bytes4 targetCall = bytes4(keccak256(_signature));
-        assembly {
-            let in_pos := mload(0x40)
-            mstore(in_pos, targetCall)
-            mstore(add(in_pos, 0x04), _argument)
-            switch delegatecall(gas, _testTarget, in_pos, 0x24, in_pos, 32)
+            let freeMemAddress := mload(0x40)
+            mstore(freeMemAddress, targetCall)
+            if gt(_numberOfArguments, 0) {
+                mstore(add(freeMemAddress, 0x04), _argument1)
+            }
+            if gt(_numberOfArguments, 1) {
+                mstore(add(freeMemAddress, 0x24), _argument2)
+            }
+            switch delegatecall(gas, _target, freeMemAddress, add(0x04, mul(0x20, _numberOfArguments)), 0, 0)
                 case 0 {
-                    revert(0x0, 0)
+                    revert(freeMemAddress, 0)
                 }
                 default {
-                   result := mload(in_pos)
-                   mstore(0x40, add(in_pos, 0x24))
+                    returndatacopy(freeMemAddress, 0x0, returndatasize)
+                    memoryAddress := freeMemAddress
                 }
         }
     }
 
     /**
-    * @dev Simple method for call function with two parameters.
+    * @dev Call "getter" without parameters.
     * Result should not exceed 32 bytes
     **/
-    //TODO fix return size
+    function delegateGet(address _target, string _signature)
+        internal returns (bytes32 result)
+    {
+        bytes32 memoryAddress = delegateGetData(_target, _signature, 0, 0, 0);
+        assembly {
+            result := mload(memoryAddress)
+        }
+    }
+
+    /**
+    * @dev Call "getter" with one parameter.
+    * Result should not exceed 32 bytes
+    **/
+    function delegateGet(address _target, string _signature, bytes32 _argument)
+        internal returns (bytes32 result)
+    {
+        bytes32 memoryAddress = delegateGetData(_target, _signature, 1, _argument, 0);
+        assembly {
+            result := mload(memoryAddress)
+        }
+    }
+
+    /**
+    * @dev Call "getter" with two parameters.
+    * Result should not exceed 32 bytes
+    **/
     function delegateGet(
-        address _testTarget,
+        address _target,
         string _signature,
         bytes32 _argument1,
         bytes32 _argument2
     )
         internal returns (bytes32 result)
     {
-        bytes4 targetCall = bytes4(keccak256(_signature));
+        bytes32 memoryAddress = delegateGetData(_target, _signature, 2, _argument1, _argument2);
         assembly {
-            let in_pos := mload(0x40)
-            mstore(in_pos, targetCall)
-            mstore(add(in_pos, 0x04), _argument1)
-            mstore(add(in_pos, 0x24), _argument2)
-            switch delegatecall(gas, _testTarget, in_pos, 0x44, in_pos, 32)
-                case 0 {
-                    revert(0x0, 0)
-                }
-                default {
-                   result := mload(in_pos)
-                   mstore(0x40, add(in_pos, 0x44))
-                }
-        }
-    }
-
-    /**
-    * @dev Simple method for call function with three parameters.
-    * Result should not exceed 32 bytes
-    **/
-    //TODO fix return size
-    function delegateGet(
-        address _testTarget,
-        string _signature,
-        bytes32 _argument1,
-        bytes32 _argument2,
-        bytes32 _argument3
-    )
-        internal returns (bytes32 result)
-    {
-        bytes4 targetCall = bytes4(keccak256(_signature));
-        assembly {
-            let in_pos := mload(0x40)
-            mstore(in_pos, targetCall)
-            mstore(add(in_pos, 0x04), _argument1)
-            mstore(add(in_pos, 0x24), _argument2)
-            mstore(add(in_pos, 0x44), _argument3)
-            switch delegatecall(gas, _testTarget, in_pos, 0x64, in_pos, 32)
-                case 0 {
-                    revert(0x0, 0)
-                }
-                default {
-                   result := mload(in_pos)
-                   mstore(0x40, add(in_pos, 0x64))
-                }
+            result := mload(memoryAddress)
         }
     }
 }

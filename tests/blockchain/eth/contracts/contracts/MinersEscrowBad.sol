@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "contracts/MinersEscrow.sol";
@@ -34,8 +34,7 @@ contract MinersEscrowBad is MinersEscrow {
     {
     }
 
-    function getMinerInfo(MinersEscrow.MinerInfoField, address, uint256)
-        public view returns (bytes32)
+    function getStakeInfo(address, uint256) public view returns (uint256, uint256, uint256)
     {
     }
 

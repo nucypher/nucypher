@@ -116,7 +116,7 @@ contract Issuer is Upgradeable {
     )
         internal returns (uint256 amount, uint256 decimals)
     {
-        // TODO end of mining before calculation
+        // TODO finish method before calculation after end of mining
         uint256 currentSupply = _period <= lastMintedPeriod ?
             Math.min256(currentSupply1, currentSupply2) :
             Math.max256(currentSupply1, currentSupply2);

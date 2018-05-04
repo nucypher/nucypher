@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "contracts/PolicyManager.sol";
@@ -83,17 +83,30 @@ contract MinersEscrowForPolicyMock {
         policyManager = _policyManager;
     }
 
-    function getMinerInfo(MinersEscrow.MinerInfoField _field, address, uint256 _index)
-        public view returns (bytes32)
+    /**
+    * @notice Emulate getDowntimeLength
+    **/
+    function getDowntimeLength(address _miner) public returns (uint256) {
+        return downtime.length;
+    }
+
+    /**
+    * @notice Emulate getDowntime
+    **/
+    function getDowntime(address _miner, uint256 _index)
+        public returns (uint256 startPeriod, uint256 endPeriod)
     {
-        if (_field == MinersEscrow.MinerInfoField.LastActivePeriod) {
-            return bytes32(lastActivePeriod);
-        } else if (_field == MinersEscrow.MinerInfoField.DowntimeLength) {
-            return bytes32(downtime.length);
-        } else if (_field == MinersEscrow.MinerInfoField.DowntimeStartPeriod) {
-            return bytes32(downtime[_index].startPeriod);
-        } else if (_field == MinersEscrow.MinerInfoField.DowntimeEndPeriod) {
-            return bytes32(downtime[_index].endPeriod);
-        }
+        Downtime storage data = downtime[_index];
+        startPeriod = data.startPeriod;
+        endPeriod = data.endPeriod;
+    }
+
+    /**
+    * @notice Emulate minerInfo
+    **/
+    function minerInfo(address _miner)
+        public returns (uint256, uint256, uint256, uint256, uint256 result)
+    {
+        result = lastActivePeriod;
     }
 }

@@ -35,25 +35,6 @@ contract MinersEscrow is Issuer {
     event ActivityConfirmed(address indexed owner, uint256 indexed period, uint256 value);
     event Mined(address indexed owner, uint256 indexed period, uint256 value);
 
-    enum MinerInfoField {
-        MinersLength,
-        Miner,
-        Value,
-        Decimals,
-        StakesLength,
-        StakeFirstPeriod,
-        StakeLastPeriod,
-        StakeLockedValue,
-        LastActivePeriod,
-        DowntimeLength,
-        DowntimeStartPeriod,
-        DowntimeEndPeriod,
-        MinerIdsLength,
-        MinerId,
-        ConfirmedPeriod1,
-        ConfirmedPeriod2
-    }
-
     struct StakeInfo {
         uint256 firstPeriod;
         uint256 lastPeriod;
@@ -68,7 +49,6 @@ contract MinersEscrow is Issuer {
     struct MinerInfo {
         uint256 value;
         uint256 decimals;
-        StakeInfo[] stakes;
         /*
         * Periods that confirmed but not yet mined, two values instead of array for optimisation.
         * lock() and confirmActivity() methods include mint() method so may be only two confirmed
@@ -81,6 +61,7 @@ contract MinersEscrow is Issuer {
         // downtime
         uint256 lastActivePeriod;
         Downtime[] downtime;
+        StakeInfo[] stakes;
         bytes32[] minerIds;
     }
 
@@ -94,8 +75,8 @@ contract MinersEscrow is Issuer {
     uint256 constant RESERVED_PERIOD = 0;
     uint256 constant MAX_CHECKED_VALUES = 5;
 
-    mapping (address => MinerInfo) minerInfo;
-    address[] miners;
+    mapping (address => MinerInfo) public minerInfo;
+    address[] public miners;
 
     mapping (uint256 => uint256) public lockedPerPeriod;
     uint256 public minLockedPeriods;
@@ -499,7 +480,21 @@ contract MinersEscrow is Issuer {
     }
 
     /**
-    * @notice Set miner id
+    * @notice Return the length of the miner ids array
+    **/
+    function getMinerIdsLength(address _miner) public view returns (uint256) {
+        return minerInfo[_miner].minerIds.length;
+    }
+
+    /**
+    * @notice Return the miner id
+    **/
+    function getMinerId(address _miner, uint256 _index) public view returns (bytes32) {
+        return minerInfo[_miner].minerIds[_index];
+    }
+
+    /**
+    * @notice Set the miner id
     **/
     function setMinerId(bytes32 _minerId) public {
         MinerInfo storage info = minerInfo[msg.sender];
@@ -507,49 +502,88 @@ contract MinersEscrow is Issuer {
     }
 
     /**
-    * @notice Get information about miner
-    * @dev This get method reduces size of bytecode compared with multiple get methods or public modifiers
-    * @param _field Field to get
-    * @param _miner Address of miner
-    * @param _index Index of array
+    * @notice Return the length of the miners array
     **/
-    function getMinerInfo(MinerInfoField _field, address _miner, uint256 _index)
-        public view returns (bytes32)
+    function getMinersLength() public view returns (uint256) {
+        return miners.length;
+    }
+
+    /**
+    * @notice Return the length of the stakes array
+    **/
+    function getStakesLength(address _miner) public view returns (uint256) {
+        return minerInfo[_miner].stakes.length;
+    }
+
+    /**
+    * @notice Return the information about stake
+    **/
+    function getStakeInfo(address _miner, uint256 _index)
+    // TODO change to structure when ABIEncoderV2 is released
+//        public view returns (StakeInfo)
+        public view returns (uint256 firstPeriod, uint256 lastPeriod, uint256 lockedValue)
     {
-        if (_field == MinerInfoField.MinersLength) {
-            return bytes32(miners.length);
-        } else if (_field == MinerInfoField.Miner) {
-            return bytes32(miners[_index]);
+        StakeInfo storage info = minerInfo[_miner].stakes[_index];
+        firstPeriod = info.firstPeriod;
+        lastPeriod = info.lastPeriod;
+        lockedValue = info.lockedValue;
+    }
+
+    /**
+    * @notice Return the length of the downtime array
+    **/
+    function getDowntimeLength(address _miner) public view returns (uint256) {
+        return minerInfo[_miner].downtime.length;
+    }
+
+    /**
+    * @notice Return the information about downtime
+    **/
+    function getDowntime(address _miner, uint256 _index)
+    // TODO change to structure when ABIEncoderV2 is released
+//        public view returns (Downtime)
+        public view returns (uint256 startPeriod, uint256 endPeriod)
+    {
+        Downtime storage downtime = minerInfo[_miner].downtime[_index];
+        startPeriod = downtime.startPeriod;
+        endPeriod = downtime.endPeriod;
+    }
+
+    /**
+    * @dev Get MinerInfo structure by delegatecall
+    **/
+    function delegateGetMinerInfo(address _target, address _miner)
+        internal returns (MinerInfo memory result)
+    {
+        bytes32 memoryAddress = delegateGetData(_target, "minerInfo(address)", 1, bytes32(_miner), 0);
+        assembly {
+            result := memoryAddress
         }
-        MinerInfo storage info = minerInfo[_miner];
-        if (_field == MinerInfoField.Value) {
-            return bytes32(info.value);
-        } else if (_field == MinerInfoField.Decimals) {
-            return bytes32(info.decimals);
-        } else if (_field == MinerInfoField.StakesLength) {
-            return bytes32(info.stakes.length);
-        } else if (_field == MinerInfoField.StakeFirstPeriod) {
-            return bytes32(info.stakes[_index].firstPeriod);
-        } else if (_field == MinerInfoField.StakeLastPeriod) {
-            return bytes32(info.stakes[_index].lastPeriod);
-        } else if (_field == MinerInfoField.StakeLockedValue) {
-            return bytes32(info.stakes[_index].lockedValue);
-        } else if (_field == MinerInfoField.ConfirmedPeriod1) {
-            return bytes32(info.confirmedPeriod1);
-        } else if (_field == MinerInfoField.ConfirmedPeriod2) {
-            return bytes32(info.confirmedPeriod2);
-        } else if (_field == MinerInfoField.LastActivePeriod) {
-            return bytes32(info.lastActivePeriod);
-        } else if (_field == MinerInfoField.DowntimeLength) {
-            return bytes32(info.downtime.length);
-        } else if (_field == MinerInfoField.DowntimeStartPeriod) {
-            return bytes32(info.downtime[_index].startPeriod);
-        } else if (_field == MinerInfoField.DowntimeEndPeriod) {
-            return bytes32(info.downtime[_index].endPeriod);
-        } else if (_field == MinerInfoField.MinerIdsLength) {
-            return bytes32(info.minerIds.length);
-        } else if (_field == MinerInfoField.MinerId) {
-            return bytes32(info.minerIds[_index]);
+    }
+
+    /**
+    * @dev Get StakeInfo structure by delegatecall
+    **/
+    function delegateGetStakeInfo(address _target, address _miner, uint256 _index)
+        internal returns (StakeInfo memory result)
+    {
+        bytes32 memoryAddress = delegateGetData(
+            _target, "getStakeInfo(address,uint256)", 2, bytes32(_miner), bytes32(_index));
+        assembly {
+            result := memoryAddress
+        }
+    }
+
+    /**
+    * @dev Get Downtime structure by delegatecall
+    **/
+    function delegateGetDowntime(address _target, address _miner, uint256 _index)
+        internal returns (Downtime memory result)
+    {
+        bytes32 memoryAddress = delegateGetData(
+            _target, "getDowntime(address,uint256)", 2, bytes32(_miner), bytes32(_index));
+        assembly {
+            result := memoryAddress
         }
     }
 
@@ -565,53 +599,41 @@ contract MinersEscrow is Issuer {
         require(uint256(delegateGet(_testTarget, "lockedPerPeriod(uint256)",
             bytes32(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
 
-        require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint256(MinerInfoField.MinersLength)), 0x0, 0)) == miners.length);
+        require(uint256(delegateGet(_testTarget, "getMinersLength()")) == miners.length);
         if (miners.length == 0) {
             return;
         }
         address minerAddress = miners[0];
         bytes32 miner = bytes32(minerAddress);
-        require(address(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint8(MinerInfoField.Miner)), 0x0, 0)) == minerAddress);
+        require(address(delegateGet(_testTarget, "miners(uint256)", 0)) == minerAddress);
         MinerInfo storage info = minerInfo[minerAddress];
-        require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint8(MinerInfoField.Value)), miner, 0)) == info.value);
-        require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint8(MinerInfoField.Decimals)), miner, 0)) == info.decimals);
+        MinerInfo memory infoToCheck = delegateGetMinerInfo(_testTarget, minerAddress);
+        require(infoToCheck.value == info.value &&
+            infoToCheck.decimals == info.decimals &&
+            infoToCheck.confirmedPeriod1 == info.confirmedPeriod1 &&
+            infoToCheck.confirmedPeriod2 == info.confirmedPeriod2 &&
+            infoToCheck.lastActivePeriod == info.lastActivePeriod);
 
-        require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint8(MinerInfoField.StakesLength)), miner, 0)) == info.stakes.length);
-        for (uint256 i = 0; i < info.stakes.length && i < MAX_CHECKED_VALUES; i++) {
-            require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint8(MinerInfoField.StakeFirstPeriod)), miner, bytes32(i))) == info.stakes[i].firstPeriod);
-            require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint8(MinerInfoField.StakeLastPeriod)), miner, bytes32(i))) == info.stakes[i].lastPeriod);
-            require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint8(MinerInfoField.StakeLockedValue)), miner, bytes32(i))) == info.stakes[i].lockedValue);
-        }
-
-        require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint8(MinerInfoField.ConfirmedPeriod1)), miner, 0)) == info.confirmedPeriod1);
-        require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint8(MinerInfoField.ConfirmedPeriod2)), miner, 0)) == info.confirmedPeriod2);
-
-        require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint8(MinerInfoField.LastActivePeriod)), miner, 0)) == info.lastActivePeriod);
-        require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint8(MinerInfoField.DowntimeLength)), miner, 0)) == info.downtime.length);
+        require(uint256(delegateGet(_testTarget, "getDowntimeLength(address)", miner)) == info.downtime.length);
         for (i = 0; i < info.downtime.length && i < MAX_CHECKED_VALUES; i++) {
             Downtime storage downtime = info.downtime[i];
-            require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint8(MinerInfoField.DowntimeStartPeriod)), miner, bytes32(i))) == downtime.startPeriod);
-            require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint8(MinerInfoField.DowntimeEndPeriod)), miner, bytes32(i))) == downtime.endPeriod);
+            Downtime memory downtimeToCheck = delegateGetDowntime(_testTarget, minerAddress, i);
+            require(downtimeToCheck.startPeriod == downtime.startPeriod &&
+                downtimeToCheck.endPeriod == downtime.endPeriod);
         }
-        require(uint256(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-            bytes32(uint8(MinerInfoField.MinerIdsLength)), miner, 0)) == info.minerIds.length);
+
+        require(uint256(delegateGet(_testTarget, "getStakesLength(address)", miner)) == info.stakes.length);
+        for (uint256 i = 0; i < info.stakes.length && i < MAX_CHECKED_VALUES; i++) {
+            StakeInfo storage stakeInfo = info.stakes[i];
+            StakeInfo memory stakeInfoToCheck = delegateGetStakeInfo(_testTarget, minerAddress, i);
+            require(stakeInfoToCheck.firstPeriod == stakeInfo.firstPeriod &&
+                stakeInfoToCheck.lastPeriod == stakeInfo.lastPeriod &&
+                stakeInfoToCheck.lockedValue == stakeInfo.lockedValue);
+        }
+
+        require(uint256(delegateGet(_testTarget, "getMinerIdsLength(address)", miner)) == info.minerIds.length);
         for (i = 0; i < info.minerIds.length && i < MAX_CHECKED_VALUES; i++) {
-            require(delegateGet(_testTarget, "getMinerInfo(uint8,address,uint256)",
-                bytes32(uint8(MinerInfoField.MinerId)), miner, bytes32(i)) == info.minerIds[i]);
+            require(delegateGet(_testTarget, "getMinerId(address,uint256)", miner, bytes32(i)) == info.minerIds[i]);
         }
     }
 
