@@ -14,7 +14,7 @@ from nkms.blockchain.eth.deployers import MinerEscrowDeployer
 class MockNuCypherMinerConfig(NuCypherMinerConfig):
     """Speed things up a bit"""
     _hours_per_period = 1     # Hours
-    _min_release_periods = 1  # Minimum switchlock periods
+    _min_locked_periods = 1  # Minimum locked periods
 
 
 class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNuCypherMinerConfig):

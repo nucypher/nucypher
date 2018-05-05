@@ -12,7 +12,7 @@ def test_miner_locking_tokens(chain, mock_token_deployer, mock_miner_agent):
     miner = Miner(miner_agent=mock_miner_agent, address=chain.provider.w3.eth.accounts[1])
 
     an_amount_of_tokens = 1000 * mock_token_deployer._M
-    miner.stake(amount=an_amount_of_tokens, locktime=mock_miner_agent._deployer._min_release_periods, auto_switch_lock=False)
+    miner.stake(amount=an_amount_of_tokens, locktime=mock_miner_agent._deployer._min_locked_periods)
 
     # Verify that the escrow is allowed to receive tokens
     # assert mock_miner_agent.token_agent.read().allowance(miner.address, mock_miner_agent.contract_address) == 0
@@ -54,9 +54,7 @@ def test_mine_then_withdraw_tokens(chain, mock_token_deployer, token_agent, mock
     # stake_amount = (10 + random.randrange(9000)) * mock_token_deployer._M
     half_of_stake = initial_balance // 2
 
-    miner.stake(amount=half_of_stake,
-                locktime=1,
-                auto_switch_lock=True)
+    miner.stake(amount=half_of_stake, locktime=1)
 
     # Ensure the miner has the right amount of staked tokens
     assert miner.locked_tokens == half_of_stake
@@ -139,11 +137,6 @@ def test_publish_miner_datastore(chain, mock_miner_agent):
     assert len(stored_miner_ids) == 2
     assert another_mock_miner_id == stored_miner_ids[1]
 
-    # TODO change encoding when v4 of web3.py is released
-    supposedly_the_same_miner_id = mock_miner_agent.read() \
-        .getMinerInfo(mock_miner_agent._deployer.MinerInfoField.MINER_ID.value,
-                      miner_addr,
-                      1).encode('latin-1')
-
+    supposedly_the_same_miner_id = mock_miner_agent.read().getMinerId(miner_addr, 1)
     assert another_mock_miner_id == supposedly_the_same_miner_id
 

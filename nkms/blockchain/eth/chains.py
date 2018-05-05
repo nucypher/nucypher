@@ -116,7 +116,7 @@ class TesterBlockchain(TheBlockchain):
                 amount = random.randint(min_stake, max_stake)
             else:
                 amount = miner.token_balance() // 2    # stake half
-            miner.stake(amount=amount, locktime=locktime, auto_switch_lock=True)
+            miner.stake(amount=amount, locktime=locktime)
 
         return miners
 

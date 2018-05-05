@@ -92,22 +92,11 @@ class MinerAgent(EthereumContractAgent):
         pass
 
     class MinerInfo(Enum):
-        MINERS_LENGTH = 0
-        MINER = 1
-        VALUE = 2
-        DECIMALS = 3
-        STAKES_LENGTH = 4
-        STAKE_FIRST_PERIOD = 5
-        STAKE_LAST_PERIOD_ = 6
-        STAKE_LOCKED_VALUE = 7
-        LAST_ACTIVE_PERIOD = 8
-        DOWNTIME_LENGTH = 9
-        DOWNTIME_START_PERIOD = 10
-        DOWNTIME_END_PERIOD = 11
-        MINER_IDS_LENGTH = 12
-        MINER_ID = 13
-        CONFIRMED_PERIOD_1 = 14
-        CONFIRMED_PERIOD_2 = 15
+        VALUE = 0
+        DECIMALS = 1
+        LAST_ACTIVE_PERIOD = 2
+        CONFIRMED_PERIOD_1 = 3
+        CONFIRMED_PERIOD_2 = 4
 
     def __init__(self, token_agent: NuCypherKMSTokenAgent):
         super().__init__(blockchain=token_agent.blockchain)  # TODO: public
@@ -128,16 +117,10 @@ class MinerAgent(EthereumContractAgent):
         Miner addresses will be returned in the order in which they were added to the MinersEscrow's ledger
         """
 
-        info_reader = partial(self.read().getMinerInfo,
-                              self.MinerInfo.MINERS_LENGTH.value,
-                              self._deployer._null_addr)
-
-        count = info_reader(0).encode('latin-1')
-        count = self.blockchain._chain.web3.toInt(count)
+        count = self.read().getMinersLength()
 
         for index in range(count):
-            addr = info_reader(index).encode('latin-1')
-            yield self.blockchain._chain.web3.toChecksumAddress(addr)
+            yield self.read().miners(index)
 
     def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:
         """

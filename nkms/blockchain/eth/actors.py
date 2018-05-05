@@ -110,12 +110,7 @@ class Miner(TokenActor):
 
         return approve_txhash, deposit_txhash
 
-    def switch_lock(self):
-        lock_txhash = self.miner_agent.transact({'from': self.address}).switchLock()
-        self.blockchain.wait_for_receipt(lock_txhash)
-
-        self._transactions.append((datetime.utcnow(), lock_txhash))
-        return lock_txhash
+    # TODO add divide_stake method
 
     def _confirm_activity(self) -> str:
         """Miner rewarded for every confirmed period"""
@@ -151,11 +146,7 @@ class Miner(TokenActor):
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
 
-        token_amount_bytes = self.miner_agent.read().getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
-                                                                  self.address,
-                                                                  0).encode('latin-1')
-
-        token_amount = self.blockchain._chain.web3.toInt(token_amount_bytes)
+        token_amount = self.miner_agent.read().minerInfo(self.address)[self.miner_agent.MinerInfo.VALUE.value]
 
         # reward_amount = TODO
 
@@ -166,7 +157,7 @@ class Miner(TokenActor):
 
         return reward_txhash
 
-    def stake(self, amount, locktime, entire_balance=False, auto_switch_lock=False):
+    def stake(self, amount, locktime, entire_balance=False):
         """
         High level staking method for Miners.
         """
@@ -181,21 +172,13 @@ class Miner(TokenActor):
             raise self.StakingError('Locktime must be at least {}'.format(min_stake_time))
 
         if entire_balance is True:
-            balance_bytes = self.miner_agent.read().getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
-                                                                 self.address,
-                                                                 0).encode('latin-1')
-
-            amount = self.blockchain._chain.web3.toInt(balance_bytes)
+            amount = self.miner_agent.read().minerInfo(self.address)[self.miner_agent.MinerInfo.VALUE.value]
         else:
             if not amount > 0:
                 raise self.StakingError('Staking amount must be greater than zero.')
 
         approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, locktime=locktime)
         self._transactions.append((datetime.utcnow(), initial_deposit_txhash))
-
-        if auto_switch_lock is True:
-            lock_txhash = self.switch_lock()
-            self._transactions.append((datetime.utcnow(), lock_txhash))
 
         return staking_transactions
 
@@ -212,19 +195,12 @@ class Miner(TokenActor):
     def fetch_data(self) -> tuple:
         """Retrieve all asosciated contract data for this miner."""
 
-        count_bytes = self.miner_agent.read().getMinerInfo(self.miner_agent.MinerInfo.MINER_IDS_LENGTH.value,
-                                                           self.address,
-                                                           0).encode('latin-1')  # TODO change when v4 of web3.py is released
-
-        count = self.blockchain._chain.web3.toInt(count_bytes)
+        count = self.miner_agent.read().getMinerIdsLength(self.address)
 
         miner_ids = list()
         for index in range(count):
-            miner_id = self.miner_agent.read().getMinerInfo(self.miner_agent.MinerInfo.MINER_ID.value,
-                                                            self.address,
-                                                            index)
-            encoded_miner_id = miner_id.encode('latin-1')
-            miner_ids.append(encoded_miner_id)
+            miner_id = self.miner_agent.read().getMinerId(self.address, index)
+            miner_ids.append(miner_id)
 
         return tuple(miner_ids)
 
