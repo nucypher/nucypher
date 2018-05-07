@@ -4,6 +4,12 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+
+# Install cryptography wheels from pyUmbral github for now.
+cryptography35_linux = { file="https://github.com/nucypher/pyUmbral/blob/master/wheelhouse/cryptography-2.3.dev1-cp35-cp35m-linux_x86_64.whl?raw=true", markers="python_version >= '3.5' and python_version < '3.6' and platform_system == 'Linux'"}
+cryptography36_linux = { file="https://github.com/nucypher/pyUmbral/blob/master/wheelhouse/cryptography-2.3.dev1-cp36-cp36m-linux_x86_64.whl?raw=true", markers="python_version >= '3.6' and python_version < '3.7' and platform_system == 'Linux'"}
+
+
 rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "kms-dependency"}
 kademlia = {git = "https://github.com/nucypher/kademlia", ref = "kms-dependency"}
 PyNaCl = "*"
