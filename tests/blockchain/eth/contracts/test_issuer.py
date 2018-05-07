@@ -63,6 +63,7 @@ def test_issuer(web3, chain, token):
     assert balance - 110 == token.functions.balanceOf(issuer.address).call()
 
 
+@pytest.mark.slow
 def test_inflation_rate(web3, chain, token):
     creator = web3.eth.accounts[0]
     ursula = web3.eth.accounts[1]
@@ -106,6 +107,7 @@ def test_inflation_rate(web3, chain, token):
     assert 2 * one_period + 3 * minted_amount > token.functions.balanceOf(ursula).call()
 
 
+@pytest.mark.slow
 def test_verifying_state(web3, chain, token):
     creator = web3.eth.accounts[0]
 

@@ -1,4 +1,4 @@
-from pytest import raises
+import pytest
 
 from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
 from nkms.blockchain.eth.deployers import NuCypherKMSTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
@@ -13,7 +13,7 @@ def test_token_deployer_and_agent(chain):
     # The big day...
     deployer = NuCypherKMSTokenDeployer(blockchain=chain)
 
-    with raises(NuCypherKMSTokenDeployer.ContractDeploymentError):
+    with pytest.raises(NuCypherKMSTokenDeployer.ContractDeploymentError):
         deployer.deploy()
 
     # Token must be armed before deploying to the blockchain
@@ -42,6 +42,7 @@ def test_token_deployer_and_agent(chain):
     assert token_agent == same_token_agent  # __eq__
 
 
+@pytest.mark.slow
 def test_deploy_ethereum_contracts(chain):
     """
     Launch all ethereum contracts:

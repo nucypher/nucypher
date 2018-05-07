@@ -657,6 +657,7 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert 3 == len(events)
 
 
+@pytest.mark.slow
 def test_verifying_state(web3, chain):
     creator = web3.eth.accounts[0]
     address1 = web3.eth.accounts[1]

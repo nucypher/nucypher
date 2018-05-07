@@ -2,6 +2,7 @@
 tests taken from
 https://github.com/Majoolr/ethereum-libraries/blob/master/LinkedListLib/truffle/test/TestLinkedListLib.sol
 """
+import pytest
 
 NULL = '0x0000000000000000000000000000000000000000'
 HEAD = NULL
@@ -9,6 +10,7 @@ PREV = False
 NEXT = True
 
 
+@pytest.mark.slow
 def test_linked_list(web3, chain):
     address1 = web3.eth.accounts[0]
     address2 = web3.eth.accounts[1]

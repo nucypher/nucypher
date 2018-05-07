@@ -48,6 +48,7 @@ def policy_manager(web3, chain):
     return dispatcher
 
 
+@pytest.mark.slow
 def test_voting(web3, chain, escrow, policy_manager):
     creator = web3.eth.accounts[0]
     node1 = web3.eth.accounts[1]
@@ -425,6 +426,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert NULL_ADDR == event_args['newAddress']
 
 
+@pytest.mark.slow
 def test_verifying_state(web3, chain):
     creator = web3.eth.accounts[0]
     address1 = web3.eth.accounts[1]
