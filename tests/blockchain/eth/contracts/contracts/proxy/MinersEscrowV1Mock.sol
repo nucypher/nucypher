@@ -43,4 +43,8 @@ contract MinersEscrowV1Mock is Upgradeable {
             lockedTokens[node] = escrow.lockedTokens(node);
         }
     }
+
+    function setPreviousTarget(address _target) public {
+        previousTarget = _target;
+    }
 }
