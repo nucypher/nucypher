@@ -68,6 +68,7 @@ def policy_manager(web3, chain, escrow):
     return contract
 
 
+@pytest.mark.slow
 def test_all(web3, chain, token, escrow, policy_manager):
     creator, ursula1, ursula2, ursula3, ursula4, alice1, alice2, *everyone_else = web3.eth.accounts
 

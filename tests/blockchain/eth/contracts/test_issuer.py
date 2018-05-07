@@ -10,7 +10,7 @@ def token(web3, chain):
     token, _ = chain.provider.deploy_contract('NuCypherKMSToken', 2 * 10 ** 40)
     return token
 
-
+@pytest.mark.slow
 def test_issuer(web3, chain, token):
     creator = web3.eth.accounts[0]
     ursula = web3.eth.accounts[1]

@@ -36,6 +36,7 @@ def escrow_contract(web3, chain, token, request):
     return make_escrow
 
 
+@pytest.mark.slow
 def test_escrow(web3, chain, token, escrow_contract):
     escrow = escrow_contract(1500)
     creator = web3.eth.accounts[0]
@@ -360,6 +361,7 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert 1 == len(withdraw_log.get_all_entries())
 
 
+@pytest.mark.slow
 def test_locked_distribution(web3, chain, token, escrow_contract):
     escrow = escrow_contract(5 * 10 ** 8)
     NULL_ADDR = '0x' + '0' * 40
@@ -441,6 +443,7 @@ def test_locked_distribution(web3, chain, token, escrow_contract):
         assert miners[index] == escrow.functions.miners(index).call()
 
 
+@pytest.mark.slow
 def test_mining(web3, chain, token, escrow_contract):
     escrow = escrow_contract(1500)
     creator = web3.eth.accounts[0]
@@ -635,6 +638,7 @@ def test_mining(web3, chain, token, escrow_contract):
     assert 6 == len(activity_log.get_all_entries())
 
 
+@pytest.mark.slow
 def test_pre_deposit(web3, chain, token, escrow_contract):
     escrow = escrow_contract(1500)
     creator = web3.eth.accounts[0]

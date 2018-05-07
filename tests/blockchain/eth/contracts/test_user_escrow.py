@@ -43,6 +43,7 @@ def user_escrow(web3, chain, token, escrow, policy_manager):
     return contract
 
 
+@pytest.mark.slow
 def test_escrow(web3, chain, token, user_escrow):
     creator = web3.eth.accounts[0]
     user = web3.eth.accounts[1]
@@ -133,6 +134,7 @@ def test_escrow(web3, chain, token, user_escrow):
     assert 500 == event_args['value']
 
 
+@pytest.mark.slow
 def test_miner(web3, chain, token, escrow, user_escrow):
     creator = web3.eth.accounts[0]
     user = web3.eth.accounts[1]
@@ -291,6 +293,7 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     assert 1000 == event_args['value']
 
 
+@pytest.mark.slow
 def test_policy(web3, chain, policy_manager, user_escrow):
     creator = web3.eth.accounts[0]
     user = web3.eth.accounts[1]

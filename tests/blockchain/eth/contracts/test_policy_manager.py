@@ -66,6 +66,7 @@ number_of_periods = 10
 value = rate * number_of_periods
 
 
+@pytest.mark.slow
 def test_create_revoke(web3, chain, escrow, policy_manager):
     creator, client, bad_node, node1, node2, node3, *everyone_else = web3.eth.accounts
 
@@ -310,6 +311,7 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     assert 0 == len(events)
 
 
+@pytest.mark.slow
 def test_reward(web3, chain, escrow, policy_manager):
     creator, client, bad_node, node1, node2, node3, *everyone_else = web3.eth.accounts
     node_balance = web3.eth.getBalance(node1)
@@ -395,6 +397,7 @@ def test_reward(web3, chain, escrow, policy_manager):
     assert 210 == policy_manager.functions.nodes(node2).call()[REWARD_FIELD]
 
 
+@pytest.mark.slow
 def test_refund(web3, chain, escrow, policy_manager):
     creator = web3.eth.accounts[0]
     client = web3.eth.accounts[1]
