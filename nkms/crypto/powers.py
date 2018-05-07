@@ -141,7 +141,7 @@ class DelegatingPower(DerivedKeyBasedPower):
         :param m: Minimum number of KFrags needed to rebuild ciphertext
         :param n: Total number of rekey shares to generate
         """
-        # TODO: salt?
+        # TODO: salt?  #265
 
         __private_key = self.umbral_keying_material.derive_privkey_by_label(label)
         kfrags = pre.split_rekey(__private_key, bob_pubkey_enc, m, n)
