@@ -86,15 +86,15 @@ contract MinersEscrowForPolicyMock {
     /**
     * @notice Emulate getDowntimeLength
     **/
-    function getDowntimeLength(address _miner) public returns (uint256) {
+    function getDowntimeLength(address) public view returns (uint256) {
         return downtime.length;
     }
 
     /**
     * @notice Emulate getDowntime
     **/
-    function getDowntime(address _miner, uint256 _index)
-        public returns (uint256 startPeriod, uint256 endPeriod)
+    function getDowntime(address, uint256 _index)
+        public view returns (uint256 startPeriod, uint256 endPeriod)
     {
         Downtime storage data = downtime[_index];
         startPeriod = data.startPeriod;
@@ -104,8 +104,8 @@ contract MinersEscrowForPolicyMock {
     /**
     * @notice Emulate minerInfo
     **/
-    function minerInfo(address _miner)
-        public returns (uint256, uint256, uint256, uint256, uint256 result)
+    function minerInfo(address)
+        public view returns (uint256, uint256, uint256, uint256, uint256 result)
     {
         result = lastActivePeriod;
     }

@@ -29,4 +29,8 @@ contract GovernmentV2Mock is Government {
         super.verifyState(_testTarget);
         require(uint256(delegateGet(_testTarget, "valueToCheck()")) == valueToCheck);
     }
+
+    function setPreviousTarget(address _target) public {
+        previousTarget = _target;
+    }
 }
