@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "contracts/MinersEscrow.sol";
@@ -12,7 +12,7 @@ contract MinersEscrowV2Mock is MinersEscrow {
 
     uint256 public valueToCheck;
 
-    function MinersEscrowV2Mock(
+    constructor(
         NuCypherKMSToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,

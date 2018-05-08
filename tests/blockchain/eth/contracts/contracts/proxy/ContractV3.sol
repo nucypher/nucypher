@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "./ContractV2.sol";
@@ -8,7 +8,7 @@ contract ContractV3 is ContractV2 {
 
     uint public anotherStorageValue;
 
-    function ContractV3(uint _storageValueToCheck)
+    constructor(uint _storageValueToCheck)
         public
         ContractV2(_storageValueToCheck)
     {
@@ -16,10 +16,6 @@ contract ContractV3 is ContractV2 {
 
     function setAnotherStorageValue(uint _value) public {
         anotherStorageValue = _value * 2;
-    }
-
-    function getAnotherStorageValue() public view returns (uint) {
-        return storageValue;
     }
 
     function verifyState(address _testTarget) public onlyOwner {

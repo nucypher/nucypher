@@ -4,6 +4,7 @@ import msgpack
 import pytest
 from constant_sorrow import constants
 from kademlia.utils import digest
+
 from nkms.crypto.api import keccak_digest
 from nkms.crypto.kits import UmbralMessageKit
 from nkms.network import blockchain_client
@@ -181,14 +182,14 @@ def test_treaure_map_is_legit(enacted_policy):
 
 
 # # TODO: Have Alice inherit from PolicyAuthor
-# def test_alice_finds_ursulas_from_blockchain(testerchain, mock_miner_agent, mock_token_deployer):
+# def test_alice_finds_ursulas_from_blockchain(chain, mock_miner_agent, mock_token_deployer):
 #     mock_token_deployer._global_airdrop(amount=10000)
 #
 #     # Create some miners to find
-#     _, *miner_addresses = testerchain._chain.web3.eth.accounts[1:]
+#     _, *miner_addresses = chain._chain.web3.eth.accounts[1:]
 #     spawn_miners(miner_addresses, mock_miner_agent, mock_miner_agent.token_agent._deployer._M, 100)
 #
-#     testerchain.wait_time(mock_miner_agent._deployer._hours_per_period)
+#     chain.wait_time(mock_miner_agent._deployer._hours_per_period)
 #
 #     reenc_nodes = mock_miner_agent.sample(quantity=4)
 #     assert len(reenc_nodes) >= 4

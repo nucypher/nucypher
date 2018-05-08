@@ -8,6 +8,8 @@ from apistar.http import Response
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
+
+from bytestring_splitter import VariableLengthBytestring
 from umbral import pre
 from umbral.fragments import KFrag
 
@@ -241,7 +243,7 @@ class ProxyRESTServer(object):
 
         for capsule in work_order.capsules:
             # TODO: Sign the result of this.  See #141.
-            cfrag_byte_stream += bytes(pre.reencrypt(kfrag, capsule))
+            cfrag_byte_stream += VariableLengthBytestring(pre.reencrypt(kfrag, capsule))
 
         # TODO: Put this in Ursula's datastore
         self._work_orders.append(work_order)

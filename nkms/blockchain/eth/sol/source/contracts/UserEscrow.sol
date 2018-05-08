@@ -1,11 +1,12 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
+import "zeppelin/token/ERC20/SafeERC20.sol";
+import "zeppelin/ownership/Ownable.sol";
+import "zeppelin/math/SafeMath.sol";
+import "contracts/NuCypherKMSToken.sol";
+import "contracts/MinersEscrow.sol";
+import "contracts/PolicyManager.sol";
 
-import "./zeppelin/token/ERC20/SafeERC20.sol";
-import "./zeppelin/ownership/Ownable.sol";
-import "./zeppelin/math/SafeMath.sol";
-import "./NuCypherKMSToken.sol";
-import "./MinersEscrow.sol";
 
 
 /**
@@ -21,7 +22,13 @@ contract UserEscrow is Ownable {
     event DepositedAsMiner(address indexed owner, uint256 value, uint256 periods);
     event WithdrawnAsMiner(address indexed owner, uint256 value);
     event Locked(address indexed owner, uint256 value, uint256 periods);
-    event LockSwitched(address indexed owner);
+    event Divided(
+        address indexed owner,
+        uint256 oldValue,
+        uint256 lastPeriod,
+        uint256 newValue,
+        uint256 periods
+    );
     event ActivityConfirmed(address indexed owner);
     event Mined(address indexed owner);
     event RewardWithdrawnAsMiner(address indexed owner, uint256 value);
@@ -40,7 +47,7 @@ contract UserEscrow is Ownable {
     * @param _escrow Escrow contract
     * @param _policyManager PolicyManager contract
     **/
-    function UserEscrow(
+    constructor(
         NuCypherKMSToken _token,
         MinersEscrow _escrow,
         PolicyManager _policyManager
@@ -68,7 +75,7 @@ contract UserEscrow is Ownable {
         lockDuration = _duration;
         lockedValue = _value;
         token.safeTransferFrom(msg.sender, address(this), _value);
-        Deposited(msg.sender, _value, _duration);
+        emit Deposited(msg.sender, _value, _duration);
     }
 
     /**
@@ -89,19 +96,19 @@ contract UserEscrow is Ownable {
     function withdraw(uint256 _value) public onlyOwner {
         require(token.balanceOf(address(this)).sub(getLockedTokens()) >= _value);
         token.safeTransfer(owner, _value);
-        Withdrawn(owner, _value);
+        emit Withdrawn(owner, _value);
     }
 
     /**
     * @notice Deposit tokens to the miners escrow
     * @param _value Amount of token to deposit
-    * @param _periods Amount of periods during which tokens will be unlocked
+    * @param _periods Amount of periods during which tokens will be locked
     **/
     function minerDeposit(uint256 _value, uint256 _periods) public onlyOwner {
         require(token.balanceOf(address(this)) > _value);
         token.approve(address(escrow), _value);
         escrow.deposit(_value, _periods);
-        DepositedAsMiner(owner, _value, _periods);
+        emit DepositedAsMiner(owner, _value, _periods);
     }
 
     /**
@@ -110,25 +117,36 @@ contract UserEscrow is Ownable {
     **/
     function minerWithdraw(uint256 _value) public onlyOwner {
         escrow.withdraw(_value);
-        WithdrawnAsMiner(owner, _value);
+        emit WithdrawnAsMiner(owner, _value);
     }
 
     /**
     * @notice Lock some tokens or increase lock in the miners escrow
     * @param _value Amount of tokens which should lock
-    * @param _periods Amount of periods during which tokens will be unlocked
+    * @param _periods Amount of periods during which tokens will be locked
     **/
     function lock(uint256 _value, uint256 _periods) public onlyOwner {
         escrow.lock(_value, _periods);
-        Locked(owner, _value, _periods);
+        emit Locked(owner, _value, _periods);
     }
 
     /**
-    * @notice Switch lock in the miners escrow
+    * @notice Divide stake into two parts
+    * @param _oldValue Old stake value
+    * @param _lastPeriod Last period of stake
+    * @param _newValue New stake value
+    * @param _periods Amount of periods for extending stake
     **/
-    function switchLock() public onlyOwner {
-        escrow.switchLock();
-        LockSwitched(owner);
+    function divideStake(
+        uint256 _oldValue,
+        uint256 _lastPeriod,
+        uint256 _newValue,
+        uint256 _periods
+    )
+        public onlyOwner
+    {
+        escrow.divideStake(_oldValue, _lastPeriod, _newValue, _periods);
+        emit Divided(owner, _oldValue, _lastPeriod, _newValue, _periods);
     }
 
     /**
@@ -136,7 +154,7 @@ contract UserEscrow is Ownable {
     **/
     function confirmActivity() external onlyOwner {
         escrow.confirmActivity();
-        ActivityConfirmed(owner);
+        emit ActivityConfirmed(owner);
     }
 
     /**
@@ -144,26 +162,26 @@ contract UserEscrow is Ownable {
     **/
     function mint() external onlyOwner {
         escrow.mint();
-        Mined(owner);
+        emit Mined(owner);
     }
 
     /**
     * @notice Withdraw available reward from the policy manager to the user escrow
     **/
     function policyRewardWithdraw() public onlyOwner {
-        uint256 balance = this.balance;
+        uint256 balance = address(this).balance;
         policyManager.withdraw();
-        RewardWithdrawnAsMiner(owner, this.balance - balance);
+        emit RewardWithdrawnAsMiner(owner, address(this).balance - balance);
     }
 
     /**
     * @notice Withdraw available reward to the owner
     **/
     function rewardWithdraw() public onlyOwner {
-        uint256 balance = this.balance;
+        uint256 balance = address(this).balance;
         require(balance != 0);
         owner.transfer(balance);
-        RewardWithdrawn(owner, balance);
+        emit RewardWithdrawn(owner, balance);
     }
 
 }

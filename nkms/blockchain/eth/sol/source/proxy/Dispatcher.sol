@@ -1,12 +1,11 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "./Upgradeable.sol";
 
 
 /**
-* @dev Based on https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/UpgradableContractProxyOLD.sol
-* TODO When python TestRPC will have Byzantium hard fork then should use https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/UpgradableContractProxy.sol
+* @dev Based on https://github.com/willjgriff/solidity-playground/blob/master/Upgradable/ByzantiumUpgradable/contracts/UpgradableContractProxy.sol
 * @notice Proxying requests to other contracts.
 * Client should use ABI of real contract and address of this contract
 **/
@@ -18,10 +17,10 @@ contract Dispatcher is Upgradeable {
     /**
     * @param _target Target contract address
     **/
-    function Dispatcher(address _target) public {
+    constructor(address _target) public {
         target = _target;
         require(target.delegatecall(bytes4(keccak256("finishUpgrade(address)")), target));
-        Upgraded(0x0, _target, msg.sender);
+        emit Upgraded(0x0, _target, msg.sender);
     }
 
     /**
@@ -34,7 +33,7 @@ contract Dispatcher is Upgradeable {
         previousTarget = target;
         target = _target;
         require(target.delegatecall(bytes4(keccak256("finishUpgrade(address)")), target));
-        Upgraded(previousTarget, _target, msg.sender);
+        emit Upgraded(previousTarget, _target, msg.sender);
     }
 
     function verifyState(address _testTarget) public onlyOwner {
@@ -49,7 +48,7 @@ contract Dispatcher is Upgradeable {
     **/
     function rollback() public onlyOwner {
         require(previousTarget != 0x0);
-        RolledBack(target, previousTarget, msg.sender);
+        emit RolledBack(target, previousTarget, msg.sender);
         verifyUpgradeableState(previousTarget, target);
         target = previousTarget;
         previousTarget = 0x0;
@@ -71,25 +70,14 @@ contract Dispatcher is Upgradeable {
     **/
     function () public payable {
         assert(target != 0x0);
-
-        address upgradableContractMem = target;
-        uint32 size = 96;
-
-        assembly {
-            let freeMemAddress := mload(0x40)
-            mstore(0x40, add(freeMemAddress, calldatasize))
-            calldatacopy(freeMemAddress, 0x0, calldatasize)
-
-//            switch delegatecall(gas, upgradableContractMem, freeMemAddress, calldatasize, 0, 0)
-            switch delegatecall(gas, upgradableContractMem, freeMemAddress, calldatasize, 0, size)
-                case 0 {
-                    revert(0x0, 0)
-                }
-                default {
-//                    returndatacopy(0x0, 0x0, returndatasize)
-//                    return(0x0, returndatasize)
-                    return(0x0, size)
-                }
+        bool callSuccess = target.delegatecall(msg.data);
+        if (callSuccess) {
+            assembly {
+                returndatacopy(0x0, 0x0, returndatasize)
+                return(0x0, returndatasize)
+            }
+        } else {
+            revert();
         }
     }
 

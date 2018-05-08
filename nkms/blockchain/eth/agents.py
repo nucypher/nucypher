@@ -15,14 +15,16 @@ class EthereumContractAgent(ABC):
     """
 
     _principal_contract_name = NotImplemented
+    __contract_address = NotImplemented
 
     class ContractNotDeployed(ContractDeployer.ContractDeploymentError):
         pass
 
     def __init__(self, blockchain, *args, **kwargs):
-
         self.blockchain = blockchain
-        # self._contract = Contract(address)
+
+        address = blockchain.provider.get_contract_address(contract_name=self._principal_contract_name)[-1]  # TODO
+        self._contract = blockchain.provider.get_contract(address)
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -42,7 +44,7 @@ class EthereumContractAgent(ABC):
 
     @property
     def origin(self) -> str:
-        return self.blockchain._chain.web3.eth.accounts[0]    # TODO: make swappable
+        return self.blockchain.provider.w3.eth.coinbase    # TODO: make swappable
 
     def read(self):
         """
@@ -73,11 +75,6 @@ class NuCypherKMSTokenAgent(EthereumContractAgent):
     _deployer = NuCypherKMSTokenDeployer
     _principal_contract_name = NuCypherKMSTokenDeployer._contract_name
 
-    def registrar(self):
-        """Retrieve all known addresses for this contract"""
-        all_known_address = self.blockchain._chain.registrar.get_contract_address(self._principal_contract_name)
-        return all_known_address
-
 
 class MinerAgent(EthereumContractAgent):
     """
@@ -95,23 +92,11 @@ class MinerAgent(EthereumContractAgent):
         pass
 
     class MinerInfo(Enum):
-        MINERS_LENGTH = 0
-        MINER = 1
-        VALUE = 2
-        DECIMALS = 3
-        LOCKED_VALUE = 4
-        RELEASE = 5
-        MAX_RELEASE_PERIODS = 6
-        RELEASE_RATE = 7
-        CONFIRMED_PERIODS_LENGTH = 8
-        CONFIRMED_PERIOD = 9
-        CONFIRMED_PERIOD_LOCKED_VALUE = 10
-        LAST_ACTIVE_PERIOD_F = 11
-        DOWNTIME_LENGTH = 12
-        DOWNTIME_START_PERIOD = 13
-        DOWNTIME_END_PERIOD = 14
-        MINER_IDS_LENGTH = 15
-        MINER_ID = 16
+        VALUE = 0
+        DECIMALS = 1
+        LAST_ACTIVE_PERIOD = 2
+        CONFIRMED_PERIOD_1 = 3
+        CONFIRMED_PERIOD_2 = 4
 
     def __init__(self, token_agent: NuCypherKMSTokenAgent):
         super().__init__(blockchain=token_agent.blockchain)  # TODO: public
@@ -132,16 +117,10 @@ class MinerAgent(EthereumContractAgent):
         Miner addresses will be returned in the order in which they were added to the MinersEscrow's ledger
         """
 
-        info_reader = partial(self.read().getMinerInfo,
-                              self.MinerInfo.MINERS_LENGTH.value,
-                              self._deployer._null_addr)
-
-        count = info_reader(0).encode('latin-1')
-        count = self.blockchain._chain.web3.toInt(count)
+        count = self.read().getMinersLength()
 
         for index in range(count):
-            addr = info_reader(index).encode('latin-1')
-            yield self.blockchain._chain.web3.toChecksumAddress(addr)
+            yield self.read().miners(index)
 
     def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:
         """

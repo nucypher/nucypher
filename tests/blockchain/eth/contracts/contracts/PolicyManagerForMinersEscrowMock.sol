@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "contracts/MinersEscrow.sol";
@@ -12,7 +12,7 @@ contract PolicyManagerForMinersEscrowMock {
     MinersEscrow public escrow;
     mapping (address => uint256[]) public nodes;
 
-    function PolicyManagerForMinersEscrowMock(address, MinersEscrow _escrow) public {
+    constructor(address, MinersEscrow _escrow) public {
         escrow = _escrow;
     }
 

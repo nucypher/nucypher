@@ -1,7 +1,7 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
-import "../zeppelin/math/SafeMath.sol";
+import "zeppelin/math/SafeMath.sol";
 import "./Dispatcher.sol";
 import "./Upgradeable.sol";
 
@@ -15,6 +15,7 @@ contract MinersEscrowInterface {
 /**
 * @notice Contract for version voting
 **/
+// TODO there must be a way to cancel upgrade if there are errors
 contract Government is Upgradeable {
     using SafeMath for uint256;
 
@@ -65,7 +66,7 @@ contract Government is Upgradeable {
     * @param _policyManager The policy manager dispatcher
     * @param _votingDurationHours Voting duration in hours
     **/
-    function Government(
+    constructor(
         Dispatcher _escrow,
         Dispatcher _policyManager,
         uint256 _votingDurationHours
@@ -84,7 +85,7 @@ contract Government is Upgradeable {
     * @notice Get voting state
     **/
     function getVotingState() public view returns (VotingState) {
-        if (block.timestamp <= endVotingTimestamp) {
+        if (block.timestamp < endVotingTimestamp) {
             return VotingState.Active;
         }
         if (votesFor > votesAgainst && !upgradeFinished) {
@@ -111,7 +112,7 @@ contract Government is Upgradeable {
         votesAgainst = 0;
         votingType = _votingType;
         newAddress = _newAddress;
-        VotingCreated(votingNumber, votingType, newAddress);
+        emit VotingCreated(votingNumber, votingType, newAddress);
     }
 
     /**
@@ -148,7 +149,7 @@ contract Government is Upgradeable {
         } else if (votingType == VotingType.RollbackPolicyManager) {
             policyManager.rollback();
         }
-        UpgradeCommitted(votingNumber, votingType, newAddress);
+        emit UpgradeCommitted(votingNumber, votingType, newAddress);
     }
 
     function verifyState(address _testTarget) public onlyOwner {

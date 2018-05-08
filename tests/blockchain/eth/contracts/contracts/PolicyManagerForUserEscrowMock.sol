@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 /**
@@ -7,8 +7,8 @@ pragma solidity ^0.4.18;
 contract PolicyManagerForUserEscrowMock {
 
     function withdraw() public {
-        require(this.balance > 0);
-        msg.sender.transfer(this.balance);
+        require(address(this).balance > 0);
+        msg.sender.transfer(address(this).balance);
     }
 
     function () public payable {}

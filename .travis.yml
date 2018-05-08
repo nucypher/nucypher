@@ -5,7 +5,10 @@ python:
 - '3.6'
 install:
 - pip install pipenv --upgrade
-- pipenv install --dev --three
+- pipenv install --dev --three --skip-lock
+before_script:
+- wget https://github.com/ethereum/solidity/releases/download/v0.4.23/solc-static-linux -O "${VIRTUAL_ENV}/bin/solc"
+- chmod +x "${VIRTUAL_ENV}/bin/solc"
 script:
-- pipenv run -- pytest --cov=nkms -v tests
+- pipenv run -- pytest --runslow --cov=nkms -v tests
 - codecov

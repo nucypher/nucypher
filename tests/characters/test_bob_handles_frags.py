@@ -1,8 +1,9 @@
 import pytest
 
-from tests.utilities import MockNetworkyStuff
+from nkms.crypto.powers import EncryptingPower
 from umbral import pre
 from umbral.fragments import KFrag
+from nkms.crypto.constants import CFRAG_LENGTH_WITHOUT_PROOF
 
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_policy, bob):
@@ -69,8 +70,8 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_p
     assert total_known == len(treasure_map)
 
 
-def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, bob, ursulas,
-                                                         capsule_side_channel):
+def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, bob,
+                                                         alice, ursulas, capsule_side_channel):
     """
     Now that Bob has his list of Ursulas, he can issue a WorkOrder to one.  Upon receiving the WorkOrder, Ursula
     saves it and responds by re-encrypting and giving Bob a cFrag.
@@ -112,14 +113,15 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, bob, ur
     the_cfrag = cfrags[0]
 
     # Attach the CFrag to the Capsule.
-    capsule_side_channel[0].capsule.attach_cfrag(the_cfrag)
+    capsule = capsule_side_channel[0].capsule
+    capsule.attach_cfrag(the_cfrag)
 
     # Having received the cFrag, Bob also saved the WorkOrder as complete.
     assert len(bob._saved_work_orders) == 1
 
     # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
     # the correct cFrag (ie, that Ursula performed reencryption properly).
-    for u in ursulas:
+    for u in ursulas:   # ...and to do that, we need to address the right ursula.
         if u.rest_port == work_order.ursula.rest_port:
             ursula = u
             break
@@ -129,8 +131,14 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, bob, ur
     kfrag_bytes = ursula.datastore.get_policy_arrangement(
         work_order.kfrag_hrac.hex().encode()).k_frag
     the_kfrag = KFrag.from_bytes(kfrag_bytes)
-    the_correct_cfrag = pre.reencrypt(the_kfrag, capsule_side_channel[0].capsule)
-    assert bytes(the_cfrag) == bytes(the_correct_cfrag)  # It's the correct cfrag!
+    the_correct_cfrag = pre.reencrypt(the_kfrag, capsule)
+
+    # The first CFRAG_LENGTH_WITHOUT_PROOF bytes (ie, the cfrag proper, not the proof material), are the same:
+    assert bytes(the_cfrag)[:CFRAG_LENGTH_WITHOUT_PROOF] == bytes(the_correct_cfrag)[:CFRAG_LENGTH_WITHOUT_PROOF]  # It's the correct cfrag!
+
+    assert the_correct_cfrag.verify_correctness(capsule,
+                                                pubkey_a=enacted_policy.public_key,
+                                                pubkey_b=bob.public_key(EncryptingPower))
 
     # Now we'll show that Ursula saved the correct WorkOrder.
     work_orders_from_bob = ursula.work_orders(bob=bob)

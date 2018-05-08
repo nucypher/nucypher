@@ -1,8 +1,8 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "./ContractInterface.sol";
-import "contracts/proxy/Upgradeable.sol";
+import "proxy/Upgradeable.sol";
 
 
 /**
@@ -16,7 +16,7 @@ contract ContractV1 is ContractInterface, Upgradeable {
     // Note that besides the potential mess of unnecessary variables this could create over time, there isn't currently
     // any increase in cost because of this.
     uint public storageValue;
-    // Test dynamically sized values // TODO fix bugs
+    // Test dynamically sized values
     string public dynamicallySizedValue;
     // Test array values
     uint[] public arrayValues;
@@ -39,7 +39,7 @@ contract ContractV1 is ContractInterface, Upgradeable {
     mapping (uint => Structure2) public mappingStructures;
     uint public mappingStructuresLength;
 
-    function ContractV1(uint _storageValue) public {
+    constructor(uint _storageValue) public {
         storageValue = _storageValue;
     }
 
@@ -126,8 +126,9 @@ contract ContractV1 is ContractInterface, Upgradeable {
 
     function verifyState(address _testTarget) public onlyOwner {
         require(uint(delegateGet(_testTarget, "storageValue()")) == storageValue);
-        //TODO uncomment after fixing return size
-//        require(address(delegateGet(_testTarget, "dynamicallySizedValue()")) == owner);
+        bytes memory value = delegateGetBytes(_testTarget, "dynamicallySizedValue()");
+        require(value.length == bytes(dynamicallySizedValue).length &&
+            keccak256(value) == keccak256(dynamicallySizedValue));
 
         require(uint(delegateGet(_testTarget, "getArrayValueLength()")) == arrayValues.length);
         for (uint i = 0; i < arrayValues.length; i++) {
@@ -142,8 +143,8 @@ contract ContractV1 is ContractInterface, Upgradeable {
 
         require(uint(delegateGet(_testTarget, "getStructureLength1()")) == arrayStructures.length);
         for (i = 0; i < arrayStructures.length; i++) {
-            require(uint(delegateGet(_testTarget, "getStructureValue1(uint256)", bytes32(i))) ==
-                arrayStructures[i].value);
+            Structure1 memory structure1 = delegateGetStructure1(_testTarget, "arrayStructures(uint256)", bytes32(i));
+            require(structure1.value == arrayStructures[i].value);
             require(uint(delegateGet(_testTarget, "getStructureArrayLength1(uint256)", bytes32(i))) ==
                 arrayStructures[i].arrayValues.length);
             for (uint j = 0; j < arrayStructures[i].arrayValues.length; j++) {
@@ -155,8 +156,8 @@ contract ContractV1 is ContractInterface, Upgradeable {
 
         require(uint(delegateGet(_testTarget, "getStructureLength2()")) == mappingStructuresLength);
         for (i = 0; i < mappingStructuresLength; i++) {
-            require(uint(delegateGet(_testTarget, "getStructureValue2(uint256)", bytes32(i))) ==
-                mappingStructures[i].value);
+            Structure2 memory structure2 = delegateGetStructure2(_testTarget, "mappingStructures(uint256)", bytes32(i));
+            require(structure2.value == mappingStructures[i].value);
             require(uint(delegateGet(_testTarget, "getStructureArrayLength2(uint256)", bytes32(i))) ==
                 mappingStructures[i].arrayValues.length);
             for (j = 0; j < mappingStructures[i].arrayValues.length; j++) {
@@ -167,11 +168,38 @@ contract ContractV1 is ContractInterface, Upgradeable {
         }
     }
 
+    function delegateGetStructure1(address _target, string _signature, bytes32 _argument)
+        internal returns (Structure1 memory result)
+    {
+        bytes32 memoryAddress = delegateGetData(_target, _signature, 1, _argument, 0);
+        assembly {
+            result := memoryAddress
+        }
+    }
+
+    function delegateGetStructure2(address _target, string _signature, bytes32 _argument)
+        internal returns (Structure2 memory result)
+    {
+        bytes32 memoryAddress = delegateGetData(_target, _signature, 1, _argument, 0);
+        assembly {
+            result := memoryAddress
+        }
+    }
+
+    function delegateGetBytes(address _target, string _signature)
+        internal returns (bytes memory result)
+    {
+        bytes32 memoryAddress = delegateGetData(_target, _signature, 0, 0, 0);
+        assembly {
+            result := add(memoryAddress, mload(memoryAddress))
+        }
+    }
+
     function finishUpgrade(address _target) public onlyOwner {
         storageValue = ContractV1(_target).storageValue();
     }
 
     function createEvent(uint256 _value) public {
-        EventV1(_value);
+        emit EventV1(_value);
     }
 }

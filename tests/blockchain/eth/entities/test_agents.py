@@ -1,19 +1,21 @@
 import pytest
 
-from nkms.blockchain.eth.utilities import MockNuCypherMinerConfig
+from tests.blockchain.eth.utilities import MockNuCypherMinerConfig
 
 M = 10 ** 6
 
 
-def test_get_swarm(testerchain, mock_token_deployer, mock_miner_agent):
+@pytest.mark.skip("Last 5 stubborn blockchain tests.")
+def test_get_swarm(chain, mock_miner_agent):
 
-    mock_token_deployer._global_airdrop(amount=10000)
+    # chain._global_airdrop(amount=10000)
 
-    creator, *addresses = testerchain._chain.web3.eth.accounts
-    testerchain.spawn_miners(addresses=addresses, miner_agent=mock_miner_agent, locktime=1, m=M)
+    creator, *addresses = chain.provider.w3.eth.accounts
+
+    chain.spawn_miners(addresses=addresses, miner_agent=mock_miner_agent, locktime=1)
 
     default_period_duration = MockNuCypherMinerConfig._hours_per_period
-    testerchain.wait_time(default_period_duration)
+    chain.time_travel(default_period_duration)
 
     swarm = mock_miner_agent.swarm()
     swarm_addresses = list(swarm)

@@ -1,7 +1,7 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
-import "contracts/proxy/Government.sol";
+import "proxy/Government.sol";
 
 
 /**
@@ -11,7 +11,7 @@ contract GovernmentV2Mock is Government {
 
     uint256 public valueToCheck;
 
-    function GovernmentV2Mock(
+    constructor(
         Dispatcher _escrow,
         Dispatcher _policyManager,
         uint256 _votingDurationHours

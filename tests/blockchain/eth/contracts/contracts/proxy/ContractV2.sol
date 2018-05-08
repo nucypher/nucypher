@@ -1,8 +1,8 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "./ContractInterface.sol";
-import "contracts/proxy/Upgradeable.sol";
+import "proxy/Upgradeable.sol";
 
 
 /**
@@ -33,10 +33,9 @@ contract ContractV2 is ContractInterface, Upgradeable {
     mapping (uint => Structure2) public mappingStructures;
     uint public mappingStructuresLength;
 
-    uint[] public updatedDynamicallySizedValue;
     uint public storageValueToCheck;
 
-    function ContractV2(uint _storageValueToCheck) public {
+    constructor(uint _storageValueToCheck) public {
         storageValueToCheck = _storageValueToCheck;
     }
 
@@ -51,8 +50,12 @@ contract ContractV2 is ContractInterface, Upgradeable {
         return storageValue;
     }
 
-    function setDynamicallySizedValue(string) public {}
-    function getDynamicallySizedValue() public view returns (string) {}
+    function setDynamicallySizedValue(string _dynamicValue) public {
+        dynamicallySizedValue = _dynamicValue;
+    }
+    function getDynamicallySizedValue() public view returns (string) {
+        return dynamicallySizedValue;
+    }
 
     function pushArrayValue(uint _value) public {
         arrayValues.push(2 * _value);
@@ -70,22 +73,6 @@ contract ContractV2 is ContractInterface, Upgradeable {
     }
     function getMappingValue(uint _index) public view returns (uint) {
         return mappingValues[_index];
-    }
-
-    /**
-     * @notice The 2 functions below represent newly updated functions returning a different dynamically sized value.
-     *         Ideally we would do our best to avoid changing the signature of updated functions.
-     *         If adhering to an interface we have to update it and everywhere the interface is used.
-     */
-    function setDynamicallySizedValue(uint[] _updatedDynamicallySizedValue) public {
-        updatedDynamicallySizedValue = _updatedDynamicallySizedValue;
-    }
-    /**
-     * @notice This new function signature must be different than the one in the interface.
-     *         Note the return value does not contribute to the signature.
-     */
-    function getUpdatedDynamicallySizedValue() public view returns (uint[]) {
-        return updatedDynamicallySizedValue;
     }
 
     function getStructureLength1() public view returns (uint) {
@@ -138,11 +125,20 @@ contract ContractV2 is ContractInterface, Upgradeable {
         return mappingStructures[_index].valueToCheck;
     }
 
+    function getStructure1ArrayValues(uint _index) public view returns (uint[]) {
+        return arrayStructures[_index].arrayValues;
+    }
+
+    function getStructure2ArrayValues(uint _index) public view returns (uint[]) {
+        return mappingStructures[_index].arrayValues;
+    }
+
     function verifyState(address _testTarget) public onlyOwner {
         require(uint(delegateGet(_testTarget, "storageValue()")) == storageValue);
-        //TODO uncomment after fixing return size
-//        require(address(delegateGet(_testTarget, "dynamicallySizedValue()")) == owner);
-//        require(address(delegateGet(_testTarget, "updatedDynamicallySizedValue()")) == owner);
+        bytes memory value = delegateGetBytes(_testTarget, "dynamicallySizedValue()");
+        require(value.length == bytes(dynamicallySizedValue).length &&
+            keccak256(value) == keccak256(dynamicallySizedValue));
+
         require(uint(delegateGet(_testTarget, "getArrayValueLength()")) == arrayValues.length);
         for (uint i = 0; i < arrayValues.length; i++) {
             require(
@@ -156,33 +152,75 @@ contract ContractV2 is ContractInterface, Upgradeable {
 
         require(uint(delegateGet(_testTarget, "getStructureLength1()")) == arrayStructures.length);
         for (i = 0; i < arrayStructures.length; i++) {
-            require(uint(delegateGet(_testTarget, "getStructureValue1(uint256)", bytes32(i))) ==
-                arrayStructures[i].value);
-            require(uint(delegateGet(_testTarget, "getStructureArrayLength1(uint256)", bytes32(i))) ==
-                arrayStructures[i].arrayValues.length);
+            Structure1 memory structure1 = delegateGetStructure1(_testTarget, "arrayStructures(uint256)", bytes32(i));
+            require(structure1.value == arrayStructures[i].value);
+
+            bytes32[] memory values = delegateGetArray(_testTarget, "getStructure1ArrayValues(uint256)", bytes32(i));
+            require(values.length == arrayStructures[i].arrayValues.length);
             for (uint j = 0; j < arrayStructures[i].arrayValues.length; j++) {
-                require(uint(delegateGet(
-                        _testTarget, "getStructureArrayValue1(uint256,uint256)", bytes32(i), bytes32(j))) ==
-                    arrayStructures[i].arrayValues[j]);
+                require(uint(values[j]) == arrayStructures[i].arrayValues[j]);
             }
         }
 
         require(uint(delegateGet(_testTarget, "getStructureLength2()")) == mappingStructuresLength);
         for (i = 0; i < mappingStructuresLength; i++) {
-            require(uint(delegateGet(_testTarget, "getStructureValue2(uint256)", bytes32(i))) ==
-                mappingStructures[i].value);
-            require(uint(delegateGet(_testTarget, "getStructureArrayLength2(uint256)", bytes32(i))) ==
-                mappingStructures[i].arrayValues.length);
+            Structure2 memory structure2 = delegateGetStructure2(_testTarget, "mappingStructures(uint256)", bytes32(i));
+            require(structure2.value == mappingStructures[i].value);
+            require(structure2.valueToCheck == mappingStructures[i].valueToCheck);
+
+            values = delegateGetArray(_testTarget, "getStructure2ArrayValues(uint256)", bytes32(i));
+            require(values.length == mappingStructures[i].arrayValues.length);
             for (j = 0; j < mappingStructures[i].arrayValues.length; j++) {
-                require(uint(delegateGet(
-                        _testTarget, "getStructureArrayValue2(uint256,uint256)", bytes32(i), bytes32(j))) ==
-                    mappingStructures[i].arrayValues[j]);
+                require(uint(values[j]) == mappingStructures[i].arrayValues[j]);
             }
-            require(uint(delegateGet(_testTarget, "getStructureValueToCheck2(uint256)", bytes32(i))) ==
-                mappingStructures[i].valueToCheck);
         }
 
         require(uint(delegateGet(_testTarget, "storageValueToCheck()")) == storageValueToCheck);
+    }
+
+    function delegateGetStructure1(address _target, string _signature, bytes32 _argument)
+        internal returns (Structure1 memory result)
+    {
+        bytes32 memoryAddress = delegateGetData(_target, _signature, 1, _argument, 0);
+        assembly {
+            result := memoryAddress
+        }
+    }
+
+    function delegateGetStructure2(address _target, string _signature, bytes32 _argument)
+        internal returns (Structure2 memory result)
+    {
+        bytes32 memoryAddress = delegateGetData(_target, _signature, 1, _argument, 0);
+        assembly {
+            result := memoryAddress
+            // copy data to the right position because of it is the array pointer place (arrayValues)
+            mstore(add(memoryAddress, 0x40), mload(add(memoryAddress, 0x20)))
+        }
+    }
+
+    function delegateGetBytes(address _target, string _signature)
+        internal returns (bytes memory result)
+    {
+        bytes32 memoryAddress = delegateGetData(_target, _signature, 0, 0, 0);
+        assembly {
+            result := add(memoryAddress, mload(memoryAddress))
+        }
+    }
+
+    /**
+    * @dev Get array by one parameter.
+    **/
+    function delegateGetArray(
+        address _target,
+        string _signature,
+        bytes32 _argument
+    )
+        public returns (bytes32[] memory result)
+    {
+        bytes32 memoryAddress = delegateGetData(_target, _signature, 1, _argument, 0);
+        assembly {
+            result := add(memoryAddress, mload(memoryAddress))
+        }
     }
 
     function finishUpgrade(address _target) public onlyOwner {
@@ -190,6 +228,6 @@ contract ContractV2 is ContractInterface, Upgradeable {
     }
 
     function createEvent(uint8 _value) public {
-        EventV2(_value);
+        emit EventV2(_value);
     }
 }

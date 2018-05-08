@@ -1,12 +1,8 @@
 import json
 import os
-from abc import ABC
 from pathlib import Path
 
 import maya
-from os.path import join, dirname, abspath
-
-from nkms.blockchain import eth
 
 _DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
 
@@ -15,34 +11,9 @@ class KMSConfigurationError(RuntimeError):
     pass
 
 
-class BlockchainConfig(ABC):
-    pass
-
-
-class EthereumConfig(BlockchainConfig):
-    __solididty_source_dir = join(dirname(abspath(eth.__file__)), 'sol_source')
-    __default_registrar_path = join(_DEFAULT_CONFIGURATION_DIR, 'registrar.json')
-
-    def __init__(self, provider, registrar_path=None):
-
-        self.provider = provider
-
-        if registrar_path is None:
-            registrar_path = self.__default_registrar_path
-        self._registrar_path = registrar_path
-
-        # Populus project config
-        # self._populus_project = populus.Project(self._project_dir)
-        # self.project.config['chains.mainnetrpc.contracts.backends.JSONFile.settings.file_path'] = self._registrar_path
-
-    # @property
-    # def project(self):
-    #     return self._populus_project
-
-
 class StakeConfig:
-    __minimum_stake_amount = 0  # TODO!!!
-    __minimum_stake_duration = 0
+    # __minimum_stake_amount = 0  # TODO
+    # __minimum_stake_duration = 0
 
     def __init__(self, amount: int, periods: int, start_datetime):
 
@@ -54,9 +25,9 @@ class StakeConfig:
     @classmethod
     def validate_stake(cls, amount: int, periods: int, start_datetime) -> bool:
         rules = (
-            (amount > cls.__minimum_stake_amount, 'Staking aount must be at least {min_amount}'),
+            # (amount > cls.__minimum_stake_amount, 'Staking aount must be at least {min_amount}'),  # TODO
             (start_datetime < maya.now(), 'Start date/time must not be in the past.'),
-            (periods > cls.__minimum_stake_duration, 'Staking duration must be at least {}'.format(cls.__minimum_stake_duration))
+            # (periods > cls.__minimum_stake_duration, 'Staking duration must be at least {}'.format(cls.__minimum_stake_duration))
         )
 
         for rule, failure_message in rules:
@@ -78,7 +49,7 @@ class PolicyConfig:
 
 
 class NetworkConfig:
-    __default_db_name = 'kms_datastore.db'
+    __default_db_name = 'kms_datastore.db'  # TODO
     __default_db_path = os.path.join(_DEFAULT_CONFIGURATION_DIR , __default_db_name)
     __default_port = 5867
 

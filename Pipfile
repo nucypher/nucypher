@@ -4,6 +4,12 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+
+# Install cryptography wheels from pyUmbral github for now.
+cryptography35_linux = { file="https://github.com/nucypher/pyUmbral/blob/master/wheelhouse/cryptography-2.3.dev1-cp35-cp35m-linux_x86_64.whl?raw=true", markers="python_version >= '3.5' and python_version < '3.6' and platform_system == 'Linux'"}
+cryptography36_linux = { file="https://github.com/nucypher/pyUmbral/blob/master/wheelhouse/cryptography-2.3.dev1-cp36-cp36m-linux_x86_64.whl?raw=true", markers="python_version >= '3.6' and python_version < '3.7' and platform_system == 'Linux'"}
+
+
 rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "kms-dependency"}
 kademlia = {git = "https://github.com/nucypher/kademlia", ref = "kms-dependency"}
 PyNaCl = "*"
@@ -21,13 +27,17 @@ hendrix = {git = "https://github.com/hendrix/hendrix", ref = "tags/3.0.0rc1"}
 constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "kms-depend"}
 bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git", ref = "kms-depend"}
 appdirs = "*"
-populus = {git = "https://github.com/nucypher/Bropulus.git"}
 
 [dev-packages]
 pytest = "*"
+codecov = "*"
 coverage = "*"
 pytest-cov = "*"
-pdbpp = "*"
-ipython = "*"
-appdirs = "*"
-codecov = "*"
+py-solc = "*"
+py-evm = "==0.2.0a16"
+eth-tester = "==0.1.0b24"
+web3 = "==4.2.0"
+py-geth = "*"
+
+[pipenv]
+allow_prereleases = true

@@ -1,9 +1,10 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
-import "./NuCypherKMSToken.sol";
-import "./zeppelin/math/SafeMath.sol";
-import "./proxy/Upgradeable.sol";
+import "contracts/NuCypherKMSToken.sol";
+import "zeppelin/math/SafeMath.sol";
+import "zeppelin/math/Math.sol";
+import "proxy/Upgradeable.sol";
 
 
 /**
@@ -22,11 +23,16 @@ contract Issuer is Upgradeable {
     uint256 public awardedPeriods;
 
     uint256 public lastMintedPeriod;
-    mapping (byte => uint256) public totalSupply;
-    byte public currentIndex;
     uint256 public futureSupply;
-
-    byte constant NEGATION = 0xF0;
+    /**
+    * Current supply is used in the mining formula and is stored to prevent different calculation
+    * for miners which get reward in the same period. There are two values -
+    * supply for previous period (used in formula) and supply for current period which accumulates value
+    * before end of period. There is no order between them because of storage savings.
+    * So each time should check values of both variables.
+    **/
+    uint256 public currentSupply1;
+    uint256 public currentSupply2;
 
     /**
     * @notice Constructor sets address of token contract and coefficients for mining
@@ -39,7 +45,7 @@ contract Issuer is Upgradeable {
     * @param _lockedPeriodsCoefficient Locked blocks coefficient (k1)
     * @param _awardedPeriods Max periods that will be additionally awarded
     **/
-    function Issuer(
+    constructor(
         NuCypherKMSToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,
@@ -68,7 +74,7 @@ contract Issuer is Upgradeable {
     **/
     modifier isInitialized()
     {
-        require(currentIndex != 0x00);
+        require(currentSupply1 != 0);
         _;
     }
 
@@ -83,13 +89,12 @@ contract Issuer is Upgradeable {
     * @notice Initialize reserved tokens for reward
     **/
     function initialize() public {
-        require(currentIndex == 0x00);
-        currentIndex = 0x01;
+        require(currentSupply1 == 0);
         uint256 reservedReward = token.balanceOf(address(this));
         uint256 currentTotalSupply = futureSupply.sub(reservedReward);
-        totalSupply[currentIndex] = currentTotalSupply;
-        totalSupply[currentIndex ^ NEGATION] = currentTotalSupply;
-        Initialized(reservedReward);
+        currentSupply1 = currentTotalSupply;
+        currentSupply2 = currentTotalSupply;
+        emit Initialized(reservedReward);
     }
 
     /**
@@ -111,12 +116,10 @@ contract Issuer is Upgradeable {
     )
         internal returns (uint256 amount, uint256 decimals)
     {
-        // TODO end of mining before calculation
-        uint256 nextTotalSupply = totalSupply[currentIndex ^ NEGATION];
-        if (_period > lastMintedPeriod) {
-            currentIndex = currentIndex ^ NEGATION;
-            lastMintedPeriod = _period;
-        }
+        // TODO finish method before calculation after end of mining
+        uint256 currentSupply = _period <= lastMintedPeriod ?
+            Math.min256(currentSupply1, currentSupply2) :
+            Math.max256(currentSupply1, currentSupply2);
 
         //futureSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2) -
         //currentSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
@@ -129,13 +132,26 @@ contract Issuer is Upgradeable {
                 .mul(_lockedValue)
                 .mul(allLockedPeriods)
                 .div(denominator).sub(
-            totalSupply[currentIndex]
+            currentSupply
                 .mul(_lockedValue)
                 .mul(allLockedPeriods)
                 .div(denominator));
         decimals = _decimals;
 
-        totalSupply[currentIndex ^ NEGATION] = nextTotalSupply.add(amount);
+        if (_period <= lastMintedPeriod) {
+            if (currentSupply1 > currentSupply2) {
+                currentSupply1 = currentSupply1.add(amount);
+            } else {
+                currentSupply2 = currentSupply2.add(amount);
+            }
+        } else {
+            lastMintedPeriod = _period;
+            if (currentSupply1 > currentSupply2) {
+                currentSupply2 = currentSupply1.add(amount);
+            } else {
+                currentSupply1 = currentSupply2.add(amount);
+            }
+        }
     }
 
     function verifyState(address _testTarget) public onlyOwner {
@@ -145,10 +161,8 @@ contract Issuer is Upgradeable {
         require(uint256(delegateGet(_testTarget, "lockedPeriodsCoefficient()")) == lockedPeriodsCoefficient);
         require(uint256(delegateGet(_testTarget, "awardedPeriods()")) == awardedPeriods);
         require(uint256(delegateGet(_testTarget, "lastMintedPeriod()")) == lastMintedPeriod);
-        require(byte(delegateGet(_testTarget, "currentIndex()")) == currentIndex);
-        require(uint256(delegateGet(_testTarget, "totalSupply(bytes1)", currentIndex)) == totalSupply[currentIndex]);
-        require(uint256(delegateGet(_testTarget, "totalSupply(bytes1)", currentIndex ^ NEGATION)) ==
-            totalSupply[currentIndex ^ NEGATION]);
+        require(uint256(delegateGet(_testTarget, "currentSupply1()")) == currentSupply1);
+        require(uint256(delegateGet(_testTarget, "currentSupply2()")) == currentSupply2);
         require(uint256(delegateGet(_testTarget, "futureSupply()")) == futureSupply);
     }
 
