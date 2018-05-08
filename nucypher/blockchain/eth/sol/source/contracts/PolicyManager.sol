@@ -73,6 +73,7 @@ contract PolicyManager is Upgradeable {
         uint256 rewardRate;
         uint256 lastMinedPeriod;
         mapping (uint256 => int256) rewardDelta;
+        uint256 minRewardRate;
     }
 
     bytes20 constant RESERVED_POLICY_ID = bytes20(0);
@@ -131,6 +132,7 @@ contract PolicyManager is Upgradeable {
             address node = _nodes[i];
             require(escrow.getLockedTokens(node) != 0 && node != RESERVED_NODE);
             NodeInfo storage nodeInfo = nodes[node];
+            require(policy.rewardRate >= nodeInfo.minRewardRate);
             nodeInfo.rewardDelta[currentPeriod] = nodeInfo.rewardDelta[currentPeriod].add(_firstReward);
             nodeInfo.rewardDelta[policy.startPeriod] = nodeInfo.rewardDelta[policy.startPeriod]
                 .add(startReward);
@@ -353,6 +355,14 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
+    * @notice Set the minimum reward that the node will take
+    **/
+    function setMinRewardRate(uint256 _minRewardRate) public {
+        NodeInfo storage node = nodes[msg.sender];
+        node.minRewardRate = _minRewardRate;
+    }
+
+    /**
     * @notice Get number of nodes in policy
     * @param _policyId Policy id
     **/
@@ -463,7 +473,8 @@ contract PolicyManager is Upgradeable {
         NodeInfo memory nodeInfoToCheck = delegateGetNodeInfo(_testTarget, RESERVED_NODE);
         require(nodeInfoToCheck.reward == nodeInfo.reward &&
             nodeInfoToCheck.rewardRate == nodeInfo.rewardRate &&
-            nodeInfoToCheck.lastMinedPeriod == nodeInfo.lastMinedPeriod);
+            nodeInfoToCheck.lastMinedPeriod == nodeInfo.lastMinedPeriod &&
+            nodeInfoToCheck.minRewardRate == nodeInfo.minRewardRate);
 
         require(int256(delegateGet(_testTarget, "getNodeRewardDelta(address,uint256)",
             bytes32(RESERVED_NODE), 11)) == nodeInfo.rewardDelta[11]);
@@ -489,5 +500,6 @@ contract PolicyManager is Upgradeable {
         nodeInfo.rewardRate = 33;
         nodeInfo.lastMinedPeriod = 44;
         nodeInfo.rewardDelta[11] = 55;
+        nodeInfo.minRewardRate = 777;
     }
 }
