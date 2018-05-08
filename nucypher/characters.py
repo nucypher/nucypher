@@ -14,7 +14,7 @@ from umbral.keys import UmbralPublicKey
 from constant_sorrow import constants, default_constant_splitter
 
 from nucypher.blockchain.eth.actors import PolicyAuthor
-from nucypher.config.configs import NucypherConfig
+from nucypher.config.configs import NuCypherConfig
 from nucypher.crypto.api import secure_random, keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -38,7 +38,7 @@ class Character(object):
 
     def __init__(self, attach_server=True, crypto_power: CryptoPower=None,
                  crypto_power_ups=None, is_me=True, network_middleware=None,
-                 config: "NucypherConfig"=None) -> None:
+                 config: "NuCypherConfig"=None) -> None:
         """
         :param attach_server:  Whether to attach a Server when this Character is
             born.
@@ -60,7 +60,7 @@ class Character(object):
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
-        # self.config = config if config is not None else NucypherConfig.get_config()
+        # self.config = config if config is not None else NuCypherConfig.get_config()
         self.known_nodes = {}
         self.log = getLogger("characters")
 

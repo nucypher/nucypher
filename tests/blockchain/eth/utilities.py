@@ -8,7 +8,7 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import NuCypherMinerConfig
-from nucypher.blockchain.eth.deployers import MinerEscrowDeployer
+from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NuCypherTokenDeployer
 
 
 class MockNuCypherMinerConfig(NuCypherMinerConfig):
@@ -17,13 +17,18 @@ class MockNuCypherMinerConfig(NuCypherMinerConfig):
     _min_locked_periods = 1  # Minimum locked periods
 
 
-class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNuCypherMinerConfig):
-    """Helper class for MockMinerAgent, using a mock miner config"""
-
-
 class MockMinerAgent(MinerAgent):
     """MinerAgent with faked config subclass"""
-    _deployer = MockMinerEscrowDeployer
+
+
+class MockNuCypherKMSTokenDeployer(NuCypherTokenDeployer):
+    """Mock deployer with mock agency"""
+    # agency = MockTokenAgent
+
+
+class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNuCypherMinerConfig):
+    """Helper class for MockMinerAgent, using a mock miner config"""
+    agency = MockMinerAgent
 
 
 def generate_accounts(w3: Web3, quantity: int) -> List[str]:

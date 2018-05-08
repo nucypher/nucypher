@@ -3,7 +3,7 @@ from collections import OrderedDict
 from datetime import datetime
 from typing import Tuple, List, Union
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.agents import NuCypherTokenAgent
 
 
 class TokenActor(ABC):
@@ -11,7 +11,7 @@ class TokenActor(ABC):
     class ActorError(Exception):
         pass
 
-    def __init__(self, token_agent: NucypherTokenAgent, address: Union[bytes, str]):
+    def __init__(self, token_agent: NuCypherTokenAgent, address: Union[bytes, str]):
         self.token_agent = token_agent
 
         if isinstance(address, bytes):

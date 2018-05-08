@@ -2,10 +2,10 @@
 Public facing client interface
 """
 
-from nucypher.config.keys import NucypherKeyring
+from nucypher.config.keys import NuCypherKeyring
 
 
 def _bootstrap_config():
     """Do not actually use this."""
     passphrase = input("Enter passphrase >> ")
-    return NucypherKeyring.generate(passphrase=passphrase)
+    return NuCypherKeyring.generate(passphrase=passphrase)

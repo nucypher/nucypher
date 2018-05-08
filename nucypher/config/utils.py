@@ -2,7 +2,7 @@ import json
 import os
 import stat
 
-from .configs import _DEFAULT_CONFIGURATION_DIR, NucypherConfigurationError
+from .configs import _DEFAULT_CONFIGURATION_DIR, NuCypherConfigurationError
 
 
 def _save_private_keyfile(keypath: str, key_data: dict) -> str:
@@ -87,7 +87,7 @@ def _parse_keyfile(keypath: str):
         try:
             key_metadata = json.loads(keyfile)
         except json.JSONDecodeError:
-            raise NucypherConfigurationError("Invalid data in keyfile {}".format(keypath))
+            raise NuCypherConfigurationError("Invalid data in keyfile {}".format(keypath))
         else:
             return key_metadata
 
@@ -112,7 +112,7 @@ def validate_passphrase(passphrase) -> bool:
 
     for rule, failure_message in rules:
         if not rule:
-            raise NucypherConfigurationError(failure_message)
+            raise NuCypherConfigurationError(failure_message)
     return True
 
 

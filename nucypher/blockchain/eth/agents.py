@@ -1,12 +1,12 @@
 import random
 from abc import ABC
 from enum import Enum
+from functools import partial
 from typing import Set, Generator, List
 
-from functools import partial
-
-from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherTokenDeployer, PolicyManagerDeployer, \
-    ContractDeployer
+from nucypher.blockchain.eth import constants
+from nucypher.blockchain.eth.constants import NuCypherTokenConfig, NuCypherMinerConfig
+from web3.contract import Contract
 
 
 class EthereumContractAgent(ABC):
@@ -17,14 +17,16 @@ class EthereumContractAgent(ABC):
     _principal_contract_name = NotImplemented
     __contract_address = NotImplemented
 
-    class ContractNotDeployed(ContractDeployer.ContractDeploymentError):
+    class ContractNotDeployed(Exception):
         pass
 
-    def __init__(self, blockchain, *args, **kwargs):
+    def __init__(self, blockchain, contract: Contract=None, *args, **kwargs):
         self.blockchain = blockchain
 
-        address = blockchain.provider.get_contract_address(contract_name=self._principal_contract_name)[-1]  # TODO
-        self.__contract = blockchain.provider.get_contract(address)
+        if contract is None:
+            address = blockchain.provider.get_contract_address(contract_name=self._principal_contract_name)[-1]  # TODO
+            contract = blockchain.provider.get_contract(address)
+        self.__contract = contract
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -57,23 +59,20 @@ class EthereumContractAgent(ABC):
         return self.contract.functions.balanceOf(address).call()
 
 
-class NucypherTokenAgent(EthereumContractAgent):
-
-    _deployer = NucypherTokenDeployer
-    _principal_contract_name = NucypherTokenDeployer._contract_name
+class NuCypherTokenAgent(EthereumContractAgent, NuCypherTokenConfig):
+    _principal_contract_name = "NuCypherToken"
 
 
-class MinerAgent(EthereumContractAgent):
+class MinerAgent(EthereumContractAgent, NuCypherMinerConfig):
     """
-    Wraps NuCypher's Escrow solidity smart contract, and manages a... PopulusContract?
+    Wraps NuCypher's Escrow solidity smart contract
 
     In order to become a participant of the network,
     a miner locks tokens by depositing to the Escrow contract address
     for a duration measured in periods.
     """
 
-    _deployer = MinerEscrowDeployer
-    _principal_contract_name = MinerEscrowDeployer._contract_name
+    _principal_contract_name = "MinersEscrow"
 
     class NotEnoughUrsulas(Exception):
         pass
@@ -85,8 +84,8 @@ class MinerAgent(EthereumContractAgent):
         CONFIRMED_PERIOD_1 = 3
         CONFIRMED_PERIOD_2 = 4
 
-    def __init__(self, token_agent: NucypherTokenAgent):
-        super().__init__(blockchain=token_agent.blockchain)  # TODO: public
+    def __init__(self, token_agent: NuCypherTokenAgent, *args, **kwargs):
+        super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
         self.token_agent = token_agent
         self.miners = list()    # Tracks per client
 
@@ -105,7 +104,7 @@ class MinerAgent(EthereumContractAgent):
         """
 
         info_reader = partial(self.contract.functions.getMinerInfo,
-                              self.MinerInfo.MINERS_LENGTH.value, self._deployer._null_addr
+                              self.MinerInfo.MINERS_LENGTH.value, constants.NULL_ADDRESS
                               # ___,
                               )
 
@@ -149,7 +148,7 @@ class MinerAgent(EthereumContractAgent):
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
             deltas = [i-j for i, j in zip(points[1:], points[:-1])]
 
-            addrs, addr, index, shift = set(), self._deployer._null_addr, 0, 0
+            addrs, addr, index, shift = set(), constants.NULL_ADDRESS, 0, 0
             for delta in deltas:
                 addr, index, shift = self.contract.functions.findCumSum(index, delta + shift, duration).call()
                 addrs.add(addr)
@@ -162,18 +161,17 @@ class MinerAgent(EthereumContractAgent):
 
 class PolicyAgent(EthereumContractAgent):
 
-    _deployer = PolicyManagerDeployer
-    _principal_contract_name = PolicyManagerDeployer._contract_name
+    _principal_contract_name = "PolicyManager"
 
     def fetch_arrangement_data(self, arrangement_id: bytes) -> list:
         blockchain_record = self.contract.functions.policies(arrangement_id).call()
         return blockchain_record
 
-    def revoke_arrangement(self, arrangement_id: bytes, author, gas_price: int):
+    def revoke_arrangement(self, arrangement_id: bytes, author):
         """
         Revoke by arrangement ID; Only the policy author can revoke the policy
         """
 
-        txhash = self.contract.functions.revokePolicy(arrangement_id).transact({'from': author.address, 'gas_price': gas_price})
+        txhash = self.contract.functions.revokePolicy(arrangement_id).transact({'from': author.address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash

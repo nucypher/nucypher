@@ -2,12 +2,14 @@ from typing import Tuple, Dict
 
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.constants import NuCypherMinerConfig, NuCypherTokenConfig
+from nucypher.blockchain.eth.agents import EthereumContractAgent, MinerAgent, NuCypherTokenAgent, PolicyAgent
+from nucypher.blockchain.eth.constants import NuCypherTokenConfig, NuCypherMinerConfig
 from .chains import TheBlockchain
 
 
 class ContractDeployer:
 
+    agency = NotImplemented
     _contract_name = NotImplemented
     _arming_word = "I UNDERSTAND"
 
@@ -149,10 +151,15 @@ class ContractDeployer:
         """
         raise NotImplementedError
 
+    def make_agent(self) -> EthereumContractAgent:
+        agent = self.agency(blockchain=self.blockchain, contract=self._contract)
+        return agent
 
-class NucypherTokenDeployer(ContractDeployer, NuCypherTokenConfig):
+
+class NuCypherTokenDeployer(ContractDeployer, NuCypherTokenConfig):
 
     _contract_name = 'NuCypherToken'
+    agency = NuCypherTokenAgent
 
     def __init__(self, blockchain):
         super().__init__(blockchain=blockchain)
@@ -204,6 +211,7 @@ class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
     Deploys the MinerEscrow ethereum contract to the blockchain.  Depends on NuCypherTokenAgent
     """
 
+    agency = MinerAgent
     _contract_name = 'MinersEscrow'
 
     def __init__(self, token_agent):
@@ -275,12 +283,17 @@ class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
         self.deployment_transactions = deployment_transactions
         return deployment_transactions
 
+    def make_agent(self) -> EthereumContractAgent:
+        agent = self.agency(token_agent=self.token_agent, contract=self._contract)
+        return agent
+
 
 class PolicyManagerDeployer(ContractDeployer):
     """
     Depends on MinerAgent and NuCypherTokenAgent
     """
 
+    agency = PolicyAgent
     _contract_name = 'PolicyManager'
 
     def __init__(self, miner_agent):

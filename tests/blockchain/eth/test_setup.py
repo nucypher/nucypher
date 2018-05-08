@@ -1,4 +1,4 @@
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
+from nucypher.blockchain.eth.deployers import NuCypherTokenDeployer
 
 
 def test_chain_creation(chain):
@@ -13,5 +13,5 @@ def test_nucypher_contract_compiled(chain):
     # Check that populus paths are set...
 
     # Ensure that solidity smart contacts are available, post-compile.
-    token_contract_identifier = NucypherTokenDeployer(blockchain=chain)._contract_name
+    token_contract_identifier = NuCypherTokenDeployer(blockchain=chain)._contract_name
     assert token_contract_identifier in chain.provider._ContractProvider__raw_contract_cache
