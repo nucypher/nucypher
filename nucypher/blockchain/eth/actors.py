@@ -166,6 +166,16 @@ class Miner(TokenActor):
 
         return reward_txhash
 
+    def __validate_stake(self, amount: int, locktime: int) -> bool:
+
+        assert self.miner_agent.validate_stake_amount(amount=amount)
+        assert self.miner_agent.validate_locktime(periods=locktime)
+
+        if not self.token_balance() >= amount:
+            raise self.StakingError("Insufficient miner token balance ({balance})".format(balance=self.token_balance()))
+        else:
+            return True
+
     def stake(self, amount, locktime, entire_balance=False):
         """
         High level staking method for Miners.
@@ -176,19 +186,12 @@ class Miner(TokenActor):
         if entire_balance and amount:
             raise self.StakingError("Specify an amount or entire balance, not both")
 
-        if not locktime >= 0:
-            min_stake_time = self.miner_agent._deployer._min_release_periods
-            raise self.StakingError('Locktime must be at least {}'.format(min_stake_time))
-
         if entire_balance is True:
-
             balance_bytes = self.miner_agent.contract.functions.getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
-                                                                 self.address, 0).call()
-
+                                                                             self.address, 0).call()
             amount = self.blockchain._chain.web3.toInt(balance_bytes)
-        else:
-            if not amount > 0:
-                raise self.StakingError('Staking amount must be greater than zero.')
+
+        assert self.__validate_stake(amount, locktime)
 
         approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, locktime=locktime)
         self._transactions.append((datetime.utcnow(), initial_deposit_txhash))
