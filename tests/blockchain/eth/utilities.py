@@ -6,7 +6,7 @@ from eth_tester.backends import is_pyevm_available
 from eth_tester.backends.pyevm.main import get_default_genesis_params, get_default_account_keys, generate_genesis_state
 from web3 import Web3
 
-from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.agents import MinerAgent, NuCypherTokenAgent
 from nucypher.blockchain.eth.constants import NuCypherMinerConfig
 from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NuCypherTokenDeployer
 
@@ -14,7 +14,29 @@ from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NuCypherToken
 class MockNuCypherMinerConfig(NuCypherMinerConfig):
     """Speed things up a bit"""
     _hours_per_period = 1     # Hours
-    _min_locked_periods = 1  # Minimum locked periods
+    _min_locked_periods = 1   # Minimum locked periods
+
+
+class MockTokenAgent(NuCypherTokenAgent):
+
+    def token_airdrop(self, amount: int, addresses: List[str]=None):
+        """Airdrops tokens from creator address to all other addresses!"""
+
+        amount = amount * self._M
+
+        if addresses is None:
+            _creator, *addresses = self.blockchain.provider.w3.eth.accounts
+
+        def txs():
+            for address in addresses:
+                txhash = self.contract.functions.transfer(address, amount).transact({'from': self.origin})
+                yield txhash
+
+        receipts = list()
+        for tx in txs():    # One at a time
+            receipt = self.blockchain.wait_for_receipt(tx)
+            receipts.append(receipt)
+        return receipts
 
 
 class MockMinerAgent(MinerAgent):

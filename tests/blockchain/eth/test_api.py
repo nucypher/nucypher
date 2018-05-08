@@ -2,13 +2,14 @@ import pytest
 
 from nucypher.blockchain.eth.agents import NuCypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.deployers import NuCypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
+from nucypher.blockchain.eth.interfaces import Registrar
 
 
 def test_token_deployer_and_agent(chain):
 
     # Trying to get token from blockchain before it's been published fails
-    # with raises(NoKnownAddress):
-    #     NuCypherTokenAgent(blockchain=chain)
+    with pytest.raises(Registrar.UnknownContract):
+        NuCypherTokenAgent(blockchain=chain)
 
     # The big day...
     deployer = NuCypherTokenDeployer(blockchain=chain)

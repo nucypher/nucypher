@@ -6,9 +6,9 @@ M = 10 ** 6
 
 
 @pytest.mark.skip("Last 5 stubborn blockchain tests.")
-def test_get_swarm(chain, mock_miner_agent):
+def test_get_swarm(chain, mock_token_agent, mock_miner_agent):
 
-    # chain._global_airdrop(amount=10000)
+    mock_token_agent._token_airdrop(amount=10000)
 
     creator, *addresses = chain.provider.w3.eth.accounts
 

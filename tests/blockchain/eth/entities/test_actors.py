@@ -142,7 +142,7 @@ def test_publish_miner_datastore(chain, mock_miner_agent):
     assert another_mock_miner_id == stored_miner_ids[1]
 
     supposedly_the_same_miner_id = mock_miner_agent.contract.functions \
-        .getMinerInfo(mock_miner_agent._deployer.MinerInfoField.MINER_ID.value,
+        .getMinerInfo(mock_miner_agent.MinerInfoField.MINER_ID.value,
                       miner_addr, 1).call()
 
     assert another_mock_miner_id == supposedly_the_same_miner_id

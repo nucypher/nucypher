@@ -97,6 +97,7 @@ class Miner(TokenActor):
         """Send tokes to the escrow from the miner's address"""
 
         deposit_txhash = self.miner_agent.contract.functions.deposit(amount, locktime).transact({'from': self.address})
+
         self.blockchain.wait_for_receipt(deposit_txhash)
 
         self._transactions.append((datetime.utcnow(), deposit_txhash))
