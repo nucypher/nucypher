@@ -77,12 +77,12 @@ class NuCypherMinerConfig:
         rulebook = (
 
             (periods >= self._min_locked_periods,
-             'Locktime ({locktime}) too long; must be at least {minimum}'
+             'Locktime ({locktime}) too short; must be at least {minimum}'
              .format(minimum=self._min_locked_periods, locktime=periods)),
 
 
             (periods <= self.__max_minting_periods,
-             'Locktime ({locktime}) too short; must be no more than {maximum}'
+             'Locktime ({locktime}) too long; must be no more than {maximum}'
              .format(maximum=self._min_locked_periods, locktime=periods)),
         )
 
