@@ -13,8 +13,7 @@ contract PolicyManagerBad is PolicyManager {
     constructor(MinersEscrow _escrow) public PolicyManager(_escrow) {
     }
 
-    function getNodeRewardDelta(address _node, uint256 _period)
-        public view returns (int256)
+    function getNodeRewardDelta(address, uint256) public view returns (int256)
     {
     }
 
