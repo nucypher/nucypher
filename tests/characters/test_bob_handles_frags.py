@@ -1,9 +1,9 @@
 import pytest
 
-from nkms.crypto.powers import EncryptingPower
+from nucypher.crypto.powers import EncryptingPower
 from umbral import pre
 from umbral.fragments import KFrag
-from nkms.crypto.constants import CFRAG_LENGTH_WITHOUT_PROOF
+from nucypher.crypto.constants import CFRAG_LENGTH_WITHOUT_PROOF
 
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_policy, bob):

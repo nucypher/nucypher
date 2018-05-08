@@ -6,9 +6,9 @@ from eth_tester.backends import is_pyevm_available
 from eth_tester.backends.pyevm.main import get_default_genesis_params, get_default_account_keys, generate_genesis_state
 from web3 import Web3
 
-from nkms.blockchain.eth.agents import MinerAgent
-from nkms.blockchain.eth.constants import NuCypherMinerConfig
-from nkms.blockchain.eth.deployers import MinerEscrowDeployer
+from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.constants import NuCypherMinerConfig
+from nucypher.blockchain.eth.deployers import MinerEscrowDeployer
 
 
 class MockNuCypherMinerConfig(NuCypherMinerConfig):

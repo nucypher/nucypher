@@ -2,7 +2,7 @@ pragma solidity ^0.4.23;
 
 
 import "contracts/Issuer.sol";
-import "contracts/NuCypherKMSToken.sol";
+import "contracts/NuCypherToken.sol";
 
 
 /**
@@ -11,7 +11,7 @@ import "contracts/NuCypherKMSToken.sol";
 contract IssuerMock is Issuer {
 
     constructor(
-        NuCypherKMSToken _token,
+        NuCypherToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,

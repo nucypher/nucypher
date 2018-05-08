@@ -1,6 +1,6 @@
-# NuCypher KMS Ethereum
+# NuCypher Ethereum
 
-Ethereum (solidity) code for nucypher-kms, consists contracts and python classes for miners and clients.
+Ethereum (solidity) code for NuCypher, consists contracts and python classes for miners and clients.
 Part of contracts was copied from [OpenZeppelin](https://github.com/OpenZeppelin/zeppelin-solidity) repo.
 The basis is built on the [Populus](https://github.com/ethereum/populus) framework.
 
@@ -13,9 +13,9 @@ Period is calculating using block.timestamp in getCurrentPeriod() function (`Min
 # Main contracts
 
 * Token contract
-`NuCypherKMSToken` contract is ERC20 token with additional function - burn own tokens (only for owners)
+`NuCypherToken` contract is ERC20 token with additional function - burn own tokens (only for owners)
 * Miner contract  
-`MinersEscrow` contract holds stake from miners, store information about miners activity and assigns a reward for participating in NuCypher KMS network
+`MinersEscrow` contract holds stake from miners, store information about miners activity and assigns a reward for participating in NuCypher network
 * Client contract  
 `PolicyManager` contract holds policies fee and distributes fee by periods
 * User escrow contract  
@@ -24,4 +24,4 @@ Period is calculating using block.timestamp in getCurrentPeriod() function (`Min
 # Solidity libraries
 
 * `LinkedList` library is structure of linked list for address data type
-* `Dispatcher` contract is proxy which used for updating versions of any contract. See [README.MD](nkms.blockchain.eth/project/contracts/proxy/README.MD)
+* `Dispatcher` contract is proxy which used for updating versions of any contract. See [README.MD](nucypher.blockchain.eth/project/contracts/proxy/README.MD)

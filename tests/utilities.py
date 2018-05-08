@@ -2,9 +2,9 @@ import asyncio
 
 from apistar.test import TestClient
 
-from nkms.characters import Ursula
-from nkms.network.node import NetworkyStuff
-from nkms.policy.models import ArrangementResponse
+from nucypher.characters import Ursula
+from nucypher.network.node import NetworkyStuff
+from nucypher.policy.models import ArrangementResponse
 
 NUMBER_OF_URSULAS_IN_NETWORK = 6
 

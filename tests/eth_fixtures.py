@@ -12,12 +12,12 @@ from os.path import abspath, dirname
 from web3 import EthereumTesterProvider, IPCProvider, Web3
 from web3.middleware import geth_poa_middleware
 
-from nkms.blockchain.eth.agents import NuCypherKMSTokenAgent, MinerAgent
-from nkms.blockchain.eth.agents import PolicyAgent
-from nkms.blockchain.eth.chains import TheBlockchain, TesterBlockchain
-from nkms.blockchain.eth.deployers import PolicyManagerDeployer, NuCypherKMSTokenDeployer
-from nkms.blockchain.eth.interfaces import Registrar, ContractProvider
-from nkms.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
+from nucypher.blockchain.eth.agents import PolicyAgent
+from nucypher.blockchain.eth.chains import TheBlockchain, TesterBlockchain
+from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer
+from nucypher.blockchain.eth.interfaces import Registrar, ContractProvider
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from tests.blockchain.eth import contracts, utilities
 from tests.blockchain.eth.utilities import MockMinerEscrowDeployer, TesterPyEVMBackend
 
@@ -172,7 +172,7 @@ def chain(contract_provider, airdrop=False):
 
 @pytest.fixture(scope='module')
 def mock_token_deployer(chain):
-    token_deployer = NuCypherKMSTokenDeployer(blockchain=chain)
+    token_deployer = NucypherTokenDeployer(blockchain=chain)
     token_deployer.arm()
     token_deployer.deploy()
     yield token_deployer
@@ -201,7 +201,7 @@ def mock_policy_manager_deployer(mock_miner_escrow_deployer):
 
 @pytest.fixture(scope='module')
 def token_agent(chain, mock_token_deployer):
-    token = NuCypherKMSTokenAgent(blockchain=chain)
+    token = NucypherTokenAgent(blockchain=chain)
     yield token
 
 

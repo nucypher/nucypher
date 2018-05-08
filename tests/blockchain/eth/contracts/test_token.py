@@ -14,7 +14,7 @@ def test_create_token(web3, chain):
     account2 = web3.eth.accounts[2]
 
     # Create an ERC20 token
-    token, txhash = chain.provider.deploy_contract('NuCypherKMSToken', 10 ** 9)
+    token, txhash = chain.provider.deploy_contract('NuCypherToken', 10 ** 9)
     assert txhash is not None
 
     # Account balances
@@ -22,9 +22,9 @@ def test_create_token(web3, chain):
     assert token.functions.balanceOf(account1).call() == 0
 
     # Basic properties
-    assert token.functions.name().call() == 'NuCypher KMS'
+    assert token.functions.name().call() == 'NuCypher'
     assert token.functions.decimals().call() == 18
-    assert token.functions.symbol().call() == 'KMS'
+    assert token.functions.symbol().call() == 'NU'
 
     # Cannot send ethers to the contract
     with pytest.raises((TransactionFailed, ValueError)):

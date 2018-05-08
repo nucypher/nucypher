@@ -5,10 +5,10 @@ import pytest
 from constant_sorrow import constants
 from kademlia.utils import digest
 
-from nkms.crypto.api import keccak_digest
-from nkms.crypto.kits import UmbralMessageKit
-from nkms.network import blockchain_client
-from nkms.network.protocols import dht_value_splitter, dht_with_hrac_splitter
+from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.network import blockchain_client
+from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
 from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
 
 

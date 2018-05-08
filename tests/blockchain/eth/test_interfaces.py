@@ -1,6 +1,6 @@
 import pytest
 
-from nkms.blockchain.eth.interfaces import Registrar
+from nucypher.blockchain.eth.interfaces import Registrar
 
 
 #def test_registrar_read_write(tempfile_path):

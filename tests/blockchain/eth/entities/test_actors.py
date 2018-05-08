@@ -1,8 +1,8 @@
 import os
 import pytest
 
-from nkms.blockchain.eth.actors import Miner
-from nkms.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.actors import Miner
+from nucypher.blockchain.eth.agents import MinerAgent
 
 
 @pytest.mark.skip("Last 5 stubborn blockchain tests.")
