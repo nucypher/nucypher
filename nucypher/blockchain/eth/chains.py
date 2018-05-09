@@ -2,6 +2,7 @@ import random
 from abc import ABC
 from typing import List
 
+from nucypher.blockchain.eth.constants import NuCypherMinerConfig
 from nucypher.blockchain.eth.interfaces import ContractProvider
 
 
@@ -71,7 +72,7 @@ class TheBlockchain(ABC):
         return result
 
 
-class TesterBlockchain(TheBlockchain):
+class TesterBlockchain(TheBlockchain, NuCypherMinerConfig):
     """Transient, in-memory, local, private chain"""
 
     _network = 'tester'
@@ -84,14 +85,19 @@ class TesterBlockchain(TheBlockchain):
         result = self.provider.w3.eth.waitForTransactionReceipt(txhash, timeout=timeout)
         return result
 
-    def time_travel(self, hours=None, seconds=None):
-        """Wait the specified number of wait_hours by comparing block timestamps."""
+    def time_travel(self, hours: int=None, periods: int=None):
+        """
+        Wait the specified number of wait_hours by comparing
+        block timestamps and mines a single block.
+        """
+
+        if hours and periods or (hours is None and periods is None):
+            raise ValueError("Specify either hours or periods.")
+
         if hours:
             duration = hours * 60 * 60
-        elif seconds:
-            duration = seconds
-        else:
-            raise Exception("Invalid time")
+        elif periods:
+            duration = (self._hours_per_period * periods) * (60 * 60)
 
         end_timestamp = self.provider.w3.eth.getBlock('latest').timestamp + duration
         self.provider.w3.eth.web3.testing.timeTravel(end_timestamp)
