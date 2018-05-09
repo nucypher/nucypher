@@ -1,6 +1,5 @@
 from typing import Union
 
-from nucypher.crypto.constants import KFRAG_LENGTH
 from nucypher.crypto.signature import Signature
 from bytestring_splitter import BytestringSplitter
 from nucypher.keystore.db.models import Key, PolicyArrangement, Workorder
@@ -22,7 +21,7 @@ class KeyStore(object):
     """
     A storage class of cryptographic keys.
     """
-    kfrag_splitter = BytestringSplitter(Signature, (KFrag, KFRAG_LENGTH))
+    kfrag_splitter = BytestringSplitter(Signature, (KFrag, KFrag.get_size()))
 
     def __init__(self, sqlalchemy_engine=None):
         """
