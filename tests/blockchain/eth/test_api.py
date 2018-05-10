@@ -1,4 +1,5 @@
 import pytest
+from pytest import raises
 
 from nucypher.blockchain.eth.agents import NuCypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.deployers import NuCypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
@@ -43,7 +44,6 @@ def test_token_deployer_and_agent(chain):
     assert token_agent == same_token_agent  # __eq__
 
 
-@pytest.mark.slow
 def test_deploy_ethereum_contracts(chain):
     """
     Launch all ethereum contracts:

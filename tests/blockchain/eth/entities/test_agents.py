@@ -4,7 +4,6 @@ import pytest
 M = 10 ** 6
 
 
-@pytest.mark.skip("Last 5 stubborn blockchain tests.")
 def test_get_swarm(chain, mock_token_agent, mock_miner_agent):
 
     mock_token_agent.token_airdrop(amount=100000 * mock_token_agent._M)

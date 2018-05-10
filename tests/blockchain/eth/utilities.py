@@ -66,9 +66,9 @@ class MockMinerAgent(MinerAgent, MockNuCypherMinerConfig):
         return miners
 
 
-class MockNuCypherKMSTokenDeployer(NuCypherTokenDeployer):
+class MockNuCypherTokenDeployer(NuCypherTokenDeployer):
     """Mock deployer with mock agency"""
-    # agency = MockTokenAgent
+    agency = MockTokenAgent
 
 
 class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNuCypherMinerConfig):

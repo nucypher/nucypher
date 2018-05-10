@@ -53,10 +53,6 @@ def policy_manager(web3, chain, escrow, request):
     return contract
 
 
-def wait_time(chain, wait_periods):
-    chain.time_travel(seconds=wait_periods * 60 * MINUTES_IN_PERIOD)
-
-
 MINUTES_IN_PERIOD = 10
 policy_id = os.urandom(20)
 policy_id_2 = os.urandom(20)
@@ -64,6 +60,14 @@ policy_id_3 = os.urandom(20)
 rate = 20
 number_of_periods = 10
 value = rate * number_of_periods
+
+
+def wait_time(chain, wait_periods):
+    seconds = wait_periods * 60 * MINUTES_IN_PERIOD
+
+    end_timestamp = chain.provider.w3.eth.getBlock(block_identifier='latest').timestamp + seconds
+    chain.provider.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
+    chain.provider.w3.eth.web3.testing.mine(1)
 
 
 @pytest.mark.slow

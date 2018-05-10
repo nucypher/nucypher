@@ -14,11 +14,11 @@ from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.agents import PolicyAgent
 from nucypher.blockchain.eth.chains import TheBlockchain, TesterBlockchain
-from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NuCypherTokenDeployer
+from nucypher.blockchain.eth.deployers import PolicyManagerDeployer
 from nucypher.blockchain.eth.interfaces import Registrar, ContractProvider
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from tests.blockchain.eth import contracts, utilities
-from tests.blockchain.eth.utilities import MockMinerEscrowDeployer, TesterPyEVMBackend
+from tests.blockchain.eth.utilities import MockMinerEscrowDeployer, TesterPyEVMBackend, MockNuCypherTokenDeployer
 
 
 #
@@ -171,7 +171,7 @@ def chain(contract_provider, airdrop=False):
 
 @pytest.fixture(scope='module')
 def mock_token_deployer(chain):
-    token_deployer = NuCypherTokenDeployer(blockchain=chain)
+    token_deployer = MockNuCypherTokenDeployer(blockchain=chain)
     token_deployer.arm()
     token_deployer.deploy()
     yield token_deployer

@@ -56,6 +56,7 @@ def test_miner_collects_staking_reward_tokens(chain, miner, mock_token_agent, mo
     assert final_balance > initial_balance
 
 
+@pytest.mark.slow()
 def test_sample_miners(chain, mock_miner_agent, mock_token_agent):
     mock_token_agent.token_airdrop(amount=100000 * mock_token_agent._M)
 
