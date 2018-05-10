@@ -93,10 +93,10 @@ class Miner(TokenActor):
 
         return txhash
 
-    def _send_tokens_to_escrow(self, amount, locktime) -> str:
+    def _send_tokens_to_escrow(self, amount, periods) -> str:
         """Send tokes to the escrow from the miner's address"""
 
-        deposit_txhash = self.miner_agent.contract.functions.deposit(amount, locktime).transact({'from': self.address})
+        deposit_txhash = self.miner_agent.contract.functions.deposit(amount, periods).transact({'from': self.address})
 
         self.blockchain.wait_for_receipt(deposit_txhash)
 
@@ -104,10 +104,10 @@ class Miner(TokenActor):
 
         return deposit_txhash
 
-    def deposit(self, amount: int, locktime: int) -> Tuple[str, str]:
+    def deposit(self, amount: int, periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
         approve_txhash = self._approve_escrow(amount=amount)
-        deposit_txhash = self._send_tokens_to_escrow(amount=amount, locktime=locktime)
+        deposit_txhash = self._send_tokens_to_escrow(amount=amount, periods=periods)
 
         return approve_txhash, deposit_txhash
 
@@ -162,15 +162,10 @@ class Miner(TokenActor):
 
         reward_txhash = self.miner_agent.contract.functions.withdraw(token_amount).transact({'from': self.address})
 
-        self.blockchain.wait_for_receipt(reward_txhash)
-        self._transactions.append((datetime.utcnow(), reward_txhash))
-
-        return reward_txhash
-
-    def __validate_stake(self, amount: int, locktime: int) -> bool:
+    def __validate_stake(self, amount: int, periods: int) -> bool:
 
         assert self.miner_agent.validate_stake_amount(amount=amount)
-        assert self.miner_agent.validate_locktime(periods=locktime)
+        assert self.miner_agent.validate_locktime(periods=periods)
 
         if not self.token_balance() >= amount:
             raise self.StakingError("Insufficient miner token balance ({balance})".format(balance=self.token_balance()))
@@ -192,9 +187,9 @@ class Miner(TokenActor):
                                                                              self.address, 0).call()
             amount = self.blockchain._chain.web3.toInt(balance_bytes)
 
-        assert self.__validate_stake(amount, locktime)
+        assert self.__validate_stake(amount=amount, periods=periods)
 
-        approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, locktime=locktime)
+        approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, periods=periods)
         self._transactions.append((datetime.utcnow(), initial_deposit_txhash))
 
         return staking_transactions
