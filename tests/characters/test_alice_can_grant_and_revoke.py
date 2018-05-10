@@ -2,10 +2,10 @@ import datetime
 
 from apistar.test import TestClient
 
-from nkms.characters import Ursula
-from nkms.crypto.api import keccak_digest
-from nkms.crypto.constants import PUBLIC_KEY_LENGTH
-from nkms.crypto.powers import SigningPower, EncryptingPower
+from nucypher.characters import Ursula
+from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
+from nucypher.crypto.powers import SigningPower, EncryptingPower
 from bytestring_splitter import BytestringSplitter
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey

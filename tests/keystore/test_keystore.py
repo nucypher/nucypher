@@ -1,7 +1,7 @@
 import pytest
 
 from datetime import datetime
-from nkms.keystore import keystore, keypairs
+from nucypher.keystore import keystore, keypairs
 
 
 def test_key_sqlite_keystore(test_keystore, bob):

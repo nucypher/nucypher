@@ -1,7 +1,7 @@
 pragma solidity ^0.4.23;
 
 
-import "contracts/NuCypherKMSToken.sol";
+import "contracts/NuCypherToken.sol";
 
 
 /**
@@ -9,14 +9,14 @@ import "contracts/NuCypherKMSToken.sol";
 **/
 contract MinersEscrowForUserEscrowMock {
 
-    NuCypherKMSToken token;
+    NuCypherToken token;
     address public node;
     uint256 public value;
     uint256 public lockedValue;
     uint256 public periods;
     uint256 public confirmedPeriod;
 
-    constructor(NuCypherKMSToken _token) public {
+    constructor(NuCypherToken _token) public {
         token = _token;
     }
 

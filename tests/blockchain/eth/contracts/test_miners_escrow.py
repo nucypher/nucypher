@@ -14,7 +14,7 @@ LAST_ACTIVE_PERIOD_FIELD = 4
 @pytest.fixture()
 def token(chain):
     # Create an ERC20 token
-    token, _ = chain.provider.deploy_contract('NuCypherKMSToken', 2 * 10 ** 9)
+    token, _ = chain.provider.deploy_contract('NuCypherToken', 2 * 10 ** 9)
     return token
 
 

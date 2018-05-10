@@ -2,7 +2,7 @@ pragma solidity ^0.4.23;
 
 
 import "contracts/MinersEscrow.sol";
-import "contracts/NuCypherKMSToken.sol";
+import "contracts/NuCypherToken.sol";
 
 
 /**
@@ -13,7 +13,7 @@ contract MinersEscrowV2Mock is MinersEscrow {
     uint256 public valueToCheck;
 
     constructor(
-        NuCypherKMSToken _token,
+        NuCypherToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,

@@ -1,7 +1,7 @@
 import requests
-from nkms.characters import Ursula
-from nkms.network.node import NetworkyStuff
-from nkms.crypto.powers import SigningPower, EncryptingPower
+from nucypher.characters import Ursula
+from nucypher.network.node import NetworkyStuff
+from nucypher.crypto.powers import SigningPower, EncryptingPower
 
 
 class SandboxNetworkyStuff(NetworkyStuff):

@@ -22,18 +22,18 @@ TESTS_REQUIRE = [
 
 # should add --process-dependency-links to pip
 LINKS = [
-        'https://github.com/nucypher/kademlia/archive/kms-dependency.tar.gz#egg=kademlia-1.0',
+        'https://github.com/nucypher/kademlia/archive/nucypher-depend.tar.gz#egg=kademlia-1.0',
         'https://github.com/bmuller/rpcudp/archive/python3.5.tar.gz#egg=rpcudp-3.0.0',
 ]
 
-setup(name='nkms',
+setup(name='nucypher',
       version=VERSION,
-      description='NuCypher decentralized KMS',
+      description='A proxy re-encryption network to empower privacy in decentralized systems.',
       install_requires=INSTALL_REQUIRES,
       dependency_links=LINKS,
       extras_require={'testing': TESTS_REQUIRE},
       packages=find_packages(),
-      package_data={'nkms': [
+      package_data={'nucypher': [
           'blockchain/eth/*', 'project/contracts/*',
           'blockchain/eth/sol_source/contracts/lib/*',
           'blockchain/eth/sol_source/contracts/zepellin/math/*',

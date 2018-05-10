@@ -3,7 +3,7 @@ import unittest
 
 import sha3
 
-from nkms.crypto import api
+from nucypher.crypto import api
 
 
 class TestCrypto(unittest.TestCase):

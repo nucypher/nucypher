@@ -1,5 +1,5 @@
-NuCypher decentralized KMS
-============================
+NuCypher
+========
 
 Depencencies / technologies
 =============================
@@ -55,7 +55,7 @@ this information on blockchain.
 When a node start, a key which will be used to decrypt the persisted
 data can be generated, read from a file (not very safe!), made from
 passphrase (safe if the passphrase is long enough and generated),
-or stored + delegated access using our KMS itself.
+or stored + delegated access using NuCypher itself.
 
 This kademlia-based protocol is *not* intended to be anonymous, we hope for
 split-key reencryption properties (e.g. that < m random nodes will be corrupt).
@@ -158,7 +158,7 @@ key is created for a path shared::
 where key[i] is calculated in-place from the path, and rk might mean also all re-encryption shares
 rather than just one rekey.
 
-After the calculation, the rk is stored with the KMS network. It will be stored in the following
+After the calculation, the rk is stored with the NuCypher network. It will be stored in the following
 persistent mapping::
 
     hmac(pk_o + pk_b, '/'.join(path[:i])) -> (rk, policy, algorithm, sign(hash + rk + policy + algorithm, pk_o))

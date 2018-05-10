@@ -6,7 +6,7 @@ from eth_tester.exceptions import TransactionFailed
 def token(web3, chain):
     creator = web3.eth.accounts[0]
     # Create an ERC20 token
-    token, _ = chain.provider.deploy_contract('NuCypherKMSToken', int(2e9))
+    token, _ = chain.provider.deploy_contract('NuCypherToken', int(2e9))
     return token
 
 
