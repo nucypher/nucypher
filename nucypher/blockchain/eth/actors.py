@@ -152,14 +152,15 @@ class Miner(TokenActor):
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
 
-        token_amount_bytes = self.miner_agent.contract.functions.getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
-                                                                  self.address, 0).call()
+        token_amount_bytes = self.miner_agent.contract.functions.minerInfo(self.address).call()[0]
+        token_amount = self.blockchain.provider.w3.toInt(token_amount_bytes)
 
-        token_amount = self.blockchain._chain.web3.toInt(token_amount_bytes)
+        collection_txhash = self.miner_agent.contract.functions.withdraw(token_amount).transact({'from': self.address})
 
-        # reward_amount = TODO
+        self.blockchain.wait_for_receipt(collection_txhash)
+        self._transactions.append((datetime.utcnow(), collection_txhash))
 
-        reward_txhash = self.miner_agent.contract.functions.withdraw(token_amount).transact({'from': self.address})
+        return collection_txhash
 
     def __validate_stake(self, amount: int, periods: int) -> bool:
 
@@ -171,7 +172,7 @@ class Miner(TokenActor):
         else:
             return True
 
-    def stake(self, amount, locktime, entire_balance=False):
+    def stake(self, amount, periods, entire_balance=False):
         """
         High level staking method for Miners.
         """
@@ -182,9 +183,9 @@ class Miner(TokenActor):
             raise self.StakingError("Specify an amount or entire balance, not both")
 
         if entire_balance is True:
-            balance_bytes = self.miner_agent.contract.functions.getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
-                                                                             self.address, 0).call()
-            amount = self.blockchain._chain.web3.toInt(balance_bytes)
+            amount = self.miner_agent.contract.functions.getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
+                                                                       self.address, 0).call()
+        amount = self.blockchain.provider.w3.toInt(amount)
 
         assert self.__validate_stake(amount=amount, periods=periods)
 
