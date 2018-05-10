@@ -14,8 +14,8 @@ from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NuCypherToken
 
 class MockNuCypherMinerConfig(NuCypherMinerConfig):
     """Speed things up a bit"""
-    _hours_per_period = 1     # Hours
-    _min_locked_periods = 1   # Minimum locked periods
+    # _hours_per_period = 24     # Hours
+    # min_locked_periods = 1     # Minimum locked periods
 
 
 class MockTokenAgent(NuCypherTokenAgent):
@@ -46,7 +46,7 @@ class MockMinerAgent(MinerAgent, MockNuCypherMinerConfig):
         Deposit and lock a random amount of tokens in the miner escrow
         from each address, "spawning" new Miners.
         """
-        from nkms.blockchain.eth.actors import Miner
+        from nucypher.blockchain.eth.actors import Miner
 
         miners = list()
         for address in addresses:
@@ -111,7 +111,7 @@ class TesterPyEVMBackend(PyEVMBackend):
         timestamp: int(epoch)
         """
 
-        self.fork_config = {}
+        self.fork_config = dict()
 
         if not is_pyevm_available():
             raise pkg_resources.DistributionNotFound(

@@ -23,22 +23,22 @@ class NuCypherMinerConfig:
         pass
 
     _hours_per_period = 24       # Hours in single period
-    _min_locked_periods = 30     # 720 Hours minimum
-    __max_minting_periods = 365  # Maximum number of periods
+    min_locked_periods = 30      # 720 Hours minimum
+    max_minting_periods = 365    # Maximum number of periods
 
-    _min_allowed_locked = 15000 * NuCypherTokenConfig._M
-    _max_allowed_locked = int(4e6) * NuCypherTokenConfig._M
+    min_allowed_locked = 15000 * NuCypherTokenConfig._M
+    max_allowed_locked = int(4e6) * NuCypherTokenConfig._M
 
     __remaining_supply = NuCypherTokenConfig._remaining_supply
 
     __mining_coeff = [           # TODO
         _hours_per_period,
         2 * 10 ** 7,
-        __max_minting_periods,
-        __max_minting_periods,
-        _min_locked_periods,
-        _min_allowed_locked,
-        _max_allowed_locked
+        max_minting_periods,
+        max_minting_periods,
+        min_locked_periods,
+        min_allowed_locked,
+        max_allowed_locked
     ]
 
     @property
@@ -59,13 +59,13 @@ class NuCypherMinerConfig:
 
         rulebook = (
 
-            (amount >= self._min_allowed_locked,
+            (amount >= self.min_allowed_locked,
              'Stake amount too low; ({amount}) must be at least {minimum}'
-             .format(minimum=self._min_allowed_locked, amount=amount)),
+             .format(minimum=self.min_allowed_locked, amount=amount)),
 
-            (amount <= self._max_allowed_locked,
+            (amount <= self.max_allowed_locked,
              'Stake amount too high; ({amount}) must be no more than {maximum}.'
-             .format(maximum=self._max_allowed_locked, amount=amount)),
+             .format(maximum=self.max_allowed_locked, amount=amount)),
         )
 
         if raise_on_fail is True:
@@ -76,14 +76,13 @@ class NuCypherMinerConfig:
 
         rulebook = (
 
-            (periods >= self._min_locked_periods,
+            (periods >= self.min_locked_periods,
              'Locktime ({locktime}) too short; must be at least {minimum}'
-             .format(minimum=self._min_locked_periods, locktime=periods)),
+             .format(minimum=self.min_locked_periods, locktime=periods)),
 
-
-            (periods <= self.__max_minting_periods,
+            (periods <= self.max_minting_periods,
              'Locktime ({locktime}) too long; must be no more than {maximum}'
-             .format(maximum=self._min_locked_periods, locktime=periods)),
+             .format(maximum=self.max_minting_periods, locktime=periods)),
         )
 
         if raise_on_fail is True:
