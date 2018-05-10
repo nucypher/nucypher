@@ -207,18 +207,14 @@ class Miner(TokenActor):
     def fetch_data(self) -> tuple:
         """Retrieve all asosciated contract data for this miner."""
 
-        count_bytes = self.miner_agent.contract.functions.getMinerInfo(self.miner_agent.MinerInfo.MINER_IDS_LENGTH.value,
-                                                           self.address, 0).call()
+        count_bytes = self.miner_agent.contract.functions.getMinerIdsLength(self.address).call()
 
-        count = self.blockchain._chain.web3.toInt(count_bytes)
+        count = self.blockchain.provider.w3.toInt(count_bytes)
 
         miner_ids = list()
         for index in range(count):
-            miner_id = self.miner_agent.contract.functions.getMinerInfo(self.miner_agent.MinerInfo.MINER_ID.value,
-                                                            self.address, index).call()
-            encoded_miner_id = miner_id.encode('latin-1')
-            miner_ids.append(encoded_miner_id)
-
+            miner_id = self.miner_agent.contract.functions.getMinerId(self.address, index).call()
+            miner_ids.append(miner_id)
         return tuple(miner_ids)
 
 

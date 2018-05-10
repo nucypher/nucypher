@@ -103,15 +103,9 @@ class MinerAgent(EthereumContractAgent, NuCypherMinerConfig):
         Miner addresses will be returned in the order in which they were added to the MinersEscrow's ledger
         """
 
-        info_reader = partial(self.contract.functions.getMinerInfo,
-                              self.MinerInfo.MINERS_LENGTH.value, constants.NULL_ADDRESS
-                              # ___,
-                              )
-
-        count_bytes = info_reader(0).call()
-        count = self.blockchain.provider.w3.toInt(count_bytes)
+        count = self.contract.functions.getMinersLength().call()
         for index in range(count):
-            addr = info_reader(index).call()
+            addr = self.contract.functions.miners(index).call()
             yield self.blockchain.provider.w3.toChecksumAddress(addr)
 
     def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:

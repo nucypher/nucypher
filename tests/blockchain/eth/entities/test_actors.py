@@ -55,15 +55,14 @@ def test_miner_collects_staking_reward_tokens(chain, miner, mock_token_agent, mo
     assert final_balance > initial_balance
 
 
-@pytest.mark.skip("Last 5 stubborn blockchain tests.")
-def test_sample_miners(chain, mock_miner_agent):
+def test_sample_miners(chain, mock_miner_agent, mock_token_agent):
+    mock_token_agent.token_airdrop(amount=100000 * mock_token_agent._M)
 
-    _origin, *everyone_else = chain.provider.w3.eth.accounts[1:]
+    # Have other address lock tokens
+    _origin, ursula, *everybody_else = chain.provider.w3.eth.accounts
+    mock_miner_agent.spawn_random_miners(addresses=everybody_else)
 
-    chain.spawn_miners(addresses=everyone_else, locktime=100,
-                              miner_agent=mock_miner_agent, m=mock_miner_agent.token_agent._deployer._M)
-
-    chain.time_travel(mock_miner_agent._deployer._hours_per_period)
+    chain.time_travel(periods=1)
 
     with pytest.raises(MinerAgent.NotEnoughUrsulas):
         mock_miner_agent.sample(quantity=100)  # Waay more than we have deployed
@@ -73,15 +72,7 @@ def test_sample_miners(chain, mock_miner_agent):
     assert len(set(miners)) == 3
 
 
-@pytest.mark.skip("Last 5 stubborn blockchain tests.")
-def test_publish_miner_datastore(chain, mock_miner_agent):
-
-    miner_addr = chain.provider.w3.eth.accounts[1]
-
-    miner = Miner(miner_agent=mock_miner_agent, address=miner_addr)
-
-    balance = miner.token_balance()
-    miner.stake(amount=balance, locktime=1)
+def test_publish_miner_datastore(miner):
 
     # Publish Miner IDs to the DHT
     some_data = os.urandom(32)
@@ -102,9 +93,5 @@ def test_publish_miner_datastore(chain, mock_miner_agent):
     assert len(stored_miner_ids) == 2
     assert another_mock_miner_id == stored_miner_ids[1]
 
-    supposedly_the_same_miner_id = mock_miner_agent.contract.functions \
-        .getMinerInfo(mock_miner_agent.MinerInfoField.MINER_ID.value,
-                      miner_addr, 1).call()
-
+    supposedly_the_same_miner_id = miner.miner_agent.contract.functions.getMinerId(miner.address, 1).call()
     assert another_mock_miner_id == supposedly_the_same_miner_id
-
