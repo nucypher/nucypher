@@ -119,7 +119,7 @@ class Miner(TokenActor):
         self._transactions.append((datetime.utcnow(), lock_txhash))
         return lock_txhash
 
-    def _confirm_activity(self) -> str:
+    def confirm_activity(self) -> str:
         """Miner rewarded for every confirmed period"""
 
         txhash = self.miner_agent.contract.functions.confirmActivity().transact({'from': self.address})
@@ -132,13 +132,12 @@ class Miner(TokenActor):
     def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the miner's account"""
 
-        confirm_txhash = self.miner_agent.contract.functions.confirmActivity().transact({'from': self.address, 'gas_price': 0})
-        mint_txhash = self.miner_agent.contract.functions.mint().transact({'from': self.address, 'gas_price': 0})
+        mint_txhash = self.miner_agent.contract.functions.mint().transact({'from': self.address})
 
         self.blockchain.wait_for_receipt(mint_txhash)
         self._transactions.append((datetime.utcnow(), mint_txhash))
 
-        return confirm_txhash, mint_txhash
+        return mint_txhash
 
     def collect_policy_reward(self, policy_manager):
         """Collect rewarded ETH"""
