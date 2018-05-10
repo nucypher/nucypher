@@ -1,3 +1,4 @@
+import random
 from typing import List
 
 import pkg_resources
@@ -37,8 +38,32 @@ class MockTokenAgent(NuCypherTokenAgent):
         return receipts
 
 
-class MockMinerAgent(MinerAgent):
+class MockMinerAgent(MinerAgent, MockNuCypherMinerConfig):
     """MinerAgent with faked config subclass"""
+
+    def spawn_random_miners(self, addresses: list) -> list:
+        """
+        Deposit and lock a random amount of tokens in the miner escrow
+        from each address, "spawning" new Miners.
+        """
+        from nkms.blockchain.eth.actors import Miner
+
+        miners = list()
+        for address in addresses:
+            miner = Miner(miner_agent=self, address=address)
+            miners.append(miner)
+
+            # stake a random amount
+            min_stake, balance = self.min_allowed_locked, miner.token_balance()
+            amount = random.randint(min_stake, balance)
+
+            # for a random lock duration
+            min_locktime, max_locktime = self.min_locked_periods, self.max_minting_periods
+            periods = random.randint(min_locktime, max_locktime)
+
+            miner.stake(amount=amount, periods=periods)
+
+        return miners
 
 
 class MockNuCypherKMSTokenDeployer(NuCypherTokenDeployer):

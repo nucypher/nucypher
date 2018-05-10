@@ -94,37 +94,13 @@ class TesterBlockchain(TheBlockchain, NuCypherMinerConfig):
         if hours and periods or (hours is None and periods is None):
             raise ValueError("Specify either hours or periods.")
 
-        if hours:
-            duration = hours * 60 * 60
-        elif periods:
-            duration = (self._hours_per_period * periods) * (60 * 60)
+        if periods:
+            hours = (self._hours_per_period * periods)
+        duration = hours * (60 * 60)
 
-        end_timestamp = self.provider.w3.eth.getBlock('latest').timestamp + duration
-        self.provider.w3.eth.web3.testing.timeTravel(end_timestamp)
+        end_timestamp = self.provider.w3.eth.getBlock(block_identifier='latest').timestamp + duration
+        self.provider.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
         self.provider.w3.eth.web3.testing.mine(1)
-
-    def spawn_miners(self, miner_agent, addresses: list, locktime: int, random_amount=False) -> list:
-
-        """
-        Deposit and lock a random amount of tokens in the miner escrow
-        from each address, "spawning" new Miners.
-        """
-        from nucypher.blockchain.eth.actors import Miner
-
-        miners = list()
-        for address in addresses:
-            miner = Miner(miner_agent=miner_agent, address=address)
-            miners.append(miner)
-
-            if random_amount is True:
-                min_stake = miner_agent._min_allowed_locked    #TODO
-                max_stake = miner_agent._max_allowed_locked
-                amount = random.randint(min_stake, max_stake)
-            else:
-                amount = miner.token_balance() // 2    # stake half
-            miner.stake(amount=amount, locktime=locktime)
-
-        return miners
 
     def _global_airdrop(self, amount: int) -> List[str]:
         """Airdrops from creator address to all other addresses!"""

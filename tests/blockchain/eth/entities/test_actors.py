@@ -1,4 +1,5 @@
 import os
+
 import pytest
 
 from nucypher.blockchain.eth.actors import Miner
