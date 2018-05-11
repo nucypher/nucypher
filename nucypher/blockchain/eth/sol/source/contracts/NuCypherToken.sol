@@ -27,18 +27,31 @@ contract NuCypherToken is StandardToken, DetailedERC20('NuCypher', 'NU', 18), Bu
     * @notice Approves and then calls the receiving contract
     *
     * @dev call the receiveApproval function on the contract you want to be notified.
-    * This crafts the function signature manually so one doesn't have to include a contract in here just for this.
     * receiveApproval(address _from, uint256 _value, address _tokenContract, bytes _extraData)
-    * it is assumed that when does this that the call *should* succeed, otherwise one would use vanilla approve instead.
     **/
     function approveAndCall(address _spender, uint256 _value, bytes _extraData)
         public returns (bool success)
     {
         approve(_spender, _value);
-
-        require(_spender.call(bytes4(keccak256("receiveApproval(address,uint256,address,bytes)")),
-            msg.sender, _value, this, _extraData));
+        TokenRecipient(_spender).receiveApproval(msg.sender, _value, address(this), _extraData);
         return true;
     }
+
+}
+
+
+/**
+* @dev Interface to use the receiveApproval method
+**/
+contract TokenRecipient {
+
+    /**
+    * @notice Receives a notification of approval of the transfer
+    * @param _from Sender of approval
+    * @param _value  The amount of tokens to be spent
+    * @param _tokenContract Address of the token contract
+    * @param _extraData Extra data
+    **/
+    function receiveApproval(address _from, uint256 _value, address _tokenContract, bytes _extraData) external;
 
 }
