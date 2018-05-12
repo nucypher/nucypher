@@ -2,7 +2,7 @@ import pytest
 
 from nucypher.crypto.powers import EncryptingPower
 from umbral import pre
-from umbral.fragments import KFrag
+from umbral.fragments import KFrag, CapsuleFrag
 from nucypher.crypto.constants import CFRAG_LENGTH_WITHOUT_PROOF
 
 
@@ -134,7 +134,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, bob,
     the_correct_cfrag = pre.reencrypt(the_kfrag, capsule)
 
     # The first CFRAG_LENGTH_WITHOUT_PROOF bytes (ie, the cfrag proper, not the proof material), are the same:
-    assert bytes(the_cfrag)[:CFRAG_LENGTH_WITHOUT_PROOF] == bytes(the_correct_cfrag)[:CFRAG_LENGTH_WITHOUT_PROOF]  # It's the correct cfrag!
+    assert bytes(the_cfrag)[:CapsuleFrag.get_size()] == bytes(the_correct_cfrag)[:CapsuleFrag.get_size()]  # It's the correct cfrag!
 
     assert the_correct_cfrag.verify_correctness(capsule,
                                                 pubkey_a=enacted_policy.public_key,
