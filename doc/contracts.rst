@@ -1,20 +1,12 @@
 NuCypher contracts
 ========================
-* Token contract
-	`NuCypherToken` contract is the ERC20 token contract with additional function - burn own tokens (only for owners)
-* Miners contract  
-	`MinersEscrow` contract holds Ursula's stake, stores information about Ursulas activity and assigns a reward for participating in NuCypher network. 
-	The `Issuer` contract is part of the `MinersEscrow` and uses only to split code
-* Client contract  
-	`PolicyManager` contract holds policies fee and distributes fee by periods
-* Upgradeable abstract contract
-	`Upgradeable` is base contract for upgrading `(README.MD) <nucypher.blockchain.eth/project/contracts/proxy/README.MD>`
-* Dispatcher
-	`Dispatcher` contract is used as proxy to other contracts. This provides upgrading of the `MinersEscrow`, `PolicyManager` and `Government` contracts
-* Government 
-	`Government` contract holds ownership for dispatchers and provides voting for upgrading of those contracts
-* User escrow contract  
-	`UserEscrow` contract locks tokens for some time. In that period tokens are lineraly unlocked and all tokens can be used as a stake in the `MinersEscrow` contract
+* `NuCypherToken` contract is the ERC20 token contract with additional function - burn own tokens (only for owners)
+* `MinersEscrow` contract holds Ursula's stake, stores information about Ursulas activity and assigns a reward for participating in NuCypher network. The `Issuer` contract is part of the `MinersEscrow` and uses only to split code
+* `PolicyManager` contract holds policies fee and distributes fee by periods
+* `Upgradeable` is base contract for upgrading (<nucypher.blockchain.eth/project/contracts/proxy/README.MD>)
+* `Dispatcher` contract is used as proxy to other contracts. This provides upgrading of the `MinersEscrow`, `PolicyManager` and `Government` contracts
+* `Government` contract holds ownership for dispatchers and provides voting for upgrading of those contracts
+* `UserEscrow` contract locks tokens for some time. In that period tokens are lineraly unlocked and all tokens can be used as a stake in the `MinersEscrow` contract
 
 Deployment
 ========================
@@ -27,10 +19,8 @@ Deployment
 * After this deploy `Government` contract with dispatcher 
 * Transfer ownership of the `MinersEscrow`, `PolicyManager` and `Government` dispatchers to the `Government` dispatcher address
 * Pre-deposit tokens to the `MinersEscrow` if necessary:
-	* Approve the transfer tokens for the `MinersEscrow` contract using the `approve(address, uint)` method. 
-	The parameters are the address of `MinersEscrow` and the amount of tokens for a miner or group of miner;
-	* Deposit tokens to the `MinersEscrow` contract using the `preDeposit(address[], uint[], uint[])` method. 
-	The parameters are the addresses of token miner, the amount of token for each miner and the periods during which tokens will be locked for each miner
+	* Approve the transfer tokens for the `MinersEscrow` contract using the `approve(address, uint)` method. The parameters are the address of `MinersEscrow` and the amount of tokens for a miner or group of miner;
+	* Deposit tokens to the `MinersEscrow` contract using the `preDeposit(address[], uint[], uint[])` method. The parameters are the addresses of token miner, the amount of token for each miner and the periods during which tokens will be locked for each miner
 * Pre-deposit tokens to the `UserEscrow` if necessary:
 	* Create new instance of the `UserEscrow` contract 
 	* Transfer ownership of the instance of the `UserEscrow` contract to the user
@@ -46,11 +36,12 @@ After that, the miner transfers some quantity of tokens (method `deposit(uint256
 Another way to do it is using the `approveAndCall(address, uint256, bytes)` method in the token contract. 
 The parameters are the address of the `MinersEscrow` contract, the amount of staked tokens and the periods for locking which are serialized into an array of bytes.
 
-When staking tokens, the miner sets the number of periods while tokens will be locked. 
-Each stake is the amount of tokens and the duration in periods. 
+When staking tokens, the miner sets the number of periods while tokens will be locked, but it should be no less than some minimal locking time (30 periods).
+In order to unlock tokens, the miner should be active during the time of locking (confirm activity).
+Each stake is the amount of tokens and the duration in periods.
 The miner can add new stake by the `deposit(uint256, uint256)` or `lock(uint256, uint256)` methods.
 Also the miner can split stake into two parts: one with the same duration and other with an extended duration.
-For this purpose, the `divideStake(uint256, uint256, uint256, uint256)` method is used. 
+For this purpose, the `divideStake(uint256, uint256, uint256, uint256)` method is used.
 The first two parameters are used to identify the stake to divide and the others two for the extended part of the stake.
 When calculating locked tokens (`getLockedTokens(address, uint256)` method), all stakes that are active during the specified period are summed up.
 

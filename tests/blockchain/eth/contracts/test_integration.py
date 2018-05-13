@@ -165,18 +165,18 @@ def test_all(web3, chain, token, escrow, policy_manager):
     chain.wait_for_receipt(tx)
 
     # Deposit tokens for 1 owner
-    tx = escrow.functions.preDeposit([ursula2], [1000], [10]).transact({'from': creator})
+    tx = escrow.functions.preDeposit([ursula2], [1000], [9]).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert reward + 1000 == token.functions.balanceOf(escrow.address).call()
     assert 1000 == escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
     assert 1000 == escrow.functions.getLockedTokens(ursula2, 1).call()
-    assert 1000 == escrow.functions.getLockedTokens(ursula2, 10).call()
-    assert 0 == escrow.functions.getLockedTokens(ursula2, 11).call()
+    assert 1000 == escrow.functions.getLockedTokens(ursula2, 9).call()
+    assert 0 == escrow.functions.getLockedTokens(ursula2, 10).call()
 
-    # Can't pre-deposit tokens again for same owner
+    # Can't pre-deposit tokens again for the same owner
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.preDeposit([ursula2], [1000], [10]).transact({'from': creator})
+        tx = escrow.functions.preDeposit([ursula2], [1000], [9]).transact({'from': creator})
         chain.wait_for_receipt(tx)
 
     # Can't pre-deposit tokens with too low or too high value
@@ -222,11 +222,11 @@ def test_all(web3, chain, token, escrow, policy_manager):
         chain.wait_for_receipt(tx)
 
     # Divide stakes
-    tx = escrow.functions.divideStake(1000, escrow.functions.getCurrentPeriod().call() + 9, 500, 9).transact({'from': ursula2})
+    tx = escrow.functions.divideStake(1000, escrow.functions.getCurrentPeriod().call() + 9, 500, 6).transact({'from': ursula2})
     chain.wait_for_receipt(tx)
     tx = escrow.functions.divideStake(1000, escrow.functions.getCurrentPeriod().call() + 9, 500, 9).transact({'from': ursula1})
     chain.wait_for_receipt(tx)
-    tx = user_escrow_1.functions.divideStake(1000, escrow.functions.getCurrentPeriod().call() + 10, 500, 8).transact({'from': ursula3})
+    tx = user_escrow_1.functions.divideStake(1000, escrow.functions.getCurrentPeriod().call() + 10, 500, 6).transact({'from': ursula3})
     chain.wait_for_receipt(tx)
 
     # Confirm activity
@@ -363,7 +363,7 @@ def test_all(web3, chain, token, escrow, policy_manager):
     assert alice2_balance < web3.eth.getBalance(alice2)
 
     # Unlock and withdraw all tokens in MinersEscrow
-    for index in range(9):
+    for index in range(11):
         tx = escrow.functions.confirmActivity().transact({'from': ursula1})
         chain.wait_for_receipt(tx)
         tx = escrow.functions.confirmActivity().transact({'from': ursula2})
