@@ -4,7 +4,6 @@ from eth_tester.exceptions import TransactionFailed
 
 @pytest.fixture()
 def token(web3, chain):
-    creator = web3.eth.accounts[0]
     # Create an ERC20 token
     token, _ = chain.provider.deploy_contract('NuCypherToken', int(2e9))
     return token
@@ -38,7 +37,7 @@ def user_escrow(web3, chain, token, escrow, policy_manager):
     contract, _ = chain.provider.deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address)
 
     # Transfer ownership
-    tx =  contract.functions.transferOwnership(user).transact({'from': creator})
+    tx = contract.functions.transferOwnership(user).transact({'from': creator})
     chain.wait_for_receipt(tx)
     return contract
 
@@ -50,9 +49,9 @@ def test_escrow(web3, chain, token, user_escrow):
     deposits = user_escrow.events.Deposited.createFilter(fromBlock='latest')
 
     # Deposit some tokens to the user escrow and lock them
-    tx =  token.functions.approve(user_escrow.address, 2000).transact({'from': creator})
+    tx = token.functions.approve(user_escrow.address, 2000).transact({'from': creator})
     chain.wait_for_receipt(tx)
-    tx =  user_escrow.functions.initialDeposit(1000, 1000).transact({'from': creator})
+    tx = user_escrow.functions.initialDeposit(1000, 1000).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert 1000 == token.functions.balanceOf(user_escrow.address).call()
     assert user == user_escrow.functions.owner().call()
@@ -68,16 +67,16 @@ def test_escrow(web3, chain, token, user_escrow):
 
     # Can't deposit tokens again
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  user_escrow.functions.initialDeposit(1000, 1000).transact({'from': creator})
+        tx = user_escrow.functions.initialDeposit(1000, 1000).transact({'from': creator})
         chain.wait_for_receipt(tx)
 
     # Can't withdraw before unlocking
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  user_escrow.functions.withdraw(100).transact({'from': user})
+        tx = user_escrow.functions.withdraw(100).transact({'from': user})
         chain.wait_for_receipt(tx)
 
     # Can transfer more tokens
-    tx =  token.functions.transfer(user_escrow.address, 1000).transact({'from': creator})
+    tx = token.functions.transfer(user_escrow.address, 1000).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert 2000 == token.functions.balanceOf(user_escrow.address).call()
 
@@ -85,9 +84,9 @@ def test_escrow(web3, chain, token, user_escrow):
 
     # Only user can withdraw available tokens
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  user_escrow.functions.withdraw(100).transact({'from': creator})
+        tx = user_escrow.functions.withdraw(100).transact({'from': creator})
         chain.wait_for_receipt(tx)
-    tx =  user_escrow.functions.withdraw(1000).transact({'from': user})
+    tx = user_escrow.functions.withdraw(1000).transact({'from': user})
     chain.wait_for_receipt(tx)
     assert 1000 == token.functions.balanceOf(user).call()
     assert 1000 == token.functions.balanceOf(user_escrow.address).call()
@@ -105,7 +104,7 @@ def test_escrow(web3, chain, token, user_escrow):
     assert 450 <= user_escrow.functions.getLockedTokens().call()
 
     # User can withdraw some unlocked tokens
-    tx =  user_escrow.functions.withdraw(500).transact({'from': user})
+    tx = user_escrow.functions.withdraw(500).transact({'from': user})
     chain.wait_for_receipt(tx)
     assert 1500 == token.functions.balanceOf(user).call()
 
@@ -120,7 +119,7 @@ def test_escrow(web3, chain, token, user_escrow):
     # Wait more time and withdraw all
     chain.time_travel(seconds=500)
     assert 0 == user_escrow.functions.getLockedTokens().call()
-    tx =  user_escrow.functions.withdraw(500).transact({'from': user})
+    tx = user_escrow.functions.withdraw(500).transact({'from': user})
     chain.wait_for_receipt(tx)
     assert 0 == token.functions.balanceOf(user_escrow.address).call()
     assert 2000 == token.functions.balanceOf(user).call()
@@ -142,11 +141,11 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     deposits = user_escrow.events.Deposited.createFilter(fromBlock='latest')
 
     # Deposit some tokens to the user escrow and lock them
-    tx =  token.functions.approve(user_escrow.address, 1000).transact({'from': creator})
+    tx = token.functions.approve(user_escrow.address, 1000).transact({'from': creator})
     chain.wait_for_receipt(tx)
-    tx =  user_escrow.functions.initialDeposit(1000, 1000).transact({'from': creator})
+    tx = user_escrow.functions.initialDeposit(1000, 1000).transact({'from': creator})
     chain.wait_for_receipt(tx)
-    tx =  token.functions.transfer(user_escrow.address, 1000).transact({'from': creator})
+    tx = token.functions.transfer(user_escrow.address, 1000).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert 2000 == token.functions.balanceOf(user_escrow.address).call()
 
@@ -155,17 +154,17 @@ def test_miner(web3, chain, token, escrow, user_escrow):
 
     # Only user can deposit tokens to the miner escrow
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  user_escrow.functions.minerDeposit(1000, 5).transact({'from': creator})
+        tx = user_escrow.functions.minerDeposit(1000, 5).transact({'from': creator})
         chain.wait_for_receipt(tx)
     # Can't deposit more than amount in the user escrow
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  user_escrow.functions.minerDeposit(10000, 5).transact({'from': user})
+        tx = user_escrow.functions.minerDeposit(10000, 5).transact({'from': user})
         chain.wait_for_receipt(tx)
 
     miner_deposits = user_escrow.events.DepositedAsMiner.createFilter(fromBlock='latest')
 
     # Deposit some tokens to the miners escrow
-    tx =  user_escrow.functions.minerDeposit(1500, 5).transact({'from': user})
+    tx = user_escrow.functions.minerDeposit(1500, 5).transact({'from': user})
     chain.wait_for_receipt(tx)
     assert user_escrow.address == escrow.functions.node().call()
     assert 1500 == escrow.functions.value().call()
@@ -184,12 +183,12 @@ def test_miner(web3, chain, token, escrow, user_escrow):
 
     # Can't withdraw because of locking
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  user_escrow.functions.withdraw(100).transact({'from': user})
+        tx = user_escrow.functions.withdraw(100).transact({'from': user})
         chain.wait_for_receipt(tx)
 
     # Can't use the miners escrow directly
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  escrow.functions.lock(100, 1).transact({'from': user})
+        tx = escrow.functions.lock(100, 1).transact({'from': user})
         chain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.divideStake(1500, 5, 100, 1).transact({'from': user})
@@ -201,7 +200,7 @@ def test_miner(web3, chain, token, escrow, user_escrow):
         tx = escrow.functions.mint().transact({'from': user})
         chain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  escrow.functions.withdraw(100).transact({'from': user})
+        tx = escrow.functions.withdraw(100).transact({'from': user})
         chain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.withdrawAll().transact({'from': user})
@@ -215,7 +214,7 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     withdraws = user_escrow.events.Withdrawn.createFilter(fromBlock='latest')
 
     # Use methods through the user escrow
-    tx =  user_escrow.functions.lock(100, 1).transact({'from': user})
+    tx = user_escrow.functions.lock(100, 1).transact({'from': user})
     chain.wait_for_receipt(tx)
     assert 1500 == escrow.functions.value().call()
     assert 1600 == escrow.functions.lockedValue().call()
@@ -231,12 +230,12 @@ def test_miner(web3, chain, token, escrow, user_escrow):
     tx = user_escrow.functions.mint().transact({'from': user})
     chain.wait_for_receipt(tx)
     assert 2500 == escrow.functions.value().call()
-    tx =  user_escrow.functions.minerWithdraw(1500).transact({'from': user})
+    tx = user_escrow.functions.minerWithdraw(1500).transact({'from': user})
     chain.wait_for_receipt(tx)
     assert 1000 == escrow.functions.value().call()
     assert 10000 == token.functions.balanceOf(escrow.address).call()
     assert 2000 == token.functions.balanceOf(user_escrow.address).call()
-    tx =  user_escrow.functions.minerWithdraw(1000).transact({'from': user})
+    tx = user_escrow.functions.minerWithdraw(1000).transact({'from': user})
     chain.wait_for_receipt(tx)
     assert 0 == escrow.functions.value().call()
     assert 9000 == token.functions.balanceOf(escrow.address).call()
@@ -279,9 +278,9 @@ def test_miner(web3, chain, token, escrow, user_escrow):
 
     # User can withdraw reward for mining but no more than locked
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  user_escrow.functions.withdraw(2500).transact({'from': user})
+        tx = user_escrow.functions.withdraw(2500).transact({'from': user})
         chain.wait_for_receipt(tx)
-    tx =  user_escrow.functions.withdraw(1000).transact({'from': user})
+    tx = user_escrow.functions.withdraw(1000).transact({'from': user})
     chain.wait_for_receipt(tx)
     assert 2000 == token.functions.balanceOf(user_escrow.address).call()
     assert 1000 == token.functions.balanceOf(user).call()
@@ -346,3 +345,18 @@ def test_policy(web3, chain, policy_manager, user_escrow):
     event_args = events[0]['args']
     assert user == event_args['owner']
     assert 10000 == event_args['value']
+
+    # Set min reward rate
+    min_reward_sets = user_escrow.events.MinRewardRateSet.createFilter(fromBlock='latest')
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = user_escrow.functions.setMinRewardRate(333).transact({'from': creator})
+        chain.wait_for_receipt(tx)
+    tx = user_escrow.functions.setMinRewardRate(222).transact({'from': user})
+    chain.wait_for_receipt(tx)
+    assert 222 == policy_manager.functions.minRewardRate().call()
+
+    events = min_reward_sets.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert user == event_args['owner']
+    assert 222 == event_args['value']

@@ -33,6 +33,7 @@ contract UserEscrow is Ownable {
     event Mined(address indexed owner);
     event RewardWithdrawnAsMiner(address indexed owner, uint256 value);
     event RewardWithdrawn(address indexed owner, uint256 value);
+    event MinRewardRateSet(address indexed owner, uint256 value);
 
     NuCypherToken public token;
     MinersEscrow public escrow;
@@ -182,6 +183,14 @@ contract UserEscrow is Ownable {
         require(balance != 0);
         owner.transfer(balance);
         emit RewardWithdrawn(owner, balance);
+    }
+
+    /**
+    * @notice Set the minimum reward that the miner will take in the policy manager
+    **/
+    function setMinRewardRate(uint256 _minRewardRate) public onlyOwner {
+        policyManager.setMinRewardRate(_minRewardRate);
+        emit MinRewardRateSet(owner, _minRewardRate);
     }
 
 }

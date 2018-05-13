@@ -5,6 +5,7 @@ import "zeppelin/token/ERC20/SafeERC20.sol";
 import "./lib/AdditionalMath.sol";
 import "contracts/Issuer.sol";
 
+
 /**
 * @notice PolicyManager interface
 **/
@@ -15,8 +16,8 @@ contract PolicyManagerInterface {
 
 
 /**
-* @notice Contract holds and locks nodes tokens.self._solidity_source_dir
-Each node that lock its tokens will receive some compensation
+* @notice Contract holds and locks miners tokens.
+Each miner that lock its tokens will receive some compensation
 **/
 contract MinersEscrow is Issuer {
     using SafeERC20 for NuCypherToken;
