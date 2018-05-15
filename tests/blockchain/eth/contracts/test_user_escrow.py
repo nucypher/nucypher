@@ -3,7 +3,7 @@ from eth_tester.exceptions import TransactionFailed
 
 
 @pytest.fixture()
-def token(web3, chain):
+def token(chain):
     # Create an ERC20 token
     token, _ = chain.provider.deploy_contract('NuCypherToken', int(2e9))
     return token
@@ -16,7 +16,7 @@ def escrow(web3, chain, token):
     contract, _ = chain.provider.deploy_contract('MinersEscrowForUserEscrowMock', token.address)
 
     # Give escrow some coins
-    tx =  token.functions.transfer(contract.address, 10000).transact({'from': creator})
+    tx = token.functions.transfer(contract.address, 10000).transact({'from': creator})
     chain.wait_for_receipt(tx)
 
     return contract
@@ -29,12 +29,19 @@ def policy_manager(chain):
 
 
 @pytest.fixture()
-def user_escrow(web3, chain, token, escrow, policy_manager):
+def government(chain):
+    contract, _ = chain.provider.deploy_contract('GovernmentForUserEscrowMock')
+    return contract
+
+
+@pytest.fixture()
+def user_escrow(web3, chain, token, escrow, policy_manager, government):
     creator = web3.eth.accounts[0]
     user = web3.eth.accounts[1]
 
     # Creator deploys the user escrow
-    contract, _ = chain.provider.deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address)
+    contract, _ = chain.provider.deploy_contract(
+        'UserEscrow', token.address, escrow.address, policy_manager.address, government.address)
 
     # Transfer ownership
     tx = contract.functions.transferOwnership(user).transact({'from': creator})
@@ -360,3 +367,34 @@ def test_policy(web3, chain, policy_manager, user_escrow):
     event_args = events[0]['args']
     assert user == event_args['owner']
     assert 222 == event_args['value']
+
+
+@pytest.mark.slow
+def test_government(web3, chain, government, user_escrow):
+    creator = web3.eth.accounts[0]
+    user = web3.eth.accounts[1]
+    votes = user_escrow.events.Voted.createFilter(fromBlock='latest')
+
+    # Only user can vote
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = user_escrow.functions.vote(True).transact({'from': creator})
+        chain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = user_escrow.functions.vote(False).transact({'from': creator})
+        chain.wait_for_receipt(tx)
+
+    tx = user_escrow.functions.vote(True).transact({'from': user})
+    chain.wait_for_receipt(tx)
+    assert government.functions.voteFor().call()
+    tx = user_escrow.functions.vote(False).transact({'from': user})
+    chain.wait_for_receipt(tx)
+    assert not government.functions.voteFor().call()
+
+    events = votes.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[0]['args']
+    assert user == event_args['owner']
+    assert event_args['voteFor']
+    event_args = events[1]['args']
+    assert user == event_args['owner']
+    assert not event_args['voteFor']

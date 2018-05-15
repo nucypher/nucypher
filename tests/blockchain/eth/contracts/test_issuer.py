@@ -4,8 +4,7 @@ from eth_tester.exceptions import TransactionFailed
 
 
 @pytest.fixture()
-def token(web3, chain):
-    creator = web3.eth.accounts[0]
+def token(chain):
     # Create an ERC20 token
     token, _ = chain.provider.deploy_contract('NuCypherToken', 2 * 10 ** 40)
     return token
@@ -24,7 +23,7 @@ def test_issuer(web3, chain, token):
 
     # Give Miner tokens for reward and initialize contract
     reserved_reward = 2 * 10 ** 40 - 10 ** 30
-    tx =  token.functions.transfer(issuer.address, reserved_reward).transact({'from': creator})
+    tx = token.functions.transfer(issuer.address, reserved_reward).transact({'from': creator})
     chain.wait_for_receipt(tx)
 
     tx = issuer.functions.initialize().transact({'from': creator})
@@ -41,23 +40,23 @@ def test_issuer(web3, chain, token):
         chain.wait_for_receipt(tx)
 
     # Mint some tokens
-    tx =  issuer.functions.testMint(0, 1000, 2000, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(0, 1000, 2000, 0, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 10 == token.functions.balanceOf(ursula).call()
     assert balance - 10 == token.functions.balanceOf(issuer.address).call()
 
     # Mint more tokens
-    tx =  issuer.functions.testMint(0, 500, 500, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(0, 500, 500, 0, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 30 == token.functions.balanceOf(ursula).call()
     assert balance - 30 == token.functions.balanceOf(issuer.address).call()
 
-    tx =  issuer.functions.testMint(0, 500, 500, 10 ** 7, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(0, 500, 500, 10 ** 7, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 70 == token.functions.balanceOf(ursula).call()
     assert balance - 70 == token.functions.balanceOf(issuer.address).call()
 
-    tx =  issuer.functions.testMint(0, 500, 500, 2 * 10 ** 7, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(0, 500, 500, 2 * 10 ** 7, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 110 == token.functions.balanceOf(ursula).call()
     assert balance - 110 == token.functions.balanceOf(issuer.address).call()
@@ -74,35 +73,35 @@ def test_inflation_rate(web3, chain, token):
     )
 
     # Give Miner tokens for reward and initialize contract
-    tx =  token.functions.transfer(issuer.address, 2 * 10 ** 40 - 10 ** 30).transact({'from': creator})
+    tx = token.functions.transfer(issuer.address, 2 * 10 ** 40 - 10 ** 30).transact({'from': creator})
     chain.wait_for_receipt(tx)
     tx = issuer.functions.initialize().transact({'from': creator})
     chain.wait_for_receipt(tx)
 
     # Mint some tokens
     period = issuer.functions.getCurrentPeriod().call()
-    tx =  issuer.functions.testMint(period + 1, 1, 1, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(period + 1, 1, 1, 0, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     one_period = token.functions.balanceOf(ursula).call()
 
     # Mint more tokens in the same period
-    tx =  issuer.functions.testMint(period + 1, 1, 1, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(period + 1, 1, 1, 0, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 2 * one_period == token.functions.balanceOf(ursula).call()
 
     # Mint tokens in the next period
-    tx =  issuer.functions.testMint(period + 2, 1, 1, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(period + 2, 1, 1, 0, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 3 * one_period > token.functions.balanceOf(ursula).call()
     minted_amount = token.functions.balanceOf(ursula).call() - 2 * one_period
 
     # Mint tokens in the next period
-    tx =  issuer.functions.testMint(period + 1, 1, 1, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(period + 1, 1, 1, 0, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 2 * one_period + 2 * minted_amount == token.functions.balanceOf(ursula).call()
 
     # Mint tokens in the next period
-    tx =  issuer.functions.testMint(period + 3, 1, 1, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(period + 3, 1, 1, 0, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 2 * one_period + 3 * minted_amount > token.functions.balanceOf(ursula).call()
 
@@ -125,31 +124,34 @@ def test_verifying_state(web3, chain, token):
         ContractFactoryClass=Contract)
 
     # Give Miner tokens for reward and initialize contract
-    tx =  token.functions.transfer(contract.address, 10000).transact({'from': creator})
+    tx = token.functions.transfer(contract.address, 10000).transact({'from': creator})
     chain.wait_for_receipt(tx)
     tx = contract.functions.initialize().transact({'from': creator})
     chain.wait_for_receipt(tx)
 
     # Upgrade to the second version
+    period = contract.functions.lastMintedPeriod().call()
     assert 1 == contract.functions.miningCoefficient().call()
-    tx =  dispatcher.functions.upgrade(contract_library_v2.address).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract_library_v2.address).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert contract_library_v2.address == dispatcher.functions.target().call()
     assert 2 == contract.functions.miningCoefficient().call()
     assert 2 * 3600 == contract.functions.secondsPerPeriod().call()
     assert 2 == contract.functions.lockedPeriodsCoefficient().call()
     assert 2 == contract.functions.awardedPeriods().call()
-    tx =  contract.functions.setValueToCheck(3).transact({'from': creator})
+    assert period == contract.functions.lastMintedPeriod().call()
+    assert 2 * 10 ** 40 == contract.functions.futureSupply().call()
+    tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert 3 == contract.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
     contract_library_bad, _ = chain.provider.deploy_contract('IssuerBad', token.address, 2, 2, 2, 2)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  dispatcher.functions.upgrade(contract_library_v1.address).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract_library_v1.address).transact({'from': creator})
         chain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  dispatcher.functions.upgrade(contract_library_bad.address).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract_library_bad.address).transact({'from': creator})
         chain.wait_for_receipt(tx)
 
     # But can rollback
@@ -160,11 +162,13 @@ def test_verifying_state(web3, chain, token):
     assert 3600 == contract.functions.secondsPerPeriod().call()
     assert 1 == contract.functions.lockedPeriodsCoefficient().call()
     assert 1 == contract.functions.awardedPeriods().call()
+    assert period == contract.functions.lastMintedPeriod().call()
+    assert 2 * 10 ** 40 == contract.functions.futureSupply().call()
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  contract.functions.setValueToCheck(2).transact({'from': creator})
+        tx = contract.functions.setValueToCheck(2).transact({'from': creator})
         chain.wait_for_receipt(tx)
 
     # Try to upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  dispatcher.functions.upgrade(contract_library_bad.address).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract_library_bad.address).transact({'from': creator})
         chain.wait_for_receipt(tx)

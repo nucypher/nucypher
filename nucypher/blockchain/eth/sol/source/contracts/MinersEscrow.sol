@@ -116,7 +116,7 @@ contract MinersEscrow is Issuer {
             _awardedPeriods
         )
     {
-        require(_minLockedPeriods != 0);
+        require(_minLockedPeriods != 0 && _maxAllowableLockedTokens != 0);
         minLockedPeriods = _minLockedPeriods;
         minAllowableLockedTokens = _minAllowableLockedTokens;
         maxAllowableLockedTokens = _maxAllowableLockedTokens;
@@ -194,34 +194,34 @@ contract MinersEscrow is Issuer {
 
     /**
     * @notice Pre-deposit tokens
-    * @param _owners Tokens owners
+    * @param _miners Tokens owners
     * @param _values Amount of token to deposit for each owner
     * @param _periods Amount of periods during which tokens will be unlocked for each owner
     **/
-    function preDeposit(address[] _owners, uint256[] _values, uint256[] _periods)
-        public isInitialized onlyOwner
+    function preDeposit(address[] _miners, uint256[] _values, uint256[] _periods)
+        public isInitialized
     {
-        require(_owners.length != 0 &&
-            _owners.length == _values.length &&
-            _owners.length == _periods.length);
+        require(_miners.length != 0 &&
+            _miners.length == _values.length &&
+            _miners.length == _periods.length);
         uint256 currentPeriod = getCurrentPeriod();
         uint256 allValue = 0;
 
-        for (uint256 i = 0; i < _owners.length; i++) {
-            address owner = _owners[i];
+        for (uint256 i = 0; i < _miners.length; i++) {
+            address miner = _miners[i];
             uint256 value = _values[i];
             uint256 periods = _periods[i];
-            MinerInfo storage info = minerInfo[owner];
+            MinerInfo storage info = minerInfo[miner];
             require(info.value == 0 &&
                 value >= minAllowableLockedTokens &&
                 value <= maxAllowableLockedTokens &&
                 periods >= minLockedPeriods);
-            miners.push(owner);
+            miners.push(miner);
             info.lastActivePeriod = currentPeriod;
             info.value = value;
             info.stakes.push(StakeInfo(currentPeriod.add(uint256(1)), 0, periods, value));
             allValue = allValue.add(value);
-            emit Deposited(owner, value, periods);
+            emit Deposited(miner, value, periods);
         }
 
         token.safeTransferFrom(msg.sender, address(this), allValue);
@@ -752,7 +752,6 @@ contract MinersEscrow is Issuer {
     function finishUpgrade(address _target) public onlyOwner {
         super.finishUpgrade(_target);
         MinersEscrow escrow = MinersEscrow(_target);
-        policyManager = escrow.policyManager();
         minLockedPeriods = escrow.minLockedPeriods();
         minAllowableLockedTokens = escrow.minAllowableLockedTokens();
         maxAllowableLockedTokens = escrow.maxAllowableLockedTokens();

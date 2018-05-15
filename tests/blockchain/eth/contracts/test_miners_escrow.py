@@ -865,6 +865,7 @@ def test_verifying_state(web3, chain, token):
     chain.wait_for_receipt(tx)
     assert contract_library_v2.address == dispatcher.functions.target().call()
     assert 1500 == contract.functions.maxAllowableLockedTokens().call()
+    assert policy_manager.address == contract.functions.policyManager().call()
     assert 2 == contract.functions.valueToCheck().call()
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     chain.wait_for_receipt(tx)
@@ -884,9 +885,10 @@ def test_verifying_state(web3, chain, token):
 
     # But can rollback
     tx = dispatcher.functions.rollback().transact({'from': creator})
-
     chain.wait_for_receipt(tx)
     assert contract_library_v1.address == dispatcher.functions.target().call()
+    assert policy_manager.address == contract.functions.policyManager().call()
+
     with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.functions.setValueToCheck(2).transact({'from': creator})
         chain.wait_for_receipt(tx)

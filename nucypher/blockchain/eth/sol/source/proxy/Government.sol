@@ -126,13 +126,13 @@ contract Government is Upgradeable {
     }
 
     /**
-    * @notice Vote
+    * @notice Vote for the upgrade
     **/
-    function vote(bool voteFor) public {
+    function vote(bool _voteFor) public {
         require(getVotingState() == VotingState.Active && lastVote[msg.sender] < votingNumber);
         uint256 lockedTokens = MinersEscrowInterface(escrow).getLockedTokens(msg.sender);
         require(lockedTokens > 0);
-        if (voteFor) {
+        if (_voteFor) {
             votesFor = votesFor.add(lockedTokens);
         } else {
             votesAgainst = votesAgainst.add(lockedTokens);
