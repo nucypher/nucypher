@@ -17,20 +17,20 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import EncryptingPower, SigningPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.capabilities import SeedOnly, ServerCapability
-from nucypher.network.node import NuCypherNode
-from nucypher.network.protocols import NuCypherSeedOnlyProtocol, NuCypherHashProtocol, \
+from nucypher.network.node import NucypherNode
+from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, \
     dht_value_splitter, dht_with_hrac_splitter
 from nucypher.network.storage import SeedOnlyStorage
 
 
-class NuCypherDHTServer(Server):
-    protocol_class = NuCypherHashProtocol
+class NucypherDHTServer(Server):
+    protocol_class = NucypherHashProtocol
     capabilities = ()
     digests_set = 0
 
     def __init__(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
         super().__init__(ksize=20, alpha=3, id=None, storage=None, *args, **kwargs)
-        self.node = NuCypherNode(id or digest(
+        self.node = NucypherNode(id or digest(
             random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
 
     def serialize_capabilities(self):
@@ -41,7 +41,7 @@ class NuCypherDHTServer(Server):
         Announce node including capabilities
         """
         result = await self.protocol.ping(addr, self.node.id, self.serialize_capabilities())
-        return NuCypherNode(result[1], addr[0], addr[1]) if result[0] else None
+        return NucypherNode(result[1], addr[0], addr[1]) if result[0] else None
 
     async def set_digest(self, dkey, value):
         """
@@ -86,8 +86,8 @@ class NuCypherDHTServer(Server):
         return await self.set_digest(key, value)
 
 
-class NuCypherSeedOnlyDHTServer(NuCypherDHTServer):
-    protocol_class = NuCypherSeedOnlyProtocol
+class NucypherSeedOnlyDHTServer(NucypherDHTServer):
+    protocol_class = NucypherSeedOnlyProtocol
     capabilities = (SeedOnly(),)
 
     def __init__(self, *args, **kwargs):

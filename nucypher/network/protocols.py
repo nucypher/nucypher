@@ -7,18 +7,18 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.signature import Signature
 from bytestring_splitter import BytestringSplitter
-from nucypher.network.node import NuCypherNode
-from nucypher.network.routing import NuCypherRoutingTable
+from nucypher.network.node import NucypherNode
+from nucypher.network.routing import NucypherRoutingTable
 from umbral.keys import UmbralPublicKey
 
 dht_value_splitter = default_constant_splitter + BytestringSplitter(Signature, (UmbralPublicKey, PUBLIC_KEY_LENGTH))
 dht_with_hrac_splitter = dht_value_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH))
 
 
-class NuCypherHashProtocol(KademliaProtocol):
+class NucypherHashProtocol(KademliaProtocol):
     def __init__(self, sourceNode, storage, ksize, *args, **kwargs):
         super().__init__(sourceNode, storage, ksize, *args, **kwargs)
-        self.router = NuCypherRoutingTable(self, ksize, sourceNode)
+        self.router = NucypherRoutingTable(self, ksize, sourceNode)
         self.illegal_keys_seen = []
         # TODO: This is the wrong way to do this.  See #227.
         self.treasure_maps = {}
@@ -31,13 +31,13 @@ class NuCypherHashProtocol(KademliaProtocol):
             return True
 
     def rpc_ping(self, sender, nodeid, node_capabilities=[]):
-        source = NuCypherNode(nodeid, sender[0], sender[1],
+        source = NucypherNode(nodeid, sender[0], sender[1],
                               capabilities_as_strings=node_capabilities)
         self.welcomeIfNewNode(source)
         return self.sourceNode.id
 
     async def callStore(self, nodeToAsk, key, value):
-        # nodeToAsk = NuCypherNode
+        # nodeToAsk = NucypherNode
         if self.check_node_for_storage(nodeToAsk):
             address = (nodeToAsk.ip, nodeToAsk.port)
             # TODO: encrypt `value` with public key of nodeToAsk
@@ -72,7 +72,7 @@ class NuCypherHashProtocol(KademliaProtocol):
             return True
 
     def rpc_store(self, sender, nodeid, key, value):
-        source = NuCypherNode(nodeid, sender[0], sender[1])
+        source = NucypherNode(nodeid, sender[0], sender[1])
         self.welcomeIfNewNode(source)
         self.log.debug("got a store request from %s" % str(sender))
 
@@ -108,7 +108,7 @@ class NuCypherHashProtocol(KademliaProtocol):
         return do_store
 
 
-class NuCypherSeedOnlyProtocol(NuCypherHashProtocol):
+class NucypherSeedOnlyProtocol(NucypherHashProtocol):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

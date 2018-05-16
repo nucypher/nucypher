@@ -1,8 +1,8 @@
 import pytest
 from pytest import raises
 
-from nucypher.blockchain.eth.agents import NuCypherTokenAgent, MinerAgent
-from nucypher.blockchain.eth.deployers import NuCypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.blockchain.eth.interfaces import Registrar
 
 
@@ -10,12 +10,12 @@ def test_token_deployer_and_agent(chain):
 
     # Trying to get token from blockchain before it's been published fails
     with pytest.raises(Registrar.UnknownContract):
-        NuCypherTokenAgent(blockchain=chain)
+        NucypherTokenAgent(blockchain=chain)
 
     # The big day...
-    deployer = NuCypherTokenDeployer(blockchain=chain)
+    deployer = NucypherTokenDeployer(blockchain=chain)
 
-    with pytest.raises(NuCypherTokenDeployer.ContractDeploymentError):
+    with pytest.raises(NucypherTokenDeployer.ContractDeploymentError):
         deployer.deploy()
 
     # Token must be armed before deploying to the blockchain
@@ -23,10 +23,10 @@ def test_token_deployer_and_agent(chain):
     deployer.deploy()
 
     # Create a token instance
-    token_agent = NuCypherTokenAgent(blockchain=chain)
+    token_agent = NucypherTokenAgent(blockchain=chain)
 
     # Make sure we got the name right
-    deployer_contract_identifier = NuCypherTokenDeployer._contract_name
+    deployer_contract_identifier = NucypherTokenDeployer._contract_name
     assert'NuCypherToken' == deployer_contract_identifier
 
     # Ensure the contract is deployed and has a valid blockchain address
@@ -37,7 +37,7 @@ def test_token_deployer_and_agent(chain):
     # assert token().totalSupply() == int(1e9) * _M     # TODO
 
     # Retrieve the token from the blockchain
-    same_token_agent = NuCypherTokenAgent(blockchain=chain)
+    same_token_agent = NucypherTokenAgent(blockchain=chain)
 
     # Compare the contract address for equality
     assert token_agent.contract_address == same_token_agent.contract_address
@@ -54,11 +54,11 @@ def test_deploy_ethereum_contracts(chain):
     - Issuer
     """
 
-    token_deployer = NuCypherTokenDeployer(blockchain=chain)
+    token_deployer = NucypherTokenDeployer(blockchain=chain)
     token_deployer.arm()
     token_deployer.deploy()
 
-    token_agent = NuCypherTokenAgent(blockchain=chain)
+    token_agent = NucypherTokenAgent(blockchain=chain)
 
     miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent)
     miner_escrow_deployer.arm()

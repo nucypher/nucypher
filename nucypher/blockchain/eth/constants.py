@@ -1,7 +1,7 @@
 NULL_ADDRESS = '0x' + '0' * 40
 
 
-class NuCypherTokenConfig:
+class NucypherTokenConfig:
 
     class TokenConfigError(ValueError):
         pass
@@ -17,7 +17,7 @@ class NuCypherTokenConfig:
         return self.__saturation
 
 
-class NuCypherMinerConfig:
+class NucypherMinerConfig:
 
     class MinerConfigError(ValueError):
         pass
@@ -26,10 +26,10 @@ class NuCypherMinerConfig:
     min_locked_periods = 30      # 720 Hours minimum
     max_minting_periods = 365    # Maximum number of periods
 
-    min_allowed_locked = 15000 * NuCypherTokenConfig._M
-    max_allowed_locked = int(4e6) * NuCypherTokenConfig._M
+    min_allowed_locked = 15000 * NucypherTokenConfig._M
+    max_allowed_locked = int(4e6) * NucypherTokenConfig._M
 
-    __remaining_supply = NuCypherTokenConfig._remaining_supply
+    __remaining_supply = NucypherTokenConfig._remaining_supply
 
     __mining_coeff = [           # TODO
         _hours_per_period,

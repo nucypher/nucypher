@@ -5,7 +5,7 @@ from functools import partial
 from typing import Set, Generator, List
 
 from nucypher.blockchain.eth import constants
-from nucypher.blockchain.eth.constants import NuCypherTokenConfig, NuCypherMinerConfig
+from nucypher.blockchain.eth.constants import NucypherTokenConfig, NucypherMinerConfig
 from web3.contract import Contract
 
 
@@ -59,11 +59,11 @@ class EthereumContractAgent(ABC):
         return self.contract.functions.balanceOf(address).call()
 
 
-class NuCypherTokenAgent(EthereumContractAgent, NuCypherTokenConfig):
+class NucypherTokenAgent(EthereumContractAgent, NucypherTokenConfig):
     _principal_contract_name = "NuCypherToken"
 
 
-class MinerAgent(EthereumContractAgent, NuCypherMinerConfig):
+class MinerAgent(EthereumContractAgent, NucypherMinerConfig):
     """
     Wraps NuCypher's Escrow solidity smart contract
 
@@ -84,7 +84,7 @@ class MinerAgent(EthereumContractAgent, NuCypherMinerConfig):
         CONFIRMED_PERIOD_1 = 3
         CONFIRMED_PERIOD_2 = 4
 
-    def __init__(self, token_agent: NuCypherTokenAgent, *args, **kwargs):
+    def __init__(self, token_agent: NucypherTokenAgent, *args, **kwargs):
         super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
         self.token_agent = token_agent
         self.miners = list()    # Tracks per client

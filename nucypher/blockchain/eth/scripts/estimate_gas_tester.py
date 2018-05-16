@@ -6,7 +6,7 @@ A simple Python script to deploy contracts and then estimate gas for different m
 """
 
 
-from nucypher.blockchain.eth.agents import NuCypherTokenAgent, MinerAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 import os
 
 from tests.utilities import TesterBlockchain
@@ -21,7 +21,7 @@ def main():
 
     # TODO: Updatae to agents and deployers
     # Create an ERC20 token
-    token = NuCypherToken(blockchain=chain)
+    token = NucypherToken(blockchain=chain)
     token.arm()
     token.deploy()
 

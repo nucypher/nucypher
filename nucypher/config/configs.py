@@ -7,7 +7,7 @@ import maya
 _DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
 
 
-class NuCypherConfigurationError(RuntimeError):
+class NucypherConfigurationError(RuntimeError):
     pass
 
 
@@ -32,7 +32,7 @@ class StakeConfig:
 
         for rule, failure_message in rules:
             if rule is False:
-                raise NuCypherConfigurationError(failure_message)
+                raise NucypherConfigurationError(failure_message)
         else:
             return True
 
@@ -64,7 +64,7 @@ class NetworkConfig:
         return self.__db_path
 
 
-class NuCypherConfig:
+class NucypherConfig:
     __default_configuration_root = _DEFAULT_CONFIGURATION_DIR
     __default_json_config_filepath = os.path.join(__default_configuration_root, 'conf.json')
 

@@ -7,18 +7,18 @@ from eth_tester.backends import is_pyevm_available
 from eth_tester.backends.pyevm.main import get_default_genesis_params, get_default_account_keys, generate_genesis_state
 from web3 import Web3
 
-from nucypher.blockchain.eth.agents import MinerAgent, NuCypherTokenAgent
-from nucypher.blockchain.eth.constants import NuCypherMinerConfig
-from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NuCypherTokenDeployer
+from nucypher.blockchain.eth.agents import MinerAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.constants import NucypherMinerConfig
+from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherTokenDeployer
 
 
-class MockNuCypherMinerConfig(NuCypherMinerConfig):
+class MockNucypherMinerConfig(NucypherMinerConfig):
     """Speed things up a bit"""
     # _hours_per_period = 24     # Hours
     # min_locked_periods = 1     # Minimum locked periods
 
 
-class MockTokenAgent(NuCypherTokenAgent):
+class MockTokenAgent(NucypherTokenAgent):
 
     def token_airdrop(self, amount: int, addresses: List[str]=None):
         """Airdrops tokens from creator address to all other addresses!"""
@@ -38,7 +38,7 @@ class MockTokenAgent(NuCypherTokenAgent):
         return receipts
 
 
-class MockMinerAgent(MinerAgent, MockNuCypherMinerConfig):
+class MockMinerAgent(MinerAgent, MockNucypherMinerConfig):
     """MinerAgent with faked config subclass"""
 
     def spawn_random_miners(self, addresses: list) -> list:
@@ -66,12 +66,12 @@ class MockMinerAgent(MinerAgent, MockNuCypherMinerConfig):
         return miners
 
 
-class MockNuCypherTokenDeployer(NuCypherTokenDeployer):
+class MockNucypherTokenDeployer(NucypherTokenDeployer):
     """Mock deployer with mock agency"""
     agency = MockTokenAgent
 
 
-class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNuCypherMinerConfig):
+class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNucypherMinerConfig):
     """Helper class for MockMinerAgent, using a mock miner config"""
     agency = MockMinerAgent
 

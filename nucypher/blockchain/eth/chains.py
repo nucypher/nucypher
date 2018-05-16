@@ -2,7 +2,7 @@ import random
 from abc import ABC
 from typing import List
 
-from nucypher.blockchain.eth.constants import NuCypherMinerConfig
+from nucypher.blockchain.eth.constants import NucypherMinerConfig
 from nucypher.blockchain.eth.interfaces import ContractProvider
 
 
@@ -72,7 +72,7 @@ class TheBlockchain(ABC):
         return result
 
 
-class TesterBlockchain(TheBlockchain, NuCypherMinerConfig):
+class TesterBlockchain(TheBlockchain, NucypherMinerConfig):
     """Transient, in-memory, local, private chain"""
 
     _network = 'tester'

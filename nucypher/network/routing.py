@@ -1,7 +1,7 @@
 from kademlia.routing import RoutingTable
 
 
-class NuCypherRoutingTable(RoutingTable):
+class NucypherRoutingTable(RoutingTable):
 
     def addContact(self, node, seed_only=False):
         if seed_only:

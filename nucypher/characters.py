@@ -14,7 +14,7 @@ from umbral.keys import UmbralPublicKey
 from constant_sorrow import constants, default_constant_splitter
 
 from nucypher.blockchain.eth.actors import PolicyAuthor
-from nucypher.config.configs import NuCypherConfig
+from nucypher.config.configs import NucypherConfig
 from nucypher.crypto.api import secure_random, keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -22,7 +22,7 @@ from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, D
 from nucypher.crypto.signature import Signature, signature_splitter, SignatureStamp, StrangerStamp
 from nucypher.network import blockchain_client
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
-from nucypher.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
+from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
 
 
 class Character(object):
@@ -38,7 +38,7 @@ class Character(object):
 
     def __init__(self, attach_server=True, crypto_power: CryptoPower=None,
                  crypto_power_ups=None, is_me=True, network_middleware=None,
-                 config: "NuCypherConfig"=None) -> None:
+                 config: "NucypherConfig"=None) -> None:
         """
         :param attach_server:  Whether to attach a Server when this Character is
             born.
@@ -60,7 +60,7 @@ class Character(object):
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
-        # self.config = config if config is not None else NuCypherConfig.get_config()
+        # self.config = config if config is not None else NucypherConfig.get_config()
         self.known_nodes = {}
         self.log = getLogger("characters")
 
@@ -317,7 +317,7 @@ class FakePolicyAgent:  # TODO: #192
 
 
 class Alice(Character, PolicyAuthor):
-    _server_class = NuCypherSeedOnlyDHTServer
+    _server_class = NucypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, *args, **kwargs):
@@ -389,7 +389,7 @@ class Alice(Character, PolicyAuthor):
 
 
 class Bob(Character):
-    _server_class = NuCypherSeedOnlyDHTServer
+    _server_class = NucypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
     def __init__(self, *args, **kwargs):
@@ -590,7 +590,7 @@ class Bob(Character):
 
 
 class Ursula(Character, ProxyRESTServer):
-    _server_class = NuCypherDHTServer
+    _server_class = NucypherDHTServer
     _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 

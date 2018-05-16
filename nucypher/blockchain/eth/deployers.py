@@ -2,8 +2,8 @@ from typing import Tuple, Dict
 
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.agents import EthereumContractAgent, MinerAgent, NuCypherTokenAgent, PolicyAgent
-from nucypher.blockchain.eth.constants import NuCypherTokenConfig, NuCypherMinerConfig
+from nucypher.blockchain.eth.agents import EthereumContractAgent, MinerAgent, NucypherTokenAgent, PolicyAgent
+from nucypher.blockchain.eth.constants import NucypherTokenConfig, NucypherMinerConfig
 from .chains import TheBlockchain
 
 
@@ -156,10 +156,10 @@ class ContractDeployer:
         return agent
 
 
-class NuCypherTokenDeployer(ContractDeployer, NuCypherTokenConfig):
+class NucypherTokenDeployer(ContractDeployer, NucypherTokenConfig):
 
     _contract_name = 'NuCypherToken'
-    agency = NuCypherTokenAgent
+    agency = NucypherTokenAgent
 
     def __init__(self, blockchain):
         super().__init__(blockchain=blockchain)
@@ -206,9 +206,9 @@ class DispatcherDeployer(ContractDeployer):
         return txhash
 
 
-class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
+class MinerEscrowDeployer(ContractDeployer, NucypherMinerConfig):
     """
-    Deploys the MinerEscrow ethereum contract to the blockchain.  Depends on NuCypherTokenAgent
+    Deploys the MinerEscrow ethereum contract to the blockchain.  Depends on NucypherTokenAgent
     """
 
     agency = MinerAgent
@@ -290,7 +290,7 @@ class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
 
 class PolicyManagerDeployer(ContractDeployer):
     """
-    Depends on MinerAgent and NuCypherTokenAgent
+    Depends on MinerAgent and NucypherTokenAgent
     """
 
     agency = PolicyAgent

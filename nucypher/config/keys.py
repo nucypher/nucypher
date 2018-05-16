@@ -113,7 +113,7 @@ def _generate_transacting_keys(passphrase: str) -> dict:
     return encrypted_wallet_data
 
 
-class NuCypherKeyring:
+class NucypherKeyring:
     """
     Warning: This class handles private keys!
 
@@ -233,7 +233,7 @@ class NuCypherKeyring:
         return new_cryptopower
 
     @classmethod
-    def generate(cls, passphrase: str, encryption: bool=True, transacting: bool=True, output_path: str=None) -> 'NuCypherKeyring':
+    def generate(cls, passphrase: str, encryption: bool=True, transacting: bool=True, output_path: str=None) -> 'NucypherKeyring':
         """
         Generates new encryption, signing, and transacting keys encrypted with the passphrase,
         respectively saving keyfiles on the local filesystem from *default* paths,
