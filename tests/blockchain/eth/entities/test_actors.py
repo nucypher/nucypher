@@ -19,7 +19,7 @@ def test_miner_locking_tokens(chain, miner, mock_miner_agent):
     assert mock_miner_agent.min_allowed_locked < miner.token_balance(), "Insufficient miner balance"
 
     miner.stake(amount=mock_miner_agent.min_allowed_locked,    # Lock the minimum amount of tokens
-                periods=mock_miner_agent.min_locked_periods)   # ... for the fewest number of periods
+                lock_periods=mock_miner_agent.min_locked_periods)   # ... for the fewest number of periods
 
     # Verify that the escrow is "approved" to receive tokens
     assert mock_miner_agent.token_agent.contract.functions.allowance(miner.address, mock_miner_agent.contract_address).call() == 0

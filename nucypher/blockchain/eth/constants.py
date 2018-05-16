@@ -72,17 +72,17 @@ class NuCypherMinerConfig:
             self.__validate(rulebook=rulebook)
         return all(rulebook)
 
-    def validate_locktime(self, periods: int, raise_on_fail=True) -> bool:
+    def validate_locktime(self, lock_periods: int, raise_on_fail=True) -> bool:
 
         rulebook = (
 
-            (periods >= self.min_locked_periods,
+            (lock_periods >= self.min_locked_periods,
              'Locktime ({locktime}) too short; must be at least {minimum}'
-             .format(minimum=self.min_locked_periods, locktime=periods)),
+             .format(minimum=self.min_locked_periods, locktime=lock_periods)),
 
-            (periods <= self.max_minting_periods,
+            (lock_periods <= self.max_minting_periods,
              'Locktime ({locktime}) too long; must be no more than {maximum}'
-             .format(maximum=self.max_minting_periods, locktime=periods)),
+             .format(maximum=self.max_minting_periods, locktime=lock_periods)),
         )
 
         if raise_on_fail is True:

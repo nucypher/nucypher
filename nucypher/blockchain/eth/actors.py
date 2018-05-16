@@ -93,10 +93,10 @@ class Miner(TokenActor):
 
         return txhash
 
-    def _send_tokens_to_escrow(self, amount, periods) -> str:
+    def _send_tokens_to_escrow(self, amount, lock_periods) -> str:
         """Send tokes to the escrow from the miner's address"""
 
-        deposit_txhash = self.miner_agent.contract.functions.deposit(amount, periods).transact({'from': self.address})
+        deposit_txhash = self.miner_agent.contract.functions.deposit(amount, lock_periods).transact({'from': self.address})
 
         self.blockchain.wait_for_receipt(deposit_txhash)
 
@@ -104,10 +104,10 @@ class Miner(TokenActor):
 
         return deposit_txhash
 
-    def deposit(self, amount: int, periods: int) -> Tuple[str, str]:
+    def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
         approve_txhash = self._approve_escrow(amount=amount)
-        deposit_txhash = self._send_tokens_to_escrow(amount=amount, periods=periods)
+        deposit_txhash = self._send_tokens_to_escrow(amount=amount, lock_periods=lock_periods)
 
         return approve_txhash, deposit_txhash
 
@@ -162,17 +162,17 @@ class Miner(TokenActor):
 
         return collection_txhash
 
-    def __validate_stake(self, amount: int, periods: int) -> bool:
+    def __validate_stake(self, amount: int, lock_periods: int) -> bool:
 
         assert self.miner_agent.validate_stake_amount(amount=amount)
-        assert self.miner_agent.validate_locktime(periods=periods)
+        assert self.miner_agent.validate_locktime(lock_periods=lock_periods)
 
         if not self.token_balance() >= amount:
             raise self.StakingError("Insufficient miner token balance ({balance})".format(balance=self.token_balance()))
         else:
             return True
 
-    def stake(self, amount, periods, entire_balance=False):
+    def stake(self, amount, lock_periods, entire_balance=False):
         """
         High level staking method for Miners.
         """
@@ -187,9 +187,9 @@ class Miner(TokenActor):
                                                                        self.address, 0).call()
         amount = self.blockchain.provider.w3.toInt(amount)
 
-        assert self.__validate_stake(amount=amount, periods=periods)
+        assert self.__validate_stake(amount=amount, lock_periods=lock_periods)
 
-        approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, periods=periods)
+        approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, lock_periods=lock_periods)
         self._transactions.append((datetime.utcnow(), initial_deposit_txhash))
 
         return staking_transactions

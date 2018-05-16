@@ -61,7 +61,7 @@ class MockMinerAgent(MinerAgent, MockNuCypherMinerConfig):
             min_locktime, max_locktime = self.min_locked_periods, self.max_minting_periods
             periods = random.randint(min_locktime, max_locktime)
 
-            miner.stake(amount=amount, periods=periods)
+            miner.stake(amount=amount, lock_periods=periods)
 
         return miners
 

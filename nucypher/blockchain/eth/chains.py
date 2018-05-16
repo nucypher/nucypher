@@ -93,7 +93,7 @@ class TesterBlockchain(TheBlockchain, NuCypherMinerConfig):
 
         querytime = list(filter(lambda t: bool(t), (hours, seconds, periods)))
         if len(querytime) > 1:
-            raise ValueError("Specify hours, seconds, or periods, not a combination")
+            raise ValueError("Specify hours, seconds, or lock_periods, not a combination")
 
         if periods:
             duration = (self._hours_per_period * periods) * (60 * 60)
@@ -102,7 +102,7 @@ class TesterBlockchain(TheBlockchain, NuCypherMinerConfig):
         elif seconds:
             duration = seconds
         else:
-            raise ValueError("Specify either hours, seconds, or periods.")
+            raise ValueError("Specify either hours, seconds, or lock_periods.")
 
         end_timestamp = self.provider.w3.eth.getBlock(block_identifier='latest').timestamp + duration
         self.provider.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
