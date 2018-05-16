@@ -91,8 +91,8 @@ class TesterBlockchain(TheBlockchain, NuCypherMinerConfig):
         block timestamps and mines a single block.
         """
 
-        querytime = list(filter(lambda t: bool(t), (hours, seconds, periods)))
-        if len(querytime) > 1:
+        more_than_one_arg = sum(map(bool, (hours, seconds, periods))) > 1
+        if more_than_one_arg:
             raise ValueError("Specify hours, seconds, or lock_periods, not a combination")
 
         if periods:
@@ -116,7 +116,7 @@ class TesterBlockchain(TheBlockchain, NuCypherMinerConfig):
         for address in addresses:
             tx = {'to': address, 'from': coinbase, 'value': amount}
             txhash = self.provider.w3.eth.sendTransaction(tx)
-            _ = self.provider.w3.eth.waitForTransactionReceipt(txhash)
+            _receipt = self.provider.w3.eth.waitForTransactionReceipt(txhash)
             tx_hashes.append(txhash)
         return tx_hashes
 
