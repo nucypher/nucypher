@@ -99,7 +99,6 @@ def test_escrow(web3, chain, token, user_escrow):
     assert 1000 == token.functions.balanceOf(user_escrow.address).call()
 
     events = withdraws.get_all_entries()
-
     assert 1 == len(events)
     event_args = events[0]['args']
     assert user == event_args['owner']
@@ -107,37 +106,27 @@ def test_escrow(web3, chain, token, user_escrow):
 
     # Wait some time
     chain.time_travel(seconds=500)
-    assert 500 >= user_escrow.functions.getLockedTokens().call()
-    assert 450 <= user_escrow.functions.getLockedTokens().call()
+    assert 1000 == user_escrow.functions.getLockedTokens().call()
 
-    # User can withdraw some unlocked tokens
-    tx = user_escrow.functions.withdraw(500).transact({'from': user})
-    chain.wait_for_receipt(tx)
-    assert 1500 == token.functions.balanceOf(user).call()
-
-    # events = user_escrow.pastEvents('Withdrawn').get()
-    events = withdraws.get_all_entries()
-
-    assert 2 == len(events)
-    event_args = events[1]['args']
-    assert user == event_args['owner']
-    assert 500 == event_args['value']
+    # Can't withdraw before unlocking
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = user_escrow.functions.withdraw(100).transact({'from': user})
+        chain.wait_for_receipt(tx)
+    assert 1000 == token.functions.balanceOf(user).call()
 
     # Wait more time and withdraw all
     chain.time_travel(seconds=500)
     assert 0 == user_escrow.functions.getLockedTokens().call()
-    tx = user_escrow.functions.withdraw(500).transact({'from': user})
+    tx = user_escrow.functions.withdraw(1000).transact({'from': user})
     chain.wait_for_receipt(tx)
     assert 0 == token.functions.balanceOf(user_escrow.address).call()
     assert 2000 == token.functions.balanceOf(user).call()
 
-    # events = user_escrow.pastEvents('Withdrawn').get()
     events = withdraws.get_all_entries()
-
-    assert 3 == len(events)
-    event_args = events[2]['args']
+    assert 2 == len(events)
+    event_args = events[1]['args']
     assert user == event_args['owner']
-    assert 500 == event_args['value']
+    assert 1000 == event_args['value']
 
 
 @pytest.mark.slow

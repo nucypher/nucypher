@@ -6,7 +6,7 @@ NuCypher contracts
 * `Upgradeable` is base contract for upgrading (<nucypher.blockchain.eth/project/contracts/proxy/README.MD>)
 * `Dispatcher` contract is used as proxy to other contracts. This provides upgrading of the `MinersEscrow`, `PolicyManager` and `Government` contracts
 * `Government` contract holds ownership for dispatchers and provides voting for upgrading of those contracts
-* `UserEscrow` contract locks tokens for some time. In that period tokens are lineraly unlocked and all tokens can be used as a stake in the `MinersEscrow` contract
+* `UserEscrow` contract locks tokens for some time. Tokens will be unlocked after specified time and all tokens can be used as a stake in the `MinersEscrow` contract
 
 Deployment
 ========================
@@ -65,8 +65,8 @@ The miner can set a minimum reward rate for a policy. For that, the miner should
 
 Some users will have locked but not staked tokens. 
 In that case, a instance of the `UserEscrow` contract will hold their tokens (method `initialDeposit(uint256, uint256)`).
-All tokens will be linearly unlocked and the user can get them by method `withdraw(uint256)`.
-When the user wants to become a miner - he uses the `UserEscrow` contract as a proxy for the `MinersEscrow` and `PolicyManager` contracts.
+All tokens will be unlocked after specified time and the user can get them by method `withdraw(uint256)`.
+When the user wants to become a miner - he uses the `UserEscrow` contract as a proxy for the `MinersEscrow`, `PolicyManager` and `Government` contracts.
 
 Alice
 ========================

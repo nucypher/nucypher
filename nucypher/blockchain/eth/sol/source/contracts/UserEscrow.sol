@@ -43,7 +43,6 @@ contract UserEscrow is Ownable {
     Government public government;
     uint256 public lockedValue;
     uint256 public endLockTimestamp;
-    uint256 public lockDuration;
 
     /**
     * @notice Constructor sets addresses of the contracts
@@ -80,7 +79,6 @@ contract UserEscrow is Ownable {
     function initialDeposit(uint256 _value, uint256 _duration) public {
         require(lockedValue == 0 && _value > 0);
         endLockTimestamp = block.timestamp.add(_duration);
-        lockDuration = _duration;
         lockedValue = _value;
         token.safeTransferFrom(msg.sender, address(this), _value);
         emit Deposited(msg.sender, _value, _duration);
@@ -93,8 +91,7 @@ contract UserEscrow is Ownable {
         if (endLockTimestamp <= block.timestamp) {
             return 0;
         }
-        return lockedValue.mul(endLockTimestamp.sub(block.timestamp))
-            .div(lockDuration);
+        return lockedValue;
     }
 
     /**
