@@ -67,7 +67,7 @@ class Miner(TokenActor):
     def __update_locked_tokens(self) -> None:
         """Query the contract for the amount of locked tokens on this miner's eth address and cache it"""
 
-        self.__locked_tokens = self.miner_agent.read().getLockedTokens(self.address)
+        self.__locked_tokens = self.miner_agent.contract.functions.getLockedTokens(self.address).call()
 
     @property
     def is_staking(self):
@@ -86,36 +86,43 @@ class Miner(TokenActor):
     def _approve_escrow(self, amount: int) -> str:
         """Approve the transfer of token from the miner's address to the escrow contract."""
 
-        txhash = self.token_agent.transact({'from': self.address}).approve(self.miner_agent.contract_address, amount)
+        txhash = self.token_agent.contract.functions.approve(self.miner_agent.contract_address, amount).transact({'from': self.address})
         self.blockchain.wait_for_receipt(txhash)
 
         self._transactions.append((datetime.utcnow(), txhash))
 
         return txhash
 
-    def _send_tokens_to_escrow(self, amount, locktime) -> str:
+    def _send_tokens_to_escrow(self, amount, lock_periods) -> str:
         """Send tokes to the escrow from the miner's address"""
 
-        deposit_txhash = self.miner_agent.transact({'from': self.address}).deposit(amount, locktime)
+        deposit_txhash = self.miner_agent.contract.functions.deposit(amount, lock_periods).transact({'from': self.address})
+
         self.blockchain.wait_for_receipt(deposit_txhash)
 
         self._transactions.append((datetime.utcnow(), deposit_txhash))
 
         return deposit_txhash
 
-    def deposit(self, amount: int, locktime: int) -> Tuple[str, str]:
+    def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
         approve_txhash = self._approve_escrow(amount=amount)
-        deposit_txhash = self._send_tokens_to_escrow(amount=amount, locktime=locktime)
+        deposit_txhash = self._send_tokens_to_escrow(amount=amount, lock_periods=lock_periods)
 
         return approve_txhash, deposit_txhash
 
     # TODO add divide_stake method
+    def switch_lock(self):
+        lock_txhash = self.miner_agent.contract.functions.switchLock().transact({'from': self.address})
+        self.blockchain.wait_for_receipt(lock_txhash)
 
-    def _confirm_activity(self) -> str:
+        self._transactions.append((datetime.utcnow(), lock_txhash))
+        return lock_txhash
+
+    def confirm_activity(self) -> str:
         """Miner rewarded for every confirmed period"""
 
-        txhash = self.miner_agent.transact({'from': self.address}).confirmActivity()
+        txhash = self.miner_agent.contract.functions.confirmActivity().transact({'from': self.address})
         self.blockchain.wait_for_receipt(txhash)
 
         self._transactions.append((datetime.utcnow(), txhash))
@@ -125,18 +132,17 @@ class Miner(TokenActor):
     def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the miner's account"""
 
-        confirm_txhash = self.miner_agent.transact({'from': self.address, 'gas_price': 0}).confirmActivity()
-        mint_txhash = self.miner_agent.transact({'from': self.address, 'gas_price': 0}).mint()
+        mint_txhash = self.miner_agent.contract.functions.mint().transact({'from': self.address})
 
         self.blockchain.wait_for_receipt(mint_txhash)
         self._transactions.append((datetime.utcnow(), mint_txhash))
 
-        return confirm_txhash, mint_txhash
+        return mint_txhash
 
     def collect_policy_reward(self, policy_manager):
         """Collect rewarded ETH"""
 
-        policy_reward_txhash = policy_manager.transact({'from': self.address}).withdraw()
+        policy_reward_txhash = policy_manager.contract.functions.withdraw().transact({'from': self.address})
         self.blockchain.wait_for_receipt(policy_reward_txhash)
 
         self._transactions.append((datetime.utcnow(), policy_reward_txhash))
@@ -146,18 +152,27 @@ class Miner(TokenActor):
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
 
-        token_amount = self.miner_agent.read().minerInfo(self.address)[self.miner_agent.MinerInfo.VALUE.value]
+        token_amount_bytes = self.miner_agent.contract.functions.minerInfo(self.address).call()[0]
+        token_amount = self.blockchain.provider.w3.toInt(token_amount_bytes)
 
-        # reward_amount = TODO
+        collection_txhash = self.miner_agent.contract.functions.withdraw(token_amount).transact({'from': self.address})
 
-        reward_txhash = self.miner_agent.transact({'from': self.address}).withdraw(token_amount)
+        self.blockchain.wait_for_receipt(collection_txhash)
+        self._transactions.append((datetime.utcnow(), collection_txhash))
 
-        self.blockchain.wait_for_receipt(reward_txhash)
-        self._transactions.append((datetime.utcnow(), reward_txhash))
+        return collection_txhash
 
-        return reward_txhash
+    def __validate_stake(self, amount: int, lock_periods: int) -> bool:
 
-    def stake(self, amount, locktime, entire_balance=False):
+        assert self.miner_agent.validate_stake_amount(amount=amount)
+        assert self.miner_agent.validate_locktime(lock_periods=lock_periods)
+
+        if not self.token_balance() >= amount:
+            raise self.StakingError("Insufficient miner token balance ({balance})".format(balance=self.token_balance()))
+        else:
+            return True
+
+    def stake(self, amount, lock_periods, entire_balance=False):
         """
         High level staking method for Miners.
         """
@@ -167,17 +182,14 @@ class Miner(TokenActor):
         if entire_balance and amount:
             raise self.StakingError("Specify an amount or entire balance, not both")
 
-        if not locktime >= 0:
-            min_stake_time = self.miner_agent._deployer._min_release_periods
-            raise self.StakingError('Locktime must be at least {}'.format(min_stake_time))
-
         if entire_balance is True:
-            amount = self.miner_agent.read().minerInfo(self.address)[self.miner_agent.MinerInfo.VALUE.value]
-        else:
-            if not amount > 0:
-                raise self.StakingError('Staking amount must be greater than zero.')
+            amount = self.miner_agent.contract.functions.getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
+                                                                       self.address, 0).call()
+        amount = self.blockchain.provider.w3.toInt(amount)
 
-        approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, locktime=locktime)
+        assert self.__validate_stake(amount=amount, lock_periods=lock_periods)
+
+        approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, lock_periods=lock_periods)
         self._transactions.append((datetime.utcnow(), initial_deposit_txhash))
 
         return staking_transactions
@@ -185,7 +197,7 @@ class Miner(TokenActor):
     def publish_data(self, data) -> str:
         """Store new data"""
 
-        txhash = self.miner_agent.transact({'from': self.address}).setMinerId(data)
+        txhash = self.miner_agent.contract.functions.setMinerId(data).transact({'from': self.address})
         self.blockchain.wait_for_receipt(txhash)
 
         self._transactions.append((datetime.utcnow(), txhash))
@@ -195,13 +207,14 @@ class Miner(TokenActor):
     def fetch_data(self) -> tuple:
         """Retrieve all asosciated contract data for this miner."""
 
-        count = self.miner_agent.read().getMinerIdsLength(self.address)
+        count_bytes = self.miner_agent.contract.functions.getMinerIdsLength(self.address).call()
+
+        count = self.blockchain.provider.w3.toInt(count_bytes)
 
         miner_ids = list()
         for index in range(count):
-            miner_id = self.miner_agent.read().getMinerId(self.address, index)
+            miner_id = self.miner_agent.contract.functions.getMinerId(self.address, index).call()
             miner_ids.append(miner_id)
-
         return tuple(miner_ids)
 
 

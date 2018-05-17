@@ -6,7 +6,7 @@ class BlockchainArrangement:
     A relationship between Alice and a single Ursula as part of Blockchain Policy
     """
 
-    def __init__(self, author: str, miner: str, value: int, periods: int, arrangement_id: bytes=None):
+    def __init__(self, author: str, miner: str, value: int, lock_periods: int, arrangement_id: bytes=None):
 
         self.id = arrangement_id
 
@@ -17,11 +17,11 @@ class BlockchainArrangement:
         self.miner = miner
 
         # Arrangement value, rate, and duration
-        rate = value // periods
+        rate = value // lock_periods
         self._rate = rate
 
         self.value = value
-        self.periods = periods  # TODO: datetime -> duration in blocks
+        self.lock_periods = lock_periods  # TODO: datetime -> duration in blocks
 
         self.is_published = False
 
@@ -40,7 +40,7 @@ class BlockchainArrangement:
 
         txhash = self.policy_agent.transact(payload).createPolicy(self.id,
                                                                   self.miner.address,
-                                                                  self.periods)
+                                                                  self.lock_periods)
 
         self.policy_agent._blockchain._chain.wait.for_receipt(txhash)
 
@@ -64,16 +64,16 @@ class BlockchainPolicy:
     def __init__(self):
         self._arrangements = list()
 
-    def publish_arrangement(self, miner, periods: int, rate: int, arrangement_id: bytes=None) -> 'BlockchainArrangement':
+    def publish_arrangement(self, miner, lock_periods: int, rate: int, arrangement_id: bytes=None) -> 'BlockchainArrangement':
         """
         Create a new arrangement to carry out a blockchain policy for the specified rate and time.
         """
 
-        value = rate * periods
+        value = rate * lock_periods
         arrangement = BlockchainArrangement(author=self,
                                             miner=miner,
                                             value=value,
-                                            periods=periods)
+                                            lock_periods=lock_periods)
 
         self._arrangements[arrangement.id] = {arrangement_id: arrangement}
         return arrangement
@@ -87,7 +87,7 @@ class BlockchainPolicy:
         duration = end_block - start_block
 
         miner = Miner(address=miner_address, miner_agent=self.policy_agent.miner_agent)
-        arrangement = BlockchainArrangement(author=self, miner=miner, periods=duration)
+        arrangement = BlockchainArrangement(author=self, miner=miner, lock_periods=duration)
 
         arrangement.is_published = True
         return arrangement

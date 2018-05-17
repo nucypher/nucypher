@@ -1,3 +1,4 @@
+import random
 from typing import List
 
 import pkg_resources
@@ -6,24 +7,73 @@ from eth_tester.backends import is_pyevm_available
 from eth_tester.backends.pyevm.main import get_default_genesis_params, get_default_account_keys, generate_genesis_state
 from web3 import Web3
 
-from nucypher.blockchain.eth.agents import MinerAgent
-from nucypher.blockchain.eth.constants import NuCypherMinerConfig
-from nucypher.blockchain.eth.deployers import MinerEscrowDeployer
+from nucypher.blockchain.eth.agents import MinerAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.constants import NucypherMinerConfig
+from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherTokenDeployer
 
 
-class MockNuCypherMinerConfig(NuCypherMinerConfig):
+class MockNucypherMinerConfig(NucypherMinerConfig):
     """Speed things up a bit"""
-    _hours_per_period = 1     # Hours
-    _min_locked_periods = 1  # Minimum locked periods
+    # _hours_per_period = 24     # Hours
+    # min_locked_periods = 1     # Minimum locked periods
 
 
-class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNuCypherMinerConfig):
-    """Helper class for MockMinerAgent, using a mock miner config"""
+class MockTokenAgent(NucypherTokenAgent):
+
+    def token_airdrop(self, amount: int, addresses: List[str]=None):
+        """Airdrops tokens from creator address to all other addresses!"""
+
+        if addresses is None:
+            _creator, *addresses = self.blockchain.provider.w3.eth.accounts
+
+        def txs():
+            for address in addresses:
+                txhash = self.contract.functions.transfer(address, amount).transact({'from': self.origin})
+                yield txhash
+
+        receipts = list()
+        for tx in txs():    # One at a time
+            receipt = self.blockchain.wait_for_receipt(tx)
+            receipts.append(receipt)
+        return receipts
 
 
-class MockMinerAgent(MinerAgent):
+class MockMinerAgent(MinerAgent, MockNucypherMinerConfig):
     """MinerAgent with faked config subclass"""
-    _deployer = MockMinerEscrowDeployer
+
+    def spawn_random_miners(self, addresses: list) -> list:
+        """
+        Deposit and lock a random amount of tokens in the miner escrow
+        from each address, "spawning" new Miners.
+        """
+        from nucypher.blockchain.eth.actors import Miner
+
+        miners = list()
+        for address in addresses:
+            miner = Miner(miner_agent=self, address=address)
+            miners.append(miner)
+
+            # stake a random amount
+            min_stake, balance = self.min_allowed_locked, miner.token_balance()
+            amount = random.randint(min_stake, balance)
+
+            # for a random lock duration
+            min_locktime, max_locktime = self.min_locked_periods, self.max_minting_periods
+            periods = random.randint(min_locktime, max_locktime)
+
+            miner.stake(amount=amount, lock_periods=periods)
+
+        return miners
+
+
+class MockNucypherTokenDeployer(NucypherTokenDeployer):
+    """Mock deployer with mock agency"""
+    agency = MockTokenAgent
+
+
+class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNucypherMinerConfig):
+    """Helper class for MockMinerAgent, using a mock miner config"""
+    agency = MockMinerAgent
 
 
 def generate_accounts(w3: Web3, quantity: int) -> List[str]:
@@ -61,7 +111,7 @@ class TesterPyEVMBackend(PyEVMBackend):
         timestamp: int(epoch)
         """
 
-        self.fork_config = {}
+        self.fork_config = dict()
 
         if not is_pyevm_available():
             raise pkg_resources.DistributionNotFound(

@@ -15,7 +15,6 @@ contract MinersEscrowInterface {
 /**
 * @notice Contract for version voting
 **/
-// TODO there must be a way to cancel upgrade if there are errors
 contract Government is Upgradeable {
     using SafeMath for uint256;
 
@@ -27,7 +26,8 @@ contract Government is Upgradeable {
     event UpgradeCommitted(
         uint256 indexed votingNumber,
         VotingType indexed votingType,
-        address indexed newAddress
+        address indexed newAddress,
+        bool successful
     );
 
     enum VotingState {
@@ -104,7 +104,17 @@ contract Government is Upgradeable {
         address _newAddress
     ) public {
         require(getVotingState() == VotingState.Finished &&
-            MinersEscrowInterface(escrow).getLockedTokens(msg.sender) != 0);
+            MinersEscrowInterface(escrow).getLockedTokens(msg.sender) != 0 &&
+            (_newAddress != 0x0 &&
+            (_votingType == VotingType.UpgradeGovernment ||
+            _votingType == VotingType.UpgradeEscrow ||
+            _votingType == VotingType.UpgradePolicyManager) ||
+            _votingType == VotingType.RollbackGovernment &&
+            previousTarget != 0x0 ||
+            _votingType == VotingType.RollbackEscrow &&
+            escrow.previousTarget() != 0x0 ||
+            _votingType == VotingType.RollbackPolicyManager &&
+            policyManager.previousTarget() != 0x0));
         votingNumber = votingNumber.add(1);
         endVotingTimestamp = block.timestamp.add(votingDurationSeconds);
         upgradeFinished = false;
@@ -136,20 +146,31 @@ contract Government is Upgradeable {
     function commitUpgrade() public {
         require(getVotingState() == VotingState.UpgradeWaiting);
         upgradeFinished = true;
+        bool upgrade = true;
+        address callAddress;
         if (votingType == VotingType.UpgradeGovernment) {
-            Dispatcher(address(this)).upgrade(newAddress);
+            callAddress = address(this);
         } else if (votingType == VotingType.UpgradeEscrow) {
-            escrow.upgrade(newAddress);
+            callAddress = address(escrow);
         } else if (votingType == VotingType.UpgradePolicyManager) {
-            policyManager.upgrade(newAddress);
+            callAddress = address(policyManager);
         } else if (votingType == VotingType.RollbackGovernment) {
-            Dispatcher(address(this)).rollback();
+            upgrade = false;
+            callAddress = address(this);
         } else if (votingType == VotingType.RollbackEscrow) {
-            escrow.rollback();
+            upgrade = false;
+            callAddress = address(escrow);
         } else if (votingType == VotingType.RollbackPolicyManager) {
-            policyManager.rollback();
+            upgrade = false;
+            callAddress = address(policyManager);
         }
-        emit UpgradeCommitted(votingNumber, votingType, newAddress);
+        bool result;
+        if (upgrade) {
+            result = callAddress.call(bytes4(keccak256("upgrade(address)")), newAddress);
+        } else {
+            result = callAddress.call(bytes4(keccak256("rollback()")));
+        }
+        emit UpgradeCommitted(votingNumber, votingType, newAddress, result);
     }
 
     function verifyState(address _testTarget) public onlyOwner {

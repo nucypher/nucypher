@@ -53,7 +53,7 @@ class Arrangement(BlockchainArrangement):
         policy_duration = arrangement_delta.days
 
         super().__init__(author=self.alice, miner=ursula,
-                         value=self.deposit, periods=policy_duration,
+                         value=self.deposit, lock_periods=policy_duration,
                          arrangement_id=self._make_arrangement_id())
 
     def __bytes__(self):

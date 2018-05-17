@@ -7,7 +7,7 @@ from nucypher.network.capabilities import ServerCapability
 from umbral.fragments import CapsuleFrag
 
 
-class NuCypherNode(Node):
+class NucypherNode(Node):
 
     def __init__(self, id, ip=None, port=None, capabilities=None, capabilities_as_strings=[], *args, **kwargs):
         self.id = id

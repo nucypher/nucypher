@@ -154,7 +154,7 @@ class NucypherKeyring:
                  pub_signing_key_path: str=None,
                  transacting_key_path: str=None):
         """
-        Generates a NucypherKeyring instance with the provided key paths,
+        Generates a NuCypherKeyring instance with the provided key paths,
         falling back to default keyring paths.
         """
 

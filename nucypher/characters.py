@@ -22,7 +22,7 @@ from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, D
 from nucypher.crypto.signature import Signature, signature_splitter, SignatureStamp, StrangerStamp
 from nucypher.network import blockchain_client
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
-from nucypher.network.server import NuCypherDHTServer, NuCypherSeedOnlyDHTServer, ProxyRESTServer
+from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
 
 
 class Character(object):
@@ -317,7 +317,7 @@ class FakePolicyAgent:  # TODO: #192
 
 
 class Alice(Character, PolicyAuthor):
-    _server_class = NuCypherSeedOnlyDHTServer
+    _server_class = NucypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, *args, **kwargs):
@@ -389,7 +389,7 @@ class Alice(Character, PolicyAuthor):
 
 
 class Bob(Character):
-    _server_class = NuCypherSeedOnlyDHTServer
+    _server_class = NucypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
     def __init__(self, *args, **kwargs):
@@ -590,7 +590,7 @@ class Bob(Character):
 
 
 class Ursula(Character, ProxyRESTServer):
-    _server_class = NuCypherDHTServer
+    _server_class = NucypherDHTServer
     _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 

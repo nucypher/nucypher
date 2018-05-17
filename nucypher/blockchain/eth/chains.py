@@ -2,6 +2,7 @@ import random
 from abc import ABC
 from typing import List
 
+from nucypher.blockchain.eth.constants import NucypherMinerConfig
 from nucypher.blockchain.eth.interfaces import ContractProvider
 
 
@@ -71,7 +72,7 @@ class TheBlockchain(ABC):
         return result
 
 
-class TesterBlockchain(TheBlockchain):
+class TesterBlockchain(TheBlockchain, NucypherMinerConfig):
     """Transient, in-memory, local, private chain"""
 
     _network = 'tester'
@@ -84,41 +85,28 @@ class TesterBlockchain(TheBlockchain):
         result = self.provider.w3.eth.waitForTransactionReceipt(txhash, timeout=timeout)
         return result
 
-    def time_travel(self, hours=None, seconds=None):
-        """Wait the specified number of wait_hours by comparing block timestamps."""
-        if hours:
-            duration = hours * 60 * 60
+    def time_travel(self, hours: int=None, seconds: int=None, periods: int=None):
+        """
+        Wait the specified number of wait_hours by comparing
+        block timestamps and mines a single block.
+        """
+
+        more_than_one_arg = sum(map(bool, (hours, seconds, periods))) > 1
+        if more_than_one_arg:
+            raise ValueError("Specify hours, seconds, or lock_periods, not a combination")
+
+        if periods:
+            duration = (self._hours_per_period * periods) * (60 * 60)
+        elif hours:
+            duration = hours * (60 * 60)
         elif seconds:
             duration = seconds
         else:
-            raise Exception("Invalid time")
+            raise ValueError("Specify either hours, seconds, or lock_periods.")
 
-        end_timestamp = self.provider.w3.eth.getBlock('latest').timestamp + duration
-        self.provider.w3.eth.web3.testing.timeTravel(end_timestamp)
+        end_timestamp = self.provider.w3.eth.getBlock(block_identifier='latest').timestamp + duration
+        self.provider.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
         self.provider.w3.eth.web3.testing.mine(1)
-
-    def spawn_miners(self, miner_agent, addresses: list, locktime: int, random_amount=False) -> list:
-
-        """
-        Deposit and lock a random amount of tokens in the miner escrow
-        from each address, "spawning" new Miners.
-        """
-        from nucypher.blockchain.eth.actors import Miner
-
-        miners = list()
-        for address in addresses:
-            miner = Miner(miner_agent=miner_agent, address=address)
-            miners.append(miner)
-
-            if random_amount is True:
-                min_stake = miner_agent._min_allowed_locked    #TODO
-                max_stake = miner_agent._max_allowed_locked
-                amount = random.randint(min_stake, max_stake)
-            else:
-                amount = miner.token_balance() // 2    # stake half
-            miner.stake(amount=amount, locktime=locktime)
-
-        return miners
 
     def _global_airdrop(self, amount: int) -> List[str]:
         """Airdrops from creator address to all other addresses!"""
@@ -128,6 +116,7 @@ class TesterBlockchain(TheBlockchain):
         for address in addresses:
             tx = {'to': address, 'from': coinbase, 'value': amount}
             txhash = self.provider.w3.eth.sendTransaction(tx)
+            _receipt = self.provider.w3.eth.waitForTransactionReceipt(txhash)
             tx_hashes.append(txhash)
         return tx_hashes
 

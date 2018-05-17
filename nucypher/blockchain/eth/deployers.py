@@ -2,12 +2,14 @@ from typing import Tuple, Dict
 
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.constants import NuCypherMinerConfig, NuCypherTokenConfig
+from nucypher.blockchain.eth.agents import EthereumContractAgent, MinerAgent, NucypherTokenAgent, PolicyAgent
+from nucypher.blockchain.eth.constants import NucypherTokenConfig, NucypherMinerConfig
 from .chains import TheBlockchain
 
 
 class ContractDeployer:
 
+    agency = NotImplemented
     _contract_name = NotImplemented
     _arming_word = "I UNDERSTAND"
 
@@ -149,10 +151,15 @@ class ContractDeployer:
         """
         raise NotImplementedError
 
+    def make_agent(self) -> EthereumContractAgent:
+        agent = self.agency(blockchain=self.blockchain, contract=self._contract)
+        return agent
 
-class NucypherTokenDeployer(ContractDeployer, NuCypherTokenConfig):
+
+class NucypherTokenDeployer(ContractDeployer, NucypherTokenConfig):
 
     _contract_name = 'NuCypherToken'
+    agency = NucypherTokenAgent
 
     def __init__(self, blockchain):
         super().__init__(blockchain=blockchain)
@@ -199,11 +206,12 @@ class DispatcherDeployer(ContractDeployer):
         return txhash
 
 
-class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
+class MinerEscrowDeployer(ContractDeployer, NucypherMinerConfig):
     """
-    Deploys the MinerEscrow ethereum contract to the blockchain.  Depends on NuCypherTokenAgent
+    Deploys the MinerEscrow ethereum contract to the blockchain.  Depends on NucypherTokenAgent
     """
 
+    agency = MinerAgent
     _contract_name = 'MinersEscrow'
 
     def __init__(self, token_agent):
@@ -257,7 +265,7 @@ class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
         the_escrow_contract = wrapped_escrow_contract
 
         # 3 - Transfer tokens to the miner escrow #
-        reward_txhash = self.token_agent.transact(origin_args).transfer(the_escrow_contract.address, self.remaining_supply)
+        reward_txhash = self.token_agent.contract.functions.transfer(the_escrow_contract.address, self.remaining_supply).transact(origin_args)
         _reward_receipt = self.blockchain.wait_for_receipt(reward_txhash)
 
         # 4 - Initialize the Miner Escrow contract
@@ -275,12 +283,17 @@ class MinerEscrowDeployer(ContractDeployer, NuCypherMinerConfig):
         self.deployment_transactions = deployment_transactions
         return deployment_transactions
 
+    def make_agent(self) -> EthereumContractAgent:
+        agent = self.agency(token_agent=self.token_agent, contract=self._contract)
+        return agent
+
 
 class PolicyManagerDeployer(ContractDeployer):
     """
-    Depends on MinerAgent and NuCypherTokenAgent
+    Depends on MinerAgent and NucypherTokenAgent
     """
 
+    agency = PolicyAgent
     _contract_name = 'PolicyManager'
 
     def __init__(self, miner_agent):
@@ -314,8 +327,8 @@ class PolicyManagerDeployer(ContractDeployer):
         the_policy_manager_contract = wrapped_policy_manager_contract
 
         # Configure the MinerEscrow by setting the PolicyManager
-        policy_setter_txhash = self.miner_agent.transact({'from': self.token_agent.origin}).\
-            setPolicyManager(the_policy_manager_contract.address)
+        policy_setter_txhash = self.miner_agent.contract.functions. \
+            setPolicyManager(the_policy_manager_contract.address).transact({'from': self.token_agent.origin})
 
         self.blockchain.wait_for_receipt(policy_setter_txhash)
 

@@ -88,7 +88,7 @@ class NucypherConfig:
 
     @classmethod
     def from_json_config(cls, path: str=None):
-        """TODO: Reads the config file and creates a NucypherConfig instance"""
+        """TODO: Reads the config file and creates a NuCypherConfig instance"""
         with open(cls.__default_json_config_filepath, 'r') as config_file:
             data = json.loads(config_file.read())
 

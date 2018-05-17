@@ -1,21 +1,18 @@
 import pytest
 
-from tests.blockchain.eth.utilities import MockNuCypherMinerConfig
 
 M = 10 ** 6
 
 
-@pytest.mark.skip("Last 5 stubborn blockchain tests.")
-def test_get_swarm(chain, mock_miner_agent):
+def test_get_swarm(chain, mock_token_agent, mock_miner_agent):
 
-    # chain._global_airdrop(amount=10000)
+    mock_token_agent.token_airdrop(amount=100000 * mock_token_agent._M)
 
     creator, *addresses = chain.provider.w3.eth.accounts
 
-    chain.spawn_miners(addresses=addresses, miner_agent=mock_miner_agent, locktime=1)
+    mock_miner_agent.spawn_random_miners(addresses=addresses)
 
-    default_period_duration = MockNuCypherMinerConfig._hours_per_period
-    chain.time_travel(default_period_duration)
+    chain.time_travel(periods=1)
 
     swarm = mock_miner_agent.swarm()
     swarm_addresses = list(swarm)

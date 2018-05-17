@@ -1,14 +1,16 @@
 import pytest
+from pytest import raises
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
+from nucypher.blockchain.eth.interfaces import Registrar
 
 
 def test_token_deployer_and_agent(chain):
 
     # Trying to get token from blockchain before it's been published fails
-    # with raises(NoKnownAddress):
-    #     NucypherTokenAgent(blockchain=chain)
+    with pytest.raises(Registrar.UnknownContract):
+        NucypherTokenAgent(blockchain=chain)
 
     # The big day...
     deployer = NucypherTokenDeployer(blockchain=chain)
@@ -31,7 +33,7 @@ def test_token_deployer_and_agent(chain):
     assert len(token_agent.contract_address) == 42
 
     # Check that the token contract has tokens
-    assert token_agent.read().totalSupply() != 0
+    assert token_agent.contract.functions.totalSupply().call() != 0
     # assert token().totalSupply() == int(1e9) * _M     # TODO
 
     # Retrieve the token from the blockchain
@@ -42,7 +44,6 @@ def test_token_deployer_and_agent(chain):
     assert token_agent == same_token_agent  # __eq__
 
 
-@pytest.mark.slow
 def test_deploy_ethereum_contracts(chain):
     """
     Launch all ethereum contracts:
