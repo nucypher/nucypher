@@ -7,7 +7,7 @@ from os.path import abspath, dirname
 
 import pytest
 import time
-from eth_tester import EthereumTester
+from eth_tester import EthereumTester, PyEVMBackend
 from geth import LoggingMixin, DevGethProcess
 from web3 import EthereumTesterProvider, IPCProvider, Web3
 from web3.middleware import geth_poa_middleware

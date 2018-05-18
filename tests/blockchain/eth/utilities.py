@@ -125,9 +125,8 @@ class TesterPyEVMBackend(PyEVMBackend):
     def reset_to_genesis(self, overrides=None):
         from evm.chains.tester import MainnetTesterChain
         from evm.db import get_db_backend
-        from evm.db.chain import ChainDB
 
-        db = ChainDB(get_db_backend())
+        base_db = get_db_backend()
         genesis_params = get_default_genesis_params()
 
         # Genesis params overrides
@@ -136,6 +135,6 @@ class TesterPyEVMBackend(PyEVMBackend):
 
         account_keys = get_default_account_keys()
         genesis_state = generate_genesis_state(account_keys)
-        chain = MainnetTesterChain.from_genesis(db, genesis_params, genesis_state)
+        chain = MainnetTesterChain.from_genesis(base_db, genesis_params, genesis_state)
 
         self.account_keys, self.chain = account_keys, chain

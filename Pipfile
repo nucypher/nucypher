@@ -34,9 +34,9 @@ codecov = "*"
 coverage = "*"
 pytest-cov = "*"
 py-solc = "*"
-py-evm = "==0.2.0a16"
-eth-tester = "==0.1.0b24"
-web3 = "==4.2.0"
+py-evm = "==0.2.0a18"
+eth-tester = "==0.1.0b26"
+web3 = "==4.2.1"
 py-geth = "*"
 
 [pipenv]
