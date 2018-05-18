@@ -32,14 +32,14 @@ def test_miner_locking_tokens(chain, miner, mock_miner_agent):
     assert mock_miner_agent.contract.functions.getLockedTokens(miner.address).call() == mock_miner_agent.min_allowed_locked
 
 
-def test_miner_collects_staking_reward_tokens(chain, miner, mock_token_agent, mock_miner_agent):
+def test_miner_collects_staking_reward_tokens(chain, miner, mock_token_agent, mock_miner_agent, mock_policy_agent):
 
     # Capture the current token balance of the miner
     initial_balance = miner.token_balance()
     assert mock_token_agent.get_balance(miner.address) == miner.token_balance()
 
     # Have other address lock tokens
-    _origin, ursula, *everybody_else = chain.provider.w3.eth.accounts
+    _origin, *everybody_else = chain.provider.w3.eth.accounts
     mock_miner_agent.spawn_random_miners(addresses=everybody_else)
 
     # ...wait out the lock period...
