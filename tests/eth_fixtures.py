@@ -12,7 +12,6 @@ from geth import LoggingMixin, DevGethProcess
 from web3 import EthereumTesterProvider, IPCProvider, Web3
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.agents import PolicyAgent
 from nucypher.blockchain.eth.chains import TheBlockchain, TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer
 from nucypher.blockchain.eth.interfaces import Registrar, ContractProvider
@@ -186,8 +185,8 @@ def mock_miner_escrow_deployer(mock_token_agent):
 
 
 @pytest.fixture(scope='module')
-def mock_policy_manager_deployer(mock_miner_escrow_deployer):
-    policy_manager_deployer = PolicyManagerDeployer(miner_agent=mock_token_deployer)
+def mock_policy_manager_deployer(mock_miner_agent):
+    policy_manager_deployer = PolicyManagerDeployer(miner_agent=mock_miner_agent)
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
     yield policy_manager_deployer
@@ -215,8 +214,8 @@ def mock_miner_agent(mock_miner_escrow_deployer):
 
 
 @pytest.fixture(scope='module')
-def mock_policy_agent(mock_miner_agent, mock_token_agent, mock_token_deployer, mock_miner_escrow_deployer):
-    policy_agent = PolicyAgent(miner_agent=mock_miner_agent)
+def mock_policy_agent(mock_policy_manager_deployer):
+    policy_agent = mock_policy_manager_deployer.make_agent()
 
-    assert mock_token_deployer._contract.address == policy_agent.contract_address
+    assert mock_policy_manager_deployer._contract.address == policy_agent.contract_address
     yield policy_agent

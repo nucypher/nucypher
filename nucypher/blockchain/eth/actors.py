@@ -152,10 +152,11 @@ class Miner(TokenActor):
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
 
-        token_amount_bytes = self.miner_agent.contract.functions.minerInfo(self.address).call()[0]
-        token_amount = self.blockchain.provider.w3.toInt(token_amount_bytes)
+        token_amount = self.miner_agent.contract.functions.minerInfo(self.address).call()[0]
+        staked_amount = max(self.miner_agent.contract.functions.getLockedTokens(self.address).call(),
+                            self.miner_agent.contract.functions.getLockedTokens(self.address, 1).call())
 
-        collection_txhash = self.miner_agent.contract.functions.withdraw(token_amount).transact({'from': self.address})
+        collection_txhash = self.miner_agent.contract.functions.withdraw(token_amount - staked_amount).transact({'from': self.address})
 
         self.blockchain.wait_for_receipt(collection_txhash)
         self._transactions.append((datetime.utcnow(), collection_txhash))

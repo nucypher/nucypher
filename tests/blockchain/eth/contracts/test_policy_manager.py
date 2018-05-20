@@ -14,6 +14,7 @@ DISABLED_FIELD = 5
 REWARD_FIELD = 0
 REWARD_RATE_FIELD = 1
 LAST_MINED_PERIOD_FIELD = 2
+MIN_REWARD_RATE_FIELD = 3
 
 
 @pytest.fixture()
@@ -235,13 +236,32 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
         tx = policy_manager.functions.revokeArrangement(policy_id_2, node1).transact({'from': client})
         chain.wait_for_receipt(tx)
 
-    # Try create policy with wrong value
+    # Try to create policy with wrong value
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.createPolicy(policy_id, 10, 0, [node1]).transact({'from': client, 'value': 11})
-        chain.wait.for_receipt(tx)
+        tx = policy_manager.functions.createPolicy(policy_id_3, 10, 0, [node1]).transact({'from': client, 'value': 11})
+        chain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.createPolicy(policy_id, 10, 1, [node1]).transact({'from': client, 'value': 12})
-        chain.wait.for_receipt(tx)
+        tx = policy_manager.functions.createPolicy(policy_id_3, 10, 1, [node1]).transact({'from': client, 'value': 22})
+        chain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicy(policy_id_3, 10, 1, [node1]).transact({'from': client, 'value': 11})
+        chain.wait_for_receipt(tx)
+
+    # Set minimum reward rate for nodes
+    tx = policy_manager.functions.setMinRewardRate(10).transact({'from': node1})
+    chain.wait_for_receipt(tx)
+    tx = policy_manager.functions.setMinRewardRate(20).transact({'from': node2})
+    chain.wait_for_receipt(tx)
+    assert 10 == policy_manager.functions.nodes(node1).call()[MIN_REWARD_RATE_FIELD]
+    assert 20 == policy_manager.functions.nodes(node2).call()[MIN_REWARD_RATE_FIELD]
+
+    # Try to create policy with low rate
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicy(policy_id_3, 1, 0, [node1]).transact({'from': client, 'value': 5})
+        chain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicy(policy_id_3, 1, 0, [node1, node2]).transact({'from': client, 'value': 30})
+        chain.wait_for_receipt(tx)
 
     # Create another policy with pay for first period
     # Reward rate is calculated as (firstReward + rewardRate * numberOfPeriods) * numberOfNodes

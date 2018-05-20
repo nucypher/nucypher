@@ -64,9 +64,6 @@ contract Issuer is Upgradeable {
         secondsPerPeriod = _hoursPerPeriod.mul(1 hours);
         lockedPeriodsCoefficient = _lockedPeriodsCoefficient;
         awardedPeriods = _awardedPeriods;
-
-        lastMintedPeriod = getCurrentPeriod();
-        futureSupply = token.totalSupply();
     }
 
     /**
@@ -90,6 +87,8 @@ contract Issuer is Upgradeable {
     **/
     function initialize() public {
         require(currentSupply1 == 0);
+        lastMintedPeriod = getCurrentPeriod();
+        futureSupply = token.totalSupply();
         uint256 reservedReward = token.balanceOf(address(this));
         uint256 currentTotalSupply = futureSupply.sub(reservedReward);
         currentSupply1 = currentTotalSupply;
@@ -173,8 +172,5 @@ contract Issuer is Upgradeable {
         secondsPerPeriod = issuer.secondsPerPeriod();
         lockedPeriodsCoefficient = issuer.lockedPeriodsCoefficient();
         awardedPeriods = issuer.awardedPeriods();
-
-        lastMintedPeriod = issuer.lastMintedPeriod();
-        futureSupply = issuer.futureSupply();
     }
 }

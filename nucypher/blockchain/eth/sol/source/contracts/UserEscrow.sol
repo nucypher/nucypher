@@ -1,12 +1,13 @@
 pragma solidity ^0.4.23;
 
+
 import "zeppelin/token/ERC20/SafeERC20.sol";
 import "zeppelin/ownership/Ownable.sol";
 import "zeppelin/math/SafeMath.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/MinersEscrow.sol";
 import "contracts/PolicyManager.sol";
-
+import "proxy/Government.sol";
 
 
 /**
@@ -33,33 +34,39 @@ contract UserEscrow is Ownable {
     event Mined(address indexed owner);
     event RewardWithdrawnAsMiner(address indexed owner, uint256 value);
     event RewardWithdrawn(address indexed owner, uint256 value);
+    event MinRewardRateSet(address indexed owner, uint256 value);
+    event Voted(address indexed owner, bool voteFor);
 
     NuCypherToken public token;
     MinersEscrow public escrow;
     PolicyManager public policyManager;
+    Government public government;
     uint256 public lockedValue;
     uint256 public endLockTimestamp;
-    uint256 public lockDuration;
 
     /**
     * @notice Constructor sets addresses of the contracts
     * @param _token Token contract
     * @param _escrow Escrow contract
     * @param _policyManager PolicyManager contract
+    * @param _government Government contract
     **/
     constructor(
         NuCypherToken _token,
         MinersEscrow _escrow,
-        PolicyManager _policyManager
+        PolicyManager _policyManager,
+        Government _government
     )
         public
     {
         require(address(_token) != 0x0 &&
             address(_escrow) != 0x0 &&
-            address(_policyManager) != 0x0);
+            address(_policyManager) != 0x0 &&
+            address(_government) != 0x0);
         token = _token;
         escrow = _escrow;
         policyManager = _policyManager;
+        government = _government;
     }
 
     function () public payable {}
@@ -72,7 +79,6 @@ contract UserEscrow is Ownable {
     function initialDeposit(uint256 _value, uint256 _duration) public {
         require(lockedValue == 0 && _value > 0);
         endLockTimestamp = block.timestamp.add(_duration);
-        lockDuration = _duration;
         lockedValue = _value;
         token.safeTransferFrom(msg.sender, address(this), _value);
         emit Deposited(msg.sender, _value, _duration);
@@ -85,8 +91,7 @@ contract UserEscrow is Ownable {
         if (endLockTimestamp <= block.timestamp) {
             return 0;
         }
-        return lockedValue.mul(endLockTimestamp.sub(block.timestamp))
-            .div(lockDuration);
+        return lockedValue;
     }
 
     /**
@@ -182,6 +187,22 @@ contract UserEscrow is Ownable {
         require(balance != 0);
         owner.transfer(balance);
         emit RewardWithdrawn(owner, balance);
+    }
+
+    /**
+    * @notice Set the minimum reward that the miner will take in the policy manager
+    **/
+    function setMinRewardRate(uint256 _minRewardRate) public onlyOwner {
+        policyManager.setMinRewardRate(_minRewardRate);
+        emit MinRewardRateSet(owner, _minRewardRate);
+    }
+
+    /**
+    * @notice Vote for the upgrade in the government contract
+    **/
+    function vote(bool _voteFor) public onlyOwner {
+        government.vote(_voteFor);
+        emit Voted(owner, _voteFor);
     }
 
 }

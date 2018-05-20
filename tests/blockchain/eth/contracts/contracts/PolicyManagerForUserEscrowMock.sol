@@ -6,9 +6,15 @@ pragma solidity ^0.4.23;
 **/
 contract PolicyManagerForUserEscrowMock {
 
+    uint256 public minRewardRate;
+
     function withdraw() public {
         require(address(this).balance > 0);
         msg.sender.transfer(address(this).balance);
+    }
+
+    function setMinRewardRate(uint256 _minRewardRate) public {
+        minRewardRate = _minRewardRate;
     }
 
     function () public payable {}
