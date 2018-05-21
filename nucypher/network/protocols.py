@@ -7,7 +7,7 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.signature import Signature
 from bytestring_splitter import BytestringSplitter
-from nucypher.network.node import NucypherNode
+from nucypher.network.node import NucypherDHTNode
 from nucypher.network.routing import NucypherRoutingTable
 from umbral.keys import UmbralPublicKey
 
@@ -31,8 +31,8 @@ class NucypherHashProtocol(KademliaProtocol):
             return True
 
     def rpc_ping(self, sender, nodeid, node_capabilities=[]):
-        source = NucypherNode(nodeid, sender[0], sender[1],
-                              capabilities_as_strings=node_capabilities)
+        source = NucypherDHTNode(nodeid, sender[0], sender[1],
+                                 capabilities_as_strings=node_capabilities)
         self.welcomeIfNewNode(source)
         return self.sourceNode.id
 
@@ -72,7 +72,7 @@ class NucypherHashProtocol(KademliaProtocol):
             return True
 
     def rpc_store(self, sender, nodeid, key, value):
-        source = NucypherNode(nodeid, sender[0], sender[1])
+        source = NucypherDHTNode(nodeid, sender[0], sender[1])
         self.welcomeIfNewNode(source)
         self.log.debug("got a store request from %s" % str(sender))
 

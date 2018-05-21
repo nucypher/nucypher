@@ -232,11 +232,9 @@ class Policy(object):
             self.treasure_map.add_ursula(arrangement.ursula)
 
     def make_arrangement(self, deposit, expiration):
-        return Arrangement(self.alice, self.hrac(), expiration=expiration,
-                        deposit=deposit)
+        return Arrangement(self.alice, self.hrac(), expiration=expiration, deposit=deposit)
 
-    def find_ursulas(self, networky_stuff, deposit, expiration,
-                     num_ursulas=None):
+    def find_ursulas(self, networky_stuff, deposit, expiration,  num_ursulas=None):
         """
         :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
         """

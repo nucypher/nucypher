@@ -7,9 +7,13 @@ from nucypher.network.capabilities import ServerCapability
 from umbral.fragments import CapsuleFrag
 
 
-class NucypherNode(Node):
+class NucypherDHTNode(Node):
 
-    def __init__(self, id, ip=None, port=None, capabilities=None, capabilities_as_strings=[], *args, **kwargs):
+    def __init__(self, id, ip=None, port=None, capabilities=None, capabilities_as_strings=None, *args, **kwargs):
+
+        if capabilities_as_strings is None:
+            capabilities_as_strings = []
+
         self.id = id
         self.ip = ip
         self.port = port
@@ -19,6 +23,8 @@ class NucypherNode(Node):
 
         for capability_name in capabilities_as_strings:
             self.capabilities.append(ServerCapability.from_name(capability_name))
+
+        super().__init__(id, ip, port, *args, **kwargs)
 
     def can_store(self):
         for c in self.capabilities:

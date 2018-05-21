@@ -17,7 +17,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import EncryptingPower, SigningPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.capabilities import SeedOnly, ServerCapability
-from nucypher.network.node import NucypherNode
+from nucypher.network.node import NucypherDHTNode
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, \
     dht_value_splitter, dht_with_hrac_splitter
 from nucypher.network.storage import SeedOnlyStorage
@@ -30,7 +30,7 @@ class NucypherDHTServer(Server):
 
     def __init__(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
         super().__init__(ksize=20, alpha=3, id=None, storage=None, *args, **kwargs)
-        self.node = NucypherNode(id or digest(
+        self.node = NucypherDHTNode(id or digest(
             random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
 
     def serialize_capabilities(self):
@@ -41,7 +41,7 @@ class NucypherDHTServer(Server):
         Announce node including capabilities
         """
         result = await self.protocol.ping(addr, self.node.id, self.serialize_capabilities())
-        return NucypherNode(result[1], addr[0], addr[1]) if result[0] else None
+        return NucypherDHTNode(result[1], addr[0], addr[1]) if result[0] else None
 
     async def set_digest(self, dkey, value):
         """
