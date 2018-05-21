@@ -8,11 +8,11 @@ from eth_tester.backends.pyevm.main import get_default_genesis_params, get_defau
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import MinerAgent, NucypherTokenAgent
-from nucypher.blockchain.eth.constants import NucypherMinerConfig
+from nucypher.blockchain.eth.constants import NucypherMinerConstants
 from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherTokenDeployer
 
 
-class MockNucypherMinerConfig(NucypherMinerConfig):
+class MockNucypherMinerConstants(NucypherMinerConstants):
     """Speed things up a bit"""
     # _hours_per_period = 24     # Hours
     # min_locked_periods = 1     # Minimum locked periods
@@ -38,7 +38,7 @@ class MockTokenAgent(NucypherTokenAgent):
         return receipts
 
 
-class MockMinerAgent(MinerAgent, MockNucypherMinerConfig):
+class MockMinerAgent(MinerAgent, MockNucypherMinerConstants):
     """MinerAgent with faked config subclass"""
 
     def spawn_random_miners(self, addresses: list) -> list:
@@ -71,7 +71,7 @@ class MockNucypherTokenDeployer(NucypherTokenDeployer):
     agency = MockTokenAgent
 
 
-class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNucypherMinerConfig):
+class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNucypherMinerConstants):
     """Helper class for MockMinerAgent, using a mock miner config"""
     agency = MockMinerAgent
 

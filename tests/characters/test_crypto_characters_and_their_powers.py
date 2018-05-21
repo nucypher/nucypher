@@ -57,10 +57,10 @@ def test_anybody_can_verify():
     """
 
     # Alice can sign by default, by dint of her _default_crypto_powerups.
-    alice = Alice()
+    alice = Alice(config=nucypher_test_config, policy_agent=mock_policy_agent)
 
     # So, our story is fairly simple: an everyman meets Alice.
-    somebody = Character()
+    somebody = Character(config=nucypher_test_config)
 
     # Alice signs a message.
     message = b"A message for all my friends who can only verify and not sign."

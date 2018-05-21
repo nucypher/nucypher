@@ -40,7 +40,7 @@ class Character(object):
 
     def __init__(self, attach_server=True, crypto_power: CryptoPower=None,
                  crypto_power_ups=None, is_me=True, network_middleware=None,
-                 config: "NucypherConfig"=None) -> None:
+                 config: "NucypherConfig"=None, *args, **kwargs):
         """
         :param attach_server:  Whether to attach a Server when this Character is
             born.
@@ -62,7 +62,7 @@ class Character(object):
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
-        # self.config = config if config is not None else NucypherConfig.get_config()
+        self.config = config if config is not None else NucypherConfig.get()  # default
         self.known_nodes = {}
         self.log = getLogger("characters")
 

@@ -1,40 +1,19 @@
 import json
 import os
+import warnings
 from pathlib import Path
 
-import maya
+from web3 import IPCProvider
+from web3.middleware import geth_poa_middleware
+
+from nucypher.blockchain.eth.chains import Blockchain, TesterBlockchain
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 
 _DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
 
 
 class NucypherConfigurationError(RuntimeError):
     pass
-
-
-class StakeConfig:
-    # __minimum_stake_amount = 0  # TODO
-    # __minimum_stake_duration = 0
-
-    def __init__(self, amount: int, periods: int, start_datetime):
-
-        assert StakeConfig.validate_stake(amount, periods, start_datetime)
-        self.amount = amount
-        self.start = start_datetime
-        self.periods = periods
-
-    @classmethod
-    def validate_stake(cls, amount: int, periods: int, start_datetime) -> bool:
-        rules = (
-            # (amount > cls.__minimum_stake_amount, 'Staking aount must be at least {min_amount}'),  # TODO
-            (start_datetime < maya.now(), 'Start date/time must not be in the past.'),
-            # (periods > cls.__minimum_stake_duration, 'Staking duration must be at least {}'.format(cls.__minimum_stake_duration))
-        )
-
-        for rule, failure_message in rules:
-            if rule is False:
-                raise NucypherConfigurationError(failure_message)
-        else:
-            return True
 
 
 class PolicyConfig:
@@ -64,34 +43,113 @@ class NetworkConfig:
         return self.__db_path
 
 
+class BlockchainConfig:
+
+    __default_providers = (IPCProvider(ipc_path=os.path.join('/tmp/geth.ipc')),
+                           # user-managed geth over IPC assumed
+                           )
+
+    __default_network = 'tester'
+    __default_timeout = 120          # seconds
+    __configured_providers = list()  # tracks active providers
+
+    def __init__(self, network: str=None, timeout: int=None,
+                 compiler=None, registrar=None, deploy=False,
+                 geth=True, tester=False):
+
+        # Parse configuration
+
+        if len(self.__configured_providers) == 0:
+            warnings.warn("No blockchain provider backends are configured, using default.", RuntimeWarning)
+            self.__providers = BlockchainConfig.__default_providers
+
+        self._providers = self.__configured_providers
+        self.__network = network if network is not None else self.__default_network
+        self.__timeout = timeout if timeout is not None else self.__default_timeout
+
+        if deploy is False:
+            from nucypher.blockchain.eth.interfaces import ContractInterface
+            interface_class = ContractInterface
+        else:
+            from nucypher.blockchain.eth.interfaces import DeployerInterface
+            interface_class = DeployerInterface
+
+        interface = interface_class(blockchain_config=self, sol_compiler=compiler, registrar=registrar)
+
+        if geth is True:
+            w3 = interface.w3
+            w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+
+        if tester is True:
+            blockchain_class = TesterBlockchain
+        else:
+            blockchain_class = Blockchain
+
+        # Initial connection to blockchain via provider
+        self.chain = blockchain_class(interface=interface)
+
+    @classmethod
+    def add_provider(cls, provider):
+        cls.__configured_providers.append(provider)
+
+    @property
+    def providers(self) -> list:
+        return self._providers
+
+    @property
+    def network(self):
+        return self.__network
+
+    @property
+    def timeout(self):
+        return self.__timeout
+
+
 class NucypherConfig:
+
+    __instance = None
     __default_configuration_root = _DEFAULT_CONFIGURATION_DIR
     __default_json_config_filepath = os.path.join(__default_configuration_root, 'conf.json')
 
     def __init__(self,
-                 keyring,
+                 keyring=None,
+                 blockchain_config: BlockchainConfig=None,
                  network_config: NetworkConfig=None,
                  policy_config: PolicyConfig=None,
-                 stake_config: StakeConfig=None,
                  configuration_root: str=None,
                  json_config_filepath: str=None):
 
         # Check for custom paths
         self.__configuration_root = configuration_root or self.__default_configuration_root
-        self.__json_config_filepath = json_config_filepath or self.__json_config_filepath
+        self.__json_config_filepath = json_config_filepath or self.__default_json_config_filepath
 
-        # Subconfigurations
-        self.keyring = keyring          # Everyone
-        self.stake = stake_config       # Ursula
-        self.policy = policy_config     # Alice / Ursula
-        self.network = network_config   # Ursula
+        if blockchain_config is None:
+            blockchain_config = BlockchainConfig()
+
+        # Sub-configurations
+        self.keyring = keyring               # Everyone
+        self.blockchain = blockchain_config  # Everyone
+        self.policy = policy_config          # Alice / Ursula
+        self.network = network_config        # Ursula
+
+        if self.__instance is not None:
+            raise RuntimeError('Configuration not started')
+        else:
+            self.__instance = self
 
     @classmethod
-    def from_json_config(cls, path: str=None):
+    def get(cls):
+        return cls.__instance
+
+    @classmethod
+    def reset(cls) -> None:
+        cls.__instance = None
+
+    def __read(cls, path: str=None):
         """TODO: Reads the config file and creates a NuCypherConfig instance"""
         with open(cls.__default_json_config_filepath, 'r') as config_file:
             data = json.loads(config_file.read())
 
-    def to_json_config(self, path: str=None):
+    def __write(self, path: str=None):
         """TODO: Serializes a configuration and saves it to the local filesystem."""
         path = path or self.__default_json_config_filepath

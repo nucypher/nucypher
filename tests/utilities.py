@@ -3,6 +3,7 @@ import asyncio
 from apistar.test import TestClient
 
 from nucypher.characters import Ursula
+from nucypher.config.configs import NucypherConfig
 from nucypher.network.node import NetworkyStuff
 from nucypher.policy.models import ArrangementResponse
 
@@ -15,7 +16,7 @@ URSULA_PORT = 7468
 NUMBER_OF_URSULAS_IN_NETWORK = 6
 
 
-def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
+def make_ursulas(how_many_ursulas: int, ursula_starting_port: int, config: NucypherConfig) -> list:
     """
     :param how_many_ursulas: How many Ursulas to create.
     :param ursula_starting_port: The port of the first created Ursula; subsequent Ursulas will increment the port number by 1.
@@ -26,7 +27,7 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int) -> list:
     URSULAS = []
     for _u in range(how_many_ursulas):
         port = ursula_starting_port + _u
-        _URSULA = Ursula(dht_port=port, ip_address="127.0.0.1", db_name="test-{}".format(port), rest_port=port+100)  # TODO: Make ports unstupid and more clear.
+        _URSULA = Ursula(dht_port=port, ip_address="127.0.0.1", db_name="test-{}".format(port), rest_port=port+100, config=config)  # TODO: Make ports unstupid and more clear.
 
         class MockDatastoreThreadPool(object):
             def callInThread(self, f, *args, **kwargs):

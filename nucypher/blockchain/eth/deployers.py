@@ -118,12 +118,12 @@ class ContractDeployer:
             raise self.ContractDeploymentError('{} deployer is already armed.'.format(self._contract_name))
 
         # If the blockchain network is public, prompt the user
-        if self.blockchain._network not in self.blockchain.test_chains:
+        if self.blockchain.config.network not in self.blockchain.test_chains:
             message = """
             Are you sure you want to deploy {contract} on the {network} network?
             
             Type {word} to arm the deployer.
-            """.format(contract=self._contract_name, network=self.blockchain._network, word=self._arming_word)
+            """.format(contract=self._contract_name, network=self.blockchain.config.network, word=self._arming_word)
 
             answer = input(message)
             if answer == self._arming_word:
