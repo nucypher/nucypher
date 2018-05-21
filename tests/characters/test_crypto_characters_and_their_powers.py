@@ -1,9 +1,9 @@
 import pytest
 from constant_sorrow import constants
 
-from nkms.characters import Alice, Ursula, Character
-from nkms.crypto import api
-from nkms.crypto.powers import CryptoPower, SigningPower, NoSigningPower
+from nucypher.characters import Alice, Ursula, Character
+from nucypher.crypto import api
+from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower
 
 """
 Chapter 1: SIGNING

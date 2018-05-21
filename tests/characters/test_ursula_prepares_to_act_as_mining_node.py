@@ -1,5 +1,5 @@
-from nkms.characters import Ursula
-from nkms.crypto.powers import SigningPower
+from nucypher.characters import Ursula
+from nucypher.crypto.powers import SigningPower
 
 
 def test_ursula_generates_self_signed_cert():

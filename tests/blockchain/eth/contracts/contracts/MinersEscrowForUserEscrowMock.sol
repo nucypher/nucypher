@@ -1,7 +1,7 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
-import "contracts/NuCypherKMSToken.sol";
+import "contracts/NuCypherToken.sol";
 
 
 /**
@@ -9,15 +9,14 @@ import "contracts/NuCypherKMSToken.sol";
 **/
 contract MinersEscrowForUserEscrowMock {
 
-    NuCypherKMSToken token;
+    NuCypherToken token;
     address public node;
     uint256 public value;
     uint256 public lockedValue;
     uint256 public periods;
     uint256 public confirmedPeriod;
-    bool public unlock;
 
-    function MinersEscrowForUserEscrowMock(NuCypherKMSToken _token) public {
+    constructor(NuCypherToken _token) public {
         token = _token;
     }
 
@@ -26,7 +25,6 @@ contract MinersEscrowForUserEscrowMock {
         value = _value;
         lockedValue = _value;
         periods = _periods;
-        unlock = false;
         token.transferFrom(msg.sender, address(this), _value);
     }
 
@@ -36,9 +34,17 @@ contract MinersEscrowForUserEscrowMock {
         periods += _periods;
     }
 
-    function switchLock() public {
-        require(node == msg.sender);
-        unlock = !unlock;
+    function divideStake(
+        uint256 _oldValue,
+        uint256 _lastPeriod,
+        uint256 _newValue,
+        uint256 _periods
+    )
+        public
+    {
+        require(node == msg.sender && lockedValue == _oldValue && periods == _lastPeriod);
+        lockedValue += _newValue;
+        periods += _periods;
     }
 
     function withdraw(uint256 _value) public {

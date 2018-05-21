@@ -1,19 +1,22 @@
 import datetime
 import os
+import tempfile
 
 import maya
 import pytest
 from constant_sorrow import constants
 from sqlalchemy.engine import create_engine
-from nkms.characters import Alice, Bob
-from nkms.keystore import keystore
-from nkms.keystore.db import Base
 
-from nkms.crypto.signature import SignatureStamp
-from nkms.data_sources import DataSource
-from nkms.keystore.keypairs import SigningKeypair
+from nucypher.characters import Alice, Bob
+from nucypher.keystore import keystore
+from nucypher.keystore.db import Base
 
-from nkms.network import blockchain_client
+from nucypher.crypto.signature import SignatureStamp
+from nucypher.data_sources import DataSource
+from nucypher.keystore import keystore
+from nucypher.keystore.db import Base
+from nucypher.keystore.keypairs import SigningKeypair
+from nucypher.network import blockchain_client
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
 
@@ -97,3 +100,13 @@ def capsule_side_channel(enacted_policy):
                              signer=SignatureStamp(signing_keypair))
     message_kit, _signature = data_source.encapsulate_single_message(b"Welcome to the flippering.")
     return message_kit, data_source
+
+
+@pytest.fixture(scope="function")
+def tempfile_path():
+    """
+    User is responsible for closing the file given at the path.
+    """
+    _, path = tempfile.mkstemp()
+    yield path
+    os.remove(path)

@@ -11,11 +11,11 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
-from nkms.characters import Ursula
+from nucypher.characters import Ursula
 from OpenSSL.crypto import X509
 from OpenSSL.SSL import TLSv1_2_METHOD
 
-from nkms.crypto.api import generate_self_signed_certificate
+from nucypher.crypto.api import generate_self_signed_certificate
 
 DB_NAME = "non-mining-proxy-node"
 

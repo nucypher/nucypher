@@ -1,7 +1,7 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
-import "contracts/proxy/Upgradeable.sol";
+import "proxy/Upgradeable.sol";
 
 
 /**
@@ -9,8 +9,10 @@ import "contracts/proxy/Upgradeable.sol";
 **/
 contract PolicyManagerV1Mock is Upgradeable {
 
-    function PolicyManagerV1Mock() public {}
     function verifyState(address) public {}
     function finishUpgrade(address) public {}
 
+    function setPreviousTarget(address _target) public {
+        previousTarget = _target;
+    }
 }

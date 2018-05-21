@@ -1,8 +1,8 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.23;
 
 
 import "contracts/MinersEscrow.sol";
-import "contracts/NuCypherKMSToken.sol";
+import "contracts/NuCypherToken.sol";
 
 
 /**
@@ -10,8 +10,8 @@ import "contracts/NuCypherKMSToken.sol";
 **/
 contract MinersEscrowBad is MinersEscrow {
 
-    function MinersEscrowBad(
-        NuCypherKMSToken _token,
+    constructor(
+        NuCypherToken _token,
         uint256 _hoursPerPeriod,
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,
@@ -34,8 +34,7 @@ contract MinersEscrowBad is MinersEscrow {
     {
     }
 
-    function getMinerInfo(MinersEscrow.MinerInfoField, address, uint256)
-        public view returns (bytes32)
+    function getStakeInfo(address, uint256) public view returns (uint256, uint256, uint256, uint256)
     {
     }
 

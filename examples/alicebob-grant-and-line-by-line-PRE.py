@@ -7,9 +7,9 @@ import datetime
 import sys
 
 from examples.sandbox_resources import SandboxNetworkyStuff
-from nkms.characters import Alice, Bob, Ursula
-from nkms.data_sources import DataSource
-from nkms.network.node import NetworkyStuff
+from nucypher.characters import Alice, Bob, Ursula
+from nucypher.data_sources import DataSource
+from nucypher.network.node import NetworkyStuff
 import maya
 
 # This is already running in another process.
