@@ -256,7 +256,7 @@ class MinerEscrowDeployer(ContractDeployer, NucypherMinerConstants):
         dispatcher_deploy_txhash = dispatcher_deployer.deploy()
 
         # Cache the dispatcher contract
-        dispatcher_contract = dispatcher_deployer._contract
+        dispatcher_contract = dispatcher_deployer.contract
         self.__dispatcher_contract = dispatcher_contract
 
         # Wrap the escrow contract (Govern)
@@ -298,9 +298,11 @@ class PolicyManagerDeployer(ContractDeployer):
     agency = PolicyAgent
     _contract_name = 'PolicyManager'
 
+    def make_agent(self) -> EthereumContractAgent:
+        agent = self.agency(miner_agent=self.miner_agent, contract=self._contract)
+        return agent
+
     def __init__(self, miner_agent):
-        # self.token_deployer = miner_escrow_deployer.token_agent
-        # self.miner_escrow_deployer = miner_escrow_deployer
         self.token_agent = miner_agent.token_agent
         self.miner_agent = miner_agent
         super().__init__(blockchain=self.miner_agent.blockchain)
@@ -318,7 +320,7 @@ class PolicyManagerDeployer(ContractDeployer):
         dispatcher_deploy_txhash = dispatcher_deployer.deploy()
 
         # Cache the dispatcher contract
-        dispatcher_contract = dispatcher_deployer._contract
+        dispatcher_contract = dispatcher_deployer.contract
         self.__dispatcher_contract = dispatcher_contract
 
         # Wrap the escrow contract (Govern)

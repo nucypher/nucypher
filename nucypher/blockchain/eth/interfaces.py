@@ -19,8 +19,8 @@ class Registrar:
     WARNING: Unless you are developing NuCypher, you most
     likely won't ever need to use this.
     """
-    __DEFAULT_REGISTRAR_FILEPATH = os.path.join(_DEFAULT_CONFIGURATION_DIR, 'registrar.json')
-    __DEFAULT_CHAIN_NAME = 'tester'
+    __default_registrar_path = os.path.join(_DEFAULT_CONFIGURATION_DIR, 'registrar.json')
+    __default_chain_name = 'tester'
 
     class UnknownContract(KeyError):
         pass
@@ -29,8 +29,8 @@ class Registrar:
         pass
 
     def __init__(self, chain_name: str=None, registrar_filepath: str=None):
-        self._chain_name = chain_name or self.__DEFAULT_CHAIN_NAME
-        self.__registrar_filepath = registrar_filepath or self.__DEFAULT_REGISTRAR_FILEPATH
+        self._chain_name = chain_name or self.__default_chain_name
+        self.__registrar_filepath = registrar_filepath or self.__default_registrar_path
 
     def __write(self, registrar_data: dict) -> None:
         """
@@ -69,7 +69,7 @@ class Registrar:
         the value is the Registrar object for that chain.
         Optionally, accepts a registrar filepath.
         """
-        filepath = registrar_filepath or cls.__DEFAULT_REGISTRAR_FILEPATH
+        filepath = registrar_filepath or cls.__default_registrar_path
         instance = cls(registrar_filepath=filepath)
 
         registrar_data = instance.__read()
@@ -135,7 +135,7 @@ class Registrar:
         if len(contracts) > 0:
             return contracts
         else:
-            message = "Could not identify a contract name or address with {}".format(contract_name)
+            message = 'Contract name or address: "{}" for chain: "{}" was not found in the registrar'.format(contract_name, self._chain_name)
             raise self.UnknownContract(message)
 
     def dump_contract(self, address: str=None) -> dict:
@@ -210,7 +210,7 @@ class ContractInterface:
 
     def get_contract_address(self, contract_name: str) -> List[str]:
         """Retrieve all known addresses for this contract"""
-        contracts = self.__registrar.lookup_contract(contract_name=contract_name)
+        contracts = self._registrar.lookup_contract(contract_name=contract_name)
         addresses = [c['addr'] for c in contracts]
         return addresses
 
@@ -261,14 +261,8 @@ class DeployerInterface(ContractInterface):
         # Instantiate & enroll contract
         #
         contract = contract_factory(address=address)
-        self.__registrar.enroll(contract_name=contract_name,
-                                contract_addr=contract.address,
-                                contract_abi=contract_factory.abi)
+        self._registrar.enroll(contract_name=contract_name,
+                               contract_addr=contract.address,
+                               contract_abi=contract_factory.abi)
 
         return contract, txhash
-
-    def get_contract(self, address: str) -> Contract:
-        """Instantiate a deployed contract from registrar data"""
-        contract_data = self.__registrar.dump_contract(address=address)
-        contract = self.w3.eth.contract(abi=contract_data['abi'], address=contract_data['addr'])
-        return contract
