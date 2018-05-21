@@ -200,28 +200,24 @@ def mock_policy_manager_deployer(mock_miner_agent):
 
 #
 # Agents #
-# Unused args preserve fixture dependency order #
 #
 
 @pytest.fixture(scope='module')
 def mock_token_agent(mock_token_deployer):
     token_agent = mock_token_deployer.make_agent()
-
-    assert mock_token_deployer._contract.address == token_agent.contract_address
+    assert mock_token_deployer.contract.address == token_agent.contract_address
     yield token_agent
 
 
 @pytest.fixture(scope='module')
 def mock_miner_agent(mock_miner_escrow_deployer):
     miner_agent = mock_miner_escrow_deployer.make_agent()
-
-    assert mock_miner_escrow_deployer._contract.address == miner_agent.contract_address
+    assert mock_miner_escrow_deployer.contract.address == miner_agent.contract_address
     yield miner_agent
 
 
 @pytest.fixture(scope='module')
 def mock_policy_agent(mock_policy_manager_deployer):
     policy_agent = mock_policy_manager_deployer.make_agent()
-
-    assert mock_policy_manager_deployer._contract.address == policy_agent.contract_address
+    assert mock_policy_manager_deployer.contract.address == policy_agent.contract_address
     yield policy_agent

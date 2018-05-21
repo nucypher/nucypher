@@ -48,7 +48,7 @@ def test_escrow(web3, chain, token, escrow_contract):
     divides_log = escrow.events.Divided.createFilter(fromBlock='latest')
     withdraw_log = escrow.events.Withdrawn.createFilter(fromBlock='latest')
 
-    policy_manager, _ = chain.provider.deploy_contract(
+    policy_manager, _ = chain.interface.deploy_contract(
         'PolicyManagerForMinersEscrowMock', token.address, escrow.address
     )
     tx = escrow.functions.setPolicyManager(policy_manager.address).transact()

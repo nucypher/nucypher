@@ -87,8 +87,8 @@ def government(web3, chain, escrow, policy_manager):
     creator = web3.eth.accounts[0]
 
     # Creator deploys the government
-    contract, _ = chain.provider.deploy_contract('Government', escrow.address, policy_manager.address, 1)
-    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
+    contract, _ = chain.interface.deploy_contract('Government', escrow.address, policy_manager.address, 1)
+    dispatcher, _ = chain.interface.deploy_contract('Dispatcher', contract.address)
 
     # Wrap dispatcher contract
     contract = web3.eth.contract(abi=contract.abi, address=dispatcher.address, ContractFactoryClass=Contract)
@@ -144,7 +144,7 @@ def test_all(web3, chain, token, escrow, policy_manager, government):
     chain.wait_for_receipt(tx)
 
     # Deposit some tokens to the user escrow and lock them
-    user_escrow_1, _ = chain.provider.deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address, government.address)
+    user_escrow_1, _ = chain.interface.deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address, government.address)
 
     tx = user_escrow_1.functions.transferOwnership(ursula3).transact({'from': creator})
     chain.wait_for_receipt(tx)
@@ -152,7 +152,7 @@ def test_all(web3, chain, token, escrow, policy_manager, government):
     chain.wait_for_receipt(tx)
     tx = user_escrow_1.functions.initialDeposit(10000, 20 * 60 * 60).transact({'from': creator})
     chain.wait_for_receipt(tx)
-    user_escrow_2, _ = chain.provider.deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address, government.address)
+    user_escrow_2, _ = chain.interface.deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address, government.address)
 
     tx = user_escrow_2.functions.transferOwnership(ursula4).transact({'from': creator})
     chain.wait_for_receipt(tx)
@@ -405,7 +405,7 @@ def test_all(web3, chain, token, escrow, policy_manager, government):
     policy_manager_v1 = policy_manager.functions.target().call()
     government_v1 = government.functions.target().call()
     # Creator deploys the contracts as the second versions
-    escrow_v2, _ = chain.provider.deploy_contract(
+    escrow_v2, _ = chain.interface.deploy_contract(
         'MinersEscrow',
         token.address,
         1,
@@ -415,8 +415,8 @@ def test_all(web3, chain, token, escrow, policy_manager, government):
         2,
         100,
         2000)
-    policy_manager_v2, _ = chain.provider.deploy_contract('PolicyManager', escrow.address)
-    government_v2, _ = chain.provider.deploy_contract('Government', escrow.address, policy_manager.address, 1)
+    policy_manager_v2, _ = chain.interface.deploy_contract('PolicyManager', escrow.address)
+    government_v2, _ = chain.interface.deploy_contract('Government', escrow.address, policy_manager.address, 1)
     assert FINISHED_STATE == government.functions.getVotingState().call()
 
     # Alice can't create voting

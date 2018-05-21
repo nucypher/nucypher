@@ -30,7 +30,7 @@ def policy_manager(chain):
 
 @pytest.fixture()
 def government(chain):
-    contract, _ = chain.provider.deploy_contract('GovernmentForUserEscrowMock')
+    contract, _ = chain.interface.deploy_contract('GovernmentForUserEscrowMock')
     return contract
 
 
@@ -40,7 +40,7 @@ def user_escrow(web3, chain, token, escrow, policy_manager, government):
     user = web3.eth.accounts[1]
 
     # Creator deploys the user escrow
-    contract, _ = chain.provider.deploy_contract(
+    contract, _ = chain.interface.deploy_contract(
         'UserEscrow', token.address, escrow.address, policy_manager.address, government.address)
 
     # Transfer ownership
