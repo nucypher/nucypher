@@ -155,26 +155,25 @@ class Registrar:
             if contract_data['name'] == address:
                 return contract_data
         else:
-            raise self.UnknownContract('No known contract with address {}'.format(address))
+            raise self.UnknownContract('No known contract with address: {}'.format(address))
 
 
-class ContractProvider:
+class ContractInterface:
     """
     Interacts with a solidity compiler and a registrar in order to instantiate compiled
     ethereum contracts with the given web3 provider backend.
     """
 
-    def __init__(self, provider_backend: Web3,
-                 registrar: Registrar,
-                 deployer_address: str=None,
-                 sol_compiler: SolidityCompiler=None):
+    class ContractInterfaceError(Exception):
+        pass
 
-        self.w3 = provider_backend
+    def __init__(self, blockchain_config=None, registrar: Registrar=None, sol_compiler: SolidityCompiler=None):
+        """Contracts are re-compiled if an instance is passed"""
 
-        # TODO: Move to deployers?
-        if deployer_address is None:
-            deployer_address = self.w3.eth.coinbase  # coinbase / etherbase
-        self.deployer_address = deployer_address
+        self.blockchain_config = blockchain_config
+
+        web3_instance = Web3(providers=self.blockchain_config.providers)
+        self.w3 = web3_instance
 
         # if a SolidityCompiler class instance was passed, compile from sources
         if sol_compiler is not None:

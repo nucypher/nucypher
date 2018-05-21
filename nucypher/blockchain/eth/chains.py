@@ -1,19 +1,11 @@
 from typing import List, Union
 
-from nucypher.blockchain.eth.constants import NucypherMinerConfig
-from nucypher.blockchain.eth.interfaces import ContractProvider
+from nucypher.blockchain.eth.constants import NucypherMinerConstants
+from nucypher.blockchain.eth.interfaces import ContractInterface, DeployerInterface
 
 
-class TheBlockchain(ABC):
-    """
-    http://populus.readthedocs.io/en/latest/config.html#chains
-
-    mainnet: Connects to the public ethereum mainnet via geth.
-    ropsten: Connects to the public ethereum ropsten testnet via geth.
-    tester: Uses an ephemeral in-memory chain backed by pyethereum.
-    testrpc: Uses an ephemeral in-memory chain backed by pyethereum.
-    temp: Local private chain whos data directory is removed when the chain is shutdown. Runs via geth.
-    """
+class Blockchain:
+    """A view of a blockchain through a provided interface"""
 
     _instance = None
     __default_interface_class = ContractInterface
@@ -30,21 +22,21 @@ class TheBlockchain(ABC):
         self.__interface = interface
         self.config = interface.blockchain_config
 
-        # Singleton #
-        if TheBlockchain.__instance is not None:
-            message = '{} is already running on {}. Use .get() to retrieve'.format(self.__class__.__name__,
-                                                                                   self._network)
-            raise TheBlockchain.IsAlreadyRunning(message)
-        TheBlockchain.__instance = self
+        if self._instance is not None:
+            raise RuntimeError("Local chain already running")
+        else:
+            Blockchain._instance = self
 
-        self.provider = contract_provider
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        r = "{}(interface={})"
+        return r.format(class_name, self.__interface)
 
     @classmethod
-    def get(cls):
-        if cls.__instance is None:
-            class_name = cls.__name__
-            raise Exception('{} has not been created.'.format(class_name))
-        return cls.__instance
+    def connect(cls):
+        if cls._instance is None:
+            raise RuntimeError('{} not running'.format(cls.__name__))
+        return cls._instance
 
     @property
     def interface(self):
@@ -56,8 +48,7 @@ class TheBlockchain(ABC):
 
     def get_contract(self, name):
         """
-        Gets an existing contract from the registrar,
-        or raises populus.contracts.exceptions.UnknownContract
+        Gets an existing contract from the registrar, or raises UnknownContract
         if there is no contract data available for the name/identifier.
         """
         return self.__interface.get_contract(name)
@@ -69,13 +60,11 @@ class TheBlockchain(ABC):
         return result
 
 
-class TesterBlockchain(TheBlockchain, NucypherMinerConfig):
-    """Transient, in-memory, local, private chain"""
-
-    _network = 'tester'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class TesterBlockchain(Blockchain, NucypherMinerConstants):
+    """
+    Blockchain subclass with additional test utility methods
+    and singleton-style instance caching to preserve the local blockchain state.
+    """
 
     def wait_for_receipt(self, txhash, timeout=None) -> None:
         timeout = timeout if timeout is not None else self.config.timeout
@@ -104,27 +93,22 @@ class TesterBlockchain(TheBlockchain, NucypherMinerConfig):
         else:
             raise ValueError("Specify either hours, seconds, or lock_periods.")
 
-        end_timestamp = ((self.provider.w3.eth.getBlock(block_identifier='latest').timestamp + duration) // base) * base
-        self.provider.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
-        self.provider.w3.eth.web3.testing.mine(1)
+        end_timestamp = ((self.interface.w3.eth.getBlock(block_identifier='latest').timestamp + duration) // base) * base
+        self.interface.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
+        self.interface.w3.eth.web3.testing.mine(1)
 
-    def _global_airdrop(self, amount: int) -> List[str]:
-        """Airdrops from creator address to all other addresses!"""
-        coinbase, *addresses = self.provider.w3.eth.accounts
+    def ether_airdrop(self, amount: int) -> List[str]:
+        """Airdrops tokens from creator address to all other addresses!"""
+
+        coinbase, *addresses = self.__interface.w3.eth.accounts
 
         tx_hashes = list()
         for address in addresses:
-            tx = {'to': address, 'from': coinbase, 'value': amount}
-            txhash = self.provider.w3.eth.sendTransaction(tx)
-            _receipt = self.provider.w3.eth.waitForTransactionReceipt(txhash)
-            tx_hashes.append(txhash)
-        for txhash in tx_hashes:
-            self.wait_for_receipt(txhash)
-        return tx_hashes
 
-#
-# class TestRPCBlockchain:
-#
-#     _network = 'testrpc'
-#     _default_timeout = 60
-#
+            tx = {'to': address, 'from': coinbase, 'value': amount}
+            txhash = self.interface.w3.eth.sendTransaction(tx)
+
+            _receipt = self.wait_for_receipt(txhash)
+            tx_hashes.append(txhash)
+
+        return tx_hashes

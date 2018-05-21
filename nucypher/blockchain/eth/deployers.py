@@ -18,14 +18,14 @@ class ContractDeployer:
     class ContractDeploymentError(Exception):
         pass
 
-    def __init__(self, blockchain: TheBlockchain):
+    def __init__(self, blockchain: Blockchain):
         self.__armed = False
         self._contract = None
         self.deployment_receipt = None
         self.__dispatcher = NotImplemented
 
         # Sanity check
-        if not isinstance(blockchain, TheBlockchain):
+        if not isinstance(blockchain, Blockchain):
             error = 'Only TheBlockchain can be used to create a deployer, got {}.'
             raise ValueError(error.format(type(blockchain)))
         self.blockchain = blockchain
@@ -39,6 +39,10 @@ class ContractDeployer:
             raise cls.ContractDeploymentError('Contract not deployed')
         else:
             return address
+
+    @property
+    def contract(self):
+        return self._contract
 
     @property
     def dispatcher(self):
@@ -67,9 +71,6 @@ class ContractDeployer:
         rules = (
             (self.is_armed is True, 'Contract not armed'),
             (self.is_deployed is not True, 'Contract already deployed'),
-            # (self.blockchain.provider.are_contract_dependencies_available(self._contract_name),
-            #  'Blockchain contract dependencies unmet'),
-
             )
 
         disqualifications = list()
@@ -153,14 +154,18 @@ class ContractDeployer:
         return agent
 
 
-class NucypherTokenDeployer(ContractDeployer, NucypherTokenConfig):
+class NucypherTokenDeployer(ContractDeployer, NucypherTokenConstants):
 
     _contract_name = 'NuCypherToken'
     agency = NucypherTokenAgent
 
-    def __init__(self, blockchain):
+    def __init__(self, blockchain, deployer_address=None):
+        if not type(blockchain.interface) is self._interface_class:
+            raise ValueError("{} must be used to create a {}".format(self._interface_class.__name__,
+                                                                     self.__class__.__name__))
+
         super().__init__(blockchain=blockchain)
-        self._creator = self.blockchain.provider.w3.eth.accounts[0]    # TODO: make swappable
+        self._creator = deployer_address
 
     def deploy(self) -> str:
         """
@@ -196,14 +201,14 @@ class DispatcherDeployer(ContractDeployer):
 
     def deploy(self) -> str:
 
-        dispatcher_contract, txhash = self.blockchain.provider.deploy_contract(
+        dispatcher_contract, txhash = self.blockchain.interface.deploy_contract(
             'Dispatcher', self.target_contract.address)
 
         self._contract = dispatcher_contract
         return txhash
 
 
-class MinerEscrowDeployer(ContractDeployer, NucypherMinerConfig):
+class MinerEscrowDeployer(ContractDeployer, NucypherMinerConstants):
     """
     Deploys the MinerEscrow ethereum contract to the blockchain.  Depends on NucypherTokenAgent
     """

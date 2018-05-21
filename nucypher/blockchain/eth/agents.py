@@ -1,12 +1,13 @@
 import random
 from abc import ABC
 from enum import Enum
-from functools import partial
 from typing import Set, Generator, List
 
-from nucypher.blockchain.eth import constants
-from nucypher.blockchain.eth.constants import NucypherTokenConfig, NucypherMinerConfig
 from web3.contract import Contract
+
+from nucypher.blockchain.eth import constants
+from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.constants import NucypherTokenConstants, NucypherMinerConstants
 
 
 class EthereumContractAgent(ABC):
@@ -64,11 +65,11 @@ class EthereumContractAgent(ABC):
         return self.contract.functions.balanceOf(address).call()
 
 
-class NucypherTokenAgent(EthereumContractAgent, NucypherTokenConfig):
+class NucypherTokenAgent(EthereumContractAgent, NucypherTokenConstants):
     _principal_contract_name = "NuCypherToken"
 
 
-class MinerAgent(EthereumContractAgent, NucypherMinerConfig):
+class MinerAgent(EthereumContractAgent, NucypherMinerConstants):
     """
     Wraps NuCypher's Escrow solidity smart contract
 
