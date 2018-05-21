@@ -24,7 +24,7 @@ class MockTokenAgent(NucypherTokenAgent):
         """Airdrops tokens from creator address to all other addresses!"""
 
         if addresses is None:
-            _creator, *addresses = self.blockchain.provider.w3.eth.accounts
+            _creator, *addresses = self.blockchain.interface.w3.eth.accounts
 
         def txs():
             for address in addresses:

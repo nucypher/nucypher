@@ -31,7 +31,7 @@ def main():
     escrow.deploy()
 
     # Creator deploys the policy manager
-    policy_manager, txhash = chain.provider.get_or_deploy_contract(
+    policy_manager, txhash = chain.interface.get_or_deploy_contract(
         'PolicyManager', deploy_args=[escrow.contract.address],
         deploy_transaction={'from': creator})
     tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)

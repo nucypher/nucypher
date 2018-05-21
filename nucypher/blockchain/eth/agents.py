@@ -55,7 +55,7 @@ class EthereumContractAgent(ABC):
 
     @property
     def origin(self) -> str:
-        return self.blockchain.provider.w3.eth.coinbase    # TODO: make swappable
+        return self.blockchain.interface.w3.eth.coinbase    # TODO: make swappable
 
     def get_balance(self, address: str=None) -> int:
         """Get the balance of a token address, or of this contract address"""
@@ -111,7 +111,7 @@ class MinerAgent(EthereumContractAgent, NucypherMinerConfig):
         count = self.contract.functions.getMinersLength().call()
         for index in range(count):
             addr = self.contract.functions.miners(index).call()
-            yield self.blockchain.provider.w3.toChecksumAddress(addr)
+            yield self.blockchain.interface.w3.toChecksumAddress(addr)
 
     def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:
         """

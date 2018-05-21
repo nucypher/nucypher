@@ -2,8 +2,7 @@ import os
 
 import pytest
 
-from nucypher.blockchain.eth.actors import Miner
-from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
 
 
 @pytest.fixture(scope='module')

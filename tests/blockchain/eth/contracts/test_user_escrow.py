@@ -5,7 +5,7 @@ from eth_tester.exceptions import TransactionFailed
 @pytest.fixture()
 def token(chain):
     # Create an ERC20 token
-    token, _ = chain.provider.deploy_contract('NuCypherToken', int(2e9))
+    token, _ = chain.interface.deploy_contract('NuCypherToken', int(2e9))
     return token
 
 
@@ -13,7 +13,7 @@ def token(chain):
 def escrow(web3, chain, token):
     creator = web3.eth.accounts[0]
     # Creator deploys the escrow
-    contract, _ = chain.provider.deploy_contract('MinersEscrowForUserEscrowMock', token.address)
+    contract, _ = chain.interface.deploy_contract('MinersEscrowForUserEscrowMock', token.address)
 
     # Give escrow some coins
     tx = token.functions.transfer(contract.address, 10000).transact({'from': creator})
@@ -24,7 +24,7 @@ def escrow(web3, chain, token):
 
 @pytest.fixture()
 def policy_manager(chain):
-    contract, _ = chain.provider.deploy_contract('PolicyManagerForUserEscrowMock')
+    contract, _ = chain.interface.deploy_contract('PolicyManagerForUserEscrowMock')
     return contract
 
 

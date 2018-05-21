@@ -1,6 +1,4 @@
-import random
-from abc import ABC
-from typing import List
+from typing import List, Union
 
 from nucypher.blockchain.eth.constants import NucypherMinerConfig
 from nucypher.blockchain.eth.interfaces import ContractProvider
@@ -17,25 +15,20 @@ class TheBlockchain(ABC):
     temp: Local private chain whos data directory is removed when the chain is shutdown. Runs via geth.
     """
 
-    _network = NotImplemented
-    _default_timeout = 120
-    __instance = None
+    _instance = None
+    __default_interface_class = ContractInterface
 
     test_chains = ('tester', )
     transient_chains = test_chains + ('testrpc', 'temp')
     public_chains = ('mainnet', 'ropsten')
 
-    class IsAlreadyRunning(RuntimeError):
-        pass
+    def __init__(self, interface: Union[ContractInterface, DeployerInterface]=None):
 
-    def __init__(self, contract_provider: ContractProvider):
+        if interface is None:
+            interface = self.__default_interface_class(blockchain_config=interface.config)
 
-        """
-        Configures a populus project and connects to blockchain.network.
-        Transaction timeouts specified measured in seconds.
-
-        http://populus.readthedocs.io/en/latest/chain.wait.html
-        """
+        self.__interface = interface
+        self.config = interface.blockchain_config
 
         # Singleton #
         if TheBlockchain.__instance is not None:
@@ -53,10 +46,13 @@ class TheBlockchain(ABC):
             raise Exception('{} has not been created.'.format(class_name))
         return cls.__instance
 
-    def __repr__(self):
-        class_name = self.__class__.__name__
-        r = "{}(network={})"
-        return r.format(class_name, self._network)
+    @property
+    def interface(self):
+        return self.__interface
+
+    @classmethod
+    def sever(cls) -> None:
+        cls._instance = None
 
     def get_contract(self, name):
         """
@@ -64,11 +60,12 @@ class TheBlockchain(ABC):
         or raises populus.contracts.exceptions.UnknownContract
         if there is no contract data available for the name/identifier.
         """
-        return self.provider.get_contract(name)
+        return self.__interface.get_contract(name)
 
-    def wait_for_receipt(self, txhash, timeout=None) -> None:
-        timeout = timeout if timeout is not None else self._default_timeout
-        result = self.provider.w3.eth.waitForTransactionReceipt(txhash, timeout=timeout)
+    def wait_for_receipt(self, txhash, timeout=None) -> dict:
+        """Wait for a receipt and return it"""
+        timeout = timeout if timeout is not None else self.config.timeout
+        result = self.__interface.w3.eth.waitForTransactionReceipt(txhash, timeout=timeout)
         return result
 
 
@@ -81,8 +78,8 @@ class TesterBlockchain(TheBlockchain, NucypherMinerConfig):
         super().__init__(*args, **kwargs)
 
     def wait_for_receipt(self, txhash, timeout=None) -> None:
-        timeout = timeout if timeout is not None else self._default_timeout
-        result = self.provider.w3.eth.waitForTransactionReceipt(txhash, timeout=timeout)
+        timeout = timeout if timeout is not None else self.config.timeout
+        result = self.interface.w3.eth.waitForTransactionReceipt(txhash, timeout=timeout)
         return result
 
     def time_travel(self, hours: int=None, seconds: int=None, periods: int=None):

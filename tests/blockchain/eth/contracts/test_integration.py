@@ -40,14 +40,14 @@ ROLLBACK_POLICY_MANAGER = 5
 @pytest.fixture()
 def token(chain):
     # Create an ERC20 token
-    contract, _ = chain.provider.deploy_contract('NuCypherToken', 2 * 10 ** 9)
+    contract, _ = chain.interface.deploy_contract('NuCypherToken', 2 * 10 ** 9)
     return contract
 
 
 @pytest.fixture()
 def escrow(web3, chain, token):
     # Creator deploys the escrow
-    contract, _ = chain.provider.deploy_contract(
+    contract, _ = chain.interface.deploy_contract(
         'MinersEscrow',
         token.address,
         1,
@@ -58,7 +58,7 @@ def escrow(web3, chain, token):
         100,
         2000)
 
-    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
+    dispatcher, _ = chain.interface.deploy_contract('Dispatcher', contract.address)
 
     # Wrap dispatcher contract
     contract = web3.eth.contract(abi=contract.abi, address=dispatcher.address, ContractFactoryClass=Contract)
@@ -70,8 +70,8 @@ def policy_manager(web3, chain, escrow):
     creator = web3.eth.accounts[0]
 
     # Creator deploys the policy manager
-    contract, _ = chain.provider.deploy_contract('PolicyManager', escrow.address)
-    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
+    contract, _ = chain.interface.deploy_contract('PolicyManager', escrow.address)
+    dispatcher, _ = chain.interface.deploy_contract('Dispatcher', contract.address)
 
     # Wrap dispatcher contract
     contract = web3.eth.contract(abi=contract.abi, address=dispatcher.address, ContractFactoryClass=Contract)
@@ -145,6 +145,7 @@ def test_all(web3, chain, token, escrow, policy_manager, government):
 
     # Deposit some tokens to the user escrow and lock them
     user_escrow_1, _ = chain.provider.deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address, government.address)
+
     tx = user_escrow_1.functions.transferOwnership(ursula3).transact({'from': creator})
     chain.wait_for_receipt(tx)
     tx = token.functions.approve(user_escrow_1.address, 10000).transact({'from': creator})
@@ -152,6 +153,7 @@ def test_all(web3, chain, token, escrow, policy_manager, government):
     tx = user_escrow_1.functions.initialDeposit(10000, 20 * 60 * 60).transact({'from': creator})
     chain.wait_for_receipt(tx)
     user_escrow_2, _ = chain.provider.deploy_contract('UserEscrow', token.address, escrow.address, policy_manager.address, government.address)
+
     tx = user_escrow_2.functions.transferOwnership(ursula4).transact({'from': creator})
     chain.wait_for_receipt(tx)
     tx = token.functions.approve(user_escrow_2.address, 10000).transact({'from': creator})

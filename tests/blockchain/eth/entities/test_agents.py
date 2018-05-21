@@ -8,7 +8,7 @@ def test_get_swarm(chain, mock_token_agent, mock_miner_agent):
 
     mock_token_agent.token_airdrop(amount=100000 * mock_token_agent._M)
 
-    creator, *addresses = chain.provider.w3.eth.accounts
+    creator, *addresses = chain.interface.w3.eth.accounts
 
     mock_miner_agent.spawn_random_miners(addresses=addresses)
 

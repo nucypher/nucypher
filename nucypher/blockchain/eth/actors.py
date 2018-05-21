@@ -183,7 +183,7 @@ class Miner(NucypherTokenActor):
         if entire_balance is True:
             amount = self.miner_agent.contract.functions.getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
                                                                        self.address, 0).call()
-        amount = self.blockchain.provider.w3.toInt(amount)
+        amount = self.blockchain.interface.w3.toInt(amount)
 
         assert self.__validate_stake(amount=amount, lock_periods=lock_periods)
 
@@ -207,7 +207,7 @@ class Miner(NucypherTokenActor):
 
         count_bytes = self.miner_agent.contract.functions.getMinerIdsLength(self.address).call()
 
-        count = self.blockchain.provider.w3.toInt(count_bytes)
+        count = self.blockchain.interface.w3.toInt(count_bytes)
 
         miner_ids = list()
         for index in range(count):

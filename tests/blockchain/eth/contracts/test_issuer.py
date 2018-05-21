@@ -6,7 +6,7 @@ from eth_tester.exceptions import TransactionFailed
 @pytest.fixture()
 def token(chain):
     # Create an ERC20 token
-    token, _ = chain.provider.deploy_contract('NuCypherToken', 2 * 10 ** 40)
+    token, _ = chain.interface.deploy_contract('NuCypherToken', 2 * 10 ** 40)
     return token
 
 @pytest.mark.slow
@@ -15,7 +15,7 @@ def test_issuer(web3, chain, token):
     ursula = web3.eth.accounts[1]
 
     # Creator deploys the issuer
-    issuer, _ = chain.provider.deploy_contract(
+    issuer, _ = chain.interface.deploy_contract(
         'IssuerMock', token.address, 1, 10 ** 46, int(1e7), int(1e7)
     )
 
@@ -68,7 +68,7 @@ def test_inflation_rate(web3, chain, token):
     ursula = web3.eth.accounts[1]
 
     # Creator deploys the miner
-    issuer, _ = chain.provider.deploy_contract(
+    issuer, _ = chain.interface.deploy_contract(
         'IssuerMock', token.address, 1, 2 * 10 ** 19, 1, 1
     )
 
@@ -111,13 +111,13 @@ def test_verifying_state(web3, chain, token):
     creator = web3.eth.accounts[0]
 
     # Deploy contract
-    contract_library_v1, _ = chain.provider.deploy_contract(
+    contract_library_v1, _ = chain.interface.deploy_contract(
         'Issuer', token.address, 1, 1, 1, 1
     )
-    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract_library_v1.address)
+    dispatcher, _ = chain.interface.deploy_contract('Dispatcher', contract_library_v1.address)
 
     # Deploy second version of the contract
-    contract_library_v2, _ = chain.provider.deploy_contract('IssuerV2Mock', token.address, 2, 2, 2, 2)
+    contract_library_v2, _ = chain.interface.deploy_contract('IssuerV2Mock', token.address, 2, 2, 2, 2)
     contract = web3.eth.contract(
         abi=contract_library_v2.abi,
         address=dispatcher.address,
@@ -146,7 +146,7 @@ def test_verifying_state(web3, chain, token):
     assert 3 == contract.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
-    contract_library_bad, _ = chain.provider.deploy_contract('IssuerBad', token.address, 2, 2, 2, 2)
+    contract_library_bad, _ = chain.interface.deploy_contract('IssuerBad', token.address, 2, 2, 2, 2)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_v1.address).transact({'from': creator})
         chain.wait_for_receipt(tx)

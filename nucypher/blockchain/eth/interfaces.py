@@ -184,24 +184,24 @@ class ContractProvider:
         self.__recompile = recompile
         self.__sol_compiler = sol_compiler
 
+        # Setup the registrar and base contract factory cache
+        if registrar is None:
+            registrar = Registrar(chain_name=self.blockchain_config.network)
+        self._registrar = registrar
+
         if self.__recompile is True:
             interfaces = self.__sol_compiler.compile()
         else:
-            interfaces = self.__registrar.dump_chain()
+            interfaces = self._registrar.dump_chain()
 
-        # Setup the registrar and base contract factory cahche
-        self.__registrar = registrar
         self.__raw_contract_cache = interfaces
-
-    class ProviderError(Exception):
-        pass
 
     def get_contract_factory(self, contract_name):
         """Retrieve compiled interface data from the cache and return web3 contract"""
         try:
             interface = self.__raw_contract_cache[contract_name]
         except KeyError:
-            raise self.ProviderError('{} is not a compiled contract.'.format(contract_name))
+            raise self.ContractInterfaceError('{} is not a compiled contract.'.format(contract_name))
 
         contract = self.w3.eth.contract(abi=interface['abi'],
                                         bytecode=interface['bin'],
@@ -214,6 +214,22 @@ class ContractProvider:
         contracts = self.__registrar.lookup_contract(contract_name=contract_name)
         addresses = [c['addr'] for c in contracts]
         return addresses
+
+    def get_contract(self, address: str) -> Contract:
+        """Instantiate a deployed contract from registrar data"""
+        contract_data = self._registrar.dump_contract(address=address)
+        contract = self.w3.eth.contract(abi=contract_data['abi'], address=contract_data['addr'])
+        return contract
+
+
+class DeployerInterface(ContractInterface):
+
+    def __init__(self, deployer_address:str=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if deployer_address is None:
+            deployer_address = self.w3.eth.coinbase  # coinbase / etherbase
+        self.deployer_address = deployer_address
 
     def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:
         """

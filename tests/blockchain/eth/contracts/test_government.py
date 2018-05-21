@@ -24,11 +24,11 @@ def escrow(web3, chain):
     node3 = web3.eth.accounts[3]
 
     # Creator deploys the escrow
-    escrow_library, _ = chain.provider.deploy_contract(
+    escrow_library, _ = chain.interface.deploy_contract(
         'MinersEscrowV1Mock', [node1, node2, node3], [1, 2, 3]
     )
 
-    escrow_dispatcher, _ = chain.provider.deploy_contract(
+    escrow_dispatcher, _ = chain.interface.deploy_contract(
         'Dispatcher', escrow_library.address
     )
     contract = web3.eth.contract(
@@ -41,8 +41,8 @@ def escrow(web3, chain):
 @pytest.fixture()
 def policy_manager(web3, chain):
     # Creator deploys the escrow
-    contract, _ = chain.provider.deploy_contract('PolicyManagerV1Mock')
-    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract.address)
+    contract, _ = chain.interface.deploy_contract('PolicyManagerV1Mock')
+    dispatcher, _ = chain.interface.deploy_contract('Dispatcher', contract.address)
     contract = web3.eth.contract(
         abi=contract.abi,
         address=dispatcher.address,
@@ -55,10 +55,10 @@ def test_voting(web3, chain, escrow, policy_manager):
     creator, node1, node2, node3, *everyone_else = web3.eth.accounts
 
     # Deploy contract
-    government_library, _ = chain.provider.deploy_contract(
+    government_library, _ = chain.interface.deploy_contract(
         'Government', escrow.address, policy_manager.address, 1,
     )
-    government_dispatcher, _ = chain.provider.deploy_contract(
+    government_dispatcher, _ = chain.interface.deploy_contract(
         'Dispatcher', government_library.address
     )
     government = web3.eth.contract(
@@ -84,7 +84,7 @@ def test_voting(web3, chain, escrow, policy_manager):
         chain.wait_for_receipt(tx)
 
     # Deploy second version of the government contract
-    government_library_v2, _ = chain.provider.deploy_contract(
+    government_library_v2, _ = chain.interface.deploy_contract(
         'Government', escrow.address, policy_manager.address, 1,
     )
     assert government_library.address != government_library_v2.address
@@ -231,10 +231,10 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     node1 = web3.eth.accounts[1]
 
     # Deploy contract
-    government_library_v1, _ = chain.provider.deploy_contract(
+    government_library_v1, _ = chain.interface.deploy_contract(
         'Government', escrow.address, policy_manager.address, 1,
     )
-    government_dispatcher, _ = chain.provider.deploy_contract(
+    government_dispatcher, _ = chain.interface.deploy_contract(
         'Dispatcher', government_library_v1.address,
     )
     government = web3.eth.contract(
@@ -247,20 +247,20 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     upgrade_committed_log = government.events.UpgradeCommitted.createFilter(fromBlock='latest')
 
     # Deploy second version of the government contract
-    government_library_v2, _ = chain.provider.deploy_contract(
+    government_library_v2, _ = chain.interface.deploy_contract(
         'Government', escrow.address, policy_manager.address, 1,
     )
     # Get first version of the escrow contract
     escrow_library_v1 = escrow.functions.target().call()
     # Deploy second version of the escrow contract
-    escrow_library_v2, _ = chain.provider.deploy_contract(
+    escrow_library_v2, _ = chain.interface.deploy_contract(
         'MinersEscrowV1Mock', [node1], [1]
     )
     escrow_library_v2 = escrow_library_v2.address
     # Get first version of the policy manager contract
     policy_manager_library_v1 = policy_manager.functions.target().call()
     # Deploy second version of the policy manager contract
-    policy_manager_library_v2, _ = chain.provider.deploy_contract('PolicyManagerV1Mock')
+    policy_manager_library_v2, _ = chain.interface.deploy_contract('PolicyManagerV1Mock')
     policy_manager_library_v2 = policy_manager_library_v2.address
 
     # Transfer ownership
@@ -450,15 +450,16 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert event_args['successful']
 
 
+@pytest.mark.slow()
 def test_cancel_upgrading(web3, chain, escrow, policy_manager):
     creator = web3.eth.accounts[0]
     node1 = web3.eth.accounts[1]
 
     # Deploy contract
-    government_library, _ = chain.provider.deploy_contract(
+    government_library, _ = chain.interface.deploy_contract(
         'GovernmentV2Mock', escrow.address, policy_manager.address, 1,
     )
-    government_dispatcher, _ = chain.provider.deploy_contract(
+    government_dispatcher, _ = chain.interface.deploy_contract(
         'Dispatcher', government_library.address
     )
     government = web3.eth.contract(
@@ -468,7 +469,7 @@ def test_cancel_upgrading(web3, chain, escrow, policy_manager):
     )
     escrow_library = escrow.functions.target().call()
     policy_manager_library = policy_manager.functions.target().call()
-    upgradeable_bad, _ = chain.provider.deploy_contract('UpgradeableBad')
+    upgradeable_bad, _ = chain.interface.deploy_contract('UpgradeableBad')
     upgrade_committed_log = government.events.UpgradeCommitted.createFilter(fromBlock=0)
     tx = government.functions.transferOwnership(government.address).transact({'from': creator})
     chain.wait_for_receipt(tx)
@@ -610,15 +611,15 @@ def test_verifying_state(web3, chain):
     address2 = web3.eth.accounts[2]
 
     # Deploy contract
-    government_library_v1, _ = chain.provider.deploy_contract(
+    government_library_v1, _ = chain.interface.deploy_contract(
         'Government', address1, address2, 1,
     )
-    government_dispatcher, _ = chain.provider.deploy_contract(
+    government_dispatcher, _ = chain.interface.deploy_contract(
         'Dispatcher', government_library_v1.address
     )
 
     # Deploy second version of the government contract
-    government_library_v2, _ = chain.provider.deploy_contract(
+    government_library_v2, _ = chain.interface.deploy_contract(
         'GovernmentV2Mock', address2, address1, 2,
     )
     government = web3.eth.contract(
@@ -638,7 +639,7 @@ def test_verifying_state(web3, chain):
     assert 3 == government.functions.valueToCheck().call()
 
     # Can't upgrade to the previous version or to the bad version
-    government_library_bad, _ = chain.provider.deploy_contract('GovernmentBad')
+    government_library_bad, _ = chain.interface.deploy_contract('GovernmentBad')
     with pytest.raises((TransactionFailed, ValueError)):
         tx = government_dispatcher.functions.upgrade(government_library_v1.address).transact({'from': creator})
         chain.wait_for_receipt(tx)

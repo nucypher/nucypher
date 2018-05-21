@@ -9,11 +9,13 @@ from typing import Dict, ClassVar
 from typing import Union, List
 
 from bytestring_splitter import BytestringSplitter
+
+from nucypher.blockchain.eth.agents import PolicyAgent
 from nucypher.network.node import NetworkyStuff
 from umbral.keys import UmbralPublicKey
 from constant_sorrow import constants, default_constant_splitter
 
-from nucypher.blockchain.eth.actors import PolicyAuthor
+from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.config.configs import NucypherConfig
 from nucypher.crypto.api import secure_random, keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
