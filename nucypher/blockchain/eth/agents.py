@@ -20,13 +20,18 @@ class EthereumContractAgent(ABC):
     class ContractNotDeployed(Exception):
         pass
 
-    def __init__(self, blockchain, contract: Contract=None, *args, **kwargs):
+    def __init__(self, blockchain: Blockchain=None, contract: Contract=None, *args, **kwargs):
+
+        if blockchain is None:
+            blockchain = Blockchain.connect()
         self.blockchain = blockchain
 
         if contract is None:
-            address = blockchain.provider.get_contract_address(contract_name=self._principal_contract_name)[-1]  # TODO
-            contract = blockchain.provider.get_contract(address)
+            address = blockchain.interface.get_contract_address(contract_name=self._principal_contract_name)[-1]  # TODO: Handle multiple
+            contract = blockchain.interface.get_contract(address)
         self.__contract = contract
+
+        super().__init__(*args, **kwargs)
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -156,6 +161,11 @@ class MinerAgent(EthereumContractAgent, NucypherMinerConfig):
 class PolicyAgent(EthereumContractAgent):
 
     _principal_contract_name = "PolicyManager"
+
+    def __init__(self, miner_agent: MinerAgent, *args, **kwargs):
+        super().__init__(blockchain=miner_agent.blockchain, *args, **kwargs)
+        self.miner_agent = miner_agent
+        self.token_agent = miner_agent.token_agent
 
     def fetch_arrangement_data(self, arrangement_id: bytes) -> list:
         blockchain_record = self.contract.functions.policies(arrangement_id).call()
