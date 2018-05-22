@@ -233,13 +233,13 @@ contract MinersEscrow is Issuer {
     * @param _from Tokens owner
     * @param _value Amount of token to deposit
     * @param _tokenContract Token contract address
-    * @param _extraData Extra data - amount of periods during which tokens will be locked
+    * @notice (param _extraData) Amount of periods during which tokens will be locked
     **/
     function receiveApproval(
         address _from,
         uint256 _value,
         address _tokenContract,
-        bytes _extraData
+        bytes /* _extraData */
     )
         external
     {
