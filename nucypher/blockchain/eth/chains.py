@@ -97,14 +97,17 @@ class TesterBlockchain(TheBlockchain, NucypherMinerConfig):
 
         if periods:
             duration = (self._hours_per_period * periods) * (60 * 60)
+            base = self._hours_per_period * 60 * 60
         elif hours:
             duration = hours * (60 * 60)
+            base = 60 * 60
         elif seconds:
             duration = seconds
+            base = 1
         else:
             raise ValueError("Specify either hours, seconds, or lock_periods.")
 
-        end_timestamp = self.provider.w3.eth.getBlock(block_identifier='latest').timestamp + duration
+        end_timestamp = ((self.provider.w3.eth.getBlock(block_identifier='latest').timestamp + duration) // base) * base
         self.provider.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
         self.provider.w3.eth.web3.testing.mine(1)
 

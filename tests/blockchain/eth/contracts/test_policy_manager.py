@@ -23,7 +23,7 @@ def escrow(web3, chain):
     node2 = web3.eth.accounts[4]
     node3 = web3.eth.accounts[5]
     # Creator deploys the escrow
-    escrow, _ = chain.provider.deploy_contract('MinersEscrowForPolicyMock', [node1, node2, node3], MINUTES_IN_PERIOD)
+    escrow, _ = chain.provider.deploy_contract('MinersEscrowForPolicyMock', [node1, node2, node3], 1)
     return escrow
 
 
@@ -54,21 +54,12 @@ def policy_manager(web3, chain, escrow, request):
     return contract
 
 
-MINUTES_IN_PERIOD = 10
 policy_id = os.urandom(20)
 policy_id_2 = os.urandom(20)
 policy_id_3 = os.urandom(20)
 rate = 20
 number_of_periods = 10
 value = rate * number_of_periods
-
-
-def wait_time(chain, wait_periods):
-    seconds = wait_periods * 60 * MINUTES_IN_PERIOD
-
-    end_timestamp = chain.provider.w3.eth.getBlock(block_identifier='latest').timestamp + seconds
-    chain.provider.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
-    chain.provider.w3.eth.web3.testing.mine(1)
 
 
 @pytest.mark.slow
@@ -443,7 +434,7 @@ def test_refund(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
 
     # Wait and refund all
-    wait_time(chain, 9)
+    chain.time_travel(hours=9)
     tx = policy_manager.functions.refund(policy_id).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 20 == web3.eth.getBalance(policy_manager.address)
@@ -465,7 +456,7 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert client == event_args['client']
     assert 190 == event_args['value']
 
-    wait_time(chain, 1)
+    chain.time_travel(hours=1)
     tx = policy_manager.functions.refund(policy_id).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 0 == web3.eth.getBalance(policy_manager.address)
@@ -496,7 +487,7 @@ def test_refund(web3, chain, escrow, policy_manager):
         chain.wait_for_receipt(tx)
 
     # Create policy again
-    wait_time(chain, 1)
+    chain.time_travel(hours=1)
     period = escrow.call().getCurrentPeriod()
     tx = escrow.transact().setLastActivePeriod(period)
     chain.wait_for_receipt(tx)
@@ -573,7 +564,7 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert 90 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     # Wait and refund
-    wait_time(chain, 10)
+    chain.time_travel(hours=10)
     tx = policy_manager.functions.refund(policy_id_2, node1).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 2 * value + 90 + rate == web3.eth.getBalance(policy_manager.address)
@@ -643,7 +634,7 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert 150 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     # Client revokes policy
-    wait_time(chain, 4)
+    chain.time_travel(hours=4)
     tx = policy_manager.functions.revokePolicy(policy_id_3).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 60 + 3 * 90 == web3.eth.getBalance(policy_manager.address)
