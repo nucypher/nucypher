@@ -210,6 +210,7 @@ def mock_token_agent(mock_token_deployer):
 
 
 @pytest.fixture(scope='module')
+@pytest.mark.usefixtures("mock_token_agent")
 def mock_miner_agent(mock_miner_escrow_deployer):
     miner_agent = mock_miner_escrow_deployer.make_agent()
     assert mock_miner_escrow_deployer.contract.address == miner_agent.contract_address
@@ -217,6 +218,7 @@ def mock_miner_agent(mock_miner_escrow_deployer):
 
 
 @pytest.fixture(scope='module')
+@pytest.mark.usefixtures("mock_miner_agent")
 def mock_policy_agent(mock_policy_manager_deployer):
     policy_agent = mock_policy_manager_deployer.make_agent()
     assert mock_policy_manager_deployer.contract.address == policy_agent.contract_address

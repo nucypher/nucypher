@@ -32,11 +32,15 @@ class TestMiner:
         assert mock_miner_agent.contract.functions.getLockedTokens(miner.address).call() == mock_miner_agent.min_allowed_locked
 
     @pytest.mark.slow()
+    @pytest.mark.usefixtures("mock_policy_agent")
     def test_miner_collects_staking_reward_tokens(self, chain, miner, mock_token_agent, mock_miner_agent):
 
         # Capture the current token balance of the miner
         initial_balance = miner.token_balance()
         assert mock_token_agent.get_balance(miner.address) == miner.token_balance()
+
+        miner.stake(amount=mock_miner_agent.min_allowed_locked,         # Lock the minimum amount of tokens
+                    lock_periods=mock_miner_agent.min_locked_periods)   # ... for the fewest number of periods
 
         # Have other address lock tokens
         _origin, ursula, *everybody_else = chain.interface.w3.eth.accounts
