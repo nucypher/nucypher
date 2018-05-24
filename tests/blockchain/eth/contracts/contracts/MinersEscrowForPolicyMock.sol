@@ -23,13 +23,13 @@ contract MinersEscrowForPolicyMock {
 
     /**
     * @param _nodes Addresses of nodes that allow to use policy manager
-    * @param _minutesPerPeriod Size of period in minutes
+    * @param _hoursPerPeriod Size of period in hours
     **/
-    constructor(address[] _nodes, uint256 _minutesPerPeriod) public {
+    constructor(address[] _nodes, uint256 _hoursPerPeriod) public {
         for (uint256 i = 0; i < _nodes.length; i++) {
             nodes[_nodes[i]] = true;
         }
-        secondsPerPeriod = _minutesPerPeriod * 1 minutes;
+        secondsPerPeriod = _hoursPerPeriod * 1 hours;
     }
 
     /**

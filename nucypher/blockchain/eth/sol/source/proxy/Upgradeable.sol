@@ -54,7 +54,7 @@ contract Upgradeable is Ownable {
     )
         internal returns (bytes32 memoryAddress)
     {
-        bytes4 targetCall = bytes4(keccak256(_signature));
+        bytes4 targetCall = bytes4(keccak256(abi.encodePacked(_signature)));
         assembly {
             let freeMemAddress := mload(0x40)
             mstore(freeMemAddress, targetCall)
