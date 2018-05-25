@@ -540,7 +540,7 @@ def test_mining(web3, chain, token, escrow_contract):
 
     # Ursula can't use method from Issuer contract
     with pytest.raises(Exception):
-        tx = escrow.functions.mint(1, 1, 1, 1, 1).transact({'from': ursula1})
+        tx = escrow.functions.mint(1, 1, 1, 1).transact({'from': ursula1})
         chain.wait_for_receipt(tx)
 
     # Only Ursula confirm next period

@@ -102,23 +102,22 @@ contract Issuer is Upgradeable {
     * @param _lockedValue The amount of tokens that were locked by user in specified period.
     * @param _totalLockedValue The amount of tokens that were locked by all users in specified period.
     * @param _allLockedPeriods The max amount of periods during which tokens will be locked after specified period.
-    * @param _decimals The amount of locked tokens and blocks in decimals.
     * @return Amount of minted tokens.
     */
-    // TODO decimals
     function mint(
         uint256 _period,
         uint256 _lockedValue,
         uint256 _totalLockedValue,
-        uint256 _allLockedPeriods,
-        uint256 _decimals
+        uint256 _allLockedPeriods
     )
-        internal returns (uint256 amount, uint256 decimals)
+        internal returns (uint256 amount)
     {
-        // TODO finish method before calculation after end of mining
         uint256 currentSupply = _period <= lastMintedPeriod ?
             Math.min256(currentSupply1, currentSupply2) :
             Math.max256(currentSupply1, currentSupply2);
+        if (currentSupply == futureSupply) {
+            return;
+        }
 
         //futureSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2) -
         //currentSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
@@ -135,7 +134,10 @@ contract Issuer is Upgradeable {
                 .mul(_lockedValue)
                 .mul(allLockedPeriods)
                 .div(denominator));
-        decimals = _decimals;
+        // rounding the last reward
+        if (amount == 0) {
+            amount = 1;
+        }
 
         if (_period <= lastMintedPeriod) {
             if (currentSupply1 > currentSupply2) {

@@ -50,7 +50,6 @@ contract MinersEscrow is Issuer {
 
     struct MinerInfo {
         uint256 value;
-        uint256 decimals;
         /*
         * Periods that confirmed but not yet mined, two values instead of array for optimisation.
         * lock() and confirmActivity() methods include mint() method so may be only two confirmed
@@ -519,18 +518,15 @@ contract MinersEscrow is Issuer {
     )
         internal returns (uint256 reward)
     {
-        uint256 amount;
         for (uint256 i = 0; i < _info.stakes.length; i++) {
             StakeInfo storage stake =  _info.stakes[i];
             uint256 lastPeriod = getLastPeriod(stake, _startPeriod);
             if (stake.firstPeriod <= _period && lastPeriod >= _period) {
-                (amount, _info.decimals) = mint(
+                reward = reward.add(mint(
                     _previousPeriod,
                     stake.lockedValue,
                     lockedPerPeriod[_period],
-                    lastPeriod.sub(_period),
-                    _info.decimals);
-                reward = reward.add(amount);
+                    lastPeriod.sub(_period)));
             }
         }
         policyManager.updateReward(_owner, _period);
@@ -720,7 +716,6 @@ contract MinersEscrow is Issuer {
         MinerInfo storage info = minerInfo[minerAddress];
         MinerInfo memory infoToCheck = delegateGetMinerInfo(_testTarget, minerAddress);
         require(infoToCheck.value == info.value &&
-            infoToCheck.decimals == info.decimals &&
             infoToCheck.confirmedPeriod1 == info.confirmedPeriod1 &&
             infoToCheck.confirmedPeriod2 == info.confirmedPeriod2 &&
             infoToCheck.lastActivePeriod == info.lastActivePeriod);
