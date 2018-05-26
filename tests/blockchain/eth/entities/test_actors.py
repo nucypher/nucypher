@@ -14,6 +14,7 @@ class TestMiner:
         miner = Miner(miner_agent=mock_miner_agent, address=ursula)
         return miner
 
+    @pytest.mark.usefixtures("mock_policy_agent")
     def test_miner_locking_tokens(self, chain, miner, mock_miner_agent):
 
         assert mock_miner_agent.min_allowed_locked < miner.token_balance(), "Insufficient miner balance"

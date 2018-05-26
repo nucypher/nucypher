@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -93,6 +93,26 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
+    * @dev Checks that sender is the MinersEscrow contract
+    **/
+    modifier onlyEscrowContract()
+    {
+        require(msg.sender == address(escrow));
+        _;
+    }
+
+    /**
+    * @notice Register a node
+    * @param _node Node address
+    * @param _period Initial period
+    **/
+    function register(address _node, uint256 _period) external onlyEscrowContract {
+        NodeInfo storage nodeInfo = nodes[_node];
+        require(nodeInfo.lastMinedPeriod == 0);
+        nodeInfo.lastMinedPeriod = _period;
+    }
+
+    /**
     * @notice Create policy by client
     * @dev Generate policy id before creation
     * @param _policyId Policy id
@@ -130,17 +150,13 @@ contract PolicyManager is Upgradeable {
         policy.nodes = _nodes;
         for (uint256 i = 0; i < _nodes.length; i++) {
             address node = _nodes[i];
-            require(escrow.getLockedTokens(node) != 0 && node != RESERVED_NODE);
+            require(node != RESERVED_NODE);
             NodeInfo storage nodeInfo = nodes[node];
-            require(policy.rewardRate >= nodeInfo.minRewardRate);
+            require(nodeInfo.lastMinedPeriod != 0 && policy.rewardRate >= nodeInfo.minRewardRate);
             nodeInfo.rewardDelta[currentPeriod] = nodeInfo.rewardDelta[currentPeriod].add(_firstReward);
             nodeInfo.rewardDelta[policy.startPeriod] = nodeInfo.rewardDelta[policy.startPeriod]
                 .add(startReward);
             nodeInfo.rewardDelta[endPeriod] = nodeInfo.rewardDelta[endPeriod].sub(policy.rewardRate);
-            // TODO node should pay for this
-            if (nodeInfo.lastMinedPeriod == 0) {
-                nodeInfo.lastMinedPeriod = currentPeriod.sub(uint256(1));
-            }
             ArrangementInfo storage arrangement = policy.arrangements[node];
             arrangement.indexOfDowntimePeriods = escrow.getDowntimeLength(node);
             arrangement.active = true;
@@ -154,8 +170,7 @@ contract PolicyManager is Upgradeable {
     * @param _node Node address
     * @param _period Processed period
     **/
-    function updateReward(address _node, uint256 _period) external {
-        require(msg.sender == address(escrow));
+    function updateReward(address _node, uint256 _period) external onlyEscrowContract {
         NodeInfo storage node = nodes[_node];
         if (node.lastMinedPeriod == 0 || _period <= node.lastMinedPeriod) {
             return;
@@ -329,8 +344,7 @@ contract PolicyManager is Upgradeable {
             }
         }
 
-        uint256 lastActivePeriod;
-        (,,,lastActivePeriod) = escrow.minerInfo(_node);
+        (,,, uint256 lastActivePeriod) = escrow.minerInfo(_node);
         if (i == length && lastActivePeriod < maxPeriod) {
             downtimePeriods = downtimePeriods.add(
                 maxPeriod.sub(Math.max256(

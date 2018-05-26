@@ -10,6 +10,7 @@ import "contracts/Issuer.sol";
 * @notice PolicyManager interface
 **/
 contract PolicyManagerInterface {
+    function register(address _node, uint256 _period) external;
     function updateReward(address _node, uint256 _period) external;
     function escrow() public view returns (address);
 }
@@ -136,7 +137,6 @@ contract MinersEscrow is Issuer {
     function getStartPeriod(MinerInfo storage _info, uint256 _currentPeriod)
         internal view returns (uint256)
     {
-        // TODO try to optimize working with confirmed next period (getLockedTokens, lock, divideStake, mint)
         // if next period (after current) is confirmed
         if (_info.confirmedPeriod1 > _currentPeriod || _info.confirmedPeriod2 > _currentPeriod) {
             return _currentPeriod.add(uint256(1));
@@ -156,6 +156,7 @@ contract MinersEscrow is Issuer {
     /**
     * @notice Get locked tokens value for owner in current period
     * @param _owner Tokens owner
+    * @param _periods Amount of periods to get locked tokens
     **/
     function getLockedTokens(address _owner, uint256 _periods)
         public view returns (uint256 lockedValue)
@@ -217,6 +218,7 @@ contract MinersEscrow is Issuer {
                 periods >= minLockedPeriods);
             miners.push(miner);
             info.lastActivePeriod = currentPeriod;
+            policyManager.register(miner, currentPeriod);
             info.value = value;
             info.stakes.push(StakeInfo(currentPeriod.add(uint256(1)), 0, periods, value));
             allValue = allValue.add(value);
@@ -277,6 +279,7 @@ contract MinersEscrow is Issuer {
         if (info.lastActivePeriod == 0) {
             miners.push(_owner);
             info.lastActivePeriod = getCurrentPeriod();
+            policyManager.register(_owner, info.lastActivePeriod);
         }
         info.value = info.value.add(_value);
         token.safeTransferFrom(_owner, address(this), _value);
@@ -367,7 +370,8 @@ contract MinersEscrow is Issuer {
     **/
     function withdraw(uint256 _value) public onlyTokenOwner {
         MinerInfo storage info = minerInfo[msg.sender];
-        // TODO optimize
+        // the max locked tokens in most cases will be in the current period
+        // but when the miner stakes more then we should use the next period
         uint256 lockedTokens = Math.max256(getLockedTokens(msg.sender, 1),
             getLockedTokens(msg.sender, 0));
         require(_value <= token.balanceOf(address(this)) &&

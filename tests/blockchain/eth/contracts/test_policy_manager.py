@@ -18,19 +18,15 @@ MIN_REWARD_RATE_FIELD = 3
 
 
 @pytest.fixture()
-def escrow(web3, chain):
-    node1 = web3.eth.accounts[3]
-    node2 = web3.eth.accounts[4]
-    node3 = web3.eth.accounts[5]
+def escrow(chain):
     # Creator deploys the escrow
-    escrow, _ = chain.interface.deploy_contract('MinersEscrowForPolicyMock', [node1, node2, node3], 1)
+    escrow, _ = chain.interface.deploy_contract('MinersEscrowForPolicyMock', 1)
     return escrow
 
 
 @pytest.fixture(params=[False, True])
 def policy_manager(web3, chain, escrow, request):
-    creator = web3.eth.accounts[0]
-    client = web3.eth.accounts[1]
+    creator, client, bad_node, node1, node2, node3, *everyone_else = web3.eth.accounts
 
     # Creator deploys the policy manager
     contract, _ = chain.interface.deploy_contract('PolicyManager', escrow.address)
@@ -49,6 +45,14 @@ def policy_manager(web3, chain, escrow, request):
             ContractFactoryClass=Contract)
 
     tx = escrow.functions.setPolicyManager(contract.address).transact({'from': creator})
+    chain.wait_for_receipt(tx)
+
+    # Register nodes
+    tx = escrow.functions.register(node1).transact()
+    chain.wait_for_receipt(tx)
+    tx = escrow.functions.register(node2).transact()
+    chain.wait_for_receipt(tx)
+    tx = escrow.functions.register(node3).transact()
     chain.wait_for_receipt(tx)
 
     return contract
@@ -73,11 +77,16 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     arrangement_refund_log = policy_manager.events.RefundForArrangement.createFilter(fromBlock='latest')
     policy_refund_log = policy_manager.events.RefundForPolicy.createFilter(fromBlock='latest')
 
+    # Check registered nodes
+    assert 0 < policy_manager.functions.nodes(node1).call()[LAST_MINED_PERIOD_FIELD]
+    assert 0 < policy_manager.functions.nodes(node2).call()[LAST_MINED_PERIOD_FIELD]
+    assert 0 < policy_manager.functions.nodes(node3).call()[LAST_MINED_PERIOD_FIELD]
+    assert 0 == policy_manager.functions.nodes(bad_node).call()[LAST_MINED_PERIOD_FIELD]
+
     # Try create policy for bad node
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.createPolicy(policy_id, 1, 0, [bad_node]).transact({'from': client, 'value': value})
         chain.wait_for_receipt(tx)
-
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.createPolicy(policy_id, 1, 0, [node1, bad_node]).transact({'from': client, 'value': value})
         chain.wait_for_receipt(tx)
@@ -350,6 +359,10 @@ def test_reward(web3, chain, escrow, policy_manager):
     # Can't update reward directly
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.updateReward(node1, period + 1).transact({'from': node1})
+        chain.wait_for_receipt(tx)
+    # Can't register directly
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.register(bad_node, period).transact({'from': bad_node})
         chain.wait_for_receipt(tx)
 
     # Mint some periods
