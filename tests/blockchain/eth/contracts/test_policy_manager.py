@@ -4,6 +4,8 @@ import os
 from web3.contract import Contract
 
 
+NULL_ADDR = '0x' + '0' * 40
+
 CLIENT_FIELD = 0
 RATE_FIELD = 1
 FIRST_REWARD_FIELD = 2
@@ -110,8 +112,8 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     assert period + 1 == policy[START_PERIOD_FIELD]
     assert period + 10 == policy[LAST_PERIOD_FIELD]
     assert not policy[DISABLED_FIELD]
-    assert 1 == policy_manager.functions.getPolicyNodesLength(policy_id).call()
-    assert node1 == policy_manager.functions.getPolicyNode(policy_id, 0).call()
+    assert 1 == policy_manager.functions.getArrangementsLength(policy_id).call()
+    assert node1 == policy_manager.functions.getArrangementInfo(policy_id, 0).call()[0]
 
     events = policy_created_log.get_all_entries()
     assert 1 == len(events)
@@ -181,6 +183,9 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.revokeArrangement(policy_id_2, web3.eth.accounts[6]).transact({'from': client})
         chain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.revokeArrangement(policy_id_2, NULL_ADDR).transact({'from': client})
+        chain.wait_for_receipt(tx)
 
     tx = policy_manager.functions.revokeArrangement(policy_id_2, node1).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
@@ -199,6 +204,9 @@ def test_create_revoke(web3, chain, escrow, policy_manager):
     # Can't revoke again
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.revokeArrangement(policy_id_2, node1).transact({'from': client})
+        chain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.revokeArrangement(policy_id_2, NULL_ADDR).transact({'from': client})
         chain.wait_for_receipt(tx)
 
     tx = policy_manager.functions.revokePolicy(policy_id_2).transact({'from': client, 'gas_price': 0})
@@ -498,6 +506,9 @@ def test_refund(web3, chain, escrow, policy_manager):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.refund(policy_id, node1).transact({'from': client})
         chain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.refund(policy_id, NULL_ADDR).transact({'from': client})
+        chain.wait_for_receipt(tx)
 
     # Create policy again
     chain.time_travel(hours=1)
@@ -599,6 +610,9 @@ def test_refund(web3, chain, escrow, policy_manager):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.refund(policy_id, node1).transact({'from': client})
         chain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.refund(policy_id, NULL_ADDR).transact({'from': client})
+        chain.wait_for_receipt(tx)
 
     # But can refund others
     tx = policy_manager.functions.refund(policy_id_2).transact({'from': client, 'gas_price': 0})
@@ -688,10 +702,12 @@ def test_refund(web3, chain, escrow, policy_manager):
 @pytest.mark.slow
 def test_verifying_state(web3, chain):
     creator = web3.eth.accounts[0]
-    address1 = web3.eth.accounts[1]
-    address2 = web3.eth.accounts[2]
 
-    # Deploy contract
+    # Deploy contracts
+    escrow1, _ = chain.interface.deploy_contract('MinersEscrowForPolicyMock', 1)
+    escrow2, _ = chain.interface.deploy_contract('MinersEscrowForPolicyMock', 1)
+    address1 = escrow1.address
+    address2 = escrow2.address
     contract_library_v1, _ = chain.interface.deploy_contract('PolicyManager', address1)
     dispatcher, _ = chain.interface.deploy_contract('Dispatcher', contract_library_v1.address)
 
