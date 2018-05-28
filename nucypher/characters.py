@@ -36,9 +36,9 @@ class Character(object):
 
     address = "This is a fake address."  # TODO: #192
 
-    def __init__(self, attach_server=True, crypto_power: CryptoPower=None,
+    def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
                  crypto_power_ups=None, is_me=True, network_middleware=None,
-                 config: "NucypherConfig"=None) -> None:
+                 config: "NucypherConfig" = None) -> None:
         """
         :param attach_server:  Whether to attach a Server when this Character is
             born.
@@ -87,7 +87,8 @@ class Character(object):
                 self.attach_server()
         else:
             if network_middleware is not None:
-                raise TypeError("Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
+                raise TypeError(
+                    "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
             self._stamp = StrangerStamp(self._crypto_power.power_ups(SigningPower).keypair)
 
     def __eq__(self, other):
@@ -159,7 +160,7 @@ class Character(object):
     def encrypt_for(self,
                     recipient: "Character",
                     plaintext: bytes,
-                    sign: bool=True,
+                    sign: bool = True,
                     sign_plaintext=True,
                     ) -> tuple:
         """
@@ -187,8 +188,9 @@ class Character(object):
     def verify_from(self,
                     actor_whom_sender_claims_to_be: "Character",
                     message_kit: Union[UmbralMessageKit, bytes],
-                    signature: Signature=None,
+                    signature: Signature = None,
                     decrypt=False,
+                    delegator_signing_key: UmbralPublicKey = None,
                     ) -> tuple:
         """
         Inverse of encrypt_for.
@@ -196,11 +198,14 @@ class Character(object):
         :param actor_that_sender_claims_to_be: A Character instance representing
             the actor whom the sender claims to be.  We check the public key
             owned by this Character instance to verify.
-        :param messages: The messages to be verified.
+        :param message_kit: the message to be (perhaps decrypted and) verified.
+        :param signature: The signature to check.
         :param decrypt: Whether or not to decrypt the messages.
-        :param signature_is_on_cleartext: True if we expect the signature to be
-            on the cleartext. Otherwise, we presume that the ciphertext is what
-            is signed.
+        :param delegator_signing_key: A signing key from the original delegator.
+            This is used only when decrypting a MessageKit with an activated Capsule
+            to check that the KFrag used to create each attached CFrag is the
+            authentic KFrag initially created by the delegator.
+
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
         """
@@ -215,7 +220,7 @@ class Character(object):
 
         if decrypt:
             # We are decrypting the message; let's do that first and see what the sig header says.
-            cleartext_with_sig_header = self.decrypt(message_kit)
+            cleartext_with_sig_header = self.decrypt(message_kit, verifying_key=delegator_signing_key)
             sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
             if sig_header == constants.SIGNATURE_IS_ON_CIPHERTEXT:
                 # THe ciphertext is what is signed - note that for later.
@@ -254,8 +259,8 @@ class Character(object):
     If they don't have the correct Power, the appropriate PowerUpError is raised.
     """
 
-    def decrypt(self, message_kit):
-        return self._crypto_power.power_ups(EncryptingPower).decrypt(message_kit)
+    def decrypt(self, message_kit, verifying_key: UmbralPublicKey = None):
+        return self._crypto_power.power_ups(EncryptingPower).decrypt(message_kit, verifying_key)
 
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
@@ -302,7 +307,8 @@ class Character(object):
                             powers_and_keys=({SigningPower: pubkey})
                         )
                 else:
-                    message = "Suspicious Activity: Discovered node with bad signature: {}.  Propagated by: {}:{}".format(node_meta, address, port)
+                    message = "Suspicious Activity: Discovered node with bad signature: {}.  Propagated by: {}:{}".format(
+                        node_meta, address, port)
                     self.log.warn(message)
         return new_nodes
 
