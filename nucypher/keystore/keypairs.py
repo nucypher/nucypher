@@ -7,8 +7,8 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral import pre
 from umbral.config import default_curve
 from nucypher.crypto.kits import MessageKit
-from nucypher.crypto.signature import SignatureStamp
-from umbral.signing import Signature
+from nucypher.crypto.signing import SignatureStamp
+from umbral.signing import Signature, Signer
 
 
 class Keypair(object):
@@ -106,3 +106,7 @@ class SigningKeypair(Keypair):
     def generate_self_signed_cert(self, common_name):
         cryptography_key = self._privkey.to_cryptography_privkey()
         return generate_self_signed_certificate(common_name, default_curve(), cryptography_key)
+
+    def get_signature_stamp(self):
+        signer = Signer(self._privkey)
+        return SignatureStamp(signing_key=self.pubkey, signer=signer)

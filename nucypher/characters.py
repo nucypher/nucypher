@@ -19,7 +19,7 @@ from nucypher.crypto.api import secure_random, keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
-from nucypher.crypto.signature import Signature, signature_splitter, SignatureStamp, StrangerStamp
+from nucypher.crypto.signing import Signature, signature_splitter, SignatureStamp, StrangerStamp
 from nucypher.network import blockchain_client
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
@@ -79,7 +79,8 @@ class Character(object):
         if is_me:
             self.network_middleware = network_middleware or NetworkyStuff()
             try:
-                self._stamp = SignatureStamp(self._crypto_power.power_ups(SigningPower).keypair)
+                signing_power = self._crypto_power.power_ups(SigningPower)
+                self._stamp = signing_power.get_signature_stamp()
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
 
@@ -89,7 +90,7 @@ class Character(object):
             if network_middleware is not None:
                 raise TypeError(
                     "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
-            self._stamp = StrangerStamp(self._crypto_power.power_ups(SigningPower).keypair)
+            self._stamp = StrangerStamp(self.public_key(SigningPower))
 
     def __eq__(self, other):
         return bytes(self.stamp) == bytes(other.stamp)

@@ -12,7 +12,7 @@ from nucypher.characters import Bob, Ursula
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH
 from nucypher.crypto.powers import SigningPower, DelegatingPower
-from nucypher.crypto.signature import Signature
+from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
 from bytestring_splitter import BytestringSplitter
 from nucypher.blockchain.eth.policies import BlockchainArrangement

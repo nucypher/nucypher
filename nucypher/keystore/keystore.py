@@ -1,6 +1,6 @@
 from typing import Union
 
-from nucypher.crypto.signature import Signature
+from nucypher.crypto.signing import Signature
 from bytestring_splitter import BytestringSplitter
 from nucypher.keystore.db.models import Key, PolicyArrangement, Workorder
 from umbral.fragments import KFrag

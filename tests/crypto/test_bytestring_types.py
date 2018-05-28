@@ -1,6 +1,6 @@
 import pytest
 from nucypher.crypto.api import secure_random
-from nucypher.crypto.signature import Signature
+from nucypher.crypto.signing import Signature
 from bytestring_splitter import BytestringSplitter
 
 

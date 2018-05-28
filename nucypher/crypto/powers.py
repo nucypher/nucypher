@@ -117,7 +117,7 @@ class DerivedKeyBasedPower(CryptoPowerUp):
 class SigningPower(KeyPairBasedPower):
     _keypair_class = SigningKeypair
     not_found_error = NoSigningPower
-    provides = ("sign", "generate_self_signed_cert")
+    provides = ("sign", "generate_self_signed_cert", "get_signature_stamp")
 
 
 class EncryptingPower(KeyPairBasedPower):

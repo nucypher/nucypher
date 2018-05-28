@@ -5,7 +5,7 @@ from kademlia.utils import digest
 from constant_sorrow import default_constant_splitter, constants
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
-from nucypher.crypto.signature import Signature
+from nucypher.crypto.signing import Signature
 from bytestring_splitter import BytestringSplitter
 from nucypher.network.node import NucypherNode
 from nucypher.network.routing import NucypherRoutingTable
