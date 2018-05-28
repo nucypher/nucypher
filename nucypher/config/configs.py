@@ -45,7 +45,7 @@ class NetworkConfig:
 
 class BlockchainConfig:
 
-    __default_providers = (IPCProvider(ipc_path=os.path.join('/tmp/geth.ipc')),
+    __default_providers = (IPCProvider(ipc_path='/tmp/geth.ipc'),
                            # user-managed geth over IPC assumed
                            )
 
@@ -75,10 +75,6 @@ class BlockchainConfig:
             interface_class = DeployerInterface
 
         interface = interface_class(blockchain_config=self, sol_compiler=compiler, registrar=registrar)
-
-        if geth is True:
-            w3 = interface.w3
-            w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
         if tester is True:
             blockchain_class = TesterBlockchain

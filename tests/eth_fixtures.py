@@ -10,6 +10,7 @@ from eth_tester import EthereumTester
 from geth import LoggingMixin, DevGethProcess
 from os.path import abspath, dirname
 from web3 import EthereumTesterProvider, IPCProvider
+from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer
 from nucypher.blockchain.eth.interfaces import Registrar
@@ -30,7 +31,7 @@ def manual_geth_ipc_provider():
     Provider backend
     https:// github.com/ethereum/eth-tester
     """
-    ipc_provider = IPCProvider(ipc_path=os.path.join('/tmp/geth.ipc'))
+    ipc_provider = IPCProvider(ipc_path='/tmp/geth.ipc')
     yield ipc_provider
 
 
@@ -153,8 +154,11 @@ def deployer_interface(blockchain_config):
 
 
 @pytest.fixture(scope='module')
-def web3(deployer_interface):
-    """Compadibility fixture"""
+def web3(deployer_interface, poa=False):
+    """Compatibility fixture"""
+    if poa is True:
+        w3 = deployer_interface.interface.w3
+        w3.middleware_stack.inject(geth_poa_middleware, layer=0)
     return deployer_interface.w3
 
 

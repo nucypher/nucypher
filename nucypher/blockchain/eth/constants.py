@@ -7,18 +7,14 @@ class NucypherTokenConstants:
         pass
 
     __subdigits = 18
-    _M = 10 ** __subdigits                                 # Unit designation
-    __initial_supply = int(1e9) * _M                       # Initial token supply
-    __saturation = int(3.89e9) * _M                        # Token supply cap
+    M = 10 ** __subdigits                                 # Unit designation
+    __initial_supply = int(1e9) * M                       # Initial token supply
+    __saturation = int(3.89e9) * M                        # Token supply cap
     _remaining_supply = __saturation - __initial_supply    # Remaining supply
 
     @property
     def saturation(self):
         return self.__saturation
-
-    @property
-    def M(self):
-        return self._M
 
 
 class NucypherMinerConstants:
@@ -30,8 +26,8 @@ class NucypherMinerConstants:
     min_locked_periods = 30      # 720 Hours minimum
     max_minting_periods = 365    # Maximum number of periods
 
-    min_allowed_locked = 15000 * NucypherTokenConstants._M
-    max_allowed_locked = int(4e6) * NucypherTokenConstants._M
+    min_allowed_locked = 15000 * NucypherTokenConstants.M
+    max_allowed_locked = int(4e6) * NucypherTokenConstants.M
 
     __remaining_supply = NucypherTokenConstants._remaining_supply
 
