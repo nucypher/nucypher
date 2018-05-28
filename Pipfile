@@ -21,7 +21,7 @@ apistar = "*"
 mypy = "*"
 pytest-mypy = "*"
 maya = "*"
-pyumbral = {git = "https://github.com/nucypher/pyumbral.git"}
+pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "kfrag-signing"}
 requests = "*"
 hendrix = {git = "https://github.com/hendrix/hendrix", ref = "tags/3.0.0rc1"}
 constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "nucypher-depend"}
