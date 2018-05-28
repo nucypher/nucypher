@@ -341,7 +341,8 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
         bob_pubkey_enc = bob.public_key(EncryptingPower)
-        return self._crypto_power.power_ups(DelegatingPower).generate_kfrags(bob_pubkey_enc, label, m, n)
+        delegating_power = self._crypto_power.power_ups(DelegatingPower)
+        return delegating_power.generate_kfrags(bob_pubkey_enc, self.stamp, label, m, n)
 
     def create_policy(self, bob: "Bob", label: bytes, m: int, n: int):
         """
@@ -660,8 +661,8 @@ class Ursula(Character, ProxyRESTServer):
 
     def interface_information(self):
         return msgpack.dumps((self.ip_address,
-                       self.dht_port,
-                       self.rest_port))
+                              self.dht_port,
+                              self.rest_port))
 
     def interface_info_with_metadata(self):
         interface_info = self.interface_information()
