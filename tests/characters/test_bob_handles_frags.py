@@ -7,7 +7,6 @@ from nucypher.crypto.constants import CFRAG_LENGTH_WITHOUT_PROOF
 
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_policy, bob):
-
     # Assume for the moment that Bob has already received a TreasureMap, perhaps via a side channel.
     hrac, treasure_map = enacted_policy.hrac(), enacted_policy.treasure_map
     bob.treasure_maps[hrac] = treasure_map
@@ -121,7 +120,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, bob,
 
     # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
     # the correct cFrag (ie, that Ursula performed reencryption properly).
-    for u in ursulas:   # ...and to do that, we need to address the right ursula.
+    for u in ursulas:  # ...and to do that, we need to address the right ursula.
         if u.rest_port == work_order.ursula.rest_port:
             ursula = u
             break
@@ -134,11 +133,13 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, bob,
     the_correct_cfrag = pre.reencrypt(the_kfrag, capsule)
 
     # The first CFRAG_LENGTH_WITHOUT_PROOF bytes (ie, the cfrag proper, not the proof material), are the same:
-    assert bytes(the_cfrag)[:CapsuleFrag.get_size()] == bytes(the_correct_cfrag)[:CapsuleFrag.get_size()]  # It's the correct cfrag!
+    assert bytes(the_cfrag)[:CapsuleFrag.expected_bytes_length()] == bytes(the_correct_cfrag)[
+                                                                     :CapsuleFrag.expected_bytes_length()]  # It's the correct cfrag!
 
     assert the_correct_cfrag.verify_correctness(capsule,
-                                                pubkey_a=enacted_policy.public_key,
-                                                pubkey_b=bob.public_key(EncryptingPower))
+                                                delegating_pubkey=enacted_policy.public_key,
+                                                signing_pubkey=alice.stamp.as_umbral_pubkey(),
+                                                encrypting_pubkey=bob.public_key(EncryptingPower))
 
     # Now we'll show that Ursula saved the correct WorkOrder.
     work_orders_from_bob = ursula.work_orders(bob=bob)

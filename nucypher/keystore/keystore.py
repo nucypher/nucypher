@@ -21,7 +21,7 @@ class KeyStore(object):
     """
     A storage class of cryptographic keys.
     """
-    kfrag_splitter = BytestringSplitter(Signature, (KFrag, KFrag.get_size()))
+    kfrag_splitter = BytestringSplitter(Signature, (KFrag, KFrag.expected_bytes_length()))
 
     def __init__(self, sqlalchemy_engine=None):
         """
