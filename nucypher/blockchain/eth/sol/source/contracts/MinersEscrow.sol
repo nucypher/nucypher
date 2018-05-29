@@ -344,9 +344,12 @@ contract MinersEscrow is Issuer {
     )
         public onlyTokenOwner
     {
-        require(_newValue >= minAllowableLockedTokens && _periods > 0);
+        uint256 currentPeriod = getCurrentPeriod();
+        require(_newValue >= minAllowableLockedTokens &&
+            _periods > 0 &&
+            _lastPeriod >= currentPeriod);
         MinerInfo storage info = minerInfo[msg.sender];
-        uint256 startPeriod = getStartPeriod(info, getCurrentPeriod());
+        uint256 startPeriod = getStartPeriod(info, currentPeriod);
         for (uint256 index = 0; index < info.stakes.length; index++) {
             StakeInfo storage stake = info.stakes[index];
             uint256 lastPeriod = getLastPeriod(stake, startPeriod);
@@ -355,11 +358,15 @@ contract MinersEscrow is Issuer {
                 break;
             }
         }
-        // TODO lastPeriod can be equal current period (if next is confirmed) but need to recalculate in confirmActivity
-        require(index < info.stakes.length && lastPeriod >= startPeriod);
+        require(index < info.stakes.length);
+
         stake.lockedValue = stake.lockedValue.sub(_newValue);
         require(stake.lockedValue >= minAllowableLockedTokens);
         info.stakes.push(StakeInfo(stake.firstPeriod, 0, stake.periods.add(_periods), _newValue));
+        // if the next period is confirmed and old stake is finishing in the current period then rerun confirmActivity
+        if (lastPeriod == currentPeriod && startPeriod > currentPeriod) {
+            confirmActivity(msg.sender, _newValue, _newValue);
+        }
         emit Divided(msg.sender, _oldValue, _lastPeriod, _newValue, _periods);
         emit Locked(msg.sender, _newValue, stake.firstPeriod, stake.periods + _periods);
     }

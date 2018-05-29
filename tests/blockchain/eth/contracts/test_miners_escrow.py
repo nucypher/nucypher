@@ -311,13 +311,12 @@ def test_escrow(web3, chain, token, escrow_contract):
     assert 500 == escrow.functions.getLockedTokens(ursula2, 2).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2, 3).call()
     chain.time_travel(hours=1)
-    assert 1000 == escrow.functions.getLockedTokens(ursula2).call()
 
     # And increases locked time
-    chain.time_travel(hours=1)
-    tx = escrow.functions.divideStake(500, escrow.functions.getCurrentPeriod().call() + 1, 200, 1).transact({'from': ursula2})
+    period = escrow.functions.getCurrentPeriod().call()
+    tx = escrow.functions.divideStake(500, period + 1, 200, 1).transact({'from': ursula2})
     chain.wait_for_receipt(tx)
-    assert 500 == escrow.functions.getLockedTokens(ursula2).call()
+    assert 1000 == escrow.functions.getLockedTokens(ursula2).call()
     assert 500 == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert 200 == escrow.functions.getLockedTokens(ursula2, 2).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2, 3).call()
@@ -327,23 +326,26 @@ def test_escrow(web3, chain, token, escrow_contract):
     event_args = events[7]['args']
     assert ursula2 == event_args['owner']
     assert 200 == event_args['value']
-    assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['firstPeriod']
+    assert period == event_args['firstPeriod']
     assert 2 == event_args['periods']
     events = divides_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
     assert ursula2 == event_args['owner']
     assert 500 == event_args['oldValue']
-    assert 1 == event_args['periods']
+    assert period + 1 == event_args['lastPeriod']
     assert 200 == event_args['newValue']
     assert 1 == event_args['periods']
 
+    tx = escrow.functions.confirmActivity().transact({'from': ursula2})
+    chain.wait_for_receipt(tx)
     chain.time_travel(hours=1)
-    tx = escrow.functions.divideStake(300, escrow.functions.getCurrentPeriod().call() + 1, 200, 1).transact({'from': ursula2})
+    period = escrow.functions.getCurrentPeriod().call()
+    tx = escrow.functions.divideStake(300, period, 200, 2).transact({'from': ursula2})
     chain.wait_for_receipt(tx)
     assert 500 == escrow.functions.getLockedTokens(ursula2).call()
-    assert 500 == escrow.functions.getLockedTokens(ursula2, 1).call()
-    assert 400 == escrow.functions.getLockedTokens(ursula2, 2).call()
+    assert 400 == escrow.functions.getLockedTokens(ursula2, 1).call()
+    assert 200 == escrow.functions.getLockedTokens(ursula2, 2).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2, 3).call()
 
     events = divides_log.get_all_entries()
@@ -351,15 +353,15 @@ def test_escrow(web3, chain, token, escrow_contract):
     event_args = events[1]['args']
     assert ursula2 == event_args['owner']
     assert 300 == event_args['oldValue']
-    assert 1 == event_args['periods']
+    assert period == event_args['lastPeriod']
     assert 200 == event_args['newValue']
-    assert 1 == event_args['periods']
+    assert 2 == event_args['periods']
 
-    tx = escrow.functions.divideStake(200, escrow.functions.getCurrentPeriod().call() + 2, 100, 1).transact({'from': ursula2})
+    tx = escrow.functions.divideStake(200, period + 1, 100, 2).transact({'from': ursula2})
     chain.wait_for_receipt(tx)
     assert 500 == escrow.functions.getLockedTokens(ursula2).call()
-    assert 500 == escrow.functions.getLockedTokens(ursula2, 1).call()
-    assert 400 == escrow.functions.getLockedTokens(ursula2, 2).call()
+    assert 400 == escrow.functions.getLockedTokens(ursula2, 1).call()
+    assert 300 == escrow.functions.getLockedTokens(ursula2, 2).call()
     assert 100 == escrow.functions.getLockedTokens(ursula2, 3).call()
     assert 0 == escrow.functions.getLockedTokens(ursula2, 4).call()
 
@@ -368,32 +370,54 @@ def test_escrow(web3, chain, token, escrow_contract):
     event_args = events[2]['args']
     assert ursula2 == event_args['owner']
     assert 200 == event_args['oldValue']
-    assert 1 == event_args['periods']
+    assert period + 1 == event_args['lastPeriod']
+    assert 100 == event_args['newValue']
+    assert 2 == event_args['periods']
+
+    tx = escrow.functions.confirmActivity().transact({'from': ursula2})
+    chain.wait_for_receipt(tx)
+    chain.time_travel(hours=1)
+    tx = escrow.functions.confirmActivity().transact({'from': ursula2})
+    chain.wait_for_receipt(tx)
+    chain.time_travel(hours=1)
+    tx = escrow.functions.confirmActivity().transact({'from': ursula2})
+    chain.wait_for_receipt(tx)
+
+    # Can't divide old stake
+    period = escrow.functions.getCurrentPeriod().call()
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.divideStake(500, period - 3, 200, 10).transact({'from': ursula2})
+        chain.wait_for_receipt(tx)
+
+    tx = escrow.functions.divideStake(200, period, 100, 1).transact({'from': ursula2})
+    chain.wait_for_receipt(tx)
+
+    events = divides_log.get_all_entries()
+    assert 4 == len(events)
+    event_args = events[3]['args']
+    assert ursula2 == event_args['owner']
+    assert 200 == event_args['oldValue']
+    assert period == event_args['lastPeriod']
     assert 100 == event_args['newValue']
     assert 1 == event_args['periods']
 
-    tx = escrow.functions.confirmActivity().transact({'from': ursula2})
-    chain.wait_for_receipt(tx)
-    chain.time_travel(hours=1)
-    tx = escrow.functions.confirmActivity().transact({'from': ursula2})
-    chain.wait_for_receipt(tx)
-    chain.time_travel(hours=1)
-    tx = escrow.functions.confirmActivity().transact({'from': ursula2})
-    chain.wait_for_receipt(tx)
-
     events = activity_log.get_all_entries()
-    assert 12 == len(events)
-    event_args = events[10]['args']
+    assert 14 == len(events)
+    event_args = events[11]['args']
     assert ursula2 == event_args['owner']
     assert escrow.functions.getCurrentPeriod().call() == event_args['period']
-    assert 400 == event_args['value']
-    event_args = events[11]['args']
+    assert 300 == event_args['value']
+    event_args = events[12]['args']
+    assert ursula2 == event_args['owner']
+    assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
+    assert 100 == event_args['value']
+    event_args = events[13]['args']
     assert ursula2 == event_args['owner']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
     assert 100 == event_args['value']
 
     assert 5 == len(deposit_log.get_all_entries())
-    assert 10 == len(lock_log.get_all_entries())
+    assert 11 == len(lock_log.get_all_entries())
     assert 1 == len(withdraw_log.get_all_entries())
 
 
