@@ -456,6 +456,17 @@ def test_refund(web3, chain, escrow, policy_manager):
 
     # Wait and refund all
     chain.time_travel(hours=9)
+    # Check that methods only calculates value
+    tx = policy_manager.functions.calculateRefundValue(policy_id).transact({'from': client, 'gas_price': 0})
+    chain.wait_for_receipt(tx)
+    tx = policy_manager.functions.calculateRefundValue(policy_id, node1).transact({'from': client, 'gas_price': 0})
+    chain.wait_for_receipt(tx)
+    assert 210 == web3.eth.getBalance(policy_manager.address)
+    assert client_balance - 210 == web3.eth.getBalance(client)
+    assert 190 == policy_manager.functions.calculateRefundValue(policy_id).call({'from': client})
+    assert 190 == policy_manager.functions.calculateRefundValue(policy_id, node1).call({'from': client})
+    assert 190 == policy_manager.functions.calculateRefundValue(policy_id).call({'from': client})
+    assert 190 == policy_manager.functions.calculateRefundValue(policy_id, node1).call({'from': client})
     tx = policy_manager.functions.refund(policy_id).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 20 == web3.eth.getBalance(policy_manager.address)
@@ -478,6 +489,8 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert 190 == event_args['value']
 
     chain.time_travel(hours=1)
+    assert 20 == policy_manager.functions.calculateRefundValue(policy_id).call({'from': client})
+    assert 20 == policy_manager.functions.calculateRefundValue(policy_id, node1).call({'from': client})
     tx = policy_manager.functions.refund(policy_id).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 0 == web3.eth.getBalance(policy_manager.address)
@@ -509,6 +522,12 @@ def test_refund(web3, chain, escrow, policy_manager):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.refund(policy_id, NULL_ADDR).transact({'from': client})
         chain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        policy_manager.functions.calculateRefundValue(policy_id).call({'from': client})
+    with pytest.raises((TransactionFailed, ValueError)):
+        policy_manager.functions.calculateRefundValue(policy_id, node1).call({'from': client})
+    with pytest.raises((TransactionFailed, ValueError)):
+        policy_manager.functions.calculateRefundValue(policy_id, NULL_ADDR).call({'from': client})
 
     # Create policy again
     chain.time_travel(hours=1)
@@ -520,6 +539,8 @@ def test_refund(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
 
     # Nothing to refund
+    assert 0 == policy_manager.functions.calculateRefundValue(policy_id_2).call({'from': client})
+    assert 0 == policy_manager.functions.calculateRefundValue(policy_id_2, node1).call({'from': client})
     tx = policy_manager.functions.refund(policy_id_2).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     tx = policy_manager.functions.refund(policy_id_2, node1).transact({'from': client, 'gas_price': 0})
@@ -564,10 +585,14 @@ def test_refund(web3, chain, escrow, policy_manager):
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.refund(policy_id_3).transact({'from': client})
         chain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        policy_manager.functions.calculateRefundValue(policy_id_3).call({'from': client})
     # Node try to refund by node
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.refund(policy_id_2).transact({'from': node1})
         chain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        policy_manager.functions.calculateRefundValue(policy_id_2).call({'from': node1})
 
     # Mint some periods and mark others as downtime periods
     tx = escrow.functions.mint(period, 1).transact({'from': node1})
@@ -589,6 +614,8 @@ def test_refund(web3, chain, escrow, policy_manager):
 
     # Wait and refund
     chain.time_travel(hours=10)
+    assert 360 == policy_manager.functions.calculateRefundValue(policy_id_2).call({'from': client})
+    assert 120 == policy_manager.functions.calculateRefundValue(policy_id_2, node1).call({'from': client})
     tx = policy_manager.functions.refund(policy_id_2, node1).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 2 * value + 90 + rate == web3.eth.getBalance(policy_manager.address)
@@ -608,13 +635,20 @@ def test_refund(web3, chain, escrow, policy_manager):
 
     # Can't refund arrangement again
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.refund(policy_id, node1).transact({'from': client})
+        tx = policy_manager.functions.refund(policy_id_2, node1).transact({'from': client})
         chain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.refund(policy_id, NULL_ADDR).transact({'from': client})
+        tx = policy_manager.functions.refund(policy_id_2, NULL_ADDR).transact({'from': client})
         chain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        policy_manager.functions.calculateRefundValue(policy_id_2, node1).call({'from': client})
+    with pytest.raises((TransactionFailed, ValueError)):
+        policy_manager.functions.calculateRefundValue(policy_id_2, NULL_ADDR).call({'from': client})
 
     # But can refund others
+    assert 240 == policy_manager.functions.calculateRefundValue(policy_id_2).call({'from': client})
+    assert 120 == policy_manager.functions.calculateRefundValue(policy_id_2, node2).call({'from': client})
+    assert 120 == policy_manager.functions.calculateRefundValue(policy_id_2, node3).call({'from': client})
     tx = policy_manager.functions.refund(policy_id_2).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 3 * 90 == web3.eth.getBalance(policy_manager.address)
@@ -662,6 +696,8 @@ def test_refund(web3, chain, escrow, policy_manager):
 
     # Client revokes policy
     chain.time_travel(hours=4)
+    assert 30 == policy_manager.functions.calculateRefundValue(policy_id_3).call({'from': client})
+    assert 30 == policy_manager.functions.calculateRefundValue(policy_id_3, node1).call({'from': client})
     tx = policy_manager.functions.revokePolicy(policy_id_3).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 60 + 3 * 90 == web3.eth.getBalance(policy_manager.address)

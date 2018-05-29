@@ -277,7 +277,8 @@ contract PolicyManager is Upgradeable {
     )
         internal returns (uint256 refundValue)
     {
-        refundValue = calculateRefund(_policy, _arrangement);
+        (refundValue, _arrangement.indexOfDowntimePeriods, _arrangement.lastRefundedPeriod) =
+                calculateRefundValue(_policy, _arrangement);
         NodeInfo storage node = nodes[_arrangement.node];
         node.rewardDelta[_arrangement.lastRefundedPeriod] =
             node.rewardDelta[_arrangement.lastRefundedPeriod].sub(_policy.rewardRate);
@@ -303,7 +304,9 @@ contract PolicyManager is Upgradeable {
                 numberOfActive--;
                 continue;
             }
-            uint256 nodeRefundValue = calculateRefund(policy, arrangement);
+            uint256 nodeRefundValue;
+            (nodeRefundValue, arrangement.indexOfDowntimePeriods, arrangement.lastRefundedPeriod) =
+                calculateRefundValue(policy, arrangement);
             if (arrangement.lastRefundedPeriod > policy.lastPeriod) {
                 arrangement.node = RESERVED_NODE;
                 numberOfActive--;
@@ -333,7 +336,8 @@ contract PolicyManager is Upgradeable {
             msg.sender == policy.client &&
             !policy.disabled);
         ArrangementInfo storage arrangement = getArrangementInfo(policy, _node);
-        refundValue = calculateRefund(policy, arrangement);
+        (refundValue, arrangement.indexOfDowntimePeriods, arrangement.lastRefundedPeriod) =
+            calculateRefundValue(policy, arrangement);
         if (arrangement.lastRefundedPeriod > policy.lastPeriod) {
             arrangement.node = RESERVED_NODE;
         }
@@ -348,16 +352,19 @@ contract PolicyManager is Upgradeable {
     * @param _policy Policy
     * @param _arrangement Arrangement
     **/
-    //TODO extract checkRefund method
-    function calculateRefund(Policy storage _policy, ArrangementInfo storage _arrangement)
-        internal returns (uint256 refundValue)
+    function calculateRefundValue(Policy storage _policy, ArrangementInfo storage _arrangement)
+        internal view returns (uint256 refundValue, uint256 indexOfDowntimePeriods, uint256 lastRefundedPeriod)
     {
         uint256 maxPeriod = Math.min256(getCurrentPeriod(), _policy.lastPeriod);
         uint256 minPeriod = Math.max256(_policy.startPeriod, _arrangement.lastRefundedPeriod);
         uint256 downtimePeriods = 0;
         uint256 length = escrow.getDowntimeLength(_arrangement.node);
-        for (uint256 i = _arrangement.indexOfDowntimePeriods; i < length; i++) {
-            (uint256 startPeriod, uint256 endPeriod) = escrow.getDowntime(_arrangement.node, i);
+        for (indexOfDowntimePeriods = _arrangement.indexOfDowntimePeriods;
+                indexOfDowntimePeriods < length;
+                indexOfDowntimePeriods++)
+        {
+            (uint256 startPeriod, uint256 endPeriod) =
+                escrow.getDowntime(_arrangement.node, indexOfDowntimePeriods);
             if (startPeriod > maxPeriod) {
                 break;
             } else if (endPeriod < minPeriod) {
@@ -373,13 +380,13 @@ contract PolicyManager is Upgradeable {
         }
 
         (,,, uint256 lastActivePeriod) = escrow.minerInfo(_arrangement.node);
-        if (i == length && lastActivePeriod < maxPeriod) {
+        if (indexOfDowntimePeriods == length && lastActivePeriod < maxPeriod) {
             downtimePeriods = downtimePeriods.add(
                 maxPeriod.sub(Math.max256(
                     minPeriod.sub(uint(1)), lastActivePeriod)));
         }
 
-        // TODO refactor
+        // check activity for the first period
         if (_arrangement.lastRefundedPeriod == 0) {
             if (lastActivePeriod < _policy.startPeriod - 1) {
                 refundValue = _policy.firstReward;
@@ -391,9 +398,42 @@ contract PolicyManager is Upgradeable {
             }
         }
         refundValue = refundValue.add(_policy.rewardRate.mul(downtimePeriods));
+        lastRefundedPeriod = maxPeriod.add(uint(1));
+    }
 
-        _arrangement.indexOfDowntimePeriods = i;
-        _arrangement.lastRefundedPeriod = maxPeriod.add(uint(1));
+    /**
+    * @notice Calculate amount of refund
+    * @param _policyId Policy id
+    * @param _node Node
+    **/
+    function calculateRefundValue(bytes20 _policyId, address _node)
+        external view returns (uint256 refundValue)
+    {
+        Policy storage policy = policies[_policyId];
+        require(_node != RESERVED_NODE &&
+            msg.sender == policy.client &&
+            !policy.disabled);
+        ArrangementInfo storage arrangement = getArrangementInfo(policy, _node);
+        (refundValue,,) = calculateRefundValue(policy, arrangement);
+    }
+
+    /**
+    * @notice Calculate amount of refund
+    * @param _policyId Policy id
+    **/
+    function calculateRefundValue(bytes20 _policyId)
+        external view returns (uint256 refundValue)
+    {
+        Policy storage policy = policies[_policyId];
+        require(msg.sender == policy.client && !policy.disabled);
+        for (uint256 i = 0; i < policy.arrangements.length; i++) {
+            ArrangementInfo storage arrangement = policy.arrangements[i];
+            if (arrangement.node == RESERVED_NODE) {
+                continue;
+            }
+            (uint256 nodeRefundValue,,) = calculateRefundValue(policy, arrangement);
+            refundValue = refundValue.add(nodeRefundValue);
+        }
     }
 
     /**
