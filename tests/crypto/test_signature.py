@@ -1,6 +1,6 @@
 from nucypher.crypto.api import ecdsa_sign
 from umbral.keys import UmbralPrivateKey
-from nucypher.crypto.signature import Signature
+from nucypher.crypto.signing import Signature
 
 
 def test_signature_can_verify():

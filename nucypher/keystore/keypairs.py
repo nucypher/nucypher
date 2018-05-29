@@ -7,16 +7,18 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral import pre
 from umbral.config import default_curve
 from nucypher.crypto.kits import MessageKit
-from nucypher.crypto.signature import Signature
+from nucypher.crypto.signing import SignatureStamp
+from umbral.signing import Signature, Signer
 
 
 class Keypair(object):
     """
     A parent Keypair class for all types of Keypairs.
     """
+
     def __init__(self,
-                umbral_key: Union[UmbralPrivateKey, UmbralPublicKey]=None,
-                generate_keys_if_needed=True):
+                 umbral_key: Union[UmbralPrivateKey, UmbralPublicKey] = None,
+                 generate_keys_if_needed=True):
         """
         Initalizes a Keypair object with an Umbral key object.
 
@@ -34,7 +36,8 @@ class Keypair(object):
                 self._privkey = UmbralPrivateKey.gen_key()
                 self.pubkey = self._privkey.get_pubkey()
             else:
-                raise ValueError("Either pass a valid key as umbral_key or, if you want to generate keys, set generate_keys_if_needed to True.")
+                raise ValueError(
+                    "Either pass a valid key as umbral_key or, if you want to generate keys, set generate_keys_if_needed to True.")
 
     def serialize_pubkey(self, as_b64=False) -> bytes:
         """
@@ -61,10 +64,11 @@ class EncryptingKeypair(Keypair):
     """
     A keypair for Umbral
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def decrypt(self, message_kit: MessageKit) -> bytes:
+    def decrypt(self, message_kit: MessageKit, verifying_key: UmbralPublicKey = None) -> bytes:
         """
         Decrypt data encrypted with Umbral.
 
@@ -72,8 +76,10 @@ class EncryptingKeypair(Keypair):
         """
         cleartext = pre.decrypt(ciphertext=message_kit.ciphertext,
                                 capsule=message_kit.capsule,
-                                priv_key=self._privkey,
-                                alice_pub_key=message_kit.policy_pubkey)
+                                decrypting_key=self._privkey,
+                                delegating_pubkey=message_kit.policy_pubkey,
+                                verifying_key=verifying_key,
+                                )
 
         return cleartext
 
@@ -82,6 +88,7 @@ class SigningKeypair(Keypair):
     """
     A SigningKeypair that uses ECDSA.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -99,3 +106,7 @@ class SigningKeypair(Keypair):
     def generate_self_signed_cert(self, common_name):
         cryptography_key = self._privkey.to_cryptography_privkey()
         return generate_self_signed_certificate(common_name, default_curve(), cryptography_key)
+
+    def get_signature_stamp(self):
+        signer = Signer(self._privkey)
+        return SignatureStamp(signing_key=self.pubkey, signer=signer)

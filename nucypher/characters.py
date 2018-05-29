@@ -19,7 +19,7 @@ from nucypher.crypto.api import secure_random, keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
-from nucypher.crypto.signature import Signature, signature_splitter, SignatureStamp, StrangerStamp
+from nucypher.crypto.signing import Signature, signature_splitter, SignatureStamp, StrangerStamp
 from nucypher.network import blockchain_client
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
@@ -36,9 +36,9 @@ class Character(object):
 
     address = "This is a fake address."  # TODO: #192
 
-    def __init__(self, attach_server=True, crypto_power: CryptoPower=None,
+    def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
                  crypto_power_ups=None, is_me=True, network_middleware=None,
-                 config: "NucypherConfig"=None) -> None:
+                 config: "NucypherConfig" = None) -> None:
         """
         :param attach_server:  Whether to attach a Server when this Character is
             born.
@@ -79,7 +79,8 @@ class Character(object):
         if is_me:
             self.network_middleware = network_middleware or NetworkyStuff()
             try:
-                self._stamp = SignatureStamp(self._crypto_power.power_ups(SigningPower).keypair)
+                signing_power = self._crypto_power.power_ups(SigningPower)
+                self._stamp = signing_power.get_signature_stamp()
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
 
@@ -87,8 +88,9 @@ class Character(object):
                 self.attach_server()
         else:
             if network_middleware is not None:
-                raise TypeError("Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
-            self._stamp = StrangerStamp(self._crypto_power.power_ups(SigningPower).keypair)
+                raise TypeError(
+                    "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
+            self._stamp = StrangerStamp(self.public_key(SigningPower))
 
     def __eq__(self, other):
         return bytes(self.stamp) == bytes(other.stamp)
@@ -159,7 +161,7 @@ class Character(object):
     def encrypt_for(self,
                     recipient: "Character",
                     plaintext: bytes,
-                    sign: bool=True,
+                    sign: bool = True,
                     sign_plaintext=True,
                     ) -> tuple:
         """
@@ -187,8 +189,9 @@ class Character(object):
     def verify_from(self,
                     actor_whom_sender_claims_to_be: "Character",
                     message_kit: Union[UmbralMessageKit, bytes],
-                    signature: Signature=None,
+                    signature: Signature = None,
                     decrypt=False,
+                    delegator_signing_key: UmbralPublicKey = None,
                     ) -> tuple:
         """
         Inverse of encrypt_for.
@@ -196,11 +199,14 @@ class Character(object):
         :param actor_that_sender_claims_to_be: A Character instance representing
             the actor whom the sender claims to be.  We check the public key
             owned by this Character instance to verify.
-        :param messages: The messages to be verified.
+        :param message_kit: the message to be (perhaps decrypted and) verified.
+        :param signature: The signature to check.
         :param decrypt: Whether or not to decrypt the messages.
-        :param signature_is_on_cleartext: True if we expect the signature to be
-            on the cleartext. Otherwise, we presume that the ciphertext is what
-            is signed.
+        :param delegator_signing_key: A signing key from the original delegator.
+            This is used only when decrypting a MessageKit with an activated Capsule
+            to check that the KFrag used to create each attached CFrag is the
+            authentic KFrag initially created by the delegator.
+
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
         """
@@ -215,7 +221,7 @@ class Character(object):
 
         if decrypt:
             # We are decrypting the message; let's do that first and see what the sig header says.
-            cleartext_with_sig_header = self.decrypt(message_kit)
+            cleartext_with_sig_header = self.decrypt(message_kit, verifying_key=delegator_signing_key)
             sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
             if sig_header == constants.SIGNATURE_IS_ON_CIPHERTEXT:
                 # THe ciphertext is what is signed - note that for later.
@@ -254,8 +260,8 @@ class Character(object):
     If they don't have the correct Power, the appropriate PowerUpError is raised.
     """
 
-    def decrypt(self, message_kit):
-        return self._crypto_power.power_ups(EncryptingPower).decrypt(message_kit)
+    def decrypt(self, message_kit, verifying_key: UmbralPublicKey = None):
+        return self._crypto_power.power_ups(EncryptingPower).decrypt(message_kit, verifying_key)
 
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
@@ -302,7 +308,8 @@ class Character(object):
                             powers_and_keys=({SigningPower: pubkey})
                         )
                 else:
-                    message = "Suspicious Activity: Discovered node with bad signature: {}.  Propagated by: {}:{}".format(node_meta, address, port)
+                    message = "Suspicious Activity: Discovered node with bad signature: {}.  Propagated by: {}:{}".format(
+                        node_meta, address, port)
                     self.log.warn(message)
         return new_nodes
 
@@ -335,7 +342,8 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
         bob_pubkey_enc = bob.public_key(EncryptingPower)
-        return self._crypto_power.power_ups(DelegatingPower).generate_kfrags(bob_pubkey_enc, label, m, n)
+        delegating_power = self._crypto_power.power_ups(DelegatingPower)
+        return delegating_power.generate_kfrags(bob_pubkey_enc, self.stamp, label, m, n)
 
     def create_policy(self, bob: "Bob", label: bytes, m: int, n: int):
         """
@@ -654,8 +662,8 @@ class Ursula(Character, ProxyRESTServer):
 
     def interface_information(self):
         return msgpack.dumps((self.ip_address,
-                       self.dht_port,
-                       self.rest_port))
+                              self.dht_port,
+                              self.rest_port))
 
     def interface_info_with_metadata(self):
         interface_info = self.interface_information()
