@@ -221,6 +221,9 @@ class ProxyRESTServer(object):
         # kfrag = policy_payload_splitter(policy_payload)[0]
         kfrag = KFrag.from_bytes(cleartext)
 
+        # TODO: Verify this KFrag at this time.   #167
+        # ...but where are we going to get Bob's public key?
+
         with ThreadedSession(self.db_engine) as session:
             self.datastore.attach_kfrag_to_saved_arrangement(
                                                alice,
