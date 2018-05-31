@@ -9,8 +9,13 @@ from sqlalchemy.engine import create_engine
 
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.characters import Alice, Bob
+
 from nucypher.config.configs import NucypherConfig
 from nucypher.crypto.signature import SignatureStamp
+
+from nucypher.keystore import keystore
+from nucypher.keystore.db import Base
+
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
@@ -107,7 +112,7 @@ def test_keystore():
 def capsule_side_channel(enacted_policy):
     signing_keypair = SigningKeypair()
     data_source = DataSource(policy_pubkey_enc=enacted_policy.public_key,
-                             signer=SignatureStamp(signing_keypair))
+                             signing_keypair=signing_keypair)
     message_kit, _signature = data_source.encapsulate_single_message(b"Welcome to the flippering.")
     return message_kit, data_source
 

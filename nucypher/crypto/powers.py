@@ -117,7 +117,7 @@ class DerivedKeyBasedPower(CryptoPowerUp):
 class SigningPower(KeyPairBasedPower):
     _keypair_class = SigningKeypair
     not_found_error = NoSigningPower
-    provides = ("sign", "generate_self_signed_cert")
+    provides = ("sign", "generate_self_signed_cert", "get_signature_stamp")
 
 
 class EncryptingPower(KeyPairBasedPower):
@@ -131,7 +131,7 @@ class DelegatingPower(DerivedKeyBasedPower):
     def __init__(self):
         self.umbral_keying_material = UmbralKeyingMaterial()
 
-    def generate_kfrags(self, bob_pubkey_enc, label, m, n) -> Union[UmbralPublicKey, List]:
+    def generate_kfrags(self, bob_pubkey_enc, signer, label, m, n) -> Union[UmbralPublicKey, List]:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
 
@@ -144,5 +144,5 @@ class DelegatingPower(DerivedKeyBasedPower):
         # TODO: salt?  #265
 
         __private_key = self.umbral_keying_material.derive_privkey_by_label(label)
-        kfrags = pre.split_rekey(__private_key, bob_pubkey_enc, m, n)
+        kfrags = pre.split_rekey(__private_key, signer, bob_pubkey_enc, m, n)
         return __private_key.get_pubkey(), kfrags
