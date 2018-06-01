@@ -30,12 +30,6 @@ class NucypherHashProtocol(KademliaProtocol):
         except AttributeError:
             return True
 
-    def rpc_ping(self, sender, nodeid, node_capabilities=[]):
-        source = NucypherDHTNode(nodeid, sender[0], sender[1],
-                                 capabilities_as_strings=node_capabilities)
-        self.welcomeIfNewNode(source)
-        return self.sourceNode.id
-
     async def callStore(self, nodeToAsk, key, value):
         # nodeToAsk = NucypherNode
         if self.check_node_for_storage(nodeToAsk):
@@ -64,15 +58,14 @@ class NucypherHashProtocol(KademliaProtocol):
         if not verified or not proper_key == dht_key:
             # Hachidan Kiritsu, it's illegal!
             self.log.warning(
-                "Got request to store illegal k/v: {} / {}".format(dht_key,
-                                                                   dht_value))
+                "Got request to store illegal k/v: {} / {}".format(dht_key, dht_value))
             self.illegal_keys_seen.append(dht_key)
             return False
         else:
             return True
 
     def rpc_store(self, sender, nodeid, key, value):
-        source = NucypherDHTNode(nodeid, sender[0], sender[1])
+        source = kademlia.node.Node(nodeid, sender[0], sender[1])
         self.welcomeIfNewNode(source)
         self.log.debug("got a store request from %s" % str(sender))
 
