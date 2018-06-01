@@ -217,7 +217,6 @@ contract MinersEscrow is Issuer {
                 value <= maxAllowableLockedTokens &&
                 periods >= minLockedPeriods);
             miners.push(miner);
-            info.lastActivePeriod = currentPeriod;
             policyManager.register(miner, currentPeriod);
             info.value = value;
             info.stakes.push(StakeInfo(currentPeriod.add(uint256(1)), 0, periods, value));
@@ -226,6 +225,19 @@ contract MinersEscrow is Issuer {
         }
 
         token.safeTransferFrom(msg.sender, address(this), allValue);
+    }
+
+    /**
+    * @notice Get last active miner's period
+    * @param _owner Tokens owner
+    **/
+    function getLastActivePeriod(address _owner) public view returns (uint256) {
+        MinerInfo storage info = minerInfo[_owner];
+        if (info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD ||
+            info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD) {
+            return Math.max256(info.confirmedPeriod1, info.confirmedPeriod2);
+        }
+        return info.lastActivePeriod;
     }
 
     /**
@@ -276,10 +288,9 @@ contract MinersEscrow is Issuer {
     function deposit(address _owner, uint256 _value, uint256 _periods) internal isInitialized {
         require(_value != 0);
         MinerInfo storage info = minerInfo[_owner];
-        if (info.lastActivePeriod == 0) {
+        if (info.stakes.length == 0) {
             miners.push(_owner);
-            info.lastActivePeriod = getCurrentPeriod();
-            policyManager.register(_owner, info.lastActivePeriod);
+            policyManager.register(_owner, getCurrentPeriod());
         }
         info.value = info.value.add(_value);
         token.safeTransferFrom(_owner, address(this), _value);
@@ -304,6 +315,7 @@ contract MinersEscrow is Issuer {
     **/
     function lock(address _owner, uint256 _value, uint256 _periods) internal {
         require(_value != 0 || _periods != 0);
+        uint256 lastActivePeriod = getLastActivePeriod(_owner);
         mint(_owner);
 
         uint256 lockedTokens = getLockedTokens(_owner, 1);
@@ -325,7 +337,7 @@ contract MinersEscrow is Issuer {
             }
         }
 
-        confirmActivity(_owner, _value + lockedTokens, _value);
+        confirmActivity(_owner, _value + lockedTokens, _value, lastActivePeriod);
         emit Locked(_owner, _value, nextPeriod, _periods);
     }
 
@@ -365,7 +377,7 @@ contract MinersEscrow is Issuer {
         info.stakes.push(StakeInfo(stake.firstPeriod, 0, stake.periods.add(_periods), _newValue));
         // if the next period is confirmed and old stake is finishing in the current period then rerun confirmActivity
         if (lastPeriod == currentPeriod && startPeriod > currentPeriod) {
-            confirmActivity(msg.sender, _newValue, _newValue);
+            confirmActivity(msg.sender, _newValue, _newValue, 0);
         }
         emit Divided(msg.sender, _oldValue, _lastPeriod, _newValue, _periods);
         emit Locked(msg.sender, _newValue, stake.firstPeriod, stake.periods + _periods);
@@ -394,11 +406,18 @@ contract MinersEscrow is Issuer {
     * @param _lockedValue Locked tokens in future period
     * @param _additional Additional locked tokens in future period.
     * Used only if the period has already been confirmed
+    * @param _lastActivePeriod Last active period
     **/
-    function confirmActivity(address _owner, uint256 _lockedValue, uint256 _additional) internal {
+    function confirmActivity(
+        address _owner,
+        uint256 _lockedValue,
+        uint256 _additional,
+        uint256 _lastActivePeriod
+    ) internal {
         require(_lockedValue > 0);
         MinerInfo storage info = minerInfo[_owner];
-        uint256 nextPeriod = getCurrentPeriod() + 1;
+        uint256 currentPeriod = getCurrentPeriod();
+        uint256 nextPeriod = currentPeriod.add(uint256(1));
 
         // update lockedValue if the period has already been confirmed
         if (info.confirmedPeriod1 == nextPeriod) {
@@ -428,11 +447,9 @@ contract MinersEscrow is Issuer {
             }
         }
 
-        uint256 currentPeriod = nextPeriod - 1;
-        if (info.lastActivePeriod < currentPeriod) {
-            info.downtime.push(Downtime(info.lastActivePeriod + 1, currentPeriod));
+        if (_lastActivePeriod < currentPeriod) {
+            info.downtime.push(Downtime(_lastActivePeriod + 1, currentPeriod));
         }
-        info.lastActivePeriod = nextPeriod;
         emit ActivityConfirmed(_owner, nextPeriod, _lockedValue);
     }
 
@@ -440,6 +457,7 @@ contract MinersEscrow is Issuer {
     * @notice Confirm activity for future period and mine for previous period
     **/
     function confirmActivity() external onlyTokenOwner {
+        uint256 lastActivePeriod = getLastActivePeriod(msg.sender);
         mint(msg.sender);
         MinerInfo storage info = minerInfo[msg.sender];
         uint256 currentPeriod = getCurrentPeriod();
@@ -452,13 +470,18 @@ contract MinersEscrow is Issuer {
         }
 
         uint256 lockedTokens = getLockedTokens(msg.sender, 1);
-        confirmActivity(msg.sender, lockedTokens, 0);
+        confirmActivity(msg.sender, lockedTokens, 0, lastActivePeriod);
     }
 
     /**
     * @notice Mint tokens for sender for previous periods if he locked his tokens and confirmed activity
     **/
-    function mint() public onlyTokenOwner {
+    function mint() external onlyTokenOwner {
+        MinerInfo storage info = minerInfo[msg.sender];
+        if (info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD ||
+            info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD) {
+            info.lastActivePeriod = Math.max256(info.confirmedPeriod1, info.confirmedPeriod2);
+        }
         mint(msg.sender);
     }
 

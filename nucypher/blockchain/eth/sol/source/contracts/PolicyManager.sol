@@ -379,7 +379,7 @@ contract PolicyManager is Upgradeable {
             }
         }
 
-        (,,, uint256 lastActivePeriod) = escrow.minerInfo(_arrangement.node);
+        uint256 lastActivePeriod = escrow.getLastActivePeriod(_arrangement.node);
         if (indexOfDowntimePeriods == length && lastActivePeriod < maxPeriod) {
             downtimePeriods = downtimePeriods.add(
                 maxPeriod.sub(Math.max256(

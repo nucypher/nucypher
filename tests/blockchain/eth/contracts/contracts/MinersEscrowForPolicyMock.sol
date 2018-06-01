@@ -85,12 +85,10 @@ contract MinersEscrowForPolicyMock {
     }
 
     /**
-    * @notice Emulate minerInfo
+    * @notice Emulate getLastActivePeriod
     **/
-    function minerInfo(address)
-        public view returns (uint256, uint256, uint256, uint256 result)
-    {
-        result = lastActivePeriod;
+    function getLastActivePeriod(address) public view returns (uint256) {
+        return lastActivePeriod;
     }
 
     /**
