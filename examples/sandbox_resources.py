@@ -1,10 +1,10 @@
 import requests
 from nucypher.characters import Ursula
-from nucypher.network.node import NetworkyStuff
+from nucypher.network.middleware import NetworkMiddleware
 from nucypher.crypto.powers import SigningPower, EncryptingPower
 
 
-class SandboxNetworkyStuff(NetworkyStuff):
+class SandboxNetworkyStuff(NetworkMiddleware):
 
     def __init__(self, ursulas):
         self.ursulas = ursulas

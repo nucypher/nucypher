@@ -40,7 +40,7 @@ def test_sample_miners(chain, mock_miner_agent, mock_token_agent):
 
     chain.time_travel(periods=1)
 
-    with pytest.raises(MinerAgent.NotEnoughUrsulas):
+    with pytest.raises(MinerAgent.NotEnoughMiners):
         mock_miner_agent.sample(quantity=100)  # Waay more than we have deployed
 
     miners = mock_miner_agent.sample(quantity=3)

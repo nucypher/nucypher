@@ -15,15 +15,13 @@ from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
-from nucypher.network import blockchain_client
-from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
-    URSULA_PORT, EVENT_LOOP
+from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkMiddleware, make_ursulas, URSULA_PORT, EVENT_LOOP
 
 
 @pytest.fixture(scope="module")
 def nucypher_test_config(blockchain_config):
 
-    config = NucypherConfig(keyring="this is the most secure password in the world.",
+    config = NucypherConfig(keyring="this is a faked keyring object",
                             blockchain_config=blockchain_config)
     yield config
     NucypherConfig.reset()
@@ -54,7 +52,7 @@ def enacted_policy(idle_policy, ursulas):
     deposit = constants.NON_PAYMENT
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
 
-    networky_stuff = MockNetworkyStuff(ursulas)
+    networky_stuff = MockNetworkMiddleware(ursulas)
     found_ursulas = idle_policy.find_ursulas(networky_stuff, deposit, expiration=contract_end_datetime)
     idle_policy.match_kfrags_to_found_ursulas(found_ursulas)
     idle_policy.enact(networky_stuff)  # REST call happens here, as does population of TreasureMap.
@@ -74,8 +72,8 @@ def alice(ursulas, mock_policy_agent, nucypher_test_config):
 
 @pytest.fixture(scope="module")
 def bob(ursulas):
-    BOB = Bob(network_middleware=MockNetworkyStuff(ursulas))
-    return BOB
+    _bob = Bob(network_middleware=MockNetworkMiddleware(ursulas))
+    return _bob
 
 
 @pytest.fixture(scope="module")
@@ -91,7 +89,7 @@ def ursulas(nucypher_test_config):
 
 @pytest.fixture(scope="module")
 def treasure_map_is_set_on_dht(enacted_policy, ursulas):
-    networky_stuff = MockNetworkyStuff(ursulas)
+    networky_stuff = MockNetworkMiddleware(ursulas)
     enacted_policy.publish_treasure_map(networky_stuff, use_dht=True)
 
 

@@ -1,5 +1,7 @@
 from typing import List, Union
 
+from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILIBLE
+
 from nucypher.blockchain.eth.constants import NucypherMinerConstants
 from nucypher.blockchain.eth.interfaces import ContractInterface, DeployerInterface
 
@@ -7,7 +9,7 @@ from nucypher.blockchain.eth.interfaces import ContractInterface, DeployerInterf
 class Blockchain:
     """A view of a blockchain through a provided interface"""
 
-    _instance = None
+    _instance = NO_BLOCKCHAIN_AVAILIBLE
     __default_interface_class = ContractInterface
 
     test_chains = ('tester', )
@@ -16,7 +18,7 @@ class Blockchain:
 
     def __init__(self, interface: Union[ContractInterface, DeployerInterface]=None):
 
-        if interface is None:
+        if interface is NO_BLOCKCHAIN_AVAILIBLE:
             interface = self.__default_interface_class(blockchain_config=interface.config)
 
         self.__interface = interface

@@ -22,7 +22,7 @@ from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
 from nucypher.crypto.signature import Signature, signature_splitter, SignatureStamp, StrangerStamp
-from nucypher.network import blockchain_client
+from nucypher.network.middleware import NetworkMiddleware
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
 
@@ -78,8 +78,12 @@ class Character(object):
             self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
         else:
             self._crypto_power = CryptoPower(self._default_crypto_powerups)
+
+        #
+        # Identity and Network
+        #
         if is_me:
-            self.network_middleware = network_middleware or NetworkyStuff()
+            self.network_middleware = network_middleware or NetworkMiddleware()
             try:
                 self._stamp = SignatureStamp(self._crypto_power.power_ups(SigningPower).keypair)
             except NoSigningPower:
@@ -135,6 +139,7 @@ class Character(object):
                       storage=None, *args, **kwargs) -> None:
         if self._server:
             raise RuntimeError("Attaching the server twice is almost certainly a bad idea.")
+
         self._server = self._server_class(
             ksize, alpha, id, storage, *args, **kwargs)
 
@@ -372,13 +377,14 @@ class Alice(Character, PolicyAuthor):
 
         policy = self.create_policy(bob, uri, m, n)
 
-        # We'll find n Ursulas by default.  It's possible to "play the field"
-        # by trying differet
-        # deposits and expirations on a limited number of Ursulas.
+        #
+        # We'll find n Ursulas by default.  It's possible to "play the field" by trying different
+        # deposit and expiration combinations on a limited number of Ursulas;
         # Users may decide to inject some market strategies here.
-        found_ursulas = policy.find_ursulas(self.network_middleware, deposit,
-                                            expiration, num_ursulas=n)
+        #
+        found_ursulas = policy.find_ursulas(self.network_middleware, deposit, expiration, num_ursulas=n)
         policy.match_kfrags_to_found_ursulas(found_ursulas)
+
         # REST call happens here, as does population of TreasureMap.
         policy.enact(self.network_middleware)
         policy.publish_treasure_map(self.network_middleware)
@@ -611,13 +617,17 @@ class Ursula(Character, ProxyRESTServer, Miner):
             return self._rest_app
 
     @classmethod
-    def as_discovered_on_network(cls, dht_port=None, ip_address=None,
-                                 rest_port=None, powers_and_keys=()):
+    def as_discovered_on_network(cls, dht_port=None, ip_address=None, rest_port=None, powers_and_keys=None):
+
+        if powers_and_keys is None:  # behold the beauty
+            powers_and_keys = tuple()
+
         # TODO: We also need the encrypting public key here.
         ursula = cls.from_public_keys(powers_and_keys)
         ursula.dht_port = dht_port
         ursula.ip_address = ip_address
         ursula.rest_port = rest_port
+
         return ursula
 
     @classmethod
@@ -653,8 +663,8 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
     def interface_information(self):
         return msgpack.dumps((self.ip_address,
-                       self.dht_port,
-                       self.rest_port))
+                              self.dht_port,
+                              self.rest_port))
 
     def interface_info_with_metadata(self):
         interface_info = self.interface_information()

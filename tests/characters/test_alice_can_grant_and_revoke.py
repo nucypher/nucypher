@@ -1,5 +1,6 @@
 import datetime
 
+import pytest
 from apistar.test import TestClient
 
 from nucypher.characters import Ursula
@@ -12,7 +13,16 @@ from umbral.keys import UmbralPublicKey
 import maya
 
 
-def test_grant(alice, bob, nucypher_test_config):
+@pytest.mark.usefixtures('nucypher_test_config')
+def test_grant(alice, bob, mock_miner_agent, mock_token_agent, chain):
+
+    mock_token_agent.token_airdrop(amount=100000 * mock_token_agent.M)
+
+    _origin, ursula, *everybody_else = mock_miner_agent.blockchain.interface.w3.eth.accounts
+    mock_miner_agent.spawn_random_miners(addresses=everybody_else)
+
+    chain.time_travel(periods=1)
+
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     n = 5
     uri = b"this_is_the_path_to_which_access_is_being_granted"
