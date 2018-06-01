@@ -1,4 +1,5 @@
 import asyncio
+from typing import List
 
 from apistar.test import TestClient
 
@@ -28,26 +29,27 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, config: Nucyp
     """
     event_loop = asyncio.get_event_loop()
 
-    URSULAS = []
-    for _u in range(how_many_ursulas):
-        port = ursula_starting_port + _u
-        _URSULA = Ursula(dht_port=port, ip_address="127.0.0.1", db_name="test-{}".format(port), rest_port=port+100, config=config)  # TODO: Make ports unstupid and more clear.
+    _ursulas = []
+    for _counter, ether_address in enumerate(ether_addresses):
+        port = ursula_starting_port + _counter
+        ursula = Ursula(ether_address=ether_address, dht_port=port, db_name="test-{}".format(port),
+                        ip_address="127.0.0.1", rest_port=port+100, config=config)
 
         class MockDatastoreThreadPool(object):
             def callInThread(self, f, *args, **kwargs):
                 return f(*args, **kwargs)
 
-        _URSULA.datastore_threadpool = MockDatastoreThreadPool()
-        _URSULA.dht_listen()
+        ursula.datastore_threadpool = MockDatastoreThreadPool()
+        ursula.dht_listen()
 
-        URSULAS.append(_URSULA)
+        _ursulas.append(ursula)
 
-    for _counter, ursula in enumerate(URSULAS):
+    for ursula in _ursulas:
         event_loop.run_until_complete(
-            ursula.server.bootstrap([("127.0.0.1", ursula_starting_port + _c) for _c in range(how_many_ursulas)]))
+            ursula.dht_server.bootstrap([("127.0.0.1", ursula_starting_port+_c) for _c in range(len(_ursulas))]))
         ursula.publish_dht_information()
 
-    return URSULAS
+    return _ursulas
 
 
 class MockArrangementResponse(ArrangementResponse):

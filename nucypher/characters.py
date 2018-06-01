@@ -8,7 +8,7 @@ from typing import Union, List
 import msgpack
 from kademlia.network import Server
 from kademlia.utils import digest
-from nucypher.crypto.signature import Signature, signature_splitter, StrangerStamp
+from umbral.signing import Signature, Signer
 from nucypher.network.middleware import NetworkMiddleware
 import kademlia
 import msgpack
