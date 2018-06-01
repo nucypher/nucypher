@@ -9,7 +9,7 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.network import blockchain_client
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
-from tests.utilities import MockNetworkyStuff, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
+from tests.utilities import MockNetworkMiddleware, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
 
 
 def test_all_ursulas_know_about_all_other_ursulas(ursulas):
@@ -65,7 +65,7 @@ def test_alice_finds_ursula_via_dht(alice, ursulas):
 
 
 def test_alice_finds_ursula_via_rest(alice, ursulas):
-    networky_stuff = MockNetworkyStuff(ursulas)
+    networky_stuff = MockNetworkMiddleware(ursulas)
 
     # Imagine alice knows of nobody.
     alice.known_nodes = {}
@@ -92,7 +92,7 @@ def test_alice_sets_treasure_map_on_network(enacted_policy, ursulas):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
     """
-    networky_stuff = MockNetworkyStuff(ursulas)
+    networky_stuff = MockNetworkMiddleware(ursulas)
     _, packed_encrypted_treasure_map, _, _ = enacted_policy.publish_treasure_map(networky_stuff=networky_stuff, use_dht=True)
 
     treasure_map_as_set_on_network = ursulas[0].server.storage[
@@ -148,7 +148,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy, ursula
     that Bob can retrieve it with only the information about which he is privy pursuant to the PolicyGroup.
     """
     bob = enacted_policy.bob
-    networky_stuff = MockNetworkyStuff(ursulas)
+    networky_stuff = MockNetworkMiddleware(ursulas)
 
     # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume,
     # through a side-channel with Alice.

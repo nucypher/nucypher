@@ -80,7 +80,7 @@ class MinerAgent(EthereumContractAgent, NucypherMinerConstants):
 
     _principal_contract_name = "MinersEscrow"
 
-    class NotEnoughUrsulas(Exception):
+    class NotEnoughMiners(Exception):
         pass
 
     class MinerInfo(Enum):
@@ -112,7 +112,7 @@ class MinerAgent(EthereumContractAgent, NucypherMinerConstants):
         count = self.contract.functions.getMinersLength().call()
         for index in range(count):
             addr = self.contract.functions.miners(index).call()
-            yield self.blockchain.interface.w3.toChecksumAddress(addr)
+            yield self.blockchain.interface.w3.toChecksumAddress(addr)  # string address of next node
 
     def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:
         """
@@ -142,7 +142,7 @@ class MinerAgent(EthereumContractAgent, NucypherMinerConstants):
         n_tokens = self.contract.functions.getAllLockedTokens().call()
 
         if not n_tokens > 0:
-            raise self.NotEnoughUrsulas('There are no locked tokens.')
+            raise self.NotEnoughMiners('There are no locked tokens.')
 
         for _ in range(attempts):
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
@@ -156,7 +156,7 @@ class MinerAgent(EthereumContractAgent, NucypherMinerConstants):
             if len(addrs) >= quantity:
                 return system_random.sample(addrs, quantity)
 
-        raise self.NotEnoughUrsulas('Selection failed after {} attempts'.format(attempts))
+        raise self.NotEnoughMiners('Selection failed after {} attempts'.format(attempts))
 
 
 class PolicyAgent(EthereumContractAgent):

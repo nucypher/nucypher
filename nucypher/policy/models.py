@@ -15,7 +15,7 @@ from nucypher.crypto.powers import SigningPower, DelegatingPower
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
 from bytestring_splitter import BytestringSplitter
-from nucypher.blockchain.eth.policies import BlockchainArrangement
+from nucypher.blockchain.eth.policies import BlockchainArrangement, BlockchainPolicy
 from umbral.pre import Capsule
 from constant_sorrow import constants
 
@@ -80,9 +80,8 @@ class Arrangement(BlockchainArrangement):
         self.negotiation_result = negotiation_result
 
         # Publish arrangement to blockchain
-        # TODO Determine actual gas price here
+        super().publish()  # TODO Determine actual gas price here
         # TODO Negotiate the receipt of a KFrag per Ursula
-        # super().publish(gas_price=0)
 
     def encrypt_payload_for_ursula(self):
         """
@@ -100,7 +99,7 @@ class ArrangementResponse(object):
     pass
 
 
-class Policy(object):
+class Policy(BlockchainPolicy):
     """
     An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob
     for a specific path.
@@ -130,6 +129,9 @@ class Policy(object):
         self._accepted_arrangements = OrderedDict()
 
         self.alices_signature = alices_signature
+        self.arrangements = list()
+
+        super().__init__(author=self.alice)
 
     class MoreArrangementsThanKFrags(TypeError):
         """
@@ -232,23 +234,31 @@ class Policy(object):
             self.treasure_map.add_ursula(arrangement.ursula)
 
     def make_arrangement(self, deposit, expiration):
-        return Arrangement(self.alice, self.hrac(), expiration=expiration, deposit=deposit)
 
-    def find_ursulas(self, networky_stuff, deposit, expiration,  num_ursulas=None):
-        """
-        :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
-        """
-        if num_ursulas is None:
-            num_ursulas = self.n
+        arrangement = Arrangement(self.alice, self.hrac(), expiration=expiration, deposit=deposit)
+        # self.arrangements[arrangement.id] = {arrangement.id: arrangement}
+        return arrangement
 
-        found_ursulas = []
-        while len(found_ursulas) < num_ursulas:
+    def find_ursulas(self, network_middleware, deposit, expiration, num_ursulas=None):
+        """
+        :param network_middleware: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
+        """
+        num_ursulas = num_ursulas or self.n
+
+        found_ursulas = self.alice.recruit(quantity=num_ursulas)
+        for address in found_ursulas:
+            pass  # TODO
+
             arrangement = self.make_arrangement(deposit, expiration)
+
             try:
-                ursula, result = networky_stuff.find_ursula(arrangement)
+                ursula, result = network_middleware.find_ursula(arrangement)
                 found_ursulas.append((ursula, arrangement, result))
-            except networky_stuff.NotEnoughQualifiedUrsulas:
+
+            except network_middleware.NotEnoughQualifiedUrsulas:
                 pass  # TODO: Tell Alice to either wait or lower the value of num_ursulas.
+                raise
+
         return found_ursulas
 
     def assign_kfrag_to_arrangement(self, arrangement):
