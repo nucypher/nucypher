@@ -88,19 +88,19 @@ class NucypherDHTServer(Server):
 
 class NucypherSeedOnlyDHTServer(NucypherDHTServer):
     protocol_class = NucypherSeedOnlyProtocol
-    capabilities = (SeedOnly(),)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.storage = SeedOnlyStorage()
 
 
-class ProxyRESTServer(object):
+class ProxyRESTServer:
 
-    def __init__(self, rest_port, db_name):
+    def __init__(self, rest_port, db_name, *args, **kwargs):
         self.rest_port = rest_port
         self.db_name = db_name
         self._rest_app = None
+        super().__init__(*args, **kwargs)  # cooperative multiple inhertence
 
     def public_key(self, power_class: ClassVar):
         """Implemented on Ursula subclass"""
@@ -213,8 +213,7 @@ class ProxyRESTServer(object):
             # TODO: What do we do if the Policy isn't signed properly?
             pass
         #
-        # alices_signature, policy_payload =\
-        #     BytestringSplitter(Signature)(cleartext, return_remainder=True)
+        # alices_signature, policy_payload =BytestringSplitter(Signature)(cleartext, return_remainder=True)
 
         # TODO: If we're not adding anything else in the payload, stop using the
         # splitter here.
