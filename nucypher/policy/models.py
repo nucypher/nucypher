@@ -29,8 +29,7 @@ class Arrangement(BlockchainArrangement):
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
     _EXPECTED_LENGTH = 106
-    splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
-                                                              (bytes, 27), (bytes, 7))
+    splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH), (bytes, 27), (bytes, 7))
 
     def __init__(self, alice, hrac, expiration, deposit=None, ursula=None,
                  kfrag=constants.UNKNOWN_KFRAG, alices_signature=None):

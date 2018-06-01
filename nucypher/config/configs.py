@@ -44,6 +44,28 @@ class NetworkConfig:
 
 
 class BlockchainConfig:
+    """
+
+    Holds in
+
+    Network Name
+    ==============
+    Network names are used primarily for the ethereum contract registry,
+    but also are sometimes used in determining the network configuration.
+
+    Geth networks
+    -------------
+    mainnet: Connect to the public ethereum mainnet via geth.
+    ropsten: Connect to the public ethereum ropsten testnet via geth.
+    temp: Local private chain whos data directory is removed when the chain is shutdown. Runs via geth.
+
+
+    Development Chains
+    ------------------
+    tester: Ephemeral in-memory chain backed by pyethereum, pyevm, etc.
+    testrpc: Ephemeral in-memory chain for testing RPC calls
+
+    """
 
     __default_providers = (IPCProvider(ipc_path='/tmp/geth.ipc'),
                            # user-managed geth over IPC assumed
