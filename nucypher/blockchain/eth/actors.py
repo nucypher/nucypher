@@ -50,6 +50,7 @@ class Miner(NucypherTokenActor):
     def __init__(self, miner_agent: MinerAgent=None, *args, **kwargs):
         if miner_agent is None:
             miner_agent = MinerAgent(token_agent=NucypherTokenAgent())
+
         super().__init__(token_agent=miner_agent.token_agent, *args, **kwargs)
 
         self.miner_agent = miner_agent
@@ -206,7 +207,6 @@ class Miner(NucypherTokenActor):
         """Retrieve all asosciated contract data for this miner."""
 
         count_bytes = self.miner_agent.contract.functions.getMinerIdsLength(self.address).call()
-
         count = self.blockchain.interface.w3.toInt(count_bytes)
 
         miner_ids = list()
@@ -232,19 +232,18 @@ class PolicyAuthor(NucypherTokenActor):
 
         self._arrangements = OrderedDict()    # Track authored policies by id
 
-    def revoke_arrangement(self, arrangement_id):
+    def revoke_arrangement(self, arrangement_id) -> str:
         """Get the arrangement from the cache and revoke it on the blockchain"""
         try:
             arrangement = self._arrangements[arrangement_id]
         except KeyError:
-            raise self.ActorError('No such arrangement')
+            raise self.ActorError('Not tracking arrangement {}'.format(arrangement_id))
         else:
             txhash = arrangement.revoke()
         return txhash
 
-    def recruit(self, quantity: int) -> List[str]:
+    def recruit(self, quantity: int, **options) -> List[str]:
         """Uses sampling logic to gather miner address from the blockchain"""
-
-        miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity)
+        miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity, **options)
         return miner_addresses
 

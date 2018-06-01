@@ -4,7 +4,7 @@ from apistar.test import TestClient
 
 from nucypher.characters import Ursula
 from nucypher.config.configs import NucypherConfig
-from nucypher.network.node import NetworkyStuff
+from nucypher.network.middleware import NetworkMiddleware
 from nucypher.policy.models import ArrangementResponse
 
 NUMBER_OF_URSULAS_IN_NETWORK = 6
@@ -53,14 +53,11 @@ class MockArrangementResponse(ArrangementResponse):
         return b"This is a arrangement response; we have no idea what the bytes repr will be."
 
 
-class MockNetworkyStuff(NetworkyStuff):
+class MockNetworkMiddleware(NetworkMiddleware):
 
     def __init__(self, ursulas):
         self._ursulas = {bytes(u.stamp): u for u in ursulas}
         self.ursulas = iter(ursulas)
-
-    def go_live_with_policy(self, ursula, policy_offer):
-        return
 
     def find_ursula(self, arrangement=None):
         try:
