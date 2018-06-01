@@ -1,44 +1,14 @@
 import requests
-from kademlia.node import Node
-
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from nucypher.network.capabilities import ServerCapability
-
 from umbral.fragments import CapsuleFrag
 
 
-class NucypherDHTNode(Node):
-
-    def __init__(self, id, ip=None, port=None, capabilities=None, capabilities_as_strings=None, *args, **kwargs):
-
-        if capabilities_as_strings is None:
-            capabilities_as_strings = []
-
-        self.id = id
-        self.ip = ip
-        self.port = port
-        self.long_id = int(id.hex(), 16)
-
-        self.capabilities = capabilities or []
-
-        for capability_name in capabilities_as_strings:
-            self.capabilities.append(ServerCapability.from_name(capability_name))
-
-        super().__init__(id, ip, port, *args, **kwargs)
-
-    def can_store(self):
-        for c in self.capabilities:
-            if c.prohibits_storage:
-                return False
-        return True
-
-
-class NetworkyStuff(object):
+class NetworkMiddleware(object):
 
     class NotEnoughQualifiedUrsulas(Exception):
         pass
 
-    def find_ursula(self, id, offer=None):
+    def find_ursula(self, arrangement=None):
         pass
 
     def reencrypt(self, work_order):
