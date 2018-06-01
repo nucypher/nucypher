@@ -32,6 +32,7 @@ def test_miner_locking_tokens(chain, miner, mock_miner_agent):
     assert mock_miner_agent.contract.functions.getLockedTokens(miner.address).call() == mock_miner_agent.min_allowed_locked
 
 
+@pytest.mark.slow()
 def test_miner_collects_staking_reward_tokens(chain, miner, mock_token_agent, mock_miner_agent, mock_policy_agent):
 
     # Capture the current token balance of the miner

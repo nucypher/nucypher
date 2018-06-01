@@ -41,7 +41,7 @@ def idle_policy(alice, bob):
 @pytest.fixture(scope="module")
 def enacted_policy(idle_policy, ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
-    deposit = constants.NON_PAYMENT
+    deposit = constants.NON_PAYMENT(b"0000000")
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
 
     networky_stuff = MockNetworkyStuff(ursulas)
