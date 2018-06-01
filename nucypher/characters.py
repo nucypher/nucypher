@@ -9,11 +9,13 @@ from typing import Dict, ClassVar
 from typing import Union, List
 
 from bytestring_splitter import BytestringSplitter
+
+from nucypher.blockchain.eth.agents import PolicyAgent
 from nucypher.network.node import NetworkyStuff
 from umbral.keys import UmbralPublicKey
 from constant_sorrow import constants, default_constant_splitter
 
-from nucypher.blockchain.eth.actors import PolicyAuthor
+from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.config.configs import NucypherConfig
 from nucypher.crypto.api import secure_random, keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
@@ -38,7 +40,8 @@ class Character(object):
 
     def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
                  crypto_power_ups=None, is_me=True, network_middleware=None,
-                 config: "NucypherConfig" = None) -> None:
+                 config: "NucypherConfig"=None, *args, **kwargs):
+
         """
         :param attach_server:  Whether to attach a Server when this Character is
             born.
@@ -60,7 +63,7 @@ class Character(object):
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
-        # self.config = config if config is not None else NucypherConfig.get_config()
+        self.config = config if config is not None else NucypherConfig.get()  # default
         self.known_nodes = {}
         self.log = getLogger("characters")
 
@@ -319,17 +322,13 @@ class Character(object):
         self.known_nodes.update(new_nodes)
 
 
-class FakePolicyAgent:  # TODO: #192
-    _token = "fake token"
-
-
 class Alice(Character, PolicyAuthor):
     _server_class = NucypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        PolicyAuthor.__init__(self, self.address, policy_agent=FakePolicyAgent())
+        PolicyAuthor.__init__(self, address=self.address, *args, **kwargs)
 
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
@@ -597,17 +596,18 @@ class Bob(Character):
             raise RuntimeError("Not verified - replace this with real message.")
 
 
-class Ursula(Character, ProxyRESTServer):
+class Ursula(Character, ProxyRESTServer, Miner):
     _server_class = NucypherDHTServer
     _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def __init__(self, dht_port=None, ip_address=None, dht_ttl=0,
-                 rest_port=None, db_name=None,
-                 *args, **kwargs):
+    def __init__(self, dht_port=None, ip_address=None, dht_ttl=0, rest_port=None, db_name=None, *args, **kwargs):
+
         self.dht_port = dht_port
+        self.dht_ttl = dht_ttl
         self.ip_address = ip_address
         self._work_orders = []
+
         ProxyRESTServer.__init__(self, rest_port, db_name)
         super().__init__(*args, **kwargs)
 

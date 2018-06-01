@@ -21,7 +21,7 @@ class BlockchainArrangement:
         self._rate = rate
 
         self.value = value
-        self.lock_periods = lock_periods  # TODO: datetime -> duration in blocks
+        self.lock_periods = lock_periods  # TODO: <datetime> -> lock_periods
 
         self.is_published = False
 

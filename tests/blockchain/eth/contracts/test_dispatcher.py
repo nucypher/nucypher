@@ -9,14 +9,14 @@ def test_dispatcher(web3, chain):
     account = web3.eth.accounts[1]
 
     # Load contract interface
-    contract_interface = chain.provider.get_contract_factory('ContractInterface')
+    contract_interface = chain.interface.get_contract_factory('ContractInterface')
 
     # Deploy contracts and dispatcher for them
-    contract1_lib, _ = chain.provider.deploy_contract('ContractV1', 1)
-    contract2_lib, _ = chain.provider.deploy_contract('ContractV2', 1)
-    contract3_lib, _ = chain.provider.deploy_contract('ContractV3', 2)
-    contract2_bad_lib, _ = chain.provider.deploy_contract('ContractV2Bad')
-    dispatcher, _ = chain.provider.deploy_contract('Dispatcher', contract1_lib.address)
+    contract1_lib, _ = chain.interface.deploy_contract('ContractV1', 1)
+    contract2_lib, _ = chain.interface.deploy_contract('ContractV2', 1)
+    contract3_lib, _ = chain.interface.deploy_contract('ContractV3', 2)
+    contract2_bad_lib, _ = chain.interface.deploy_contract('ContractV2Bad')
+    dispatcher, _ = chain.interface.deploy_contract('Dispatcher', contract1_lib.address)
 
     upgrades = dispatcher.events.Upgraded.createFilter(fromBlock=0)
     assert dispatcher.functions.target().call() == contract1_lib.address

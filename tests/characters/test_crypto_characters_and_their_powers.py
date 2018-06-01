@@ -49,7 +49,7 @@ def test_actor_with_signing_power_can_sign():
     assert verification is True
 
 
-def test_anybody_can_verify():
+def test_anybody_can_verify(nucypher_test_config, mock_policy_agent):
     """
     In the last example, we used the lower-level Crypto API to verify the signature.
 
@@ -57,10 +57,10 @@ def test_anybody_can_verify():
     """
 
     # Alice can sign by default, by dint of her _default_crypto_powerups.
-    alice = Alice()
+    alice = Alice(config=nucypher_test_config, policy_agent=mock_policy_agent)
 
     # So, our story is fairly simple: an everyman meets Alice.
-    somebody = Character()
+    somebody = Character(config=nucypher_test_config)
 
     # Alice signs a message.
     message = b"A message for all my friends who can only verify and not sign."
@@ -70,6 +70,7 @@ def test_anybody_can_verify():
     verification, cleartext = somebody.verify_from(alice, message, signature, decrypt=False)
     assert verification is True
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
+
 
 """
 Chapter 2: ENCRYPTION
@@ -90,9 +91,11 @@ def test_anybody_can_encrypt():
     assert signature == constants.NOT_SIGNED
     assert ciphertext is not None
 
+
 """
 What follows are various combinations of signing and encrypting, to match real-world scenarios.
 """
+
 
 def test_sign_cleartext_and_encrypt(alice, bob):
     """
@@ -138,7 +141,6 @@ def test_encrypt_and_sign_including_signature_in_both_places(alice, bob):
                                           decrypt=True)
     assert verified
     assert cleartext == message
-
 
 
 def test_encrypt_but_do_not_sign(alice, bob):

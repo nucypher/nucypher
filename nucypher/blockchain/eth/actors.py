@@ -1,17 +1,19 @@
-from abc import ABC
 from collections import OrderedDict
 from datetime import datetime
 from typing import Tuple, List, Union
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
 
 
-class TokenActor(ABC):
+class NucypherTokenActor:
 
     class ActorError(Exception):
         pass
 
-    def __init__(self, token_agent: NucypherTokenAgent, address: Union[bytes, str]):
+    def __init__(self, address: Union[str, bytes], token_agent: NucypherTokenAgent=None, *args, **kwargs):
+
+        if token_agent is None:
+            token_agent = NucypherTokenAgent()
         self.token_agent = token_agent
 
         if isinstance(address, bytes):
@@ -28,32 +30,27 @@ class TokenActor(ABC):
 
     def eth_balance(self):
         """Return this actors's current ETH balance"""
-
-        balance = self.token_agent.blockchain._chain.web3.eth.getBalance(self.address)
+        balance = self.token_agent.blockchain.interface.w3.eth.getBalance(self.address)
         return balance
 
     def token_balance(self):
         """Return this actors's current token balance"""
-
         balance = self.token_agent.get_balance(address=self.address)
         return balance
 
 
-class Miner(TokenActor):
+class Miner(NucypherTokenActor):
     """
     Ursula - practically carrying a pickaxe.
-
-    Accepts a running blockchain, deployed token contract, and deployed escrow contract.
-    If the provided token and escrow contracts are not deployed,
-    ContractDeploymentError will be raised.
-
     """
 
-    class StakingError(TokenActor.ActorError):
+    class StakingError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self, miner_agent, address):
-        super().__init__(token_agent=miner_agent.token_agent, address=address)
+    def __init__(self, miner_agent: MinerAgent=None, *args, **kwargs):
+        if miner_agent is None:
+            miner_agent = MinerAgent(token_agent=NucypherTokenAgent())
+        super().__init__(token_agent=miner_agent.token_agent, *args, **kwargs)
 
         self.miner_agent = miner_agent
         miner_agent.miners.append(self)    # Track Miners
@@ -186,7 +183,7 @@ class Miner(TokenActor):
         if entire_balance is True:
             amount = self.miner_agent.contract.functions.getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
                                                                        self.address, 0).call()
-        amount = self.blockchain.provider.w3.toInt(amount)
+        amount = self.blockchain.interface.w3.toInt(amount)
 
         assert self.__validate_stake(amount=amount, lock_periods=lock_periods)
 
@@ -210,7 +207,7 @@ class Miner(TokenActor):
 
         count_bytes = self.miner_agent.contract.functions.getMinerIdsLength(self.address).call()
 
-        count = self.blockchain.provider.w3.toInt(count_bytes)
+        count = self.blockchain.interface.w3.toInt(count_bytes)
 
         miner_ids = list()
         for index in range(count):
@@ -219,12 +216,19 @@ class Miner(TokenActor):
         return tuple(miner_ids)
 
 
-class PolicyAuthor(TokenActor):
+class PolicyAuthor(NucypherTokenActor):
     """Alice"""
 
-    def __init__(self, address: bytes, policy_agent):
-        super().__init__(token_agent=policy_agent._token, address=address)
+    def __init__(self, policy_agent: PolicyAgent=None, *args, **kwargs):
+
+        if policy_agent is None:
+            # all defaults
+            token_agent = NucypherTokenAgent()
+            miner_agent = MinerAgent(token_agent=token_agent)
+            policy_agent = PolicyAgent(miner_agent=miner_agent)
+
         self.policy_agent = policy_agent
+        super().__init__(token_agent=self.policy_agent.token_agent, *args, **kwargs)
 
         self._arrangements = OrderedDict()    # Track authored policies by id
 

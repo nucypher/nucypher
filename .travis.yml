@@ -3,6 +3,7 @@ cache: pip
 python:
 - '3.5'
 - '3.6'
+- '3.7-dev'
 install:
 - pip install pipenv --upgrade
 - pipenv install --dev --three --skip-lock
@@ -12,3 +13,6 @@ before_script:
 script:
 - pipenv run -- pytest --runslow --cov=nucypher -v tests
 - codecov
+matrix:
+  allow_failures:
+    - python: '3.7-dev'

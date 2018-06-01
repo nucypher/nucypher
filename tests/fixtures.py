@@ -7,11 +7,15 @@ import pytest
 from constant_sorrow import constants
 from sqlalchemy.engine import create_engine
 
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.characters import Alice, Bob
+
+from nucypher.config.configs import NucypherConfig
+from nucypher.crypto.signature import SignatureStamp
+
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 
-from nucypher.crypto.signing import SignatureStamp
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
@@ -19,6 +23,17 @@ from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.network import blockchain_client
 from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, make_ursulas, \
     URSULA_PORT, EVENT_LOOP
+
+
+@pytest.fixture(scope="module")
+def nucypher_test_config(blockchain_config):
+
+    config = NucypherConfig(keyring="this is the most secure password in the world.",
+                            blockchain_config=blockchain_config)
+    yield config
+    NucypherConfig.reset()
+    Blockchain.sever()
+    del config
 
 
 @pytest.fixture(scope="module")
@@ -53,8 +68,8 @@ def enacted_policy(idle_policy, ursulas):
 
 
 @pytest.fixture(scope="module")
-def alice(ursulas):
-    ALICE = Alice(network_middleware=MockNetworkyStuff(ursulas))
+def alice(ursulas, mock_policy_agent, nucypher_test_config):
+    ALICE = Alice(network_middleware=MockNetworkyStuff(ursulas), policy_agent=mock_policy_agent, config=nucypher_test_config)
     ALICE.server.listen(8471)
     ALICE.__resource_id = b"some_resource_id"
     EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", u.dht_port) for u in ursulas]))
@@ -69,8 +84,8 @@ def bob(ursulas):
 
 
 @pytest.fixture(scope="module")
-def ursulas():
-    URSULAS = make_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT)
+def ursulas(nucypher_test_config):
+    URSULAS = make_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT, config=nucypher_test_config)
     yield URSULAS
     # Remove the DBs that have been sprayed hither and yon.
     for _u in range(NUMBER_OF_URSULAS_IN_NETWORK):

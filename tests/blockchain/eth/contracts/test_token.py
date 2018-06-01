@@ -14,7 +14,7 @@ def test_create_token(web3, chain):
     account2 = web3.eth.accounts[2]
 
     # Create an ERC20 token
-    token, txhash = chain.provider.deploy_contract('NuCypherToken', 10 ** 9)
+    token, txhash = chain.interface.deploy_contract('NuCypherToken', 10 ** 9)
     assert txhash is not None
 
     # Account balances
@@ -58,8 +58,8 @@ def test_approve_and_call(web3, chain):
     account1 = web3.eth.accounts[1]
     account2 = web3.eth.accounts[2]
 
-    token, _ = chain.provider.deploy_contract('NuCypherToken', 10 ** 9)
-    mock, _ = chain.provider.deploy_contract('ReceiveApprovalMethodMock')
+    token, _ = chain.interface.deploy_contract('NuCypherToken', 10 ** 9)
+    mock, _ = chain.interface.deploy_contract('ReceiveApprovalMethodMock')
 
     tx = token.functions.approve(account1, 100).transact({'from': creator})
     chain.wait_for_receipt(tx)

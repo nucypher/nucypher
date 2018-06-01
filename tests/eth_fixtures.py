@@ -1,21 +1,21 @@
 import os
-import shutil
 import signal
 import subprocess
 import tempfile
-from os.path import abspath, dirname
 
 import pytest
+import shutil
 import time
-from eth_tester import EthereumTester, PyEVMBackend
+from eth_tester import EthereumTester
 from geth import LoggingMixin, DevGethProcess
-from web3 import EthereumTesterProvider, IPCProvider, Web3
+from os.path import abspath, dirname
+from web3 import EthereumTesterProvider, IPCProvider
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.chains import TheBlockchain, TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer
-from nucypher.blockchain.eth.interfaces import Registrar, ContractProvider
+from nucypher.blockchain.eth.interfaces import Registrar
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.config.configs import BlockchainConfig
 from tests.blockchain.eth import contracts, utilities
 from tests.blockchain.eth.utilities import MockMinerEscrowDeployer, TesterPyEVMBackend, MockNucypherTokenDeployer
 
@@ -31,7 +31,7 @@ def manual_geth_ipc_provider():
     Provider backend
     https:// github.com/ethereum/eth-tester
     """
-    ipc_provider = IPCProvider(ipc_path=os.path.join('/tmp/geth.ipc'))
+    ipc_provider = IPCProvider(ipc_path='/tmp/geth.ipc')
     yield ipc_provider
 
 
@@ -98,11 +98,13 @@ def auto_geth_ipc_provider():
 @pytest.fixture(scope='module')
 def pyevm_provider():
     """
-    Provider backend
+    Test provider backend
     https: // github.com / ethereum / eth - tester     # available-backends
     """
     overrides = {'gas_limit': 4626271}
     pyevm_backend = TesterPyEVMBackend(genesis_overrides=overrides)
+
+    # pyevm_backend = PyEVMBackend()
 
     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
     pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
@@ -123,45 +125,52 @@ def solidity_compiler():
 
 
 @pytest.fixture(scope='module')
-def web3(pyevm_provider):
+def registrar():
+    _, filepath = tempfile.mkstemp()
+    test_registrar = Registrar(chain_name='tester', registrar_filepath=filepath)
+    yield test_registrar
+    os.remove(filepath)
 
-    w3 = Web3(providers=pyevm_provider)
-    w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+
+@pytest.fixture(scope='module')
+def blockchain_config(pyevm_provider, solidity_compiler, registrar):
+    BlockchainConfig.add_provider(pyevm_provider)
+    config = BlockchainConfig(compiler=solidity_compiler, registrar=registrar, deploy=True, tester=True)  # TODO: pass in address
+    yield config
+    config.chain.sever()
+    del config
+
+
+@pytest.fixture(scope='module')
+def deployer_interface(blockchain_config):
+    interface = blockchain_config.chain.interface
+    w3 = interface.w3
 
     if len(w3.eth.accounts) == 1:
         utilities.generate_accounts(w3=w3, quantity=9)
     assert len(w3.eth.accounts) == 10
 
-    yield w3
+    yield interface
 
 
 @pytest.fixture(scope='module')
-def contract_provider(web3, registrar, solidity_compiler):
-    tester_provider = ContractProvider(provider_backend=web3, registrar=registrar, sol_compiler=solidity_compiler)
-    yield tester_provider
+def web3(deployer_interface, poa=False):
+    """Compatibility fixture"""
+    if poa is True:
+        w3 = deployer_interface.interface.w3
+        w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+    return deployer_interface.w3
 
 
 @pytest.fixture(scope='module')
-def registrar():
-    _, filepath = tempfile.mkstemp()
-    registrar = Registrar(chain_name='tester', registrar_filepath=filepath)
-    yield registrar
-    os.remove(filepath)
+def chain(deployer_interface, airdrop_ether=False):
+    chain = deployer_interface.blockchain_config.chain
 
-
-@pytest.fixture(scope='module')
-def chain(contract_provider, airdrop=False):
-    chain = TesterBlockchain(contract_provider=contract_provider)
-
-    if airdrop:
+    if airdrop_ether:
         one_million_ether = 10 ** 6 * 10 ** 18  # wei -> ether
-        chain._global_airdrop(amount=one_million_ether)
+        chain.ether_airdrop(amount=one_million_ether)
 
     yield chain
-
-    del chain
-    TheBlockchain._TheBlockchain__instance = None
-
 
 # 
 # Deployers #
@@ -170,7 +179,8 @@ def chain(contract_provider, airdrop=False):
 
 @pytest.fixture(scope='module')
 def mock_token_deployer(chain):
-    token_deployer = MockNucypherTokenDeployer(blockchain=chain)
+    origin, *everyone = chain.interface.w3.eth.coinbase
+    token_deployer = MockNucypherTokenDeployer(blockchain=chain, deployer_address=origin)
     token_deployer.arm()
     token_deployer.deploy()
     yield token_deployer
@@ -194,28 +204,26 @@ def mock_policy_manager_deployer(mock_miner_agent):
 
 #
 # Agents #
-# Unused args preserve fixture dependency order #
 #
 
 @pytest.fixture(scope='module')
 def mock_token_agent(mock_token_deployer):
     token_agent = mock_token_deployer.make_agent()
-
-    assert mock_token_deployer._contract.address == token_agent.contract_address
+    assert mock_token_deployer.contract.address == token_agent.contract_address
     yield token_agent
 
 
 @pytest.fixture(scope='module')
+@pytest.mark.usefixtures("mock_token_agent")
 def mock_miner_agent(mock_miner_escrow_deployer):
     miner_agent = mock_miner_escrow_deployer.make_agent()
-
-    assert mock_miner_escrow_deployer._contract.address == miner_agent.contract_address
+    assert mock_miner_escrow_deployer.contract.address == miner_agent.contract_address
     yield miner_agent
 
 
 @pytest.fixture(scope='module')
+@pytest.mark.usefixtures("mock_miner_agent")
 def mock_policy_agent(mock_policy_manager_deployer):
     policy_agent = mock_policy_manager_deployer.make_agent()
-
-    assert mock_policy_manager_deployer._contract.address == policy_agent.contract_address
+    assert mock_policy_manager_deployer.contract.address == policy_agent.contract_address
     yield policy_agent

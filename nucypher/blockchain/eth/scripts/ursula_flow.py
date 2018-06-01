@@ -27,7 +27,7 @@ def main():
         # alice = web3.eth.accounts[2]
 
         # Create an ERC20 token
-        token, tx = chain.provider.get_or_deploy_contract(
+        token, tx = chain.interface.get_or_deploy_contract(
             'HumanStandardToken', deploy_args=[
                 int(1e9) * M, int(1e10) * M, 'NuCypher', 6, 'NU'],
             deploy_transaction={
@@ -35,7 +35,7 @@ def main():
         chain.wait.for_receipt(tx, timeout=TIMEOUT)
         print("Deployed HumanStandardToken, tx hash is", tx)
 
-        escrow, tx = chain.provider.get_or_deploy_contract(
+        escrow, tx = chain.interface.get_or_deploy_contract(
             'Escrow', deploy_args=[token.address] + MINING_COEFF,
             deploy_transaction={'from': creator})
         chain.wait.for_receipt(tx, timeout=TIMEOUT)

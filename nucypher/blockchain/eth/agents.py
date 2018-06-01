@@ -1,12 +1,13 @@
 import random
 from abc import ABC
 from enum import Enum
-from functools import partial
 from typing import Set, Generator, List
 
-from nucypher.blockchain.eth import constants
-from nucypher.blockchain.eth.constants import NucypherTokenConfig, NucypherMinerConfig
 from web3.contract import Contract
+
+from nucypher.blockchain.eth import constants
+from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.constants import NucypherTokenConstants, NucypherMinerConstants
 
 
 class EthereumContractAgent(ABC):
@@ -20,13 +21,18 @@ class EthereumContractAgent(ABC):
     class ContractNotDeployed(Exception):
         pass
 
-    def __init__(self, blockchain, contract: Contract=None, *args, **kwargs):
+    def __init__(self, blockchain: Blockchain=None, contract: Contract=None, *args, **kwargs):
+
+        if blockchain is None:
+            blockchain = Blockchain.connect()
         self.blockchain = blockchain
 
         if contract is None:
-            address = blockchain.provider.get_contract_address(contract_name=self._principal_contract_name)[-1]  # TODO
-            contract = blockchain.provider.get_contract(address)
+            address = blockchain.interface.get_contract_address(contract_name=self._principal_contract_name)[-1]  # TODO: Handle multiple
+            contract = blockchain.interface.get_contract(address)
         self.__contract = contract
+
+        super().__init__(*args, **kwargs)
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -50,7 +56,7 @@ class EthereumContractAgent(ABC):
 
     @property
     def origin(self) -> str:
-        return self.blockchain.provider.w3.eth.coinbase    # TODO: make swappable
+        return self.blockchain.interface.w3.eth.coinbase    # TODO: make swappable
 
     def get_balance(self, address: str=None) -> int:
         """Get the balance of a token address, or of this contract address"""
@@ -59,11 +65,11 @@ class EthereumContractAgent(ABC):
         return self.contract.functions.balanceOf(address).call()
 
 
-class NucypherTokenAgent(EthereumContractAgent, NucypherTokenConfig):
+class NucypherTokenAgent(EthereumContractAgent, NucypherTokenConstants):
     _principal_contract_name = "NuCypherToken"
 
 
-class MinerAgent(EthereumContractAgent, NucypherMinerConfig):
+class MinerAgent(EthereumContractAgent, NucypherMinerConstants):
     """
     Wraps NuCypher's Escrow solidity smart contract
 
@@ -106,7 +112,7 @@ class MinerAgent(EthereumContractAgent, NucypherMinerConfig):
         count = self.contract.functions.getMinersLength().call()
         for index in range(count):
             addr = self.contract.functions.miners(index).call()
-            yield self.blockchain.provider.w3.toChecksumAddress(addr)
+            yield self.blockchain.interface.w3.toChecksumAddress(addr)
 
     def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:
         """
@@ -156,6 +162,11 @@ class MinerAgent(EthereumContractAgent, NucypherMinerConfig):
 class PolicyAgent(EthereumContractAgent):
 
     _principal_contract_name = "PolicyManager"
+
+    def __init__(self, miner_agent: MinerAgent, *args, **kwargs):
+        super().__init__(blockchain=miner_agent.blockchain, *args, **kwargs)
+        self.miner_agent = miner_agent
+        self.token_agent = miner_agent.token_agent
 
     def fetch_arrangement_data(self, arrangement_id: bytes) -> list:
         blockchain_record = self.contract.functions.policies(arrangement_id).call()
