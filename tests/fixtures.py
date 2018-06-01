@@ -63,12 +63,17 @@ def enacted_policy(idle_policy, ursulas):
 
 @pytest.fixture(scope="module")
 def alice(ursulas, mock_policy_agent, nucypher_test_config):
-    ALICE = Alice(network_middleware=MockNetworkyStuff(ursulas), policy_agent=mock_policy_agent, config=nucypher_test_config)
-    ALICE.server.listen(8471)
-    ALICE.__resource_id = b"some_resource_id"
-    EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", u.dht_port) for u in ursulas]))
-    ALICE.network_bootstrap([("127.0.0.1", u.rest_port) for u in ursulas])
-    return ALICE
+    etherbase, alice, bob, *everyone_else = nucypher_test_config.blockchain.chain.interface.w3.eth.accounts
+
+    _alice = Alice(network_middleware=MockNetworkMiddleware(ursulas),
+                   policy_agent=mock_policy_agent, ether_address=alice,
+                   config=nucypher_test_config)
+
+    _alice.dht_server.listen(8471)
+    _alice.__resource_id = b"some_resource_id"
+    EVENT_LOOP.run_until_complete(_alice.dht_server.bootstrap([("127.0.0.1", u.dht_port) for u in ursulas]))
+    _alice.network_bootstrap([("127.0.0.1", u.rest_port) for u in ursulas])
+    return _alice
 
 
 @pytest.fixture(scope="module")
@@ -79,13 +84,18 @@ def bob(ursulas):
 
 @pytest.fixture(scope="module")
 def ursulas(nucypher_test_config):
-    URSULAS = make_ursulas(NUMBER_OF_URSULAS_IN_NETWORK, URSULA_PORT, config=nucypher_test_config)
-    yield URSULAS
+
+    etherbase, alice, bob, *everyone_else = nucypher_test_config.blockchain.chain.interface.w3.eth.accounts
+    ursula_addresses = everyone_else[:NUMBER_OF_URSULAS_IN_NETWORK]
+
+    _ursulas = make_ursulas(ether_addresses=ursula_addresses,
+                            ursula_starting_port=URSULA_PORT,
+                            config=nucypher_test_config)
+    yield _ursulas
     # Remove the DBs that have been sprayed hither and yon.
-    for _u in range(NUMBER_OF_URSULAS_IN_NETWORK):
-        port = URSULA_PORT + _u
+    for index, ursula in enumerate(_ursulas):
+        port = URSULA_PORT + index
         os.remove("test-{}".format(port))
-    blockchain_client._ursulas_on_blockchain.clear()
 
 
 @pytest.fixture(scope="module")
