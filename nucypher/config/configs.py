@@ -76,11 +76,11 @@ class BlockchainConfig:
     __configured_providers = list()  # tracks active providers
 
     def __init__(self, network: str=None, timeout: int=None,
-                 compiler=None, registrar=None, deploy=False,
-                 geth=True, tester=False):
+                 compiler=None, registrar=None, deploy=False, tester=False):
+
+        import nucypher.blockchain.eth.constants
 
         # Parse configuration
-
         if len(self.__configured_providers) == 0:
             warnings.warn("No blockchain provider backends are configured, using default.", RuntimeWarning)
             self.__providers = BlockchainConfig.__default_providers
@@ -98,12 +98,11 @@ class BlockchainConfig:
 
         interface = interface_class(blockchain_config=self, sol_compiler=compiler, registrar=registrar)
 
-        if tester is True:
-            blockchain_class = TesterBlockchain
-        else:
-            blockchain_class = Blockchain
+        blockchain_class = TesterBlockchain if tester is True else Blockchain
 
+        #
         # Initial connection to blockchain via provider
+        #
         self.chain = blockchain_class(interface=interface)
 
     @classmethod
