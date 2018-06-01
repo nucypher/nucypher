@@ -1,15 +1,13 @@
 from typing import List, Union
 
-from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILIBLE
-
-from nucypher.blockchain.eth.constants import NucypherMinerConstants
+from constant_sorrow import constants
 from nucypher.blockchain.eth.interfaces import ContractInterface, DeployerInterface
 
 
 class Blockchain:
     """A view of a blockchain through a provided interface"""
 
-    _instance = NO_BLOCKCHAIN_AVAILIBLE
+    _instance = None
     __default_interface_class = ContractInterface
 
     test_chains = ('tester', )
@@ -18,16 +16,16 @@ class Blockchain:
 
     def __init__(self, interface: Union[ContractInterface, DeployerInterface]=None):
 
-        if interface is NO_BLOCKCHAIN_AVAILIBLE:
+        if interface is None:
             interface = self.__default_interface_class(blockchain_config=interface.config)
 
         self.__interface = interface
         self.config = interface.blockchain_config
 
-        if self._instance is not None:
-            raise RuntimeError("Local chain already running")
-        else:
+        if self._instance is None:
             Blockchain._instance = self
+        else:
+            raise RuntimeError("Local chain already running")
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -62,7 +60,7 @@ class Blockchain:
         return result
 
 
-class TesterBlockchain(Blockchain, NucypherMinerConstants):
+class TesterBlockchain(Blockchain):
     """
     Blockchain subclass with additional test utility methods
     and singleton-style instance caching to preserve the local blockchain state.
@@ -84,8 +82,8 @@ class TesterBlockchain(Blockchain, NucypherMinerConstants):
             raise ValueError("Specify hours, seconds, or lock_periods, not a combination")
 
         if periods:
-            duration = (self._hours_per_period * periods) * (60 * 60)
-            base = self._hours_per_period * 60 * 60
+            duration = (constants.HOURS_PER_PERIOD * periods) * (60 * 60)
+            base = constants.HOURS_PER_PERIOD * 60 * 60
         elif hours:
             duration = hours * (60 * 60)
             base = 60 * 60
