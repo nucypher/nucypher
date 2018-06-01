@@ -1,15 +1,15 @@
+import kademlia
+from bytestring_splitter import BytestringSplitter
+from constant_sorrow import default_constant_splitter, constants
 from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
+from nucypher.crypto.signature import Signature
+from umbral.keys import UmbralPublicKey
 
-from constant_sorrow import default_constant_splitter, constants
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
-from nucypher.crypto.signing import Signature
-from bytestring_splitter import BytestringSplitter
-from nucypher.network.node import NucypherDHTNode
 from nucypher.network.routing import NucypherRoutingTable
-from umbral.keys import UmbralPublicKey
 
 dht_value_splitter = default_constant_splitter + BytestringSplitter(Signature, (UmbralPublicKey, PUBLIC_KEY_LENGTH))
 dht_with_hrac_splitter = dht_value_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH))
