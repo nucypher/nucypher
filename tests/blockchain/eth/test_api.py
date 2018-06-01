@@ -44,6 +44,7 @@ def test_token_deployer_and_agent(chain):
     assert token_agent == same_token_agent  # __eq__
 
 
+@pytest.mark.slow()
 def test_deploy_ethereum_contracts(chain):
     """
     Launch all ethereum contracts:

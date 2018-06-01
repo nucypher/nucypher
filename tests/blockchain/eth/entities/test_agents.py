@@ -4,6 +4,7 @@ from nucypher.blockchain.eth.agents import MinerAgent
 
 M = 10 ** 6
 
+
 @pytest.mark.slow()
 def test_get_swarm(chain, mock_token_agent, mock_miner_agent):
 
