@@ -4,7 +4,7 @@ from constant_sorrow import default_constant_splitter, constants
 from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
-from nucypher.crypto.signature import Signature
+from umbral.signing import Signature
 from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.api import keccak_digest

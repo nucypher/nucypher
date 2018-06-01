@@ -16,10 +16,8 @@ from umbral.fragments import KFrag
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import EncryptingPower, SigningPower
 from nucypher.keystore.threading import ThreadedSession
-from nucypher.network.capabilities import SeedOnly, ServerCapability
-from nucypher.network.node import NucypherDHTNode
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, \
-    dht_value_splitter, dht_with_hrac_splitter
+    dht_with_hrac_splitter
 from nucypher.network.storage import SeedOnlyStorage
 
 
