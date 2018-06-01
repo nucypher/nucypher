@@ -3,7 +3,7 @@ from typing import Tuple, Dict
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent, MinerAgent, NucypherTokenAgent, PolicyAgent
-from nucypher.blockchain.eth.constants import NucypherTokenConstants, NucypherMinerConstants
+from constant_sorrow import constants
 from nucypher.blockchain.eth.interfaces import ContractInterface, DeployerInterface
 from .chains import Blockchain
 
@@ -154,7 +154,7 @@ class ContractDeployer:
         return agent
 
 
-class NucypherTokenDeployer(ContractDeployer, NucypherTokenConstants):
+class NucypherTokenDeployer(ContractDeployer):
 
     _contract_name = 'NuCypherToken'
     agency = NucypherTokenAgent
@@ -180,7 +180,7 @@ class NucypherTokenDeployer(ContractDeployer, NucypherTokenConstants):
 
         _contract, deployment_txhash = self.blockchain.interface.deploy_contract(
                                        self._contract_name,
-                                       self.saturation)
+                                       int(constants.TOKEN_SATURATION))
 
         self._contract = _contract
         return self.deployment_receipt
@@ -208,7 +208,7 @@ class DispatcherDeployer(ContractDeployer):
         return txhash
 
 
-class MinerEscrowDeployer(ContractDeployer, NucypherMinerConstants):
+class MinerEscrowDeployer(ContractDeployer):
     """
     Deploys the MinerEscrow ethereum contract to the blockchain.  Depends on NucypherTokenAgent
     """
@@ -248,7 +248,7 @@ class MinerEscrowDeployer(ContractDeployer, NucypherMinerConstants):
         the_escrow_contract, deploy_txhash, = \
             self.blockchain.interface.deploy_contract(self._contract_name,
                                                       self.token_agent.contract_address,
-                                                      *self.mining_coefficient)
+                                                      *map(int, constants.MINING_COEFFICIENT))
 
         # 2 - Deploy the dispatcher used for updating this contract #
         dispatcher_deployer = DispatcherDeployer(token_agent=self.token_agent, target_contract=the_escrow_contract)
@@ -267,7 +267,7 @@ class MinerEscrowDeployer(ContractDeployer, NucypherMinerConstants):
         the_escrow_contract = wrapped_escrow_contract
 
         # 3 - Transfer tokens to the miner escrow #
-        reward_txhash = self.token_agent.contract.functions.transfer(the_escrow_contract.address, self.remaining_supply).transact(origin_args)
+        reward_txhash = self.token_agent.contract.functions.transfer(the_escrow_contract.address, int(constants.TOKEN_SUPPLY)).transact(origin_args)
         _reward_receipt = self.blockchain.wait_for_receipt(reward_txhash)
 
         # 4 - Initialize the Miner Escrow contract

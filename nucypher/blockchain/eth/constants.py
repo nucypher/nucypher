@@ -1,90 +1,104 @@
-NULL_ADDRESS = '0x' + '0' * 40
+"""
+Base NuCypher Token and Miner constants configuration.
+
+These values are static and do not need to be changed during runtime;
+Once the NuCypherToken contract is deployed to a network with one set of constant values,
+those values are then required to be compatible with the rest of the network.
+"""
 
 
-class NucypherTokenConstants:
-
-    class TokenConfigError(ValueError):
-        pass
-
-    __subdigits = 18
-    M = 10 ** __subdigits                                 # Unit designation
-    __initial_supply = int(1e9) * M                       # Initial token supply
-    __saturation = int(3.89e9) * M                        # Token supply cap
-    _remaining_supply = __saturation - __initial_supply    # Remaining supply
-
-    @property
-    def saturation(self):
-        return self.__saturation
+from constant_sorrow.constants import (NULL_ADDRESS, TOKEN_SATURATION, MINING_COEFFICIENT, TOKEN_SUPPLY,
+                                       M, HOURS_PER_PERIOD, MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS,
+                                       MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED,
+                                       )
 
 
-class NucypherMinerConstants:
+#
+# Token
+#
 
-    class MinerConfigError(ValueError):
-        pass
+class TokenConfigError(ValueError):
+    pass
 
-    _hours_per_period = 24       # Hours in single period
-    min_locked_periods = 30      # 720 Hours minimum
-    max_minting_periods = 365    # Maximum number of periods
 
-    min_allowed_locked = 15000 * NucypherTokenConstants.M
-    max_allowed_locked = int(4e6) * NucypherTokenConstants.M
+NULL_ADDRESS('0x' + '0' * 40)
 
-    __remaining_supply = NucypherTokenConstants._remaining_supply
+__subdigits = 18
+M(10 ** __subdigits)                                  # Unit designation
 
-    __mining_coeff = [           # TODO
-        _hours_per_period,
-        2 * 10 ** 7,
-        max_minting_periods,
-        max_minting_periods,
-        min_locked_periods,
-        min_allowed_locked,
-        max_allowed_locked
-    ]
+__initial_supply = int(1e9) * M                       # Initial token supply
+__saturation = int(3.89e9) * M                        # Token supply cap
+TOKEN_SUPPLY(__saturation - __initial_supply)         # Remaining supply
+TOKEN_SATURATION(__saturation)
 
-    @property
-    def mining_coefficient(self):
-        return self.__mining_coeff
 
-    @property
-    def remaining_supply(self):
-        return self.__remaining_supply
+#
+# Miner
+#
 
-    def __validate(self, rulebook) -> bool:
-        for rule, failure_message in rulebook:
-            if not rule:
-                raise self.MinerConfigError(failure_message)
-        return True
+class MinerConfigError(ValueError):
+    pass
 
-    def validate_stake_amount(self, amount: int, raise_on_fail=True) -> bool:
 
-        rulebook = (
+HOURS_PER_PERIOD(24)       # Hours in single period
+MIN_LOCKED_PERIODS(30)     # 720 Hours minimum
+MAX_MINTING_PERIODS(365)   # Maximum number of periods
 
-            (amount >= self.min_allowed_locked,
-             'Stake amount too low; ({amount}) must be at least {minimum}'
-             .format(minimum=self.min_allowed_locked, amount=amount)),
+MIN_ALLOWED_LOCKED(15000*M)
+MAX_ALLOWED_LOCKED(int(4e6)*M)
 
-            (amount <= self.max_allowed_locked,
-             'Stake amount too high; ({amount}) must be no more than {maximum}.'
-             .format(maximum=self.max_allowed_locked, amount=amount)),
-        )
 
-        if raise_on_fail is True:
-            self.__validate(rulebook=rulebook)
-        return all(rulebook)
+__mining_coeff = (           # TODO: label
+    HOURS_PER_PERIOD,
+    2 * 10 ** 7,
+    MAX_MINTING_PERIODS,
+    MAX_MINTING_PERIODS,
+    MIN_LOCKED_PERIODS,
+    MIN_ALLOWED_LOCKED,
+    MAX_ALLOWED_LOCKED
+)
 
-    def validate_locktime(self, lock_periods: int, raise_on_fail=True) -> bool:
+MINING_COEFFICIENT(__mining_coeff)
 
-        rulebook = (
 
-            (lock_periods >= self.min_locked_periods,
-             'Locktime ({locktime}) too short; must be at least {minimum}'
-             .format(minimum=self.min_locked_periods, locktime=lock_periods)),
+def __validate(rulebook) -> bool:
+    for rule, failure_message in rulebook:
+        if not rule:
+            raise MinerConfigError(failure_message)
+    return True
 
-            (lock_periods <= self.max_minting_periods,
-             'Locktime ({locktime}) too long; must be no more than {maximum}'
-             .format(maximum=self.max_minting_periods, locktime=lock_periods)),
-        )
 
-        if raise_on_fail is True:
-            self.__validate(rulebook=rulebook)
-        return all(rulebook)
+def validate_stake_amount(amount: int, raise_on_fail=True) -> bool:
+
+    rulebook = (
+
+        (MIN_ALLOWED_LOCKED <= amount,
+         'Stake amount too low; ({amount}) must be at least {minimum}'
+         .format(minimum=MIN_ALLOWED_LOCKED, amount=amount)),
+
+        (MAX_ALLOWED_LOCKED >= amount,
+         'Stake amount too high; ({amount}) must be no more than {maximum}.'
+         .format(maximum=MAX_ALLOWED_LOCKED, amount=amount)),
+    )
+
+    if raise_on_fail is True:
+        __validate(rulebook=rulebook)
+    return all(rulebook)
+
+
+def validate_locktime(lock_periods: int, raise_on_fail=True) -> bool:
+
+    rulebook = (
+
+        (MIN_LOCKED_PERIODS <= lock_periods ,
+         'Locktime ({locktime}) too short; must be at least {minimum}'
+         .format(minimum=MIN_LOCKED_PERIODS, locktime=lock_periods)),
+
+        (MAX_MINTING_PERIODS >= lock_periods,
+         'Locktime ({locktime}) too long; must be no more than {maximum}'
+         .format(maximum=MAX_MINTING_PERIODS, locktime=lock_periods)),
+    )
+
+    if raise_on_fail is True:
+        __validate(rulebook=rulebook)
+    return all(rulebook)
