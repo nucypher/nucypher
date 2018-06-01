@@ -28,20 +28,9 @@ class NucypherDHTServer(Server):
     capabilities = ()
     digests_set = 0
 
-    def __init__(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
-        super().__init__(ksize=20, alpha=3, id=None, storage=None, *args, **kwargs)
-        self.node = NucypherDHTNode(id or digest(
-            random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
-
-    def serialize_capabilities(self):
-        return [ServerCapability.stringify(capability) for capability in self.capabilities]
-
-    async def bootstrap_node(self, addr):
-        """
-        Announce node including capabilities
-        """
-        result = await self.protocol.ping(addr, self.node.id, self.serialize_capabilities())
-        return NucypherDHTNode(result[1], addr[0], addr[1]) if result[0] else None
+    def __init__(self, id=None, *args, **kwargs):
+        super().__init__(ksize=20, alpha=3, id=None, storage=None)
+        self.node = kademlia.node.Node(id=id or digest(random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
 
     async def set_digest(self, dkey, value):
         """
