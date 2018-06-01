@@ -97,4 +97,4 @@ class TestPolicyAuthor:
         _origin, ursula, alice, *everybody_else = chain.interface.w3.eth.accounts
 
         policy_author = PolicyAuthor(policy_agent=mock_policy_agent, address=alice)
-        assert policy_author.address == alice
+        assert policy_author.ether_address == alice

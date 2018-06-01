@@ -70,7 +70,7 @@ def test_alice_finds_ursula_via_rest(alice, ursulas):
     # Imagine alice knows of nobody.
     alice.known_nodes = {}
 
-    new_nodes = alice.learn_about_nodes(address="https://localhost", port=ursulas[0].rest_port)
+    new_nodes = alice.learn_about_nodes(rest_address="https://localhost", port=ursulas[0].rest_port)
     assert len(new_nodes) == len(ursulas)
 
     for ursula in ursulas:
