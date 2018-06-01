@@ -8,14 +8,8 @@ from eth_tester.backends.pyevm.main import get_default_genesis_params, get_defau
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import MinerAgent, NucypherTokenAgent
-from nucypher.blockchain.eth.constants import NucypherMinerConstants
+from constant_sorrow import constants
 from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherTokenDeployer
-
-
-class MockNucypherMinerConstants(NucypherMinerConstants):
-    """Speed things up a bit"""
-    # _hours_per_period = 24     # Hours
-    # min_locked_periods = 1     # Minimum locked periods
 
 
 class MockTokenAgent(NucypherTokenAgent):
@@ -38,7 +32,7 @@ class MockTokenAgent(NucypherTokenAgent):
         return receipts
 
 
-class MockMinerAgent(MinerAgent, MockNucypherMinerConstants):
+class MockMinerAgent(MinerAgent):
     """MinerAgent with faked config subclass"""
 
     def spawn_random_miners(self, addresses: list) -> list:
@@ -54,11 +48,11 @@ class MockMinerAgent(MinerAgent, MockNucypherMinerConstants):
             miners.append(miner)
 
             # stake a random amount
-            min_stake, balance = self.min_allowed_locked, miner.token_balance()
+            min_stake, balance = constants.MIN_ALLOWED_LOCKED, miner.token_balance()
             amount = random.randint(min_stake, balance)
 
             # for a random lock duration
-            min_locktime, max_locktime = self.min_locked_periods, self.max_minting_periods
+            min_locktime, max_locktime = constants.MIN_LOCKED_PERIODS, constants.MAX_MINTING_PERIODS
             periods = random.randint(min_locktime, max_locktime)
 
             miner.stake(amount=amount, lock_periods=periods)
@@ -71,7 +65,7 @@ class MockNucypherTokenDeployer(NucypherTokenDeployer):
     agency = MockTokenAgent
 
 
-class MockMinerEscrowDeployer(MinerEscrowDeployer, MockNucypherMinerConstants):
+class MockMinerEscrowDeployer(MinerEscrowDeployer):
     """Helper class for MockMinerAgent, using a mock miner config"""
     agency = MockMinerAgent
 
