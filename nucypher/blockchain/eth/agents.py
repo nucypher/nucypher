@@ -7,7 +7,7 @@ from web3.contract import Contract
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.constants import NucypherTokenConstants, NucypherMinerConstants
+from constant_sorrow import constants
 
 
 class EthereumContractAgent(ABC):
@@ -65,11 +65,11 @@ class EthereumContractAgent(ABC):
         return self.contract.functions.balanceOf(address).call()
 
 
-class NucypherTokenAgent(EthereumContractAgent, NucypherTokenConstants):
+class NucypherTokenAgent(EthereumContractAgent):
     _principal_contract_name = "NuCypherToken"
 
 
-class MinerAgent(EthereumContractAgent, NucypherMinerConstants):
+class MinerAgent(EthereumContractAgent):
     """
     Wraps NuCypher's Escrow solidity smart contract
 
