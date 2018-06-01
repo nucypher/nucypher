@@ -2,8 +2,10 @@ import distutils
 import itertools
 import os
 
+import solc
 from os.path import abspath, dirname
 from solc import install_solc, compile_files
+from solc.exceptions import SolcError
 
 
 class SolidityCompiler:
@@ -60,11 +62,13 @@ class SolidityCompiler:
                       "zeppelin={}".format(os.path.join(project_root, 'zeppelin')),
                       "proxy={}".format(os.path.join(project_root, 'proxy')),
                       )
-
-        compiled_sol = compile_files(source_files=source_paths,
-                                     import_remappings=remappings,
-                                     allow_paths=project_root,
-                                     optimize=10)
+        try:
+            compiled_sol = compile_files(source_files=source_paths,
+                                         import_remappings=remappings,
+                                         allow_paths=project_root,
+                                         optimize=10)
+        except SolcError as e:
+            raise
 
         # Cleanup the compiled data keys
         interfaces = {name.split(':')[-1]: compiled_sol[name] for name in compiled_sol}
