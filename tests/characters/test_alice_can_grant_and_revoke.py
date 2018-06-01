@@ -11,12 +11,13 @@ from bytestring_splitter import BytestringSplitter
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
 import maya
+from constant_sorrow import constants
 
 
 @pytest.mark.usefixtures('nucypher_test_config')
+@pytest.mark.usefixtures('deploy_nucypher_contracts')
+@pytest.mark.usefixtures('ethereum_airdrop')
 def test_grant(alice, bob, mock_miner_agent, mock_token_agent, chain):
-
-    mock_token_agent.token_airdrop(amount=100000 * mock_token_agent.M)
 
     _origin, ursula, *everybody_else = mock_miner_agent.blockchain.interface.w3.eth.accounts
     mock_miner_agent.spawn_random_miners(addresses=everybody_else)

@@ -6,13 +6,15 @@ import tempfile
 import pytest
 import shutil
 import time
+from constant_sorrow import constants
 from eth_tester import EthereumTester
 from geth import LoggingMixin, DevGethProcess
 from os.path import abspath, dirname
 from web3 import EthereumTesterProvider, IPCProvider
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.deployers import PolicyManagerDeployer
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
+from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import Registrar
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.configs import BlockchainConfig
@@ -171,6 +173,40 @@ def chain(deployer_interface, airdrop_ether=False):
         chain.ether_airdrop(amount=one_million_ether)
 
     yield chain
+
+
+@pytest.fixture(scope='module')
+def deploy_nucypher_contracts(chain):
+    """
+    Launch all ethereum contracts:
+    - NuCypherToken
+    - PolicyManager
+    - MinersEscrow
+    - UserEscrow
+    - Issuer
+    """
+
+    token_deployer = NucypherTokenDeployer(blockchain=chain)
+    token_deployer.arm()
+    token_deployer.deploy()
+
+    token_agent = NucypherTokenAgent(blockchain=chain)
+
+    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent)
+    miner_escrow_deployer.arm()
+    miner_escrow_deployer.deploy()
+
+    miner_agent = MinerAgent(token_agent=token_agent)
+
+    policy_manager_contract = PolicyManagerDeployer(miner_agent=miner_agent)
+    policy_manager_contract.arm()
+    policy_manager_contract.deploy()
+
+
+@pytest.fixture(scope='module')
+def ethereum_airdrop(mock_token_agent):
+    mock_token_agent.token_airdrop(amount=100000*constants.M)
+    yield
 
 # 
 # Deployers #
