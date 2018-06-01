@@ -450,6 +450,7 @@ def test_upgrade(web3, chain, escrow, policy_manager):
     assert event_args['successful']
 
 
+@pytest.mark.slow()
 def test_cancel_upgrading(web3, chain, escrow, policy_manager):
     creator = web3.eth.accounts[0]
     node1 = web3.eth.accounts[1]
