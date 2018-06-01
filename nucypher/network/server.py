@@ -9,7 +9,7 @@ from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
 
-from bytestring_splitter import VariableLengthBytestring
+from bytestring_splitter import VariableLengthBytestring, BytestringSplitter
 from umbral import pre
 from umbral.fragments import KFrag
 
@@ -21,6 +21,7 @@ from nucypher.network.node import NucypherNode
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, \
     dht_value_splitter, dht_with_hrac_splitter
 from nucypher.network.storage import SeedOnlyStorage
+from umbral.keys import UmbralPublicKey
 
 
 class NucypherDHTServer(Server):
@@ -202,16 +203,13 @@ class ProxyRESTServer(object):
         """
         hrac = binascii.unhexlify(hrac_as_hex)
         policy_message_kit = UmbralMessageKit.from_bytes(request.body)
-        # group_payload_splitter = BytestringSplitter(PublicKey)
-        # policy_payload_splitter = BytestringSplitter((KFrag, KFRAG_LENGTH))
 
         alice = self._alice_class.from_public_keys({SigningPower: policy_message_kit.sender_pubkey_sig})
-
         verified, cleartext = self.verify_from(alice, policy_message_kit, decrypt=True)
 
         if not verified:
             # TODO: What do we do if the Policy isn't signed properly?
-            pass
+            raise RuntimeError
         #
         # alices_signature, policy_payload =\
         #     BytestringSplitter(Signature)(cleartext, return_remainder=True)
@@ -219,7 +217,8 @@ class ProxyRESTServer(object):
         # TODO: If we're not adding anything else in the payload, stop using the
         # splitter here.
         # kfrag = policy_payload_splitter(policy_payload)[0]
-        kfrag = KFrag.from_bytes(cleartext)
+        splitter = BytestringSplitter(KFrag, UmbralPublicKey)
+        kfrag, bob_receiving_key = splitter(cleartext)
 
         # TODO: Verify this KFrag at this time.   #167
         # ...but where are we going to get Bob's public key?

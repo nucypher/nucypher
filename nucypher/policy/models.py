@@ -11,7 +11,7 @@ from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH
-from nucypher.crypto.powers import SigningPower, DelegatingPower
+from nucypher.crypto.powers import SigningPower, DelegatingPower, EncryptingPower
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
 from bytestring_splitter import BytestringSplitter
@@ -26,10 +26,10 @@ class Arrangement(BlockchainArrangement):
     """
     _EXPECTED_LENGTH = 106
     splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
-                                                              (bytes, 27), (bytes, 7))
+                                                 (bytes, 27), (bytes, 7))
 
     def __init__(self, alice, hrac, expiration, deposit=None, ursula=None,
-                 kfrag=constants.UNKNOWN_KFRAG, alices_signature=None):
+                 kfrag=constants.UNKNOWN_KFRAG, alices_signature=None, bob=None):
         """
         :param deposit: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
@@ -37,10 +37,11 @@ class Arrangement(BlockchainArrangement):
 
         Other params are hopefully self-evident.
         """
+        self.alice = alice
+        self.bob = bob
+        self.hrac = hrac
         self.expiration = expiration
         self.deposit = deposit
-        self.hrac = hrac
-        self.alice = alice
 
         """
         These will normally not be set if Alice is drawing up this arrangement - she hasn't assigned a kfrag yet
@@ -93,7 +94,7 @@ class Arrangement(BlockchainArrangement):
 
     def payload(self):
         # TODO: Ship the expiration again?  Or some other way of alerting Ursula to recall her previous dialogue regarding this Arrangement.  Update: We'll probably have her store the Arrangement by hrac.  See #127.
-        return bytes(self.kfrag)
+        return bytes(self.kfrag) + bytes(self.bob.public_key(EncryptingPower))
 
 
 class ArrangementResponse(object):
@@ -213,7 +214,8 @@ class Policy(object):
             if not self.alice.known_nodes:
                 raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
             for node in self.alice.known_nodes.values():
-                response = networky_stuff.push_treasure_map_to_node(node, map_id, constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
+                response = networky_stuff.push_treasure_map_to_node(node, map_id,
+                                                                    constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
                 # TODO: Do something here based on success or failure
                 if response.status_code == 204:
                     pass
@@ -231,9 +233,12 @@ class Policy(object):
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(arrangement.ursula)
 
-    def make_arrangement(self, deposit, expiration):
-        return Arrangement(self.alice, self.hrac(), expiration=expiration,
-                        deposit=deposit)
+    def make_arrangement(self, bob, deposit, expiration):
+        return Arrangement(alice=self.alice,
+                           bob=bob,
+                           hrac=self.hrac(),
+                           expiration=expiration,
+                           deposit=deposit)
 
     def find_ursulas(self, networky_stuff, deposit, expiration,
                      num_ursulas=None):
@@ -245,7 +250,9 @@ class Policy(object):
 
         found_ursulas = []
         while len(found_ursulas) < num_ursulas:
-            arrangement = self.make_arrangement(deposit, expiration)
+            arrangement = self.make_arrangement(bob=self.bob,
+                                                deposit=deposit,
+                                                expiration=expiration)
             try:
                 ursula, result = networky_stuff.find_ursula(arrangement)
                 found_ursulas.append((ursula, arrangement, result))
@@ -360,7 +367,8 @@ class WorkOrderHistory:
         if isinstance(item, bytes):
             return self.by_ursula.setdefault(item, {})
         else:
-            raise TypeError("If you want to lookup a WorkOrder by Ursula, you need to pass bytes of her signing public key.")
+            raise TypeError(
+                "If you want to lookup a WorkOrder by Ursula, you need to pass bytes of her signing public key.")
 
     def __setitem__(self, key, value):
         assert False
