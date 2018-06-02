@@ -121,6 +121,14 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
+    * @notice Set the minimum reward that the node will take
+    **/
+    function setMinRewardRate(uint256 _minRewardRate) public {
+        NodeInfo storage node = nodes[msg.sender];
+        node.minRewardRate = _minRewardRate;
+    }
+
+    /**
     * @notice Create policy by client
     * @dev Generate policy id before creation
     * @param _policyId Policy id
@@ -145,13 +153,13 @@ contract PolicyManager is Upgradeable {
         Policy storage policy = policies[_policyId];
         policy.client = msg.sender;
         uint256 currentPeriod = getCurrentPeriod();
-        policy.startPeriod = currentPeriod.add(uint(1));
+        policy.startPeriod = currentPeriod.add(uint256(1));
         policy.lastPeriod = currentPeriod.add(_numberOfPeriods);
         policy.rewardRate = msg.value.div(_nodes.length).sub(_firstReward).div(_numberOfPeriods);
         policy.firstReward = _firstReward;
         require(policy.rewardRate > _firstReward &&
             (_firstReward + policy.rewardRate * _numberOfPeriods) * _nodes.length  == msg.value);
-        uint256 endPeriod = policy.lastPeriod.add(uint(1));
+        uint256 endPeriod = policy.lastPeriod.add(uint256(1));
         uint256 startReward = policy.rewardRate - _firstReward;
 
         for (uint256 i = 0; i < _nodes.length; i++) {
@@ -200,154 +208,6 @@ contract PolicyManager is Upgradeable {
     }
 
     /**
-    * @notice Revoke policy by client
-    * @param _policyId Policy id
-    **/
-    function revokePolicy(bytes20 _policyId) public {
-        Policy storage policy = policies[_policyId];
-        require(policy.client == msg.sender && !policy.disabled);
-        uint256 refundValue = 0;
-        uint256 endPeriod = policy.lastPeriod.add(uint(1));
-        for (uint256 i = 0; i < policy.arrangements.length; i++) {
-            ArrangementInfo storage arrangement = policy.arrangements[i];
-            address node = arrangement.node;
-            if (node == RESERVED_NODE) {
-                continue;
-            }
-            uint256 nodeRefundValue = revokeArrangement(policy, arrangement, endPeriod);
-            refundValue = refundValue.add(nodeRefundValue);
-            emit ArrangementRevoked(_policyId, msg.sender, node, nodeRefundValue);
-        }
-        policy.disabled = true;
-        if (refundValue > 0) {
-            msg.sender.transfer(refundValue);
-        }
-        emit PolicyRevoked(_policyId, msg.sender, refundValue);
-    }
-
-    /**
-    * @notice Get arrangement info
-    * @param _policy Policy
-    * @param _node Node address
-    **/
-    function getArrangementInfo(Policy storage _policy, address _node)
-        internal view returns (ArrangementInfo storage arrangement)
-    {
-        for (uint256 i = 0; i < _policy.arrangements.length; i++) {
-            arrangement = _policy.arrangements[i];
-            if (arrangement.node == _node) {
-                return arrangement;
-            }
-        }
-        // if the arrangement is not found
-        revert();
-    }
-
-    /**
-    * @notice Revoke arrangement by client
-    * @param _policyId Policy id
-    * @param _node Node that will be excluded
-    **/
-    function revokeArrangement(bytes20 _policyId, address _node)
-        public returns (uint256 refundValue)
-    {
-        Policy storage policy = policies[_policyId];
-        require(_node != RESERVED_NODE &&
-            policy.client == msg.sender &&
-            !policy.disabled);
-        ArrangementInfo storage arrangement = getArrangementInfo(policy, _node);
-        uint256 endPeriod = policy.lastPeriod.add(uint(1));
-        refundValue = revokeArrangement(policy, arrangement, endPeriod);
-        if (refundValue > 0) {
-            msg.sender.transfer(refundValue);
-        }
-        emit ArrangementRevoked(_policyId, msg.sender, _node, refundValue);
-    }
-
-    /**
-    * @notice Revoke arrangement by client
-    * @param _policy Policy
-    * @param _arrangement Arrangement that will be excluded
-    * @param _endPeriod Pre-calculated end of period value
-    **/
-    function revokeArrangement(
-        Policy storage _policy,
-        ArrangementInfo storage _arrangement,
-        uint256 _endPeriod
-    )
-        internal returns (uint256 refundValue)
-    {
-        (refundValue, _arrangement.indexOfDowntimePeriods, _arrangement.lastRefundedPeriod) =
-                calculateRefundValue(_policy, _arrangement);
-        NodeInfo storage node = nodes[_arrangement.node];
-        node.rewardDelta[_arrangement.lastRefundedPeriod] =
-            node.rewardDelta[_arrangement.lastRefundedPeriod].sub(_policy.rewardRate);
-        node.rewardDelta[_endPeriod] = node.rewardDelta[_endPeriod].add(_policy.rewardRate);
-        refundValue = refundValue.add(
-            _endPeriod.sub(_arrangement.lastRefundedPeriod).mul(_policy.rewardRate));
-        _arrangement.node = RESERVED_NODE;
-    }
-
-    /**
-    * @notice Refund part of fee by client
-    * @param _policyId Policy id
-    **/
-    function refund(bytes20 _policyId) public {
-        Policy storage policy = policies[_policyId];
-        require(msg.sender == policy.client && !policy.disabled);
-        uint256 refundValue = 0;
-        uint256 numberOfActive = policy.arrangements.length;
-        for (uint256 i = 0; i < policy.arrangements.length; i++) {
-            ArrangementInfo storage arrangement = policy.arrangements[i];
-            address node = arrangement.node;
-            if (node == RESERVED_NODE) {
-                numberOfActive--;
-                continue;
-            }
-            uint256 nodeRefundValue;
-            (nodeRefundValue, arrangement.indexOfDowntimePeriods, arrangement.lastRefundedPeriod) =
-                calculateRefundValue(policy, arrangement);
-            if (arrangement.lastRefundedPeriod > policy.lastPeriod) {
-                arrangement.node = RESERVED_NODE;
-                numberOfActive--;
-            }
-            refundValue = refundValue.add(nodeRefundValue);
-            emit RefundForArrangement(_policyId, msg.sender, node, nodeRefundValue);
-        }
-        if (refundValue > 0) {
-            msg.sender.transfer(refundValue);
-        }
-        if (numberOfActive == 0) {
-            policy.disabled = true;
-        }
-        emit RefundForPolicy(_policyId, msg.sender, refundValue);
-    }
-
-    /**
-    * @notice Refund part of one node's fee by client
-    * @param _policyId Policy id
-    * @param _node Node address
-    **/
-    function refund(bytes20 _policyId, address _node)
-        public returns (uint256 refundValue)
-    {
-        Policy storage policy = policies[_policyId];
-        require(_node != RESERVED_NODE &&
-            msg.sender == policy.client &&
-            !policy.disabled);
-        ArrangementInfo storage arrangement = getArrangementInfo(policy, _node);
-        (refundValue, arrangement.indexOfDowntimePeriods, arrangement.lastRefundedPeriod) =
-            calculateRefundValue(policy, arrangement);
-        if (arrangement.lastRefundedPeriod > policy.lastPeriod) {
-            arrangement.node = RESERVED_NODE;
-        }
-        if (refundValue > 0) {
-            msg.sender.transfer(refundValue);
-        }
-        emit RefundForArrangement(_policyId, msg.sender, _node, refundValue);
-    }
-
-    /**
     * @notice Calculate amount of refund
     * @param _policy Policy
     * @param _arrangement Arrangement
@@ -373,7 +233,7 @@ contract PolicyManager is Upgradeable {
             downtimePeriods = downtimePeriods.add(
                 Math.min256(maxPeriod, endPeriod)
                 .sub(Math.max256(minPeriod, startPeriod))
-                .add(uint(1)));
+                .add(uint256(1)));
             if (maxPeriod <= endPeriod) {
                 break;
             }
@@ -383,7 +243,7 @@ contract PolicyManager is Upgradeable {
         if (indexOfDowntimePeriods == length && lastActivePeriod < maxPeriod) {
             downtimePeriods = downtimePeriods.add(
                 maxPeriod.sub(Math.max256(
-                    minPeriod.sub(uint(1)), lastActivePeriod)));
+                    minPeriod.sub(uint256(1)), lastActivePeriod)));
         }
 
         // check activity for the first period
@@ -398,7 +258,144 @@ contract PolicyManager is Upgradeable {
             }
         }
         refundValue = refundValue.add(_policy.rewardRate.mul(downtimePeriods));
-        lastRefundedPeriod = maxPeriod.add(uint(1));
+        lastRefundedPeriod = maxPeriod.add(uint256(1));
+    }
+
+    /**
+    * @notice Revoke/refund arrangement/policy by the client
+    * @param _policyId Policy id
+    * @param _node Node that will be excluded or RESERVED_NODE if full policy should be used
+    ( @param _forceRevoke Force revoke arrangement/policy
+    **/
+    function refundInternal(bytes20 _policyId, address _node, bool _forceRevoke)
+        internal returns (uint256 refundValue)
+    {
+        Policy storage policy = policies[_policyId];
+        require(policy.client == msg.sender && !policy.disabled);
+        uint256 endPeriod = policy.lastPeriod.add(uint256(1));
+        uint256 numberOfActive = policy.arrangements.length;
+        for (uint256 i = 0; i < policy.arrangements.length; i++) {
+            ArrangementInfo storage arrangement = policy.arrangements[i];
+            address node = arrangement.node;
+            if (node == RESERVED_NODE || _node != RESERVED_NODE && _node != node) {
+                numberOfActive--;
+                continue;
+            }
+            uint256 nodeRefundValue;
+            (nodeRefundValue, arrangement.indexOfDowntimePeriods, arrangement.lastRefundedPeriod) =
+                calculateRefundValue(policy, arrangement);
+            if (_forceRevoke) {
+                NodeInfo storage nodeInfo = nodes[node];
+                nodeInfo.rewardDelta[arrangement.lastRefundedPeriod] =
+                    nodeInfo.rewardDelta[arrangement.lastRefundedPeriod].sub(policy.rewardRate);
+                nodeInfo.rewardDelta[endPeriod] = nodeInfo.rewardDelta[endPeriod].add(policy.rewardRate);
+                nodeRefundValue = nodeRefundValue.add(
+                    endPeriod.sub(arrangement.lastRefundedPeriod).mul(policy.rewardRate));
+            }
+            if (_forceRevoke || arrangement.lastRefundedPeriod > policy.lastPeriod) {
+                arrangement.node = RESERVED_NODE;
+                numberOfActive--;
+                emit ArrangementRevoked(_policyId, msg.sender, node, nodeRefundValue);
+            } else {
+                emit RefundForArrangement(_policyId, msg.sender, node, nodeRefundValue);
+            }
+
+            refundValue = refundValue.add(nodeRefundValue);
+            if (_node != RESERVED_NODE) {
+               break;
+            }
+        }
+        if (refundValue > 0) {
+            msg.sender.transfer(refundValue);
+        }
+        if (_node == RESERVED_NODE) {
+            if (numberOfActive == 0) {
+                policy.disabled = true;
+                emit PolicyRevoked(_policyId, msg.sender, refundValue);
+            } else {
+                emit RefundForPolicy(_policyId, msg.sender, refundValue);
+            }
+        } else {
+            // arrangement not found
+            require(i < policy.arrangements.length);
+        }
+    }
+
+    /**
+    * @notice Calculate amount of refund
+    * @param _policyId Policy id
+    * @param _node Node or RESERVED_NODE if all nodes should be used
+    **/
+    function calculateRefundValueInternal(bytes20 _policyId, address _node)
+        internal view returns (uint256 refundValue)
+    {
+        Policy storage policy = policies[_policyId];
+        require(msg.sender == policy.client && !policy.disabled);
+        for (uint256 i = 0; i < policy.arrangements.length; i++) {
+            ArrangementInfo storage arrangement = policy.arrangements[i];
+            if (arrangement.node == RESERVED_NODE || _node != RESERVED_NODE && _node != arrangement.node) {
+                continue;
+            }
+            (uint256 nodeRefundValue,,) = calculateRefundValue(policy, arrangement);
+            refundValue = refundValue.add(nodeRefundValue);
+            if (_node != RESERVED_NODE) {
+               break;
+            }
+        }
+        if (_node != RESERVED_NODE) {
+            // arrangement not found
+            require(i < policy.arrangements.length);
+        }
+    }
+
+    /**
+    * @notice Revoke policy by client
+    * @param _policyId Policy id
+    **/
+    function revokePolicy(bytes20 _policyId) public {
+        refundInternal(_policyId, RESERVED_NODE, true);
+    }
+
+    /**
+    * @notice Revoke arrangement by client
+    * @param _policyId Policy id
+    * @param _node Node that will be excluded
+    **/
+    function revokeArrangement(bytes20 _policyId, address _node)
+        public returns (uint256 refundValue)
+    {
+        require(_node != RESERVED_NODE);
+        return refundInternal(_policyId, _node, true);
+    }
+
+    /**
+    * @notice Refund part of fee by client
+    * @param _policyId Policy id
+    **/
+    function refund(bytes20 _policyId) public {
+        refundInternal(_policyId, RESERVED_NODE, false);
+    }
+
+    /**
+    * @notice Refund part of one node's fee by client
+    * @param _policyId Policy id
+    * @param _node Node address
+    **/
+    function refund(bytes20 _policyId, address _node)
+        public returns (uint256 refundValue)
+    {
+        require(_node != RESERVED_NODE);
+        return refundInternal(_policyId, _node, false);
+    }
+
+    /**
+    * @notice Calculate amount of refund
+    * @param _policyId Policy id
+    **/
+    function calculateRefundValue(bytes20 _policyId)
+        external view returns (uint256 refundValue)
+    {
+        return calculateRefundValueInternal(_policyId, RESERVED_NODE);
     }
 
     /**
@@ -409,39 +406,8 @@ contract PolicyManager is Upgradeable {
     function calculateRefundValue(bytes20 _policyId, address _node)
         external view returns (uint256 refundValue)
     {
-        Policy storage policy = policies[_policyId];
-        require(_node != RESERVED_NODE &&
-            msg.sender == policy.client &&
-            !policy.disabled);
-        ArrangementInfo storage arrangement = getArrangementInfo(policy, _node);
-        (refundValue,,) = calculateRefundValue(policy, arrangement);
-    }
-
-    /**
-    * @notice Calculate amount of refund
-    * @param _policyId Policy id
-    **/
-    function calculateRefundValue(bytes20 _policyId)
-        external view returns (uint256 refundValue)
-    {
-        Policy storage policy = policies[_policyId];
-        require(msg.sender == policy.client && !policy.disabled);
-        for (uint256 i = 0; i < policy.arrangements.length; i++) {
-            ArrangementInfo storage arrangement = policy.arrangements[i];
-            if (arrangement.node == RESERVED_NODE) {
-                continue;
-            }
-            (uint256 nodeRefundValue,,) = calculateRefundValue(policy, arrangement);
-            refundValue = refundValue.add(nodeRefundValue);
-        }
-    }
-
-    /**
-    * @notice Set the minimum reward that the node will take
-    **/
-    function setMinRewardRate(uint256 _minRewardRate) public {
-        NodeInfo storage node = nodes[msg.sender];
-        node.minRewardRate = _minRewardRate;
+        require(_node != RESERVED_NODE);
+        return calculateRefundValueInternal(_policyId, _node);
     }
 
     /**

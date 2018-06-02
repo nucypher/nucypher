@@ -463,10 +463,8 @@ def test_refund(web3, chain, escrow, policy_manager):
     chain.wait_for_receipt(tx)
     assert 210 == web3.eth.getBalance(policy_manager.address)
     assert client_balance - 210 == web3.eth.getBalance(client)
-    assert 190 == policy_manager.functions.calculateRefundValue(policy_id).call({'from': client})
     assert 190 == policy_manager.functions.calculateRefundValue(policy_id, node1).call({'from': client})
     assert 190 == policy_manager.functions.calculateRefundValue(policy_id).call({'from': client})
-    assert 190 == policy_manager.functions.calculateRefundValue(policy_id, node1).call({'from': client})
     tx = policy_manager.functions.refund(policy_id).transact({'from': client, 'gas_price': 0})
     chain.wait_for_receipt(tx)
     assert 20 == web3.eth.getBalance(policy_manager.address)
@@ -498,16 +496,20 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert policy_manager.functions.policies(policy_id).call()[DISABLED_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
-    assert 2 == len(events)
-    event_args = events[1]['args']
+    assert 1 == len(events)
+    events = arrangement_revoked_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
     assert policy_id == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
     assert 20 == event_args['value']
 
     events = policy_refund_log.get_all_entries()
-    assert 2 == len(events)
-    event_args = events[1]['args']
+    assert 1 == len(events)
+    events = policy_revoked_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
     assert policy_id == event_args['policyId']
     assert client == event_args['client']
     assert 20 == event_args['value']
@@ -549,34 +551,34 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert client_balance - int(3 * value + 1.5 * rate) == web3.eth.getBalance(client)
 
     events = arrangement_refund_log.get_all_entries()
-    assert 6 == len(events)
-    event_args = events[2]['args']
+    assert 5 == len(events)
+    event_args = events[1]['args']
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
     assert 0 == event_args['value']
 
-    event_args = events[3]['args']
+    event_args = events[2]['args']
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node2 == event_args['node']
     assert 0 == event_args['value']
 
-    event_args = events[4]['args']
+    event_args = events[3]['args']
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node3 == event_args['node']
     assert 0 == event_args['value']
 
-    event_args = events[5]['args']
+    event_args = events[4]['args']
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
     assert 0 == event_args['value']
-    events = policy_refund_log.get_all_entries()
-    assert 3 == len(events)
 
-    event_args = events[2]['args']
+    events = policy_refund_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert 0 == event_args['value']
@@ -623,15 +625,17 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert not policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
-    assert 7 == len(events)
-    event_args = events[6]['args']
+    assert 5 == len(events)
+    events = arrangement_revoked_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
     assert 120 == event_args['value']
 
     events = policy_refund_log.get_all_entries()
-    assert 3 == len(events)
+    assert 2 == len(events)
 
     # Can't refund arrangement again
     with pytest.raises((TransactionFailed, ValueError)):
@@ -656,22 +660,26 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert policy_manager.functions.policies(policy_id_2).call()[DISABLED_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
-    assert 9 == len(events)
-    event_args = events[7]['args']
+    assert 5 == len(events)
+    events = arrangement_revoked_log.get_all_entries()
+    assert 4 == len(events)
+    event_args = events[2]['args']
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node2 == event_args['node']
     assert 120 == event_args['value']
 
-    event_args = events[8]['args']
+    event_args = events[3]['args']
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert node3 == event_args['node']
     assert 120 == event_args['value']
 
     events = policy_refund_log.get_all_entries()
-    assert 4 == len(events)
-    event_args = events[3]['args']
+    assert 2 == len(events)
+    events = policy_revoked_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
     assert 2 * 120 == event_args['value']
@@ -705,21 +713,21 @@ def test_refund(web3, chain, escrow, policy_manager):
     assert policy_manager.functions.policies(policy_id_3).call()[DISABLED_FIELD]
 
     events = arrangement_refund_log.get_all_entries()
-    assert 9 == len(events)
+    assert 5 == len(events)
     events = policy_refund_log.get_all_entries()
-    assert 4 == len(events)
+    assert 2 == len(events)
 
     events = arrangement_revoked_log.get_all_entries()
-    assert 1 == len(events)
-    event_args = events[0]['args']
+    assert 5 == len(events)
+    event_args = events[4]['args']
     assert policy_id_3 == event_args['policyId']
     assert client == event_args['client']
     assert node1 == event_args['node']
     assert 150 == event_args['value']
 
     events = policy_revoked_log.get_all_entries()
-    assert 1 == len(events)
-    event_args = events[0]['args']
+    assert 3 == len(events)
+    event_args = events[2]['args']
     assert policy_id_3 == event_args['policyId']
     assert client == event_args['client']
     assert 150 == event_args['value']

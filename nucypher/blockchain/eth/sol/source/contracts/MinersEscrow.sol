@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -116,7 +116,8 @@ contract MinersEscrow is Issuer {
             _awardedPeriods
         )
     {
-        require(_minLockedPeriods != 0 && _maxAllowableLockedTokens != 0);
+        // constant `1` in the expression `_minLockedPeriods > 1` uses to simplify the `lock` method
+        require(_minLockedPeriods > 1 && _maxAllowableLockedTokens != 0);
         minLockedPeriods = _minLockedPeriods;
         minAllowableLockedTokens = _minAllowableLockedTokens;
         maxAllowableLockedTokens = _maxAllowableLockedTokens;
@@ -212,7 +213,7 @@ contract MinersEscrow is Issuer {
             uint256 value = _values[i];
             uint256 periods = _periods[i];
             MinerInfo storage info = minerInfo[miner];
-            require(info.value == 0 &&
+            require(info.stakes.length == 0 &&
                 value >= minAllowableLockedTokens &&
                 value <= maxAllowableLockedTokens &&
                 periods >= minLockedPeriods);
@@ -314,27 +315,22 @@ contract MinersEscrow is Issuer {
     * @param _periods Amount of periods during which tokens will be locked
     **/
     function lock(address _owner, uint256 _value, uint256 _periods) internal {
-        require(_value != 0 || _periods != 0);
+        require(_value <= token.balanceOf(address(this)) &&
+            _value >= minAllowableLockedTokens &&
+            _periods >= minLockedPeriods);
         uint256 lastActivePeriod = getLastActivePeriod(_owner);
         mint(_owner);
 
         uint256 lockedTokens = getLockedTokens(_owner, 1);
         MinerInfo storage info = minerInfo[_owner];
-        require(_value <= token.balanceOf(address(this)) &&
-            _value <= info.value.sub(lockedTokens) &&
-            _value >= minAllowableLockedTokens &&
-            _value.add(lockedTokens) <= maxAllowableLockedTokens &&
-            _periods >= minLockedPeriods);
+        require(_value.add(lockedTokens) <= info.value &&
+            _value.add(lockedTokens) <= maxAllowableLockedTokens);
 
         uint256 nextPeriod = getCurrentPeriod().add(uint256(1));
         if (info.confirmedPeriod1 != nextPeriod && info.confirmedPeriod2 != nextPeriod) {
             info.stakes.push(StakeInfo(nextPeriod, 0, _periods, _value));
         } else {
-            if (_periods == 1) {
-                info.stakes.push(StakeInfo(nextPeriod, nextPeriod, 0, _value));
-            } else {
-                info.stakes.push(StakeInfo(nextPeriod, 0, _periods - 1, _value));
-            }
+            info.stakes.push(StakeInfo(nextPeriod, 0, _periods - 1, _value));
         }
 
         confirmActivity(_owner, _value + lockedTokens, _value, lastActivePeriod);
@@ -364,9 +360,8 @@ contract MinersEscrow is Issuer {
         uint256 startPeriod = getStartPeriod(info, currentPeriod);
         for (uint256 index = 0; index < info.stakes.length; index++) {
             StakeInfo storage stake = info.stakes[index];
-            uint256 lastPeriod = getLastPeriod(stake, startPeriod);
             if (stake.lockedValue == _oldValue &&
-                lastPeriod == _lastPeriod) {
+                getLastPeriod(stake, startPeriod) == _lastPeriod) {
                 break;
             }
         }
@@ -376,7 +371,7 @@ contract MinersEscrow is Issuer {
         require(stake.lockedValue >= minAllowableLockedTokens);
         info.stakes.push(StakeInfo(stake.firstPeriod, 0, stake.periods.add(_periods), _newValue));
         // if the next period is confirmed and old stake is finishing in the current period then rerun confirmActivity
-        if (lastPeriod == currentPeriod && startPeriod > currentPeriod) {
+        if (_lastPeriod == currentPeriod && startPeriod > currentPeriod) {
             confirmActivity(msg.sender, _newValue, _newValue, 0);
         }
         emit Divided(msg.sender, _oldValue, _lastPeriod, _newValue, _periods);
@@ -491,7 +486,7 @@ contract MinersEscrow is Issuer {
     **/
     function mint(address _owner) internal {
         uint256 startPeriod = getCurrentPeriod();
-        uint256 previousPeriod = startPeriod.sub(uint(1));
+        uint256 previousPeriod = startPeriod.sub(uint256(1));
         MinerInfo storage info = minerInfo[_owner];
 
         if (info.confirmedPeriod1 > previousPeriod &&
