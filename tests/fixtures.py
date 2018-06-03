@@ -11,10 +11,6 @@ from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.characters import Alice, Bob
 
 from nucypher.config.configs import NucypherConfig
-from nucypher.crypto.signature import SignatureStamp
-
-from nucypher.keystore import keystore
-from nucypher.keystore.db import Base
 
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
