@@ -67,7 +67,14 @@ class SolidityCompiler:
                                          import_remappings=remappings,
                                          allow_paths=project_root,
                                          optimize=10)
-        except SolcError as e:
+        except FileNotFoundError:
+            raise RuntimeError("The solidity compiler is not at the specified path. "
+                               "Check that the file exists and is executable.")
+        except PermissionError:
+            raise RuntimeError("The solidity compiler binary at {} is not executable. "
+                               "Check the file's permissions.".format(self.__sol_binary_path))
+
+        except SolcError:
             raise
 
         # Cleanup the compiled data keys
