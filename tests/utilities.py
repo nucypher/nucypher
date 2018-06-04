@@ -5,7 +5,6 @@ from apistar.test import TestClient
 from nucypher.characters import Ursula
 from nucypher.config.configs import NucypherConfig
 from nucypher.network.node import NetworkyStuff
-from nucypher.policy.models import ArrangementResponse
 
 NUMBER_OF_URSULAS_IN_NETWORK = 6
 
@@ -46,13 +45,6 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int, config: Nucyp
     return URSULAS
 
 
-class MockArrangementResponse(ArrangementResponse):
-    was_accepted = True
-
-    def __bytes__(self):
-        return b"This is a arrangement response; we have no idea what the bytes repr will be."
-
-
 class MockNetworkyStuff(NetworkyStuff):
 
     def __init__(self, ursulas):
@@ -70,7 +62,7 @@ class MockNetworkyStuff(NetworkyStuff):
         mock_client = TestClient(ursula.rest_app)
         response = mock_client.post("http://localhost/consider_arrangement", bytes(arrangement))
         assert response.status_code == 200
-        return ursula, MockArrangementResponse()
+        return ursula, b"This is a arrangement response; we have no idea what the bytes repr will be."
 
     def enact_policy(self, ursula, hrac, payload):
         rest_app = self._get_rest_app_by_port(ursula.rest_port)

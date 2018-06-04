@@ -180,7 +180,6 @@ class ProxyRESTServer(object):
         with ThreadedSession(self.db_engine) as session:
             new_policyarrangement = self.datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
-                bytes(arrangement.deposit),
                 hrac=arrangement.hrac.hex().encode(),
                 alice_pubkey_sig=arrangement.alice.stamp,
                 session=session,
