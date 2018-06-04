@@ -113,6 +113,9 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, bob,
 
     # Attach the CFrag to the Capsule.
     capsule = capsule_side_channel[0].capsule
+    capsule.set_correctness_keys(delegating=enacted_policy.public_key,
+                                 receiving=bob.public_key(EncryptingPower),
+                                 verifying=alice.stamp.as_umbral_pubkey())
     capsule.attach_cfrag(the_cfrag)
 
     # Having received the cFrag, Bob also saved the WorkOrder as complete.
@@ -139,7 +142,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, bob,
     assert the_correct_cfrag.verify_correctness(capsule,
                                                 delegating_pubkey=enacted_policy.public_key,
                                                 signing_pubkey=alice.stamp.as_umbral_pubkey(),
-                                                encrypting_pubkey=bob.public_key(EncryptingPower))
+                                                receiving_pubkey=bob.public_key(EncryptingPower))
 
     # Now we'll show that Ursula saved the correct WorkOrder.
     work_orders_from_bob = ursula.work_orders(bob=bob)

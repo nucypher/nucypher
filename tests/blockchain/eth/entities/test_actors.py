@@ -31,6 +31,7 @@ class TestMiner:
         chain.time_travel(periods=1)
         assert mock_miner_agent.contract.functions.getLockedTokens(miner.address).call() == mock_miner_agent.min_allowed_locked
 
+
     @pytest.mark.slow()
     @pytest.mark.usefixtures("mock_policy_agent")
     def test_miner_collects_staking_reward_tokens(self, chain, miner, mock_token_agent, mock_miner_agent):
