@@ -1,7 +1,7 @@
 from nucypher.blockchain.eth.actors import PolicyAuthor
 
 from nucypher.blockchain.eth.actors import Miner
-from nucypher.policy.models import Arrangement
+from nucypher.policy.models import Arrangement, Policy
 
 
 class BlockchainArrangement(Arrangement):
@@ -64,7 +64,7 @@ class BlockchainArrangement(Arrangement):
         return txhash
 
 
-class BlockchainPolicy:
+class BlockchainPolicy(Policy):
     """
     A collection of n BlockchainArrangements representing a single Policy
     """
