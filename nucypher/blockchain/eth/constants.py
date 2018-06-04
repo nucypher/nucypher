@@ -9,8 +9,7 @@ those values are then required to be compatible with the rest of the network.
 
 from constant_sorrow.constants import (NULL_ADDRESS, TOKEN_SATURATION, MINING_COEFFICIENT, TOKEN_SUPPLY,
                                        M, HOURS_PER_PERIOD, MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS,
-                                       MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED,
-                                       )
+                                       MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, )
 
 
 #
