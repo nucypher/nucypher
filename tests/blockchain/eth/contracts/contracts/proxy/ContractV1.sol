@@ -128,7 +128,7 @@ contract ContractV1 is ContractInterface, Upgradeable {
         require(uint(delegateGet(_testTarget, "storageValue()")) == storageValue);
         bytes memory value = delegateGetBytes(_testTarget, "dynamicallySizedValue()");
         require(value.length == bytes(dynamicallySizedValue).length &&
-            keccak256(bytes(value)) == keccak256(bytes(dynamicallySizedValue)));
+            keccak256(value) == keccak256(bytes(dynamicallySizedValue)));
 
         require(uint(delegateGet(_testTarget, "getArrayValueLength()")) == arrayValues.length);
         for (uint i = 0; i < arrayValues.length; i++) {

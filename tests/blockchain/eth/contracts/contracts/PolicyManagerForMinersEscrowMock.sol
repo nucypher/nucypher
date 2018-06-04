@@ -16,6 +16,10 @@ contract PolicyManagerForMinersEscrowMock {
         escrow = _escrow;
     }
 
+    function register(address _node, uint256 _period) external {
+        nodes[_node].push(_period);
+    }
+
     /**
     * @notice Update node info
     **/

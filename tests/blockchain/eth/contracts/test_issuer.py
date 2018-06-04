@@ -40,23 +40,23 @@ def test_issuer(web3, chain, token):
         chain.wait_for_receipt(tx)
 
     # Mint some tokens
-    tx = issuer.functions.testMint(0, 1000, 2000, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(0, 1000, 2000, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 10 == token.functions.balanceOf(ursula).call()
     assert balance - 10 == token.functions.balanceOf(issuer.address).call()
 
     # Mint more tokens
-    tx = issuer.functions.testMint(0, 500, 500, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(0, 500, 500, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 30 == token.functions.balanceOf(ursula).call()
     assert balance - 30 == token.functions.balanceOf(issuer.address).call()
 
-    tx = issuer.functions.testMint(0, 500, 500, 10 ** 7, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(0, 500, 500, 10 ** 7).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 70 == token.functions.balanceOf(ursula).call()
     assert balance - 70 == token.functions.balanceOf(issuer.address).call()
 
-    tx = issuer.functions.testMint(0, 500, 500, 2 * 10 ** 7, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(0, 500, 500, 2 * 10 ** 7).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 110 == token.functions.balanceOf(ursula).call()
     assert balance - 110 == token.functions.balanceOf(issuer.address).call()
@@ -80,28 +80,28 @@ def test_inflation_rate(web3, chain, token):
 
     # Mint some tokens
     period = issuer.functions.getCurrentPeriod().call()
-    tx = issuer.functions.testMint(period + 1, 1, 1, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(period + 1, 1, 1, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     one_period = token.functions.balanceOf(ursula).call()
 
     # Mint more tokens in the same period
-    tx = issuer.functions.testMint(period + 1, 1, 1, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(period + 1, 1, 1, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 2 * one_period == token.functions.balanceOf(ursula).call()
 
     # Mint tokens in the next period
-    tx = issuer.functions.testMint(period + 2, 1, 1, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(period + 2, 1, 1, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 3 * one_period > token.functions.balanceOf(ursula).call()
     minted_amount = token.functions.balanceOf(ursula).call() - 2 * one_period
 
     # Mint tokens in the next period
-    tx = issuer.functions.testMint(period + 1, 1, 1, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(period + 1, 1, 1, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 2 * one_period + 2 * minted_amount == token.functions.balanceOf(ursula).call()
 
     # Mint tokens in the next period
-    tx = issuer.functions.testMint(period + 3, 1, 1, 0, 0).transact({'from': ursula})
+    tx = issuer.functions.testMint(period + 3, 1, 1, 0).transact({'from': ursula})
     chain.wait_for_receipt(tx)
     assert 2 * one_period + 3 * minted_amount > token.functions.balanceOf(ursula).call()
 
@@ -140,7 +140,7 @@ def test_verifying_state(web3, chain, token):
     assert 2 == contract.functions.lockedPeriodsCoefficient().call()
     assert 2 == contract.functions.awardedPeriods().call()
     assert period == contract.functions.lastMintedPeriod().call()
-    assert 2 * 10 ** 40 == contract.functions.futureSupply().call()
+    assert 2 * 10 ** 40 == contract.functions.totalSupply().call()
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert 3 == contract.functions.valueToCheck().call()
@@ -163,7 +163,7 @@ def test_verifying_state(web3, chain, token):
     assert 1 == contract.functions.lockedPeriodsCoefficient().call()
     assert 1 == contract.functions.awardedPeriods().call()
     assert period == contract.functions.lastMintedPeriod().call()
-    assert 2 * 10 ** 40 == contract.functions.futureSupply().call()
+    assert 2 * 10 ** 40 == contract.functions.totalSupply().call()
     with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.functions.setValueToCheck(2).transact({'from': creator})
         chain.wait_for_receipt(tx)

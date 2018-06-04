@@ -17,31 +17,14 @@ contract MinersEscrowForPolicyMock {
 
     PolicyManager public policyManager;
     uint256 public secondsPerPeriod;
-    mapping(address => bool) public nodes;
     uint256 public lastActivePeriod;
     Downtime[] public downtime;
 
     /**
-    * @param _nodes Addresses of nodes that allow to use policy manager
     * @param _hoursPerPeriod Size of period in hours
     **/
-    constructor(address[] _nodes, uint256 _hoursPerPeriod) public {
-        for (uint256 i = 0; i < _nodes.length; i++) {
-            nodes[_nodes[i]] = true;
-        }
+    constructor(uint256 _hoursPerPeriod) public {
         secondsPerPeriod = _hoursPerPeriod * 1 hours;
-    }
-
-    /**
-    * @notice Return non zero value for node
-    **/
-    function getLockedTokens(address _owner)
-        public view returns (uint256)
-    {
-        if (nodes[_owner]) {
-            return 1;
-        }
-        return 0;
     }
 
     /**
@@ -102,11 +85,16 @@ contract MinersEscrowForPolicyMock {
     }
 
     /**
-    * @notice Emulate minerInfo
+    * @notice Emulate getLastActivePeriod
     **/
-    function minerInfo(address)
-        public view returns (uint256, uint256, uint256, uint256, uint256 result)
-    {
-        result = lastActivePeriod;
+    function getLastActivePeriod(address) public view returns (uint256) {
+        return lastActivePeriod;
+    }
+
+    /**
+    * @notice Emulate node registration
+    **/
+    function register(address _node) external {
+        policyManager.register(_node, getCurrentPeriod() - 1);
     }
 }

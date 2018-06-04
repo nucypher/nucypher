@@ -37,7 +37,7 @@ def test_dispatcher(web3, chain):
 
     # Only owner can change target address for dispatcher
     with pytest.raises((TransactionFailed, ValueError)):
-        tx =  dispatcher.functions.upgrade(contract2_lib.address).transact({'from': account})
+        tx = dispatcher.functions.upgrade(contract2_lib.address).transact({'from': account})
         chain.wait_for_receipt(tx)
     assert dispatcher.functions.target().call() == contract1_lib.address
 

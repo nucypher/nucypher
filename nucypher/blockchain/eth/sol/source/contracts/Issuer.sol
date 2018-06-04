@@ -23,7 +23,7 @@ contract Issuer is Upgradeable {
     uint256 public awardedPeriods;
 
     uint256 public lastMintedPeriod;
-    uint256 public futureSupply;
+    uint256 public totalSupply;
     /**
     * Current supply is used in the mining formula and is stored to prevent different calculation
     * for miners which get reward in the same period. There are two values -
@@ -37,7 +37,7 @@ contract Issuer is Upgradeable {
     /**
     * @notice Constructor sets address of token contract and coefficients for mining
     * @dev Formula for mining in one period
-    (futureSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
+    (totalSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
     if allLockedPeriods > awardedPeriods then allLockedPeriods = awardedPeriods
     * @param _token Token contract
     * @param _hoursPerPeriod Size of period in hours
@@ -88,9 +88,9 @@ contract Issuer is Upgradeable {
     function initialize() public {
         require(currentSupply1 == 0);
         lastMintedPeriod = getCurrentPeriod();
-        futureSupply = token.totalSupply();
+        totalSupply = token.totalSupply();
         uint256 reservedReward = token.balanceOf(address(this));
-        uint256 currentTotalSupply = futureSupply.sub(reservedReward);
+        uint256 currentTotalSupply = totalSupply.sub(reservedReward);
         currentSupply1 = currentTotalSupply;
         currentSupply2 = currentTotalSupply;
         emit Initialized(reservedReward);
@@ -102,32 +102,31 @@ contract Issuer is Upgradeable {
     * @param _lockedValue The amount of tokens that were locked by user in specified period.
     * @param _totalLockedValue The amount of tokens that were locked by all users in specified period.
     * @param _allLockedPeriods The max amount of periods during which tokens will be locked after specified period.
-    * @param _decimals The amount of locked tokens and blocks in decimals.
     * @return Amount of minted tokens.
     */
-    // TODO decimals
     function mint(
         uint256 _period,
         uint256 _lockedValue,
         uint256 _totalLockedValue,
-        uint256 _allLockedPeriods,
-        uint256 _decimals
+        uint256 _allLockedPeriods
     )
-        internal returns (uint256 amount, uint256 decimals)
+        internal returns (uint256 amount)
     {
-        // TODO finish method before calculation after end of mining
         uint256 currentSupply = _period <= lastMintedPeriod ?
             Math.min256(currentSupply1, currentSupply2) :
             Math.max256(currentSupply1, currentSupply2);
+        if (currentSupply == totalSupply) {
+            return;
+        }
 
-        //futureSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2) -
+        //totalSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2) -
         //currentSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
         uint256 allLockedPeriods = (_allLockedPeriods <= awardedPeriods ?
             _allLockedPeriods : awardedPeriods)
             .add(lockedPeriodsCoefficient);
         uint256 denominator = _totalLockedValue.mul(miningCoefficient);
         amount =
-            futureSupply
+            totalSupply
                 .mul(_lockedValue)
                 .mul(allLockedPeriods)
                 .div(denominator).sub(
@@ -135,7 +134,10 @@ contract Issuer is Upgradeable {
                 .mul(_lockedValue)
                 .mul(allLockedPeriods)
                 .div(denominator));
-        decimals = _decimals;
+        // rounding the last reward
+        if (amount == 0) {
+            amount = 1;
+        }
 
         if (_period <= lastMintedPeriod) {
             if (currentSupply1 > currentSupply2) {
@@ -162,7 +164,7 @@ contract Issuer is Upgradeable {
         require(uint256(delegateGet(_testTarget, "lastMintedPeriod()")) == lastMintedPeriod);
         require(uint256(delegateGet(_testTarget, "currentSupply1()")) == currentSupply1);
         require(uint256(delegateGet(_testTarget, "currentSupply2()")) == currentSupply2);
-        require(uint256(delegateGet(_testTarget, "futureSupply()")) == futureSupply);
+        require(uint256(delegateGet(_testTarget, "totalSupply()")) == totalSupply);
     }
 
     function finishUpgrade(address _target) public onlyOwner {

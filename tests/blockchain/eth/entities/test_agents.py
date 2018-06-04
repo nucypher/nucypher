@@ -6,6 +6,7 @@ M = 10 ** 6
 
 
 @pytest.mark.slow()
+@pytest.mark.usefixtures("mock_policy_agent")
 def test_get_swarm(chain, mock_token_agent, mock_miner_agent):
 
     mock_token_agent.token_airdrop(amount=100000 * mock_token_agent.M)

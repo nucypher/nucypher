@@ -32,17 +32,15 @@ contract IssuerMock is Issuer {
         uint256 _period,
         uint256 _lockedValue,
         uint256 _totalLockedValue,
-        uint256 _allLockedPeriods,
-        uint256 _decimals
+        uint256 _allLockedPeriods
     )
-        public returns (uint256 amount, uint256 decimals)
+        public returns (uint256 amount)
     {
-        (amount, decimals) = mint(
+        amount = mint(
             _period,
             _lockedValue,
             _totalLockedValue,
-            _allLockedPeriods,
-            _decimals);
+            _allLockedPeriods);
         token.transfer(msg.sender, amount);
     }
 
