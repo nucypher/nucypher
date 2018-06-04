@@ -2,8 +2,6 @@ import asyncio
 import binascii
 import uuid
 from collections import OrderedDict
-from datetime import datetime
-
 import maya
 import msgpack
 
@@ -15,20 +13,18 @@ from nucypher.crypto.powers import SigningPower, DelegatingPower
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
 from bytestring_splitter import BytestringSplitter
-from nucypher.blockchain.eth.policies import BlockchainArrangement
 from umbral.pre import Capsule
 from constant_sorrow import constants
 
 
-class Arrangement(BlockchainArrangement):
+class Arrangement:
     """
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
-    _EXPECTED_LENGTH = 106
     splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
-                                                              (bytes, 27), (bytes, 7))
+                                                 (bytes, 27))
 
-    def __init__(self, alice, hrac, expiration, deposit=None, ursula=None,
+    def __init__(self, alice, hrac, expiration, ursula=None,
                  kfrag=constants.UNKNOWN_KFRAG, alices_signature=None):
         """
         :param deposit: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
@@ -38,9 +34,9 @@ class Arrangement(BlockchainArrangement):
         Other params are hopefully self-evident.
         """
         self.expiration = expiration
-        self.deposit = deposit
         self.hrac = hrac
         self.alice = alice
+        self.uuid = uuid.uuid4()
 
         """
         These will normally not be set if Alice is drawing up this arrangement - she hasn't assigned a kfrag yet
@@ -51,28 +47,29 @@ class Arrangement(BlockchainArrangement):
 
         arrangement_delta = maya.now() - self.expiration
         policy_duration = arrangement_delta.days
-
-        super().__init__(author=self.alice, miner=ursula,
-                         value=self.deposit, lock_periods=policy_duration,
-                         arrangement_id=self._make_arrangement_id())
+        #
+        # super().__init__(author=self.alice, miner=ursula,
+        #                  value=self.deposit, lock_periods=policy_duration,
+        #                  arrangement_id=self.id())
 
     def __bytes__(self):
         return bytes(self.alice.stamp) + bytes(
-            self.hrac) + self.expiration.iso8601().encode() + bytes(
-            self.deposit)
+            self.hrac) + self.expiration.iso8601().encode()
 
-    @staticmethod
-    def _make_arrangement_id():
-        arrangement_id = str(uuid.uuid4()).encode()
-        return arrangement_id
+    def id(self):
+        if not self.ursula:
+            raise TypeError("Can't make an ID for this arrangement yet as we don't know the Ursula.")
+        id_nugget = keccak_digest(self.ursula + self.uuid)
+        full_id = keccak_digest(self.alice.stamp + id_nugget)
+        return id_nugget, full_id
 
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
         # Still unclear how to arrive at the correct number of bytes to represent a deposit.  See #148.
-        alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = cls.splitter(arrangement_as_bytes)
+        alice_pubkey_sig, hrac, expiration_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.parse(expiration_bytes.decode())
         alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
-        return cls(alice=alice, hrac=hrac, expiration=expiration, deposit=int(deposit_bytes))
+        return cls(alice=alice, hrac=hrac, expiration=expiration)
 
     def publish(self, kfrag, ursula, negotiation_result):
         self.kfrag = kfrag
@@ -94,10 +91,6 @@ class Arrangement(BlockchainArrangement):
     def payload(self):
         # TODO: Ship the expiration again?  Or some other way of alerting Ursula to recall her previous dialogue regarding this Arrangement.  Update: We'll probably have her store the Arrangement by hrac.  See #127.
         return bytes(self.kfrag)
-
-
-class ArrangementResponse(object):
-    pass
 
 
 class Policy(object):
@@ -213,7 +206,8 @@ class Policy(object):
             if not self.alice.known_nodes:
                 raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
             for node in self.alice.known_nodes.values():
-                response = networky_stuff.push_treasure_map_to_node(node, map_id, constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
+                response = networky_stuff.push_treasure_map_to_node(node, map_id,
+                                                                    constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
                 # TODO: Do something here based on success or failure
                 if response.status_code == 204:
                     pass
@@ -231,10 +225,11 @@ class Policy(object):
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(arrangement.ursula)
 
-    def make_arrangement(self, deposit, expiration):
-        return Arrangement(self.alice, self.hrac(), expiration=expiration, deposit=deposit)
+    def make_arrangement(self, expiration):
+        # TODO: In what scenario do we instead make a BlockchainArrangement (and pass deposit?)
+        return Arrangement(self.alice, self.hrac(), expiration=expiration)
 
-    def find_ursulas(self, networky_stuff, deposit, expiration,  num_ursulas=None):
+    def find_ursulas(self, networky_stuff, expiration, num_ursulas=None):
         """
         :param networky_stuff: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
         """
@@ -243,7 +238,7 @@ class Policy(object):
 
         found_ursulas = []
         while len(found_ursulas) < num_ursulas:
-            arrangement = self.make_arrangement(deposit, expiration)
+            arrangement = self.make_arrangement(expiration)
             try:
                 ursula, result = networky_stuff.find_ursula(arrangement)
                 found_ursulas.append((ursula, arrangement, result))
@@ -262,7 +257,7 @@ class Policy(object):
 
     def match_kfrags_to_found_ursulas(self, found_ursulas):
         for ursula, arrangement, result in found_ursulas:
-            if result.was_accepted:  # TODO: Here, we need to assess the result and see if we're actually good to go.
+            if result:  # TODO: Here, we need to assess the result and see if we're actually good to go.
                 kfrag = self.assign_kfrag_to_arrangement(arrangement)
                 arrangement.publish(kfrag, ursula, result)
                 # TODO: What if there weren't enough Arrangements approved to distribute n kfrags?  We need to raise NotEnoughQualifiedUrsulas.
@@ -345,7 +340,6 @@ class WorkOrder(object):
         # TODO: Mark it complete with datetime.
         pass
 
-
 class WorkOrderHistory:
 
     def __init__(self):
@@ -358,7 +352,8 @@ class WorkOrderHistory:
         if isinstance(item, bytes):
             return self.by_ursula.setdefault(item, {})
         else:
-            raise TypeError("If you want to lookup a WorkOrder by Ursula, you need to pass bytes of her signing public key.")
+            raise TypeError(
+                "If you want to lookup a WorkOrder by Ursula, you need to pass bytes of her signing public key.")
 
     def __setitem__(self, key, value):
         assert False

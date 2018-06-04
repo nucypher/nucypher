@@ -385,7 +385,7 @@ class Alice(Character, PolicyAuthor):
         # by trying differet
         # deposits and expirations on a limited number of Ursulas.
         # Users may decide to inject some market strategies here.
-        found_ursulas = policy.find_ursulas(self.network_middleware, deposit,
+        found_ursulas = policy.find_ursulas(self.network_middleware,
                                             expiration, num_ursulas=n)
         policy.match_kfrags_to_found_ursulas(found_ursulas)
         # REST call happens here, as does population of TreasureMap.

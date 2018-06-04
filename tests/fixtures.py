@@ -23,7 +23,6 @@ from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkyStuff, mak
 
 @pytest.fixture(scope="module")
 def nucypher_test_config(blockchain_config):
-
     config = NucypherConfig(keyring="this is the most secure password in the world.",
                             blockchain_config=blockchain_config)
     yield config
@@ -56,7 +55,7 @@ def enacted_policy(idle_policy, ursulas):
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
 
     networky_stuff = MockNetworkyStuff(ursulas)
-    found_ursulas = idle_policy.find_ursulas(networky_stuff, deposit, expiration=contract_end_datetime)
+    found_ursulas = idle_policy.find_ursulas(networky_stuff, expiration=contract_end_datetime)
     idle_policy.match_kfrags_to_found_ursulas(found_ursulas)
     idle_policy.enact(networky_stuff)  # REST call happens here, as does population of TreasureMap.
 
@@ -65,7 +64,8 @@ def enacted_policy(idle_policy, ursulas):
 
 @pytest.fixture(scope="module")
 def alice(ursulas, mock_policy_agent, nucypher_test_config):
-    ALICE = Alice(network_middleware=MockNetworkyStuff(ursulas), policy_agent=mock_policy_agent, config=nucypher_test_config)
+    ALICE = Alice(network_middleware=MockNetworkyStuff(ursulas), policy_agent=mock_policy_agent,
+                  config=nucypher_test_config)
     ALICE.server.listen(8471)
     ALICE.__resource_id = b"some_resource_id"
     EVENT_LOOP.run_until_complete(ALICE.server.bootstrap([("127.0.0.1", u.dht_port) for u in ursulas]))
