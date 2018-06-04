@@ -7,6 +7,7 @@ from nucypher.crypto.constants import CFRAG_LENGTH_WITHOUT_PROOF
 
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_policy, bob):
+
     # Assume for the moment that Bob has already received a TreasureMap, perhaps via a side channel.
     hrac, treasure_map = enacted_policy.hrac(), enacted_policy.treasure_map
     bob.treasure_maps[hrac] = treasure_map

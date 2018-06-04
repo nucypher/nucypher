@@ -4,6 +4,7 @@ from datetime import datetime
 from nucypher.keystore import keystore, keypairs
 
 
+@pytest.mark.usefixtures(('nucypher_test_config', 'deploy_nucypher_contracts'))
 def test_key_sqlite_keystore(test_keystore, bob):
 
     # Test add pubkey

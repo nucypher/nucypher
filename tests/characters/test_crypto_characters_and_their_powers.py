@@ -49,7 +49,7 @@ def test_actor_with_signing_power_can_sign():
     assert verification is True
 
 
-def test_anybody_can_verify(nucypher_test_config, mock_policy_agent):
+def test_anybody_can_verify(mock_policy_agent):
     """
     In the last example, we used the lower-level Crypto API to verify the signature.
 
@@ -57,10 +57,10 @@ def test_anybody_can_verify(nucypher_test_config, mock_policy_agent):
     """
 
     # Alice can sign by default, by dint of her _default_crypto_powerups.
-    alice = Alice(config=nucypher_test_config, policy_agent=mock_policy_agent)
+    alice = Alice(policy_agent=mock_policy_agent)
 
     # So, our story is fairly simple: an everyman meets Alice.
-    somebody = Character(config=nucypher_test_config)
+    somebody = Character()
 
     # Alice signs a message.
     message = b"A message for all my friends who can only verify and not sign."
@@ -81,12 +81,12 @@ def test_anybody_can_encrypt():
     """
     Similar to anybody_can_verify() above; we show that anybody can encrypt.
     """
-    everyman = Character()
+    someone = Character()
     ursula = Ursula(is_me=False)
 
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
-    ciphertext, signature = everyman.encrypt_for(ursula, cleartext, sign=False)
+    ciphertext, signature = someone.encrypt_for(ursula, cleartext, sign=False)
 
     assert signature == constants.NOT_SIGNED
     assert ciphertext is not None

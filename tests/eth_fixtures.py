@@ -11,16 +11,16 @@ from eth_tester import EthereumTester
 from geth import LoggingMixin, DevGethProcess
 from os.path import abspath, dirname
 from web3 import EthereumTesterProvider, IPCProvider
-from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
+from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
-from nucypher.blockchain.eth.interfaces import EthereumContractRegistrar
+from nucypher.blockchain.eth.interfaces import EthereumContractRegistrar, DeployerCircumflex
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.config.configs import BlockchainConfiguration
-from tests.blockchain.eth import contracts, utilities
+from tests.blockchain.eth import contracts
 from tests.blockchain.eth.utilities import MockMinerEscrowDeployer, TesterPyEVMBackend, MockNucypherTokenDeployer
 
+constants.NUMBER_OF_TEST_ETH_ACCOUNTS(10)
 
 #
 # Provider Fixtures
@@ -97,100 +97,72 @@ def auto_geth_ipc_provider():
     shutil.rmtree(geth.data_dir)
 
 
-@pytest.fixture(scope='module')
-def pyevm_provider():
-    """
-    Test provider backend
-    https: // github.com / ethereum / eth - tester     # available-backends
-    """
-    overrides = {'gas_limit': 4626271}
-    pyevm_backend = TesterPyEVMBackend(genesis_overrides=overrides)
-
-    # pyevm_backend = PyEVMBackend()
-
-    eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
-    pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
-
-    yield pyevm_provider
-
 
 #
-# Blockchain Fixtures
+# Blockchain
 #
 
 
 @pytest.fixture(scope='session')
 def solidity_compiler():
+    """Doing this more than once per session will result in slower test run times."""
     test_contracts_dir = os.path.join(dirname(abspath(contracts.__file__)), 'contracts')
     compiler = SolidityCompiler(test_contract_dir=test_contracts_dir)
     yield compiler
 
 
 @pytest.fixture(scope='module')
-def registrar():
+def testerchain(solidity_compiler):
+    """
+    https: // github.com / ethereum / eth - tester     # available-backends
+    """
+
+    # create a temporary registrar for the tester blockchain
     _, filepath = tempfile.mkstemp()
     test_registrar = EthereumContractRegistrar(chain_name='tester', registrar_filepath=filepath)
-    yield test_registrar
-    os.remove(filepath)
+
+    # Configure a custom provider
+    overrides = {'gas_limit': 4626271}
+    pyevm_backend = TesterPyEVMBackend(genesis_overrides=overrides)
+
+    # pyevm_backend = PyEVMBackend() # TODO: Remove custom overrides?
+
+    eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
+    pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
+
+    # Use the the custom provider and registrar to init an interface
+    circumflex = DeployerCircumflex(compiler=solidity_compiler,    # freshly recompile
+                                    registrar=test_registrar,      # use temporary registrar
+                                    providers=(pyevm_provider, ))  # use custom test provider
+
+    # Create the blockchain
+    testerchain = TesterBlockchain(interface=circumflex, test_accounts=10)
+
+    yield testerchain
+
+    testerchain.sever_connection()  # Destroy the blockchin singelton cache
+    os.remove(filepath)             # remove registrar tempfile
+
+
+#
+# Utility
+#
+
+@pytest.fixture(scope='module')
+def token_airdrop(mock_token_agent):
+    mock_token_agent.token_airdrop(amount=100000*constants.M)  # blocks
+    yield
 
 
 @pytest.fixture(scope='module')
-def blockchain_config(pyevm_provider, solidity_compiler, registrar):
-    BlockchainConfiguration.add_provider(pyevm_provider)
-    config = BlockchainConfiguration(compiler=solidity_compiler, registrar=registrar, deploy=True, tester=True)  # TODO: pass in address
-    yield config
-    config.chain.sever()
-    del config
+def deployed_testerchain(testerchain):
+    """Launch all Nucypher ethereum contracts"""
 
-
-@pytest.fixture(scope='module')
-def deployer_interface(blockchain_config):
-    interface = blockchain_config.chain.interface
-    w3 = interface.w3
-
-    if len(w3.eth.accounts) == 1:
-        utilities.generate_accounts(w3=w3, quantity=9)
-    assert len(w3.eth.accounts) == 10
-
-    yield interface
-
-
-@pytest.fixture(scope='module')
-def web3(deployer_interface, poa=False):
-    """Compatibility fixture"""
-    if poa is True:
-        w3 = deployer_interface.interface.w3
-        w3.middleware_stack.inject(geth_poa_middleware, layer=0)
-    return deployer_interface.w3
-
-
-@pytest.fixture(scope='module')
-def chain(deployer_interface, airdrop_ether=False):
-    chain = deployer_interface.blockchain_config.chain
-
-    if airdrop_ether:
-        one_million_ether = 10 ** 6 * 10 ** 18  # wei -> ether
-        chain.ether_airdrop(amount=one_million_ether)
-
-    yield chain
-
-
-@pytest.fixture(scope='module')
-def deploy_nucypher_contracts(chain):
-    """
-    Launch all ethereum contracts:
-    - NuCypherToken
-    - PolicyManager
-    - MinersEscrow
-    - UserEscrow
-    - Issuer
-    """
-
-    token_deployer = NucypherTokenDeployer(blockchain=chain)
+    token_deployer = NucypherTokenDeployer(blockchain=testerchain)
     token_deployer.arm()
     token_deployer.deploy()
 
-    token_agent = NucypherTokenAgent(blockchain=chain)
+    token_agent = NucypherTokenAgent(blockchain=testerchain)
 
     miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent)
     miner_escrow_deployer.arm()
@@ -202,11 +174,8 @@ def deploy_nucypher_contracts(chain):
     policy_manager_contract.arm()
     policy_manager_contract.deploy()
 
+    yield testerchain
 
-@pytest.fixture(scope='module')
-def ethereum_airdrop(mock_token_agent):
-    mock_token_agent.token_airdrop(amount=100000*constants.M)
-    yield
 
 # 
 # Deployers #
@@ -214,9 +183,9 @@ def ethereum_airdrop(mock_token_agent):
 
 
 @pytest.fixture(scope='module')
-def mock_token_deployer(chain):
-    origin, *everyone = chain.interface.w3.eth.coinbase
-    token_deployer = MockNucypherTokenDeployer(blockchain=chain, deployer_address=origin)
+def mock_token_deployer(testerchain):
+    origin, *everyone = testerchain.interface.w3.eth.coinbase
+    token_deployer = MockNucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
     token_deployer.arm()
     token_deployer.deploy()
     yield token_deployer

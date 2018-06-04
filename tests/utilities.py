@@ -2,26 +2,25 @@ import asyncio
 from typing import List
 
 from apistar.test import TestClient
+from constant_sorrow import constants
 
 from nucypher.characters import Ursula
-from nucypher.config.configs import NucypherConfiguration
 from nucypher.network.middleware import NetworkMiddleware
 from nucypher.policy.models import ArrangementResponse
-from constant_sorrow import constants
 
 
 #
 # Setup
 #
 
-EVENT_LOOP = asyncio.get_event_loop()
-asyncio.set_event_loop(EVENT_LOOP)
+TEST_EVENT_LOOP = asyncio.get_event_loop()
+asyncio.set_event_loop(TEST_EVENT_LOOP)
 
-constants.URSULA_PORT(7468)
+constants.URSULA_PORT_SEED(7468)
 constants.NUMBER_OF_URSULAS_IN_NETWORK(6)
 
 
-def make_ursulas(ether_addresses: list, ursula_starting_port: int, config: NucypherConfiguration) -> List[Ursula]:
+def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False) -> List[Ursula]:
     """
     :param how_many_ursulas: How many Ursulas to create.
     :param ursula_starting_port: The port of the first created Ursula; subsequent Ursulas will increment the port number by 1.
@@ -33,7 +32,7 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, config: Nucyp
     for _counter, ether_address in enumerate(ether_addresses):
         port = ursula_starting_port + _counter
         ursula = Ursula(ether_address=ether_address, dht_port=port, db_name="test-{}".format(port),
-                        ip_address="127.0.0.1", rest_port=port+100, config=config)
+                        ip_address="127.0.0.1", rest_port=port+100)
 
         class MockDatastoreThreadPool(object):
             def callInThread(self, f, *args, **kwargs):

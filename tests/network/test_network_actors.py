@@ -7,19 +7,20 @@ from kademlia.utils import digest
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.network import blockchain_client
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
-from tests.utilities import MockNetworkMiddleware, EVENT_LOOP, URSULA_PORT, NUMBER_OF_URSULAS_IN_NETWORK
+from tests.utilities import MockNetworkMiddleware, TEST_EVENT_LOOP
 
 
-def test_all_ursulas_know_about_all_other_ursulas(ursulas):
+@pytest.mark.usefixtures('deploy_nucypher_contracts')
+def test_all_ursulas_know_about_all_other_ursulas(ursulas, mock_miner_agent):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
     """
     ignorance = []
-    for acounter, announcing_ursula in enumerate(blockchain_client._ursulas_on_blockchain):
+    for acounter, announcing_ursula in enumerate(mock_miner_agent.swarm(fetch_data=True)):
         for counter, propagating_ursula in enumerate(ursulas):
-            if not digest(bytes(announcing_ursula)) in propagating_ursula.server.storage:
+            announcing_ursula_ether_address, announcing_ursula_id = announcing_ursula
+            if not digest(bytes(announcing_ursula_id)) in propagating_ursula.server.storage:
                 ignorance.append((counter, acounter))
     if ignorance:
         pytest.fail(str(["{} didn't know about {}".format(counter, acounter) for counter, acounter in ignorance]))
@@ -28,20 +29,19 @@ def test_all_ursulas_know_about_all_other_ursulas(ursulas):
 def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     """
     Although Ursulas propagate each other's interface information, as demonstrated above, they do not propagate
-        interface information for Vladimir, an Evil Ursula.
+    interface information for Vladimir, an Evil Ursula.
     """
-    vladimir = ursulas[0]
-    ursula = ursulas[1]
+    vladimir, ursula = ursulas[0], ursulas[1]
 
     # Ursula hasn't seen any illegal keys.
-    assert ursula.server.protocol.illegal_keys_seen == []
+    assert ursula.dht_server.protocol.illegal_keys_seen == []
 
     # Vladimir does almost everything right....
     value = vladimir.interface_info_with_metadata()
 
     # Except he sets an illegal key for his interface.
     illegal_key = b"Not allowed to set arbitrary key for this."
-    setter = vladimir.server.set(key=illegal_key, value=value)
+    setter = vladimir.dht_server.set(key=illegal_key, value=value)
     loop = asyncio.get_event_loop()
     loop.run_until_complete(setter)
 
@@ -49,23 +49,24 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     assert digest(illegal_key) in ursula.server.protocol.illegal_keys_seen
 
 
-def test_alice_finds_ursula_via_dht(alice, ursulas):
+@pytest.mark.usefixtures('deploy_nucypher_contracts')
+def test_alice_finds_ursula_via_dht(alice, mock_miner_agent):
     """
     With the help of any Ursula, Alice can find a specific Ursula.
     """
     ursula_index = 1
-    all_ursulas = blockchain_client._ursulas_on_blockchain
-    value = alice.server.get_now(all_ursulas[ursula_index])
-    header, _signature, _ursula_pubkey_sig, interface_info = dht_value_splitter(value,
-                                                                               return_remainder=True)
+    all_ursulas = list(mock_miner_agent.swarm(fetch_data=True))
+    ether_address, ursula_id = alice.server.get_now(all_ursulas[ursula_index])
+    header, _signature, _ursula_pubkey_sig, interface_info = dht_value_splitter(ursula_id,
+                                                                                return_remainder=True)
 
     assert header == constants.BYTESTRING_IS_URSULA_IFACE_INFO
     port = msgpack.loads(interface_info)[1]
-    assert port == URSULA_PORT + ursula_index
+    assert port == constants.URSULA_PORT_SEED + ursula_index
 
 
 def test_alice_finds_ursula_via_rest(alice, ursulas):
-    networky_stuff = MockNetworkMiddleware(ursulas)
+    network_middleware = MockNetworkMiddleware(ursulas)
 
     # Imagine alice knows of nobody.
     alice.known_nodes = {}
@@ -112,10 +113,10 @@ def test_treasure_map_with_bad_id_does_not_propagate(idle_policy, ursulas):
     message_kit, signature = alice.encrypt_for(bob, treasure_map.packed_payload())
 
     setter = alice.server.set(illegal_policygroup_id, message_kit.to_bytes())
-    _set_event = EVENT_LOOP.run_until_complete(setter)
+    _set_event = TEST_EVENT_LOOP.run_until_complete(setter)
 
     with pytest.raises(KeyError):
-        ursulas[0].server.storage[digest(illegal_policygroup_id)]
+        _ = ursulas[0].server.storage[digest(illegal_policygroup_id)]
 
 
 @pytest.mark.usefixtures("treasure_map_is_set_on_dht")
@@ -134,8 +135,7 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ur
     tmap_message_kit = UmbralMessageKit.from_bytes(encrypted_treasure_map)
     verified, treasure_map_as_decrypted_by_bob = bob.verify_from(alice,
                                            tmap_message_kit,
-                                           decrypt=True,
-                                           )
+                                           decrypt=True)
 
     assert treasure_map_as_decrypted_by_bob == enacted_policy.treasure_map.packed_payload()
     assert verified is True
@@ -173,23 +173,8 @@ def test_treaure_map_is_legit(enacted_policy):
     alice = enacted_policy.alice
     for ursula_interface_id in enacted_policy.treasure_map:
         value = alice.server.get_now(ursula_interface_id)
-        header, signature, ursula_pubkey_sig, interface_info = dht_value_splitter(value,
-                                                                                return_remainder=True)
+        header, signature, ursula_pubkey_sig, interface_info = dht_value_splitter(value, return_remainder=True)
         assert header == constants.BYTESTRING_IS_URSULA_IFACE_INFO
         port = msgpack.loads(interface_info)[1]
-        legal_ports = range(NUMBER_OF_URSULAS_IN_NETWORK, NUMBER_OF_URSULAS_IN_NETWORK + URSULA_PORT)
+        legal_ports = range(int(constants.NUMBER_OF_URSULAS_IN_NETWORK), int(constants.NUMBER_OF_URSULAS_IN_NETWORK+constants.URSULA_PORT_SEED))
         assert port in legal_ports
-
-
-# # TODO: Have Alice inherit from PolicyAuthor
-# def test_alice_finds_ursulas_from_blockchain(chain, mock_miner_agent, mock_token_deployer):
-#     mock_token_deployer._global_airdrop(amount=10000)
-#
-#     # Create some miners to find
-#     _, *miner_addresses = chain._chain.web3.eth.accounts[1:]
-#     spawn_miners(miner_addresses, mock_miner_agent, mock_miner_agent.token_agent._deployer._M, 100)
-#
-#     chain.wait_time(mock_miner_agent._deployer._hours_per_period)
-#
-#     reenc_nodes = mock_miner_agent.sample(quantity=4)
-#     assert len(reenc_nodes) >= 4
