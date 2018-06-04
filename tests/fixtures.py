@@ -76,8 +76,8 @@ def ursulas(deployed_testerchain):
 
 @pytest.fixture(scope="module")
 def treasure_map_is_set_on_dht(enacted_policy, ursulas):
-    networky_stuff = MockNetworkMiddleware(ursulas)
-    enacted_policy.publish_treasure_map(networky_stuff, use_dht=True)
+    network_middleware = MockNetworkMiddleware(ursulas)
+    enacted_policy.publish_treasure_map(network_middleware, use_dht=True)
 
 
 @pytest.fixture(scope="module")
