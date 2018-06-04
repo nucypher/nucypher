@@ -1,28 +1,25 @@
 import datetime
 
+import maya
 import pytest
 from apistar.test import TestClient
+from bytestring_splitter import BytestringSplitter
+from constant_sorrow import constants
+from umbral.fragments import KFrag
+from umbral.keys import UmbralPublicKey
 
 from nucypher.characters import Ursula
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.powers import SigningPower, EncryptingPower
-from bytestring_splitter import BytestringSplitter
-from umbral.fragments import KFrag
-from umbral.keys import UmbralPublicKey
-import maya
-from constant_sorrow import constants
 
 
-@pytest.mark.usefixtures('nucypher_test_config')
-@pytest.mark.usefixtures('deploy_nucypher_contracts')
-@pytest.mark.usefixtures('ethereum_airdrop')
-def test_grant(alice, bob, mock_miner_agent, mock_token_agent, chain):
+@pytest.mark.usefixtures('ursulas')
+def test_grant(alice, bob, mock_miner_agent):
 
     _origin, ursula, *everybody_else = mock_miner_agent.blockchain.interface.w3.eth.accounts
     mock_miner_agent.spawn_random_miners(addresses=everybody_else)
 
-    chain.time_travel(periods=1)
+    mock_miner_agent.blockchain.time_travel(periods=1)
 
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     n = 5
@@ -50,15 +47,15 @@ def test_grant(alice, bob, mock_miner_agent, mock_token_agent, chain):
     assert found
 
 
+@pytest.mark.usefixtures('deployed_testerchain')
 def test_alice_can_get_ursulas_keys_via_rest(ursulas):
     mock_client = TestClient(ursulas[0].rest_app)
     response = mock_client.get('http://localhost/public_keys')
     splitter = BytestringSplitter(
-        (UmbralPublicKey, PUBLIC_KEY_LENGTH),
-        (UmbralPublicKey, PUBLIC_KEY_LENGTH)
+        (UmbralPublicKey, constants.PUBLIC_KEY_LENGTH),
+        (UmbralPublicKey, constants.PUBLIC_KEY_LENGTH)
     )
     signing_key, encrypting_key = splitter(response.content)
-    stranger_ursula_from_public_keys = Ursula.from_public_keys({SigningPower: signing_key,
-                                                               EncryptingPower: encrypting_key}
-                                                            )
+    public_keys = {SigningPower: signing_key, EncryptingPower: encrypting_key}
+    stranger_ursula_from_public_keys = Ursula.from_public_keys(public_keys)
     assert stranger_ursula_from_public_keys == ursulas[0]
