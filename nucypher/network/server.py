@@ -90,7 +90,15 @@ class ProxyRESTServer:
         self.rest_port = rest_port
         self.db_name = db_name
         self._rest_app = None
-        super().__init__(*args, **kwargs)  # cooperative multiple inhertence
+
+        super().__init__(*args, **kwargs)  # cooperative multiple inheritance
+
+    @classmethod
+    def from_config(cls, network_config: NetworkConfiguration=None):
+        """Create a server object from config values, or from a config file."""
+        # if network_config is None:
+            # NetworkConfiguration._load()
+        instance = cls()
 
     def public_key(self, power_class: ClassVar):
         """Implemented on Ursula subclass"""
