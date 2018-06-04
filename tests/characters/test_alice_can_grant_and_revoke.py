@@ -14,6 +14,7 @@ from nucypher.crypto.powers import SigningPower, EncryptingPower
 
 
 @pytest.mark.usefixtures('ursulas')
+@pytest.mark.usefixtures('token_airdrop')
 def test_grant(alice, bob, mock_miner_agent):
 
     _origin, ursula, *everybody_else = mock_miner_agent.blockchain.interface.w3.eth.accounts

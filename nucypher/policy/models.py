@@ -199,8 +199,8 @@ class Policy(BlockchainPolicy):
         """
         return keccak_digest(bytes(self.alice.stamp) + self.hrac())
 
-    def publish_treasure_map(self, networky_stuff=None, use_dht=False):
-        if networky_stuff is None and use_dht is False:
+    def publish_treasure_map(self, network_middleare=None, use_dht=False):
+        if network_middleare is None and use_dht is False:
             raise ValueError("Can't engage the REST swarm without networky stuff.")
         tmap_message_kit, signature_for_bob = self.alice.encrypt_for(
             self.bob,
@@ -213,19 +213,15 @@ class Policy(BlockchainPolicy):
         map_payload = signature_for_ursula + self.alice.stamp + self.hrac() + tmap_message_kit.to_bytes()
         map_id = self.treasure_map_dht_key()
 
-        if use_dht:
-            # Instead of self.alice, let's say self.author.  See #230.
-            setter = self.alice.server.set(map_id, constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
-            event_loop = asyncio.get_event_loop()
-            event_loop.run_until_complete(setter)
-        else:
-            if not self.alice.known_nodes:
-                raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
-            for node in self.alice.known_nodes.values():
-                response = networky_stuff.push_treasure_map_to_node(node, map_id, constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
-                # TODO: Do something here based on success or failure
-                if response.status_code == 204:
-                    pass
+        if not self.alice.known_nodes:
+            raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
+
+        for node in self.alice.known_nodes.values():
+            response = network_middleare.push_treasure_map_to_node(node, map_id, constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
+            # TODO: Do something here based on success or failure
+            if response.status_code == 204:
+                pass
+
         return tmap_message_kit, map_payload, signature_for_bob, signature_for_ursula
 
     def publish(self) -> None:
