@@ -17,7 +17,7 @@ def main():
     web3 = chain.web3
     creator, ursula1, ursula2, ursula3, alice1, *everyone_else = web3.eth.accounts
 
-    print("Web3 providers are", web3.providers)
+    print("Web3 __providers are", web3.active_providers)
 
     # TODO: Updatae to agents and deployers
     # Create an ERC20 token
