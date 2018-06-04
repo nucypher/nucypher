@@ -45,10 +45,10 @@ class BlockchainArrangement(Arrangement):
         return r
 
     def publish(self) -> str:
-
         payload = {'from': self.author.address, 'value': self.value}
 
-        txhash = self.policy_agent.contract.functions.createPolicy(self.id, self.miner.address, self.lock_periods).transact(payload)
+        txhash = self.policy_agent.contract.functions.createPolicy(self.id, self.miner.address,
+                                                                   self.lock_periods).transact(payload)
         self.policy_agent.blockchain.wait.for_receipt(txhash)
 
         self.publish_transaction = txhash
