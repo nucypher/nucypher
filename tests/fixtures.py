@@ -48,10 +48,7 @@ def enacted_policy(idle_policy, ursulas, mock_miner_agent, mock_token_agent):
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
 
     network_middleware = MockNetworkMiddleware(ursulas)
-    found_ursulas = idle_policy.make_arrangements(network_middleware, deposit=deposit,
-                                                  quantity=3, expiration=contract_end_datetime)
-
-    idle_policy.match_kfrags_to_found_ursulas(found_ursulas)
+    idle_policy.make_arrangements(network_middleware, deposit=deposit, quantity=3, expiration=contract_end_datetime)
     idle_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
 
     return idle_policy

@@ -4,6 +4,7 @@ from nucypher.characters import Ursula
 from nucypher.crypto.powers import SigningPower
 
 
+@pytest.mark.usesfixtures('deployed_testerchain')
 def test_ursula_generates_self_signed_cert():
     ursula = Ursula(is_me=False)
     cert, cert_private_key = ursula.generate_self_signed_certificate()
