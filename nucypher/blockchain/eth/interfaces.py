@@ -1,9 +1,10 @@
 import json
 import os
+import warnings
 from pathlib import Path
 from typing import Tuple, List
 
-from web3 import Web3
+from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -11,7 +12,7 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 _DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
 
 
-class Registrar:
+class EthereumContractRegistrar:
     """
     Records known contracts on the disk for future access and utility. This
     lazily writes to the filesystem during contract enrollment.
@@ -135,8 +136,10 @@ class Registrar:
         if len(contracts) > 0:
             return contracts
         else:
-            message = 'Contract name or address: "{}" for chain: "{}" was not found in the registrar'.format(contract_name, self._chain_name)
-            raise self.UnknownContract(message)
+            m = 'Contract name or address: {}, for chain: {} was not found in the registrar. ' \
+                'Ensure that the contract is deployed, registered.'.format(contract_name, self._chain_name)
+
+            raise self.UnknownContract(m)
 
     def dump_contract(self, address: str=None) -> dict:
         """
@@ -158,49 +161,160 @@ class Registrar:
             raise self.UnknownContract('No known contract with address: {}'.format(address))
 
 
-class ContractInterface:
+class ControlCircumflex:
     """
     Interacts with a solidity compiler and a registrar in order to instantiate compiled
     ethereum contracts with the given web3 provider backend.
     """
+    __fallabck_providers = (IPCProvider(ipc_path='/tmp/geth.ipc'), )  # user-managed geth over IPC default
+    __default_timeout = 10  # seconds
+    __default_network = 'tester'
+    __default_transaction_gas_limit = 500000  # TODO: determine sensible limit and validate transactions
 
-    class ContractInterfaceError(Exception):
+    class UnknownContract(Exception):
         pass
 
-    def __init__(self, blockchain_config=None, registrar: Registrar=None, sol_compiler: SolidityCompiler=None):
-        """Contracts are re-compiled if an instance is passed"""
+    class InterfaceError(Exception):
+        pass
 
-        self.blockchain_config = blockchain_config
+    def __init__(self, network_name: str=None, endpoint_uri: str=None,
+                 websocket=False, ipc_path=None, timeout=None, providers: list=None,
+                 registrar: EthereumContractRegistrar=None, compiler: SolidityCompiler=None):
 
-        web3_instance = Web3(providers=self.blockchain_config.providers)
-        self.w3 = web3_instance
+        """
+        A blockchain "network inerface"; The circumflex wraps entirely around the bounds of
+        contract operations including compilation, deployment, and execution.
 
-        # if a SolidityCompiler class instance was passed, compile from sources
-        if sol_compiler is not None:
-            recompile = True
-        else:
-            recompile = False
+
+         Solidity Files -- SolidityCompiler ---                  --- HTTPProvider --
+                                               |                |                   |
+                                               |                |                    -- External EVM (geth, etc.)
+                                                                                    |
+                                               *ControlCircumflex* -- IPCProvider --
+
+                                               |      |         |
+                                               |      |         |
+         Registrar File -- ContractRegistrar --       |          ---- TestProvider -- EthereumTester
+                                                      |
+                                                      |                                  |
+                                                      |
+                                                                                       Pyevm (development chain)
+                                                 Blockchain
+
+                                                      |
+
+                                                    Agent ... (Contract API)
+
+                                                      |
+
+                                                Character / Actor
+
+
+        The circumflex is the junction of the solidity compiler, a contract registrar, and a collection of
+        web3 network __providers as a means of interfacing with the ethereum blockchain to execute
+        or deploy contract code on the network.
+
+
+        Compiler and Registrar Usage
+        -----------------------------
+
+        Contracts are freshly re-compiled if an instance of SolidityCompiler is passed; otherwise,
+        The registrar will read contract data saved to disk that is be used to retrieve contact address and op-codes.
+        Optionally, A registrar instance can be passed instead.
+
+
+        Provider Usage
+        ---------------
+        https: // github.com / ethereum / eth - tester     # available-backends
+
+
+        * HTTP Provider - supply endpiont_uri
+        * Websocket Provider - supply endpoint uri and websocket=True
+        * IPC Provider - supply IPC path
+        * Custom Provider - supply an iterable of web3.py provider instances
+
+        """
+
+        self.__network = network_name if network_name is not None else self.__default_network
+        self.timeout = timeout if timeout is not None else self.__default_timeout
+
+        #
+        # Providers
+        #
+
+        # If custom __providers are not injected...
+        self.__providers = list() if providers is None else providers
+        if providers is None:
+            # Mutates self.__providers
+            self.add_provider(endpoint_uri=endpoint_uri, websocket=websocket,
+                              ipc_path=ipc_path, timeout=timeout)
+
+        web3_instance = Web3(providers=self.__providers)  # Instantiate Web3 object with provider
+        self.w3 = web3_instance                           # capture web3
+
+        # if a SolidityCompiler class instance was passed, compile from solidity source code
+        recompile = True if compiler is not None else False
         self.__recompile = recompile
-        self.__sol_compiler = sol_compiler
+        self.__sol_compiler = compiler
 
         # Setup the registrar and base contract factory cache
-        if registrar is None:
-            registrar = Registrar(chain_name=self.blockchain_config.network)
+        registrar = registrar if registrar is not None else EthereumContractRegistrar(chain_name=network)
         self._registrar = registrar
 
-        if self.__recompile is True:
-            interfaces = self.__sol_compiler.compile()
-        else:
-            interfaces = self._registrar.dump_chain()
-
+        # Execute the compilation if we're recompiling, otherwise read compiled contract data from the registrar
+        interfaces = self.__sol_compiler.compile() if self.__recompile is True else self._registrar.dump_chain()
         self.__raw_contract_cache = interfaces
 
-    def get_contract_factory(self, contract_name):
+    @property
+    def network(self) -> str:
+        return self.__network
+
+    @property
+    def is_connected(self) -> bool:
+        """
+        https://web3py.readthedocs.io/en/stable/__providers.html#examples-using-automated-detection
+        """
+        return self.w3.isConnected()
+
+    @property
+    def version(self) -> str:
+        """Return node version information"""
+        return self.w3.version.node           # type of connected node
+
+    def add_provider(self, provider=None, endpoint_uri: str=None, websocket=False, ipc_path=None, timeout=None) -> None:
+
+        if provider is None:
+            # Validate parameters
+            if websocket and not endpoint_uri:
+                if ipc_path is not None:
+                    raise self.InterfaceError("Use either HTTP/Websocket or IPC params, not both.")
+                raise self.InterfaceError('Must pass endpoint_uri when using websocket __providers.')
+
+            if ipc_path is not None:
+                if endpoint_uri or websocket:
+                    raise self.InterfaceError("Use either HTTP/Websocket or IPC params, not both.")
+
+            # HTTP / Websocket Provider
+            if endpoint_uri is not None:
+                if websocket is True:
+                    provider = WebsocketProvider(endpoint_uri)
+                else:
+                    provider = HTTPProvider(endpoint_uri)
+
+            # IPC Provider
+            elif ipc_path:
+                provider = IPCProvider(ipc_path=ipc_path, testnet=False, timeout=timeout)
+            else:
+                raise self.InterfaceError("Invalid interface parameters. Pass endpoint_uri or ipc_path")
+
+        self.__providers.append(provider)
+
+    def get_contract_factory(self, contract_name) -> Contract:
         """Retrieve compiled interface data from the cache and return web3 contract"""
         try:
             interface = self.__raw_contract_cache[contract_name]
         except KeyError:
-            raise self.ContractInterfaceError('{} is not a compiled contract.'.format(contract_name))
+            raise self.UnknownContract('{} is not a compiled contract.'.format(contract_name))
 
         contract = self.w3.eth.contract(abi=interface['abi'],
                                         bytecode=interface['bin'],
@@ -221,13 +335,15 @@ class ContractInterface:
         return contract
 
 
-class DeployerInterface(ContractInterface):
+class DeployerCircumflex(ControlCircumflex):
 
-    def __init__(self, deployer_address:str=None, *args, **kwargs):
+    def __init__(self, deployer_address: str=None, *args, **kwargs):
+
+        # Depends on web3 instance
         super().__init__(*args, **kwargs)
 
         if deployer_address is None:
-            deployer_address = self.w3.eth.coinbase  # coinbase / etherbase
+            deployer_address = self.w3.eth.coinbase  # provider's coinbase / etherbase is default
         self.deployer_address = deployer_address
 
     def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:

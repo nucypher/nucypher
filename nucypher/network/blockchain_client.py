@@ -1,1 +1,0 @@
-_ursulas_on_blockchain = []

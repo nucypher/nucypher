@@ -1,22 +1,26 @@
 import asyncio
+from typing import List
 
 from apistar.test import TestClient
+from constant_sorrow import constants
 
 from nucypher.characters import Ursula
-from nucypher.config.configs import NucypherConfig
-from nucypher.network.node import NetworkyStuff
+from nucypher.network.middleware import NetworkMiddleware
 from nucypher.policy.models import ArrangementResponse
 
-NUMBER_OF_URSULAS_IN_NETWORK = 6
 
-EVENT_LOOP = asyncio.get_event_loop()
-asyncio.set_event_loop(EVENT_LOOP)
+#
+# Setup
+#
 
-URSULA_PORT = 7468
-NUMBER_OF_URSULAS_IN_NETWORK = 6
+TEST_EVENT_LOOP = asyncio.get_event_loop()
+asyncio.set_event_loop(TEST_EVENT_LOOP)
+
+constants.URSULA_PORT_SEED(7468)
+constants.NUMBER_OF_URSULAS_IN_NETWORK(6)
 
 
-def make_ursulas(how_many_ursulas: int, ursula_starting_port: int, config: NucypherConfig) -> list:
+def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False) -> List[Ursula]:
     """
     :param how_many_ursulas: How many Ursulas to create.
     :param ursula_starting_port: The port of the first created Ursula; subsequent Ursulas will increment the port number by 1.
@@ -24,26 +28,27 @@ def make_ursulas(how_many_ursulas: int, ursula_starting_port: int, config: Nucyp
     """
     event_loop = asyncio.get_event_loop()
 
-    URSULAS = []
-    for _u in range(how_many_ursulas):
-        port = ursula_starting_port + _u
-        _URSULA = Ursula(dht_port=port, ip_address="127.0.0.1", db_name="test-{}".format(port), rest_port=port+100, config=config)  # TODO: Make ports unstupid and more clear.
+    _ursulas = []
+    for _counter, ether_address in enumerate(ether_addresses):
+        port = ursula_starting_port + _counter
+        ursula = Ursula(ether_address=ether_address, dht_port=port, db_name="test-{}".format(port),
+                        ip_address="127.0.0.1", rest_port=port+100)
 
         class MockDatastoreThreadPool(object):
             def callInThread(self, f, *args, **kwargs):
                 return f(*args, **kwargs)
 
-        _URSULA.datastore_threadpool = MockDatastoreThreadPool()
-        _URSULA.dht_listen()
+        ursula.datastore_threadpool = MockDatastoreThreadPool()
+        ursula.dht_listen()
 
-        URSULAS.append(_URSULA)
+        _ursulas.append(ursula)
 
-    for _counter, ursula in enumerate(URSULAS):
+    for ursula in _ursulas:
         event_loop.run_until_complete(
-            ursula.server.bootstrap([("127.0.0.1", ursula_starting_port + _c) for _c in range(how_many_ursulas)]))
+            ursula.dht_server.bootstrap([("127.0.0.1", ursula_starting_port+_c) for _c in range(len(_ursulas))]))
         ursula.publish_dht_information()
 
-    return URSULAS
+    return _ursulas
 
 
 class MockArrangementResponse(ArrangementResponse):
@@ -53,16 +58,13 @@ class MockArrangementResponse(ArrangementResponse):
         return b"This is a arrangement response; we have no idea what the bytes repr will be."
 
 
-class MockNetworkyStuff(NetworkyStuff):
+class MockNetworkMiddleware(NetworkMiddleware):
 
     def __init__(self, ursulas):
         self._ursulas = {bytes(u.stamp): u for u in ursulas}
         self.ursulas = iter(ursulas)
 
-    def go_live_with_policy(self, ursula, policy_offer):
-        return
-
-    def find_ursula(self, arrangement=None):
+    def consider_arrangement(self, arrangement=None):
         try:
             ursula = next(self.ursulas)
         except StopIteration:

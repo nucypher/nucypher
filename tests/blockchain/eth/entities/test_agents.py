@@ -1,6 +1,8 @@
 import pytest
 
 from nucypher.blockchain.eth.agents import MinerAgent
+from constant_sorrow import constants
+
 
 M = 10 ** 6
 
@@ -9,7 +11,7 @@ M = 10 ** 6
 @pytest.mark.usefixtures("mock_policy_agent")
 def test_get_swarm(chain, mock_token_agent, mock_miner_agent):
 
-    mock_token_agent.token_airdrop(amount=100000 * mock_token_agent.M)
+    mock_token_agent.token_airdrop(amount=100000 * constants.M)
 
     creator, *addresses = chain.interface.w3.eth.accounts
 
@@ -34,7 +36,7 @@ def test_get_swarm(chain, mock_token_agent, mock_miner_agent):
 
 @pytest.mark.slow()
 def test_sample_miners(chain, mock_miner_agent, mock_token_agent):
-    mock_token_agent.token_airdrop(amount=100000 * mock_token_agent.M)
+    mock_token_agent.token_airdrop(amount=100000 * constants.M)
 
     # Have other address lock tokens
     _origin, ursula, *everybody_else = chain.interface.w3.eth.accounts
@@ -42,7 +44,7 @@ def test_sample_miners(chain, mock_miner_agent, mock_token_agent):
 
     chain.time_travel(periods=1)
 
-    with pytest.raises(MinerAgent.NotEnoughUrsulas):
+    with pytest.raises(MinerAgent.NotEnoughMiners):
         mock_miner_agent.sample(quantity=100)  # Waay more than we have deployed
 
     miners = mock_miner_agent.sample(quantity=3)

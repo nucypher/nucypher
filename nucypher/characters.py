@@ -1,49 +1,55 @@
 import asyncio
+from collections import OrderedDict
 from contextlib import suppress
 from logging import getLogger
-import msgpack
-from collections import OrderedDict
-from kademlia.network import Server
-from kademlia.utils import digest
 from typing import Dict, ClassVar
 from typing import Union, List
 
+import kademlia
+import msgpack
 from bytestring_splitter import BytestringSplitter
-
-from nucypher.blockchain.eth.agents import PolicyAgent
-from nucypher.network.node import NetworkyStuff
-from umbral.keys import UmbralPublicKey
 from constant_sorrow import constants, default_constant_splitter
+from kademlia.network import Server
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
-from nucypher.config.configs import NucypherConfig
-from nucypher.crypto.api import secure_random, keccak_digest, encrypt_and_sign
+from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.config.configs import CharacterConfiguration
+from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
-from nucypher.crypto.signing import Signature, signature_splitter, SignatureStamp, StrangerStamp
-from nucypher.network import blockchain_client
+from nucypher.crypto.signing import signature_splitter, StrangerStamp
+from nucypher.network.middleware import NetworkMiddleware
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
 
 
-class Character(object):
+class Character:
     """
     A base-class for any character in our cryptography protocol narrative.
     """
-    _server = None
-    _server_class = Server
+    _dht_server = None
+    _dht_server_class = kademlia.network.Server
+
     _default_crypto_powerups = None
     _stamp = None
 
-    address = "This is a fake address."  # TODO: #192
-
-    def __init__(self, attach_server=True, crypto_power: CryptoPower = None,
-                 crypto_power_ups=None, is_me=True, network_middleware=None,
-                 config: "NucypherConfig"=None, *args, **kwargs):
-
+    class NotEnoughUrsulas(MinerAgent.NotEnoughMiners):
         """
-        :param attach_server:  Whether to attach a Server when this Character is
+        All Characters depend on knowing about enough Ursulas to perform their role.
+        This exception is raised when a piece of logic can't proceed without more Ursulas.
+        """
+
+    class SuspiciousActivity(RuntimeError):
+        """raised when an action appears to amount to malicious conduct."""
+
+    def __init__(self, crypto_power: CryptoPower=None,
+                 crypto_power_ups=None, is_me=True, network_middleware=None,
+                 config: CharacterConfiguration=None, *args, **kwargs):
+        """
+        :param attach_dht_server:  Whether to attach a Server when this Character is
             born.
         :param crypto_power: A CryptoPower object; if provided, this will be the
             character's CryptoPower.
@@ -63,15 +69,17 @@ class Character(object):
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
-        self.config = config if config is not None else NucypherConfig.get()  # default
+        self.config = config  # TODO: Do not mix with injectable params
         self.known_nodes = {}
         self.log = getLogger("characters")
 
+        #
+        # Power-ups and Powers
+        #
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
 
-        if not crypto_power_ups:
-            crypto_power_ups = []
+        crypto_power_ups = crypto_power_ups or []
 
         if crypto_power:
             self._crypto_power = crypto_power
@@ -79,17 +87,20 @@ class Character(object):
             self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
         else:
             self._crypto_power = CryptoPower(self._default_crypto_powerups)
-        if is_me:
-            self.network_middleware = network_middleware or NetworkyStuff()
+
+        #
+        # Identity and Network
+        #
+        if is_me is True:
+            self.network_middleware = network_middleware or NetworkMiddleware()
+
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)
                 self._stamp = signing_power.get_signature_stamp()
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
 
-            if attach_server:
-                self.attach_server()
-        else:
+        else:  # Feel like a stranger
             if network_middleware is not None:
                 raise TypeError(
                     "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
@@ -101,17 +112,12 @@ class Character(object):
     def __hash__(self):
         return int.from_bytes(self.stamp, byteorder="big")
 
-    class NotEnoughUrsulas(RuntimeError):
-        """
-        All Characters depend on knowing about enough Ursulas to perform their role.
-        This exception is raised when a piece of logic can't proceed without more Ursulas.
-        """
-
-    class SuspiciousActivity(RuntimeError):
-        """raised when an action appears to amount to malicious conduct."""
+    @property
+    def name(self):
+        return self.__class__.__name__
 
     @classmethod
-    def from_public_keys(cls, powers_and_keys: Dict, *args, **kwargs):
+    def from_public_keys(cls, powers_and_keys: Dict, *args, **kwargs) -> 'Character':
         """
         Sometimes we discover a Character and, at the same moment, learn one or
         more of their public keys. Here, we take a Dict
@@ -134,12 +140,11 @@ class Character(object):
 
         return cls(is_me=False, crypto_power=crypto_power, *args, **kwargs)
 
-    def attach_server(self, ksize=20, alpha=3, id=None,
-                      storage=None, *args, **kwargs) -> None:
-        if self._server:
+    def attach_dht_server(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs) -> None:
+        if self._dht_server:
             raise RuntimeError("Attaching the server twice is almost certainly a bad idea.")
-        self._server = self._server_class(
-            ksize, alpha, id, storage, *args, **kwargs)
+
+        self._dht_server = self._dht_server_class(ksize=ksize, alpha=alpha, id=id, storage=storage, *args, **kwargs)
 
     @property
     def stamp(self):
@@ -151,18 +156,14 @@ class Character(object):
             return self._stamp
 
     @property
-    def server(self) -> Server:
-        if self._server:
-            return self._server
+    def dht_server(self) -> kademlia.network.Server:
+        if self._dht_server:
+            return self._dht_server
         else:
             raise RuntimeError("Server hasn't been attached.")
 
-    @property
-    def name(self):
-        return self.__class__.__name__
-
     def encrypt_for(self,
-                    recipient: "Character",
+                    recipient: 'Character',
                     plaintext: bytes,
                     sign: bool = True,
                     sign_plaintext=True,
@@ -189,13 +190,13 @@ class Character(object):
                                                   )
         return message_kit, signature
 
-    def verify_from(self,
-                    actor_whom_sender_claims_to_be: "Character",
+    def verify_from(self, mystery_stranger: 'Character',
                     message_kit: Union[UmbralMessageKit, bytes],
                     signature: Signature = None,
                     decrypt=False,
                     delegator_signing_key: UmbralPublicKey = None,
                     ) -> tuple:
+
         """
         Inverse of encrypt_for.
 
@@ -213,12 +214,12 @@ class Character(object):
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
         """
-        sender_pubkey_sig = actor_whom_sender_claims_to_be.stamp.as_umbral_pubkey()
+        sender_pubkey_sig = mystery_stranger.stamp.as_umbral_pubkey()
         with suppress(AttributeError):
             if message_kit.sender_pubkey_sig:
                 if not message_kit.sender_pubkey_sig == sender_pubkey_sig:
                     raise ValueError(
-                        "This MessageKit doesn't appear to have come from {}".format(actor_whom_sender_claims_to_be))
+                        "This MessageKit doesn't appear to have come from {}".format(mystery_stranger))
 
         signature_from_kit = None
 
@@ -288,47 +289,44 @@ class Character(object):
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
-    def learn_about_nodes(self, address, port):
+    def learn_about_nodes(self, rest_address: str, port: int) -> dict:
         """
         Sends a request to node_url to find out about known nodes.
         """
-        response = self.network_middleware.get_nodes_via_rest(address, port)
+        response = self.network_middleware.get_nodes_via_rest(rest_address, port)
         signature, nodes = signature_splitter(response.content, return_remainder=True)
+
         # TODO: Although not treasure map-related, this has a whiff of #172.
         ursula_interface_splitter = dht_value_splitter + BytestringSplitter((bytes, 17))
         split_nodes = ursula_interface_splitter.repeat(nodes)
+
         new_nodes = {}
         for node_meta in split_nodes:
             header, sig, pubkey, interface_info = node_meta
+
             if not pubkey in self.known_nodes:
                 if sig.verify(keccak_digest(interface_info), pubkey):
-                    address, dht_port, rest_port = msgpack.loads(interface_info)
-                    new_nodes[pubkey] = \
-                        Ursula.as_discovered_on_network(
-                            rest_port=rest_port,
-                            dht_port=dht_port,
-                            ip_address=address.decode("utf-8"),
-                            powers_and_keys=({SigningPower: pubkey})
-                        )
+                    rest_address, dht_port, rest_port = msgpack.loads(interface_info)
+                    new_nodes[pubkey] = Ursula.from_rest_url(ip_address=rest_address.decode("utf-8"), port=rest_port)
                 else:
-                    message = "Suspicious Activity: Discovered node with bad signature: {}.  Propagated by: {}:{}".format(
-                        node_meta, address, port)
-                    self.log.warn(message)
+
+                    message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
+                              "Propagated by: {}:{}".format(node_meta, rest_address, port)
+                    self.log.warning(message)
+
         return new_nodes
 
-    def network_bootstrap(self, node_list):
+    def network_bootstrap(self, node_list: list) -> None:
         for node_addr, port in node_list:
             new_nodes = self.learn_about_nodes(node_addr, port)
         self.known_nodes.update(new_nodes)
 
 
-class Alice(Character, PolicyAuthor):
-    _server_class = NucypherSeedOnlyDHTServer
+class Alice(PolicyAuthor, Character):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        PolicyAuthor.__init__(self, address=self.address, *args, **kwargs)
 
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
@@ -336,10 +334,12 @@ class Alice(Character, PolicyAuthor):
 
         These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
         that he can activate the Capsule.
+
         :param bob: Bob instance which will be able to decrypt messages re-encrypted with these kfrags.
         :param m: Minimum number of kfrags needed to activate a Capsule.
         :param n: Total number of kfrags to generate
         """
+
         bob_pubkey_enc = bob.public_key(EncryptingPower)
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
         return delegating_power.generate_kfrags(bob_pubkey_enc, self.stamp, label, m, n)
@@ -350,7 +350,9 @@ class Alice(Character, PolicyAuthor):
         Generates KFrags and attaches them.
         """
         public_key, kfrags = self.generate_kfrags(bob, label, m, n)
+
         from nucypher.policy.models import Policy
+
         policy = Policy.from_alice(
             alice=self,
             label=label,
@@ -381,13 +383,14 @@ class Alice(Character, PolicyAuthor):
 
         policy = self.create_policy(bob, uri, m, n)
 
-        # We'll find n Ursulas by default.  It's possible to "play the field"
-        # by trying differet
-        # deposits and expirations on a limited number of Ursulas.
+        #
+        # We'll find n Ursulas by default.  It's possible to "play the field" by trying different
+        # deposit and expiration combinations on a limited number of Ursulas;
         # Users may decide to inject some market strategies here.
-        found_ursulas = policy.find_ursulas(self.network_middleware, deposit,
-                                            expiration, num_ursulas=n)
-        policy.match_kfrags_to_found_ursulas(found_ursulas)
+        #
+        policy.make_arrangements(self.network_middleware, deposit=deposit,
+                                 expiration=expiration, quantity=n)
+
         # REST call happens here, as does population of TreasureMap.
         policy.enact(self.network_middleware)
         policy.publish_treasure_map(self.network_middleware)
@@ -396,7 +399,7 @@ class Alice(Character, PolicyAuthor):
 
 
 class Bob(Character):
-    _server_class = NucypherSeedOnlyDHTServer
+    _dht_server_class = NucypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
     def __init__(self, *args, **kwargs):
@@ -424,7 +427,7 @@ class Bob(Character):
                     node_to_check = next(nodes_to_check)
                 except StopIteration:
                     raise self.NotEnoughUrsulas(
-                        "Unable to follow the TreasureMap; we just don't know enough nodes to ask about this.  Maybe try using the DHT instead.")
+                        "Unable to follow the TreasureMap; we just don't know enough nodes to ask about this. Maybe try using the DHT instead.")
 
                 new_nodes = self.learn_about_nodes(node_to_check.ip_address,
                                                    node_to_check.rest_port)
@@ -501,7 +504,6 @@ class Bob(Character):
         Return the first one who has it.
         TODO: What if a node gives a bunk TreasureMap?
         """
-        from nucypher.network.protocols import dht_value_splitter
         for node in self.known_nodes.values():
             response = networky_stuff.get_treasure_map_from_node(node, map_id)
 
@@ -597,41 +599,42 @@ class Bob(Character):
 
 
 class Ursula(Character, ProxyRESTServer, Miner):
-    _server_class = NucypherDHTServer
+    _dht_server_class = NucypherDHTServer
     _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def __init__(self, dht_port=None, ip_address=None, dht_ttl=0, rest_port=None, db_name=None, *args, **kwargs):
-
+    def __init__(self, is_me=True, dht_port=None, *args, **kwargs):
         self.dht_port = dht_port
-        self.dht_ttl = dht_ttl
-        self.ip_address = ip_address
         self._work_orders = []
 
-        ProxyRESTServer.__init__(self, rest_port, db_name)
-        super().__init__(*args, **kwargs)
+        Character.__init__(self, is_me=is_me, *args, **kwargs)
+        Miner.__init__(self, *args, **kwargs)
+        ProxyRESTServer.__init__(self, *args, **kwargs)
+
+        if is_me is True:
+            self.attach_dht_server()
 
     @property
     def rest_app(self):
         if not self._rest_app:
-            raise AttributeError(
-                "This Ursula doesn't have a REST app attached.  If you want one, init with is_me and attach_server.")
+            m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."
+            raise AttributeError(m)
         else:
             return self._rest_app
 
     @classmethod
-    def as_discovered_on_network(cls, dht_port=None, ip_address=None,
-                                 rest_port=None, powers_and_keys=()):
-        # TODO: We also need the encrypting public key here.
-        ursula = cls.from_public_keys(powers_and_keys)
-        ursula.dht_port = dht_port
-        ursula.ip_address = ip_address
-        ursula.rest_port = rest_port
-        return ursula
+    def from_config(cls, config: CharacterConfiguration) -> 'Ursula':
+        """TODO"""
+
+        # Use BlockchainConfig to default to the first wallet address
+        wallet_address = config.blockchain.wallet_addresses[0]
+
+        instance = cls(ether_address=wallet_address)
+        return instance
 
     @classmethod
-    def from_rest_url(cls, networky_stuff, address, port):
-        response = networky_stuff.ursula_from_rest_interface(address, port)
+    def from_rest_url(cls, network_middleware, ip_address, port):
+        response = network_middleware.ursula_from_rest_interface(ip_address, port)
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 
@@ -641,24 +644,21 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: signing_key, EncryptingPower: encrypting_key},
-            ip_address=address,
+            ip_address=ip_address,
             rest_port=port
         )
 
         return stranger_ursula_from_public_keys
 
-    def attach_server(self, ksize=20, alpha=3, id=None,
-                      storage=None, *args, **kwargs):
-        # TODO: Network-wide deterministic ID generation (ie, auction or
-        # whatever)  See #136.
-        if not id:
-            id = digest(secure_random(32))
+    def attach_dht_server(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
+        """ TODO: Network-wide deterministic ID generation (ie, auction or whatever)  See #136."""
 
-        super().attach_server(ksize, alpha, id, storage)
+        id = id or bytes(self.ether_address, encoding='utf-8')
+        super().attach_dht_server(ksize=ksize, id=id, alpha=alpha, storage=storage)
         self.attach_rest_server(db_name=self.db_name)
 
     def dht_listen(self):
-        return self.server.listen(self.dht_port, self.ip_address)
+        return self.dht_server.listen(self.dht_port, self.ip_address)
 
     def interface_information(self):
         return msgpack.dumps((self.ip_address,
@@ -674,10 +674,11 @@ class Ursula(Character, ProxyRESTServer, Miner):
         if not self.dht_port and self.dht_interface:
             raise RuntimeError("Must listen before publishing interface information.")
 
-        dht_key = bytes(self.stamp)
+        ursula_id = bytes(self.stamp)
+
         value = self.interface_info_with_metadata()
-        setter = self.server.set(key=dht_key, value=value)
-        blockchain_client._ursulas_on_blockchain.append(dht_key)
+        setter = self.dht_server.set(key=ursula_id, value=value)
+        self.publish_data(ursula_id)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 

@@ -3,23 +3,22 @@ import binascii
 import random
 from typing import ClassVar
 
+import kademlia
 from apistar import http, Route, App
 from apistar.http import Response
+from bytestring_splitter import VariableLengthBytestring
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
-
-from bytestring_splitter import VariableLengthBytestring
 from umbral import pre
 from umbral.fragments import KFrag
 
+from nucypher.config.configs import NetworkConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import EncryptingPower, SigningPower
 from nucypher.keystore.threading import ThreadedSession
-from nucypher.network.capabilities import SeedOnly, ServerCapability
-from nucypher.network.node import NucypherDHTNode
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, \
-    dht_value_splitter, dht_with_hrac_splitter
+    dht_with_hrac_splitter
 from nucypher.network.storage import SeedOnlyStorage
 
 
@@ -28,20 +27,9 @@ class NucypherDHTServer(Server):
     capabilities = ()
     digests_set = 0
 
-    def __init__(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
-        super().__init__(ksize=20, alpha=3, id=None, storage=None, *args, **kwargs)
-        self.node = NucypherDHTNode(id or digest(
-            random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
-
-    def serialize_capabilities(self):
-        return [ServerCapability.stringify(capability) for capability in self.capabilities]
-
-    async def bootstrap_node(self, addr):
-        """
-        Announce node including capabilities
-        """
-        result = await self.protocol.ping(addr, self.node.id, self.serialize_capabilities())
-        return NucypherDHTNode(result[1], addr[0], addr[1]) if result[0] else None
+    def __init__(self, id=None, *args, **kwargs):
+        super().__init__(ksize=20, alpha=3, id=None, storage=None)
+        self.node = kademlia.node.Node(id=id or digest(random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
 
     async def set_digest(self, dkey, value):
         """
@@ -88,19 +76,29 @@ class NucypherDHTServer(Server):
 
 class NucypherSeedOnlyDHTServer(NucypherDHTServer):
     protocol_class = NucypherSeedOnlyProtocol
-    capabilities = (SeedOnly(),)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.storage = SeedOnlyStorage()
 
 
-class ProxyRESTServer(object):
+class ProxyRESTServer:
 
-    def __init__(self, rest_port, db_name):
+    def __init__(self, ip_address=None, rest_port=None, db_name=None, *args, **kwargs):
+        """TODO: A server with no uri...? """
+        self.ip_address = ip_address
         self.rest_port = rest_port
         self.db_name = db_name
         self._rest_app = None
+
+        super().__init__(*args, **kwargs)  # cooperative multiple inheritance
+
+    @classmethod
+    def from_config(cls, network_config: NetworkConfiguration=None):
+        """Create a server object from config values, or from a config file."""
+        # if network_config is None:
+            # NetworkConfiguration._load()
+        instance = cls()
 
     def public_key(self, power_class: ClassVar):
         """Implemented on Ursula subclass"""
@@ -213,8 +211,7 @@ class ProxyRESTServer(object):
             # TODO: What do we do if the Policy isn't signed properly?
             pass
         #
-        # alices_signature, policy_payload =\
-        #     BytestringSplitter(Signature)(cleartext, return_remainder=True)
+        # alices_signature, policy_payload =BytestringSplitter(Signature)(cleartext, return_remainder=True)
 
         # TODO: If we're not adding anything else in the payload, stop using the
         # splitter here.

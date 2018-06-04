@@ -9,11 +9,11 @@ import sys
 from examples.sandbox_resources import SandboxNetworkyStuff
 from nucypher.characters import Alice, Bob, Ursula
 from nucypher.data_sources import DataSource
-from nucypher.network.node import NetworkyStuff
+from nucypher.network.middleware import NetworkMiddleware
 import maya
 
 # This is already running in another process.
-URSULA = Ursula.from_rest_url(NetworkyStuff(), address="localhost", port=3601)
+URSULA = Ursula.from_rest_url(NetworkMiddleware(), ip_address="localhost", port=3601)
 network_middleware = SandboxNetworkyStuff([URSULA])
 
 

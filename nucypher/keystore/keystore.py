@@ -52,8 +52,7 @@ class KeyStore(object):
 
         return new_key
 
-    def get_key(self, fingerprint: bytes, session=None) -> Union[keypairs.EncryptingKeypair,
-                                                   keypairs.SigningKeypair]:
+    def get_key(self, fingerprint: bytes, session=None) -> Union[keypairs.EncryptingKeypair, keypairs.SigningKeypair]:
         """
         Returns a key from the KeyStore.
 

@@ -1,4 +1,4 @@
-from nucypher.blockchain.eth.actors import Miner
+from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
 
 
 class BlockchainArrangement:
@@ -6,7 +6,7 @@ class BlockchainArrangement:
     A relationship between Alice and a single Ursula as part of Blockchain Policy
     """
 
-    def __init__(self, author: str, miner: str, value: int, lock_periods: int, arrangement_id: bytes=None):
+    def __init__(self, author, miner, value: int, lock_periods: int, arrangement_id: bytes=None):
 
         self.id = arrangement_id
 
@@ -24,6 +24,10 @@ class BlockchainArrangement:
         self.lock_periods = lock_periods  # TODO: <datetime> -> lock_periods
 
         self.is_published = False
+        self.publish_transaction = None
+
+        self.is_revoked = False
+        self.revoke_transaction = None
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -31,18 +35,12 @@ class BlockchainArrangement:
         r = r.format(class_name, self.author, self.miner)
         return r
 
-    def publish(self, gas_price: int) -> str:
+    def publish(self) -> str:
 
-        payload = {'from': self.author.address,
-                   'value': self.value,
-                   'gas_price': gas_price}
+        payload = {'from': self.author.address, 'value': self.value}
 
-
-        txhash = self.policy_agent.transact(payload).createPolicy(self.id,
-                                                                  self.miner.address,
-                                                                  self.lock_periods)
-
-        self.policy_agent._blockchain._chain.wait.for_receipt(txhash)
+        txhash = self.policy_agent.contract.functions.createPolicy(self.id, self.miner.address, self.lock_periods).transact(payload)
+        self.policy_agent.blockchain.wait.for_receipt(txhash)
 
         self.publish_transaction = txhash
         self.is_published = True
@@ -50,44 +48,34 @@ class BlockchainArrangement:
 
     def revoke(self, gas_price: int) -> str:
         """Revoke this arrangement and return the transaction hash as hex."""
+
         txhash = self.policy_agent.revoke_arrangement(self.id, author=self.author, gas_price=gas_price)
         self.revoke_transaction = txhash
+        self.is_revoked = True
         return txhash
 
 
 class BlockchainPolicy:
-    """TODO: A collection of n BlockchainArrangements representing a single Policy"""
+    """
+    A collection of n BlockchainArrangements representing a single Policy
+    """
 
     class NoSuchPolicy(Exception):
         pass
 
-    def __init__(self):
-        self._arrangements = list()
-
-    def publish_arrangement(self, miner, lock_periods: int, rate: int, arrangement_id: bytes=None) -> 'BlockchainArrangement':
-        """
-        Create a new arrangement to carry out a blockchain policy for the specified rate and time.
-        """
-
-        value = rate * lock_periods
-        arrangement = BlockchainArrangement(author=self,
-                                            miner=miner,
-                                            value=value,
-                                            lock_periods=lock_periods)
-
-        self._arrangements[arrangement.id] = {arrangement_id: arrangement}
-        return arrangement
+    def __init__(self, author: PolicyAuthor):
+        self.author = author
 
     def get_arrangement(self, arrangement_id: bytes) -> BlockchainArrangement:
-        """Fetch a published arrangement from the blockchain"""
+        """Fetch published arrangements from the blockchain"""
 
-        blockchain_record = self.policy_agent.read().policies(arrangement_id)
+        blockchain_record = self.author.policy_agent.read().policies(arrangement_id)
         author_address, miner_address, rate, start_block, end_block, downtime_index = blockchain_record
 
         duration = end_block - start_block
 
-        miner = Miner(address=miner_address, miner_agent=self.policy_agent.miner_agent)
-        arrangement = BlockchainArrangement(author=self, miner=miner, lock_periods=duration)
+        miner = Miner(address=miner_address, miner_agent=self.author.policy_agent.miner_agent)
+        arrangement = BlockchainArrangement(author=self.author, miner=miner, lock_periods=duration)
 
         arrangement.is_published = True
         return arrangement

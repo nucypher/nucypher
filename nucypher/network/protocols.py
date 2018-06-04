@@ -1,15 +1,15 @@
+import kademlia
+from bytestring_splitter import BytestringSplitter
+from constant_sorrow import default_constant_splitter, constants
 from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
+from umbral.signing import Signature
+from umbral.keys import UmbralPublicKey
 
-from constant_sorrow import default_constant_splitter, constants
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
-from nucypher.crypto.signing import Signature
-from bytestring_splitter import BytestringSplitter
-from nucypher.network.node import NucypherDHTNode
 from nucypher.network.routing import NucypherRoutingTable
-from umbral.keys import UmbralPublicKey
 
 dht_value_splitter = default_constant_splitter + BytestringSplitter(Signature, (UmbralPublicKey, PUBLIC_KEY_LENGTH))
 dht_with_hrac_splitter = dht_value_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH))
@@ -18,8 +18,10 @@ dht_with_hrac_splitter = dht_value_splitter + BytestringSplitter((bytes, KECCAK_
 class NucypherHashProtocol(KademliaProtocol):
     def __init__(self, sourceNode, storage, ksize, *args, **kwargs):
         super().__init__(sourceNode, storage, ksize, *args, **kwargs)
+
         self.router = NucypherRoutingTable(self, ksize, sourceNode)
         self.illegal_keys_seen = []
+
         # TODO: This is the wrong way to do this.  See #227.
         self.treasure_maps = {}
         self.ursulas = {}
@@ -29,12 +31,6 @@ class NucypherHashProtocol(KademliaProtocol):
             return node.can_store()
         except AttributeError:
             return True
-
-    def rpc_ping(self, sender, nodeid, node_capabilities=[]):
-        source = NucypherDHTNode(nodeid, sender[0], sender[1],
-                                 capabilities_as_strings=node_capabilities)
-        self.welcomeIfNewNode(source)
-        return self.sourceNode.id
 
     async def callStore(self, nodeToAsk, key, value):
         # nodeToAsk = NucypherNode
@@ -64,15 +60,14 @@ class NucypherHashProtocol(KademliaProtocol):
         if not verified or not proper_key == dht_key:
             # Hachidan Kiritsu, it's illegal!
             self.log.warning(
-                "Got request to store illegal k/v: {} / {}".format(dht_key,
-                                                                   dht_value))
+                "Got request to store illegal k/v: {} / {}".format(dht_key, dht_value))
             self.illegal_keys_seen.append(dht_key)
             return False
         else:
             return True
 
     def rpc_store(self, sender, nodeid, key, value):
-        source = NucypherDHTNode(nodeid, sender[0], sender[1])
+        source = kademlia.node.Node(nodeid, sender[0], sender[1])
         self.welcomeIfNewNode(source)
         self.log.debug("got a store request from %s" % str(sender))
 
