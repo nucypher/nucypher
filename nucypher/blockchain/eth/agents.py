@@ -89,31 +89,32 @@ class MinerAgent(EthereumContractAgent):
         CONFIRMED_PERIOD_1 = 3
         CONFIRMED_PERIOD_2 = 4
 
-    def __init__(self, token_agent: NucypherTokenAgent, *args, **kwargs):
+    def __init__(self, token_agent: NucypherTokenAgent=None, *args, **kwargs):
+        token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
         super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
         self.token_agent = token_agent
-        self.miners = list()    # Tracks per client
 
-    def get_miner_ids(self) -> Set[str]:
-        """
-        Fetch all miner IDs from the local cache and return them in a set
-        """
-
-        return {miner.get_id() for miner in self.miners}
-
-    def swarm(self) -> Generator[str, None, None]:
+    def swarm(self, fetch_data: bool=False) -> Union[Generator[str, None, None], Generator[Tuple[str, bytes], None, None]]:
         """
         Returns an iterator of all miner addresses via cumulative sum, on-network.
+        if fetch_data is true, tuples containing the address and the miners stored data are yielded.
 
-        Miner addresses will be returned in the order in which they were added to the MinersEscrow's ledger
+        Miner addresses are returned in the order in which they registered with the MinersEscrow contract's ledger
         """
 
-        count = self.contract.functions.getMinersLength().call()
-        for index in range(count):
-            addr = self.contract.functions.miners(index).call()
-            yield self.blockchain.interface.w3.toChecksumAddress(addr)  # string address of next node
+        miner_population = self.contract.functions.getMinersLength().call()
+        for index in range(miner_population):
 
-    def sample(self, quantity: int=10, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:
+            miner_address = self.contract.functions.miners(index).call()
+            validated_address = self.blockchain.interface.w3.toChecksumAddress(miner_address)  # string address of next node
+
+            if fetch_data is True:
+                stored_miner_data = self.contract.functions.getMinerIdsLength(miner_address).call()
+                yield (validated_address, stored_miner_data)
+            else:
+                yield validated_address
+
+    def sample(self, quantity: int, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:
         """
         Select n random staking Ursulas, according to their stake distribution.
         The returned addresses are shuffled, so one can request more than needed and
@@ -147,7 +148,7 @@ class MinerAgent(EthereumContractAgent):
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
             deltas = [i-j for i, j in zip(points[1:], points[:-1])]
 
-            addrs, addr, index, shift = set(), constants.NULL_ADDRESS, 0, 0
+            addrs, addr, index, shift = set(), str(constants.NULL_ADDRESS), 0, 0
             for delta in deltas:
                 addr, index, shift = self.contract.functions.findCumSum(index, delta + shift, duration).call()
                 addrs.add(addr)
