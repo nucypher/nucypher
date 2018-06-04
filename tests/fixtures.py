@@ -15,16 +15,6 @@ from nucypher.keystore.keypairs import SigningKeypair
 from tests.utilities import MockNetworkMiddleware, make_ursulas
 
 
-# @pytest.fixture(scope="module")
-# def nucypher_test_config(blockchain_test_config):
-#
-#     test_config = CharacterConfiguration(keyring="this is a faked keyring object",
-#                                          blockchain_config=blockchain_test_config)
-#     yield test_config
-#     Blockchain.sever_connection()
-#     del test_config
-
-
 @pytest.fixture(scope="module")
 def idle_policy(alice, bob):
     """
