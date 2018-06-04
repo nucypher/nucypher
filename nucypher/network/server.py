@@ -3,16 +3,17 @@ import binascii
 import random
 from typing import ClassVar
 
+import kademlia
 from apistar import http, Route, App
 from apistar.http import Response
+from bytestring_splitter import VariableLengthBytestring
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
-
-from bytestring_splitter import VariableLengthBytestring
 from umbral import pre
 from umbral.fragments import KFrag
 
+from nucypher.config.configs import NetworkConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import EncryptingPower, SigningPower
 from nucypher.keystore.threading import ThreadedSession
@@ -83,7 +84,9 @@ class NucypherSeedOnlyDHTServer(NucypherDHTServer):
 
 class ProxyRESTServer:
 
-    def __init__(self, rest_port, db_name, *args, **kwargs):
+    def __init__(self, ip_address=None, rest_port=None, db_name=None, *args, **kwargs):
+        """TODO: A server with no uri...? """
+        self.ip_address = ip_address
         self.rest_port = rest_port
         self.db_name = db_name
         self._rest_app = None
