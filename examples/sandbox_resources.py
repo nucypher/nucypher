@@ -9,7 +9,7 @@ class SandboxNetworkyStuff(NetworkMiddleware):
     def __init__(self, ursulas):
         self.ursulas = ursulas
 
-    def find_ursula(self, contract=None):
+    def consider_arrangement(self, contract=None):
         ursula = Ursula.as_discovered_on_network(dht_port=None,
                                                  ip_address="localhost",
                                                  rest_port=3601,
