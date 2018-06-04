@@ -2,13 +2,15 @@ import requests
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from umbral.fragments import CapsuleFrag
 
+from nucypher.blockchain.eth.agents import MinerAgent
+
 
 class NetworkMiddleware(object):
 
-    class NotEnoughQualifiedUrsulas(Exception):
+    class NotEnoughQualifiedUrsulas(MinerAgent.NotEnoughMiners):
         pass
 
-    def find_ursula(self, arrangement=None):
+    def consider_arrangement(self, arrangement=None):
         pass
 
     def reencrypt(self, work_order):

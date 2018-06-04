@@ -6,11 +6,9 @@ from collections import OrderedDict
 import maya
 import msgpack
 from bytestring_splitter import BytestringSplitter
-from bytestring_splitter import BytestringSplitter
-from constant_sorrow import constants
 from constant_sorrow import constants
 
-from nucypher.blockchain.eth.policies import BlockchainArrangement
+from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.policies import BlockchainArrangement, BlockchainPolicy
 from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula
@@ -20,7 +18,6 @@ from nucypher.crypto.powers import SigningPower
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
 from umbral.config import default_params
-from umbral.pre import Capsule
 from umbral.pre import Capsule
 
 
@@ -77,24 +74,24 @@ class Arrangement(BlockchainArrangement):
         alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
         return cls(alice=alice, hrac=hrac, expiration=expiration, deposit=int(deposit_bytes))
 
-    def publish(self, kfrag, ursula, negotiation_result):
-        self.kfrag = kfrag
-        self.ursula = ursula
-        self.negotiation_result = negotiation_result
+    def publish(self):
+        """
+        Publish arrangement to blockchain
 
-        # Publish arrangement to blockchain
-        super().publish()  # TODO Determine actual gas price here
         # TODO Negotiate the receipt of a KFrag per Ursula
+        """
+        super().publish()
 
     def encrypt_payload_for_ursula(self):
-        """
-        Craft an offer to send to Ursula.
-        """
+        """Craft an offer to send to Ursula."""
         # We don't need the signature separately.
         return self.alice.encrypt_for(self.ursula, self.payload())[0]
 
     def payload(self):
-        # TODO: Ship the expiration again?  Or some other way of alerting Ursula to recall her previous dialogue regarding this Arrangement.  Update: We'll probably have her store the Arrangement by hrac.  See #127.
+        # TODO: Ship the expiration again?
+        # Or some other way of alerting Ursula to
+        # recall her previous dialogue regarding this Arrangement.
+        # Update: We'll probably have her store the Arrangement by hrac.  See #127.
         return bytes(self.kfrag)
 
 
@@ -129,16 +126,22 @@ class Policy(BlockchainPolicy):
         self.kfrags = kfrags
         self.public_key = public_key
         self.treasure_map = TreasureMap(m=m)
-        self._accepted_arrangements = OrderedDict()
+
+        # Keep track of this stuff
+        self._accepted_arrangements = list()
+        self._rejected_arrangements = list()
+
+        self._enacted_arrangements = OrderedDict()
+        self._published_arrangements = OrderedDict()
 
         self.alices_signature = alices_signature
-        self.arrangements = list()
+        self.arrangements = dict()
 
         super().__init__(author=self.alice)
 
-    class MoreArrangementsThanKFrags(TypeError):
+    class MoreKFragsThanArrangements(TypeError):
         """
-        Raised when a Policy has been used to generate Arrangements with Ursulas in sufficient number
+        Raised when a Policy has been used to generate Arrangements with Ursulas insufficient number
         such that we don't have enough KFrags to give to each Ursula.
         """
 
@@ -224,61 +227,68 @@ class Policy(BlockchainPolicy):
                     pass
         return tmap_message_kit, map_payload, signature_for_bob, signature_for_ursula
 
-    def enact(self, networky_stuff):
-        for arrangement in self._accepted_arrangements.values():
+    def publish(self) -> None:
+        """Publish enacted arrangements to the blockchain"""
+        while len(self._enacted_arrangements) > 0:
+            kfrag, arrangement = self._enacted_arrangements.popitem()
+            arrangement.publish(arrangement.kfrag)  # TODO
+
+    def __assign_kfrags(self):
+
+        if len(self._accepted_arrangements) < self.n:
+            raise self.MoreKFragsThanArrangements("Not enough candidate arrangements. "
+                                                  "Call make_arrangements to make more.")
+
+        for kfrag in self.kfrags:
+            for arrangement, in self._accepted_arrangements:
+                if kfrag not in self._enacted_arrangements:
+                    arrangement.kfrag = kfrag
+                    yield arrangement
+                    self._enacted_arrangements[kfrag] = arrangement
+
+    def enact(self, network_middleware):
+        """Assign kfrags to ursulas, and distribute them via REST, populating enacted_arrangements"""
+        for arrangement in self.__assign_kfrags():
             policy_message_kit = arrangement.encrypt_payload_for_ursula()
-            response = networky_stuff.enact_policy(arrangement.ursula,
-                                                   self.hrac(),
-                                                   policy_message_kit.to_bytes())
+
+            response = network_middleware.enact_policy(arrangement.ursula,
+                                                       self.hrac(),
+                                                       policy_message_kit.to_bytes())
+
+            # TODO: What if there weren't enough Arrangements approved to distribute n kfrags?
+            # We need to raise NotEnoughQualifiedUrsulas.
+
             # TODO: Parse response for confirmation.
             response
 
             # Assuming response is what we hope for
             self.treasure_map.add_ursula(arrangement.ursula)
 
-    def make_arrangement(self, deposit, expiration):
-
-        arrangement = Arrangement(self.alice, self.hrac(), expiration=expiration, deposit=deposit)
-        # self.arrangements[arrangement.id] = {arrangement.id: arrangement}
-        return arrangement
-
-    def find_ursulas(self, network_middleware, deposit, expiration, num_ursulas=None):
+    def make_arrangements(self, network_middleware, quantity: int,
+                          deposit: int, expiration: maya.MayaDT) -> None:
         """
-        :param network_middleware: A compliant interface (maybe a Client instance) to be used to engage the DHT swarm.
+        Create and consider n Arangement objects from sampled miners.
         """
-        num_ursulas = num_ursulas or self.n
 
-        found_ursulas = self.alice.recruit(quantity=num_ursulas)
-        for address in found_ursulas:
-            pass  # TODO
+        try:
+            sampled_miners = self.alice.recruit(quantity=quantity or self.n)
+        except MinerAgent.NotEnoughMiners:
+            raise  # TODO
 
-            arrangement = self.make_arrangement(deposit, expiration)
+        for miner in sampled_miners:
+
+            # Cast the miner into an ursula
+            ursula = Ursula(is_me=False, ether_address=miner.ether_address)
+            arrangement = Arrangement(alice=self.alice, ursula=ursula, hrac=self.hrac(), expiration=expiration, deposit=deposit)
 
             try:
-                ursula, result = network_middleware.find_ursula(arrangement)
-                found_ursulas.append((ursula, arrangement, result))
+                # TODO: check out the response: need to assess the result and see if we're actually good to go.
+                ursula, negotiation_result = network_middleware.consider_arrangement(arrangement)
+                bucket = self._accepted_arrangements if negotiation_result is True else self._rejected_arrangements
+                bucket.append(arrangement)
 
             except network_middleware.NotEnoughQualifiedUrsulas:
-                pass  # TODO: Tell Alice to either wait or lower the value of num_ursulas.
-                raise
-
-        return found_ursulas
-
-    def assign_kfrag_to_arrangement(self, arrangement):
-        for kfrag in self.kfrags:
-            if not kfrag in self._accepted_arrangements:
-                arrangement.kfrag = kfrag
-                self._accepted_arrangements[kfrag] = arrangement
-                return kfrag
-        if not arrangement.kfrag:
-            raise self.MoreArrangementsThanKFrags  # TODO: Perhaps in a future version, we consider allowing Alice to assign *the same* KFrag to multiple Ursulas?
-
-    def match_kfrags_to_found_ursulas(self, found_ursulas):
-        for ursula, arrangement, result in found_ursulas:
-            if result.was_accepted:  # TODO: Here, we need to assess the result and see if we're actually good to go.
-                kfrag = self.assign_kfrag_to_arrangement(arrangement)
-                arrangement.publish(kfrag, ursula, result)
-                # TODO: What if there weren't enough Arrangements approved to distribute n kfrags?  We need to raise NotEnoughQualifiedUrsulas.
+                raise  # TODO: Tell Alice to either wait or lower the value of num_ursulas.
 
 
 class TreasureMap(object):
