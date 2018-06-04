@@ -388,8 +388,8 @@ class Alice(PolicyAuthor, Character):
         # deposit and expiration combinations on a limited number of Ursulas;
         # Users may decide to inject some market strategies here.
         #
-        found_ursulas = policy.find_ursulas(self.network_middleware, deposit, expiration, num_ursulas=n)
-        policy.match_kfrags_to_found_ursulas(found_ursulas)
+        policy.make_arrangements(self.network_middleware, deposit=deposit,
+                                 expiration=expiration, quantity=n)
 
         # REST call happens here, as does population of TreasureMap.
         policy.enact(self.network_middleware)
@@ -674,10 +674,11 @@ class Ursula(Character, ProxyRESTServer, Miner):
         if not self.dht_port and self.dht_interface:
             raise RuntimeError("Must listen before publishing interface information.")
 
-        dht_key = bytes(self.stamp)
+        ursula_id = bytes(self.stamp)
+
         value = self.interface_info_with_metadata()
-        setter = self.server.set(key=dht_key, value=value)
-        blockchain_client._ursulas_on_blockchain.append(dht_key)
+        setter = self.dht_server.set(key=ursula_id, value=value)
+        self.publish_data(ursula_id)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 

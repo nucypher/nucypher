@@ -11,7 +11,7 @@ from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitte
 from tests.utilities import MockNetworkMiddleware, TEST_EVENT_LOOP
 
 
-@pytest.mark.usefixtures('deploy_nucypher_contracts')
+@pytest.mark.usefixtures('deployed_testerchain')
 def test_all_ursulas_know_about_all_other_ursulas(ursulas, mock_miner_agent):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
@@ -94,7 +94,7 @@ def test_alice_sets_treasure_map_on_network(enacted_policy, ursulas):
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
     """
     networky_stuff = MockNetworkMiddleware(ursulas)
-    _, packed_encrypted_treasure_map, _, _ = enacted_policy.publish_treasure_map(networky_stuff=networky_stuff, use_dht=True)
+    _, packed_encrypted_treasure_map, _, _ = enacted_policy.publish_treasure_map(network_middleare=networky_stuff, use_dht=True)
 
     treasure_map_as_set_on_network = ursulas[0].server.storage[
         digest(enacted_policy.treasure_map_dht_key())]
