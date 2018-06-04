@@ -46,23 +46,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     loop.run_until_complete(setter)
 
     # Now Ursula has seen an illegal key.
-    assert digest(illegal_key) in ursula.server.protocol.illegal_keys_seen
-
-
-@pytest.mark.usefixtures('deploy_nucypher_contracts')
-def test_alice_finds_ursula_via_dht(alice, mock_miner_agent):
-    """
-    With the help of any Ursula, Alice can find a specific Ursula.
-    """
-    ursula_index = 1
-    all_ursulas = list(mock_miner_agent.swarm(fetch_data=True))
-    ether_address, ursula_id = alice.server.get_now(all_ursulas[ursula_index])
-    header, _signature, _ursula_pubkey_sig, interface_info = dht_value_splitter(ursula_id,
-                                                                                return_remainder=True)
-
-    assert header == constants.BYTESTRING_IS_URSULA_IFACE_INFO
-    port = msgpack.loads(interface_info)[1]
-    assert port == constants.URSULA_PORT_SEED + ursula_index
+    assert digest(illegal_key) in ursula.dht_server.protocol.illegal_keys_seen
 
 
 def test_alice_finds_ursula_via_rest(alice, ursulas):
