@@ -289,6 +289,7 @@ contract MinersEscrow is Issuer {
     function deposit(address _owner, uint256 _value, uint256 _periods) internal isInitialized {
         require(_value != 0);
         MinerInfo storage info = minerInfo[_owner];
+        // initial stake of the miner
         if (info.stakes.length == 0) {
             miners.push(_owner);
             policyManager.register(_owner, getCurrentPeriod());
@@ -442,6 +443,7 @@ contract MinersEscrow is Issuer {
             }
         }
 
+        // miner is inactive for several periods
         if (_lastActivePeriod < currentPeriod) {
             info.downtime.push(Downtime(_lastActivePeriod + 1, currentPeriod));
         }
@@ -472,6 +474,9 @@ contract MinersEscrow is Issuer {
     * @notice Mint tokens for sender for previous periods if he locked his tokens and confirmed activity
     **/
     function mint() external onlyTokenOwner {
+        // save last active period to the storage if only one period is confirmed
+        // because after this minting confirmed periods can be empty and can't calculate period from them
+        // see getLastActivePeriod(address)
         MinerInfo storage info = minerInfo[msg.sender];
         if (info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD ||
             info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD) {

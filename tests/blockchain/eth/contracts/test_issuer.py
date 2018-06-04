@@ -140,7 +140,7 @@ def test_verifying_state(web3, chain, token):
     assert 2 == contract.functions.lockedPeriodsCoefficient().call()
     assert 2 == contract.functions.awardedPeriods().call()
     assert period == contract.functions.lastMintedPeriod().call()
-    assert 2 * 10 ** 40 == contract.functions.futureSupply().call()
+    assert 2 * 10 ** 40 == contract.functions.totalSupply().call()
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert 3 == contract.functions.valueToCheck().call()
@@ -163,7 +163,7 @@ def test_verifying_state(web3, chain, token):
     assert 1 == contract.functions.lockedPeriodsCoefficient().call()
     assert 1 == contract.functions.awardedPeriods().call()
     assert period == contract.functions.lastMintedPeriod().call()
-    assert 2 * 10 ** 40 == contract.functions.futureSupply().call()
+    assert 2 * 10 ** 40 == contract.functions.totalSupply().call()
     with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.functions.setValueToCheck(2).transact({'from': creator})
         chain.wait_for_receipt(tx)
