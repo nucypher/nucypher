@@ -2,13 +2,13 @@ import random
 from typing import List
 
 import pkg_resources
+from constant_sorrow import constants
 from eth_tester import PyEVMBackend
 from eth_tester.backends import is_pyevm_available
 from eth_tester.backends.pyevm.main import get_default_genesis_params, get_default_account_keys, generate_genesis_state
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import MinerAgent, NucypherTokenAgent
-from constant_sorrow import constants
 from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherTokenDeployer
 
 
@@ -44,7 +44,7 @@ class MockMinerAgent(MinerAgent):
 
         miners = list()
         for address in addresses:
-            miner = Miner(miner_agent=self, address=address)
+            miner = Miner(miner_agent=self, ether_address=address)
             miners.append(miner)
 
             # stake a random amount
@@ -72,20 +72,14 @@ class MockMinerEscrowDeployer(MinerEscrowDeployer):
 
 def generate_accounts(w3: Web3, quantity: int) -> List[str]:
     """
-    Generate 9 additional unlocked accounts transferring wei_balance to each account on creation.
+    Generate additional unlocked accounts transferring wei_balance to each account on creation.
     """
-    addresses = list()
     insecure_passphrase = 'this-is-not-a-secure-password'
+    addresses = list()
     for _ in range(quantity):
         address = w3.personal.newAccount(insecure_passphrase)
         w3.personal.unlockAccount(address, passphrase=insecure_passphrase)
-
         addresses.append(addresses)
-
-    accounts = len(w3.eth.accounts)
-    fail_message = "There are more total accounts then the specified quantity; There are {} existing accounts.".format(accounts)
-    assert accounts == 10, fail_message
-
     return addresses
 
 
