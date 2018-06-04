@@ -8,7 +8,6 @@ from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import MinerAgent
-from nucypher.blockchain.eth.policies import BlockchainPolicy
 from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula
 from nucypher.crypto.api import keccak_digest
@@ -95,7 +94,7 @@ class Arrangement:
         return bytes(self.kfrag)
 
 
-class Policy(BlockchainPolicy):
+class Policy:
     """
     An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob
     for a specific path.
@@ -132,8 +131,6 @@ class Policy(BlockchainPolicy):
 
         self.alices_signature = alices_signature
         self.arrangements = dict()
-
-        super().__init__(author=self.alice)
 
     class MoreKFragsThanArrangements(TypeError):
         """
@@ -271,8 +268,9 @@ class Policy(BlockchainPolicy):
 
             # Cast the miner into an ursula
             ursula = Ursula(is_me=False, ether_address=miner.ether_address)
-            arrangement = Arrangement(alice=self.alice, ursula=ursula, hrac=self.hrac(), expiration=expiration,
-                                      deposit=deposit)
+            arrangement = Arrangement(alice=self.alice, ursula=ursula,
+                                      hrac=self.hrac(),
+                                      expiration=expiration)
 
             try:
                 # TODO: check out the response: need to assess the result and see if we're actually good to go.
