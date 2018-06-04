@@ -32,7 +32,7 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
     for _counter, ether_address in enumerate(ether_addresses):
         port = ursula_starting_port + _counter
         ursula = Ursula(ether_address=ether_address, dht_port=port, db_name="test-{}".format(port),
-                        ip_address="127.0.0.1", rest_port=port+100)
+                        ip_address="127.0.0.1", rest_port=port + 100)
 
         class MockDatastoreThreadPool(object):
             def callInThread(self, f, *args, **kwargs):
@@ -119,5 +119,5 @@ class MockNetworkMiddleware(NetworkMiddleware):
         rest_app = self._get_rest_app_by_port(node.rest_port)
         mock_client = TestClient(rest_app)
         response = mock_client.post("http://localhost/treasure_map/{}".format(map_id.hex()),
-                      data=map_payload, verify=False)
+                                    data=map_payload, verify=False)
         return response
