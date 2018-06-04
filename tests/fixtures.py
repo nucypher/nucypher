@@ -10,22 +10,23 @@ from sqlalchemy.engine import create_engine
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.characters import Alice, Bob
 
-from nucypher.config.configs import NucypherConfig
+from nucypher.config.configs import NucypherConfiguration
 
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
-from tests.utilities import NUMBER_OF_URSULAS_IN_NETWORK, MockNetworkMiddleware, make_ursulas, URSULA_PORT, EVENT_LOOP
+from tests.utilities import MockNetworkMiddleware, make_ursulas, EVENT_LOOP
+from constant_sorrow import constants
 
 
 @pytest.fixture(scope="module")
 def nucypher_test_config(blockchain_config):
 
-    config = NucypherConfig(keyring="this is a faked keyring object",
+    config = NucypherConfiguration(keyring="this is a faked keyring object",
                             blockchain_config=blockchain_config)
     yield config
-    NucypherConfig.reset()
+    NucypherConfiguration.reset()
     Blockchain.sever()
     del config
 
@@ -36,7 +37,7 @@ def idle_policy(alice, bob):
     Creates a Policy, in a manner typical of how Alice might do it, with a unique uri (soon to be "label" - see #183)
     """
     alice.__resource_id += b"/unique-again"  # A unique name each time, like a path.
-    n = NUMBER_OF_URSULAS_IN_NETWORK
+    n = constants.NUMBER_OF_URSULAS_IN_NETWORK
 
     policy = alice.create_policy(
         bob,

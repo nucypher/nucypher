@@ -15,9 +15,9 @@ from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
-from nucypher.blockchain.eth.interfaces import Registrar
+from nucypher.blockchain.eth.interfaces import EthereumContractRegistrar
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.config.configs import BlockchainConfig
+from nucypher.config.configs import BlockchainConfiguration
 from tests.blockchain.eth import contracts, utilities
 from tests.blockchain.eth.utilities import MockMinerEscrowDeployer, TesterPyEVMBackend, MockNucypherTokenDeployer
 
@@ -129,15 +129,15 @@ def solidity_compiler():
 @pytest.fixture(scope='module')
 def registrar():
     _, filepath = tempfile.mkstemp()
-    test_registrar = Registrar(chain_name='tester', registrar_filepath=filepath)
+    test_registrar = EthereumContractRegistrar(chain_name='tester', registrar_filepath=filepath)
     yield test_registrar
     os.remove(filepath)
 
 
 @pytest.fixture(scope='module')
 def blockchain_config(pyevm_provider, solidity_compiler, registrar):
-    BlockchainConfig.add_provider(pyevm_provider)
-    config = BlockchainConfig(compiler=solidity_compiler, registrar=registrar, deploy=True, tester=True)  # TODO: pass in address
+    BlockchainConfiguration.add_provider(pyevm_provider)
+    config = BlockchainConfiguration(compiler=solidity_compiler, registrar=registrar, deploy=True, tester=True)  # TODO: pass in address
     yield config
     config.chain.sever()
     del config
