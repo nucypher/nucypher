@@ -65,7 +65,7 @@ class MockNetworkMiddleware(NetworkMiddleware):
         self._ursulas = {bytes(u.stamp): u for u in ursulas}
         self.ursulas = iter(ursulas)
 
-    def find_ursula(self, arrangement=None):
+    def consider_arrangement(self, arrangement=None):
         try:
             ursula = next(self.ursulas)
         except StopIteration:

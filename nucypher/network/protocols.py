@@ -18,8 +18,10 @@ dht_with_hrac_splitter = dht_value_splitter + BytestringSplitter((bytes, KECCAK_
 class NucypherHashProtocol(KademliaProtocol):
     def __init__(self, sourceNode, storage, ksize, *args, **kwargs):
         super().__init__(sourceNode, storage, ksize, *args, **kwargs)
+
         self.router = NucypherRoutingTable(self, ksize, sourceNode)
         self.illegal_keys_seen = []
+
         # TODO: This is the wrong way to do this.  See #227.
         self.treasure_maps = {}
         self.ursulas = {}
