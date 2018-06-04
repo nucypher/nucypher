@@ -4,7 +4,7 @@ from typing import List
 from apistar.test import TestClient
 
 from nucypher.characters import Ursula
-from nucypher.config.configs import NucypherConfig
+from nucypher.config.configs import NucypherConfiguration
 from nucypher.network.middleware import NetworkMiddleware
 from nucypher.policy.models import ArrangementResponse
 from constant_sorrow import constants
@@ -21,7 +21,7 @@ constants.URSULA_PORT(7468)
 constants.NUMBER_OF_URSULAS_IN_NETWORK(6)
 
 
-def make_ursulas(ether_addresses: list, ursula_starting_port: int, config: NucypherConfig) -> List[Ursula]:
+def make_ursulas(ether_addresses: list, ursula_starting_port: int, config: NucypherConfiguration) -> List[Ursula]:
     """
     :param how_many_ursulas: How many Ursulas to create.
     :param ursula_starting_port: The port of the first created Ursula; subsequent Ursulas will increment the port number by 1.
