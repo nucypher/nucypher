@@ -1,14 +1,23 @@
-from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
+from nucypher.blockchain.eth.actors import PolicyAuthor
+
+from nucypher.blockchain.eth.actors import Miner
+from nucypher.policy.models import Arrangement
 
 
-class BlockchainArrangement:
+class BlockchainArrangement(Arrangement):
     """
     A relationship between Alice and a single Ursula as part of Blockchain Policy
     """
 
-    def __init__(self, author, miner, value: int, lock_periods: int, arrangement_id: bytes=None):
-
-        self.id = arrangement_id
+    def __init__(self, author: str,
+                 miner: str,
+                 value: int,
+                 lock_periods: int,
+                 ):
+        super().__init__(alice=author,
+                         ursula=miner,
+                         policy_duration=lock_periods,
+                         )
 
         # The relationship exists between two addresses
         self.author = author
