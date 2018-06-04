@@ -1,19 +1,19 @@
 import pytest
-from pytest import raises
+from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
-from nucypher.blockchain.eth.interfaces import Registrar
+from nucypher.blockchain.eth.interfaces import EthereumContractRegistrar
 
 
-def test_token_deployer_and_agent(chain):
+def test_token_deployer_and_agent(testerchain):
 
     # Trying to get token from blockchain before it's been published fails
-    with pytest.raises(Registrar.UnknownContract):
-        NucypherTokenAgent(blockchain=chain)
+    with pytest.raises(EthereumContractRegistrar.UnknownContract):
+        NucypherTokenAgent(blockchain=testerchain)
 
     # The big day...
-    deployer = NucypherTokenDeployer(blockchain=chain)
+    deployer = NucypherTokenDeployer(blockchain=testerchain)
 
     with pytest.raises(NucypherTokenDeployer.ContractDeploymentError):
         deployer.deploy()
@@ -23,7 +23,7 @@ def test_token_deployer_and_agent(chain):
     deployer.deploy()
 
     # Create a token instance
-    token_agent = NucypherTokenAgent(blockchain=chain)
+    token_agent = NucypherTokenAgent(blockchain=testerchain)
 
     # Make sure we got the name right
     deployer_contract_identifier = NucypherTokenDeployer._contract_name
@@ -34,10 +34,10 @@ def test_token_deployer_and_agent(chain):
 
     # Check that the token contract has tokens
     assert token_agent.contract.functions.totalSupply().call() != 0
-    # assert token().totalSupply() == int(1e9) * _M     # TODO
+    # assert token_agent.contract.functions.totalSupply() == int(1e9) * int(constants.M)  # TODO: expose initial supply?
 
     # Retrieve the token from the blockchain
-    same_token_agent = NucypherTokenAgent(blockchain=chain)
+    same_token_agent = NucypherTokenAgent(blockchain=testerchain)
 
     # Compare the contract address for equality
     assert token_agent.contract_address == same_token_agent.contract_address
@@ -45,7 +45,7 @@ def test_token_deployer_and_agent(chain):
 
 
 @pytest.mark.slow()
-def test_deploy_ethereum_contracts(chain):
+def test_deploy_ethereum_contracts(testerchain):
     """
     Launch all ethereum contracts:
     - NuCypherToken
@@ -55,11 +55,11 @@ def test_deploy_ethereum_contracts(chain):
     - Issuer
     """
 
-    token_deployer = NucypherTokenDeployer(blockchain=chain)
+    token_deployer = NucypherTokenDeployer(blockchain=testerchain)
     token_deployer.arm()
     token_deployer.deploy()
 
-    token_agent = NucypherTokenAgent(blockchain=chain)
+    token_agent = NucypherTokenAgent(blockchain=testerchain)
 
     miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent)
     miner_escrow_deployer.arm()
@@ -70,3 +70,5 @@ def test_deploy_ethereum_contracts(chain):
     policy_manager_contract = PolicyManagerDeployer(miner_agent=miner_agent)
     policy_manager_contract.arm()
     policy_manager_contract.deploy()
+
+    # TODO: Assert

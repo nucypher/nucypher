@@ -1,6 +1,6 @@
 import pytest
 
-from nucypher.blockchain.eth.interfaces import Registrar
+from nucypher.blockchain.eth.interfaces import EthereumContractRegistrar
 
 
 #def test_registrar_read_write(tempfile_path):
@@ -23,14 +23,14 @@ from nucypher.blockchain.eth.interfaces import Registrar
 
 def test_registrar_object(tempfile_path):
     # Tests everything is as it should be when initially created
-    test_registrar = Registrar(registrar_filepath=tempfile_path)
+    test_registrar = EthereumContractRegistrar(registrar_filepath=tempfile_path)
     assert test_registrar._chain_name == 'tester'
 
-    should_be_empty = test_registrar._Registrar__read()
+    should_be_empty = test_registrar._EthereumContractRegistrar__read()
     assert should_be_empty['tester'] == {}
 
-    contains_registrar = Registrar.get_registrars(tempfile_path)
-    assert isinstance(contains_registrar['tester'], Registrar)
+    contains_registrar = EthereumContractRegistrar.get_registrars(tempfile_path)
+    assert isinstance(contains_registrar['tester'], EthereumContractRegistrar)
 
     # Test contract enrollment and dump_chain
     test_name = 'test_contract'
@@ -65,13 +65,13 @@ def test_registrar_object(tempfile_path):
 
     # Test new chain via new registrar object
     new_chain_name = 'not_tester'
-    new_chain_registrar = Registrar(chain_name=new_chain_name, registrar_filepath=tempfile_path)
-    chains = Registrar.get_registrars(tempfile_path)
+    new_chain_registrar = EthereumContractRegistrar(chain_name=new_chain_name, registrar_filepath=tempfile_path)
+    chains = EthereumContractRegistrar.get_registrars(tempfile_path)
     assert new_chain_name not in chains # Not written yet, shouldn't be there
 
     new_chain_registrar.enroll(new_chain_name, new_test_addr, test_abi)
-    updated_chains = Registrar.get_registrars(tempfile_path)
+    updated_chains = EthereumContractRegistrar.get_registrars(tempfile_path)
     assert new_chain_name in updated_chains and 'tester' in updated_chains
 
-    with pytest.raises(Registrar.UnknownContract):
+    with pytest.raises(EthereumContractRegistrar.UnknownContract):
         test_registrar.dump_contract('This should not exist')
