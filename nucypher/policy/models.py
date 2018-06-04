@@ -216,7 +216,8 @@ class Policy(BlockchainPolicy):
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
 
         for node in self.alice.known_nodes.values():
-            response = network_middleare.push_treasure_map_to_node(node, map_id, constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
+            response = network_middleare.push_treasure_map_to_node(node, map_id,
+                                                                   constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
             # TODO: Do something here based on success or failure
             if response.status_code == 204:
                 pass
@@ -265,7 +266,6 @@ class Policy(BlockchainPolicy):
         """
         Create and consider n Arangement objects from sampled miners.
         """
-
         try:
             sampled_miners = self.alice.recruit(quantity=quantity or self.n)
         except MinerAgent.NotEnoughMiners:
@@ -275,14 +275,14 @@ class Policy(BlockchainPolicy):
 
             # Cast the miner into an ursula
             ursula = Ursula(is_me=False, ether_address=miner.ether_address)
-            arrangement = Arrangement(alice=self.alice, ursula=ursula, hrac=self.hrac(), expiration=expiration, deposit=deposit)
+            arrangement = Arrangement(alice=self.alice, ursula=ursula, hrac=self.hrac(), expiration=expiration,
+                                      deposit=deposit)
 
             try:
                 # TODO: check out the response: need to assess the result and see if we're actually good to go.
                 ursula, negotiation_result = network_middleware.consider_arrangement(arrangement)
                 bucket = self._accepted_arrangements if negotiation_result is True else self._rejected_arrangements
                 bucket.append(arrangement)
-
             except network_middleware.NotEnoughQualifiedUrsulas:
                 raise  # TODO: Tell Alice to either wait or lower the value of num_ursulas.
 
@@ -377,7 +377,8 @@ class WorkOrderHistory:
         if isinstance(item, bytes):
             return self.by_ursula.setdefault(item, {})
         else:
-            raise TypeError("If you want to lookup a WorkOrder by Ursula, you need to pass bytes of her signing public key.")
+            raise TypeError(
+                "If you want to lookup a WorkOrder by Ursula, you need to pass bytes of her signing public key.")
 
     def __setitem__(self, key, value):
         assert False
