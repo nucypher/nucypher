@@ -94,10 +94,6 @@ class Arrangement:
         return bytes(self.kfrag)
 
 
-class ArrangementResponse(object):
-    pass
-
-
 class Policy(BlockchainPolicy):
     """
     An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob
