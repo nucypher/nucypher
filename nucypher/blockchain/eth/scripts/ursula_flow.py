@@ -21,7 +21,7 @@ def main():
 
     with proj.get_chain(chain_name) as chain:
         web3 = chain.web3
-        print("Web3 providers are", web3.providers)
+        print("Web3 __providers are", web3.active_providers)
         creator = web3.eth.accounts[0]
         # ursula = web3.eth.accounts[1]
         # alice = web3.eth.accounts[2]
