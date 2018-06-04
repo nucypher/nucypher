@@ -1,35 +1,32 @@
-import asyncio
 import binascii
 import uuid
 from collections import OrderedDict
-from datetime import datetime
-from typing import List, Dict
 
 import maya
 import msgpack
 
+from bytestring_splitter import BytestringSplitter
+from constant_sorrow import constants
 from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.policies import BlockchainPolicy
 from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH
-from nucypher.crypto.powers import SigningPower, DelegatingPower
+from nucypher.crypto.powers import SigningPower
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
-from bytestring_splitter import BytestringSplitter
-from nucypher.blockchain.eth.policies import BlockchainArrangement, BlockchainPolicy
 from umbral.pre import Capsule
-from constant_sorrow import constants
 
 
-class Arrangement(BlockchainArrangement):
+class Arrangement:
     """
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
-    _EXPECTED_LENGTH = 106
-    splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH), (bytes, 27), (bytes, 7))
+    splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
+                                                 (bytes, 27))
 
-    def __init__(self, alice, hrac, expiration, deposit=None, ursula=None,
+    def __init__(self, alice, hrac, expiration, ursula=None,
                  kfrag=constants.UNKNOWN_KFRAG, alices_signature=None):
         """
         :param deposit: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
@@ -39,9 +36,9 @@ class Arrangement(BlockchainArrangement):
         Other params are hopefully self-evident.
         """
         self.expiration = expiration
-        self.deposit = deposit
         self.hrac = hrac
         self.alice = alice
+        self.uuid = uuid.uuid4()
 
         """
         These will normally not be set if Alice is drawing up this arrangement - she hasn't assigned a kfrag yet
@@ -52,28 +49,29 @@ class Arrangement(BlockchainArrangement):
 
         arrangement_delta = maya.now() - self.expiration
         policy_duration = arrangement_delta.days
-
-        super().__init__(author=self.alice, miner=ursula,
-                         value=self.deposit, lock_periods=policy_duration,
-                         arrangement_id=self._make_arrangement_id())
+        #
+        # super().__init__(author=self.alice, miner=ursula,
+        #                  value=self.deposit, lock_periods=policy_duration,
+        #                  arrangement_id=self.id())
 
     def __bytes__(self):
         return bytes(self.alice.stamp) + bytes(
-            self.hrac) + self.expiration.iso8601().encode() + bytes(
-            self.deposit)
+            self.hrac) + self.expiration.iso8601().encode()
 
-    @staticmethod
-    def _make_arrangement_id():
-        arrangement_id = str(uuid.uuid4()).encode()
-        return arrangement_id
+    def id(self):
+        if not self.ursula:
+            raise TypeError("Can't make an ID for this arrangement yet as we don't know the Ursula.")
+        id_nugget = keccak_digest(self.ursula + self.uuid)
+        full_id = keccak_digest(self.alice.stamp + id_nugget)
+        return id_nugget, full_id
 
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
         # Still unclear how to arrive at the correct number of bytes to represent a deposit.  See #148.
-        alice_pubkey_sig, hrac, expiration_bytes, deposit_bytes = cls.splitter(arrangement_as_bytes)
+        alice_pubkey_sig, hrac, expiration_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.parse(expiration_bytes.decode())
         alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
-        return cls(alice=alice, hrac=hrac, expiration=expiration, deposit=int(deposit_bytes))
+        return cls(alice=alice, hrac=hrac, expiration=expiration)
 
     def publish(self):
         """
