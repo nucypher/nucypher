@@ -1,7 +1,7 @@
 import random
 from abc import ABC
 from enum import Enum
-from typing import Set, Generator, List
+from typing import Set, Generator, List, Tuple, Union
 
 from web3.contract import Contract
 
@@ -37,7 +37,7 @@ class EthereumContractAgent(ABC):
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(blockchain={}, contract={})"
-        return r.format(class_name, self.blockchain, self.__contract)
+        return r.format(class_name, self.blockchain, self._principal_contract_name)
 
     def __eq__(self, other):
         return bool(self.contract_address == other.contract_address)
@@ -60,8 +60,7 @@ class EthereumContractAgent(ABC):
 
     def get_balance(self, address: str=None) -> int:
         """Get the balance of a token address, or of this contract address"""
-        if address is None:
-            address = self.contract_address
+        address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
 
 
