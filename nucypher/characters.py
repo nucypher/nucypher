@@ -322,11 +322,12 @@ class Character:
         self.known_nodes.update(new_nodes)
 
 
-class Alice(PolicyAuthor, Character):
+class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        Character.__init__(self, *args, **kwargs)
+        PolicyAuthor.__init__(self, *args, **kwargs)
 
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
