@@ -22,7 +22,6 @@ class NucypherTokenActor:
 
         self.__ether_address = ether_address if ether_address is not None else constants.UNKNOWN_ACTOR
         self._transaction_cache = list()  # track transactions transmitted
-        super().__init__()                # cooperative multiple inheritance
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -273,7 +272,7 @@ class PolicyAuthor(NucypherTokenActor):
             self.miner_agent = policy_agent.miner_agent
             self.token_agent = policy_agent.miner_agent.token_agent
 
-        super().__init__(token_agent=self.policy_agent.token_agent, *args, **kwargs)
+        NucypherTokenActor.__init__(self, token_agent=self.policy_agent.token_agent, *args, **kwargs)
         self._arrangements = OrderedDict()    # Track authored policies by id
 
     def revoke_arrangement(self, arrangement_id) -> str:
