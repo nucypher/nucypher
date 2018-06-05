@@ -2,12 +2,10 @@ import asyncio
 from typing import List
 
 from apistar.test import TestClient
-from constant_sorrow import constants
 
+from constant_sorrow import constants
 from nucypher.characters import Ursula
 from nucypher.network.middleware import NetworkMiddleware
-from nucypher.policy.models import ArrangementResponse
-
 
 #
 # Setup
@@ -32,7 +30,7 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
     for _counter, ether_address in enumerate(ether_addresses):
         port = ursula_starting_port + _counter
         ursula = Ursula(ether_address=ether_address, dht_port=port, db_name="test-{}".format(port),
-                        ip_address="127.0.0.1", rest_port=port+100)
+                        ip_address="127.0.0.1", rest_port=port + 100)
 
         class MockDatastoreThreadPool(object):
             def callInThread(self, f, *args, **kwargs):
@@ -45,17 +43,10 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
 
     for ursula in _ursulas:
         event_loop.run_until_complete(
-            ursula.dht_server.bootstrap([("127.0.0.1", ursula_starting_port+_c) for _c in range(len(_ursulas))]))
+            ursula.dht_server.bootstrap([("127.0.0.1", ursula_starting_port + _c) for _c in range(len(_ursulas))]))
         ursula.publish_dht_information()
 
     return _ursulas
-
-
-class MockArrangementResponse(ArrangementResponse):
-    was_accepted = True
-
-    def __bytes__(self):
-        return b"This is a arrangement response; we have no idea what the bytes repr will be."
 
 
 class MockNetworkMiddleware(NetworkMiddleware):
@@ -72,7 +63,7 @@ class MockNetworkMiddleware(NetworkMiddleware):
         mock_client = TestClient(ursula.rest_app)
         response = mock_client.post("http://localhost/consider_arrangement", bytes(arrangement))
         assert response.status_code == 200
-        return ursula, MockArrangementResponse()
+        return ursula, b"This is a arrangement response; we have no idea what the bytes repr will be."
 
     def enact_policy(self, ursula, hrac, payload):
         rest_app = self._get_rest_app_by_port(ursula.rest_port)
@@ -119,5 +110,5 @@ class MockNetworkMiddleware(NetworkMiddleware):
         rest_app = self._get_rest_app_by_port(node.rest_port)
         mock_client = TestClient(rest_app)
         response = mock_client.post("http://localhost/treasure_map/{}".format(map_id.hex()),
-                      data=map_payload, verify=False)
+                                    data=map_payload, verify=False)
         return response

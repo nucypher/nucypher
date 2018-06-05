@@ -7,6 +7,8 @@ from typing import Union, List
 
 import kademlia
 import msgpack
+from kademlia.utils import digest
+
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants, default_constant_splitter
 from kademlia.network import Server
@@ -322,11 +324,12 @@ class Character:
         self.known_nodes.update(new_nodes)
 
 
-class Alice(PolicyAuthor, Character):
+class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        Character.__init__(self, *args, **kwargs)
+        PolicyAuthor.__init__(self, *args, **kwargs)
 
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
@@ -652,9 +655,9 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
     def attach_dht_server(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
         """ TODO: Network-wide deterministic ID generation (ie, auction or whatever)  See #136."""
-
         id = id or bytes(self.ether_address, encoding='utf-8')
-        super().attach_dht_server(ksize=ksize, id=id, alpha=alpha, storage=storage)
+        # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
+        super().attach_dht_server(ksize=ksize, id=digest(id), alpha=alpha, storage=storage)
         self.attach_rest_server(db_name=self.db_name)
 
     def dht_listen(self):

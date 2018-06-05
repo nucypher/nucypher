@@ -1,14 +1,23 @@
-from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
+from nucypher.blockchain.eth.actors import PolicyAuthor
+
+from nucypher.blockchain.eth.actors import Miner
+from nucypher.policy.models import Arrangement, Policy
 
 
-class BlockchainArrangement:
+class BlockchainArrangement(Arrangement):
     """
     A relationship between Alice and a single Ursula as part of Blockchain Policy
     """
 
-    def __init__(self, author, miner, value: int, lock_periods: int, arrangement_id: bytes=None):
-
-        self.id = arrangement_id
+    def __init__(self, author: str,
+                 miner: str,
+                 value: int,
+                 lock_periods: int,
+                 ):
+        super().__init__(alice=author,
+                         ursula=miner,
+                         policy_duration=lock_periods,
+                         )
 
         # The relationship exists between two addresses
         self.author = author
@@ -36,10 +45,10 @@ class BlockchainArrangement:
         return r
 
     def publish(self) -> str:
-
         payload = {'from': self.author.address, 'value': self.value}
 
-        txhash = self.policy_agent.contract.functions.createPolicy(self.id, self.miner.address, self.lock_periods).transact(payload)
+        txhash = self.policy_agent.contract.functions.createPolicy(self.id, self.miner.address,
+                                                                   self.lock_periods).transact(payload)
         self.policy_agent.blockchain.wait.for_receipt(txhash)
 
         self.publish_transaction = txhash
@@ -55,7 +64,7 @@ class BlockchainArrangement:
         return txhash
 
 
-class BlockchainPolicy:
+class BlockchainPolicy(Policy):
     """
     A collection of n BlockchainArrangements representing a single Policy
     """

@@ -37,7 +37,6 @@ class PolicyArrangement(Base):
 
     hrac = Column(LargeBinary, unique=True, primary_key=True)
     expiration = Column(DateTime)
-    deposit = Column(LargeBinary)
     k_frag = Column(LargeBinary, unique=True, nullable=True)
     alice_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
     alice_pubkey_sig = relationship(Key, backref="policies", lazy='joined')
@@ -47,12 +46,11 @@ class PolicyArrangement(Base):
     alice_signature = Column(LargeBinary, unique=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    def __init__(self, expiration, deposit, hrac,
+    def __init__(self, expiration, hrac,
                  k_frag=None, alice_pubkey_sig=None,
                  # alice_pubkey_enc_id, bob_pubkey_sig_id,
                  alice_signature=None):
         self.expiration = expiration
-        self.deposit = deposit
         self.hrac = hrac
         self.k_frag = k_frag
         self.alice_pubkey_sig = alice_pubkey_sig
