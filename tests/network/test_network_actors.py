@@ -96,11 +96,16 @@ def test_treasure_map_with_bad_id_does_not_propagate(idle_policy, ursulas):
 
     message_kit, signature = alice.encrypt_for(bob, treasure_map.packed_payload())
 
-    setter = alice.server.set(illegal_policygroup_id, message_kit.to_bytes())
-    _set_event = TEST_EVENT_LOOP.run_until_complete(setter)
+    alice.network_middleware.push_treasure_map_to_node(node=ursulas[1],
+                                                       map_id=illegal_policygroup_id,
+                                                       map_payload=message_kit.to_bytes())
 
-    with pytest.raises(KeyError):
-        _ = ursulas[0].server.storage[digest(illegal_policygroup_id)]
+    # setter = alice.server.set(illegal_policygroup_id, message_kit.to_bytes())
+    # _set_event = TEST_EVENT_LOOP.run_until_complete(setter)
+
+    # with pytest.raises(KeyError):
+    #     _ = ursulas_on_network[0].server.storage[digest(illegal_policygroup_id)]
+    assert False
 
 
 @pytest.mark.usefixtures("treasure_map_is_set_on_dht")
