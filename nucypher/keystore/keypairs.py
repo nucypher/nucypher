@@ -3,11 +3,12 @@ from typing import Union
 
 from nucypher.crypto import api as API
 from nucypher.crypto.api import generate_self_signed_certificate
+from constant_sorrow.constants import PUBLIC_ONLY
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral import pre
 from umbral.config import default_curve
 from nucypher.crypto.kits import MessageKit
-from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 from umbral.signing import Signature, Signer
 
 

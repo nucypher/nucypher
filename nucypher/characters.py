@@ -7,14 +7,11 @@ from typing import Union, List
 
 import kademlia
 import msgpack
+from kademlia.network import Server
 from kademlia.utils import digest
 
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants, default_constant_splitter
-from kademlia.network import Server
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
-
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.config.configs import CharacterConfiguration
@@ -26,6 +23,8 @@ from nucypher.crypto.signing import signature_splitter, StrangerStamp
 from nucypher.network.middleware import NetworkMiddleware
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
 
 class Character:
@@ -49,9 +48,9 @@ class Character:
     class SuspiciousActivity(RuntimeError):
         """raised when an action appears to amount to malicious conduct."""
 
-    def __init__(self, crypto_power: CryptoPower=None,
+    def __init__(self, crypto_power: CryptoPower = None,
                  crypto_power_ups=None, is_me=True, network_middleware=None,
-                 config: CharacterConfiguration=None, *args, **kwargs):
+                 config: CharacterConfiguration = None, *args, **kwargs):
         """
         :param attach_dht_server:  Whether to attach a Server when this Character is
             born.
@@ -194,7 +193,8 @@ class Character:
                                                   )
         return message_kit, signature
 
-    def verify_from(self, mystery_stranger: 'Character',
+    def verify_from(self,
+                    mystery_stranger: 'Character',
                     message_kit: Union[UmbralMessageKit, bytes],
                     signature: Signature = None,
                     decrypt=False,
@@ -311,7 +311,9 @@ class Character:
             if not pubkey in self.known_nodes:
                 if sig.verify(keccak_digest(interface_info), pubkey):
                     rest_address, dht_port, rest_port = msgpack.loads(interface_info)
-                    new_nodes[pubkey] = Ursula.from_rest_url(ip_address=rest_address.decode("utf-8"), port=rest_port)
+                    new_nodes[pubkey] = Ursula.from_rest_url(network_middleware=self.network_middleware,
+                                                             ip_address=rest_address.decode("utf-8"),
+                                                             port=rest_port)
                 else:
 
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
@@ -600,7 +602,10 @@ class Bob(Character):
             node = self.known_nodes[UmbralPublicKey.from_bytes(node_id)]
             cfrags = self.get_reencrypted_c_frags(work_orders[bytes(node.stamp)])
             message_kit.capsule.attach_cfrag(cfrags[0])
-        verified, delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
+        verified, delivered_cleartext = self.verify_from(data_source,
+                                                         message_kit,
+                                                         decrypt=True,
+                                                         delegator_signing_key=alice_pubkey_sig)
 
         if verified:
             return delivered_cleartext
