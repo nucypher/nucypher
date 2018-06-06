@@ -6,6 +6,7 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, Polic
 from constant_sorrow import constants
 
 
+
 class NucypherTokenActor:
     """
     Concrete base class for any actor that will interface with NuCypher's ethereum smart contracts
