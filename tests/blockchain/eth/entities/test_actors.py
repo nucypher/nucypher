@@ -64,7 +64,7 @@ class TestMiner:
     def test_publish_miner_datastore(self, miner):
 
         # Publish Miner IDs to the DHT
-        some_data = os.urandom(32)
+        some_data = os.urandom(33)
         _txhash = miner.publish_data(some_data)
 
         # Fetch the miner Ids
@@ -74,7 +74,7 @@ class TestMiner:
         assert some_data == stored_miner_ids[0]
 
         # Repeat, with another miner ID
-        another_mock_miner_id = os.urandom(32)
+        another_mock_miner_id = os.urandom(33)
         _txhash = miner.publish_data(another_mock_miner_id)
 
         stored_miner_ids = miner.fetch_data()
@@ -83,7 +83,7 @@ class TestMiner:
         assert another_mock_miner_id == stored_miner_ids[1]
 
         supposedly_the_same_miner_id = miner.miner_agent.contract.functions.getMinerId(miner.address, 1).call()
-        assert another_mock_miner_id == supposedly_the_same_miner_id
+        assert another_mock_miner_id == supposedly_the_same_miner_id[0] + supposedly_the_same_miner_id[1]
 
 
 class TestPolicyAuthor:

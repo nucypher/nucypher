@@ -49,6 +49,11 @@ contract MinersEscrow is Issuer {
         uint256 endPeriod;
     }
 
+    struct Id {
+        byte prefix;
+        bytes32 data;
+    }
+
     struct MinerInfo {
         uint256 value;
         /*
@@ -64,7 +69,7 @@ contract MinersEscrow is Issuer {
         uint256 lastActivePeriod;
         Downtime[] downtime;
         StakeInfo[] stakes;
-        bytes[] minerIds;
+        Id[] minerIds;
     }
 
     /*
@@ -629,16 +634,21 @@ contract MinersEscrow is Issuer {
     /**
     * @notice Return the miner id
     **/
-    function getMinerId(address _miner, uint256 _index) public view returns (bytes) {
-        return minerInfo[_miner].minerIds[_index];
+    function getMinerId(address _miner, uint256 _index)
+    // TODO change to structure when ABIEncoderV2 is released
+//        public view returns (Id)
+        public view returns (byte prefix, bytes32 data)
+    {
+        Id storage minerId = minerInfo[_miner].minerIds[_index];
+        prefix = minerId.prefix;
+        data = minerId.data;
     }
 
     /**
     * @notice Set the miner id
     **/
-    function setMinerId(bytes _minerId) public {
-        MinerInfo storage info = minerInfo[msg.sender];
-        info.minerIds.push(_minerId);
+    function setMinerId(byte _prefix, bytes32 _data) public {
+        minerInfo[msg.sender].minerIds.push(Id(_prefix, _data));
     }
 
     /**
@@ -729,14 +739,15 @@ contract MinersEscrow is Issuer {
     }
 
     /**
-    * @dev Get miner id bytes by delegatecall
+    * @dev Get miner id by delegatecall
     **/
-    function delegateGetMinerId(address _target, string _signature, address _miner, uint256 _index)
-        internal returns (bytes memory result)
+    function delegateGetMinerId(address _target, address _miner, uint256 _index)
+        internal returns (Id memory result)
     {
-        bytes32 memoryAddress = delegateGetData(_target, _signature, 2, bytes32(_miner), bytes32(_index));
+        bytes32 memoryAddress = delegateGetData(
+            _target, "getMinerId(address,uint256)", 2, bytes32(_miner), bytes32(_index));
         assembly {
-            result := add(memoryAddress, mload(memoryAddress))
+            result := memoryAddress
         }
     }
 
@@ -786,11 +797,10 @@ contract MinersEscrow is Issuer {
 
         require(uint256(delegateGet(_testTarget, "getMinerIdsLength(address)", miner)) == info.minerIds.length);
         for (i = 0; i < info.minerIds.length && i < MAX_CHECKED_VALUES; i++) {
-            bytes memory minerIdToCheck =
-                delegateGetMinerId(_testTarget, "getMinerId(address,uint256)", minerAddress, i);
-            bytes storage minerId = info.minerIds[i];
-            require(minerIdToCheck.length == minerId.length &&
-                keccak256(minerIdToCheck) == keccak256(minerId));
+            Id memory minerIdToCheck = delegateGetMinerId(_testTarget, minerAddress, i);
+            Id storage minerId = info.minerIds[i];
+            require(minerIdToCheck.prefix == minerId.prefix &&
+                minerIdToCheck.data == minerId.data);
         }
     }
 

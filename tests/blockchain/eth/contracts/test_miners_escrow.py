@@ -890,17 +890,16 @@ def test_miner_id(web3, chain, token, escrow_contract):
 
     # Set miner ids
     miner_id = os.urandom(33)
-    tx = escrow.functions.setMinerId(miner_id).transact({'from': miner})
+    tx = escrow.functions.setMinerId(web3.toBytes(miner_id[0]), miner_id[1:]).transact({'from': miner})
     chain.wait_for_receipt(tx)
     assert 1 == escrow.functions.getMinerIdsLength(miner).call()
+    assert [web3.toBytes(miner_id[0]), miner_id[1:]] == escrow.functions.getMinerId(miner, 0).call()
 
-    assert miner_id == escrow.functions.getMinerId(miner, 0).call()
-    miner_id = os.urandom(66)
-    tx = escrow.functions.setMinerId(miner_id).transact({'from': miner})
+    miner_id = os.urandom(33)
+    tx = escrow.functions.setMinerId(web3.toBytes(miner_id[0]), miner_id[1:]).transact({'from': miner})
     chain.wait_for_receipt(tx)
     assert 2 == escrow.functions.getMinerIdsLength(miner).call()
-
-    assert miner_id == escrow.functions.getMinerId(miner, 1).call()
+    assert [web3.toBytes(miner_id[0]), miner_id[1:]] == escrow.functions.getMinerId(miner, 1).call()
 
 
 @pytest.mark.slow
@@ -940,7 +939,8 @@ def test_verifying_state(web3, chain, token):
     chain.wait_for_receipt(tx)
     tx = contract.functions.deposit(balance, 1000).transact({'from': miner})
     chain.wait_for_receipt(tx)
-    tx = contract.functions.setMinerId(web3.toBytes(111)).transact({'from': miner})
+    miner_id = os.urandom(33)
+    tx = contract.functions.setMinerId(web3.toBytes(miner_id[0]), miner_id[1:]).transact({'from': miner})
     chain.wait_for_receipt(tx)
 
     # Upgrade to the second version
@@ -952,7 +952,7 @@ def test_verifying_state(web3, chain, token):
     assert policy_manager.address == contract.functions.policyManager().call()
     assert 2 == contract.functions.valueToCheck().call()
     assert 1 == web3.toInt(contract.functions.getMinerIdsLength(miner).call())
-    assert 111 == web3.toInt(contract.functions.getMinerId(miner, 0).call())
+    assert [web3.toBytes(miner_id[0]), miner_id[1:]] == contract.functions.getMinerId(miner, 0).call()
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     chain.wait_for_receipt(tx)
     assert 3 == contract.functions.valueToCheck().call()
