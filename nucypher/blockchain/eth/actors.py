@@ -292,3 +292,9 @@ class PolicyAuthor(NucypherTokenActor):
         miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity, **options)
         miners = [Miner(ether_address=address, miner_agent=self.miner_agent) for address in miner_addresses]
         return miners
+
+    def create_policy(self, *args, **kwargs):
+        from nucypher.blockchain.eth.policies import BlockchainPolicy
+
+        blockchain_policy = BlockchainPolicy(author=self, *args, **kwargs)
+        return blockchain_policy
