@@ -298,6 +298,8 @@ class Character:
         Sends a request to node_url to find out about known nodes.
         """
         response = self.network_middleware.get_nodes_via_rest(rest_address, port)
+        if response.status_code != 200:
+            raise RuntimeError
         signature, nodes = signature_splitter(response.content, return_remainder=True)
 
         # TODO: Although not treasure map-related, this has a whiff of #172.
