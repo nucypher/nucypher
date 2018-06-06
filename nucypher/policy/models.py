@@ -230,7 +230,7 @@ class Policy:
                                                   "Call make_arrangements to make more.")
 
         for kfrag in self.kfrags:
-            for arrangement, in self._accepted_arrangements:
+            for arrangement in self._accepted_arrangements:
                 if kfrag not in self._enacted_arrangements:
                     arrangement.kfrag = kfrag
                     yield arrangement
