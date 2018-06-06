@@ -589,6 +589,12 @@ class Bob(Character):
         self.follow_treasure_map(hrac, using_dht=using_dht)
 
     def retrieve(self, message_kit, data_source, alice_pubkey_sig):
+
+        message_kit.capsule.set_correctness_keys(
+            delegating=data_source.policy_pubkey,
+            receiving=self.public_key(EncryptingPower),
+            verifying=alice_pubkey_sig)
+
         hrac = keccak_digest(bytes(alice_pubkey_sig) + self.stamp + data_source.label)
         treasure_map = self.treasure_maps[hrac]
 
