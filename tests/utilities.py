@@ -4,12 +4,12 @@ from typing import List
 from apistar.test import TestClient
 
 from constant_sorrow import constants
-from nucypher.characters import Ursula
-from nucypher.network.middleware import NetworkMiddleware
 
 #
 # Setup
 #
+from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.models import Arrangement, Policy
 
 TEST_EVENT_LOOP = asyncio.get_event_loop()
 asyncio.set_event_loop(TEST_EVENT_LOOP)

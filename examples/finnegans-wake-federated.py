@@ -12,14 +12,15 @@ from nucypher.data_sources import DataSource
 import maya
 
 # This is already running in another process.
-from nucypher.network.middleware import NetworkMiddleware
+from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey
 
-URSULA = Ursula.from_rest_url(NetworkMiddleware(),
+URSULA = Ursula.from_rest_url(RestMiddleware(),
                               ip_address="localhost",
                               port=3601,
                               )
 network_middleware = SandboxNetworkMiddleware([URSULA])
+
 
 
 #########

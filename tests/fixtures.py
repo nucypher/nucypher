@@ -12,7 +12,7 @@ from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
-from tests.utilities import MockNetworkMiddleware, make_ursulas
+from tests.utilities import make_ursulas, MockRestMiddleware
 
 
 @pytest.fixture(scope="module")
@@ -36,7 +36,8 @@ def enacted_policy(idle_policy, ursulas, mock_miner_agent, mock_token_agent):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = constants.NON_PAYMENT(b"0000000")
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
-    network_middleware = MockNetworkMiddleware(ursulas)
+    network_middleware = MockRestMiddleware()
+
     idle_policy.make_arrangements(network_middleware, deposit=deposit, quantity=3, expiration=contract_end_datetime)
     idle_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
 
@@ -48,7 +49,7 @@ def alice(ursulas, mock_policy_agent, deployed_testerchain):
 
     etherbase, alice, bob, *everyone_else = deployed_testerchain.interface.w3.eth.accounts
 
-    _alice = Alice(network_middleware=MockNetworkMiddleware(ursulas),
+    _alice = Alice(network_middleware=MockRestMiddleware(),
                    policy_agent=mock_policy_agent, ether_address=alice)
 
     return _alice
@@ -56,7 +57,7 @@ def alice(ursulas, mock_policy_agent, deployed_testerchain):
 
 @pytest.fixture(scope="module")
 def bob(ursulas):
-    _bob = Bob(network_middleware=MockNetworkMiddleware(ursulas))
+    _bob = Bob(network_middleware=MockRestMiddleware())
     return _bob
 
 
@@ -76,7 +77,7 @@ def ursulas(deployed_testerchain):
 
 @pytest.fixture(scope="module")
 def treasure_map_is_set_on_dht(enacted_policy, ursulas):
-    network_middleware = MockNetworkMiddleware(ursulas)
+    network_middleware = MockRestMiddleware()
     enacted_policy.publish_treasure_map(network_middleware, use_dht=True)
 
 
