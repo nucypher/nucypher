@@ -26,7 +26,7 @@ network_middleware = SandboxNetworkMiddleware([URSULA])
 # Alice #
 #########
 
-ALICE = Alice(network_middleware=network_middleware, federated_only=True)
+ALICE = Alice(network_middleware=network_middleware, federated_only=True)  # TODO: 289
 
 # Here are our Policy details.
 policy_end_datetime = maya.now() + datetime.timedelta(days=5)
