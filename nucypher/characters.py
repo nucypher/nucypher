@@ -38,6 +38,8 @@ class Character:
     _default_crypto_powerups = None
     _stamp = None
 
+    ether_address = None
+
     class NotEnoughUrsulas(MinerAgent.NotEnoughMiners):
         """
         All Characters depend on knowing about enough Ursulas to perform their role.
@@ -327,9 +329,12 @@ class Character:
 class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, federated_only=False, *args, **kwargs):
         Character.__init__(self, *args, **kwargs)
-        PolicyAuthor.__init__(self, *args, **kwargs)
+        if kwargs.get('is_me') and not federated_only:
+            # TODO: 289
+            PolicyAuthor.__init__(self, *args, **kwargs)
+        self.federated_only = federated_only
 
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
@@ -391,8 +396,10 @@ class Alice(Character, PolicyAuthor):
         # deposit and expiration combinations on a limited number of Ursulas;
         # Users may decide to inject some market strategies here.
         #
+        # TODO: 289
         policy.make_arrangements(self.network_middleware, deposit=deposit,
-                                 expiration=expiration, quantity=n)
+                                 expiration=expiration, quantity=n,
+                                 federated_only=self.federated_only)
 
         # REST call happens here, as does population of TreasureMap.
         policy.enact(self.network_middleware)
@@ -606,12 +613,18 @@ class Ursula(Character, ProxyRESTServer, Miner):
     _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def __init__(self, is_me=True, dht_port=None, *args, **kwargs):
+    # TODO: 289
+    def __init__(self, is_me=True,
+                 dht_port=None,
+                 federated_only=False,
+                 *args,
+                 **kwargs):
         self.dht_port = dht_port
         self._work_orders = []
 
         Character.__init__(self, is_me=is_me, *args, **kwargs)
-        Miner.__init__(self, *args, **kwargs)
+        if not federated_only:
+            Miner.__init__(self, is_me=is_me, *args, **kwargs)
         ProxyRESTServer.__init__(self, *args, **kwargs)
 
         if is_me is True:
@@ -648,14 +661,18 @@ class Ursula(Character, ProxyRESTServer, Miner):
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: signing_key, EncryptingPower: encrypting_key},
             ip_address=ip_address,
-            rest_port=port
+            rest_port=port,
+            federated_only=True # TODO: 289
         )
 
         return stranger_ursula_from_public_keys
 
     def attach_dht_server(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
         """ TODO: Network-wide deterministic ID generation (ie, auction or whatever)  See #136."""
-        id = id or bytes(self.ether_address, encoding='utf-8')
+        if self.ether_address:
+            id = id or bytes(self.ether_address, encoding='utf-8')
+        else:
+            id = None
         # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
         super().attach_dht_server(ksize=ksize, id=digest(id), alpha=alpha, storage=storage)
         self.attach_rest_server(db_name=self.db_name)

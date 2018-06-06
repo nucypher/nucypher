@@ -254,26 +254,33 @@ class Policy:
             self.treasure_map.add_ursula(arrangement.ursula)
 
     def make_arrangements(self, network_middleware, quantity: int,
-                          deposit: int, expiration: maya.MayaDT) -> None:
+                          deposit: int, expiration: maya.MayaDT,
+                          federated_only=False) -> None:
         """
         Create and consider n Arangement objects from sampled miners.
         """
-        try:
-            sampled_miners = self.alice.recruit(quantity=quantity or self.n)
-        except MinerAgent.NotEnoughMiners:
-            raise  # TODO
+        # TODO: 289
+        if federated_only:
+            ursulas = network_middleware.ursulas
+        else:
+            try:
+                sampled_miners = self.alice.recruit(quantity=quantity or self.n)
+                ursulas = [Ursula(is_me=False, ether_address=miner.ether_address, federated_only=federated_only) for miner in sampled_miners]
+            except MinerAgent.NotEnoughMiners:
+                raise  # TODO
 
-        for miner in sampled_miners:
+        for ursula in ursulas:
 
-            # Cast the miner into an ursula
-            ursula = Ursula(is_me=False, ether_address=miner.ether_address)
             arrangement = Arrangement(alice=self.alice, ursula=ursula,
                                       hrac=self.hrac(),
                                       expiration=expiration)
 
             try:
+                ursula, negotiation_response = network_middleware.consider_arrangement(arrangement)
+
                 # TODO: check out the response: need to assess the result and see if we're actually good to go.
-                ursula, negotiation_result = network_middleware.consider_arrangement(arrangement)
+                negotiation_result = negotiation_response.status_code == 200
+
                 bucket = self._accepted_arrangements if negotiation_result is True else self._rejected_arrangements
                 bucket.append(arrangement)
             except network_middleware.NotEnoughQualifiedUrsulas:

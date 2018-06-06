@@ -19,7 +19,7 @@ from nucypher.crypto.api import generate_self_signed_certificate
 
 DB_NAME = "non-mining-proxy-node"
 
-_URSULA = Ursula(dht_port=3501, rest_port=3601, ip_address="localhost", db_name=DB_NAME)
+_URSULA = Ursula(dht_port=3501, rest_port=3601, ip_address="localhost", db_name=DB_NAME, federated_only=True)
 _URSULA.dht_listen()
 
 CURVE = ec.SECP256R1
