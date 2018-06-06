@@ -28,6 +28,6 @@ class DataSource:
     def from_public_keys(cls, policy_public_key, datasource_public_key, label):
         umbral_public_key = UmbralPublicKey.from_bytes(datasource_public_key)
         return cls(policy_public_key,
-                   signer=SignatureStamp(SigningKeypair(umbral_public_key)),
+                   signing_keypair=SigningKeypair(umbral_public_key),
                    label=label,
                    )
