@@ -45,7 +45,7 @@ policy = ALICE.grant(BOB, label, m=m, n=n,
                      expiration=policy_end_datetime)
 
 # Alice puts her public key somewhere for Bob to find later...
-alices_pubkey_saved_for_posterity = bytes(ALICE.stamp)
+alices_pubkey_bytes_saved_for_posterity = bytes(ALICE.stamp)
 
 # ...and then disappears from the internet.
 del ALICE
@@ -62,7 +62,7 @@ del ALICE
 # data shared on it.
 # He needs a few piece of knowledge to do that.
 BOB.join_policy(label,  # The label - he needs to know what data he's after.
-                alices_pubkey_saved_for_posterity,  # To verify the signature, he'll need Alice's public key.
+                alices_pubkey_bytes_saved_for_posterity,  # To verify the signature, he'll need Alice's public key.
                 verify_sig=True,  # And yes, he usually wants to verify that signature.
                 # He can also bootstrap himself onto the network more quickly
                 # by providing a list of known nodes at this time.
@@ -138,9 +138,10 @@ for counter, plaintext in enumerate(finnegans_wake):
 
     # Now Bob can retrieve the original message.  He just needs the MessageKit
     # and the DataSource which produced it.
+    alice_pubkey_restored_from_ancient_scroll = UmbralPublicKey.from_bytes(alices_pubkey_bytes_saved_for_posterity)
     delivered_cleartext = BOB.retrieve(message_kit=message_kit,
                                        data_source=datasource_as_understood_by_bob,
-                                       alice_pubkey_sig=alices_pubkey_saved_for_posterity)
+                                       alice_pubkey_sig=alice_pubkey_restored_from_ancient_scroll)
 
     # We show that indeed this is the passage originally encrypted by the DataSource.
     assert plaintext == delivered_cleartext
