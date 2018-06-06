@@ -6,22 +6,27 @@
 import datetime
 import sys
 
-from examples.sandbox_resources import SandboxNetworkyStuff
+from sandbox_resources import SandboxNetworkMiddleware
 from nucypher.characters import Alice, Bob, Ursula
 from nucypher.data_sources import DataSource
-from nucypher.network.middleware import NetworkMiddleware
 import maya
 
 # This is already running in another process.
-URSULA = Ursula.from_rest_url(NetworkMiddleware(), ip_address="localhost", port=3601)
-network_middleware = SandboxNetworkyStuff([URSULA])
+from nucypher.network.middleware import NetworkMiddleware
+from umbral.keys import UmbralPublicKey
+
+URSULA = Ursula.from_rest_url(NetworkMiddleware(),
+                              ip_address="localhost",
+                              port=3601,
+                              )
+network_middleware = SandboxNetworkMiddleware([URSULA])
 
 
 #########
 # Alice #
 #########
 
-ALICE = Alice(network_middleware=network_middleware)
+ALICE = Alice(network_middleware=network_middleware, federated_only=True)
 
 # Here are our Policy details.
 policy_end_datetime = maya.now() + datetime.timedelta(days=5)
