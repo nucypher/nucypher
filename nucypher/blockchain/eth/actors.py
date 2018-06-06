@@ -195,7 +195,8 @@ class Miner(NucypherTokenActor):
     def publish_data(self, data) -> str:
         """Store new data"""
 
-        txhash = self.miner_agent.contract.functions.setMinerId(data).transact({'from': self.address})
+        txhash = self.miner_agent.contract.functions.setMinerId(
+            self.blockchain.interface.w3.toBytes(data[0]), data[1:]).transact({'from': self.address})
         self.blockchain.wait_for_receipt(txhash)
 
         self._transactions.append((datetime.utcnow(), txhash))
@@ -212,7 +213,7 @@ class Miner(NucypherTokenActor):
         miner_ids = list()
         for index in range(count):
             miner_id = self.miner_agent.contract.functions.getMinerId(self.address, index).call()
-            miner_ids.append(miner_id)
+            miner_ids.append(miner_id[0] + miner_id[1])
         return tuple(miner_ids)
 
 

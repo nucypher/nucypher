@@ -56,21 +56,20 @@ contract Upgradeable is Ownable {
     {
         bytes4 targetCall = bytes4(keccak256(abi.encodePacked(_signature)));
         assembly {
-            let freeMemAddress := mload(0x40)
-            mstore(freeMemAddress, targetCall)
+            memoryAddress := mload(0x40)
+            mstore(memoryAddress, targetCall)
             if gt(_numberOfArguments, 0) {
-                mstore(add(freeMemAddress, 0x04), _argument1)
+                mstore(add(memoryAddress, 0x04), _argument1)
             }
             if gt(_numberOfArguments, 1) {
-                mstore(add(freeMemAddress, 0x24), _argument2)
+                mstore(add(memoryAddress, 0x24), _argument2)
             }
-            switch delegatecall(gas, _target, freeMemAddress, add(0x04, mul(0x20, _numberOfArguments)), 0, 0)
+            switch delegatecall(gas, _target, memoryAddress, add(0x04, mul(0x20, _numberOfArguments)), 0, 0)
                 case 0 {
-                    revert(freeMemAddress, 0)
+                    revert(memoryAddress, 0)
                 }
                 default {
-                    returndatacopy(freeMemAddress, 0x0, returndatasize)
-                    memoryAddress := freeMemAddress
+                    returndatacopy(memoryAddress, 0x0, returndatasize)
                 }
         }
     }
