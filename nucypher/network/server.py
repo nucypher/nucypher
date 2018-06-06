@@ -91,8 +91,6 @@ class ProxyRESTServer:
         self.db_name = db_name
         self._rest_app = None
 
-        super().__init__(*args, **kwargs)  # cooperative multiple inheritance
-
     @classmethod
     def from_config(cls, network_config: NetworkConfiguration=None):
         """Create a server object from config values, or from a config file."""
@@ -166,7 +164,7 @@ class ProxyRESTServer:
 
     def list_all_active_nodes_about_which_we_know(self):
         headers = {'Content-Type': 'application/octet-stream'}
-        ursulas_as_bytes = bytes().join(self.server.protocol.ursulas.values())
+        ursulas_as_bytes = bytes().join(self.dht_server.protocol.ursulas.values())
         ursulas_as_bytes += self.interface_info_with_metadata()
         signature = self.stamp(ursulas_as_bytes)
         return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
@@ -254,7 +252,7 @@ class ProxyRESTServer:
         headers = {'Content-Type': 'application/octet-stream'}
 
         try:
-            treasure_map_bytes = self.server.storage[digest(treasure_map_id)]
+            treasure_map_bytes = self.dht_server.storage[digest(treasure_map_id)]
             response = Response(content=treasure_map_bytes, headers=headers)
         except KeyError:
             response = Response("No Treasure Map with ID {}".format(treasure_map_id),
@@ -270,13 +268,13 @@ class ProxyRESTServer:
             dht_with_hrac_splitter(request.body, return_remainder=True)
         # TODO: This next line is possibly the worst in the entire codebase at the moment.  #172.
         # Also TODO: TTL?
-        do_store = self.server.protocol.determine_legality_of_dht_key(
+        do_store = self.dht_server.protocol.determine_legality_of_dht_key(
                     signature_for_ursula, pubkey_sig_alice, tmap_message_kit,
                     hrac, digest(treasure_map_id), request.body)
         if do_store:
             # TODO: Stop storing things in the protocol storage.  Do this better.  #227
             # TODO: Propagate to other nodes.  #235
-            self.server.protocol.storage[digest(treasure_map_id)] = request.body
+            self.dht_server.protocol.storage[digest(treasure_map_id)] = request.body
             return # TODO: Proper response here.
         else:
             # TODO: Make this a proper 500 or whatever.

@@ -11,10 +11,10 @@ class SignatureStamp(object):
     key as bytes.
     """
 
-    def __init__(self, signing_key, signer: Signer=None):
+    def __init__(self, verifying_key, signer: Signer=None):
         self.__signer = signer
-        self._as_bytes = bytes(signing_key)
-        self._as_umbral_pubkey = signing_key
+        self._as_bytes = bytes(verifying_key)
+        self._as_umbral_pubkey = verifying_key
 
     def __bytes__(self):
         return self._as_bytes

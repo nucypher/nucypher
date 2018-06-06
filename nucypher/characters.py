@@ -7,14 +7,11 @@ from typing import Union, List
 
 import kademlia
 import msgpack
+from kademlia.network import Server
 from kademlia.utils import digest
 
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants, default_constant_splitter
-from kademlia.network import Server
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
-
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.config.configs import CharacterConfiguration
@@ -26,6 +23,8 @@ from nucypher.crypto.signing import signature_splitter, StrangerStamp
 from nucypher.network.middleware import NetworkMiddleware
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
 
 class Character:
@@ -38,6 +37,8 @@ class Character:
     _default_crypto_powerups = None
     _stamp = None
 
+    ether_address = None
+
     class NotEnoughUrsulas(MinerAgent.NotEnoughMiners):
         """
         All Characters depend on knowing about enough Ursulas to perform their role.
@@ -47,9 +48,9 @@ class Character:
     class SuspiciousActivity(RuntimeError):
         """raised when an action appears to amount to malicious conduct."""
 
-    def __init__(self, crypto_power: CryptoPower=None,
+    def __init__(self, crypto_power: CryptoPower = None,
                  crypto_power_ups=None, is_me=True, network_middleware=None,
-                 config: CharacterConfiguration=None, *args, **kwargs):
+                 config: CharacterConfiguration = None, *args, **kwargs):
         """
         :param attach_dht_server:  Whether to attach a Server when this Character is
             born.
@@ -192,7 +193,8 @@ class Character:
                                                   )
         return message_kit, signature
 
-    def verify_from(self, mystery_stranger: 'Character',
+    def verify_from(self,
+                    mystery_stranger: 'Character',
                     message_kit: Union[UmbralMessageKit, bytes],
                     signature: Signature = None,
                     decrypt=False,
@@ -296,6 +298,8 @@ class Character:
         Sends a request to node_url to find out about known nodes.
         """
         response = self.network_middleware.get_nodes_via_rest(rest_address, port)
+        if response.status_code != 200:
+            raise RuntimeError
         signature, nodes = signature_splitter(response.content, return_remainder=True)
 
         # TODO: Although not treasure map-related, this has a whiff of #172.
@@ -309,7 +313,9 @@ class Character:
             if not pubkey in self.known_nodes:
                 if sig.verify(keccak_digest(interface_info), pubkey):
                     rest_address, dht_port, rest_port = msgpack.loads(interface_info)
-                    new_nodes[pubkey] = Ursula.from_rest_url(ip_address=rest_address.decode("utf-8"), port=rest_port)
+                    new_nodes[pubkey] = Ursula.from_rest_url(network_middleware=self.network_middleware,
+                                                             ip_address=rest_address.decode("utf-8"),
+                                                             port=rest_port)
                 else:
 
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
@@ -327,9 +333,12 @@ class Character:
 class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, federated_only=False, *args, **kwargs):
         Character.__init__(self, *args, **kwargs)
-        PolicyAuthor.__init__(self, *args, **kwargs)
+        if kwargs.get('is_me') and not federated_only:
+            # TODO: 289
+            PolicyAuthor.__init__(self, *args, **kwargs)
+        self.federated_only = federated_only
 
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
@@ -391,8 +400,10 @@ class Alice(Character, PolicyAuthor):
         # deposit and expiration combinations on a limited number of Ursulas;
         # Users may decide to inject some market strategies here.
         #
+        # TODO: 289
         policy.make_arrangements(self.network_middleware, deposit=deposit,
-                                 expiration=expiration, quantity=n)
+                                 expiration=expiration, quantity=n,
+                                 federated_only=self.federated_only)
 
         # REST call happens here, as does population of TreasureMap.
         policy.enact(self.network_middleware)
@@ -578,6 +589,12 @@ class Bob(Character):
         self.follow_treasure_map(hrac, using_dht=using_dht)
 
     def retrieve(self, message_kit, data_source, alice_pubkey_sig):
+
+        message_kit.capsule.set_correctness_keys(
+            delegating=data_source.policy_pubkey,
+            receiving=self.public_key(EncryptingPower),
+            verifying=alice_pubkey_sig)
+
         hrac = keccak_digest(bytes(alice_pubkey_sig) + self.stamp + data_source.label)
         treasure_map = self.treasure_maps[hrac]
 
@@ -593,7 +610,10 @@ class Bob(Character):
             node = self.known_nodes[UmbralPublicKey.from_bytes(node_id)]
             cfrags = self.get_reencrypted_c_frags(work_orders[bytes(node.stamp)])
             message_kit.capsule.attach_cfrag(cfrags[0])
-        verified, delivered_cleartext = self.verify_from(data_source, message_kit, decrypt=True)
+        verified, delivered_cleartext = self.verify_from(data_source,
+                                                         message_kit,
+                                                         decrypt=True,
+                                                         delegator_signing_key=alice_pubkey_sig)
 
         if verified:
             return delivered_cleartext
@@ -606,12 +626,18 @@ class Ursula(Character, ProxyRESTServer, Miner):
     _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def __init__(self, is_me=True, dht_port=None, *args, **kwargs):
+    # TODO: 289
+    def __init__(self, is_me=True,
+                 dht_port=None,
+                 federated_only=False,
+                 *args,
+                 **kwargs):
         self.dht_port = dht_port
         self._work_orders = []
 
         Character.__init__(self, is_me=is_me, *args, **kwargs)
-        Miner.__init__(self, *args, **kwargs)
+        if not federated_only:
+            Miner.__init__(self, is_me=is_me, *args, **kwargs)
         ProxyRESTServer.__init__(self, *args, **kwargs)
 
         if is_me is True:
@@ -648,14 +674,18 @@ class Ursula(Character, ProxyRESTServer, Miner):
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: signing_key, EncryptingPower: encrypting_key},
             ip_address=ip_address,
-            rest_port=port
+            rest_port=port,
+            federated_only=True # TODO: 289
         )
 
         return stranger_ursula_from_public_keys
 
     def attach_dht_server(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
         """ TODO: Network-wide deterministic ID generation (ie, auction or whatever)  See #136."""
-        id = id or bytes(self.ether_address, encoding='utf-8')
+        if self.ether_address:
+            id = id or bytes(self.ether_address, encoding='utf-8')
+        else:
+            id = None
         # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
         super().attach_dht_server(ksize=ksize, id=digest(id), alpha=alpha, storage=storage)
         self.attach_rest_server(db_name=self.db_name)

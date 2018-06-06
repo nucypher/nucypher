@@ -6,22 +6,27 @@
 import datetime
 import sys
 
-from examples.sandbox_resources import SandboxNetworkyStuff
+from sandbox_resources import SandboxNetworkMiddleware
 from nucypher.characters import Alice, Bob, Ursula
 from nucypher.data_sources import DataSource
-from nucypher.network.middleware import NetworkMiddleware
 import maya
 
 # This is already running in another process.
-URSULA = Ursula.from_rest_url(NetworkMiddleware(), ip_address="localhost", port=3601)
-network_middleware = SandboxNetworkyStuff([URSULA])
+from nucypher.network.middleware import NetworkMiddleware
+from umbral.keys import UmbralPublicKey
+
+URSULA = Ursula.from_rest_url(NetworkMiddleware(),
+                              ip_address="localhost",
+                              port=3601,
+                              )
+network_middleware = SandboxNetworkMiddleware([URSULA])
 
 
 #########
 # Alice #
 #########
 
-ALICE = Alice(network_middleware=network_middleware)
+ALICE = Alice(network_middleware=network_middleware, federated_only=True)  # TODO: 289
 
 # Here are our Policy details.
 policy_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -40,7 +45,7 @@ policy = ALICE.grant(BOB, label, m=m, n=n,
                      expiration=policy_end_datetime)
 
 # Alice puts her public key somewhere for Bob to find later...
-alices_pubkey_saved_for_posterity = bytes(ALICE.stamp)
+alices_pubkey_bytes_saved_for_posterity = bytes(ALICE.stamp)
 
 # ...and then disappears from the internet.
 del ALICE
@@ -57,7 +62,7 @@ del ALICE
 # data shared on it.
 # He needs a few piece of knowledge to do that.
 BOB.join_policy(label,  # The label - he needs to know what data he's after.
-                alices_pubkey_saved_for_posterity,  # To verify the signature, he'll need Alice's public key.
+                alices_pubkey_bytes_saved_for_posterity,  # To verify the signature, he'll need Alice's public key.
                 verify_sig=True,  # And yes, he usually wants to verify that signature.
                 # He can also bootstrap himself onto the network more quickly
                 # by providing a list of known nodes at this time.
@@ -133,9 +138,10 @@ for counter, plaintext in enumerate(finnegans_wake):
 
     # Now Bob can retrieve the original message.  He just needs the MessageKit
     # and the DataSource which produced it.
+    alice_pubkey_restored_from_ancient_scroll = UmbralPublicKey.from_bytes(alices_pubkey_bytes_saved_for_posterity)
     delivered_cleartext = BOB.retrieve(message_kit=message_kit,
                                        data_source=datasource_as_understood_by_bob,
-                                       alice_pubkey_sig=alices_pubkey_saved_for_posterity)
+                                       alice_pubkey_sig=alice_pubkey_restored_from_ancient_scroll)
 
     # We show that indeed this is the passage originally encrypted by the DataSource.
     assert plaintext == delivered_cleartext
