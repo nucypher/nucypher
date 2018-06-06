@@ -91,8 +91,6 @@ class ProxyRESTServer:
         self.db_name = db_name
         self._rest_app = None
 
-        super().__init__(*args, **kwargs)  # cooperative multiple inheritance
-
     @classmethod
     def from_config(cls, network_config: NetworkConfiguration=None):
         """Create a server object from config values, or from a config file."""
