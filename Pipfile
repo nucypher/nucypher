@@ -4,10 +4,10 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-
-# Install cryptography wheels from pyUmbral github for now.
-cryptography35_linux = { file="https://github.com/nucypher/pyUmbral/blob/master/wheelhouse/cryptography-2.3.dev1-cp35-cp35m-linux_x86_64.whl?raw=true", markers="python_version >= '3.5' and python_version < '3.6' and platform_system == 'Linux'"}
-cryptography36_linux = { file="https://github.com/nucypher/pyUmbral/blob/master/wheelhouse/cryptography-2.3.dev1-cp36-cp36m-linux_x86_64.whl?raw=true", markers="python_version >= '3.6' and python_version < '3.7' and platform_system == 'Linux'"}
+# Wheels for cryptography until the next release.
+cryptography35_linux = { file='./wheelhouse/cryptography-2.3.dev1-cp35-cp35m-linux_x86_64.whl', markers="python_version >= '3.5' and python_version < '3.6' and platform_system == 'Linux'"}
+cryptography36_linux = { file='./wheelhouse/cryptography-2.3.dev1-cp36-cp36m-linux_x86_64.whl', markers="python_version >= '3.6' and python_version < '3.7' and platform_system == 'Linux'"}
+cryptography36_darwin = { file='./wheelhouse/cryptography-2.3.dev1-cp36-cp36m-macosx_10_13_x86_64.whl', markers="python_version >= '3.6' and python_version < '3.7' and platform_system == 'Darwin'"}
 
 
 rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "nucypher-depend"}
