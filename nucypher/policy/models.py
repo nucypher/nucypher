@@ -1,6 +1,8 @@
 import binascii
 import uuid
+from abc import ABC, abstractmethod
 from collections import OrderedDict
+from typing import Generator
 
 import maya
 import msgpack
@@ -9,7 +11,6 @@ from constant_sorrow import constants
 from umbral.config import default_params
 from umbral.pre import Capsule
 
-from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula
 from nucypher.crypto.api import keccak_digest
@@ -19,7 +20,7 @@ from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
 
 
-class Arrangement:
+class Arrangement(ABC):
     """
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
@@ -51,7 +52,7 @@ class Arrangement:
         policy_duration = arrangement_delta.days
         #
         # super().__init__(author=self.alice, miner=ursula,
-        #                  value=self.deposit, lock_periods=policy_duration,
+        #                  value=self.deposit, lock_periods=lock_periods,
         #                  arrangement_id=self.id())
 
     def __bytes__(self):
@@ -73,14 +74,6 @@ class Arrangement:
         alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
         return cls(alice=alice, hrac=hrac, expiration=expiration)
 
-    def publish(self):
-        """
-        Publish arrangement to blockchain
-
-        # TODO Negotiate the receipt of a KFrag per Ursula
-        """
-        super().publish()
-
     def encrypt_payload_for_ursula(self):
         """Craft an offer to send to Ursula."""
         # We don't need the signature separately.
@@ -93,8 +86,22 @@ class Arrangement:
         # Update: We'll probably have her store the Arrangement by hrac.  See #127.
         return bytes(self.kfrag)
 
+    @abstractmethod
+    def publish(self):
+        """
+        Publish arrangement.
+        """
+        raise NotImplementedError
 
-class Policy:
+    @abstractmethod
+    def revoke(self):
+        """
+        Publish arrangement.
+        """
+        raise NotImplementedError
+
+
+class Policy(ABC):
     """
     An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob
     for a specific path.
@@ -130,7 +137,6 @@ class Policy:
         self._published_arrangements = OrderedDict()
 
         self.alices_signature = alices_signature
-        self.arrangements = dict()
 
     class MoreKFragsThanArrangements(TypeError):
         """
@@ -153,19 +159,6 @@ class Policy:
     def ursula(self, ursula_object):
         self.alice.learn_about_actor(ursula_object)
         self._ursula = ursula_object
-
-    @staticmethod
-    def from_alice(kfrags,
-                   alice,
-                   label,
-                   bob,
-                   public_key,
-                   m,
-                   ):
-        # TODO: What happened to Alice's signature - don't we include it here?
-        policy = Policy(alice, label, bob, kfrags, public_key, m)
-
-        return policy
 
     def hrac(self):
         """
@@ -218,26 +211,35 @@ class Policy:
         return tmap_message_kit, map_payload, signature_for_bob, signature_for_ursula
 
     def publish(self) -> None:
-        """Publish enacted arrangements to the blockchain"""
+        """Publish enacted arrangements."""
+
+        if not self._enacted_arrangements:
+            raise RuntimeError("There are no enacted arrangements to publish to the network.")
+
         while len(self._enacted_arrangements) > 0:
             kfrag, arrangement = self._enacted_arrangements.popitem()
             arrangement.publish(arrangement.kfrag)  # TODO
 
-    def __assign_kfrags(self):
+    def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 
-        if len(self._accepted_arrangements) < self.n:
-            raise self.MoreKFragsThanArrangements("Not enough candidate arrangements. "
-                                                  "Call make_arrangements to make more.")
+        # TODO
+        # if len(self._accepted_arrangements) < self.n:
+        #     raise self.MoreKFragsThanArrangements("Not enough candidate arrangements. "
+        #                                           "Call make_arrangements to make more.")
 
         for kfrag in self.kfrags:
             for arrangement in self._accepted_arrangements:
                 if kfrag not in self._enacted_arrangements:
                     arrangement.kfrag = kfrag
-                    yield arrangement
-                    self._enacted_arrangements[kfrag] = arrangement
 
-    def enact(self, network_middleware):
-        """Assign kfrags to ursulas, and distribute them via REST, populating enacted_arrangements"""
+                    self._enacted_arrangements[kfrag] = arrangement
+                    yield arrangement
+
+    def enact(self, network_middleware, publish=True) -> None:
+        """
+        Assign kfrags to ursulas_on_network, and distribute them via REST,
+        populating enacted_arrangements
+        """
         for arrangement in self.__assign_kfrags():
             policy_message_kit = arrangement.encrypt_payload_for_ursula()
 
@@ -245,47 +247,42 @@ class Policy:
                                                        self.hrac(),
                                                        policy_message_kit.to_bytes())
 
-            # TODO: What if there weren't enough Arrangements approved to distribute n kfrags?
-            # We need to raise NotEnoughQualifiedUrsulas.
+            if not response:
+                pass  # TODO: Parse response for confirmation.
 
-            # TODO: Parse response for confirmation.
-            response
-
-            # Assuming response is what we hope for
+            # Assuming response is what we hope for.
             self.treasure_map.add_ursula(arrangement.ursula)
 
+        else:  # ...After *all* the policies are enacted
+            if publish is True:
+                self.publish()
+
+    def consider_arrangement(self, network_middleware, arrangement):
+        ursula, negotiation_response = network_middleware.consider_arrangement(ursula=self.ursula,
+                                                                               arrangement=arrangement)
+
+        # TODO: check out the response: need to assess the result and see if we're actually good to go.
+        negotiation_result = negotiation_response.status_code == 200
+
+        bucket = self._accepted_arrangements if negotiation_result is True else self._rejected_arrangements
+        bucket.append(arrangement)
+
+        return negotiation_result
+
+    @abstractmethod
     def make_arrangements(self, network_middleware, quantity: int,
-                          deposit: int, expiration: maya.MayaDT,
-                          federated_only=False) -> None:
+                          deposit: int, expiration: maya.MayaDT) -> None:
         """
-        Create and consider n Arangement objects from sampled miners.
+        Create and consider n Arangement objects.
         """
-        # TODO: 289
-        if federated_only:
-            ursulas = network_middleware.ursulas
-        else:
-            try:
-                sampled_miners = self.alice.recruit(quantity=quantity or self.n)
-                ursulas = [Ursula(is_me=False, ether_address=miner.ether_address, federated_only=federated_only) for miner in sampled_miners]
-            except MinerAgent.NotEnoughMiners:
-                raise  # TODO
-
+        ursulas = NotImplemented
         for ursula in ursulas:
+            arrangement = Arrangement(alice=NotImplemented,
+                                      ursula=ursula, hrac=self.hrac, expiration=expiration)
 
-            arrangement = Arrangement(alice=self.alice, ursula=ursula,
-                                      hrac=self.hrac(),
-                                      expiration=expiration)
-
-            try:
-                ursula, negotiation_response = network_middleware.consider_arrangement(arrangement)
-
-                # TODO: check out the response: need to assess the result and see if we're actually good to go.
-                negotiation_result = negotiation_response.status_code == 200
-
-                bucket = self._accepted_arrangements if negotiation_result is True else self._rejected_arrangements
-                bucket.append(arrangement)
-            except network_middleware.NotEnoughQualifiedUrsulas:
-                raise  # TODO: Tell Alice to either wait or lower the value of num_ursulas.
+            self.consider_arrangement(network_middleware=network_middleware,
+                                      arrangement=arrangement)
+        raise NotImplementedError
 
 
 class TreasureMap(object):

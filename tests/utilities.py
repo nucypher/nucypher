@@ -1,10 +1,13 @@
 import asyncio
+from collections import OrderedDict
 from typing import List
 
+import maya
 from apistar.test import TestClient
-
 from constant_sorrow import constants
 
+from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.characters import Ursula
 #
 # Setup
 #
@@ -49,21 +52,41 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
     return _ursulas
 
 
-class MockNetworkMiddleware(NetworkMiddleware):
+class MockArrangement(Arrangement):
+    _arrangements = OrderedDict()
 
-    def __init__(self, ursulas):
-        self._ursulas = {bytes(u.stamp): u for u in ursulas}
-        self.ursulas = iter(ursulas)
+    def publish(self) -> None:
+        self._arrangements[self.id()] = self
 
-    def consider_arrangement(self, arrangement=None):
-        try:
-            ursula = next(self.ursulas)
-        except StopIteration:
-            raise self.NotEnoughQualifiedUrsulas
+    def revoke(self):
+        del self._arrangements[self.id()]
+
+
+class MockPolicy(Policy):
+    def make_arrangements(self, network_middleware, quantity: int,
+                          deposit: int, expiration: maya.MayaDT) -> None:
+        """
+        Create and consider n Arangement objects from all known nodes.
+        """
+
+        for ursula in self.alice.known_nodes:
+            arrangement = MockArrangement(alice=self.alice, ursula=ursula,
+                                          hrac=self.hrac(),
+                                          expiration=expiration)
+
+            self.consider_arrangement(network_middleware=network_middleware, arrangement=arrangement)
+
+
+class MockRestMiddleware(RestMiddleware):
+
+    class NotEnoughMockUrsulas(MinerAgent.NotEnoughMiners):
+        pass
+
+    def consider_arrangement(self, ursula, arrangement=None):
         mock_client = TestClient(ursula.rest_app)
         response = mock_client.post("http://localhost/consider_arrangement", bytes(arrangement))
         assert response.status_code == 200
-        return ursula, b"This is a arrangement response; we have no idea what the bytes repr will be."
+        return ursula, True  # TODO: ursula always accepts!
 
     def enact_policy(self, ursula, hrac, payload):
         rest_app = self._get_rest_app_by_port(ursula.rest_port)
@@ -79,7 +102,7 @@ class MockNetworkMiddleware(NetworkMiddleware):
                 break
         else:
             raise RuntimeError(
-                "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
+                "Can't find an Ursula with port {} - did you spin up the right test ursulas_on_network?".format(port))
         return rest_app
 
     def send_work_order_payload_to_ursula(self, work_order):
@@ -110,5 +133,5 @@ class MockNetworkMiddleware(NetworkMiddleware):
         rest_app = self._get_rest_app_by_port(node.rest_port)
         mock_client = TestClient(rest_app)
         response = mock_client.post("http://localhost/treasure_map/{}".format(map_id.hex()),
-                                    data=map_payload, verify=False)
+                      data=map_payload, verify=False)
         return response

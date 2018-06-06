@@ -67,7 +67,7 @@ def main():
 
         # Experimenting with distributions of random points
         n_ursulas = 5
-        n_select = int(n_ursulas * 1.7)  # Select more ursulas
+        n_select = int(n_ursulas * 1.7)  # Select more ursulas_on_network
         points = [0] + sorted(random.randrange(n_tokens) for _ in
                               range(n_select))
         deltas = [i - j for i, j in zip(points[1:], points[:-1])]
