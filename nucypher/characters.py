@@ -20,7 +20,7 @@ from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter, StrangerStamp
-from nucypher.network.middleware import NetworkMiddleware
+from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
 from umbral.keys import UmbralPublicKey
@@ -95,7 +95,7 @@ class Character:
         # Identity and Network
         #
         if is_me is True:
-            self.network_middleware = network_middleware or NetworkMiddleware()
+            self.network_middleware = network_middleware or RestMiddleware()
 
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)
