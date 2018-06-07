@@ -65,7 +65,7 @@ class TestMiner:
 
         # Publish Miner IDs to the DHT
         some_data = os.urandom(32)
-        _txhash = miner.publish_data(some_data)
+        _txhash = miner.publish_datastore(some_data)
 
         # Fetch the miner Ids
         stored_miner_ids = miner.fetch_data()
@@ -75,7 +75,7 @@ class TestMiner:
 
         # Repeat, with another miner ID
         another_mock_miner_id = os.urandom(32)
-        _txhash = miner.publish_data(another_mock_miner_id)
+        _txhash = miner.publish_datastore(another_mock_miner_id)
 
         stored_miner_ids = miner.fetch_data()
 

@@ -311,12 +311,12 @@ class PolicyAuthor(NucypherTokenActor):
             txhash = arrangement.revoke()
         return txhash
 
-    def recruit(self, quantity: int, **options) -> List[Miner]:
+    def recruit(self, quantity: int, **options) -> Generator[Miner, None, None]:
         """Uses sampling logic to gather miners from the blockchain"""
-
         miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity, **options)
-        miners = [Miner(ether_address=address, miner_agent=self.miner_agent) for address in miner_addresses]
-        return miners
+        for address in miner_addresses:
+            miner = Miner(ether_address=address, miner_agent=self.miner_agent)
+            yield miner
 
     def create_policy(self, *args, **kwargs):
         from nucypher.blockchain.eth.policies import BlockchainPolicy
