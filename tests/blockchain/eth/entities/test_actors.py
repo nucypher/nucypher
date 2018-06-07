@@ -68,14 +68,14 @@ class TestMiner:
         _txhash = miner.publish_datastore(data=some_data)
 
         # Fetch the miner Ids
-        stored_miner_id = miner.read_datastore()
+        stored_miner_id = miner.read_datastore(refresh=True)
         assert len(stored_miner_id) == 32
 
         # Repeat, with another miner ID
         another_mock_miner_id = os.urandom(32)
         _txhash = miner.publish_datastore(data=another_mock_miner_id)
 
-        stored_miner_id = miner.read_datastore()
+        stored_miner_id = miner.read_datastore(refresh=True)
 
         assert another_mock_miner_id == stored_miner_id
 
