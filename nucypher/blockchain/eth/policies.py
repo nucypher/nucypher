@@ -78,6 +78,9 @@ class BlockchainPolicy(Policy):
     class NoSuchPolicy(Exception):
         pass
 
+    class UnknownUrsula(Exception):
+        pass
+
     def __init__(self, author: PolicyAuthor, *args, **kwargs):
         self.author = author
         super().__init__(alice=author, *args, **kwargs)
@@ -113,17 +116,26 @@ class BlockchainPolicy(Policy):
             except MinerAgent.NotEnoughMiners:
                 raise  # TODO
             else:
+                # TODO: Copy the values..?
                 ursulas = (Ursula.from_miner(miner, is_me=False) for miner in sampled_miners)
 
-        for ursula in ursulas:
+        for selected_ursula in ursulas:
 
             delta = expiration - maya.now()
             hours = (delta.total_seconds() / 60) / 60
             periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
 
-            blockchain_arrangement = BlockchainArrangement(author=self.alice, miner=ursula,
+            blockchain_arrangement = BlockchainArrangement(author=self.alice, miner=selected_ursula,
                                                            value=deposit, lock_periods=periods,
                                                            expiration=expiration, hrac=self.hrac)
 
-            self.consider_arrangement(network_middleware=network_middleware,
-                                      arrangement=blockchain_arrangement)
+            # TODO: Learn about nodes
+            # TODO: Use umbral key to lookup, not iterate
+            for _public_sig, known_ursula in self.alice.known_nodes.values():
+                if known_ursula.ether_address == selected_ursula.ether_address
+                    self.consider_arrangement(ursula=known_ursula,
+                                              arrangement=blockchain_arrangement,
+                                              network_middleware=network_middleware)
+                    break
+            else:
+                raise self.UnknownUrsula

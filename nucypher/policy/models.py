@@ -243,8 +243,8 @@ class Policy(ABC):
             if publish is True:
                 self.publish()
 
-    def consider_arrangement(self, network_middleware, arrangement):
-        ursula, negotiation_response = network_middleware.consider_arrangement(ursula=arrangement.ursula,
+    def consider_arrangement(self, network_middleware, ursula, arrangement):
+        ursula, negotiation_response = network_middleware.consider_arrangement(ursula=ursula,
                                                                                arrangement=arrangement)
 
         # TODO: check out the response: need to assess the result and see if we're actually good to go.
