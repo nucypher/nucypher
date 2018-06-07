@@ -2,7 +2,7 @@ import binascii
 import uuid
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Generator
+from typing import Generator, List
 
 import maya
 import msgpack
@@ -112,7 +112,6 @@ class Policy(ABC):
     Once Alice has secured agreement with n Ursulas to enact a Policy, she sends each a KFrag,
     and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
     """
-    _ursula = None
 
     def __init__(self, alice, label, bob=None, kfrags=(constants.UNKNOWN_KFRAG,),
                  public_key=None, m=None, alices_signature=constants.NOT_SIGNED):
@@ -146,18 +145,6 @@ class Policy(ABC):
     @property
     def n(self):
         return len(self.kfrags)
-
-    @property
-    def ursula(self):
-        if not self._ursula:
-            raise Ursula.NotFound
-        else:
-            return self._ursula
-
-    @ursula.setter
-    def ursula(self, ursula_object):
-        self.alice.learn_about_actor(ursula_object)
-        self._ursula = ursula_object
 
     def hrac(self):
         """
@@ -257,7 +244,7 @@ class Policy(ABC):
                 self.publish()
 
     def consider_arrangement(self, network_middleware, arrangement):
-        ursula, negotiation_response = network_middleware.consider_arrangement(ursula=self.ursula,
+        ursula, negotiation_response = network_middleware.consider_arrangement(ursula=arrangement.ursula,
                                                                                arrangement=arrangement)
 
         # TODO: check out the response: need to assess the result and see if we're actually good to go.
@@ -270,14 +257,18 @@ class Policy(ABC):
 
     @abstractmethod
     def make_arrangements(self, network_middleware, quantity: int,
-                          deposit: int, expiration: maya.MayaDT) -> None:
+                          deposit: int, expiration: maya.MayaDT, ursulas: List[Ursula]=None) -> None:
         """
         Create and consider n Arangement objects.
         """
-        ursulas = NotImplemented
+        if not ursulas:
+            ursulas = NotImplemented
+
         for ursula in ursulas:
             arrangement = Arrangement(alice=NotImplemented,
-                                      ursula=ursula, hrac=self.hrac, expiration=expiration)
+                                      ursula=ursula,
+                                      hrac=self.hrac,
+                                      expiration=expiration)
 
             self.consider_arrangement(network_middleware=network_middleware,
                                       arrangement=arrangement)

@@ -1,4 +1,5 @@
 import math
+from typing import List, Set
 
 import maya
 from constant_sorrow import constants
@@ -7,6 +8,7 @@ from nucypher.blockchain.eth.actors import PolicyAuthor
 
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.characters import Ursula
 from nucypher.policy.models import Arrangement, Policy
 
 
@@ -95,23 +97,31 @@ class BlockchainPolicy(Policy):
         return arrangement
 
     def make_arrangements(self, network_middleware, quantity: int,
-                          deposit: int, expiration: maya.MayaDT,
-                          federated_only=False) -> None:
+                          deposit: int, expiration: maya.MayaDT, ursulas: Set[Ursula]=None) -> None:
         """
         Create and consider n Arangement objects from sampled miners.
         """
-        try:
-            sampled_miners = self.alice.recruit(quantity=quantity or self.n)
-        except MinerAgent.NotEnoughMiners:
-            raise  # TODO
 
-        for miner in sampled_miners:  # TODO:
+        if ursulas is not None:
+            # if len(ursulas) < self.n:
+            #     raise Exception # TODO: Validate ursulas
+            pass
+
+        else:
+            try:
+                sampled_miners = self.alice.recruit(quantity=quantity or self.n)
+            except MinerAgent.NotEnoughMiners:
+                raise  # TODO
+            else:
+                ursulas = (Ursula.from_miner(miner, is_me=False) for miner in sampled_miners)
+
+        for ursula in ursulas:
 
             delta = expiration - maya.now()
-            hours = delta.seconds / 60 / 60
+            hours = (delta.total_seconds() / 60) / 60
             periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
 
-            blockchain_arrangement = BlockchainArrangement(author=self.alice, miner=miner,
+            blockchain_arrangement = BlockchainArrangement(author=self.alice, miner=ursula,
                                                            value=deposit, lock_periods=periods,
                                                            expiration=expiration, hrac=self.hrac)
 
