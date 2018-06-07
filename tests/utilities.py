@@ -64,7 +64,7 @@ class MockArrangement(Arrangement):
 
 class MockPolicy(Policy):
     def make_arrangements(self, network_middleware, quantity: int,
-                          deposit: int, expiration: maya.MayaDT) -> None:
+                          deposit: int, expiration: maya.MayaDT, ursulas: List[Ursula]=None) -> None:
         """
         Create and consider n Arangement objects from all known nodes.
         """

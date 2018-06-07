@@ -132,7 +132,7 @@ class BlockchainPolicy(Policy):
             # TODO: Learn about nodes
             # TODO: Use umbral key to lookup, not iterate
             for _public_sig, known_ursula in self.alice.known_nodes.values():
-                if known_ursula.ether_address == selected_ursula.ether_address
+                if known_ursula.ether_address == selected_ursula.ether_address:
                     self.consider_arrangement(ursula=known_ursula,
                                               arrangement=blockchain_arrangement,
                                               network_middleware=network_middleware)
