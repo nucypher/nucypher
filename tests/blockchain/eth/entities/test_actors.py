@@ -65,22 +65,19 @@ class TestMiner:
 
         # Publish Miner IDs to the DHT
         some_data = os.urandom(32)
-        _txhash = miner.publish_datastore(some_data)
+        _txhash = miner.publish_datastore(data=some_data)
 
         # Fetch the miner Ids
-        stored_miner_ids = miner.fetch_data()
-
-        assert len(stored_miner_ids) == 1
-        assert some_data == stored_miner_ids[0]
+        stored_miner_id = miner.read_datastore()
+        assert len(stored_miner_id) == 32
 
         # Repeat, with another miner ID
         another_mock_miner_id = os.urandom(32)
-        _txhash = miner.publish_datastore(another_mock_miner_id)
+        _txhash = miner.publish_datastore(data=another_mock_miner_id)
 
-        stored_miner_ids = miner.fetch_data()
+        stored_miner_id = miner.read_datastore()
 
-        assert len(stored_miner_ids) == 2
-        assert another_mock_miner_id == stored_miner_ids[1]
+        assert another_mock_miner_id == stored_miner_id
 
         supposedly_the_same_miner_id = miner.miner_agent.contract.functions.getMinerId(miner.ether_address, 1).call()
         assert another_mock_miner_id == supposedly_the_same_miner_id

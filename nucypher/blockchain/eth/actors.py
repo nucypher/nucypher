@@ -1,3 +1,4 @@
+import itertools
 from collections import OrderedDict
 from datetime import datetime
 from typing import Tuple, List, Union, Generator
@@ -71,11 +72,12 @@ class Miner(NucypherTokenActor):
 
         # Establish initial state
         self.__locked_tokens = constants.LOCKED_TOKENS_UNAVAILIBLE
-        self.__node_datastore = constants.NODE_DATA_UNAVAILIBLE
+        self.__datastore_entries = constants.CONTRACT_DATASTORE_UNAVAILIBLE
+        self.__node_datastore = constants.CONTRACT_DATASTORE_UNAVAILIBLE
 
         if self.ether_address is not constants.UNKNOWN_ACTOR:
             self.__cache_locked_tokens()  # initial check-in with the blockchain
-            self.__cache_node_data()
+            self.__fetch_node_datastore()
 
     @classmethod
     def from_config(cls, blockchain_config) -> 'Miner':
@@ -237,7 +239,7 @@ class Miner(NucypherTokenActor):
     #
 
     def publish_datastore(self, data) -> str:
-        """Store new data"""
+        """Publish new data to the MinerEscrow contract as a public record associated with this miner."""
 
         txhash = self.miner_agent.contract.functions.setMinerId(data).transact({'from': self.ether_address})
         self.blockchain.wait_for_receipt(txhash)
@@ -246,21 +248,17 @@ class Miner(NucypherTokenActor):
 
         return txhash
 
-    def __fetch_data(self) -> tuple:
-        """Retrieve all asosciated contract data for this miner."""
+    def __fetch_node_datastore(self) -> None:
+        """Cache a generator of all asosciated contract data for this miner."""
 
         count_bytes = self.miner_agent.contract.functions.getMinerIdsLength(self.ether_address).call()
-        count = self.blockchain.interface.w3.toInt(count_bytes)
+        self.__datastore_entries = self.blockchain.interface.w3.toInt(count_bytes)
 
-        miner_ids = list()
-        for index in range(count):
-            miner_id = self.miner_agent.contract.functions.getMinerId(self.ether_address, index).call()
-            miner_ids.append(miner_id)
-        return tuple(miner_ids)
-
-    def __cache_node_data(self) -> None:
-        """Query the MinersEscrow contract for the data stored for this miner."""
-        self.__node_datastore = self.__fetch_data()
+        def node_datastore_reader():
+            for index in range(self.__datastore_entries):
+                value = self.miner_agent.contract.functions.getMinerId(self.ether_address, index).call()
+                yield value
+        self.__node_datastore = node_datastore_reader()
 
     def read_datastore(self, index: int=None, refresh=False):
         """
@@ -270,14 +268,19 @@ class Miner(NucypherTokenActor):
 
         If refresh it True, read the node's data from the blockchain before returning.
         """
-        index = index if index is not None else -1  # return the last, most recently result
         if refresh is True:
-            self.__cache_locked_tokens()
-        try:
-            stored_value = self.__node_datastore[index]
-        except IndexError:
-            stored_value = constants.EMPTY_NODE_DATASTORE
+            self.__fetch_node_datastore()
 
+        # return the last, most recently result
+        index = index if index is not None else self.__datastore_entries - 1
+
+        try:
+            stored_value = next(itertools.islice(self.__node_datastore, index, index+1))
+        except ValueError:
+            if self.__datastore_entries == 0:
+                stored_value = constants.EMPTY_NODE_DATASTORE
+            else:
+                raise
         return stored_value
 
 
