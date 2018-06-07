@@ -653,13 +653,8 @@ class Ursula(Character, ProxyRESTServer, Miner):
             return self._rest_app
 
     @classmethod
-    def from_config(cls, config: CharacterConfiguration) -> 'Ursula':
-        """TODO"""
-
-        # Use BlockchainConfig to default to the first wallet address
-        wallet_address = config.blockchain.wallet_addresses[0]
-
-        instance = cls(ether_address=wallet_address)
+    def from_miner(cls, miner, *args, **kwargs):
+        instance = cls(miner_agent=miner.miner_agent, ether_address=miner.ether_address, *args, **kwargs)
         return instance
 
     @classmethod
@@ -712,7 +707,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
         value = self.interface_info_with_metadata()
         setter = self.dht_server.set(key=ursula_id, value=value)
-        self.publish_data(ursula_id)
+        self.publish_datastore(ursula_id)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 

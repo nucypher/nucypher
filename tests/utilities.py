@@ -32,7 +32,7 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
     _ursulas = []
     for _counter, ether_address in enumerate(ether_addresses):
         port = ursula_starting_port + _counter
-        ursula = Ursula(ether_address=ether_address, dht_port=port, db_name="test-{}".format(port),
+        ursula = Ursula(is_me=True, ether_address=ether_address, dht_port=port, db_name="test-{}".format(port),
                         ip_address="127.0.0.1", rest_port=port + 100)
 
         class MockDatastoreThreadPool(object):
