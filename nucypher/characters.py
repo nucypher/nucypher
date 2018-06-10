@@ -46,8 +46,11 @@ class Character:
     class SuspiciousActivity(RuntimeError):
         """raised when an action appears to amount to malicious conduct."""
 
-    def __init__(self, crypto_power: CryptoPower = None,
-                 crypto_power_ups=None, is_me=True, network_middleware=None,
+    def __init__(self, is_me=True,
+                 network_middleware=None,
+                 crypto_power: CryptoPower=None,
+                 crypto_power_ups=None,
+                 federated=False,
                  config: CharacterConfiguration = None, *args, **kwargs):
         """
         :param attach_dht_server:  Whether to attach a Server when this Character is
@@ -71,7 +74,11 @@ class Character:
             represented by zero Characters or by more than one Character.
         """
         self.config = config  # TODO: Do not mix with injectable params
-        self.known_nodes = {}
+
+        self.is_federated = federated
+        self.__known_nodes = {}
+        self.__known_miners = {}
+
         self.log = getLogger("characters")
 
         #
@@ -116,6 +123,13 @@ class Character:
     @property
     def name(self):
         return self.__class__.__name__
+
+    @property
+    def known_nodes(self):
+        if not self.is_federated:
+            return self.__known_miners
+        else:
+            return self.__known_nodes
 
     @classmethod
     def from_public_keys(cls, powers_and_keys: Dict, *args, **kwargs) -> 'Character':
@@ -291,7 +305,10 @@ class Character:
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
-    def learn_about_nodes(self, rest_address: str, port: int) -> dict:
+    def learn_about_specific_node(self, ether_address: str, rest_address: str, port: int):
+        pass
+
+    def learn_about_nodes(self, rest_address: str, port: int):
         """
         Sends a request to node_url to find out about known nodes.
         """
@@ -304,23 +321,26 @@ class Character:
         ursula_interface_splitter = dht_value_splitter + BytestringSplitter((bytes, 17))
         split_nodes = ursula_interface_splitter.repeat(nodes)
 
-        new_nodes = {}
         for node_meta in split_nodes:
             header, sig, pubkey, interface_info = node_meta
 
             if not pubkey in self.known_nodes:
                 if sig.verify(keccak_digest(interface_info), pubkey):
+
                     rest_address, dht_port, rest_port = msgpack.loads(interface_info)
-                    new_nodes[pubkey] = Ursula.from_rest_url(network_middleware=self.network_middleware,
-                                                             ip_address=rest_address.decode("utf-8"),
-                                                             port=rest_port)
+                    ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
+                                                  ip_address=rest_address.decode("utf-8"),
+                                                  port=rest_port)
+
+                    # TODO: Remove duo
+                    self.__known_nodes[pubkey] = ursula
+                    self.__known_miners[ursula.ether_address] = ursula
+
                 else:
 
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                               "Propagated by: {}:{}".format(node_meta, rest_address, port)
                     self.log.warning(message)
-
-        return new_nodes
 
     def network_bootstrap(self, node_list: list) -> None:
         for node_addr, port in node_list:
