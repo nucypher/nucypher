@@ -6,7 +6,7 @@
 import datetime
 import sys
 
-from sandbox_resources import SandboxNetworkMiddleware
+from sandbox_resources import SandboxRestMiddleware
 from nucypher.characters import Alice, Bob, Ursula
 from nucypher.data_sources import DataSource
 import maya
@@ -15,12 +15,11 @@ import maya
 from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey
 
-URSULA = Ursula.from_rest_url(RestMiddleware(),
+URSULA = Ursula.from_rest_url(network_middleware=RestMiddleware(),
                               ip_address="localhost",
-                              port=3601,
-                              )
-network_middleware = SandboxNetworkMiddleware([URSULA])
+                              port=3601)
 
+network_middleware = SandboxRestMiddleware([URSULA])
 
 
 #########

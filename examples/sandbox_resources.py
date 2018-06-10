@@ -1,14 +1,10 @@
 import requests
 
 from nucypher.characters import Ursula
-from nucypher.network.middleware import NetworkMiddleware
-
-
-class SandboxNetworkMiddleware(NetworkMiddleware):
 from nucypher.network.middleware import RestMiddleware
 
 
-class SandboxNetworkyStuff(RestMiddleware):
+class SandboxRestMiddleware(RestMiddleware):
 
     def __init__(self, ursulas):
         self.ursulas = ursulas
