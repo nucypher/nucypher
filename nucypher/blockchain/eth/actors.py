@@ -342,28 +342,20 @@ class PolicyAuthor(NucypherTokenActor):
             self.miner_agent = policy_agent.miner_agent
             self.token_agent = policy_agent.miner_agent.token_agent
 
-        NucypherTokenActor.__init__(self, token_agent=self.policy_agent.token_agent, *args, **kwargs)
-        self._arrangements = OrderedDict()    # Track authored policies by id
+        self.__sampled_ether_addresses = set()
+        super().__init__(token_agent=self.policy_agent.token_agent, *args, **kwargs)
 
-    def revoke_arrangement(self, arrangement_id) -> str:
-        """Get the arrangement from the cache and revoke it on the blockchain"""
-        try:
-            arrangement = self._arrangements[arrangement_id]
-        except KeyError:
-            raise self.ActorError('Not tracking arrangement {}'.format(arrangement_id))
-        else:
-            txhash = arrangement.revoke()
-        return txhash
+    def recruit(self, quantity: int, **options) -> None:
+        """
+        Uses sampling logic to gather miners from the blockchain
 
-    def recruit(self, quantity: int, **options) -> Generator[Miner, None, None]:
-        """Uses sampling logic to gather miners from the blockchain"""
+        :param quantity: Number of ursulas to sample from the blockchain.
+
+        """
         miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity, **options)
-        for address in miner_addresses:
-            miner = Miner(ether_address=address, miner_agent=self.miner_agent)
-            yield miner
+        self.__sampled_ether_addresses.update(miner_addresses)
 
     def create_policy(self, *args, **kwargs):
         from nucypher.blockchain.eth.policies import BlockchainPolicy
-
         blockchain_policy = BlockchainPolicy(author=self, *args, **kwargs)
         return blockchain_policy
