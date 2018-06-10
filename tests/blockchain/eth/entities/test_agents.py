@@ -9,15 +9,15 @@ M = 10 ** 6
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures("mock_policy_agent")
-def test_get_swarm(chain, mock_token_agent, mock_miner_agent):
+def test_get_swarm(testerchain, mock_token_agent, mock_miner_agent):
 
     mock_token_agent.token_airdrop(amount=100000 * constants.M)
 
-    creator, *addresses = chain.interface.w3.eth.accounts
+    creator, *addresses = testerchain.interface.w3.eth.accounts
 
     mock_miner_agent.spawn_random_miners(addresses=addresses)
 
-    chain.time_travel(periods=1)
+    testerchain.time_travel(periods=1)
 
     swarm = mock_miner_agent.swarm()
     swarm_addresses = list(swarm)
@@ -35,14 +35,14 @@ def test_get_swarm(chain, mock_token_agent, mock_miner_agent):
 
 
 @pytest.mark.slow()
-def test_sample_miners(chain, mock_miner_agent, mock_token_agent):
+def test_sample_miners(testerchain, mock_miner_agent, mock_token_agent):
     mock_token_agent.token_airdrop(amount=100000 * constants.M)
 
     # Have other address lock tokens
-    _origin, ursula, *everybody_else = chain.interface.w3.eth.accounts
+    _origin, ursula, *everybody_else = testerchain.interface.w3.eth.accounts
     mock_miner_agent.spawn_random_miners(addresses=everybody_else)
 
-    chain.time_travel(periods=1)
+    testerchain.time_travel(periods=1)
 
     with pytest.raises(MinerAgent.NotEnoughMiners):
         mock_miner_agent.sample(quantity=100)  # Waay more than we have deployed
