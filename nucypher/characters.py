@@ -480,7 +480,7 @@ class Bob(Character):
 
                 if using_dht:
                     # TODO: perform this part concurrently.
-                    value = self.server.get_now(ursula_interface_id)
+                    value = self.dht_server.get_now(ursula_interface_id)
 
                     # TODO: Make this much prettier
                     header, signature, ursula_pubkey_sig, _hrac, (
@@ -501,7 +501,7 @@ class Bob(Character):
         map_id = keccak_digest(alice_pubkey_sig + hrac)
 
         if using_dht:
-            ursula_coro = self.server.get(map_id)
+            ursula_coro = self.dht_server.get(map_id)
             event_loop = asyncio.get_event_loop()
             packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
         else:
@@ -674,7 +674,12 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
     @classmethod
     def from_miner(cls, miner, *args, **kwargs):
-        instance = cls(miner_agent=miner.miner_agent, ether_address=miner.ether_address, *args, **kwargs)
+        instance = cls(miner_agent=miner.miner_agent, ether_address=miner.ether_address,
+                       ferated_only=False, *args, **kwargs)
+
+        instance.attach_dht_server()
+        # instance.attach_rest_server()
+
         return instance
 
     @classmethod
