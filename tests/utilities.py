@@ -31,10 +31,9 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
     event_loop = asyncio.get_event_loop()
 
     _ursulas = []
-    for _counter, ether_address in enumerate(ether_addresses):
-        port = ursula_starting_port + _counter
+    for port, ether_address in enumerate(ether_addresses, start=ursula_starting_port):
         ursula = Ursula(is_me=True, ether_address=ether_address, dht_port=port, db_name="test-{}".format(port),
-                        ip_address="127.0.0.1", rest_port=port + 100)
+                        ip_address="127.0.0.1", rest_port=port+100)
 
         class MockDatastoreThreadPool(object):
             def callInThread(self, f, *args, **kwargs):
@@ -42,6 +41,18 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
 
         ursula.datastore_threadpool = MockDatastoreThreadPool()
         ursula.dht_listen()
+
+        if miners is True:
+            # # stake a random amount
+            # min_stake, balance = constants.MIN_ALLOWED_LOCKED, ursula.token_balance()
+            # amount = random.randint(min_stake, balance)
+            #
+            # # for a random lock duration
+            # min_locktime, max_locktime = constants.MIN_LOCKED_PERIODS, constants.MAX_MINTING_PERIODS
+            # periods = random.randint(min_locktime, max_locktime)
+            #
+            # ursula.stake(amount=amount, lock_periods=periods)
+            # ursula.miner_agent.blockchain.time_travel(periods=1)
 
         _ursulas.append(ursula)
 
