@@ -696,7 +696,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
             {SigningPower: signing_key, EncryptingPower: encrypting_key},
             ip_address=ip_address,
             rest_port=port,
-            federated_only=True # TODO: 289
+            federated_only=True  # TODO: 289
         )
 
         return stranger_ursula_from_public_keys
