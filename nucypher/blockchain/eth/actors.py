@@ -229,9 +229,7 @@ class Miner(NucypherTokenActor):
         if not self.is_me:
             raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
-        txhash = self.miner_agent.contract.functions.confirmActivity().transact({'from': self.ether_address})
-        self.blockchain.wait_for_receipt(txhash)
-
+        txhash = self.miner_agent.confirm_activity(node_address=self.ether_address)
         self._transaction_cache.append((datetime.utcnow(), txhash))
 
         return txhash
@@ -242,9 +240,7 @@ class Miner(NucypherTokenActor):
         if not self.is_me:
             raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
-        mint_txhash = self.miner_agent.contract.functions.mint().transact({'from': self.ether_address})
-
-        self.blockchain.wait_for_receipt(mint_txhash)
+        mint_txhash = self.miner_agent.mint(node_address=self.ether_address)
         self._transaction_cache.append((datetime.utcnow(), mint_txhash))
 
         return mint_txhash
@@ -255,9 +251,7 @@ class Miner(NucypherTokenActor):
         if not self.is_me:
             raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
-        policy_reward_txhash = policy_manager.contract.functions.withdraw().transact({'from': self.ether_address})
-        self.blockchain.wait_for_receipt(policy_reward_txhash)
-
+        policy_reward_txhash = policy_manager.collect_policy_reward(collector_address=self.ether_address)
         self._transaction_cache.append((datetime.utcnow(), policy_reward_txhash))
 
         return policy_reward_txhash
@@ -268,47 +262,26 @@ class Miner(NucypherTokenActor):
         if not self.is_me:
             raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
-        token_amount = self.miner_agent.contract.functions.minerInfo(self.ether_address).call()[0]
-        staked_amount = max(self.miner_agent.contract.functions.getLockedTokens(self.ether_address).call(),
-                            self.miner_agent.contract.functions.getLockedTokens(self.ether_address, 1).call())
-
-        collection_txhash = self.miner_agent.contract.functions.withdraw(token_amount - staked_amount).transact({'from': self.ether_address})
-
-        self.blockchain.wait_for_receipt(collection_txhash)
+        collection_txhash = self.miner_agent.collect_staking_reward(collector_address=self.ether_address)
         self._transaction_cache.append((datetime.utcnow(), collection_txhash))
 
         return collection_txhash
 
     #
-    # Miner Datastore
+    # Miner Contract Datastore
     #
 
-    def _publish_datastore(self, data) -> str:
+    def publish_datastore(self, data) -> str:
         """Publish new data to the MinerEscrow contract as a public record associated with this miner."""
 
         if not self.is_me:
             raise self.MinerError("Cannot write to contract datastore with a non-self Miner instance.")
 
-        txhash = self.miner_agent.contract.functions.setMinerId(data).transact({'from': self.ether_address})
-        self.blockchain.wait_for_receipt(txhash)
-
+        txhash = self.miner_agent._publish_datastore(node_address=self.ether_address, data=data)
         self._transaction_cache.append((datetime.utcnow(), txhash))
-
         return txhash
 
-    def __fetch_node_datastore(self) -> None:
-        """Cache a generator of all asosciated contract data for this miner."""
-
-        count_bytes = self.miner_agent.contract.functions.getMinerIdsLength(self.ether_address).call()
-        self.__datastore_entries = self.blockchain.interface.w3.toInt(count_bytes)
-
-        def node_datastore_reader():
-            for index in range(self.__datastore_entries):
-                value = self.miner_agent.contract.functions.getMinerId(self.ether_address, index).call()
-                yield value
-        self.__node_datastore = node_datastore_reader()
-
-    def _read_datastore(self, index: int=None, refresh=False):
+    def read_datastore(self, index: int=None, refresh=False):
         """
         Read a value from the nodes datastore, within the MinersEscrow ethereum contract.
         since there may be multiple values, select one, and return it. The most recently
@@ -317,16 +290,18 @@ class Miner(NucypherTokenActor):
         If refresh it True, read the node's data from the blockchain before returning.
 
         """
-        if refresh is True:
-            self.__fetch_node_datastore()
 
-        # return the last, most recently result
-        index = index if index is not None else self.__datastore_entries - 1
+        if refresh is True:
+            self.__node_datastore = self.miner_agent._fetch_node_datastore(node_address=self.ether_address)
+
+        if index is None:
+            datastore_entries = self.miner_agent._get_datastore_entries(node_address=self.ether_address)
+            index = datastore_entries - 1         # return the last, most recently result
 
         try:
             stored_value = next(itertools.islice(self.__node_datastore, index, index+1))
-        except ValueError:
-            if self.__datastore_entries == 0:
+        except StopIteration:
+            if self.miner_agent._get_datastore_entries(node_address=self.ether_address) == 0:
                 stored_value = constants.EMPTY_NODE_DATASTORE
             else:
                 raise
@@ -338,7 +313,6 @@ class PolicyAuthor(NucypherTokenActor):
 
     def __init__(self, policy_agent: PolicyAgent=None, *args, **kwargs):
         """
-
         :param policy_agent: A policy agent with the blockchain attached; If not passed, A default policy
         agent and blockchain connection will be created from default values.
 
@@ -355,20 +329,31 @@ class PolicyAuthor(NucypherTokenActor):
             self.miner_agent = policy_agent.miner_agent
             self.token_agent = policy_agent.miner_agent.token_agent
 
-        self.__sampled_ether_addresses = set()
+        self.__sampled_ether_addresses = set()  # TODO: uptake into node learning api with high priority
         super().__init__(token_agent=self.policy_agent.token_agent, *args, **kwargs)
 
     def recruit(self, quantity: int, **options) -> None:
         """
-        Uses sampling logic to gather miners from the blockchain
+        Uses sampling logic to gather miners from the blockchain and
+        caches the resulting node ethereum addresses.
 
         :param quantity: Number of ursulas to sample from the blockchain.
+        :return: None; Since it only mutates self
 
         """
+
         miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity, **options)
         self.__sampled_ether_addresses.update(miner_addresses)
 
     def create_policy(self, *args, **kwargs):
+        """
+        Hence the name, a PolicyAuthor can create
+        a BlockchainPolicy with themself as the author.
+
+        :return: Returns a newly authored BlockchainPolicy with n proposed arrangements.
+
+        """
+
         from nucypher.blockchain.eth.policies import BlockchainPolicy
         blockchain_policy = BlockchainPolicy(author=self, *args, **kwargs)
         return blockchain_policy
