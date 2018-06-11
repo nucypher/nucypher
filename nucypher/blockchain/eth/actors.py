@@ -138,10 +138,13 @@ class Miner(NucypherTokenActor):
         if not self.is_me:
             raise self.MinerError("Cannot execute miner staking functions with a non-self Miner instance.")
 
-        approve_txhash = self._approve_escrow(amount=amount)
-        deposit_txhash = self._send_tokens_to_escrow(amount=amount, lock_periods=lock_periods)
+        approve_txhash = self.token_agent.approve_transfer(amount=amount,
+                                                           target_address=self.miner_agent.contract_address,
+                                                           sender_address=self.ether_address)
 
-        return approve_txhash, deposit_txhash
+        deposit_txhash = self.miner_agent.deposit_tokens(amount=amount,
+                                                         lock_periods=lock_periods,
+                                                         sender_address=self.ether_address)
 
         return approve_txhash, deposit_txhash
 
@@ -176,38 +179,42 @@ class Miner(NucypherTokenActor):
         assert validate_stake_amount(amount=amount)
         assert validate_locktime(lock_periods=lock_periods)
 
-        if not self.token_balance() >= amount:
-            raise self.MinerError("Insufficient miner token balance ({balance})".format(balance=self.token_balance()))
+        if not self.token_balance >= amount:
+            raise self.MinerError("Insufficient miner token balance ({balance})".format(balance=self.token_balance))
         else:
             return True
 
-    def stake(self, amount, lock_periods, entire_balance=False):
+    def stake(self, amount: int, lock_periods: int=None, expiration: maya.MayaDT=None, entire_balance: bool=False) -> dict:
         """
         High level staking method for Miners.
 
         :param amount: Amount of tokens to stake denominated in the smallest unit.
         :param lock_periods: Duration of stake in periods.
+        :param expiration: A MayaDT object representing the time the stake expires; used to calculate lock_periods.
         :param entire_balance: If True, stake the entire balance of this node, or the maximum possible.
 
         """
+
         if not self.is_me:
             raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
-
-            # manual type checking below this point; force an int to allow use of constants
-        amount, lock_periods = int(amount), int(lock_periods)
-
-        staking_transactions = OrderedDict()  # Time series of txhases
-
+        if lock_periods and expiration:
+            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
         if entire_balance and amount:
             raise self.MinerError("Specify an amount or entire balance, not both")
 
+        if expiration:
+            lock_periods = self.calculate_period_duration(future_time=expiration)
         if entire_balance is True:
-            amount = self.miner_agent.contract.functions.getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
-                                                                      self.ether_address, 0).call()
-        amount = self.blockchain.interface.w3.toInt(amount)
+            amount = self.token_balance
 
+        amount, lock_periods = int(amount), int(lock_periods)  # Manual type checks below this point in the stack;
+        staking_transactions = OrderedDict()                   # Time series of txhases
+
+        # Validate
+        amount = self.blockchain.interface.w3.toInt(amount)
         assert self.__validate_stake(amount=amount, lock_periods=lock_periods)
 
+        # Transact
         approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, lock_periods=lock_periods)
         self._transaction_cache.append((datetime.utcnow(), initial_deposit_txhash))
 
