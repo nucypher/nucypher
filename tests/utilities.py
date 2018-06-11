@@ -43,7 +43,7 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
         ursula.dht_listen()
 
         if miners is True:
-            # # stake a random amount
+            # stake a random amount
             # min_stake, balance = constants.MIN_ALLOWED_LOCKED, ursula.token_balance()
             # amount = random.randint(min_stake, balance)
             #
@@ -53,6 +53,7 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
             #
             # ursula.stake(amount=amount, lock_periods=periods)
             # ursula.miner_agent.blockchain.time_travel(periods=1)
+            pass
 
         _ursulas.append(ursula)
 

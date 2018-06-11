@@ -137,6 +137,8 @@ def testerchain(solidity_compiler):
 
     # Create the blockchain
     testerchain = TesterBlockchain(interface=circumflex, test_accounts=10)
+    origin, *everyone = testerchain.interface.w3.eth.accounts
+    circumflex.deployer_address = origin  # Set the deployer address from a freshly created test account
 
     yield testerchain
 
@@ -149,28 +151,32 @@ def testerchain(solidity_compiler):
 #
 
 @pytest.fixture(scope='module')
-def token_airdrop(mock_token_agent):
-    mock_token_agent.token_airdrop(amount=100000*constants.M)  # blocks
+def token_airdrop(testerchain, mock_token_agent):
+    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+    mock_token_agent.token_airdrop(origin=origin,
+                                   addresses=everybody_else,
+                                   amount=100000*constants.M)
     yield
 
 
 @pytest.fixture(scope='module')
 def deployed_testerchain(testerchain):
     """Launch all Nucypher ethereum contracts"""
+    origin, *everybody_else = testerchain.interface.w3.eth.accounts
 
-    token_deployer = NucypherTokenDeployer(blockchain=testerchain)
+    token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
     token_deployer.arm()
     token_deployer.deploy()
 
     token_agent = NucypherTokenAgent(blockchain=testerchain)
 
-    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent)
+    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=origin)
     miner_escrow_deployer.arm()
     miner_escrow_deployer.deploy()
 
     miner_agent = MinerAgent(token_agent=token_agent)
 
-    policy_manager_contract = PolicyManagerDeployer(miner_agent=miner_agent)
+    policy_manager_contract = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=origin)
     policy_manager_contract.arm()
     policy_manager_contract.deploy()
 
@@ -184,7 +190,7 @@ def deployed_testerchain(testerchain):
 
 @pytest.fixture(scope='module')
 def mock_token_deployer(testerchain):
-    origin, *everyone = testerchain.interface.w3.eth.coinbase
+    origin, *everybody_else = testerchain.interface.w3.eth.accounts
     token_deployer = MockNucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
     token_deployer.arm()
     token_deployer.deploy()
@@ -192,16 +198,18 @@ def mock_token_deployer(testerchain):
 
 
 @pytest.fixture(scope='module')
-def mock_miner_escrow_deployer(mock_token_agent):
-    escrow = MockMinerEscrowDeployer(token_agent=mock_token_agent)
+def mock_miner_escrow_deployer(testerchain, mock_token_agent):
+    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+    escrow = MockMinerEscrowDeployer(token_agent=mock_token_agent, deployer_address=origin)
     escrow.arm()
     escrow.deploy()
     yield escrow
 
 
 @pytest.fixture(scope='module')
-def mock_policy_manager_deployer(mock_miner_agent):
-    policy_manager_deployer = PolicyManagerDeployer(miner_agent=mock_miner_agent)
+def mock_policy_manager_deployer(testerchain, mock_miner_agent):
+    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+    policy_manager_deployer = PolicyManagerDeployer(miner_agent=mock_miner_agent, deployer_address=origin)
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
     yield policy_manager_deployer
@@ -232,3 +240,23 @@ def mock_policy_agent(mock_policy_manager_deployer):
     policy_agent = mock_policy_manager_deployer.make_agent()
     assert mock_policy_manager_deployer.contract.address == policy_agent.contract_address
     yield policy_agent
+
+
+#
+# Actors
+#
+
+@pytest.fixture(scope='module')
+@pytest.mark.usefixtures("mock_policy_agent")
+def miners(testerchain, mock_miner_agent, mock_token_agent):
+    mock_token_agent.blockchain.ether_airdrop(amount=10000)
+
+    origin, *everybody_else = testerchain.interface.w3.eth.accounts
+    mock_token_agent.token_airdrop(origin=origin,
+                                   addresses=everybody_else,
+                                   amount=100000*constants.M)
+    mock_miner_agent.blockchain.time_travel(periods=1)
+
+    miners = mock_miner_agent.spawn_random_miners(addresses=everybody_else)
+    testerchain.time_travel(periods=1)
+    yield miners
