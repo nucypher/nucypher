@@ -107,7 +107,7 @@ class BlockchainPolicy(Policy):
 
         if ursulas is not None:
             # if len(ursulas) < self.n:
-            #     raise Exception # TODO: Validate ursulas
+            #     raise Ursula.NotEnoughUrsulas  # TODO: Validate ursulas
             pass
 
         else:
@@ -121,6 +121,8 @@ class BlockchainPolicy(Policy):
 
         for selected_ursula in ursulas:
 
+            self.alice.learn_about_specific_node(node=selected_ursula)
+
             delta = expiration - maya.now()
             hours = (delta.total_seconds() / 60) / 60
             periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
@@ -130,6 +132,7 @@ class BlockchainPolicy(Policy):
                                                            expiration=expiration, hrac=self.hrac)
 
             # TODO: Learn about nodes
+
             # TODO: Use umbral key to lookup, not iterate
             for _public_sig, known_ursula in self.alice.known_nodes.values():
                 if known_ursula.ether_address == selected_ursula.ether_address:

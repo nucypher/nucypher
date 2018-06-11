@@ -68,10 +68,12 @@ def ursulas(deployed_testerchain):
 
     _ursulas = make_ursulas(ether_addresses=ursula_addresses,
                             ursula_starting_port=int(constants.URSULA_PORT_SEED))
+
+    MockRestMiddleware._ursulas = _ursulas
     yield _ursulas
     # Remove the DBs that have been sprayed hither and yon.
-    for index, ursula in enumerate(_ursulas):
-        port = constants.URSULA_PORT_SEED + index
+    MockRestMiddleware._ursulas = None
+    for port, ursula in enumerate(_ursulas, start=int(constants.URSULA_PORT_SEED)):
         os.remove("test-{}".format(port))
 
 
