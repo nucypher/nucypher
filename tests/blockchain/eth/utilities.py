@@ -6,6 +6,7 @@ from constant_sorrow import constants
 from eth_tester import PyEVMBackend
 from eth_tester.backends import is_pyevm_available
 from eth_tester.backends.pyevm.main import get_default_genesis_params, get_default_account_keys, generate_genesis_state
+from umbral import keys
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import MinerAgent, NucypherTokenAgent
@@ -14,15 +15,12 @@ from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherToken
 
 class MockTokenAgent(NucypherTokenAgent):
 
-    def token_airdrop(self, amount: int, addresses: List[str]=None):
+    def token_airdrop(self, amount: int, origin: str, addresses: List[str]):
         """Airdrops tokens from creator address to all other addresses!"""
-
-        if addresses is None:
-            _creator, *addresses = self.blockchain.interface.w3.eth.accounts
 
         def txs():
             for address in addresses:
-                txhash = self.contract.functions.transfer(address, amount).transact({'from': self.origin})
+                txhash = self.contract.functions.transfer(address, amount).transact({'from': origin})
                 yield txhash
 
         receipts = list()
@@ -48,7 +46,7 @@ class MockMinerAgent(MinerAgent):
             miners.append(miner)
 
             # stake a random amount
-            min_stake, balance = constants.MIN_ALLOWED_LOCKED, miner.token_balance()
+            min_stake, balance = constants.MIN_ALLOWED_LOCKED, miner.token_balance
             amount = random.randint(min_stake, balance)
 
             # for a random lock duration
@@ -70,14 +68,26 @@ class MockMinerEscrowDeployer(MinerEscrowDeployer):
     agency = MockMinerAgent
 
 
+class NucypherUmbralPrivateKey(keys.UmbralPrivateKey):
+
+    def export(self, importing_function, *args, **kwargs):
+        result = importing_function(private_key=bytes(self.bn_key), *args, **kwargs)
+        return result
+
+
 def generate_accounts(w3: Web3, quantity: int) -> List[str]:
     """
     Generate additional unlocked accounts transferring wei_balance to each account on creation.
     """
-    insecure_passphrase = 'this-is-not-a-secure-password'
+    umbral_priv_key = NucypherUmbralPrivateKey.gen_key()
+    umbral_pub_key = umbral_priv_key.get_pubkey()
+
     addresses = list()
+    insecure_passphrase = 'this-is-not-a-secure-password'
     for _ in range(quantity):
-        address = w3.personal.newAccount(insecure_passphrase)
+        address = umbral_priv_key.export(importing_function=w3.personal.importRawKey,
+                                         passphrase=insecure_passphrase)
+
         w3.personal.unlockAccount(address, passphrase=insecure_passphrase)
         addresses.append(addresses)
     return addresses

@@ -4,6 +4,7 @@ import warnings
 from pathlib import Path
 from typing import Tuple, List
 
+from constant_sorrow import constants
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 
@@ -341,10 +342,17 @@ class DeployerCircumflex(ControlCircumflex):
 
         # Depends on web3 instance
         super().__init__(*args, **kwargs)
+        self.__deployer_address = deployer_address if deployer_address is not None else constants.NO_DEPLOYER_CONFIGURED
 
-        if deployer_address is None:
-            deployer_address = self.w3.eth.coinbase  # provider's coinbase / etherbase is default
-        self.deployer_address = deployer_address
+    @property
+    def deployer_address(self):
+        return self.__deployer_address
+
+    @deployer_address.setter
+    def deployer_address(self, ether_address: str) -> None:
+        if self.deployer_address is not constants.NO_DEPLOYER_CONFIGURED:
+            raise RuntimeError("{} already has a deployer address set.".format(self.__class__.__name__))
+        self.__deployer_address = ether_address
 
     def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:
         """

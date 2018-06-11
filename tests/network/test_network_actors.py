@@ -8,7 +8,7 @@ from kademlia.utils import digest
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
-from tests.utilities import MockNetworkMiddleware, TEST_EVENT_LOOP
+from tests.utilities import TEST_EVENT_LOOP, MockRestMiddleware
 
 
 @pytest.mark.usefixtures('deployed_testerchain')
@@ -46,27 +46,11 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     loop.run_until_complete(setter)
 
     # Now Ursula has seen an illegal key.
-    assert digest(illegal_key) in ursula.server.protocol.illegal_keys_seen
-
-
-@pytest.mark.usefixtures('deploy_nucypher_contracts')
-def test_alice_finds_ursula_via_dht(alice, mock_miner_agent):
-    """
-    With the help of any Ursula, Alice can find a specific Ursula.
-    """
-    ursula_index = 1
-    all_ursulas = list(mock_miner_agent.swarm(fetch_data=True))
-    ether_address, ursula_id = alice.server.get_now(all_ursulas[ursula_index])
-    header, _signature, _ursula_pubkey_sig, interface_info = dht_value_splitter(ursula_id,
-                                                                                return_remainder=True)
-
-    assert header == constants.BYTESTRING_IS_URSULA_IFACE_INFO
-    port = msgpack.loads(interface_info)[1]
-    assert port == constants.URSULA_PORT_SEED + ursula_index
+    assert digest(illegal_key) in ursula.dht_server.protocol.illegal_keys_seen
 
 
 def test_alice_finds_ursula_via_rest(alice, ursulas):
-    network_middleware = MockNetworkMiddleware(ursulas)
+    network_middleware = MockRestMiddleware()
 
     # Imagine alice knows of nobody.
     alice.known_nodes = {}
@@ -93,7 +77,7 @@ def test_alice_sets_treasure_map_on_network(enacted_policy, ursulas):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
     """
-    networky_stuff = MockNetworkMiddleware(ursulas)
+    networky_stuff = MockRestMiddleware()
     _, packed_encrypted_treasure_map, _, _ = enacted_policy.publish_treasure_map(network_middleare=networky_stuff, use_dht=True)
 
     treasure_map_as_set_on_network = ursulas[0].server.storage[
@@ -112,11 +96,16 @@ def test_treasure_map_with_bad_id_does_not_propagate(idle_policy, ursulas):
 
     message_kit, signature = alice.encrypt_for(bob, treasure_map.packed_payload())
 
-    setter = alice.server.set(illegal_policygroup_id, message_kit.to_bytes())
-    _set_event = TEST_EVENT_LOOP.run_until_complete(setter)
+    alice.network_middleware.push_treasure_map_to_node(node=ursulas[1],
+                                                       map_id=illegal_policygroup_id,
+                                                       map_payload=message_kit.to_bytes())
 
-    with pytest.raises(KeyError):
-        _ = ursulas[0].server.storage[digest(illegal_policygroup_id)]
+    # setter = alice.server.set(illegal_policygroup_id, message_kit.to_bytes())
+    # _set_event = TEST_EVENT_LOOP.run_until_complete(setter)
+
+    # with pytest.raises(KeyError):
+    #     _ = ursulas_on_network[0].server.storage[digest(illegal_policygroup_id)]
+    assert False
 
 
 @pytest.mark.usefixtures("treasure_map_is_set_on_dht")
@@ -148,7 +137,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy, ursula
     that Bob can retrieve it with only the information about which he is privy pursuant to the PolicyGroup.
     """
     bob = enacted_policy.bob
-    networky_stuff = MockNetworkMiddleware(ursulas)
+    _ = MockRestMiddleware()
 
     # Of course, in the real world, Bob has sufficient information to reconstitute a PolicyGroup, gleaned, we presume,
     # through a side-channel with Alice.

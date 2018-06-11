@@ -20,7 +20,7 @@ from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter, StrangerStamp
-from nucypher.network.middleware import NetworkMiddleware
+from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
 from umbral.keys import UmbralPublicKey
@@ -37,8 +37,6 @@ class Character:
     _default_crypto_powerups = None
     _stamp = None
 
-    ether_address = None
-
     class NotEnoughUrsulas(MinerAgent.NotEnoughMiners):
         """
         All Characters depend on knowing about enough Ursulas to perform their role.
@@ -48,8 +46,11 @@ class Character:
     class SuspiciousActivity(RuntimeError):
         """raised when an action appears to amount to malicious conduct."""
 
-    def __init__(self, crypto_power: CryptoPower = None,
-                 crypto_power_ups=None, is_me=True, network_middleware=None,
+    def __init__(self, is_me=True,
+                 network_middleware=None,
+                 crypto_power: CryptoPower=None,
+                 crypto_power_ups=None,
+                 federated=False,
                  config: CharacterConfiguration = None, *args, **kwargs):
         """
         :param attach_dht_server:  Whether to attach a Server when this Character is
@@ -73,7 +74,11 @@ class Character:
             represented by zero Characters or by more than one Character.
         """
         self.config = config  # TODO: Do not mix with injectable params
-        self.known_nodes = {}
+
+        self.is_federated = federated
+        self.__known_nodes = {}
+        self.__known_miners = {}
+
         self.log = getLogger("characters")
 
         #
@@ -95,7 +100,7 @@ class Character:
         # Identity and Network
         #
         if is_me is True:
-            self.network_middleware = network_middleware or NetworkMiddleware()
+            self.network_middleware = network_middleware or RestMiddleware()
 
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)
@@ -118,6 +123,13 @@ class Character:
     @property
     def name(self):
         return self.__class__.__name__
+
+    @property
+    def known_nodes(self):
+        if not self.is_federated:
+            return self.__known_miners
+        else:
+            return self.__known_nodes
 
     @classmethod
     def from_public_keys(cls, powers_and_keys: Dict, *args, **kwargs) -> 'Character':
@@ -293,7 +305,10 @@ class Character:
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
-    def learn_about_nodes(self, rest_address: str, port: int) -> dict:
+    def learn_about_specific_node(self, ether_address: str, rest_address: str, port: int):
+        pass
+
+    def learn_about_nodes(self, rest_address: str, port: int):
         """
         Sends a request to node_url to find out about known nodes.
         """
@@ -306,23 +321,26 @@ class Character:
         ursula_interface_splitter = dht_value_splitter + BytestringSplitter((bytes, 17))
         split_nodes = ursula_interface_splitter.repeat(nodes)
 
-        new_nodes = {}
         for node_meta in split_nodes:
             header, sig, pubkey, interface_info = node_meta
 
             if not pubkey in self.known_nodes:
                 if sig.verify(keccak_digest(interface_info), pubkey):
+
                     rest_address, dht_port, rest_port = msgpack.loads(interface_info)
-                    new_nodes[pubkey] = Ursula.from_rest_url(network_middleware=self.network_middleware,
-                                                             ip_address=rest_address.decode("utf-8"),
-                                                             port=rest_port)
+                    ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
+                                                  ip_address=rest_address.decode("utf-8"),
+                                                  port=rest_port)
+
+                    # TODO: Remove duo
+                    self.__known_nodes[pubkey] = ursula
+                    self.__known_miners[ursula.ether_address] = ursula
+
                 else:
 
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                               "Propagated by: {}:{}".format(node_meta, rest_address, port)
                     self.log.warning(message)
-
-        return new_nodes
 
     def network_bootstrap(self, node_list: list) -> None:
         for node_addr, port in node_list:
@@ -333,10 +351,9 @@ class Character:
 class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
-    def __init__(self, federated_only=False, *args, **kwargs):
-        Character.__init__(self, *args, **kwargs)
-        if kwargs.get('is_me') and not federated_only:
-            # TODO: 289
+    def __init__(self, is_me=True, federated_only=False, *args, **kwargs):
+        Character.__init__(self, is_me=is_me, *args, **kwargs)
+        if is_me and not federated_only:              # TODO: 289
             PolicyAuthor.__init__(self, *args, **kwargs)
         self.federated_only = federated_only
 
@@ -363,16 +380,18 @@ class Alice(Character, PolicyAuthor):
         """
         public_key, kfrags = self.generate_kfrags(bob, label, m, n)
 
+        payload = dict(label=label,
+                       bob=bob,
+                       kfrags=kfrags,
+                       public_key=public_key,
+                       m=m)
+
         from nucypher.policy.models import Policy
 
-        policy = Policy.from_alice(
-            alice=self,
-            label=label,
-            bob=bob,
-            kfrags=kfrags,
-            public_key=public_key,
-            m=m,
-        )
+        if self.federated_only is True:
+            policy = Policy(alice=self, **payload)
+        else:
+            policy = super().create_policy(**payload)
 
         return policy
 
@@ -401,13 +420,12 @@ class Alice(Character, PolicyAuthor):
         # Users may decide to inject some market strategies here.
         #
         # TODO: 289
-        policy.make_arrangements(self.network_middleware, deposit=deposit,
-                                 expiration=expiration, quantity=n,
-                                 federated_only=self.federated_only)
+        policy.make_arrangements(network_middleware=self.network_middleware, deposit=deposit,
+                                 expiration=expiration, quantity=n)
 
         # REST call happens here, as does population of TreasureMap.
-        policy.enact(self.network_middleware)
-        policy.publish_treasure_map(self.network_middleware)
+        policy.enact(network_middleware=self.network_middleware)
+        policy.publish_treasure_map(network_middleare=self.network_middleware)
 
         return policy  # Now with TreasureMap affixed!
 
@@ -462,7 +480,7 @@ class Bob(Character):
 
                 if using_dht:
                     # TODO: perform this part concurrently.
-                    value = self.server.get_now(ursula_interface_id)
+                    value = self.dht_server.get_now(ursula_interface_id)
 
                     # TODO: Make this much prettier
                     header, signature, ursula_pubkey_sig, _hrac, (
@@ -483,7 +501,7 @@ class Bob(Character):
         map_id = keccak_digest(alice_pubkey_sig + hrac)
 
         if using_dht:
-            ursula_coro = self.server.get(map_id)
+            ursula_coro = self.dht_server.get(map_id)
             event_loop = asyncio.get_event_loop()
             packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
         else:
@@ -626,6 +644,9 @@ class Ursula(Character, ProxyRESTServer, Miner):
     _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
+    class NotFound(Exception):
+        pass
+
     # TODO: 289
     def __init__(self, is_me=True,
                  dht_port=None,
@@ -652,13 +673,13 @@ class Ursula(Character, ProxyRESTServer, Miner):
             return self._rest_app
 
     @classmethod
-    def from_config(cls, config: CharacterConfiguration) -> 'Ursula':
-        """TODO"""
+    def from_miner(cls, miner, *args, **kwargs):
+        instance = cls(miner_agent=miner.miner_agent, ether_address=miner.ether_address,
+                       ferated_only=False, *args, **kwargs)
 
-        # Use BlockchainConfig to default to the first wallet address
-        wallet_address = config.blockchain.wallet_addresses[0]
+        instance.attach_dht_server()
+        # instance.attach_rest_server()
 
-        instance = cls(ether_address=wallet_address)
         return instance
 
     @classmethod
@@ -675,7 +696,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
             {SigningPower: signing_key, EncryptingPower: encrypting_key},
             ip_address=ip_address,
             rest_port=port,
-            federated_only=True # TODO: 289
+            federated_only=True  # TODO: 289
         )
 
         return stranger_ursula_from_public_keys
@@ -711,7 +732,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
         value = self.interface_info_with_metadata()
         setter = self.dht_server.set(key=ursula_id, value=value)
-        self.publish_data(ursula_id)
+        self.publish_datastore(ursula_id)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 

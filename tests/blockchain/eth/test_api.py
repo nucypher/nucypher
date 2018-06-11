@@ -7,13 +7,14 @@ from nucypher.blockchain.eth.interfaces import EthereumContractRegistrar
 
 
 def test_token_deployer_and_agent(testerchain):
+    origin, *everybody_else = testerchain.interface.w3.eth.accounts
 
     # Trying to get token from blockchain before it's been published fails
     with pytest.raises(EthereumContractRegistrar.UnknownContract):
         NucypherTokenAgent(blockchain=testerchain)
 
     # The big day...
-    deployer = NucypherTokenDeployer(blockchain=testerchain)
+    deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
 
     with pytest.raises(NucypherTokenDeployer.ContractDeploymentError):
         deployer.deploy()
@@ -54,20 +55,21 @@ def test_deploy_ethereum_contracts(testerchain):
     - UserEscrow
     - Issuer
     """
+    origin, *everybody_else = testerchain.interface.w3.eth.accounts
 
-    token_deployer = NucypherTokenDeployer(blockchain=testerchain)
+    token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
     token_deployer.arm()
     token_deployer.deploy()
 
     token_agent = NucypherTokenAgent(blockchain=testerchain)
 
-    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent)
+    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=origin)
     miner_escrow_deployer.arm()
     miner_escrow_deployer.deploy()
 
     miner_agent = MinerAgent(token_agent=token_agent)
 
-    policy_manager_contract = PolicyManagerDeployer(miner_agent=miner_agent)
+    policy_manager_contract = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=origin)
     policy_manager_contract.arm()
     policy_manager_contract.deploy()
 

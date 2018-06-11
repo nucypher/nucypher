@@ -5,8 +5,9 @@ These values are static and do not need to be changed during runtime;
 Once the NuCypherToken contract is deployed to a network with one set of constant values,
 those values are then required to be compatible with the rest of the network.
 """
+import math
 
-
+import maya
 from constant_sorrow.constants import (NULL_ADDRESS, TOKEN_SATURATION, MINING_COEFFICIENT, TOKEN_SUPPLY,
                                        M, HOURS_PER_PERIOD, MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS,
                                        MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, )
@@ -15,6 +16,8 @@ from constant_sorrow.constants import (NULL_ADDRESS, TOKEN_SATURATION, MINING_CO
 #
 # Token
 #
+from nucypher.blockchain.eth.chains import Blockchain
+
 
 class TokenConfigError(ValueError):
     pass
@@ -89,7 +92,7 @@ def validate_locktime(lock_periods: int, raise_on_fail=True) -> bool:
 
     rulebook = (
 
-        (MIN_LOCKED_PERIODS <= lock_periods ,
+        (MIN_LOCKED_PERIODS <= lock_periods,
          'Locktime ({locktime}) too short; must be at least {minimum}'
          .format(minimum=MIN_LOCKED_PERIODS, locktime=lock_periods)),
 

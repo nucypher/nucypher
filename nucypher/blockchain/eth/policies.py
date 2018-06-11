@@ -1,6 +1,14 @@
+import math
+from typing import List, Set
+
+import maya
+from constant_sorrow import constants
+
 from nucypher.blockchain.eth.actors import PolicyAuthor
 
 from nucypher.blockchain.eth.actors import Miner
+from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.characters import Ursula
 from nucypher.policy.models import Arrangement, Policy
 
 
@@ -9,15 +17,13 @@ class BlockchainArrangement(Arrangement):
     A relationship between Alice and a single Ursula as part of Blockchain Policy
     """
 
-    def __init__(self, author: str,
-                 miner: str,
+    def __init__(self, author: PolicyAuthor,
+                 miner: Miner,
                  value: int,
                  lock_periods: int,
-                 ):
-        super().__init__(alice=author,
-                         ursula=miner,
-                         policy_duration=lock_periods,
-                         )
+                 *args, **kwargs):
+
+        super().__init__(alice=author, ursula=miner, *args, **kwargs)
 
         # The relationship exists between two addresses
         self.author = author
@@ -45,9 +51,9 @@ class BlockchainArrangement(Arrangement):
         return r
 
     def publish(self) -> str:
-        payload = {'from': self.author.address, 'value': self.value}
+        payload = {'from': self.author.ether_address, 'value': self.value}
 
-        txhash = self.policy_agent.contract.functions.createPolicy(self.id, self.miner.address,
+        txhash = self.policy_agent.contract.functions.createPolicy(self.id, self.miner.ether_address,
                                                                    self.lock_periods).transact(payload)
         self.policy_agent.blockchain.wait.for_receipt(txhash)
 
@@ -55,10 +61,10 @@ class BlockchainArrangement(Arrangement):
         self.is_published = True
         return txhash
 
-    def revoke(self, gas_price: int) -> str:
+    def revoke(self) -> str:
         """Revoke this arrangement and return the transaction hash as hex."""
 
-        txhash = self.policy_agent.revoke_arrangement(self.id, author=self.author, gas_price=gas_price)
+        txhash = self.policy_agent.revoke_policy(self.id, author=self.author)
         self.revoke_transaction = txhash
         self.is_revoked = True
         return txhash
@@ -72,8 +78,12 @@ class BlockchainPolicy(Policy):
     class NoSuchPolicy(Exception):
         pass
 
-    def __init__(self, author: PolicyAuthor):
+    class UnknownUrsula(Exception):
+        pass
+
+    def __init__(self, author: PolicyAuthor, *args, **kwargs):
         self.author = author
+        super().__init__(alice=author, *args, **kwargs)
 
     def get_arrangement(self, arrangement_id: bytes) -> BlockchainArrangement:
         """Fetch published arrangements from the blockchain"""
@@ -88,3 +98,47 @@ class BlockchainPolicy(Policy):
 
         arrangement.is_published = True
         return arrangement
+
+    def make_arrangements(self, network_middleware, quantity: int,
+                          deposit: int, expiration: maya.MayaDT, ursulas: Set[Ursula]=None) -> None:
+        """
+        Create and consider n Arangement objects from sampled miners.
+        """
+
+        if ursulas is not None:
+            # if len(ursulas) < self.n:
+            #     raise Ursula.NotEnoughUrsulas  # TODO: Validate ursulas
+            pass
+
+        else:
+            try:
+                sampled_miners = self.alice.recruit(quantity=quantity or self.n)
+            except MinerAgent.NotEnoughMiners:
+                raise  # TODO
+            else:
+                # TODO: Copy the values..?
+                ursulas = (Ursula.from_miner(miner, is_me=False) for miner in sampled_miners)
+
+        for selected_ursula in ursulas:
+
+            self.alice.learn_about_specific_node(node=selected_ursula)
+
+            delta = expiration - maya.now()
+            hours = (delta.total_seconds() / 60) / 60
+            periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
+
+            blockchain_arrangement = BlockchainArrangement(author=self.alice, miner=selected_ursula,
+                                                           value=deposit, lock_periods=periods,
+                                                           expiration=expiration, hrac=self.hrac)
+
+            # TODO: Learn about nodes
+
+            # TODO: Use umbral key to lookup, not iterate
+            for _public_sig, known_ursula in self.alice.known_nodes.values():
+                if known_ursula.ether_address == selected_ursula.ether_address:
+                    self.consider_arrangement(ursula=known_ursula,
+                                              arrangement=blockchain_arrangement,
+                                              network_middleware=network_middleware)
+                    break
+            else:
+                raise self.UnknownUrsula

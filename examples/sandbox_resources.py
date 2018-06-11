@@ -1,10 +1,10 @@
 import requests
 
 from nucypher.characters import Ursula
-from nucypher.network.middleware import NetworkMiddleware
+from nucypher.network.middleware import RestMiddleware
 
 
-class SandboxNetworkMiddleware(NetworkMiddleware):
+class SandboxRestMiddleware(RestMiddleware):
 
     def __init__(self, ursulas):
         self.ursulas = ursulas
@@ -25,5 +25,4 @@ class SandboxNetworkMiddleware(NetworkMiddleware):
     def enact_policy(self, ursula, hrac, payload):
         endpoint = 'https://{}:{}/kFrag/{}'.format(ursula.ip_address, ursula.rest_port, hrac.hex())
         response = requests.post(endpoint, payload, verify=False)
-        # TODO: Something useful here and it's probably ready to go down into NetworkyStuff.
         return response.status_code == 200
