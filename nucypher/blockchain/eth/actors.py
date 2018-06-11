@@ -1,10 +1,13 @@
 import itertools
+import math
 from collections import OrderedDict
 from datetime import datetime
-from typing import Tuple, List, Union, Generator
+from typing import Tuple
+
+import maya
+from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
-from constant_sorrow import constants
 
 
 class NucypherTokenActor:
@@ -41,11 +44,13 @@ class NucypherTokenActor:
         """Read actor data from a configuration file, and create an actor instance."""
         raise NotImplementedError
 
+    @property
     def eth_balance(self):
         """Return this actors's current ETH balance"""
         balance = self.token_agent.blockchain.interface.w3.eth.getBalance(self.ether_address)
         return balance
 
+    @property
     def token_balance(self):
         """Return this actors's current token balance"""
         balance = self.token_agent.get_balance(address=self.ether_address)
@@ -71,13 +76,11 @@ class Miner(NucypherTokenActor):
 
         # Establish initial state
         self.is_me = is_me
-        self.__locked_tokens = constants.LOCKED_TOKENS_UNAVAILIBLE
-        self.__datastore_entries = constants.CONTRACT_DATASTORE_UNAVAILIBLE
-        self.__node_datastore = constants.CONTRACT_DATASTORE_UNAVAILIBLE
-
         if self.ether_address is not constants.UNKNOWN_ACTOR:
-            self.__cache_locked_tokens()  # initial check-in with the blockchain
-            self.__fetch_node_datastore()
+            node_datastore = self.miner_agent._fetch_node_datastore(node_address=self.ether_address)
+        else:
+            node_datastore = constants.CONTRACT_DATASTORE_UNAVAILIBLE
+        self.__node_datastore = node_datastore
 
     @classmethod
     def from_config(cls, blockchain_config) -> 'Miner':
