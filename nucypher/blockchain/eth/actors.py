@@ -93,26 +93,32 @@ class Miner(NucypherTokenActor):
         return instance
 
     #
-    # Deposits
+    # Utilites
     #
-    def _approve_escrow(self, amount: int) -> str:
-        """Approve the transfer of token from the miner's address to the escrow contract."""
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
+    @property
+    def current_period(self) -> int:
+        """Returns the current period"""
+        return self.miner_agent.get_current_period()
 
-        txhash = self.token_agent.contract.functions.approve(self.miner_agent.contract_address, amount).transact({'from': self.ether_address})
-        self.blockchain.wait_for_receipt(txhash)
+    @staticmethod
+    def calculate_period_duration(future_time: maya.MayaDT) -> int:
+        """Takes a future MayaDT instance and calculates the duration from now, returning in periods"""
 
-        self._transaction_cache.append((datetime.utcnow(), txhash))
+        delta = future_time - maya.now()
+        hours = (delta.total_seconds() / 60) / 60
+        periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
+        return periods
 
-        return txhash
+    def datetime_to_period(self, future_time: maya.MayaDT) -> int:
+        """Converts a MayaDT instance to a period number."""
 
-    def _send_tokens_to_escrow(self, amount, lock_periods) -> str:
-        """Send tokes to the escrow from the miner's address"""
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
+        periods = self.calculate_period_duration(future_time=future_time)
+        end_block = self.current_period + periods
+        return end_block
 
-        deposit_txhash = self.miner_agent.contract.functions.deposit(amount, lock_periods).transact({'from': self.ether_address})
+    def period_to_datetime(self, future_period: int) -> maya.MayaDT:
+        """Converts a period number to a MayaDT instance"""
+        pass
 
         self.blockchain.wait_for_receipt(deposit_txhash)
         self._transaction_cache.append((datetime.utcnow(), deposit_txhash))
