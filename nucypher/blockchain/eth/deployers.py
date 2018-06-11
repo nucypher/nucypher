@@ -18,7 +18,7 @@ class ContractDeployer:
     class ContractDeploymentError(Exception):
         pass
 
-    def __init__(self, blockchain: Blockchain):
+    def __init__(self, blockchain: Blockchain, deployer_address: str):
         self.__armed = False
         self._contract = None
         self.deployment_receipt = None
@@ -29,6 +29,7 @@ class ContractDeployer:
             error = 'Only TheBlockchain can be used to create a deployer, got {}.'
             raise ValueError(error.format(type(blockchain)))
         self.blockchain = blockchain
+        self.__deployer_address = deployer_address
 
     @property
     def contract_address(self) -> str:
@@ -39,6 +40,10 @@ class ContractDeployer:
             raise cls.ContractDeploymentError('Contract not deployed')
         else:
             return address
+
+    @property
+    def deployer_address(self):
+        return self.__deployer_address
 
     @property
     def contract(self):
@@ -159,12 +164,12 @@ class NucypherTokenDeployer(ContractDeployer):
     _contract_name = 'NuCypherToken'
     agency = NucypherTokenAgent
 
-    def __init__(self, blockchain, deployer_address=None):
+    def __init__(self, blockchain, deployer_address):
         if not type(blockchain.interface) is self._interface_class:
             raise ValueError("{} must be used to create a {}".format(self._interface_class.__name__,
                                                                      self.__class__.__name__))
 
-        super().__init__(blockchain=blockchain)
+        super().__init__(blockchain=blockchain, deployer_address=deployer_address)
         self._creator = deployer_address
 
     def deploy(self) -> str:
@@ -194,10 +199,10 @@ class DispatcherDeployer(ContractDeployer):
 
     _contract_name = 'Dispatcher'
 
-    def __init__(self, token_agent, target_contract):
+    def __init__(self, token_agent, target_contract, *args, **kwargs):
         self.token_agent = token_agent
         self.target_contract = target_contract
-        super().__init__(blockchain=token_agent.blockchain)
+        super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
 
     def deploy(self) -> str:
 
@@ -216,8 +221,8 @@ class MinerEscrowDeployer(ContractDeployer):
     agency = MinerAgent
     _contract_name = 'MinersEscrow'
 
-    def __init__(self, token_agent):
-        super().__init__(blockchain=token_agent.blockchain)
+    def __init__(self, token_agent, *args, **kwargs):
+        super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
         self.token_agent = token_agent
 
     def deploy(self) -> Dict[str, str]:
@@ -242,7 +247,7 @@ class MinerEscrowDeployer(ContractDeployer):
         assert is_ready
 
         # Build deployment arguments
-        origin_args = {'from': self.token_agent.origin}
+        origin_args = {'from': self.deployer_address}
 
         # 1 - Deploy #
         the_escrow_contract, deploy_txhash, = \
@@ -251,7 +256,10 @@ class MinerEscrowDeployer(ContractDeployer):
                                                       *map(int, constants.MINING_COEFFICIENT))
 
         # 2 - Deploy the dispatcher used for updating this contract #
-        dispatcher_deployer = DispatcherDeployer(token_agent=self.token_agent, target_contract=the_escrow_contract)
+        dispatcher_deployer = DispatcherDeployer(token_agent=self.token_agent,
+                                                 target_contract=the_escrow_contract,
+                                                 deployer_address=self.deployer_address)
+
         dispatcher_deployer.arm(fail_on_abort=True)
         dispatcher_deploy_txhash = dispatcher_deployer.deploy()
 
@@ -267,7 +275,9 @@ class MinerEscrowDeployer(ContractDeployer):
         the_escrow_contract = wrapped_escrow_contract
 
         # 3 - Transfer tokens to the miner escrow #
-        reward_txhash = self.token_agent.contract.functions.transfer(the_escrow_contract.address, int(constants.TOKEN_SUPPLY)).transact(origin_args)
+        reward_txhash = self.token_agent.contract.functions.transfer(the_escrow_contract.address,
+                                                                     int(constants.TOKEN_SUPPLY)).transact(origin_args)
+
         _reward_receipt = self.blockchain.wait_for_receipt(reward_txhash)
 
         # 4 - Initialize the Miner Escrow contract
@@ -302,10 +312,10 @@ class PolicyManagerDeployer(ContractDeployer):
         agent = self.agency(miner_agent=self.miner_agent, contract=self._contract)
         return agent
 
-    def __init__(self, miner_agent):
+    def __init__(self, miner_agent, *args, **kwargs):
         self.token_agent = miner_agent.token_agent
         self.miner_agent = miner_agent
-        super().__init__(blockchain=self.miner_agent.blockchain)
+        super().__init__(blockchain=self.miner_agent.blockchain, *args, **kwargs)
 
     def deploy(self) -> Dict[str, str]:
         is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
@@ -315,7 +325,10 @@ class PolicyManagerDeployer(ContractDeployer):
         the_policy_manager_contract, deploy_txhash = self.blockchain.interface.deploy_contract(
             self._contract_name, self.miner_agent.contract_address)
 
-        dispatcher_deployer = DispatcherDeployer(token_agent=self.token_agent, target_contract=the_policy_manager_contract)
+        dispatcher_deployer = DispatcherDeployer(token_agent=self.token_agent,
+                                                 target_contract=the_policy_manager_contract,
+                                                 deployer_address=self.deployer_address)
+
         dispatcher_deployer.arm(fail_on_abort=True)
         dispatcher_deploy_txhash = dispatcher_deployer.deploy()
 
@@ -332,7 +345,7 @@ class PolicyManagerDeployer(ContractDeployer):
 
         # Configure the MinerEscrow by setting the PolicyManager
         policy_setter_txhash = self.miner_agent.contract.functions. \
-            setPolicyManager(the_policy_manager_contract.address).transact({'from': self.token_agent.origin})
+            setPolicyManager(the_policy_manager_contract.address).transact({'from': self.deployer_address})
 
         self.blockchain.wait_for_receipt(policy_setter_txhash)
 
