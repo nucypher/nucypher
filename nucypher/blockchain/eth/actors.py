@@ -120,48 +120,45 @@ class Miner(NucypherTokenActor):
         """Converts a period number to a MayaDT instance"""
         pass
 
-        self.blockchain.wait_for_receipt(deposit_txhash)
-        self._transaction_cache.append((datetime.utcnow(), deposit_txhash))
+    #
+    # Staking
+    #
+    @property
+    def is_staking(self):
+        """Checks if this Miner currently has locked tokens."""
+        return bool(self.locked_tokens > 0)
 
-        return deposit_txhash
+    @property
+    def locked_tokens(self, ):
+        """Returns the amount of tokens this miner has locked."""
+        return self.miner_agent.get_locked_tokens(node_address=self.ether_address)
 
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
         if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
+            raise self.MinerError("Cannot execute miner staking functions with a non-self Miner instance.")
 
         approve_txhash = self._approve_escrow(amount=amount)
         deposit_txhash = self._send_tokens_to_escrow(amount=amount, lock_periods=lock_periods)
 
         return approve_txhash, deposit_txhash
 
-    #
-    # Locking Status
-    #
-    def __cache_locked_tokens(self) -> None:
-        """Query the contract for the amount of locked tokens on this miner's eth address and cache it"""
-
-        self.__locked_tokens = self.miner_agent.contract.functions.getLockedTokens(self.ether_address).call()
+        return approve_txhash, deposit_txhash
 
     @property
     def is_staking(self):
-        """Checks if this Miner currently has locked tokens."""
+        """Checks if this Miner currently has locked tokens.
 
-        self.__cache_locked_tokens()
-        return bool(self.__locked_tokens > 0)
+        This actor requires that is_me is True, and that the expiration datetime is after the existing
+        locking schedule of this miner, or an exception will be raised.
 
-    @property
-    def locked_tokens(self, ):
-        """Returns the amount of tokens this miner has locked."""
+        :param target_value:  The quantity of tokens in the smallest denomination that will still
+        be staked when the expiration date and time is reached.
+        :param expiration: The new expiration date to set.
+        :return: Returns the blockchain transaction hash
 
-        self.__cache_locked_tokens()
-        return self.__locked_tokens
+        """
 
-    #
-    # Locking and Staking
-    #
-    # TODO add divide_stake method
-    def switch_lock(self):
         if not self.is_me:
             raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
