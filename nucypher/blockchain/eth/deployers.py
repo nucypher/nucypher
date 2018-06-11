@@ -10,8 +10,8 @@ from .chains import Blockchain
 
 class ContractDeployer:
 
-    _interface_class = DeployerCircumflex
     agency = NotImplemented
+    _interface_class = DeployerCircumflex
     _contract_name = NotImplemented
     _arming_word = "I UNDERSTAND"
 
