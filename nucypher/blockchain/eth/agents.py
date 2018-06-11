@@ -272,15 +272,57 @@ class PolicyAgent(EthereumContractAgent):
         self.miner_agent = miner_agent
         self.token_agent = miner_agent.token_agent
 
-    def fetch_arrangement_data(self, arrangement_id: bytes) -> list:
-        blockchain_record = self.contract.functions.policies(arrangement_id).call()
+    def create_policy(self, policy_id: str, author_address: str, value: int,
+                      periods: int, reward: int, node_addresses: List[str]):
+
+        txhash = self.contract.functions.createPolicy(policy_id,
+                                                      periods,
+                                                      reward,
+                                                      node_addresses).transact({'from': author_address,
+                                                                                'value': value})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def fetch_policy(self, policy_id: str) -> list:
+        """Fetch raw stored blockchain data regarding the policy with the given policy ID"""
+        blockchain_record = self.contract.functions.policies(policy_id).call()
         return blockchain_record
 
-    def revoke_arrangement(self, arrangement_id: bytes, author):
+    def revoke_policy(self, policy_id: bytes, author) -> str:
         """
-        Revoke by arrangement ID; Only the policy author can revoke the policy
+        Revoke by arrangement ID; Only the policy's author can revoke the policy.
+
+        :param policy_id: An existing arrangementID to revoke on the blockchain.
+
         """
 
-        txhash = self.contract.functions.revokePolicy(arrangement_id).transact({'from': author.address})
+        txhash = self.contract.functions.revokePolicy(policy_id).transact({'from': author.address})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def collect_policy_reward(self, collector_address: str):
+        """Collect rewarded ETH"""
+        policy_reward_txhash = self.contract.functions.withdraw().transact({'from': collector_address})
+        self.blockchain.wait_for_receipt(policy_reward_txhash)
+        return policy_reward_txhash
+
+    def fetch_policy_arrangements(self, policy_id):
+        records = self.contract.functions.getArrangementsLength(policy_id).call()
+        for records in range(records):
+            arrangement = self.contract.functions.getArrangementInfo(policy_id, 0).call()[records]
+            yield arrangement
+
+    def revoke_arrangement(self, policy_id: str, node_address: str):
+        txhash = self.contract.functions.revokeArrangement(policy_id, node_address)
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def calculate_refund(self, policy_id: str, author_address: str) -> str:
+        txhash = self.contract.functions.calculateRefundValue(policy_id).transact({'from': author_address})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def collect_refund(self, policy_id: str, author_address: str) -> str:
+        txhash = self.contract.functions.refund(policy_id).transact({'from': author_address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
