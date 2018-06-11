@@ -96,14 +96,13 @@ class TestMiner:
 class TestPolicyAuthor:
 
     @pytest.fixture(scope='class')
-    def author(self, testerchain, mock_token_agent, mock_policy_agent):
+    def author(self, deployed_testerchain, mock_token_agent, mock_policy_agent):
         mock_token_agent.ether_airdrop(amount=100000 * constants.M)
-        _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
+        _origin, ursula, alice, *everybody_else = deployed_testerchain.interface.w3.eth.accounts
         miner = PolicyAuthor(ether_address=alice, policy_agent=mock_policy_agent)
         return miner
 
-    def test_create_policy_author(self, testerchain, mock_policy_agent):
-        _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
-
+    def test_create_policy_author(self, deployed_testerchain, mock_policy_agent):
+        _origin, ursula, alice, *everybody_else = deployed_testerchain.interface.w3.eth.accounts
         policy_author = PolicyAuthor(policy_agent=mock_policy_agent, ether_address=alice)
         assert policy_author.ether_address == alice
