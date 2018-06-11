@@ -20,7 +20,7 @@ from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter, StrangerStamp
-from nucypher.network.middleware import NetworkMiddleware
+from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
 from umbral.keys import UmbralPublicKey
@@ -36,8 +36,6 @@ class Character:
 
     _default_crypto_powerups = None
     _stamp = None
-
-    ether_address = None
 
     class NotEnoughUrsulas(MinerAgent.NotEnoughMiners):
         """
@@ -95,7 +93,7 @@ class Character:
         # Identity and Network
         #
         if is_me is True:
-            self.network_middleware = network_middleware or NetworkMiddleware()
+            self.network_middleware = network_middleware or RestMiddleware()
 
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)
@@ -333,10 +331,9 @@ class Character:
 class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
-    def __init__(self, federated_only=False, *args, **kwargs):
-        Character.__init__(self, *args, **kwargs)
-        if kwargs.get('is_me') and not federated_only:
-            # TODO: 289
+    def __init__(self, is_me=True, federated_only=False, *args, **kwargs):
+        Character.__init__(self, is_me=is_me, *args, **kwargs)
+        if is_me and not federated_only:              # TODO: 289
             PolicyAuthor.__init__(self, *args, **kwargs)
         self.federated_only = federated_only
 
@@ -363,16 +360,18 @@ class Alice(Character, PolicyAuthor):
         """
         public_key, kfrags = self.generate_kfrags(bob, label, m, n)
 
+        payload = dict(label=label,
+                       bob=bob,
+                       kfrags=kfrags,
+                       public_key=public_key,
+                       m=m)
+
         from nucypher.policy.models import Policy
 
-        policy = Policy.from_alice(
-            alice=self,
-            label=label,
-            bob=bob,
-            kfrags=kfrags,
-            public_key=public_key,
-            m=m,
-        )
+        if self.federated_only is True:
+            policy = Policy(alice=self, **payload)
+        else:
+            policy = super().create_policy(**payload)
 
         return policy
 
@@ -401,13 +400,12 @@ class Alice(Character, PolicyAuthor):
         # Users may decide to inject some market strategies here.
         #
         # TODO: 289
-        policy.make_arrangements(self.network_middleware, deposit=deposit,
-                                 expiration=expiration, quantity=n,
-                                 federated_only=self.federated_only)
+        policy.make_arrangements(network_middleware=self.network_middleware, deposit=deposit,
+                                 expiration=expiration, quantity=n)
 
         # REST call happens here, as does population of TreasureMap.
-        policy.enact(self.network_middleware)
-        policy.publish_treasure_map(self.network_middleware)
+        policy.enact(network_middleware=self.network_middleware)
+        policy.publish_treasure_map(network_middleare=self.network_middleware)
 
         return policy  # Now with TreasureMap affixed!
 
@@ -626,6 +624,9 @@ class Ursula(Character, ProxyRESTServer, Miner):
     _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
+    class NotFound(Exception):
+        pass
+
     # TODO: 289
     def __init__(self, is_me=True,
                  dht_port=None,
@@ -652,13 +653,8 @@ class Ursula(Character, ProxyRESTServer, Miner):
             return self._rest_app
 
     @classmethod
-    def from_config(cls, config: CharacterConfiguration) -> 'Ursula':
-        """TODO"""
-
-        # Use BlockchainConfig to default to the first wallet address
-        wallet_address = config.blockchain.wallet_addresses[0]
-
-        instance = cls(ether_address=wallet_address)
+    def from_miner(cls, miner, *args, **kwargs):
+        instance = cls(miner_agent=miner.miner_agent, ether_address=miner.ether_address, *args, **kwargs)
         return instance
 
     @classmethod
@@ -711,7 +707,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
         value = self.interface_info_with_metadata()
         setter = self.dht_server.set(key=ursula_id, value=value)
-        self.publish_data(ursula_id)
+        self.publish_datastore(ursula_id)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 
