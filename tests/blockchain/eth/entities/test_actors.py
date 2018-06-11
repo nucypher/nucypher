@@ -1,5 +1,7 @@
+import math
 import os
 
+import maya
 import pytest
 
 from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
@@ -61,21 +63,21 @@ class TestMiner:
         final_balance = mock_token_agent.get_balance(miner.ether_address)
         assert final_balance > initial_balance
 
-    def test_publish_miner_datastore(self, miner):
+    def test_miner_contract_datastore(self, miner):
 
         # Publish Miner IDs to the DHT
         some_data = os.urandom(32)
-        _txhash = miner._publish_datastore(data=some_data)
+        _txhash = miner.publish_datastore(data=some_data)
 
         # Fetch the miner Ids
-        stored_miner_id = miner._read_datastore(refresh=True)
+        stored_miner_id = miner.read_datastore(refresh=True)
         assert len(stored_miner_id) == 32
 
         # Repeat, with another miner ID
         another_mock_miner_id = os.urandom(32)
-        _txhash = miner._publish_datastore(data=another_mock_miner_id)
+        _txhash = miner.publish_datastore(data=another_mock_miner_id)
 
-        stored_miner_id = miner._read_datastore(refresh=True)
+        stored_miner_id = miner.read_datastore(refresh=True)
 
         assert another_mock_miner_id == stored_miner_id
 
