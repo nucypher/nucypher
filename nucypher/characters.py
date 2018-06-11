@@ -732,7 +732,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
         value = self.interface_info_with_metadata()
         setter = self.dht_server.set(key=ursula_id, value=value)
-        self._publish_datastore(ursula_id)
+        self.publish_datastore(ursula_id)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
 
