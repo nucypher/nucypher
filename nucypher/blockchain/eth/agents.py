@@ -1,13 +1,13 @@
 import random
 from abc import ABC
 from enum import Enum
-from typing import Set, Generator, List, Tuple, Union
+from typing import Generator, List, Tuple, Union
 
+from constant_sorrow import constants
 from web3.contract import Contract
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
-from constant_sorrow import constants
 
 
 class EthereumContractAgent(ABC):
@@ -54,10 +54,6 @@ class EthereumContractAgent(ABC):
     def contract_name(self) -> str:
         return self._principal_contract_name
 
-    @property
-    def origin(self) -> str:
-        return self.blockchain.interface.w3.eth.coinbase    # TODO: make swappable
-
     def get_balance(self, address: str=None) -> int:
         """Get the balance of a token address, or of this contract address"""
         address = address if address is not None else self.contract_address
@@ -66,6 +62,13 @@ class EthereumContractAgent(ABC):
 
 class NucypherTokenAgent(EthereumContractAgent):
     _principal_contract_name = "NuCypherToken"
+
+    def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
+        """Approve the transfer of token from the sender address to the target address."""
+
+        txhash = self.contract.functions.approve(target_address, amount).transact({'from': sender_address})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
 
 
 class MinerAgent(EthereumContractAgent):
@@ -94,16 +97,117 @@ class MinerAgent(EthereumContractAgent):
         super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
         self.token_agent = token_agent
 
+    #
+    # Miner Network Status
+    #
+
+    def get_miner_population(self) -> int:
+        """Returns the number of miners on the blockchain"""
+        return self.contract.functions.getMinersLength().call()
+
+    def get_current_period(self) -> int:
+        """Returns the current period"""
+        return self.contract.functions.getCurrentPeriod().call()
+
+    def get_total_locked_tokens(self) -> int:
+        """Returns the total amount of locked tokens on the blockchain."""
+        return self.contract.functions.getAllLockedTokens().call()
+
+    #
+    # MinersEscrow Contract API
+    #
+
+    def get_locked_tokens(self, node_address):
+        """Returns the amount of tokens this miner has locked."""
+        return self.contract.functions.getLockedTokens(node_address).call()
+
+    def get_stake_info(self, miner_address: str, stake_index: int):
+        stake_info = self.contract.functions.getStakeInfo(miner_address, stake_index).call()
+        return stake_info
+
+    def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
+        """Send tokes to the escrow from the miner's address"""
+
+        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address})
+        self.blockchain.wait_for_receipt(deposit_txhash)
+        return deposit_txhash
+
+    def divide_stake(self, miner_address, balance, end_period, target_value, periods):
+        tx = self.contract.functions.divideStake(balance,       # uint256 _oldValue
+                                                 end_period,    # uint256 _lastPeriod,
+                                                 target_value,  # uint256 _newValue,
+                                                 periods        # uint256 _periods
+                                                 ).transact({'from': miner_address})
+        self.blockchain.wait_for_receipt(tx)
+        return tx
+
+    def confirm_activity(self, node_address: str) -> str:
+        """Miner rewarded for every confirmed period"""
+
+        txhash = self.contract.functions.confirmActivity().transact({'from': node_address})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def mint(self, node_address) -> Tuple[str, str]:
+        """Computes and transfers tokens to the miner's account"""
+
+        mint_txhash = self.contract.functions.mint().transact({'from': node_address})
+        self.blockchain.wait_for_receipt(mint_txhash)
+        return mint_txhash
+
+    def collect_staking_reward(self, collector_address) -> str:
+        """Withdraw tokens rewarded for staking."""
+
+        token_amount = self.contract.functions.minerInfo(collector_address).call()[0]
+        staked_amount = max(self.contract.functions.getLockedTokens(collector_address).call(),
+                            self.contract.functions.getLockedTokens(collector_address, 1).call())
+
+        collection_txhash = self.contract.functions.withdraw(token_amount - staked_amount).transact({'from': collector_address})
+
+        self.blockchain.wait_for_receipt(collection_txhash)
+
+        return collection_txhash
+
+    # Node Datastore #
+
+    def _publish_datastore(self, node_address: str, data) -> str:
+        """Publish new data to the MinerEscrow contract as a public record associated with this miner."""
+
+        txhash = self.contract.functions.setMinerId(data).transact({'from': node_address})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def _get_datastore_entries(self, node_address: str) -> int:
+        count_bytes = self.contract.functions.getMinerIdsLength(node_address).call()
+        datastore_entries = self.blockchain.interface.w3.toInt(count_bytes)
+        return datastore_entries
+
+    def _fetch_node_datastore(self, node_address):
+        """Cache a generator of all asosciated contract data for this miner."""
+
+        datastore_entries = self._get_datastore_entries(node_address=node_address)
+
+        def __node_datastore_reader():
+            for index in range(datastore_entries):
+                value = self.contract.functions.getMinerId(node_address, index).call()
+                yield value
+
+        return __node_datastore_reader()
+
+
+    #
+    # Contract Utilities
+    #
     def swarm(self, fetch_data: bool=False) -> Union[Generator[str, None, None], Generator[Tuple[str, bytes], None, None]]:
         """
         Returns an iterator of all miner addresses via cumulative sum, on-network.
         if fetch_data is true, tuples containing the address and the miners stored data are yielded.
 
         Miner addresses are returned in the order in which they registered with the MinersEscrow contract's ledger
+
         """
 
-        miner_population = self.contract.functions.getMinersLength().call()
-        for index in range(miner_population):
+        for index in range(self.get_miner_population()):
 
             miner_address = self.contract.functions.miners(index).call()
             validated_address = self.blockchain.interface.w3.toChecksumAddress(miner_address)  # string address of next node
@@ -139,7 +243,7 @@ class MinerAgent(EthereumContractAgent):
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
-        n_tokens = self.contract.functions.getAllLockedTokens().call()
+        n_tokens = self.get_total_locked_tokens()
 
         if not n_tokens > 0:
             raise self.NotEnoughMiners('There are no locked tokens.')
