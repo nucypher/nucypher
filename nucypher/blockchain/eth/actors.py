@@ -148,9 +148,9 @@ class Miner(NucypherTokenActor):
 
         return approve_txhash, deposit_txhash
 
-    @property
-    def is_staking(self):
-        """Checks if this Miner currently has locked tokens.
+    def divide_stake(self, target_value: int, lock_periods: int=None, expiration: maya.MayaDT=None) -> dict:
+        """
+        Modifies the unlocking schedule and value of already locked tokens.
 
         This actor requires that is_me is True, and that the expiration datetime is after the existing
         locking schedule of this miner, or an exception will be raised.
@@ -164,12 +164,35 @@ class Miner(NucypherTokenActor):
 
         if not self.is_me:
             raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
+        if lock_periods and expiration:
+            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
+        if expiration:
+            lock_periods = self.calculate_period_duration(future_time=expiration)
 
-        lock_txhash = self.miner_agent.contract.functions.switchLock().transact({'from': self.ether_address})
-        self.blockchain.wait_for_receipt(lock_txhash)
+        # Read the existing stake info from the blockchain
+        existing_expiration = self.miner_agent.get_stake_info(miner_address=self.ether_address, stake_index=0)
 
-        self._transaction_cache.append((datetime.utcnow(), lock_txhash))
-        return lock_txhash
+        # Ensure the new stake expiration date is after the existing one
+        if expiration >= existing_expiration:
+            message = "New stake expiration datetime: {} must be after the current expiration: {}."
+            raise self.ActorError(message.format(expiration, existing_expiration))
+
+        # Ensure stake parameters are valid
+        balance = self.token_balance
+        if target_value >= balance:
+            raise self.ActorError("Cannot divide stake; Value must be less than the node's current balance.")
+
+        end_period = self.datetime_to_period(future_time=expiration)
+        delta = self.current_period - end_period                       # in periods
+
+        tx = self.miner_agent.divide_stake(miner_address=self.ether_address,
+                                           balance=balance,
+                                           end_period=end_period,
+                                           target_value=target_value,
+                                           periods=delta)
+
+        self.blockchain.wait_for_receipt(tx)
+        return tx
 
     def __validate_stake(self, amount: int, lock_periods: int) -> bool:
         if not self.is_me:

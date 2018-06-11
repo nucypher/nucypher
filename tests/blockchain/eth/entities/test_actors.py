@@ -42,6 +42,18 @@ class TestMiner:
         testerchain.time_travel(periods=1)
         assert mock_miner_agent.contract.functions.getLockedTokens(miner.ether_address).call() == constants.MIN_ALLOWED_LOCKED
 
+    @pytest.mark.usefixtures("mock_policy_agent")
+    def test_miner_divides_stake(self, miner, testerchain):
+
+        half_of_stake = math.ceil(miner.locked_tokens / 2)
+
+        now = maya.now()
+        expiration = now.add(days=2)
+
+        miner.divide_stake(target_value=half_of_stake, expiration=expiration)
+        testerchain.time_travel(periods=1)
+
+        assert False
 
     @pytest.mark.slow()
     @pytest.mark.usefixtures("mock_policy_agent")
