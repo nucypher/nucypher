@@ -19,7 +19,6 @@ py_ecc = "*"
 SQLAlchemy = "*"
 apistar = "*"
 mypy = "*"
-pytest-mypy = "*"
 maya = "*"
 pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "nucypher-depend"}
 requests = "*"
@@ -29,6 +28,7 @@ bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git"
 appdirs = "*"
 
 [dev-packages]
+pytest-mypy = "*"
 pytest = "*"
 codecov = "*"
 coverage = "*"
