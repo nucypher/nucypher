@@ -15,15 +15,12 @@ from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherToken
 
 class MockTokenAgent(NucypherTokenAgent):
 
-    def token_airdrop(self, amount: int, addresses: List[str]=None):
+    def token_airdrop(self, amount: int, origin: str, addresses: List[str]):
         """Airdrops tokens from creator address to all other addresses!"""
-
-        if addresses is None:
-            _creator, *addresses = self.blockchain.interface.w3.eth.accounts
 
         def txs():
             for address in addresses:
-                txhash = self.contract.functions.transfer(address, amount).transact({'from': self.origin})
+                txhash = self.contract.functions.transfer(address, amount).transact({'from': origin})
                 yield txhash
 
         receipts = list()
@@ -49,7 +46,7 @@ class MockMinerAgent(MinerAgent):
             miners.append(miner)
 
             # stake a random amount
-            min_stake, balance = constants.MIN_ALLOWED_LOCKED, miner.token_balance()
+            min_stake, balance = constants.MIN_ALLOWED_LOCKED, miner.token_balance
             amount = random.randint(min_stake, balance)
 
             # for a random lock duration
