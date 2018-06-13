@@ -187,7 +187,7 @@ def test_miner(testerchain, token, escrow, user_escrow):
         tx = escrow.functions.lock(100, 1).transact({'from': user})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.divideStake(1500, 5, 100, 1).transact({'from': user})
+        tx = escrow.functions.divideStake(1, 100, 1).transact({'from': user})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.confirmActivity().transact({'from': user})
@@ -215,11 +215,11 @@ def test_miner(testerchain, token, escrow, user_escrow):
     assert 1500 == escrow.functions.value().call()
     assert 1600 == escrow.functions.lockedValue().call()
     assert 6 == escrow.functions.periods().call()
-    tx = user_escrow.functions.divideStake(1600, 6, 100, 1).transact({'from': user})
+    tx = user_escrow.functions.divideStake(1, 100, 1).transact({'from': user})
     testerchain.wait_for_receipt(tx)
     assert 1500 == escrow.functions.value().call()
     assert 1700 == escrow.functions.lockedValue().call()
-    assert 7 == escrow.functions.periods().call()
+    assert 1 == escrow.functions.index().call()
     tx = user_escrow.functions.confirmActivity().transact({'from': user})
     testerchain.wait_for_receipt(tx)
     assert 1 == escrow.functions.confirmedPeriod().call()
@@ -248,9 +248,8 @@ def test_miner(testerchain, token, escrow, user_escrow):
     assert 1 == len(events)
     event_args = events[0]['args']
     assert user == event_args['owner']
-    assert 1600 == event_args['oldValue']
+    assert 1 == event_args['index']
     assert 100 == event_args['newValue']
-    assert 6 == event_args['lastPeriod']
     assert 1 == event_args['periods']
 
     events = confirms.get_all_entries()

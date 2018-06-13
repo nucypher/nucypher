@@ -260,11 +260,11 @@ def test_all(testerchain, token, escrow, policy_manager, government):
         testerchain.wait_for_receipt(tx)
 
     # Divide stakes
-    tx = escrow.functions.divideStake(1000, escrow.functions.getCurrentPeriod().call() + 9, 500, 6).transact({'from': ursula2})
+    tx = escrow.functions.divideStake(0, 500, 6).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.divideStake(1000, escrow.functions.getCurrentPeriod().call() + 9, 500, 9).transact({'from': ursula1})
+    tx = escrow.functions.divideStake(0, 500, 9).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    tx = user_escrow_1.functions.divideStake(1000, escrow.functions.getCurrentPeriod().call() + 10, 500, 6).transact({'from': ursula3})
+    tx = user_escrow_1.functions.divideStake(0, 500, 6).transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     # Confirm activity

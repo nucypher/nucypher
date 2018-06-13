@@ -148,10 +148,25 @@ contract MinersEscrow is Issuer {
     /**
     * @notice Get the last period of the stake
     **/
-    function getLastPeriod(StakeInfo storage _stake, uint256 _startPeriod)
+    function getLastPeriodOfStake(StakeInfo storage _stake, uint256 _startPeriod)
         internal view returns (uint256)
     {
         return _stake.lastPeriod != 0 ? _stake.lastPeriod : _startPeriod.add(_stake.periods);
+    }
+
+    /**
+    * @notice Get the last period of the stake
+    * @param _owner Tokens owner
+    * @param _index Stake index
+    **/
+    function getLastPeriodOfStake(address _owner, uint256 _index)
+        public view returns (uint256)
+    {
+        MinerInfo storage info = minerInfo[_owner];
+        require(_index < info.stakes.length);
+        StakeInfo storage stake = info.stakes[_index];
+        uint256 startPeriod = getStartPeriod(info, getCurrentPeriod());
+        return getLastPeriodOfStake(stake, startPeriod);
     }
 
     /**
@@ -170,7 +185,7 @@ contract MinersEscrow is Issuer {
         for (uint256 i = 0; i < info.stakes.length; i++) {
             StakeInfo storage stake = info.stakes[i];
             if (stake.firstPeriod <= nextPeriod &&
-                getLastPeriod(stake, startPeriod) >= nextPeriod) {
+                getLastPeriodOfStake(stake, startPeriod) >= nextPeriod) {
                 lockedValue = lockedValue.add(stake.lockedValue);
             }
         }
@@ -340,14 +355,12 @@ contract MinersEscrow is Issuer {
 
     /**
     * @notice Divide stake into two parts
-    * @param _oldValue Old stake value
-    * @param _lastPeriod Last period of stake
+    * @param _index Index of stake
     * @param _newValue New stake value
     * @param _periods Amount of periods for extending stake
     **/
     function divideStake(
-        uint256 _oldValue,
-        uint256 _lastPeriod,
+        uint256 _index,
         uint256 _newValue,
         uint256 _periods
     )
@@ -356,26 +369,22 @@ contract MinersEscrow is Issuer {
         uint256 currentPeriod = getCurrentPeriod();
         require(_newValue >= minAllowableLockedTokens &&
             _periods > 0 &&
-            _lastPeriod >= currentPeriod);
+            _index < info.stakes.length);
         MinerInfo storage info = minerInfo[msg.sender];
+        StakeInfo storage stake = info.stakes[_index];
         uint256 startPeriod = getStartPeriod(info, currentPeriod);
-        for (uint256 index = 0; index < info.stakes.length; index++) {
-            StakeInfo storage stake = info.stakes[index];
-            if (stake.lockedValue == _oldValue &&
-                getLastPeriod(stake, startPeriod) == _lastPeriod) {
-                break;
-            }
-        }
-        require(index < info.stakes.length);
+        uint256 lastPeriod = getLastPeriodOfStake(stake, startPeriod);
+        require(lastPeriod >= currentPeriod);
 
-        stake.lockedValue = stake.lockedValue.sub(_newValue);
+        uint256 oldValue = stake.lockedValue;
+        stake.lockedValue = oldValue.sub(_newValue);
         require(stake.lockedValue >= minAllowableLockedTokens);
         info.stakes.push(StakeInfo(stake.firstPeriod, 0, stake.periods.add(_periods), _newValue));
         // if the next period is confirmed and old stake is finishing in the current period then rerun confirmActivity
-        if (_lastPeriod == currentPeriod && startPeriod > currentPeriod) {
+        if (lastPeriod == currentPeriod && startPeriod > currentPeriod) {
             confirmActivity(msg.sender, _newValue, _newValue, 0);
         }
-        emit Divided(msg.sender, _oldValue, _lastPeriod, _newValue, _periods);
+        emit Divided(msg.sender, oldValue, lastPeriod, _newValue, _periods);
         emit Locked(msg.sender, _newValue, stake.firstPeriod, stake.periods + _periods);
     }
 
@@ -554,7 +563,7 @@ contract MinersEscrow is Issuer {
     {
         for (uint256 i = 0; i < _info.stakes.length; i++) {
             StakeInfo storage stake =  _info.stakes[i];
-            uint256 lastPeriod = getLastPeriod(stake, _startPeriod);
+            uint256 lastPeriod = getLastPeriodOfStake(stake, _startPeriod);
             if (stake.firstPeriod <= _period && lastPeriod >= _period) {
                 reward = reward.add(mint(
                     _previousPeriod,
@@ -786,6 +795,7 @@ contract MinersEscrow is Issuer {
 
         require(uint256(delegateGet(_testTarget, "getMinerIdsLength(address)", miner)) == info.minerIds.length);
         for (i = 0; i < info.minerIds.length && i < MAX_CHECKED_VALUES; i++) {
+            // TODO try to optimize size
             bytes memory minerIdToCheck =
                 delegateGetMinerId(_testTarget, "getMinerId(address,uint256)", minerAddress, i);
             bytes storage minerId = info.minerIds[i];
