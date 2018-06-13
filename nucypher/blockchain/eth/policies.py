@@ -138,7 +138,7 @@ class BlockchainPolicy(Policy):
 
         return found_ursulas, spare_addresses
 
-    def __consider_arrangements(self, network_middleware, candidate_ursulas: List[Ursula],
+    def __consider_arrangements(self, network_middleware, candidate_ursulas: Set[Ursula],
                                 deposit: int, expiration: maya.MayaDT) -> tuple:
 
         accepted, rejected = set(), set()
@@ -192,16 +192,25 @@ class BlockchainPolicy(Policy):
         # Consider Arrangements
         #
 
-        accepted, rejected = self.__consider_arrangements(network_middleware, candidate_ursulas=candidates)
+        # Attempt 1
+        accepted, rejected = self.__consider_arrangements(network_middleware, candidate_ursulas=candidates,
+                                                          deposit=deposit, expiration=expiration)
 
         # After all is said and done...
         if len(accepted) < self.n:
-            # Find more ursulas from the spare pile
+
+            # Attempt 2:  Find more ursulas from the spare pile
             remaining_quantity = self.n - len(accepted)
 
-            found_ursulas, remaining_spare_addresses = self.__find_ursulas(spare_addresses, remaining_quantity)
+            found_spare_ursulas, remaining_spare_addresses = self.__find_ursulas(spare_addresses, remaining_quantity)
+            accepted_spares, rejected_spares = self.__consider_arrangements(network_middleware,
+                                                                            candidate_ursulas=found_spare_ursulas,
+                                                                            deposit=deposit, expiration=expiration)
+            accepted.update(accepted_spares)
+            rejected.update(rejected_spares)
 
-            raise Exception("Selected Ursulas rejected too many arrangements")  # TODO: Better exception
+            if len(accepted) < self.n:
+                raise Exception("Selected Ursulas rejected too many arrangements")  # TODO: Better exception
 
         self._accepted_arrangements.update(accepted)
         self._rejected_arrangements.append(rejected)
