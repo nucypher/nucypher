@@ -1,4 +1,5 @@
 import math
+import random
 from typing import List, Set
 
 import maya
@@ -78,7 +79,7 @@ class BlockchainPolicy(Policy):
     class NoSuchPolicy(Exception):
         pass
 
-    class UnknownUrsula(Exception):
+    class NotEnoughBlockchainUrsulas(Exception):
         pass
 
     def __init__(self, author: PolicyAuthor, *args, **kwargs):
@@ -99,46 +100,102 @@ class BlockchainPolicy(Policy):
         arrangement.is_published = True
         return arrangement
 
-    def make_arrangements(self, network_middleware, quantity: int,
-                          deposit: int, expiration: maya.MayaDT, ursulas: Set[Ursula]=None) -> None:
+    def make_arrangements(self, network_middleware,
+                          deposit: int, expiration: maya.MayaDT,
+                          ursulas: Set[Ursula]=None, timeout=120) -> None:
         """
-        Create and consider n Arangement objects from sampled miners.
+        Create and consider n Arrangements from sampled miners, a list of Ursulas, or a combination of both.
         """
+        #
+        # Determine Samples
+        #
+        selected_ursulas = set()
 
-        if ursulas is not None:
-            # if len(ursulas) < self.n:
-            #     raise Ursula.NotEnoughUrsulas  # TODO: Validate ursulas
-            pass
+        handpicked_ursulas = ursulas  # hand-picked ursulas
+        additional_ursulas = len(handpicked_ursulas) - self.n
+        selected_ursulas.update(handpicked_ursulas)
 
-        else:
-            try:
-                sampled_miners = self.alice.recruit(quantity=quantity or self.n)
+        sample_quantity = self.n if ursulas is None else additional_ursulas
+
+        #
+        # Sample
+        #
+        if len(handpicked_ursulas) < self.n:
+
+            selected_addresses = set()
+            try:  # Sample by reading from the Blockchain
+                sampled_addresses = self.alice.recruit(quantity=sample_quantity)
             except MinerAgent.NotEnoughMiners:
-                raise  # TODO
+                error = "Cannot create policy with {} arrangements."
+                raise self.NotEnoughBlockchainUrsulas(error.format(self.n))
             else:
-                # TODO: Copy the values..?
-                ursulas = (Ursula.from_miner(miner, is_me=False) for miner in sampled_miners)
+                selected_addresses.update(sampled_addresses)
 
-        for selected_ursula in ursulas:
+            #
+            # Find Ursulas
+            #
+            start_time = maya.now()  # Marker for timeout calculation
+            unknown_nodes = set()
+            while len(selected_ursulas) < self.n:
 
-            self.alice.learn_about_specific_node(node=selected_ursula)
+                # Prefer the selection pool, then unknowns
+                if selected_addresses:
+                    ether_address = selected_addresses.pop()
 
-            delta = expiration - maya.now()
-            hours = (delta.total_seconds() / 60) / 60
-            periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
+                else:
+                    delta = maya.now() - start_time
+                    if delta.total_seconds() >= timeout:
+                        raise Exception("Timeout")  # TODO: Better exception
 
-            blockchain_arrangement = BlockchainArrangement(author=self.alice, miner=selected_ursula,
-                                                           value=deposit, lock_periods=periods,
-                                                           expiration=expiration, hrac=self.hrac)
+                    ether_address = unknown_nodes.pop()
 
-            # TODO: Learn about nodes
+                try:
+                    # Check if this is a known node.
+                    selected_ursula = self.alice.known_nodes.get[ether_address]
+                except KeyError:
 
-            # TODO: Use umbral key to lookup, not iterate
-            for _public_sig, known_ursula in self.alice.known_nodes.values():
-                if known_ursula.ether_address == selected_ursula.ether_address:
-                    self.consider_arrangement(ursula=known_ursula,
-                                              arrangement=blockchain_arrangement,
-                                              network_middleware=network_middleware)
-                    break
+                    # We don't know about this ursula, yet
+                    unknown_nodes.add(ether_address)
+
+                    # If we're not already looking for this node, start looking!
+                    if ether_address not in self.alice.nodes_to_seek:
+                        self.alice.nodes_to_seek.add(ether_address)
+                        continue
+                else:
+                    # We already knew about this ursula
+                    selected_ursulas.add(selected_ursula)
+
             else:
-                raise self.UnknownUrsula
+                candidate_ursulas = random.sample(selected_ursulas, sample_quantity)
+
+
+            #
+            # Consider Arrangements
+            #
+            accepted, rejected = set(), set()
+            for selected_ursula in candidate_ursulas:
+
+                delta = expiration - maya.now()
+                hours = (delta.total_seconds()/60) / 60
+                periods = int(math.ceil(hours/int(constants.HOURS_PER_PERIOD)))
+
+                blockchain_arrangement = BlockchainArrangement(author=self.alice, miner=selected_ursula,
+                                                               value=deposit, lock_periods=periods,
+                                                               expiration=expiration, hrac=self.hrac)
+
+                ursula_accepts = self.consider_arrangement(ursula=selected_ursula,
+                                                           arrangement=blockchain_arrangement,
+                                                           network_middleware=network_middleware)
+
+                if ursula_accepts:  # TODO: Read the negotiation results from REST
+                    accepted.add(blockchain_arrangement)
+                else:
+                    rejected.add(blockchain_arrangement)
+
+            else:
+                # After all is said and done...
+                if len(accepted) < self.n:
+                    raise Exception("Selected Ursulas rejected too many arrangements")  # TODO: Better exception
+
+                self._accepted_arrangements.update(accepted)
+                self._rejected_arrangements.append(rejected)
