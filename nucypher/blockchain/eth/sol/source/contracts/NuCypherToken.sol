@@ -1,9 +1,9 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "zeppelin/token/ERC20/BurnableToken.sol";
-import "zeppelin/token/ERC20/StandardToken.sol";
 import "zeppelin/token/ERC20/DetailedERC20.sol";
+import "./StandardToken.sol";
 
 
 /**

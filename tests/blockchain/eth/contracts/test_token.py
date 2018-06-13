@@ -83,3 +83,24 @@ def test_approve_and_call(web3, chain):
     assert 25 == mock.functions.value().call()
     assert token.address == mock.functions.tokenContract().call()
     assert 111 == web3.toInt(mock.functions.extraData().call())
+
+    # Can't approve non zero value
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = token.functions.approve(account1, 100).transact({'from': creator})
+        chain.wait_for_receipt(tx)
+    assert 50 == token.functions.allowance(creator, account1).call()
+    # Change to zero value and set new one
+    tx = token.functions.approve(account1, 0).transact({'from': creator})
+    chain.wait_for_receipt(tx)
+    assert 0 == token.functions.allowance(creator, account1).call()
+    tx = token.functions.approve(account1, 100).transact({'from': creator})
+    chain.wait_for_receipt(tx)
+    assert 100 == token.functions.allowance(creator, account1).call()
+
+    # Decrease value
+    tx = token.functions.decreaseApproval(account1, 60).transact({'from': creator})
+    chain.wait_for_receipt(tx)
+    assert 40 == token.functions.allowance(creator, account1).call()
+    tx = token.functions.decreaseApproval(account1, 60).transact({'from': creator})
+    chain.wait_for_receipt(tx)
+    assert 0 == token.functions.allowance(creator, account1).call()
