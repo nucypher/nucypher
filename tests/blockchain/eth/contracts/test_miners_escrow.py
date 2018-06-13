@@ -318,7 +318,9 @@ def test_escrow(testerchain, token, escrow_contract):
 
     # And increases locked time
     period = escrow.functions.getCurrentPeriod().call()
-    tx = escrow.functions.divideStake(500, period + 1, 200, 1).transact({'from': ursula2})
+    assert 2 == escrow.functions.getStakesLength(ursula2).call()
+    assert period + 1 == escrow.functions.getLastPeriodOfStake(ursula2, 1).call()
+    tx = escrow.functions.divideStake(1, 200, 1).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert 1000 == escrow.functions.getLockedTokens(ursula2).call()
 
@@ -346,7 +348,9 @@ def test_escrow(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(hours=1)
     period = escrow.functions.getCurrentPeriod().call()
-    tx = escrow.functions.divideStake(300, period, 200, 2).transact({'from': ursula2})
+    assert 3 == escrow.functions.getStakesLength(ursula2).call()
+    assert period == escrow.functions.getLastPeriodOfStake(ursula2, 1).call()
+    tx = escrow.functions.divideStake(1, 200, 2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
 
     assert 500 == escrow.functions.getLockedTokens(ursula2).call()
@@ -363,7 +367,9 @@ def test_escrow(testerchain, token, escrow_contract):
     assert 200 == event_args['newValue']
     assert 2 == event_args['periods']
 
-    tx = escrow.functions.divideStake(200, period + 1, 100, 2).transact({'from': ursula2})
+    assert 4 == escrow.functions.getStakesLength(ursula2).call()
+    assert period + 1 == escrow.functions.getLastPeriodOfStake(ursula2, 2).call()
+    tx = escrow.functions.divideStake(2, 100, 2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
 
     assert 500 == escrow.functions.getLockedTokens(ursula2).call()
@@ -393,10 +399,12 @@ def test_escrow(testerchain, token, escrow_contract):
     # Can't divide old stake
     period = escrow.functions.getCurrentPeriod().call()
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = escrow.functions.divideStake(500, period - 3, 200, 10).transact({'from': ursula2})
+        tx = escrow.functions.divideStake(0, 200, 10).transact({'from': ursula2})
         testerchain.wait_for_receipt(tx)
 
-    tx = escrow.functions.divideStake(200, period, 100, 1).transact({'from': ursula2})
+    assert 5 == escrow.functions.getStakesLength(ursula2).call()
+    assert period == escrow.functions.getLastPeriodOfStake(ursula2, 3).call()
+    tx = escrow.functions.divideStake(3, 100, 1).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
 
     events = divides_log.get_all_entries()
@@ -579,7 +587,7 @@ def test_mining(testerchain, token, escrow_contract):
     assert period + 1 == escrow.functions.getLastActivePeriod(ursula2).call()
 
     # Ursula divides her stake
-    tx = escrow.functions.divideStake(1000, period + 2, 500, 1).transact({'from': ursula1})
+    tx = escrow.functions.divideStake(0, 500, 1).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
     # Using locked tokens starts from next period

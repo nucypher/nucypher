@@ -15,6 +15,7 @@ contract MinersEscrowForUserEscrowMock {
     uint256 public lockedValue;
     uint256 public periods;
     uint256 public confirmedPeriod;
+    uint256 public index;
 
     constructor(NuCypherToken _token) public {
         token = _token;
@@ -34,15 +35,9 @@ contract MinersEscrowForUserEscrowMock {
         periods += _periods;
     }
 
-    function divideStake(
-        uint256 _oldValue,
-        uint256 _lastPeriod,
-        uint256 _newValue,
-        uint256 _periods
-    )
-        public
-    {
-        require(node == msg.sender && lockedValue == _oldValue && periods == _lastPeriod);
+    function divideStake(uint256 _index, uint256 _newValue, uint256 _periods) public {
+        require(node == msg.sender);
+        index = _index;
         lockedValue += _newValue;
         periods += _periods;
     }
