@@ -218,7 +218,7 @@ class MinerAgent(EthereumContractAgent):
             else:
                 yield validated_address
 
-    def sample(self, quantity: int, additional_ursulas: float=1.7, attempts: int=5, duration: int=10) -> List[str]:
+    def sample(self, quantity: int, duration: int, additional_ursulas: float=1.7, attempts: int=5) -> List[str]:
         """
         Select n random staking Ursulas, according to their stake distribution.
         The returned addresses are shuffled, so one can request more than needed and
