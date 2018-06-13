@@ -104,9 +104,10 @@ class Miner(NucypherTokenActor):
     def calculate_period_duration(future_time: maya.MayaDT) -> int:
         """Takes a future MayaDT instance and calculates the duration from now, returning in periods"""
 
-        delta = future_time - maya.now()
-        hours = (delta.total_seconds() / 60) / 60
-        periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
+        seconds_per_period = 60 * 60 * int(constants.HOURS_PER_PERIOD)
+        future_period = future_time._epoch // seconds_per_period
+        current_period = maya.now()._epoch // seconds_per_period
+        periods = future_period - current_period
         return periods
 
     def datetime_to_period(self, future_time: maya.MayaDT) -> int:
