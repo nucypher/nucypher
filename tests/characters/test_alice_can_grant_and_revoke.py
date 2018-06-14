@@ -61,3 +61,4 @@ def test_alice_can_get_ursulas_keys_via_rest(ursulas):
     public_keys = {SigningPower: signing_key, EncryptingPower: encrypting_key}
     stranger_ursula_from_public_keys = Ursula.from_public_keys(public_keys)
     assert stranger_ursula_from_public_keys == ursulas[0]
+

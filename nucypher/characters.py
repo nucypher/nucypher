@@ -248,8 +248,8 @@ class Character:
         """
         if rest_address is None:
             current_teacher = self.current_teacher_node()
-            rest_address = current_teacher.ip_address
-            port = current_teacher.rest_port
+            rest_address = current_teacher.rest_interface.host
+            port = current_teacher.rest_interface.port
 
         response = self.network_middleware.get_nodes_via_rest(rest_address,
                                                               port, node_ids=self._node_ids_to_learn_about_immediately)
@@ -262,20 +262,16 @@ class Character:
         split_nodes = ursula_interface_splitter.repeat(nodes)
 
         for node_meta in split_nodes:
-            header, sig, pubkey, ether_address, interface_info = node_meta
+            header, sig, pubkey, ether_address, rest_info, dht_info = node_meta
+            message = ether_address + rest_info + dht_info
 
             if not pubkey in self._known_nodes:
-                if sig.verify(keccak_digest(interface_info), pubkey):
-
-                    # GARBAGE GARBAGE GARBAGE
-                    rest_address, dht_port, rest_port = msgpack.loads(interface_info)
-                    # ENDGARBAGE
-
+                if sig.verify(message, pubkey):
 
                     # TOOD: Is this too eager?  Does it make sense to only learn later, when we want to make an Arrangement with this node?
                     ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
-                                                  ip_address=rest_address.decode("utf-8"),
-                                                  port=rest_port)
+                                                  host=rest_info.host,
+                                                  port=rest_info.port)
 
                     self.remember_node(ursula)
 
@@ -283,7 +279,6 @@ class Character:
                     self._node_ids_to_learn_about_immediately.discard(pubkey)
 
                 else:
-
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                               "Propagated by: {}:{}".format(node_meta, rest_address, port)
                     self.log.warning(message)
@@ -736,18 +731,25 @@ class Ursula(Character, ProxyRESTServer, Miner):
         pass
 
     # TODO: 289
-    def __init__(self, is_me=True,
+    def __init__(self,
+                 rest_host,
+                 rest_port,
+                 is_me=True,
+                 dht_host=None,
                  dht_port=None,
                  federated_only=False,
                  *args,
                  **kwargs):
-        self.dht_port = dht_port
+        if dht_host:
+            self.dht_interface = InterfaceInfo(host=dht_host, port=dht_port)
+        else:
+            self.dht_interface = constants.NO_INTERFACE.bool_value(False)
         self._work_orders = []
 
         Character.__init__(self, is_me=is_me, *args, **kwargs)
         if not federated_only:
             Miner.__init__(self, is_me=is_me, *args, **kwargs)
-        ProxyRESTServer.__init__(self, *args, **kwargs)
+        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port, *args, **kwargs)
 
         if is_me is True:
             self.attach_dht_server()

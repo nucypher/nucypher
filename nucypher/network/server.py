@@ -18,7 +18,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import EncryptingPower, SigningPower
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, \
-    dht_with_hrac_splitter
+    dht_with_hrac_splitter, InterfaceInfo
 from nucypher.network.storage import SeedOnlyStorage
 
 
@@ -84,10 +84,9 @@ class NucypherSeedOnlyDHTServer(NucypherDHTServer):
 
 class ProxyRESTServer:
 
-    def __init__(self, ip_address=None, rest_port=None, db_name=None, *args, **kwargs):
-        """TODO: A server with no uri...? """
-        self.ip_address = ip_address
-        self.rest_port = rest_port
+    def __init__(self, host=None, port=None, db_name=None, *args, **kwargs):
+        self.rest_interface = InterfaceInfo(host=host, port=port)
+
         self.db_name = db_name
         self._rest_app = None
 
@@ -99,7 +98,15 @@ class ProxyRESTServer:
         instance = cls()
 
     def public_key(self, power_class: ClassVar):
-        """Implemented on Ursula subclass"""
+        """Implemented on Ursula"""
+        raise NotImplementedError
+
+    def public_address(self):
+        """Implemented on Ursula"""
+        raise NotImplementedError
+
+    def stamp(self, *args, **kwargs):
+        """Implemented on Ursula"""
         raise NotImplementedError
 
     def attach_rest_server(self, db_name):
@@ -112,7 +119,7 @@ class ProxyRESTServer:
                   'POST',
                   self.reencrypt_via_rest),
             Route('/public_keys', 'GET',
-                  self.get_signing_and_encrypting_public_keys),
+                  self.public_information),
             Route('/list_nodes', 'GET',
                   self.list_all_active_nodes_about_which_we_know),
             Route('/consider_arrangement',
@@ -150,20 +157,25 @@ class ProxyRESTServer:
     # Actual REST Endpoints and utilities
     #####################################
 
-    def get_signing_and_encrypting_public_keys(self):
+    def public_information(self):
         """
-        REST endpoint for getting both signing and encrypting public keys.
+        REST endpoint for public keys and address..
         """
 
         headers = {'Content-Type': 'application/octet-stream'}
+        # TODO: Calling public_address() works here because this is mixed in with Character, but it's not really right.
+        message = bytes(self.public_key(SigningPower)) + bytes(self.public_key(EncryptingPower)) + self.public_address
+        signature = self.stamp(message)
+
         response = Response(
-            content=bytes(self.public_key(SigningPower)) + bytes(self.public_key(EncryptingPower)),
+            content=signature + message,
             headers=headers)
 
         return response
 
     def list_all_active_nodes_about_which_we_know(self):
         headers = {'Content-Type': 'application/octet-stream'}
+        # TODO: mm hmmph *slowly exhales* fffff.  Some 227 right here.
         ursulas_as_bytes = bytes().join(self.dht_server.protocol.ursulas.values())
         ursulas_as_bytes += self.interface_info_with_metadata()
         signature = self.stamp(ursulas_as_bytes)
@@ -279,4 +291,3 @@ class ProxyRESTServer:
         else:
             # TODO: Make this a proper 500 or whatever.
             assert False
-
