@@ -39,7 +39,8 @@ class NucypherTokenActor:
         # Auto-connect, if needed
         self.token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
 
-        self.ether_address = ether_address if ether_address is not None else constants.UNKNOWN_ACTOR
+        if not kwargs.get("public_address"):
+            self.ether_address = ether_address if ether_address is not None else constants.UNKNOWN_ACTOR
         self._transaction_cache = list()  # track transactions transmitted
 
     def __repr__(self):
