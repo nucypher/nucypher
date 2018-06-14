@@ -10,7 +10,7 @@ import math
 import maya
 from constant_sorrow.constants import (NULL_ADDRESS, TOKEN_SATURATION, MINING_COEFFICIENT, TOKEN_SUPPLY,
                                        M, HOURS_PER_PERIOD, MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS,
-                                       MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, )
+                                       MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, SECONDS_PER_PERIOD, )
 
 
 #
@@ -42,9 +42,10 @@ class MinerConfigError(ValueError):
     pass
 
 
-HOURS_PER_PERIOD(24)       # Hours in single period
-MIN_LOCKED_PERIODS(30)     # 720 Hours minimum
-MAX_MINTING_PERIODS(365)   # Maximum number of periods
+HOURS_PER_PERIOD(24)                            # Hours in single period
+SECONDS_PER_PERIOD(HOURS_PER_PERIOD * 60 * 60)  # Seconds in single period
+MIN_LOCKED_PERIODS(30)                          # 720 Hours minimum
+MAX_MINTING_PERIODS(365)                        # Maximum number of periods
 
 MIN_ALLOWED_LOCKED(15000*M)
 MAX_ALLOWED_LOCKED(int(4e6)*M)
@@ -104,3 +105,19 @@ def validate_locktime(lock_periods: int, raise_on_fail=True) -> bool:
     if raise_on_fail is True:
         __validate(rulebook=rulebook)
     return all(rulebook)
+
+
+def datetime_to_period(datetime: maya.MayaDT) -> int:
+    """Converts a MayaDT instance to a period number."""
+
+    future_period = datetime._epoch // int(SECONDS_PER_PERIOD)
+    return future_period
+
+
+def calculate_period_duration(future_time: maya.MayaDT) -> int:
+    """Takes a future MayaDT instance and calculates the duration from now, returning in periods"""
+
+    future_period = datetime_to_period(datetime=future_time)
+    current_period = datetime_to_period(datetime=maya.now())
+    periods = future_period - current_period
+    return periods
