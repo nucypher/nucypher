@@ -186,6 +186,125 @@ class Character:
         else:
             raise RuntimeError("Server hasn't been attached.")
 
+    ######
+    # Knowing and learning about nodes
+    ##
+
+    def remember_node(self, node):
+        self._known_nodes[node.public_address()] = node
+
+    def start_learning(self):
+        d = self._learning_task.start(10, now=True)
+        d.addErrback(self.handle_learning_errors)
+
+    def handle_learning_errors(self, *args, **kwargs):
+        self.log.warning("Unhandled error during node learning: {}".format(args))
+
+    def select_teacher_nodes(self):
+        nodes_we_know_about = list(self._known_nodes.values())
+        random.shuffle(list(nodes_we_know_about))
+
+        if nodes_we_know_about is None:
+            raise self.NotEnoughUrsulas("Need some nodes to start learning from.")
+
+        self.teacher_nodes.extend(nodes_we_know_about)
+
+    def cycle_teacher_node(self):
+        if not self.teacher_nodes:
+            self.select_teacher_nodes()
+        self._current_teacher_node = self.teacher_nodes.pop()
+
+    def current_teacher_node(self, cycle=False):
+        if not self._current_teacher_node:
+            self.cycle_teacher_node()
+
+        teacher = self._current_teacher_node
+
+        if cycle:
+            self.cycle_teacher_node()
+
+        return teacher
+
+    def learn_about_nodes_now(self):
+        self._learning_task.reset()
+        self._learning_task()
+
+    def keep_learning_about_nodes(self):
+        """
+        Continually learn about new nodes.
+        """
+        self.learn_from_teacher_node()
+
+        if self._node_ids_to_learn_about_immediately:
+            self.learn_about_nodes_now()
+
+    def learn_about_specific_node(self, ether_address: str):
+        self._node_ids_to_learn_about_immediately.add(ether_address)  # hmmmm
+        self.learn_about_nodes_now()
+
+    def learn_from_teacher_node(self, rest_address: str = None, port: int = None):
+        """
+        Sends a request to node_url to find out about known nodes.
+        """
+        if rest_address is None:
+            current_teacher = self.current_teacher_node()
+            rest_address = current_teacher.ip_address
+            port = current_teacher.rest_port
+
+        response = self.network_middleware.get_nodes_via_rest(rest_address,
+                                                              port, node_ids=self._node_ids_to_learn_about_immediately)
+        if response.status_code != 200:
+            raise RuntimeError
+        signature, nodes = signature_splitter(response.content, return_remainder=True)
+
+        # TODO: Although not treasure map-related, this has a whiff of #172.
+        ursula_interface_splitter = dht_value_splitter + BytestringSplitter(InterfaceInfo) * 2
+        split_nodes = ursula_interface_splitter.repeat(nodes)
+
+        for node_meta in split_nodes:
+            header, sig, pubkey, ether_address, interface_info = node_meta
+
+            if not pubkey in self._known_nodes:
+                if sig.verify(keccak_digest(interface_info), pubkey):
+
+                    # GARBAGE GARBAGE GARBAGE
+                    rest_address, dht_port, rest_port = msgpack.loads(interface_info)
+                    # ENDGARBAGE
+
+
+                    # TOOD: Is this too eager?  Does it make sense to only learn later, when we want to make an Arrangement with this node?
+                    ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
+                                                  ip_address=rest_address.decode("utf-8"),
+                                                  port=rest_port)
+
+                    self.remember_node(ursula)
+
+                    #####
+                    self._node_ids_to_learn_about_immediately.discard(pubkey)
+
+                else:
+
+                    message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
+                              "Propagated by: {}:{}".format(node_meta, rest_address, port)
+                    self.log.warning(message)
+
+    def network_bootstrap(self, node_list: list) -> None:
+        for node_addr, port in node_list:
+            new_nodes = self.learn_about_nodes(node_addr, port)
+            self._known_nodes.update(new_nodes)
+
+    def get_nodes_by_ids(self, ids):
+        for node_id in node_ids:
+            try:
+                # Scenario 1: We already know about this node.
+                return self._known_nodes[node_id]
+            except KeyError:
+                raise NotImplementedError
+        # Scenario 2: We don't know about this node, but a nearby node does.
+        # TODO: Build a concurrent pool of lookups here.
+
+        # Scenario 3: We don't know about this node, and neither does our friend.
+
     def encrypt_for(self,
                     recipient: 'Character',
                     plaintext: bytes,
@@ -313,55 +432,13 @@ class Character:
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
-    def learn_about_specific_node(self, ether_address: str, rest_address: str, port: int):
-        pass
-
-    def learn_about_nodes(self, rest_address: str, port: int):
-        """
-        Sends a request to node_url to find out about known nodes.
-        """
-        response = self.network_middleware.get_nodes_via_rest(rest_address, port)
-        if response.status_code != 200:
-            raise RuntimeError
-        signature, nodes = signature_splitter(response.content, return_remainder=True)
-
-        # TODO: Although not treasure map-related, this has a whiff of #172.
-        ursula_interface_splitter = dht_value_splitter + BytestringSplitter((bytes, 17))
-        split_nodes = ursula_interface_splitter.repeat(nodes)
-
-        for node_meta in split_nodes:
-            header, sig, pubkey, interface_info = node_meta
-
-            if not pubkey in self.known_nodes:
-                if sig.verify(keccak_digest(interface_info), pubkey):
-
-                    rest_address, dht_port, rest_port = msgpack.loads(interface_info)
-                    ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
-                                                  ip_address=rest_address.decode("utf-8"),
-                                                  port=rest_port)
-
-                    # TODO: Remove duo
-                    self.__known_nodes[pubkey] = ursula
-                    self.__known_miners[ursula.ether_address] = ursula
-
-                else:
-
-                    message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
-                              "Propagated by: {}:{}".format(node_meta, rest_address, port)
-                    self.log.warning(message)
-
-    def network_bootstrap(self, node_list: list) -> None:
-        for node_addr, port in node_list:
-            new_nodes = self.learn_about_nodes(node_addr, port)
-        self.known_nodes.update(new_nodes)
-
 
 class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, is_me=True, federated_only=False, *args, **kwargs):
         Character.__init__(self, is_me=is_me, *args, **kwargs)
-        if is_me and not federated_only:              # TODO: 289
+        if is_me and not federated_only:  # TODO: 289
             PolicyAuthor.__init__(self, *args, **kwargs)
         self.federated_only = federated_only
 
@@ -399,7 +476,8 @@ class Alice(Character, PolicyAuthor):
         if self.federated_only is True:
             policy = Policy(alice=self, **payload)
         else:
-            policy = super().create_policy(**payload)
+            from nucypher.blockchain.eth.policies import BlockchainPolicy
+            policy = BlockchainPolicy(author=self, **payload)
 
         return policy
 
@@ -428,8 +506,10 @@ class Alice(Character, PolicyAuthor):
         # Users may decide to inject some market strategies here.
         #
         # TODO: 289
-        policy.make_arrangements(network_middleware=self.network_middleware, deposit=deposit,
-                                 expiration=expiration, quantity=n)
+        policy.make_arrangements(network_middleware=self.network_middleware,
+                                 deposit=deposit,
+                                 expiration=expiration,
+                                 )
 
         # REST call happens here, as does population of TreasureMap.
         policy.enact(network_middleware=self.network_middleware)
