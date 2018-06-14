@@ -64,7 +64,6 @@ contract MinersEscrow is Issuer {
         uint256 lastActivePeriod;
         Downtime[] downtime;
         StakeInfo[] stakes;
-        bytes[] minerIds;
     }
 
     /*
@@ -629,28 +628,6 @@ contract MinersEscrow is Issuer {
     }
 
     /**
-    * @notice Return the length of the miner ids array
-    **/
-    function getMinerIdsLength(address _miner) public view returns (uint256) {
-        return minerInfo[_miner].minerIds.length;
-    }
-
-    /**
-    * @notice Return the miner id
-    **/
-    function getMinerId(address _miner, uint256 _index) public view returns (bytes) {
-        return minerInfo[_miner].minerIds[_index];
-    }
-
-    /**
-    * @notice Set the miner id
-    **/
-    function setMinerId(bytes _minerId) public {
-        MinerInfo storage info = minerInfo[msg.sender];
-        info.minerIds.push(_minerId);
-    }
-
-    /**
     * @notice Return the length of the miners array
     **/
     function getMinersLength() public view returns (uint256) {
@@ -737,18 +714,6 @@ contract MinersEscrow is Issuer {
         }
     }
 
-    /**
-    * @dev Get miner id bytes by delegatecall
-    **/
-    function delegateGetMinerId(address _target, string _signature, address _miner, uint256 _index)
-        internal returns (bytes memory result)
-    {
-        bytes32 memoryAddress = delegateGetData(_target, _signature, 2, bytes32(_miner), bytes32(_index));
-        assembly {
-            result := add(memoryAddress, mload(memoryAddress))
-        }
-    }
-
     function verifyState(address _testTarget) public onlyOwner {
         super.verifyState(_testTarget);
         require(uint256(delegateGet(_testTarget, "minLockedPeriods()")) ==
@@ -791,16 +756,6 @@ contract MinersEscrow is Issuer {
                 stakeInfoToCheck.lastPeriod == stakeInfo.lastPeriod &&
                 stakeInfoToCheck.periods == stakeInfo.periods &&
                 stakeInfoToCheck.lockedValue == stakeInfo.lockedValue);
-        }
-
-        require(uint256(delegateGet(_testTarget, "getMinerIdsLength(address)", miner)) == info.minerIds.length);
-        for (i = 0; i < info.minerIds.length && i < MAX_CHECKED_VALUES; i++) {
-            // TODO try to optimize size
-            bytes memory minerIdToCheck =
-                delegateGetMinerId(_testTarget, "getMinerId(address,uint256)", minerAddress, i);
-            bytes storage minerId = info.minerIds[i];
-            require(minerIdToCheck.length == minerId.length &&
-                keccak256(minerIdToCheck) == keccak256(minerId));
         }
     }
 

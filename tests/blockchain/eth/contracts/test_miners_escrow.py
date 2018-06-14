@@ -895,38 +895,6 @@ def test_pre_deposit(testerchain, token, escrow_contract):
 
 
 @pytest.mark.slow
-def test_miner_id(testerchain, token, escrow_contract):
-    escrow = escrow_contract(5 * 10 ** 8)
-    creator = testerchain.interface.w3.eth.accounts[0]
-    miner = testerchain.interface.w3.eth.accounts[1]
-
-    # Initialize contract and miner
-    tx = escrow.functions.initialize().transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    tx = token.functions.transfer(miner, 1000).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    balance = token.functions.balanceOf(miner).call()
-    tx = token.functions.approve(escrow.address, balance).transact({'from': miner})
-    testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.deposit(balance, 2).transact({'from': miner})
-    testerchain.wait_for_receipt(tx)
-
-    # Set miner ids
-    miner_id = os.urandom(33)
-    tx = escrow.functions.setMinerId(miner_id).transact({'from': miner})
-    testerchain.wait_for_receipt(tx)
-    assert 1 == escrow.functions.getMinerIdsLength(miner).call()
-
-    assert miner_id == escrow.functions.getMinerId(miner, 0).call()
-    miner_id = os.urandom(66)
-    tx = escrow.functions.setMinerId(miner_id).transact({'from': miner})
-    testerchain.wait_for_receipt(tx)
-    assert 2 == escrow.functions.getMinerIdsLength(miner).call()
-
-    assert miner_id == escrow.functions.getMinerId(miner, 1).call()
-
-
-@pytest.mark.slow
 def test_verifying_state(testerchain, token):
     creator = testerchain.interface.w3.eth.accounts[0]
     miner = testerchain.interface.w3.eth.accounts[1]
@@ -963,9 +931,6 @@ def test_verifying_state(testerchain, token):
     tx = token.functions.approve(contract.address, balance).transact({'from': miner})
     testerchain.wait_for_receipt(tx)
     tx = contract.functions.deposit(balance, 1000).transact({'from': miner})
-
-    testerchain.wait_for_receipt(tx)
-    tx = contract.functions.setMinerId(testerchain.interface.w3.toBytes(111)).transact({'from': miner})
     testerchain.wait_for_receipt(tx)
 
     # Upgrade to the second version
@@ -976,8 +941,6 @@ def test_verifying_state(testerchain, token):
     assert 1500 == contract.functions.maxAllowableLockedTokens().call()
     assert policy_manager.address == contract.functions.policyManager().call()
     assert 2 == contract.functions.valueToCheck().call()
-    assert 1 == testerchain.interface.w3.toInt(contract.functions.getMinerIdsLength(miner).call())
-    assert 111 == testerchain.interface.w3.toInt(contract.functions.getMinerId(miner, 0).call())
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 3 == contract.functions.valueToCheck().call()

@@ -86,11 +86,6 @@ class Miner(NucypherTokenActor):
 
         # Establish initial state
         self.is_me = is_me
-        if self.ether_address is not constants.UNKNOWN_ACTOR:
-            node_datastore = self.miner_agent._fetch_node_datastore(node_address=self.ether_address)
-        else:
-            node_datastore = constants.CONTRACT_DATASTORE_UNAVAILIBLE
-        self.__node_datastore = node_datastore
 
     @classmethod
     def from_config(cls, blockchain_config) -> 'Miner':
@@ -211,11 +206,9 @@ class Miner(NucypherTokenActor):
         if entire_balance is True:
             amount = self.token_balance
 
-        amount, lock_periods = int(amount), int(lock_periods)  # Manual type checks below this point in the stack;
         staking_transactions = OrderedDict()                   # Time series of txhases
 
         # Validate
-        amount = self.blockchain.interface.w3.toInt(amount)
         assert self.__validate_stake(amount=amount, lock_periods=lock_periods)
 
         # Transact

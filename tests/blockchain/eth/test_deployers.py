@@ -1,5 +1,4 @@
 import pytest
-from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
@@ -16,6 +15,7 @@ def test_token_deployer_and_agent(testerchain):
     # The big day...
     deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
 
+    # It's not armed
     with pytest.raises(NucypherTokenDeployer.ContractDeploymentError):
         deployer.deploy()
 
@@ -24,18 +24,10 @@ def test_token_deployer_and_agent(testerchain):
     deployer.deploy()
 
     # Create a token instance
-    token_agent = NucypherTokenAgent(blockchain=testerchain)
-
-    # Make sure we got the name right
-    deployer_contract_identifier = NucypherTokenDeployer._contract_name
-    assert'NuCypherToken' == deployer_contract_identifier
-
-    # Ensure the contract is deployed and has a valid blockchain address
-    assert len(token_agent.contract_address) == 42
-
-    # Check that the token contract has tokens
-    assert token_agent.contract.functions.totalSupply().call() != 0
-    # assert token_agent.contract.functions.totalSupply() == int(1e9) * int(constants.M)  # TODO: expose initial supply?
+    token_agent = deployer.make_agent()
+    token_contract = testerchain.get_contract(token_agent.contract_address)
+    expected_token_supply = token_contract.functions.totalSupply().call()
+    assert expected_token_supply == token_agent.contract.functions.totalSupply().call()
 
     # Retrieve the token from the blockchain
     same_token_agent = NucypherTokenAgent(blockchain=testerchain)
