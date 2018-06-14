@@ -122,8 +122,14 @@ class MinerAgent(EthereumContractAgent):
         return self.contract.functions.getLockedTokens(node_address).call()
 
     def get_stake_info(self, miner_address: str, stake_index: int):
-        stake_info = self.contract.functions.getStakeInfo(miner_address, stake_index).call()
-        return stake_info
+        first_period, *others, locked_value = self.contract.functions.getStakeInfo(miner_address, stake_index).call()
+        last_period = self.contract.functions.getLastPeriodOfStake(miner_address, stake_index).call()
+        return first_period, last_period, locked_value
+
+    def get_all_stakes(self, miner_address: str):
+        stakes_length = self.contract.functions.getStakesLength(miner_address).call()
+        for stake_index in range(stakes_length):
+            yield self.get_stake_info(miner_address=miner_address, stake_index=stake_index)
 
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
         """Send tokes to the escrow from the miner's address"""
@@ -132,9 +138,8 @@ class MinerAgent(EthereumContractAgent):
         self.blockchain.wait_for_receipt(deposit_txhash)
         return deposit_txhash
 
-    def divide_stake(self, miner_address, balance, end_period, target_value, periods):
-        tx = self.contract.functions.divideStake(balance,       # uint256 _oldValue
-                                                 end_period,    # uint256 _lastPeriod,
+    def divide_stake(self, miner_address: str, stake_index: int, target_value: int, periods: int):
+        tx = self.contract.functions.divideStake(stake_index,   # uint256 _index,
                                                  target_value,  # uint256 _newValue,
                                                  periods        # uint256 _periods
                                                  ).transact({'from': miner_address})

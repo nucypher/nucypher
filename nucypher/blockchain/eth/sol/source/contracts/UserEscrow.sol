@@ -23,13 +23,7 @@ contract UserEscrow is Ownable {
     event DepositedAsMiner(address indexed owner, uint256 value, uint256 periods);
     event WithdrawnAsMiner(address indexed owner, uint256 value);
     event Locked(address indexed owner, uint256 value, uint256 periods);
-    event Divided(
-        address indexed owner,
-        uint256 oldValue,
-        uint256 lastPeriod,
-        uint256 newValue,
-        uint256 periods
-    );
+    event Divided(address indexed owner, uint256 index, uint256 newValue, uint256 periods);
     event ActivityConfirmed(address indexed owner);
     event Mined(address indexed owner);
     event RewardWithdrawnAsMiner(address indexed owner, uint256 value);
@@ -137,21 +131,19 @@ contract UserEscrow is Ownable {
 
     /**
     * @notice Divide stake into two parts
-    * @param _oldValue Old stake value
-    * @param _lastPeriod Last period of stake
+    * @param _index Index of stake
     * @param _newValue New stake value
     * @param _periods Amount of periods for extending stake
     **/
     function divideStake(
-        uint256 _oldValue,
-        uint256 _lastPeriod,
+        uint256 _index,
         uint256 _newValue,
         uint256 _periods
     )
         public onlyOwner
     {
-        escrow.divideStake(_oldValue, _lastPeriod, _newValue, _periods);
-        emit Divided(owner, _oldValue, _lastPeriod, _newValue, _periods);
+        escrow.divideStake(_index, _newValue, _periods);
+        emit Divided(owner, _index, _newValue, _periods);
     }
 
     /**
