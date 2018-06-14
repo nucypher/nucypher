@@ -73,12 +73,13 @@ def test_alice_creates_policy_group_with_correct_hrac(idle_policy):
         bytes(alice.stamp) + bytes(bob.stamp) + alice.__resource_id)
 
 
-def test_alice_sets_treasure_map_on_network(enacted_policy, ursulas):
+@pytest.mark.parametrize("via_dht", (True, False))
+def test_alice_sets_treasure_map(enacted_policy, ursulas, via_dht):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
     """
     networky_stuff = MockRestMiddleware()
-    _, packed_encrypted_treasure_map, _, _ = enacted_policy.publish_treasure_map(network_middleare=networky_stuff, use_dht=True)
+    _, packed_encrypted_treasure_map, _, _ = enacted_policy.publish_treasure_map(network_middleare=networky_stuff, use_dht=via_dht)
 
     treasure_map_as_set_on_network = ursulas[0].server.storage[
         digest(enacted_policy.treasure_map_dht_key())]
