@@ -1,14 +1,13 @@
 import math
-import random
-from collections import deque
-from typing import List, Set, Tuple
+from typing import List
+from typing import Set
 
 import maya
+from collections import deque
+
 from constant_sorrow import constants
-
-from nucypher.blockchain.eth.actors import PolicyAuthor
-
 from nucypher.blockchain.eth.actors import Miner
+from nucypher.blockchain.eth.actors import PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters import Ursula
 from nucypher.network.middleware import RestMiddleware
@@ -25,7 +24,6 @@ class BlockchainArrangement(Arrangement):
                  value: int,
                  lock_periods: int,
                  *args, **kwargs):
-
         super().__init__(alice=author, ursula=miner, *args, **kwargs)
 
         # The relationship exists between two addresses
@@ -102,7 +100,7 @@ class BlockchainPolicy(Policy):
         arrangement.is_published = True
         return arrangement
 
-    def __find_ursulas(self, ether_addresses: List[str], target_quantity: int, timeout: int=120):
+    def __find_ursulas(self, ether_addresses: List[str], target_quantity: int, timeout: int = 120):
         start_time = maya.now()  # Marker for timeout calculation
         found_ursulas, unknown_addresses = set(), deque()
         while len(found_ursulas) < target_quantity:
@@ -145,8 +143,8 @@ class BlockchainPolicy(Policy):
         for selected_ursula in candidate_ursulas:
 
             delta = expiration - maya.now()
-            hours = (delta.total_seconds()/60) / 60
-            periods = int(math.ceil(hours/int(constants.HOURS_PER_PERIOD)))
+            hours = (delta.total_seconds() / 60) / 60
+            periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
 
             blockchain_arrangement = BlockchainArrangement(author=self.alice, miner=selected_ursula,
                                                            value=deposit, lock_periods=periods,
@@ -165,7 +163,7 @@ class BlockchainPolicy(Policy):
 
     def make_arrangements(self, network_middleware: RestMiddleware,
                           deposit: int, expiration: maya.MayaDT,
-                          handpicked_ursulas: Set[Ursula]=set()) -> None:
+                          handpicked_ursulas: Set[Ursula] = set()) -> None:
         """
         Create and consider n Arrangements from sampled miners, a list of Ursulas, or a combination of both.
         """
