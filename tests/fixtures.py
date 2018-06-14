@@ -49,10 +49,12 @@ def alice(ursulas, mock_policy_agent, deployed_testerchain):
 
     etherbase, alice, bob, *everyone_else = deployed_testerchain.interface.w3.eth.accounts
 
-    _alice = Alice(network_middleware=MockRestMiddleware(),
-                   policy_agent=mock_policy_agent, ether_address=alice)
+    alice = Alice(network_middleware=MockRestMiddleware(),
+                   policy_agent=mock_policy_agent,
+                   ether_address=alice,
+                   known_nodes=ursulas)
 
-    return _alice
+    return alice
 
 
 @pytest.fixture(scope="module")

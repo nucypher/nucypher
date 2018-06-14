@@ -21,6 +21,8 @@ asyncio.set_event_loop(TEST_EVENT_LOOP)
 constants.URSULA_PORT_SEED(7468)
 constants.NUMBER_OF_URSULAS_IN_NETWORK(6)
 
+_ALL_URSULAS = {}
+
 
 def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False) -> List[Ursula]:
     """
@@ -30,10 +32,16 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
     """
     event_loop = asyncio.get_event_loop()
 
-    _ursulas = []
+    ursulas = set()
     for port, ether_address in enumerate(ether_addresses, start=ursula_starting_port):
-        ursula = Ursula(is_me=True, ether_address=ether_address, dht_port=port, db_name="test-{}".format(port),
-                        ip_address="127.0.0.1", rest_port=port+100)
+        ursula = Ursula(is_me=True,
+                        ether_address=ether_address,
+                        dht_port=port,
+                        db_name="test-{}".format(port),
+                        ip_address="127.0.0.1",
+                        rest_port=port+100,
+                        always_be_learning=False
+                        )
 
         class MockDatastoreThreadPool(object):
             def callInThread(self, f, *args, **kwargs):
@@ -55,14 +63,19 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
             # ursula.miner_agent.blockchain.time_travel(periods=1)
             pass
 
-        _ursulas.append(ursula)
+        ursulas.add(ursula)
+        _ALL_URSULAS[ursula.rest_port] = ursula
 
-    for ursula in _ursulas:
+    for ursula_to_teach in ursulas:
+        # Add other Ursulas as known nodes.
+        for ursula_to_learn_about in ursulas:
+            ursula_to_teach.remember_node(ursula_to_learn_about)
+
         event_loop.run_until_complete(
-            ursula.dht_server.bootstrap([("127.0.0.1", ursula_starting_port + _c) for _c in range(len(_ursulas))]))
+            ursula.dht_server.bootstrap([("127.0.0.1", ursula_starting_port + _c) for _c in range(len(ursulas))]))
         ursula.publish_dht_information()
 
-    return _ursulas
+    return ursulas
 
 
 class MockArrangement(Arrangement):
@@ -98,13 +111,12 @@ class MockRestMiddleware(RestMiddleware):
         pass
 
     def __get_local_rest_app_by_port(self, port):  # TODO
-        for ursula in self._ursulas:
-            if ursula.rest_port == port:
-                rest_app = ursula.rest_app
-                break
-        else:
+        try:
+            ursula = _ALL_URSULAS[port]
+            rest_app = ursula.rest_app
+        except KeyError:
             raise RuntimeError(
-                "Can't find an Ursula with port {} - did you spin up the right test ursulas_on_network?".format(port))
+                "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
         return rest_app
 
     def consider_arrangement(self, ursula, arrangement=None):
@@ -135,7 +147,7 @@ class MockRestMiddleware(RestMiddleware):
         response = mock_client.get("http://localhost/public_keys")
         return response
 
-    def get_nodes_via_rest(self, address, port):
+    def get_nodes_via_rest(self, address, port, node_ids):
         rest_app = self.__get_local_rest_app_by_port(port)
         mock_client = TestClient(rest_app)
         response = mock_client.get("http://localhost/list_nodes")
