@@ -11,6 +11,14 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, Polic
 from nucypher.blockchain.eth.constants import calculate_period_duration, datetime_to_period, validate_stake_amount
 
 
+def only_me(func):
+    def wrapped(actor=None, *args, **kwargs):
+        if not actor.is_me:
+            raise actor.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
+        return func(actor, *args, **kwargs)
+    return wrapped
+
+
 class NucypherTokenActor:
     """
     Concrete base class for any actor that will interface with NuCypher's ethereum smart contracts.
@@ -111,6 +119,7 @@ class Miner(NucypherTokenActor):
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.ether_address)
         return stakes_reader
 
+    @only_me
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
         if not self.is_me:
@@ -169,8 +178,6 @@ class Miner(NucypherTokenActor):
 
     @only_me
     def __validate_stake(self, amount: int, lock_periods: int) -> bool:
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
         from .constants import validate_locktime, validate_stake_amount
         assert validate_stake_amount(amount=amount)
@@ -181,6 +188,7 @@ class Miner(NucypherTokenActor):
         else:
             return True
 
+    @only_me
     def stake(self, amount: int, lock_periods: int=None, expiration: maya.MayaDT=None, entire_balance: bool=False) -> dict:
         """
         High level staking method for Miners.
@@ -192,8 +200,6 @@ class Miner(NucypherTokenActor):
 
         """
 
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
         if lock_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
         if entire_balance and amount:
