@@ -16,7 +16,7 @@ from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey
 
 URSULA = Ursula.from_rest_url(network_middleware=RestMiddleware(),
-                              ip_address="localhost",
+                              host="localhost",
                               port=3601)
 
 network_middleware = SandboxRestMiddleware([URSULA])

@@ -36,9 +36,10 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
     for port, ether_address in enumerate(ether_addresses, start=ursula_starting_port):
         ursula = Ursula(is_me=True,
                         ether_address=ether_address,
+                        dht_host="127.0.0.1",
                         dht_port=port,
                         db_name="test-{}".format(port),
-                        ip_address="127.0.0.1",
+                        rest_host="127.0.0.1",
                         rest_port=port+100,
                         always_be_learning=False
                         )
@@ -64,7 +65,7 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
             pass
 
         ursulas.add(ursula)
-        _ALL_URSULAS[ursula.rest_port] = ursula
+        _ALL_URSULAS[ursula.rest_interface.port] = ursula
 
     for ursula_to_teach in ursulas:
         # Add other Ursulas as known nodes.
