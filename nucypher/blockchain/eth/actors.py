@@ -8,6 +8,7 @@ import maya
 from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
+from nucypher.blockchain.eth.constants import calculate_period_duration, datetime_to_period, validate_stake_amount
 
 
 class NucypherTokenActor:
@@ -93,35 +94,6 @@ class Miner(NucypherTokenActor):
         return instance
 
     #
-    # Utilites
-    #
-    @property
-    def current_period(self) -> int:
-        """Returns the current period"""
-        return self.miner_agent.get_current_period()
-
-    @staticmethod
-    def calculate_period_duration(future_time: maya.MayaDT) -> int:
-        """Takes a future MayaDT instance and calculates the duration from now, returning in periods"""
-
-        seconds_per_period = 60 * 60 * int(constants.HOURS_PER_PERIOD)
-        future_period = future_time._epoch // seconds_per_period
-        current_period = maya.now()._epoch // seconds_per_period
-        periods = future_period - current_period
-        return periods
-
-    def datetime_to_period(self, future_time: maya.MayaDT) -> int:
-        """Converts a MayaDT instance to a period number."""
-
-        periods = self.calculate_period_duration(future_time=future_time)
-        end_block = self.current_period + periods
-        return end_block
-
-    def period_to_datetime(self, future_period: int) -> maya.MayaDT:
-        """Converts a period number to a MayaDT instance"""
-        pass
-
-    #
     # Staking
     #
     @property
@@ -133,6 +105,11 @@ class Miner(NucypherTokenActor):
     def locked_tokens(self, ):
         """Returns the amount of tokens this miner has locked."""
         return self.miner_agent.get_locked_tokens(node_address=self.ether_address)
+
+    @property
+    def stakes(self):
+        stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.ether_address)
+        return stakes_reader
 
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
@@ -149,15 +126,15 @@ class Miner(NucypherTokenActor):
 
         return approve_txhash, deposit_txhash
 
-    def divide_stake(self, target_value: int, lock_periods: int=None, expiration: maya.MayaDT=None) -> dict:
+    def divide_stake(self, stake_index: int, target_value: int,
+                     additional_periods: int=None, expiration: maya.MayaDT=None) -> dict:
         """
         Modifies the unlocking schedule and value of already locked tokens.
 
         This actor requires that is_me is True, and that the expiration datetime is after the existing
         locking schedule of this miner, or an exception will be raised.
 
-        :param target_value:  The quantity of tokens in the smallest denomination that will still
-        be staked when the expiration date and time is reached.
+        :param target_value:  The quantity of tokens in the smallest denomination.
         :param expiration: The new expiration date to set.
         :return: Returns the blockchain transaction hash
 
@@ -165,32 +142,28 @@ class Miner(NucypherTokenActor):
 
         if not self.is_me:
             raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
-        if lock_periods and expiration:
+        if additional_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
+
+        _first_period, last_period, locked_value = self.miner_agent.get_stake_info(
+            miner_address=self.ether_address, stake_index=stake_index)
         if expiration:
-            lock_periods = self.calculate_period_duration(future_time=expiration)
+            additional_periods = datetime_to_period(datetime=expiration) - last_period
 
-        # Read the existing stake info from the blockchain
-        existing_expiration = self.miner_agent.get_stake_info(miner_address=self.ether_address, stake_index=0)
+            if additional_periods <= 0:
+                raise self.MinerError("Expiration {} must be at least 1 period from now.".format(expiration))
 
-        # Ensure the new stake expiration date is after the existing one
-        if expiration >= existing_expiration:
-            message = "New stake expiration datetime: {} must be after the current expiration: {}."
-            raise self.ActorError(message.format(expiration, existing_expiration))
+        if target_value >= locked_value:
+            raise self.MinerError("Cannot divide stake; Value must be less than the specified stake value.")
 
-        # Ensure stake parameters are valid
-        balance = self.token_balance
-        if target_value >= balance:
-            raise self.ActorError("Cannot divide stake; Value must be less than the node's current balance.")
-
-        end_period = self.datetime_to_period(future_time=expiration)
-        delta = self.current_period - end_period                       # in periods
+        # Ensure both halves are for valid amounts
+        validate_stake_amount(amount=target_value)
+        validate_stake_amount(amount=locked_value-target_value)
 
         tx = self.miner_agent.divide_stake(miner_address=self.ether_address,
-                                           balance=balance,
-                                           end_period=end_period,
+                                           stake_index=stake_index,
                                            target_value=target_value,
-                                           periods=delta)
+                                           periods=additional_periods)
 
         self.blockchain.wait_for_receipt(tx)
         return tx
@@ -227,7 +200,7 @@ class Miner(NucypherTokenActor):
             raise self.MinerError("Specify an amount or entire balance, not both")
 
         if expiration:
-            lock_periods = self.calculate_period_duration(future_time=expiration)
+            lock_periods = calculate_period_duration(future_time=expiration)
         if entire_balance is True:
             amount = self.token_balance
 
