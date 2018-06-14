@@ -140,13 +140,6 @@ class Character:
     def name(self):
         return self.__class__.__name__
 
-    @property
-    def known_nodes(self):
-        if not self.is_federated:
-            return self.__known_miners
-        else:
-            return self.__known_nodes
-
     @classmethod
     def from_public_keys(cls, powers_and_keys: Dict, *args, **kwargs) -> 'Character':
         """
@@ -228,7 +221,6 @@ class Character:
                     decrypt=False,
                     delegator_signing_key: UmbralPublicKey = None,
                     ) -> tuple:
-
         """
         Inverse of encrypt_for.
 
@@ -289,12 +281,12 @@ class Character:
 
         return is_valid, cleartext
 
-    """
-    Next we have decrypt(), sign(), and generate_self_signed_certificate() - these use the private 
-    keys of their respective powers; any character who has these powers can use these functions.
-
-    If they don't have the correct Power, the appropriate PowerUpError is raised.
-    """
+        """
+        Next we have decrypt(), sign(), and generate_self_signed_certificate() - these use the private 
+        keys of their respective powers; any character who has these powers can use these functions.
+        
+        If they don't have the correct Power, the appropriate PowerUpError is raised.
+        """
 
     def decrypt(self, message_kit, verifying_key: UmbralPublicKey = None):
         return self._crypto_power.power_ups(EncryptingPower).decrypt(message_kit, verifying_key)
@@ -468,7 +460,7 @@ class Bob(Character):
                     number_of_known_treasure_ursulas += 1
 
             newly_discovered_nodes = {}
-            nodes_to_check = iter(self.known_nodes.values())
+            nodes_to_check = iter(self._known_nodes.values())
 
             while number_of_known_treasure_ursulas < treasure_map.m:
                 try:
@@ -764,3 +756,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
+
+    def public_address(self):
+        # TODO: Logic to get public address for federated variant.
+        return self.ether_address
