@@ -364,7 +364,7 @@ class DeployerCircumflex(ControlCircumflex):
         # Build the deployment tx #
         #
         contract_factory = self.get_contract_factory(contract_name=contract_name)
-        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
+        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}  # TODO: price?
         deploy_bytecode = contract_factory.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
 
         # TODO: Logging
