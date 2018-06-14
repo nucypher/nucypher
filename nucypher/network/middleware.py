@@ -40,6 +40,10 @@ class RestMiddleware:
     def ursula_from_rest_interface(self, address, port):
         return requests.get("https://{}:{}/public_keys".format(address, port), verify=False)  # TODO: TLS-only.
 
-    def get_nodes_via_rest(self, address, port):
+    def get_nodes_via_rest(self, address, port, node_ids=None):
+        if node_ids:
+            # Include node_ids in the request; if the teacher node doesn't know about the
+            # nodes matching these ids, then it will ask other nodes via the DHT or whatever.
+            raise NotImplementedError
         response = requests.get("https://{}:{}/list_nodes".format(address, port), verify=False)  # TODO: TLS-only.
         return response
