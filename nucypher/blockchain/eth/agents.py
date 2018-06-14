@@ -85,13 +85,6 @@ class MinerAgent(EthereumContractAgent):
     class NotEnoughMiners(Exception):
         pass
 
-    class MinerInfo(Enum):
-        VALUE = 0
-        DECIMALS = 1
-        LAST_ACTIVE_PERIOD = 2
-        CONFIRMED_PERIOD_1 = 3
-        CONFIRMED_PERIOD_2 = 4
-
     def __init__(self, token_agent: NucypherTokenAgent=None, *args, **kwargs):
         token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
         super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
@@ -154,7 +147,7 @@ class MinerAgent(EthereumContractAgent):
         return txhash
 
     def mint(self, node_address) -> Tuple[str, str]:
-        """Computes and transfers tokens to the miner's account"""
+        """Computes reward tokens for the miner's account"""
 
         mint_txhash = self.contract.functions.mint().transact({'from': node_address})
         self.blockchain.wait_for_receipt(mint_txhash)
@@ -173,55 +166,20 @@ class MinerAgent(EthereumContractAgent):
 
         return collection_txhash
 
-    # Node Datastore #
-
-    def _publish_datastore(self, node_address: str, data) -> str:
-        """Publish new data to the MinerEscrow contract as a public record associated with this miner."""
-
-        txhash = self.contract.functions.setMinerId(data).transact({'from': node_address})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
-
-    def _get_datastore_entries(self, node_address: str) -> int:
-        count_bytes = self.contract.functions.getMinerIdsLength(node_address).call()
-        datastore_entries = self.blockchain.interface.w3.toInt(count_bytes)
-        return datastore_entries
-
-    def _fetch_node_datastore(self, node_address):
-        """Cache a generator of all asosciated contract data for this miner."""
-
-        datastore_entries = self._get_datastore_entries(node_address=node_address)
-
-        def __node_datastore_reader():
-            for index in range(datastore_entries):
-                value = self.contract.functions.getMinerId(node_address, index).call()
-                yield value
-
-        return __node_datastore_reader()
-
-
     #
     # Contract Utilities
     #
-    def swarm(self, fetch_data: bool=False) -> Union[Generator[str, None, None], Generator[Tuple[str, bytes], None, None]]:
+    def swarm(self) -> Union[Generator[str, None, None], Generator[Tuple[str, bytes], None, None]]:
         """
         Returns an iterator of all miner addresses via cumulative sum, on-network.
-        if fetch_data is true, tuples containing the address and the miners stored data are yielded.
 
         Miner addresses are returned in the order in which they registered with the MinersEscrow contract's ledger
 
         """
 
         for index in range(self.get_miner_population()):
-
             miner_address = self.contract.functions.miners(index).call()
-            validated_address = self.blockchain.interface.w3.toChecksumAddress(miner_address)  # string address of next node
-
-            if fetch_data is True:
-                stored_miner_data = self.contract.functions.getMinerIdsLength(miner_address).call()
-                yield (validated_address, stored_miner_data)
-            else:
-                yield validated_address
+            yield miner_address
 
     def sample(self, quantity: int, duration: int, additional_ursulas: float=1.7, attempts: int=5) -> List[str]:
         """

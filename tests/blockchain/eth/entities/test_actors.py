@@ -21,26 +21,23 @@ class TestMiner:
     def test_miner_locking_tokens(self, testerchain, miner, mock_miner_agent):
 
         testerchain.ether_airdrop(amount=10000)
-
         assert constants.MIN_ALLOWED_LOCKED < miner.token_balance, "Insufficient miner balance"
 
-        now = maya.now()
-        expiration = now.add(days=constants.MIN_LOCKED_PERIODS)
-
-        miner.stake(amount=constants.MIN_ALLOWED_LOCKED,         # Lock the minimum amount of tokens
+        expiration = maya.now().add(days=constants.MIN_LOCKED_PERIODS)
+        miner.stake(amount=int(constants.MIN_ALLOWED_LOCKED),         # Lock the minimum amount of tokens
                     expiration=expiration)
-                    # lock_periods=constants.MIN_LOCKED_PERIODS)   # ... for the fewest number of periods
 
         # Verify that the escrow is "approved" to receive tokens
-        assert mock_miner_agent.token_agent.contract.functions.allowance(miner.ether_address,
-                                                                         mock_miner_agent.contract_address).call() == 0
+        allowance = mock_miner_agent.token_agent.contract.functions.allowance(
+            miner.ether_address,
+            mock_miner_agent.contract_address).call()
+        assert 0 == allowance
 
         # Staking starts after one period
-        assert mock_miner_agent.contract.functions.getLockedTokens(miner.ether_address).call() == 0
-
-        # Wait for it...
-        testerchain.time_travel(periods=1)
-        assert mock_miner_agent.contract.functions.getLockedTokens(miner.ether_address).call() == constants.MIN_ALLOWED_LOCKED
+        locked_tokens = mock_miner_agent.contract.functions.getLockedTokens(miner.ether_address).call()
+        assert 0 == locked_tokens
+        locked_tokens = mock_miner_agent.contract.functions.getLockedTokens(miner.ether_address, 1).call()
+        assert constants.MIN_ALLOWED_LOCKED == locked_tokens
 
     @pytest.mark.usefixtures("mock_policy_agent")
     def test_miner_divides_stake(self, miner):
@@ -78,10 +75,10 @@ class TestMiner:
 
         # Capture the current token balance of the miner
         initial_balance = miner.token_balance
-        assert mock_token_agent.get_balance(miner.ether_address) == miner.token_balance
+        assert mock_token_agent.get_balance(miner.ether_address) == initial_balance
 
-        miner.stake(amount=constants.MIN_ALLOWED_LOCKED,         # Lock the minimum amount of tokens
-                    lock_periods=constants.MIN_LOCKED_PERIODS)   # ... for the fewest number of periods
+        miner.stake(amount=int(constants.MIN_ALLOWED_LOCKED),         # Lock the minimum amount of tokens
+                    lock_periods=int(constants.MIN_LOCKED_PERIODS))   # ... for the fewest number of periods
 
         # Have other address lock tokens
         _origin, ursula, *everybody_else = deployed_testerchain.interface.w3.eth.accounts
