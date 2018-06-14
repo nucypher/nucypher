@@ -1,14 +1,17 @@
 import asyncio
+import random
 from collections import OrderedDict
+from collections import deque
 from contextlib import suppress
 from logging import getLogger
-from typing import Dict, ClassVar
+from typing import Dict, ClassVar, Set
 from typing import Union, List
 
 import kademlia
 import msgpack
 from kademlia.network import Server
 from kademlia.utils import digest
+from twisted.internet import task
 
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants, default_constant_splitter
@@ -22,7 +25,7 @@ from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, D
 from nucypher.crypto.signing import signature_splitter, StrangerStamp
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
-from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
+from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer, InterfaceInfo
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -48,9 +51,11 @@ class Character:
 
     def __init__(self, is_me=True,
                  network_middleware=None,
-                 crypto_power: CryptoPower=None,
+                 crypto_power: CryptoPower = None,
                  crypto_power_ups=None,
                  federated=False,
+                 always_be_learning=True,
+                 known_nodes: Set = (),
                  config: CharacterConfiguration = None, *args, **kwargs):
         """
         :param attach_dht_server:  Whether to attach a Server when this Character is
@@ -76,8 +81,7 @@ class Character:
         self.config = config  # TODO: Do not mix with injectable params
 
         self.is_federated = federated
-        self.__known_nodes = {}
-        self.__known_miners = {}
+        self._known_nodes = {}
 
         self.log = getLogger("characters")
 
@@ -102,11 +106,23 @@ class Character:
         if is_me is True:
             self.network_middleware = network_middleware or RestMiddleware()
 
+            for node in known_nodes:
+                self.remember_node(node)
+
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)
                 self._stamp = signing_power.get_signature_stamp()
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
+
+            self._node_ids_to_learn_about_immediately = set()
+
+            self.teacher_nodes = deque()
+            self._current_teacher_node = None
+            self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
+
+            if always_be_learning:
+                self.start_learning()
 
         else:  # Feel like a stranger
             if network_middleware is not None:
