@@ -1,12 +1,12 @@
 import datetime
-import os
-import tempfile
 
 import maya
+import os
 import pytest
-from constant_sorrow import constants
+import tempfile
 from sqlalchemy.engine import create_engine
 
+from constant_sorrow import constants
 from nucypher.characters import Alice, Bob
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
@@ -29,7 +29,7 @@ def idle_policy(alice, bob):
 @pytest.fixture(scope="module")
 def enacted_policy(idle_policy, ursulas, mock_miner_agent, mock_token_agent):
     _origin, ursula, *everybody_else = mock_miner_agent.blockchain.interface.w3.eth.accounts
-    mock_token_agent.token_airdrop(amount=100000*constants.M)  # blocks
+    mock_token_agent.token_airdrop(amount=100000 * constants.M)  # blocks
     mock_miner_agent.spawn_random_miners(addresses=everybody_else)
     mock_miner_agent.blockchain.time_travel(periods=1)
 
@@ -46,20 +46,19 @@ def enacted_policy(idle_policy, ursulas, mock_miner_agent, mock_token_agent):
 
 @pytest.fixture(scope="module")
 def alice(ursulas, mock_policy_agent, deployed_testerchain):
-
     etherbase, alice, bob, *everyone_else = deployed_testerchain.interface.w3.eth.accounts
 
     alice = Alice(network_middleware=MockRestMiddleware(),
-                   policy_agent=mock_policy_agent,
-                   ether_address=alice,
-                   known_nodes=ursulas)
+                  policy_agent=mock_policy_agent,
+                  ether_address=alice,
+                  known_nodes=ursulas)
 
     return alice
 
 
 @pytest.fixture(scope="module")
 def bob(ursulas):
-    _bob = Bob(network_middleware=MockRestMiddleware())
+    _bob = Bob(network_middleware=MockRestMiddleware(), known_nodes=ursulas)
     return _bob
 
 

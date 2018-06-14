@@ -1,5 +1,5 @@
 import kademlia
-from bytestring_splitter import BytestringSplitter
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import default_constant_splitter, constants
 from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
@@ -8,10 +8,12 @@ from umbral.signing import Signature
 from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
+from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.network.routing import NucypherRoutingTable
 
-dht_value_splitter = default_constant_splitter + BytestringSplitter(Signature, (UmbralPublicKey, PUBLIC_KEY_LENGTH))
+dht_value_splitter = default_constant_splitter + BytestringSplitter(Signature,
+                                                                    (UmbralPublicKey, PUBLIC_KEY_LENGTH),
+                                                                    int(PUBLIC_ADDRESS_LENGTH))
 dht_with_hrac_splitter = dht_value_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH))
 
 
@@ -45,7 +47,7 @@ class NucypherHashProtocol(KademliaProtocol):
             return constants.NODE_HAS_NO_STORAGE, False
 
     def determine_legality_of_dht_key(self, signature, sender_pubkey_sig,
-                                      message, hrac, dht_key, dht_value):
+                                      hrac, dht_key, dht_value):
 
         # TODO: This function can use a once-over.
         # TODO: Push the logic of this if branch down.
@@ -73,19 +75,19 @@ class NucypherHashProtocol(KademliaProtocol):
 
         # TODO: Why is this logic here?  This is madness.  See #172.
         if value.startswith(bytes(constants.BYTESTRING_IS_URSULA_IFACE_INFO)):
-            header, signature, sender_pubkey_sig, message = dht_value_splitter(
-                value, return_remainder=True)
+            header, signature, sender_pubkey_sig,\
+            public_address, rest_info, dht_info = ursula_interface_splitter(value)
 
             # TODO: TTL?
-            hrac = keccak_digest(message)
-            do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig, message,
+            hrac = public_address + rest_info + dht_info
+            do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig,
                                                           hrac, key, value)
         elif value.startswith(bytes(constants.BYTESTRING_IS_TREASURE_MAP)):
             header, signature, sender_pubkey_sig, hrac, message = dht_with_hrac_splitter(
                 value, return_remainder=True)
 
             # TODO: TTL?
-            do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig, message,
+            do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig,
                                                           hrac, key, value)
         else:
             self.log.info(

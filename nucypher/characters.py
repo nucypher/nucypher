@@ -1,33 +1,35 @@
 import asyncio
-import random
-from collections import OrderedDict
-from collections import deque
+import binascii
 from contextlib import suppress
 from logging import getLogger
 from typing import Dict, ClassVar, Set
 from typing import Union, List
 
-import kademlia
 import msgpack
-from kademlia.network import Server
-from kademlia.utils import digest
+import random
+from collections import OrderedDict
+from collections import deque
 from twisted.internet import task
 
-from bytestring_splitter import BytestringSplitter
+import kademlia
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
+from kademlia.network import Server
+from kademlia.utils import digest
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.config.configs import CharacterConfiguration
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
-from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter, StrangerStamp
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
-from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer, InterfaceInfo
+from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter, InterfaceInfo
+from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
+from web3 import Web3
 
 
 class Character:
@@ -56,7 +58,9 @@ class Character:
                  federated=False,
                  always_be_learning=True,
                  known_nodes: Set = (),
-                 config: CharacterConfiguration = None, *args, **kwargs):
+                 config: CharacterConfiguration = None,
+                 public_address: bytes = None,
+                 *args, **kwargs):
         """
         :param attach_dht_server:  Whether to attach a Server when this Character is
             born.
@@ -82,6 +86,9 @@ class Character:
 
         self.is_federated = federated
         self._known_nodes = {}
+
+        if public_address is not None:
+            self.public_address = public_address
 
         self.log = getLogger("characters")
 
@@ -191,7 +198,7 @@ class Character:
     ##
 
     def remember_node(self, node):
-        self._known_nodes[node.public_address()] = node
+        self._known_nodes[node.public_address] = node
 
     def start_learning(self):
         d = self._learning_task.start(10, now=True)
@@ -202,7 +209,7 @@ class Character:
 
     def select_teacher_nodes(self):
         nodes_we_know_about = list(self._known_nodes.values())
-        random.shuffle(list(nodes_we_know_about))
+        random.shuffle(nodes_we_know_about)
 
         if nodes_we_know_about is None:
             raise self.NotEnoughUrsulas("Need some nodes to start learning from.")
@@ -773,21 +780,28 @@ class Ursula(Character, ProxyRESTServer, Miner):
         return instance
 
     @classmethod
-    def from_rest_url(cls, network_middleware, ip_address, port):
-        response = network_middleware.ursula_from_rest_interface(ip_address, port)
+    def from_rest_url(cls, network_middleware, host, port, federated_only=False):
+        response = network_middleware.ursula_from_rest_interface(host, port)
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 
-        key_splitter = BytestringSplitter(
-            (UmbralPublicKey, PUBLIC_KEY_LENGTH))
-        signing_key, encrypting_key = key_splitter.repeat(response.content)
+        splitter = BytestringSplitter(Signature,
+                                      (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
+                                      (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
+                                      int(PUBLIC_ADDRESS_LENGTH))
+        signature, signing_key, encrypting_key, public_address = splitter(response.content)
 
-        stranger_ursula_from_public_keys = cls.from_public_keys(
-            {SigningPower: signing_key, EncryptingPower: encrypting_key},
-            ip_address=ip_address,
-            rest_port=port,
-            federated_only=True  # TODO: 289
-        )
+        if signature.verify(bytes(signing_key) + bytes(encrypting_key) + public_address, signing_key):
+
+            stranger_ursula_from_public_keys = cls.from_public_keys(
+                {SigningPower: signing_key, EncryptingPower: encrypting_key},
+                public_address=public_address,  # TODO: Federated version of this.
+                rest_host=host,
+                rest_port=port,
+                federated_only=federated_only  # TODO: 289
+            )
+        else:
+            raise cls.SuspiciousActivity("Ursula's signature on her public information didn't verify.")
 
         return stranger_ursula_from_public_keys
 
@@ -802,20 +816,30 @@ class Ursula(Character, ProxyRESTServer, Miner):
         self.attach_rest_server(db_name=self.db_name)
 
     def dht_listen(self):
-        return self.dht_server.listen(self.dht_port, self.ip_address)
+        if self.dht_interface is constants.NO_INTERFACE:
+            raise TypeError("This node does not have a DHT interface configured.")
+        return self.dht_server.listen(self.dht_interface.port,
+                                      self.dht_interface.host)
 
-    def interface_information(self):
-        return msgpack.dumps((self.ip_address,
-                              self.dht_port,
-                              self.rest_port))
+    # def interface_information(self):
+    #     interface_info = VariableLengthBytestring(self.rest_interface)
+    #     if self.dht_interface:
+    #         interface_info += VariableLengthBytestring(self.dht_interface)
+    #     return interface_info
 
     def interface_info_with_metadata(self):
-        interface_info = self.interface_information()
-        signature = self.stamp(keccak_digest(interface_info))
-        return constants.BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.stamp + interface_info
+        message = self.public_address + self.rest_interface
+        interface_info = VariableLengthBytestring(self.rest_interface)
+
+        if self.dht_interface:
+            message += self.dht_interface
+            interface_info += VariableLengthBytestring(self.dht_interface)
+
+        signature = self.stamp(message)
+        return constants.BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.stamp + self.public_address + interface_info
 
     def publish_dht_information(self):
-        if not self.dht_port and self.dht_interface:
+        if not self.dht_interface:
             raise RuntimeError("Must listen before publishing interface information.")
 
         ursula_id = bytes(self.stamp)
@@ -839,6 +863,10 @@ class Ursula(Character, ProxyRESTServer, Miner):
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
 
+    @property
     def public_address(self):
-        # TODO: Logic to get public address for federated variant.
-        return self.ether_address
+        return bytes(self.ether_address, encoding="ascii")
+
+    @public_address.setter
+    def public_address(self, address_bytes):
+        self.ether_address = str(address_bytes, encoding="ascii")

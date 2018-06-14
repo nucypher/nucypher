@@ -21,7 +21,7 @@ def test_grant(alice, bob, ursulas, mock_miner_agent):
     mock_miner_agent.blockchain.time_travel(periods=1)
 
     ursula, *other_ursulas = ursulas
-    alice.learn_about_nodes(rest_address=ursula.ip_address, port=ursula.rest_port)
+    # alice.learn_about_nodes(rest_address=ursula.ip_address, port=ursula.rest_port)
 
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     n = 5
