@@ -126,6 +126,7 @@ class Miner(NucypherTokenActor):
 
         return approve_txhash, deposit_txhash
 
+    @only_me
     def divide_stake(self, stake_index: int, target_value: int,
                      additional_periods: int=None, expiration: maya.MayaDT=None) -> dict:
         """
@@ -140,8 +141,6 @@ class Miner(NucypherTokenActor):
 
         """
 
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
         if additional_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
 
@@ -168,6 +167,7 @@ class Miner(NucypherTokenActor):
         self.blockchain.wait_for_receipt(tx)
         return tx
 
+    @only_me
     def __validate_stake(self, amount: int, lock_periods: int) -> bool:
         if not self.is_me:
             raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
