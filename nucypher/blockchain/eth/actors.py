@@ -11,6 +11,14 @@ from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, Polic
 from nucypher.blockchain.eth.constants import calculate_period_duration, datetime_to_period, validate_stake_amount
 
 
+def only_me(func):
+    def wrapped(actor=None, *args, **kwargs):
+        if not actor.is_me:
+            raise actor.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
+        return func(actor, *args, **kwargs)
+    return wrapped
+
+
 class NucypherTokenActor:
     """
     Concrete base class for any actor that will interface with NuCypher's ethereum smart contracts.
@@ -111,6 +119,7 @@ class Miner(NucypherTokenActor):
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.ether_address)
         return stakes_reader
 
+    @only_me
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
         if not self.is_me:
@@ -126,6 +135,7 @@ class Miner(NucypherTokenActor):
 
         return approve_txhash, deposit_txhash
 
+    @only_me
     def divide_stake(self, stake_index: int, target_value: int,
                      additional_periods: int=None, expiration: maya.MayaDT=None) -> dict:
         """
@@ -140,8 +150,6 @@ class Miner(NucypherTokenActor):
 
         """
 
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
         if additional_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
 
@@ -168,9 +176,8 @@ class Miner(NucypherTokenActor):
         self.blockchain.wait_for_receipt(tx)
         return tx
 
+    @only_me
     def __validate_stake(self, amount: int, lock_periods: int) -> bool:
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
         from .constants import validate_locktime, validate_stake_amount
         assert validate_stake_amount(amount=amount)
@@ -181,6 +188,7 @@ class Miner(NucypherTokenActor):
         else:
             return True
 
+    @only_me
     def stake(self, amount: int, lock_periods: int=None, expiration: maya.MayaDT=None, entire_balance: bool=False) -> dict:
         """
         High level staking method for Miners.
@@ -192,8 +200,6 @@ class Miner(NucypherTokenActor):
 
         """
 
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
         if lock_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
         if entire_balance and amount:
@@ -220,89 +226,42 @@ class Miner(NucypherTokenActor):
     #
     # Reward and Collection
     #
+
+    @only_me
     def confirm_activity(self) -> str:
         """Miner rewarded for every confirmed period"""
-
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
         txhash = self.miner_agent.confirm_activity(node_address=self.ether_address)
         self._transaction_cache.append((datetime.utcnow(), txhash))
 
         return txhash
 
+    @only_me
     def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the miner's account"""
-
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
         mint_txhash = self.miner_agent.mint(node_address=self.ether_address)
         self._transaction_cache.append((datetime.utcnow(), mint_txhash))
 
         return mint_txhash
 
+    @only_me
     def collect_policy_reward(self, policy_manager):
         """Collect rewarded ETH"""
-
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
         policy_reward_txhash = policy_manager.collect_policy_reward(collector_address=self.ether_address)
         self._transaction_cache.append((datetime.utcnow(), policy_reward_txhash))
 
         return policy_reward_txhash
 
+    @only_me
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
-
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
         collection_txhash = self.miner_agent.collect_staking_reward(collector_address=self.ether_address)
         self._transaction_cache.append((datetime.utcnow(), collection_txhash))
 
         return collection_txhash
-
-    #
-    # Miner Contract Datastore
-    #
-
-    def publish_datastore(self, data) -> str:
-        """Publish new data to the MinerEscrow contract as a public record associated with this miner."""
-
-        if not self.is_me:
-            raise self.MinerError("Cannot write to contract datastore with a non-self Miner instance.")
-
-        txhash = self.miner_agent._publish_datastore(node_address=self.ether_address, data=data)
-        self._transaction_cache.append((datetime.utcnow(), txhash))
-        return txhash
-
-    def read_datastore(self, index: int=None, refresh=False):
-        """
-        Read a value from the nodes datastore, within the MinersEscrow ethereum contract.
-        since there may be multiple values, select one, and return it. The most recently
-        pushed entry is returned by default, and can be specified with the index parameter.
-
-        If refresh it True, read the node's data from the blockchain before returning.
-
-        """
-
-        if refresh is True:
-            self.__node_datastore = self.miner_agent._fetch_node_datastore(node_address=self.ether_address)
-
-        if index is None:
-            datastore_entries = self.miner_agent._get_datastore_entries(node_address=self.ether_address)
-            index = datastore_entries - 1         # return the last, most recently result
-
-        try:
-            stored_value = next(itertools.islice(self.__node_datastore, index, index+1))
-        except StopIteration:
-            if self.miner_agent._get_datastore_entries(node_address=self.ether_address) == 0:
-                stored_value = constants.EMPTY_NODE_DATASTORE
-            else:
-                raise
-        return stored_value
 
 
 class PolicyAuthor(NucypherTokenActor):

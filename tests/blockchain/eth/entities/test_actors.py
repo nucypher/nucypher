@@ -100,27 +100,6 @@ class TestMiner:
         final_balance = mock_token_agent.get_balance(miner.ether_address)
         assert final_balance > initial_balance
 
-    def test_miner_contract_datastore(self, miner):
-
-        # Publish Miner IDs to the DHT
-        some_data = os.urandom(32)
-        _txhash = miner.publish_datastore(data=some_data)
-
-        # Fetch the miner Ids
-        stored_miner_id = miner.read_datastore(refresh=True)
-        assert len(stored_miner_id) == 32
-
-        # Repeat, with another miner ID
-        another_mock_miner_id = os.urandom(32)
-        _txhash = miner.publish_datastore(data=another_mock_miner_id)
-
-        stored_miner_id = miner.read_datastore(refresh=True)
-
-        assert another_mock_miner_id == stored_miner_id
-
-        supposedly_the_same_miner_id = miner.miner_agent.contract.functions.getMinerId(miner.ether_address, 1).call()
-        assert another_mock_miner_id == supposedly_the_same_miner_id
-
 
 class TestPolicyAuthor:
 
