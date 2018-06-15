@@ -82,46 +82,31 @@ class EthereumContractRegistrar:
             chains[chain_name] = cls(chain_name=chain_name, registrar_filepath=filepath)
         return chains
 
-    def enroll(self, contract_name: str, contract_addr: str, contract_abi: list) -> None:
+    def enroll(self, contract_addr: str, contract_abi: list,
+               contract_name: str=None, target_addr: str=None) -> None:
         """
         Enrolls a contract to the chain registrar by writing the abi information
-        to the filesystem as JSON. This can also be used to update the info
-        under the specified `contract_name`.
+        to the filesystem as JSON.
 
         Note: Unless you are developing NuCypher, you most likely won't ever need to use this.
         """
+        if bool(contract_name) ^ bool(target_addr):
+            raise ValueError("Must provide both (or neither) target_addr and contract_name")
+
         contract_data = {
             contract_addr: {
-                "name": contract_name,
                 "abi": contract_abi,
                 "addr": contract_addr
             }
         }
 
-        registrar_data = self.__read()
-
-        reg_contract_data = registrar_data.get(self._chain_name, dict())
-        reg_contract_data.update(contract_data)
-
-        registrar_data[self._chain_name].update(reg_contract_data)
-        self.__write(registrar_data)
-
-    def enroll_dispatcher(self, target_name: str, target_addr: str, dispatcher_addr: str) -> None:
-        """
-        Enrolls a dispatcher to act as a proxy in the chain registrar by creating
-        an internal mapping to contract ABIs.
-
-        Note: Unless you are developing NuCypher, you most likely won't ever need to use this.
-        """
-        dispatcher_data = {
-            target_name: {
-                "target_addr": target_addr,
-                "dispatcher_addr": dispatcher_addr
-            }
-        }
+        if target_addr and contract_name:
+            contract_data[contract_addr].update({
+                'target_addr': target_addr,
+                'name': contract_name
+            })
 
         registrar_data = self.__read()
-
         reg_contract_data = registrar_data.get(self._chain_name, dict())
         reg_contract_data.update(contract_data)
 
@@ -143,26 +128,14 @@ class EthereumContractRegistrar:
             raise self.UnknownChain("Data does not exist for chain '{}'".format(self._chain_name))
         return chain_data
 
-    def lookup_contract(self, contract_name: str) -> List[dict]:
-        """
-        Search the registarar for all contracts that match a given
-        contract name and return them in a list.
-        """
-
+    def lookup_contract(self, contract_name: str):
         chain_data = self.dump_chain()
 
-        contracts = list()
-        for _address, contract_data in chain_data.items():
-            if contract_data['name'] == contract_name:
-                contracts.append(contract_data)
-
-        if len(contracts) > 0:
-            return contracts
-        else:
-            m = 'Contract name or address: {}, for chain: {} was not found in the registrar. ' \
-                'Ensure that the contract is deployed, registered.'.format(contract_name, self._chain_name)
-
-            raise self.UnknownContract(m)
+        for address, contract_data in chain_data.items():
+            name = contract_data.get('name', None)
+            if name == contract_name:
+                return contract_data
+        raise self.UnknownContract("No known contract with name: {}".format(contract_name))
 
     def dump_contract(self, address: str=None) -> dict:
         """
