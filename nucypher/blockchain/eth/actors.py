@@ -226,89 +226,42 @@ class Miner(NucypherTokenActor):
     #
     # Reward and Collection
     #
+
+    @only_me
     def confirm_activity(self) -> str:
         """Miner rewarded for every confirmed period"""
-
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
         txhash = self.miner_agent.confirm_activity(node_address=self.ether_address)
         self._transaction_cache.append((datetime.utcnow(), txhash))
 
         return txhash
 
+    @only_me
     def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the miner's account"""
-
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
         mint_txhash = self.miner_agent.mint(node_address=self.ether_address)
         self._transaction_cache.append((datetime.utcnow(), mint_txhash))
 
         return mint_txhash
 
+    @only_me
     def collect_policy_reward(self, policy_manager):
         """Collect rewarded ETH"""
-
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
         policy_reward_txhash = policy_manager.collect_policy_reward(collector_address=self.ether_address)
         self._transaction_cache.append((datetime.utcnow(), policy_reward_txhash))
 
         return policy_reward_txhash
 
+    @only_me
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
-
-        if not self.is_me:
-            raise self.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
 
         collection_txhash = self.miner_agent.collect_staking_reward(collector_address=self.ether_address)
         self._transaction_cache.append((datetime.utcnow(), collection_txhash))
 
         return collection_txhash
-
-    #
-    # Miner Contract Datastore
-    #
-
-    def publish_datastore(self, data) -> str:
-        """Publish new data to the MinerEscrow contract as a public record associated with this miner."""
-
-        if not self.is_me:
-            raise self.MinerError("Cannot write to contract datastore with a non-self Miner instance.")
-
-        txhash = self.miner_agent._publish_datastore(node_address=self.ether_address, data=data)
-        self._transaction_cache.append((datetime.utcnow(), txhash))
-        return txhash
-
-    def read_datastore(self, index: int=None, refresh=False):
-        """
-        Read a value from the nodes datastore, within the MinersEscrow ethereum contract.
-        since there may be multiple values, select one, and return it. The most recently
-        pushed entry is returned by default, and can be specified with the index parameter.
-
-        If refresh it True, read the node's data from the blockchain before returning.
-
-        """
-
-        if refresh is True:
-            self.__node_datastore = self.miner_agent._fetch_node_datastore(node_address=self.ether_address)
-
-        if index is None:
-            datastore_entries = self.miner_agent._get_datastore_entries(node_address=self.ether_address)
-            index = datastore_entries - 1         # return the last, most recently result
-
-        try:
-            stored_value = next(itertools.islice(self.__node_datastore, index, index+1))
-        except StopIteration:
-            if self.miner_agent._get_datastore_entries(node_address=self.ether_address) == 0:
-                stored_value = constants.EMPTY_NODE_DATASTORE
-            else:
-                raise
-        return stored_value
 
 
 class PolicyAuthor(NucypherTokenActor):
