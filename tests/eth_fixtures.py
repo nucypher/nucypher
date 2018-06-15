@@ -1,15 +1,15 @@
 import os
+import shutil
 import signal
 import subprocess
 import tempfile
+import time
+from os.path import abspath, dirname
 
 import pytest
-import shutil
-import time
 from constant_sorrow import constants
 from eth_tester import EthereumTester
 from geth import LoggingMixin, DevGethProcess
-from os.path import abspath, dirname
 from web3 import EthereumTesterProvider, IPCProvider
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
@@ -21,6 +21,8 @@ from tests.blockchain.eth import contracts
 from tests.blockchain.eth.utilities import MockMinerEscrowDeployer, TesterPyEVMBackend, MockNucypherTokenDeployer
 
 constants.NUMBER_OF_TEST_ETH_ACCOUNTS(10)
+
+
 
 #
 # Provider Fixtures
@@ -101,7 +103,6 @@ def auto_geth_ipc_provider():
 #
 # Blockchain
 #
-
 
 @pytest.fixture(scope='session')
 def solidity_compiler():
