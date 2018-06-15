@@ -106,6 +106,28 @@ class EthereumContractRegistrar:
         registrar_data[self._chain_name].update(reg_contract_data)
         self.__write(registrar_data)
 
+    def enroll_dispatcher(self, target_name: str, target_addr: str, dispatcher_addr: str) -> None:
+        """
+        Enrolls a dispatcher to act as a proxy in the chain registrar by creating
+        an internal mapping to contract ABIs.
+
+        Note: Unless you are developing NuCypher, you most likely won't ever need to use this.
+        """
+        dispatcher_data = {
+            target_name: {
+                "target_addr": target_addr,
+                "dispatcher_addr": dispatcher_addr
+            }
+        }
+
+        registrar_data = self.__read()
+
+        reg_contract_data = registrar_data.get(self._chain_name, dict())
+        reg_contract_data.update(contract_data)
+
+        registrar_data[self._chain_name].update(reg_contract_data)
+        self.__write(registrar_data)
+
     def dump_chain(self) -> dict:
         """
         Returns all data from the current registrar chain as a dict.
