@@ -19,7 +19,7 @@ from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
 
 
-class Arrangement(ABC):
+class Arrangement:
     """
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
@@ -100,7 +100,7 @@ class Arrangement(ABC):
         raise NotImplementedError
 
 
-class Policy(ABC):
+class Policy:
     """
     An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob
     for a specific path.
@@ -256,22 +256,13 @@ class Policy(ABC):
         return negotiation_result
 
     @abstractmethod
-    def make_arrangements(self, network_middleware, quantity: int,
-                          deposit: int, expiration: maya.MayaDT, ursulas: List[Ursula]=None) -> None:
+    def make_arrangements(self, network_middleware,
+                          deposit: int,
+                          expiration: maya.MayaDT,
+                          ursulas: List[Ursula]=None) -> None:
         """
         Create and consider n Arangement objects.
         """
-        if not ursulas:
-            ursulas = NotImplemented
-
-        for ursula in ursulas:
-            arrangement = Arrangement(alice=NotImplemented,
-                                      ursula=ursula,
-                                      hrac=self.hrac,
-                                      expiration=expiration)
-
-            self.consider_arrangement(network_middleware=network_middleware,
-                                      arrangement=arrangement)
         raise NotImplementedError
 
 
