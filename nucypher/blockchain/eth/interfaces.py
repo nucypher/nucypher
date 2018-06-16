@@ -128,8 +128,16 @@ class EthereumContractRegistrar:
             raise self.UnknownChain("Data does not exist for chain '{}'".format(self._chain_name))
         return chain_data
 
-    def lookup_contract(self, contract_name: str):
+    def lookup_contract(self, contract_name: str=None, contract_addr: str=None):
+        if not (bool(contract_name) ^ bool(contract_addr)):
+            raise ValueError("Pass contract_name or contract_addr, not both.")
+
         chain_data = self.dump_chain()
+        if contract_addr:
+            contract_data = chain_data.get(contract_addr, None)
+            if not contract_data:
+                raise self.UnknownContract("No known contract with addr: {}".format(contract_addr))
+            return chain_data[contract_addr]
 
         for address, contract_data in chain_data.items():
             name = contract_data.get('name', None)
