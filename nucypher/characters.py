@@ -1,30 +1,35 @@
 import asyncio
-from collections import OrderedDict
+import binascii
 from contextlib import suppress
 from logging import getLogger
-from typing import Dict, ClassVar
+from typing import Dict, ClassVar, Set
 from typing import Union, List
 
-import kademlia
 import msgpack
+import random
+from collections import OrderedDict
+from collections import deque
+from twisted.internet import task
+
+import kademlia
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow import constants, default_constant_splitter
 from kademlia.network import Server
 from kademlia.utils import digest
-
-from bytestring_splitter import BytestringSplitter
-from constant_sorrow import constants, default_constant_splitter
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.config.configs import CharacterConfiguration
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
-from nucypher.crypto.constants import PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter, StrangerStamp
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter
+from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter, InterfaceInfo
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
+from web3 import Web3
 
 
 class Character:
@@ -48,10 +53,14 @@ class Character:
 
     def __init__(self, is_me=True,
                  network_middleware=None,
-                 crypto_power: CryptoPower=None,
+                 crypto_power: CryptoPower = None,
                  crypto_power_ups=None,
                  federated=False,
-                 config: CharacterConfiguration = None, *args, **kwargs):
+                 always_be_learning=True,
+                 known_nodes: Set = (),
+                 config: CharacterConfiguration = None,
+                 public_address: bytes = None,
+                 *args, **kwargs):
         """
         :param attach_dht_server:  Whether to attach a Server when this Character is
             born.
@@ -76,8 +85,10 @@ class Character:
         self.config = config  # TODO: Do not mix with injectable params
 
         self.is_federated = federated
-        self.__known_nodes = {}
-        self.__known_miners = {}
+        self._known_nodes = {}
+
+        if public_address is not None:
+            self.public_address = public_address
 
         self.log = getLogger("characters")
 
@@ -102,11 +113,23 @@ class Character:
         if is_me is True:
             self.network_middleware = network_middleware or RestMiddleware()
 
+            for node in known_nodes:
+                self.remember_node(node)
+
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)
                 self._stamp = signing_power.get_signature_stamp()
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
+
+            self._node_ids_to_learn_about_immediately = set()
+
+            self.teacher_nodes = deque()
+            self._current_teacher_node = None
+            self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
+
+            if always_be_learning:
+                self.start_learning()
 
         else:  # Feel like a stranger
             if network_middleware is not None:
@@ -123,13 +146,6 @@ class Character:
     @property
     def name(self):
         return self.__class__.__name__
-
-    @property
-    def known_nodes(self):
-        if not self.is_federated:
-            return self.__known_miners
-        else:
-            return self.__known_nodes
 
     @classmethod
     def from_public_keys(cls, powers_and_keys: Dict, *args, **kwargs) -> 'Character':
@@ -177,6 +193,120 @@ class Character:
         else:
             raise RuntimeError("Server hasn't been attached.")
 
+    ######
+    # Knowing and learning about nodes
+    ##
+
+    def remember_node(self, node):
+        self._known_nodes[node.public_address] = node
+
+    def start_learning(self):
+        d = self._learning_task.start(10, now=True)
+        d.addErrback(self.handle_learning_errors)
+
+    def handle_learning_errors(self, *args, **kwargs):
+        self.log.warning("Unhandled error during node learning: {}".format(args))
+
+    def select_teacher_nodes(self):
+        nodes_we_know_about = list(self._known_nodes.values())
+        random.shuffle(nodes_we_know_about)
+
+        if nodes_we_know_about is None:
+            raise self.NotEnoughUrsulas("Need some nodes to start learning from.")
+
+        self.teacher_nodes.extend(nodes_we_know_about)
+
+    def cycle_teacher_node(self):
+        if not self.teacher_nodes:
+            self.select_teacher_nodes()
+        self._current_teacher_node = self.teacher_nodes.pop()
+
+    def current_teacher_node(self, cycle=False):
+        if not self._current_teacher_node:
+            self.cycle_teacher_node()
+
+        teacher = self._current_teacher_node
+
+        if cycle:
+            self.cycle_teacher_node()
+
+        return teacher
+
+    def learn_about_nodes_now(self):
+        self._learning_task.reset()
+        self._learning_task()
+
+    def keep_learning_about_nodes(self):
+        """
+        Continually learn about new nodes.
+        """
+        self.learn_from_teacher_node()
+
+        if self._node_ids_to_learn_about_immediately:
+            self.learn_about_nodes_now()
+
+    def learn_about_specific_node(self, ether_address: str):
+        self._node_ids_to_learn_about_immediately.add(ether_address)  # hmmmm
+        self.learn_about_nodes_now()
+
+    def learn_from_teacher_node(self, rest_address: str = None, port: int = None):
+        """
+        Sends a request to node_url to find out about known nodes.
+        """
+        if rest_address is None:
+            current_teacher = self.current_teacher_node()
+            rest_address = current_teacher.rest_interface.host
+            port = current_teacher.rest_interface.port
+
+        response = self.network_middleware.get_nodes_via_rest(rest_address,
+                                                              port, node_ids=self._node_ids_to_learn_about_immediately)
+        if response.status_code != 200:
+            raise RuntimeError
+        signature, nodes = signature_splitter(response.content, return_remainder=True)
+
+        # TODO: Although not treasure map-related, this has a whiff of #172.
+        ursula_interface_splitter = dht_value_splitter + BytestringSplitter(InterfaceInfo) * 2
+        split_nodes = ursula_interface_splitter.repeat(nodes)
+
+        for node_meta in split_nodes:
+            header, sig, pubkey, ether_address, rest_info, dht_info = node_meta
+            message = ether_address + rest_info + dht_info
+
+            if not pubkey in self._known_nodes:
+                if sig.verify(message, pubkey):
+
+                    # TOOD: Is this too eager?  Does it make sense to only learn later, when we want to make an Arrangement with this node?
+                    ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
+                                                  host=rest_info.host,
+                                                  port=rest_info.port)
+
+                    self.remember_node(ursula)
+
+                    #####
+                    self._node_ids_to_learn_about_immediately.discard(pubkey)
+
+                else:
+                    message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
+                              "Propagated by: {}:{}".format(node_meta, rest_address, port)
+                    self.log.warning(message)
+
+    def network_bootstrap(self, node_list: list) -> None:
+        for node_addr, port in node_list:
+            new_nodes = self.learn_about_nodes(node_addr, port)
+            self._known_nodes.update(new_nodes)
+
+    def get_nodes_by_ids(self, ids):
+        for node_id in node_ids:
+            try:
+                # Scenario 1: We already know about this node.
+                return self._known_nodes[node_id]
+            except KeyError:
+                raise NotImplementedError
+        # Scenario 2: We don't know about this node, but a nearby node does.
+        # TODO: Build a concurrent pool of lookups here.
+
+        # Scenario 3: We don't know about this node, and neither does our friend.
+
     def encrypt_for(self,
                     recipient: 'Character',
                     plaintext: bytes,
@@ -212,7 +342,6 @@ class Character:
                     decrypt=False,
                     delegator_signing_key: UmbralPublicKey = None,
                     ) -> tuple:
-
         """
         Inverse of encrypt_for.
 
@@ -273,12 +402,12 @@ class Character:
 
         return is_valid, cleartext
 
-    """
-    Next we have decrypt(), sign(), and generate_self_signed_certificate() - these use the private 
-    keys of their respective powers; any character who has these powers can use these functions.
-
-    If they don't have the correct Power, the appropriate PowerUpError is raised.
-    """
+        """
+        Next we have decrypt(), sign(), and generate_self_signed_certificate() - these use the private 
+        keys of their respective powers; any character who has these powers can use these functions.
+        
+        If they don't have the correct Power, the appropriate PowerUpError is raised.
+        """
 
     def decrypt(self, message_kit, verifying_key: UmbralPublicKey = None):
         return self._crypto_power.power_ups(EncryptingPower).decrypt(message_kit, verifying_key)
@@ -305,55 +434,13 @@ class Character:
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
-    def learn_about_specific_node(self, ether_address: str, rest_address: str, port: int):
-        pass
-
-    def learn_about_nodes(self, rest_address: str, port: int):
-        """
-        Sends a request to node_url to find out about known nodes.
-        """
-        response = self.network_middleware.get_nodes_via_rest(rest_address, port)
-        if response.status_code != 200:
-            raise RuntimeError
-        signature, nodes = signature_splitter(response.content, return_remainder=True)
-
-        # TODO: Although not treasure map-related, this has a whiff of #172.
-        ursula_interface_splitter = dht_value_splitter + BytestringSplitter((bytes, 17))
-        split_nodes = ursula_interface_splitter.repeat(nodes)
-
-        for node_meta in split_nodes:
-            header, sig, pubkey, interface_info = node_meta
-
-            if not pubkey in self.known_nodes:
-                if sig.verify(keccak_digest(interface_info), pubkey):
-
-                    rest_address, dht_port, rest_port = msgpack.loads(interface_info)
-                    ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
-                                                  ip_address=rest_address.decode("utf-8"),
-                                                  port=rest_port)
-
-                    # TODO: Remove duo
-                    self.__known_nodes[pubkey] = ursula
-                    self.__known_miners[ursula.ether_address] = ursula
-
-                else:
-
-                    message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
-                              "Propagated by: {}:{}".format(node_meta, rest_address, port)
-                    self.log.warning(message)
-
-    def network_bootstrap(self, node_list: list) -> None:
-        for node_addr, port in node_list:
-            new_nodes = self.learn_about_nodes(node_addr, port)
-        self.known_nodes.update(new_nodes)
-
 
 class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, is_me=True, federated_only=False, *args, **kwargs):
         Character.__init__(self, is_me=is_me, *args, **kwargs)
-        if is_me and not federated_only:              # TODO: 289
+        if is_me and not federated_only:  # TODO: 289
             PolicyAuthor.__init__(self, *args, **kwargs)
         self.federated_only = federated_only
 
@@ -391,7 +478,8 @@ class Alice(Character, PolicyAuthor):
         if self.federated_only is True:
             policy = Policy(alice=self, **payload)
         else:
-            policy = super().create_policy(**payload)
+            from nucypher.blockchain.eth.policies import BlockchainPolicy
+            policy = BlockchainPolicy(author=self, **payload)
 
         return policy
 
@@ -420,8 +508,10 @@ class Alice(Character, PolicyAuthor):
         # Users may decide to inject some market strategies here.
         #
         # TODO: 289
-        policy.make_arrangements(network_middleware=self.network_middleware, deposit=deposit,
-                                 expiration=expiration, quantity=n)
+        policy.make_arrangements(network_middleware=self.network_middleware,
+                                 deposit=deposit,
+                                 expiration=expiration,
+                                 )
 
         # REST call happens here, as does population of TreasureMap.
         policy.enact(network_middleware=self.network_middleware)
@@ -452,7 +542,7 @@ class Bob(Character):
                     number_of_known_treasure_ursulas += 1
 
             newly_discovered_nodes = {}
-            nodes_to_check = iter(self.known_nodes.values())
+            nodes_to_check = iter(self._known_nodes.values())
 
             while number_of_known_treasure_ursulas < treasure_map.m:
                 try:
@@ -648,18 +738,25 @@ class Ursula(Character, ProxyRESTServer, Miner):
         pass
 
     # TODO: 289
-    def __init__(self, is_me=True,
+    def __init__(self,
+                 rest_host,
+                 rest_port,
+                 is_me=True,
+                 dht_host=None,
                  dht_port=None,
                  federated_only=False,
                  *args,
                  **kwargs):
-        self.dht_port = dht_port
+        if dht_host:
+            self.dht_interface = InterfaceInfo(host=dht_host, port=dht_port)
+        else:
+            self.dht_interface = constants.NO_INTERFACE.bool_value(False)
         self._work_orders = []
 
         Character.__init__(self, is_me=is_me, *args, **kwargs)
         if not federated_only:
             Miner.__init__(self, is_me=is_me, *args, **kwargs)
-        ProxyRESTServer.__init__(self, *args, **kwargs)
+        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port, *args, **kwargs)
 
         if is_me is True:
             self.attach_dht_server()
@@ -683,21 +780,28 @@ class Ursula(Character, ProxyRESTServer, Miner):
         return instance
 
     @classmethod
-    def from_rest_url(cls, network_middleware, ip_address, port):
-        response = network_middleware.ursula_from_rest_interface(ip_address, port)
+    def from_rest_url(cls, network_middleware, host, port, federated_only=False):
+        response = network_middleware.ursula_from_rest_interface(host, port)
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 
-        key_splitter = BytestringSplitter(
-            (UmbralPublicKey, PUBLIC_KEY_LENGTH))
-        signing_key, encrypting_key = key_splitter.repeat(response.content)
+        splitter = BytestringSplitter(Signature,
+                                      (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
+                                      (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
+                                      int(PUBLIC_ADDRESS_LENGTH))
+        signature, signing_key, encrypting_key, public_address = splitter(response.content)
 
-        stranger_ursula_from_public_keys = cls.from_public_keys(
-            {SigningPower: signing_key, EncryptingPower: encrypting_key},
-            ip_address=ip_address,
-            rest_port=port,
-            federated_only=True  # TODO: 289
-        )
+        if signature.verify(bytes(signing_key) + bytes(encrypting_key) + public_address, signing_key):
+
+            stranger_ursula_from_public_keys = cls.from_public_keys(
+                {SigningPower: signing_key, EncryptingPower: encrypting_key},
+                public_address=public_address,  # TODO: Federated version of this.
+                rest_host=host,
+                rest_port=port,
+                federated_only=federated_only  # TODO: 289
+            )
+        else:
+            raise cls.SuspiciousActivity("Ursula's signature on her public information didn't verify.")
 
         return stranger_ursula_from_public_keys
 
@@ -712,20 +816,30 @@ class Ursula(Character, ProxyRESTServer, Miner):
         self.attach_rest_server(db_name=self.db_name)
 
     def dht_listen(self):
-        return self.dht_server.listen(self.dht_port, self.ip_address)
+        if self.dht_interface is constants.NO_INTERFACE:
+            raise TypeError("This node does not have a DHT interface configured.")
+        return self.dht_server.listen(self.dht_interface.port,
+                                      self.dht_interface.host)
 
-    def interface_information(self):
-        return msgpack.dumps((self.ip_address,
-                              self.dht_port,
-                              self.rest_port))
+    # def interface_information(self):
+    #     interface_info = VariableLengthBytestring(self.rest_interface)
+    #     if self.dht_interface:
+    #         interface_info += VariableLengthBytestring(self.dht_interface)
+    #     return interface_info
 
     def interface_info_with_metadata(self):
-        interface_info = self.interface_information()
-        signature = self.stamp(keccak_digest(interface_info))
-        return constants.BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.stamp + interface_info
+        message = self.public_address + self.rest_interface
+        interface_info = VariableLengthBytestring(self.rest_interface)
+
+        if self.dht_interface:
+            message += self.dht_interface
+            interface_info += VariableLengthBytestring(self.dht_interface)
+
+        signature = self.stamp(message)
+        return constants.BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.stamp + self.public_address + interface_info
 
     def publish_dht_information(self):
-        if not self.dht_port and self.dht_interface:
+        if not self.dht_interface:
             raise RuntimeError("Must listen before publishing interface information.")
 
         ursula_id = bytes(self.stamp)
@@ -748,3 +862,11 @@ class Ursula(Character, ProxyRESTServer, Miner):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
+
+    @property
+    def public_address(self):
+        return bytes(self.ether_address, encoding="ascii")
+
+    @public_address.setter
+    def public_address(self, address_bytes):
+        self.ether_address = str(address_bytes, encoding="ascii")

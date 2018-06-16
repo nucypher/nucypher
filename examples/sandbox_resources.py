@@ -12,7 +12,7 @@ class SandboxRestMiddleware(RestMiddleware):
     def consider_arrangement(self, contract=None):
         ursula = Ursula.from_rest_url(
             self,
-            ip_address="localhost",
+            host="localhost",
             port=3601,
         )
         response = requests.post("https://localhost:3601/consider_arrangement", bytes(contract), verify=False)
