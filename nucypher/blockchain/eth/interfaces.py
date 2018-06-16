@@ -67,24 +67,24 @@ class EthereumContractRegistry:
         need to use this.
         """
         contract_data = [contract_name, contract_address, contract_abi]
-
         registry_data = self.__read()
         registry_data.append(contract_data)
-
         self.__write(registry_data)
 
     def search(self, contract_name: str=None, contract_address: str=None):
         """
-        Searches the registry for a contract with the provided name or address.
+        Searches the registry for a contract with the provided name or address
+        and returns the contracts.
         """
         if not (bool(contract_name) ^ bool(contract_address)):
             raise ValueError("Pass contract_name or contract_address, not both.")
 
+        contracts = list()
         registry_data = self.__read()
         for name, addr, abi in registry_data:
             if (contract_name or contract_address) == name:
-                return (name, addr, abi)
-        raise self.UnknownContract("No known contract in registry with {}".format(contract_name or contract_address)
+                contracts.append((name, addr, abi))
+        return contracts[0] if len(contracts) == 1 else return contracts
 
 
 class ControlCircumflex:
