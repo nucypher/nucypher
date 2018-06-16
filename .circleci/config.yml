@@ -1,0 +1,20 @@
+version: 2
+jobs:
+    build:
+        working_directory: ~/nucypher-build
+        docker:
+            - image: circleci/python:3.6
+        steps:
+            - checkout
+            - restore_cache:
+                key: deps1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+            - run:
+                command: |
+                    pip install pipenv --upgrade
+                    pipenv install --dev --three
+                    wget https://github.com/solidity/releases/download/v0.4.24/solc-static-linux -O "${VIRTUAL_ENV}/bin/solc"
+                    chmod +x "${VIRTUAL_ENV}/bin/solc"
+            - save_cache:
+                key: deps1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+                paths:
+                    - "${VIRTUAL_ENV}"
