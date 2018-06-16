@@ -59,7 +59,7 @@ contract PolicyManager is Upgradeable {
 
         // policy for activity periods
         uint256 rewardRate;
-        uint256 firstReward;
+        uint256 firstPartialReward;
         uint256 startPeriod;
         uint256 lastPeriod;
         bool disabled;
@@ -130,16 +130,17 @@ contract PolicyManager is Upgradeable {
 
     /**
     * @notice Create policy by client
-    * @dev Generate policy id before creation
+    * @dev Generate policy id before creation.
+    * @dev Formula for reward calculation: numberOfNodes * (firstPartialReward + rewardRate * numberOfPeriods)
     * @param _policyId Policy id
     * @param _numberOfPeriods Duration of the policy in periods except first period
-    * @param _firstReward Reward for first period
+    * @param _firstPartialReward Partial reward for first/current period
     * @param _nodes Nodes that will handle policy
     **/
     function createPolicy(
         bytes20 _policyId,
         uint256 _numberOfPeriods,
-        uint256 _firstReward,
+        uint256 _firstPartialReward,
         address[] _nodes
     )
         public payable
@@ -155,19 +156,19 @@ contract PolicyManager is Upgradeable {
         uint256 currentPeriod = getCurrentPeriod();
         policy.startPeriod = currentPeriod.add(uint256(1));
         policy.lastPeriod = currentPeriod.add(_numberOfPeriods);
-        policy.rewardRate = msg.value.div(_nodes.length).sub(_firstReward).div(_numberOfPeriods);
-        policy.firstReward = _firstReward;
-        require(policy.rewardRate > _firstReward &&
-            (_firstReward + policy.rewardRate * _numberOfPeriods) * _nodes.length  == msg.value);
+        policy.rewardRate = msg.value.div(_nodes.length).sub(_firstPartialReward).div(_numberOfPeriods);
+        policy.firstPartialReward = _firstPartialReward;
+        require(policy.rewardRate > _firstPartialReward &&
+            (_firstPartialReward + policy.rewardRate * _numberOfPeriods) * _nodes.length  == msg.value);
         uint256 endPeriod = policy.lastPeriod.add(uint256(1));
-        uint256 startReward = policy.rewardRate - _firstReward;
+        uint256 startReward = policy.rewardRate - _firstPartialReward;
 
         for (uint256 i = 0; i < _nodes.length; i++) {
             address node = _nodes[i];
             require(node != RESERVED_NODE);
             NodeInfo storage nodeInfo = nodes[node];
             require(nodeInfo.lastMinedPeriod != 0 && policy.rewardRate >= nodeInfo.minRewardRate);
-            nodeInfo.rewardDelta[currentPeriod] = nodeInfo.rewardDelta[currentPeriod].add(_firstReward);
+            nodeInfo.rewardDelta[currentPeriod] = nodeInfo.rewardDelta[currentPeriod].add(_firstPartialReward);
             nodeInfo.rewardDelta[policy.startPeriod] = nodeInfo.rewardDelta[policy.startPeriod]
                 .add(startReward);
             nodeInfo.rewardDelta[endPeriod] = nodeInfo.rewardDelta[endPeriod].sub(policy.rewardRate);
@@ -249,11 +250,11 @@ contract PolicyManager is Upgradeable {
         // check activity for the first period
         if (_arrangement.lastRefundedPeriod == 0) {
             if (lastActivePeriod < _policy.startPeriod - 1) {
-                refundValue = _policy.firstReward;
+                refundValue = _policy.firstPartialReward;
             } else if (_arrangement.indexOfDowntimePeriods < length) {
                 (startPeriod, endPeriod) = escrow.getDowntime(_arrangement.node, _arrangement.indexOfDowntimePeriods);
                 if (_policy.startPeriod > startPeriod && _policy.startPeriod - 1 <= endPeriod) {
-                    refundValue = _policy.firstReward;
+                    refundValue = _policy.firstPartialReward;
                 }
             }
         }
@@ -490,7 +491,7 @@ contract PolicyManager is Upgradeable {
         Policy memory policyToCheck = delegateGetPolicy(_testTarget, RESERVED_POLICY_ID);
         require(policyToCheck.client == policy.client &&
             policyToCheck.rewardRate == policy.rewardRate &&
-            policyToCheck.firstReward == policy.firstReward &&
+            policyToCheck.firstPartialReward == policy.firstPartialReward &&
             policyToCheck.startPeriod == policy.startPeriod &&
             policyToCheck.lastPeriod == policy.lastPeriod &&
             policyToCheck.disabled == policy.disabled);
@@ -525,7 +526,7 @@ contract PolicyManager is Upgradeable {
         policy.startPeriod = 1;
         policy.lastPeriod = 2;
         policy.rewardRate = 3;
-        policy.firstReward = 4;
+        policy.firstPartialReward = 4;
         policy.disabled = true;
         policy.arrangements.push(ArrangementInfo(RESERVED_NODE, 11, 22));
         NodeInfo storage nodeInfo = nodes[RESERVED_NODE];
