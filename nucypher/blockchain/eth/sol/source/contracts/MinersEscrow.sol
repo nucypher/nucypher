@@ -201,13 +201,6 @@ contract MinersEscrow is Issuer {
     }
 
     /**
-    * @notice Get locked tokens value for all owners in current period
-    **/
-    function getAllLockedTokens() public view returns (uint256) {
-        return lockedPerPeriod[getCurrentPeriod()];
-    }
-
-    /**
     * @notice Pre-deposit tokens
     * @param _miners Tokens owners
     * @param _values Amount of token to deposit for each owner
@@ -575,45 +568,62 @@ contract MinersEscrow is Issuer {
     }
 
     /**
-    * @notice Fixed-step in cumulative sum
-    * @param _startIndex Starting point
-    * @param _delta How much to step
-    * @param _periods Amount of periods to get locked tokens
-    *
-             _startIndex
-                v
-      |-------->*--------------->*---->*------------->|
-                |                      ^
-                |                      stopIndex
-                |
-                |       _delta
-                |---------------------------->|
-                |
-                |                       shift
-                |                      |----->|
+    * @notice Get locked tokens value for active owners in (getCurrentPeriod() + _periods) period
+    * @param _periods Amount of periods for locked tokens calculation
     **/
-    function findCumSum(uint256 _startIndex, uint256 _delta, uint256 _periods)
-        external view returns (address stop, uint256 stopIndex, uint256 shift)
+    function getAllLockedTokens(uint256 _periods)
+        external view returns (uint256 lockedTokens)
     {
         require(_periods > 0);
         uint256 currentPeriod = getCurrentPeriod();
-        uint256 distance = 0;
-
-        for (uint256 i = _startIndex; i < miners.length; i++) {
-            address current = miners[i];
-            MinerInfo storage info = minerInfo[current];
+        for (uint256 i = 0; i < miners.length; i++) {
+            address miner = miners[i];
+            MinerInfo storage info = minerInfo[miner];
             if (info.confirmedPeriod1 != currentPeriod &&
                 info.confirmedPeriod2 != currentPeriod) {
                 continue;
             }
-            uint256 lockedTokens = getLockedTokens(current, _periods);
-            if (_delta < distance.add(lockedTokens)) {
-                stop = current;
-                stopIndex = i;
-                shift = _delta - distance;
-                break;
+            lockedTokens = lockedTokens.add(getLockedTokens(miner, _periods));
+        }
+    }
+
+    /**
+    * @notice Get active miners based on input points
+    * @param _points Array of points
+    * @param _periods Amount of periods for locked tokens calculation
+    **/
+    function sample(uint256[] _points, uint256 _periods)
+        external view returns (address[] result)
+    {
+        require(_periods > 0 && _points.length > 0);
+        uint256 currentPeriod = getCurrentPeriod();
+        result = new address[](_points.length);
+
+        uint256 pointIndex = 0;
+        uint256 sumOfLockedTokens = 0;
+        uint256 minerIndex = 0;
+        bool addMoreTokens = true;
+        while (minerIndex < miners.length && pointIndex < _points.length) {
+            address currentMiner = miners[minerIndex];
+            MinerInfo storage info = minerInfo[currentMiner];
+            uint256 point = _points[pointIndex];
+            if (info.confirmedPeriod1 != currentPeriod &&
+                info.confirmedPeriod2 != currentPeriod) {
+                minerIndex += 1;
+                addMoreTokens = true;
+                continue;
+            }
+            if (addMoreTokens) {
+                sumOfLockedTokens = sumOfLockedTokens.add(getLockedTokens(currentMiner, _periods));
+            }
+            if (sumOfLockedTokens > point) {
+                result[pointIndex] = currentMiner;
+                sumOfLockedTokens -= point;
+                pointIndex += 1;
+                addMoreTokens = false;
             } else {
-                distance += lockedTokens;
+                minerIndex += 1;
+                addMoreTokens = true;
             }
         }
     }

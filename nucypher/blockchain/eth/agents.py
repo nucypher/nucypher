@@ -102,10 +102,6 @@ class MinerAgent(EthereumContractAgent):
         """Returns the current period"""
         return self.contract.functions.getCurrentPeriod().call()
 
-    def get_total_locked_tokens(self) -> int:
-        """Returns the total amount of locked tokens on the blockchain."""
-        return self.contract.functions.getAllLockedTokens().call()
-
     #
     # MinersEscrow Contract API
     #
@@ -186,42 +182,32 @@ class MinerAgent(EthereumContractAgent):
         Select n random staking Ursulas, according to their stake distribution.
         The returned addresses are shuffled, so one can request more than needed and
         throw away those which do not respond.
-
-                _startIndex
-                v
-      |-------->*--------------->*---->*------------->|
-                |                      ^
-                |                      stopIndex
-                |
-                |       _delta
-                |---------------------------->|
-                |
-                |                       shift
-                |                      |----->|
-
-
         See full diagram here: https://github.com/nucypher/kms-whitepaper/blob/master/pdf/miners-ruler.pdf
-
         """
+
+        miners_population = self.get_miner_population()
+        if quantity > miners_population:
+            raise self.NotEnoughMiners('Only {} miners are available'.format(miners_population))
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
-        n_tokens = self.get_total_locked_tokens()
+        n_tokens = self.contract.functions.getAllLockedTokens(duration).call()
 
-        if not n_tokens > 0:
+        if n_tokens == 0:
             raise self.NotEnoughMiners('There are no locked tokens.')
 
         for _ in range(attempts):
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
-            deltas = [i-j for i, j in zip(points[1:], points[:-1])]
 
-            addrs, addr, index, shift = set(), str(constants.NULL_ADDRESS), 0, 0
-            for delta in deltas:
-                addr, index, shift = self.contract.functions.findCumSum(index, delta + shift, duration).call()
-                addrs.add(addr)
+            deltas = []
+            for next_point, previous_point in zip(points[1:], points[:-1]):
+                deltas.append(next_point - previous_point)
 
-            if len(addrs) >= quantity:
-                return system_random.sample(addrs, quantity)
+            addresses = set(self.contract.functions.sample(deltas, duration).call())
+            addresses.discard(str(constants.NULL_ADDRESS))
+
+            if len(addresses) >= quantity:
+                return system_random.sample(addresses, quantity)
 
         raise self.NotEnoughMiners('Selection failed after {} attempts'.format(attempts))
 

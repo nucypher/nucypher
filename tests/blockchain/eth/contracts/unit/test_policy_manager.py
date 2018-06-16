@@ -273,7 +273,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
 
     # Create another policy with pay for first period
-    # Reward rate is calculated as (firstReward + rewardRate * numberOfPeriods) * numberOfNodes
+    # Reward rate is calculated as numberOfNodes * (firstPartialReward + rewardRate * numberOfPeriods)
     period = escrow.functions.getCurrentPeriod().call()
     tx = policy_manager.functions.createPolicy(policy_id_3, number_of_periods, int(0.5 * rate), [node1, node2, node3])\
         .transact({'from': client,
