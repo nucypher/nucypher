@@ -17,161 +17,83 @@ from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 _DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
 
 
-class EthereumContractRegistrar:
+class EthereumContractRegistry:
     """
     Records known contracts on the disk for future access and utility. This
     lazily writes to the filesystem during contract enrollment.
 
-    WARNING: Unless you are developing NuCypher, you most
-    likely won't ever need to use this.
+    WARNING: Unless you are developing NuCypher, you most likely won't ever need
+    to use this.
     """
-    __default_registrar_path = os.path.join(_DEFAULT_CONFIGURATION_DIR, 'registrar.json')
-    __default_chain_name = 'tester'
+    __default_registry_path = os.path.join(_DEFAULT_CONFIGURATION_DIR,
+                                            'registry.json')
 
     class UnknownContract(KeyError):
         pass
 
-    class UnknownChain(KeyError):
-        pass
+    def __init__(self, registry_filepath: str=None):
+        self.__registry_filepath = registry_filepath or self.__default_registry_path
 
-    def __init__(self, chain_name: str=None, registrar_filepath: str=None):
-        self._chain_name = chain_name or self.__default_chain_name
-        self.__registrar_filepath = registrar_filepath or self.__default_registrar_path
-
-    def __write(self, registrar_data: dict) -> None:
+    def __write(self, registry_data: list) -> None:
         """
-        Writes the registrar data dict as JSON to the registrar file. If no
+        Writes the registry data list as JSON to the registry file. If no
         file exists, it will create it and write the data. If a file does exist
-        and contains JSON data, it will _overwrite_ everything in it.
+        it will _overwrite_ everything in it.
         """
-        with open(self.__registrar_filepath, 'w+') as registrar_file:
-            registrar_file.seek(0)
-            registrar_file.write(json.dumps(registrar_data))
-            registrar_file.truncate()
+        with open(self.__registry_filepath, 'w+') as registry_file:
+            registry_file.seek(0)
+            registry_file.write(json.dumps(registry_data))
+            registry_file.truncate()
 
     def __read(self) -> dict:
         """
-        Reads the registrar file and parses the JSON and returns a dict.
+        Reads the registry file and parses the JSON and returns a list.
         If the file is empty or the JSON is corrupt, it will return an empty
-        dict.
-        If you are modifying or updating the registrar file, you _must_ call
+        list.
+        If you are modifying or updating the registry file, you _must_ call
         this function first to get the current state to append to the dict or
-        modify it because _write_registrar_file overwrites the file.
+        modify it because _write_registry_file overwrites the file.
         """
         try:
-            with open(self.__registrar_filepath, 'r') as registrar_file:
-                registrar_file.seek(0)
-                registrar_data = json.loads(registrar_file.read())
-                if self._chain_name not in registrar_data:
-                    registrar_data[self._chain_name] = dict()
+            with open(self.__registry_filepath, 'r') as registry_file:
+                registry_file.seek(0)
+                registry_data = json.loads(registry_file.read())
         except (json.decoder.JSONDecodeError, FileNotFoundError):
-            registrar_data = {self._chain_name: dict()}
-        return registrar_data
+            registry_data = list()
+        return registry_data
 
-    @classmethod
-    def get_registrars(cls, registrar_filepath: str=None) -> dict:
+    def enroll(self, contract_name, contract_address, contract_abi):
         """
-        Returns a dict of Registrar objects where the key is the chain name and
-        the value is the Registrar object for that chain.
-        Optionally, accepts a registrar filepath.
+        Enrolls a contract to the chain registry by writing the name, address,
+        and abi information to the filesystem as JSON.
+
+        Note: Unless you are developing NuCypher, you most likely won't ever
+        need to use this.
         """
-        filepath = registrar_filepath or cls.__default_registrar_path
-        instance = cls(registrar_filepath=filepath)
+        contract_data = [contract_name, contract_address, contract_abi]
 
-        registrar_data = instance.__read()
-        chain_names = registrar_data.keys()
+        registry_data = self.__read()
+        registry_data.append(contract_data)
 
-        chains = dict()
-        for chain_name in chain_names:
-            chains[chain_name] = cls(chain_name=chain_name, registrar_filepath=filepath)
-        return chains
+        self.__write(registry_data)
 
-    def enroll(self, contract_addr: str, contract_abi: list,
-               contract_name: str=None, target_addr: str=None) -> None:
+    def search(self, contract_name: str=None, contract_address: str=None):
         """
-        Enrolls a contract to the chain registrar by writing the abi information
-        to the filesystem as JSON.
-
-        Note: Unless you are developing NuCypher, you most likely won't ever need to use this.
+        Searches the registry for a contract with the provided name or address.
         """
-        if bool(contract_name) ^ bool(target_addr):
-            raise ValueError("Must provide both (or neither) target_addr and contract_name")
+        if not (bool(contract_name) ^ bool(contract_address)):
+            raise ValueError("Pass contract_name or contract_address, not both.")
 
-        contract_data = {
-            contract_addr: {
-                "abi": contract_abi,
-                "addr": contract_addr
-            }
-        }
-
-        if target_addr and contract_name:
-            contract_data[contract_addr].update({
-                'target_addr': target_addr,
-                'name': contract_name
-            })
-
-        registrar_data = self.__read()
-        reg_contract_data = registrar_data.get(self._chain_name, dict())
-        reg_contract_data.update(contract_data)
-
-        registrar_data[self._chain_name].update(reg_contract_data)
-        self.__write(registrar_data)
-
-    def dump_chain(self) -> dict:
-        """
-        Returns all data from the current registrar chain as a dict.
-        If no data exists for the current registrar chain, then it will raise
-        KeyError.
-        If you haven't specified the chain name, it's probably the tester chain.
-        """
-
-        registrar_data = self.__read()
-        try:
-            chain_data = registrar_data[self._chain_name]
-        except KeyError:
-            raise self.UnknownChain("Data does not exist for chain '{}'".format(self._chain_name))
-        return chain_data
-
-    def lookup_contract(self, contract_name: str=None, contract_addr: str=None):
-        if not (bool(contract_name) ^ bool(contract_addr)):
-            raise ValueError("Pass contract_name or contract_addr, not both.")
-
-        chain_data = self.dump_chain()
-        if contract_addr:
-            contract_data = chain_data.get(contract_addr, None)
-            if not contract_data:
-                raise self.UnknownContract("No known contract with addr: {}".format(contract_addr))
-            return chain_data[contract_addr]
-
-        for address, contract_data in chain_data.items():
-            name = contract_data.get('name', None)
-            if name == contract_name:
-                return contract_data
-        raise self.UnknownContract("No known contract with name: {}".format(contract_name))
-
-    def dump_contract(self, address: str=None) -> dict:
-        """
-        Returns contracts in a list that match the provided identifier on a
-        given chain. It first attempts to use identifier as a contract name.
-        If no name is found, it will attempt to use identifier as an address.
-        If no contract is found, it will raise NoKnownContract.
-        """
-
-        chain_data = self.dump_chain()
-        if address in chain_data:
-            return chain_data[address]
-
-        # Fallback, search by name
-        for contract_identifier, contract_data in chain_data.items():
-            if contract_data['name'] == address:
-                return contract_data
-        else:
-            raise self.UnknownContract('No known contract with address: {}'.format(address))
+        registry_data = self.__read()
+        for name, addr, abi in registry_data:
+            if (contract_name or contract_address) == name:
+                return (name, addr, abi)
+        raise self.UnknownContract("No known contract in registry with {}".format(contract_name or contract_address)
 
 
 class ControlCircumflex:
     """
-    Interacts with a solidity compiler and a registrar in order to instantiate compiled
+    Interacts with a solidity compiler and a registry in order to instantiate compiled
     ethereum contracts with the given web3 provider backend.
     """
     __fallabck_providers = (IPCProvider(ipc_path='/tmp/geth.ipc'), )  # user-managed geth over IPC default
@@ -187,7 +109,7 @@ class ControlCircumflex:
 
     def __init__(self, network_name: str=None, endpoint_uri: str=None,
                  websocket=False, ipc_path=None, timeout=None, providers: list=None,
-                 registrar: EthereumContractRegistrar=None, compiler: SolidityCompiler=None):
+                 registry: EthereumContractRegistry=None, compiler: SolidityCompiler=None):
 
         """
         A blockchain "network inerface"; The circumflex wraps entirely around the bounds of
@@ -202,7 +124,7 @@ class ControlCircumflex:
 
                                                |      |         |
                                                |      |         |
-         Registrar File -- ContractRegistrar --       |          ---- TestProvider -- EthereumTester
+         Registry File -- ContractRegistry --       |          ---- TestProvider -- EthereumTester
                                                       |
                                                       |                                  |
                                                       |
@@ -218,17 +140,17 @@ class ControlCircumflex:
                                                 Character / Actor
 
 
-        The circumflex is the junction of the solidity compiler, a contract registrar, and a collection of
+        The circumflex is the junction of the solidity compiler, a contract registry, and a collection of
         web3 network __providers as a means of interfacing with the ethereum blockchain to execute
         or deploy contract code on the network.
 
 
-        Compiler and Registrar Usage
+        Compiler and Registry Usage
         -----------------------------
 
         Contracts are freshly re-compiled if an instance of SolidityCompiler is passed; otherwise,
-        The registrar will read contract data saved to disk that is be used to retrieve contact address and op-codes.
-        Optionally, A registrar instance can be passed instead.
+        The registry will read contract data saved to disk that is be used to retrieve contact address and op-codes.
+        Optionally, A registry instance can be passed instead.
 
 
         Provider Usage
@@ -265,12 +187,12 @@ class ControlCircumflex:
         self.__recompile = recompile
         self.__sol_compiler = compiler
 
-        # Setup the registrar and base contract factory cache
-        registrar = registrar if registrar is not None else EthereumContractRegistrar(chain_name=network)
-        self._registrar = registrar
+        # Setup the registry and base contract factory cache
+        registry = registry if registry is not None else EthereumContractRegistry(chain_name=network)
+        self._registry = registry
 
-        # Execute the compilation if we're recompiling, otherwise read compiled contract data from the registrar
-        interfaces = self.__sol_compiler.compile() if self.__recompile is True else self._registrar.dump_chain()
+        # Execute the compilation if we're recompiling, otherwise read compiled contract data from the registry
+        interfaces = self.__sol_compiler.compile() if self.__recompile is True else self._registry.dump_chain()
         self.__raw_contract_cache = interfaces
 
     @property
@@ -332,13 +254,13 @@ class ControlCircumflex:
 
     def get_contract_address(self, contract_name: str) -> List[str]:
         """Retrieve all known addresses for this contract"""
-        contracts = self._registrar.lookup_contract(contract_name=contract_name)
+        contracts = self._registry.lookup_contract(contract_name=contract_name)
         addresses = [c['addr'] for c in contracts]
         return addresses
 
     def get_contract(self, address: str) -> Contract:
-        """Instantiate a deployed contract from registrar data"""
-        contract_data = self._registrar.dump_contract(address=address)
+        """Instantiate a deployed contract from registry data"""
+        contract_data = self._registry.dump_contract(address=address)
         contract = self.w3.eth.contract(abi=contract_data['abi'], address=contract_data['addr'])
         return contract
 
@@ -392,7 +314,7 @@ class DeployerCircumflex(ControlCircumflex):
         # Instantiate & enroll contract
         #
         contract = contract_factory(address=address)
-        self._registrar.enroll(contract_name=contract_name,
+        self._registry.enroll(contract_name=contract_name,
                                contract_addr=contract.address,
                                contract_abi=contract_factory.abi)
 
