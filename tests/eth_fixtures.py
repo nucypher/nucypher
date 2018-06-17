@@ -161,27 +161,31 @@ def token_airdrop(testerchain, mock_token_agent):
 
 
 @pytest.fixture(scope='module')
-def deployed_testerchain(testerchain):
-    """Launch all Nucypher ethereum contracts"""
+def three_agents(testerchain):
+    """
+    Musketeers, if you will.
+    Launch the big three contracts on provided chain,
+    make agents for each and return them.
+    """
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
     token_deployer.arm()
     token_deployer.deploy()
 
-    token_agent = NucypherTokenAgent(blockchain=testerchain)
+    token_agent = token_deployer.make_agent()
 
     miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=origin)
     miner_escrow_deployer.arm()
     miner_escrow_deployer.deploy()
 
-    miner_agent = MinerAgent(token_agent=token_agent)
+    miner_agent = miner_escrow_deployer.make_agent()
 
-    policy_manager_contract = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=origin)
-    policy_manager_contract.arm()
-    policy_manager_contract.deploy()
+    policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=origin)
+    policy_manager_deployer.arm()
+    policy_manager_deployer.deploy()
 
-    yield testerchain
+    return token_agent, miner_agent, policy_manager_deployer.make_agent()
 
 
 # 

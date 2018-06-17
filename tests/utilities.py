@@ -24,7 +24,7 @@ constants.NUMBER_OF_URSULAS_IN_NETWORK(6)
 _ALL_URSULAS = {}
 
 
-def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False) -> List[Ursula]:
+def make_ursulas(ether_addresses: list, ursula_starting_port: int, miner_agent=None, miners=False) -> List[Ursula]:
     """
     :param how_many_ursulas: How many Ursulas to create.
     :param ursula_starting_port: The port of the first created Ursula; subsequent Ursulas will increment the port number by 1.
@@ -41,8 +41,10 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
                         db_name="test-{}".format(port),
                         rest_host="127.0.0.1",
                         rest_port=port+100,
-                        always_be_learning=False
+                        always_be_learning=False,
+                        miner_agent=miner_agent,
                         )
+        ursula.attach_rest_server()
 
         class MockDatastoreThreadPool(object):
             def callInThread(self, f, *args, **kwargs):
@@ -52,17 +54,17 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int, miners=False)
         ursula.dht_listen()
 
         if miners is True:
+            # TODO: 309
             # stake a random amount
-            # min_stake, balance = constants.MIN_ALLOWED_LOCKED, ursula.token_balance()
-            # amount = random.randint(min_stake, balance)
-            #
-            # # for a random lock duration
-            # min_locktime, max_locktime = constants.MIN_LOCKED_PERIODS, constants.MAX_MINTING_PERIODS
-            # periods = random.randint(min_locktime, max_locktime)
-            #
-            # ursula.stake(amount=amount, lock_periods=periods)
-            # ursula.miner_agent.blockchain.time_travel(periods=1)
-            pass
+            min_stake, balance = constants.MIN_ALLOWED_LOCKED, ursula.token_balance
+            amount = random.randint(min_stake, balance)
+
+            # for a random lock duration
+            min_locktime, max_locktime = constants.MIN_LOCKED_PERIODS, constants.MAX_MINTING_PERIODS
+            periods = random.randint(min_locktime, max_locktime)
+
+            ursula.stake(amount=amount, lock_periods=periods)
+            ursula.miner_agent.blockchain.time_travel(periods=1)
 
         ursulas.add(ursula)
         _ALL_URSULAS[ursula.rest_interface.port] = ursula
@@ -124,7 +126,7 @@ class MockRestMiddleware(RestMiddleware):
         mock_client = TestClient(ursula.rest_app)
         response = mock_client.post("http://localhost/consider_arrangement", bytes(arrangement))
         assert response.status_code == 200
-        return ursula, True  # TODO: ursula always accepts!
+        return ursula, response
 
     def enact_policy(self, ursula, hrac, payload):
         mock_client = TestClient(ursula.rest_app)

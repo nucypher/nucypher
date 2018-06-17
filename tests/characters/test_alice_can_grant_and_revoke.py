@@ -13,32 +13,50 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, EncryptingPower
 
 
-@pytest.mark.usefixtures('token_airdrop')
-def test_grant(alice, bob, ursulas, mock_miner_agent):
+def test_grant(alice, bob, mining_ursulas, three_agents):
 
-    _etherbase, ursula_address, *everybody_else = mock_miner_agent.blockchain.interface.w3.eth.accounts
-    mock_miner_agent.spawn_random_miners(addresses=everybody_else)
-    mock_miner_agent.blockchain.time_travel(periods=1)
-
-    ursula, *other_ursulas = ursulas
-    # alice.learn_about_nodes(rest_address=ursula.ip_address, port=ursula.rest_port)
+    ursula, *other_ursulas = mining_ursulas
 
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
-    n = 5
-    uri = b"this_is_the_path_to_which_access_is_being_granted"
-    policy = alice.grant(bob, uri, m=3, n=n, expiration=policy_end_datetime)
+    n = 3
+    label = b"this_is_the_path_to_which_access_is_being_granted"
+    _token_agent, _miner_agent, policy_agent = three_agents
 
-    # The number of policies is equal to the number of Ursulas we're using (n)
+    class MockPolicyCreation:
+
+        waited_for_receipt = False
+        tx_hash = "THIS HAS BEEN A TRANSACTION!"
+
+        def __init__(self, *args, **kwargs):
+            # TODO: Test that proper arguments are passed here once 316 is closed.
+            pass
+
+        def transact(self, payload):
+            # TODO: Make a meaningful assertion regarding the value.
+            assert payload['from'] == alice.ether_address
+            return self.tx_hash
+
+        @classmethod
+        def wait_for_receipt(cls, tx_hash):
+            assert tx_hash == cls.tx_hash
+            cls.waited_for_receipt = True
+
+    policy_agent.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
+
+    policy_agent.contract.functions.createPolicy = MockPolicyCreation
+
+    policy = alice.grant(bob, label, m=2, n=n, expiration=policy_end_datetime)
+
+    # The number of accepted arrangements is equal to the number of Ursulas we're using (n)
     assert len(policy._accepted_arrangements) == n
 
     # Let's look at the first Ursula.
-    ursula = list(policy._accepted_arrangements.values())[0].ursula
+    ursula = policy._accepted_arrangements[0].ursula
 
-    # Get the Policy from Ursula's datastore, looking up by hrac.
-    proper_hrac = keccak_digest(bytes(alice.stamp) + bytes(bob.stamp) + uri)
+    # Get the Arrangement from Ursula's datastore, looking up by hrac.
+    # This will be changed in 180, when we use the Arrangement ID.
+    proper_hrac = keccak_digest(bytes(alice.stamp) + bytes(bob.stamp) + label)
     retrieved_policy = ursula.datastore.get_policy_arrangement(proper_hrac.hex().encode())
-
-    # TODO: Make this a legit KFrag, not bytes.
     retrieved_k_frag = KFrag.from_bytes(retrieved_policy.k_frag)
 
     # TODO: Implement KFrag.__eq__

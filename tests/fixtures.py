@@ -12,6 +12,7 @@ from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
+from tests.blockchain.eth.utilities import token_airdrop
 from tests.utilities import make_ursulas, MockRestMiddleware
 
 
@@ -45,35 +46,53 @@ def enacted_policy(idle_policy, ursulas, mock_miner_agent, mock_token_agent):
 
 
 @pytest.fixture(scope="module")
-def alice(ursulas, mock_policy_agent, deployed_testerchain):
-    etherbase, alice, bob, *everyone_else = deployed_testerchain.interface.w3.eth.accounts
+def alice(mining_ursulas, three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    etherbase, alice, bob, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
 
     alice = Alice(network_middleware=MockRestMiddleware(),
-                  policy_agent=mock_policy_agent,
+                  policy_agent=policy_agent,
                   ether_address=alice,
-                  known_nodes=ursulas)
+                  known_nodes=mining_ursulas)
+    alice.recruit = lambda *args, **kwargs: [u.ether_address for u in mining_ursulas]
 
     return alice
 
 
 @pytest.fixture(scope="module")
-def bob(ursulas):
-    _bob = Bob(network_middleware=MockRestMiddleware(), known_nodes=ursulas)
+def bob(mining_ursulas):
+    _bob = Bob(network_middleware=MockRestMiddleware(), known_nodes=mining_ursulas)
     return _bob
 
 
+# @pytest.fixture(scope="module")
+# def ursulas(three_agents):
+#     token_agent, miner_agent, policy_agent = three_agents
+#     etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
+#     _receipts = token_airdrop(token_agent=token_agent, origin=etherbase, addresses=all_yall, amount=1000000 * constants.M)
+#     ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
+#
+#     _ursulas = make_ursulas(ether_addresses=ursula_addresses,
+#                             ursula_starting_port=int(constants.URSULA_PORT_SEED))
+#     yield _ursulas
+#     # Remove the DBs that have been sprayed hither and yon.
+#     for port, ursula in enumerate(_ursulas, start=int(constants.URSULA_PORT_SEED)):
+#         os.remove("test-{}".format(port))
+
+
 @pytest.fixture(scope="module")
-def ursulas(deployed_testerchain):
-    etherbase, alice, bob, *everyone_else = deployed_testerchain.interface.w3.eth.accounts
-    ursula_addresses = everyone_else[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
+def mining_ursulas(three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
+    _receipts = token_airdrop(token_agent=token_agent, origin=etherbase, addresses=all_yall, amount=1000000 * constants.M)
+    ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
 
     _ursulas = make_ursulas(ether_addresses=ursula_addresses,
-                            ursula_starting_port=int(constants.URSULA_PORT_SEED))
-
-    MockRestMiddleware._ursulas = _ursulas
+                            ursula_starting_port=int(constants.URSULA_PORT_SEED),
+                            miner_agent=miner_agent,
+                            miners=True)
     yield _ursulas
     # Remove the DBs that have been sprayed hither and yon.
-    MockRestMiddleware._ursulas = None
     for port, ursula in enumerate(_ursulas, start=int(constants.URSULA_PORT_SEED)):
         os.remove("test-{}".format(port))
 
