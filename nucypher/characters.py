@@ -435,6 +435,15 @@ class Character:
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
+    @property
+    def public_address(self):
+        return bytes(self.ether_address, encoding="ascii")
+
+    @public_address.setter
+    def public_address(self, address_bytes):
+        self.ether_address = str(address_bytes, encoding="ascii")
+
+
 
 class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
