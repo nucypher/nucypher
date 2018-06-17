@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "contracts/PolicyManager.sol";
@@ -13,7 +13,7 @@ contract PolicyManagerBad is PolicyManager {
     constructor(MinersEscrow _escrow) public PolicyManager(_escrow) {
     }
 
-    function getNodeRewardDelta(address, uint256) public view returns (int256)
+    function getNodeRewardDelta(address, uint16) public view returns (int256)
     {
     }
 

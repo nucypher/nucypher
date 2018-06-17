@@ -63,36 +63,6 @@ def main():
 
     web3 = testerchain.interface.w3
 
-    # # TODO: Updatae to agents and deployers
-    # # Create an ERC20 token
-    # token, _ = testerchain.interface.deploy_contract('NuCypherToken', int(3.89e9) * 10 ** 18)
-    #
-    # # Creator deploys the escrow
-    # escrow, _ = testerchain.interface.deploy_contract(
-    #     'MinersEscrow', token.address, 1, 2 * 10 ** 7, 365, 365, 2, 1, int(4e6) * 10 ** 18)
-
-    # if use_dispatcher:
-    #     dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', escrow.address)
-    #     escrow = web3.eth.contract(
-    #         abi=escrow.abi,
-    #         address=dispatcher.address,
-    #         ContractFactoryClass=Contract)
-    # tx = token_agent.contract.functions.transfer(escrow.address, 10 ** 9).transact({'from': origin})
-    # testerchain.wait_for_receipt(tx)
-    # tx = miner_agent.contract.functions.initialize().transact()
-    # testerchain.wait_for_receipt(tx)
-    #
-    # # Creator deploys the policy manager
-    # policy_manager, txhash = testerchain.interface.deploy_contract('PolicyManager', escrow.address)
-    # if use_dispatcher:
-    #     dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', policy_manager.address)
-    #     policy_manager = web3.eth.contract(
-    #         abi=policy_manager.abi,
-    #         address=dispatcher.address,
-    #         ContractFactoryClass=Contract)
-    # tx = escrow.transact({'from': origin}).setPolicyManager(policy_manager.address)
-    # testerchain.wait_for_receipt(tx)
-
     print("Estimate gas:")
     # Pre deposit tokens
     tx = token_agent.contract.functions.approve(miner_agent.contract_address, constants.MIN_ALLOWED_LOCKED * 5)\
@@ -271,8 +241,8 @@ def main():
     testerchain.wait_for_receipt(tx)
 
     # Create policy
-    policy_id_1 = os.urandom(20)
-    policy_id_2 = os.urandom(20)
+    policy_id_1 = os.urandom(16)
+    policy_id_2 = os.urandom(16)
     number_of_periods = 10
     print("First creating policy (1 node, 10 periods) = " +
           str(policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1])
@@ -296,9 +266,9 @@ def main():
     testerchain.wait_for_receipt(tx)
 
     # Create policy with more periods
-    policy_id_1 = os.urandom(20)
-    policy_id_2 = os.urandom(20)
-    policy_id_3 = os.urandom(20)
+    policy_id_1 = os.urandom(16)
+    policy_id_2 = os.urandom(16)
+    policy_id_3 = os.urandom(16)
     number_of_periods = 100
     print("First creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
           str(policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula2])
@@ -350,9 +320,9 @@ def main():
     testerchain.wait_for_receipt(tx)
 
     # Create policy with multiple nodes
-    policy_id_1 = os.urandom(20)
-    policy_id_2 = os.urandom(20)
-    policy_id_3 = os.urandom(20)
+    policy_id_1 = os.urandom(16)
+    policy_id_2 = os.urandom(16)
+    policy_id_3 = os.urandom(16)
     number_of_periods = 100
     print("First creating policy (3 nodes, 100 periods, first reward) = " +
           str(policy_agent.contract.functions
@@ -488,7 +458,6 @@ def main():
     testerchain.wait_for_receipt(tx)
 
     # Divide stake
-    period = miner_agent.contract.functions.getCurrentPeriod().call() + 2
     print("First divide stake = " +
           str(miner_agent.contract.functions.divideStake(1, int(constants.MIN_ALLOWED_LOCKED), 2)
               .estimateGas({'from': ursula1})))

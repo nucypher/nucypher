@@ -9,6 +9,7 @@ def token(testerchain):
     token, _ = testerchain.interface.deploy_contract('NuCypherToken', 2 * 10 ** 40)
     return token
 
+
 @pytest.mark.slow
 def test_issuer(testerchain, token):
     creator = testerchain.interface.w3.eth.accounts[0]
@@ -16,7 +17,7 @@ def test_issuer(testerchain, token):
 
     # Creator deploys the issuer
     issuer, _ = testerchain.interface.deploy_contract(
-        'IssuerMock', token.address, 1, 10 ** 46, int(1e7), int(1e7)
+        'IssuerMock', token.address, 1, 10 ** 43, 10 ** 4, 10 ** 4
     )
 
     events = issuer.events.Initialized.createFilter(fromBlock='latest')
@@ -51,12 +52,12 @@ def test_issuer(testerchain, token):
     assert 30 == token.functions.balanceOf(ursula).call()
     assert balance - 30 == token.functions.balanceOf(issuer.address).call()
 
-    tx = issuer.functions.testMint(0, 500, 500, 10 ** 7).transact({'from': ursula})
+    tx = issuer.functions.testMint(0, 500, 500, 10 ** 4).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert 70 == token.functions.balanceOf(ursula).call()
     assert balance - 70 == token.functions.balanceOf(issuer.address).call()
 
-    tx = issuer.functions.testMint(0, 500, 500, 2 * 10 ** 7).transact({'from': ursula})
+    tx = issuer.functions.testMint(0, 500, 500, 2 * 10 ** 4).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
 
     assert 110 == token.functions.balanceOf(ursula).call()
@@ -141,7 +142,7 @@ def test_verifying_state(testerchain, token):
     assert 2 == contract.functions.miningCoefficient().call()
     assert 2 * 3600 == contract.functions.secondsPerPeriod().call()
     assert 2 == contract.functions.lockedPeriodsCoefficient().call()
-    assert 2 == contract.functions.awardedPeriods().call()
+    assert 2 == contract.functions.rewardedPeriods().call()
     assert period == contract.functions.lastMintedPeriod().call()
     assert 2 * 10 ** 40 == contract.functions.totalSupply().call()
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
@@ -164,7 +165,7 @@ def test_verifying_state(testerchain, token):
     assert 1 == contract.functions.miningCoefficient().call()
     assert 3600 == contract.functions.secondsPerPeriod().call()
     assert 1 == contract.functions.lockedPeriodsCoefficient().call()
-    assert 1 == contract.functions.awardedPeriods().call()
+    assert 1 == contract.functions.rewardedPeriods().call()
     assert period == contract.functions.lastMintedPeriod().call()
     assert 2 * 10 ** 40 == contract.functions.totalSupply().call()
     with pytest.raises((TransactionFailed, ValueError)):

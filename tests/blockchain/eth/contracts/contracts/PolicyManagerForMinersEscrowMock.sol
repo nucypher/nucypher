@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "contracts/MinersEscrow.sol";
@@ -10,20 +10,20 @@ import "contracts/MinersEscrow.sol";
 contract PolicyManagerForMinersEscrowMock {
 
     MinersEscrow public escrow;
-    mapping (address => uint256[]) public nodes;
+    mapping (address => uint16[]) public nodes;
 
     constructor(address, MinersEscrow _escrow) public {
         escrow = _escrow;
     }
 
-    function register(address _node, uint256 _period) external {
+    function register(address _node, uint16 _period) external {
         nodes[_node].push(_period);
     }
 
     /**
     * @notice Update node info
     **/
-    function updateReward(address _node, uint256 _period) external {
+    function updateReward(address _node, uint16 _period) external {
         nodes[_node].push(_period);
     }
 
@@ -37,7 +37,7 @@ contract PolicyManagerForMinersEscrowMock {
     /**
     * @notice Get period info
     **/
-    function getPeriod(address _node, uint256 _index) public view returns (uint256) {
+    function getPeriod(address _node, uint256 _index) public view returns (uint16) {
         return nodes[_node][_index];
     }
 
