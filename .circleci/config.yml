@@ -4,8 +4,9 @@ workflows:
   version: 2
   test:
     jobs:
-      - nucypher-36
       - nucypher-35
+      - nucypher-36
+      - nucypher-37
 
 common: &common
   working_directory: ~/nucypher-build
