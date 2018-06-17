@@ -1,21 +1,20 @@
 import asyncio
-import binascii
+import random
+from collections import OrderedDict
+from collections import deque
 from contextlib import suppress
 from logging import getLogger
 from typing import Dict, ClassVar, Set
 from typing import Union, List
 
-import msgpack
-import random
-from collections import OrderedDict
-from collections import deque
-from twisted.internet import task
-
 import kademlia
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants, default_constant_splitter
+import msgpack
 from kademlia.network import Server
 from kademlia.utils import digest
+from twisted.internet import task
+
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow import constants, default_constant_splitter
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.config.configs import CharacterConfiguration
@@ -29,7 +28,6 @@ from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitte
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
-from web3 import Web3
 
 
 class Character:
@@ -444,7 +442,6 @@ class Character:
         self.ether_address = str(address_bytes, encoding="ascii")
 
 
-
 class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
@@ -823,7 +820,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
             id = None
         # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
         super().attach_dht_server(ksize=ksize, id=digest(id), alpha=alpha, storage=storage)
-        self.attach_rest_server(db_name=self.db_name)
+        self.attach_rest_server()
 
     def dht_listen(self):
         if self.dht_interface is constants.NO_INTERFACE:
@@ -853,11 +850,11 @@ class Ursula(Character, ProxyRESTServer, Miner):
             raise RuntimeError("Must listen before publishing interface information.")
 
         ursula_id = bytes(self.stamp)
-
-        value = self.interface_info_with_metadata()
-        setter = self.dht_server.set(key=ursula_id, value=value)
+        interface_value = self.interface_info_with_metadata()
+        setter = self.dht_server.set(key=ursula_id, value=interface_value)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
+        return interface_value
 
     def work_orders(self, bob=None):
         """
@@ -871,11 +868,3 @@ class Ursula(Character, ProxyRESTServer, Miner):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
-
-    @property
-    def public_address(self):
-        return bytes(self.ether_address, encoding="ascii")
-
-    @public_address.setter
-    def public_address(self, address_bytes):
-        self.ether_address = str(address_bytes, encoding="ascii")

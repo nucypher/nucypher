@@ -109,7 +109,7 @@ class ProxyRESTServer:
         """Implemented on Ursula"""
         raise NotImplementedError
 
-    def attach_rest_server(self, db_name):
+    def attach_rest_server(self):
 
         routes = [
             Route('/kFrag/{hrac_as_hex}',
@@ -134,7 +134,7 @@ class ProxyRESTServer:
         ]
 
         self._rest_app = App(routes=routes)
-        self.start_datastore(db_name)
+        self.start_datastore(self.db_name)
 
     def start_datastore(self, db_name):
         if not db_name:
@@ -144,6 +144,7 @@ class ProxyRESTServer:
         from nucypher.keystore.db import Base
         from sqlalchemy.engine import create_engine
 
+        self.log.info("Starting datastore {}".format(db_name))
         engine = create_engine('sqlite:///{}'.format(db_name))
         Base.metadata.create_all(engine)
         self.datastore = keystore.KeyStore(engine)

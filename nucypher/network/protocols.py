@@ -52,14 +52,14 @@ class NucypherHashProtocol(KademliaProtocol):
         # TODO: This function can use a once-over.
         # TODO: Push the logic of this if branch down.
         if dht_value[:8] == constants.BYTESTRING_IS_URSULA_IFACE_INFO:
-            proper_key = digest(bytes(sender_pubkey_sig))
+            proper_dht_id = digest(bytes(sender_pubkey_sig))
         else:
-            proper_key = digest(
+            proper_dht_id = digest(
                 keccak_digest(bytes(sender_pubkey_sig) + bytes(hrac)))
 
         verified = signature.verify(hrac, sender_pubkey_sig)
 
-        if not verified or not proper_key == dht_key:
+        if not verified or not proper_dht_id == dht_key:
             # Hachidan Kiritsu, it's illegal!
             self.log.warning(
                 "Got request to store illegal k/v: {} / {}".format(dht_key, dht_value))
