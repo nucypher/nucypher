@@ -9,6 +9,7 @@ from constant_sorrow import constants
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.constants import calculate_period_duration
 from nucypher.characters import Ursula
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
@@ -56,7 +57,7 @@ class BlockchainArrangement(Arrangement):
 
         txhash = self.policy_agent.contract.functions.createPolicy(self.id, self.miner.ether_address,
                                                                    self.lock_periods).transact(payload)
-        self.policy_agent.blockchain.wait.for_receipt(txhash)
+        self.policy_agent.blockchain.wait_for_receipt(txhash)
 
         self.publish_transaction = txhash
         self.is_published = True
@@ -112,17 +113,17 @@ class BlockchainPolicy(Policy):
 
             # Select an ether_address: Prefer the selection pool, then unknowns queue
             if ether_addresses:
-                ether_address = ether_addresses.pop()
+                ether_address = bytes(ether_addresses.pop(), encoding="ascii")
             else:
                 ether_address = unknown_addresses.popleft()
 
             try:
                 # Check if this is a known node.
-                selected_ursula = self.alice.known_nodes[ether_address]
+                selected_ursula = self.alice._known_nodes[ether_address]
 
             except KeyError:
                 # Unknown Node
-                self.alice.nodes_to_seek.add(ether_address)  # enter address in learning loop
+                self.alice.learn_about_specific_node(ether_address)  # enter address in learning loop
                 unknown_addresses.append(ether_address)
                 continue
 
@@ -130,11 +131,12 @@ class BlockchainPolicy(Policy):
                 # Known Node
                 found_ursulas.add(selected_ursula)  # We already knew, or just learned about this ursula
 
-        else:
-            spare_addresses = ether_addresses  # Successfully collected and/or found n ursulas
-            self.alice.nodes_to_seek.update((a for a in spare_addresses if a not in self.alice.known_nodes))
+        #  TODO: Figure out how to handle spare addresses.
+        # else:
+        #     spare_addresses = ether_addresses  # Successfully collected and/or found n ursulas
+        #     self.alice.nodes_to_seek.update((a for a in spare_addresses if a not in self.alice.known_nodes))
 
-        return found_ursulas, spare_addresses
+        return found_ursulas
 
     def __consider_arrangements(self, network_middleware, candidate_ursulas: Set[Ursula],
                                 deposit: int, expiration: maya.MayaDT) -> tuple:
@@ -175,16 +177,20 @@ class BlockchainPolicy(Policy):
         selected_addresses = set()
         try:  # Sample by reading from the Blockchain
             actual_sample_quantity = math.ceil(target_sample_quantity * ADDITIONAL_URSULAS)
-            sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity)
+            duration = int(calculate_period_duration(expiration))
+            sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity,
+                                                   duration=duration,
+                                                   )
         except MinerAgent.NotEnoughMiners:
             error = "Cannot create policy with {} arrangements."
             raise self.NotEnoughBlockchainUrsulas(error.format(self.n))
         else:
             selected_addresses.update(sampled_addresses)
 
-        found_ursulas, spare_addresses = self.__find_ursulas(sampled_addresses, target_sample_quantity)
+        found_ursulas = self.__find_ursulas(sampled_addresses, target_sample_quantity)
 
-        candidates = handpicked_ursulas + found_ursulas
+        candidates = handpicked_ursulas
+        candidates.update(found_ursulas)
 
         #
         # Consider Arrangements
@@ -200,6 +206,8 @@ class BlockchainPolicy(Policy):
             # Attempt 2:  Find more ursulas from the spare pile
             remaining_quantity = self.n - len(accepted)
 
+            # TODO: Handle spare Ursulas and try to claw back up to n.
+            assert False
             found_spare_ursulas, remaining_spare_addresses = self.__find_ursulas(spare_addresses, remaining_quantity)
             accepted_spares, rejected_spares = self.__consider_arrangements(network_middleware,
                                                                             candidate_ursulas=found_spare_ursulas,
