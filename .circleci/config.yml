@@ -1,24 +1,77 @@
-version: 2
+version: 2.0
+
+workflows:
+  version: 2
+  test:
+    jobs:
+      - build_dependencies-35
+      - build_dependencies-36
+      - nucypher_tests-35:
+          requires:
+            - build_dependencies-35
+      - nucypher_tests-36:
+          requires:
+            - build_dependencies-36
+
+build_dependencies: &build_dependencies
+  steps:
+    - checkout
+    - run:
+        name: Install Pipenv itself
+        command: pip install pipenv --upgrade
+    - run:
+        name: Install Python dependencies with Pipenv
+        command: |
+          pipenv install --three --dev --skip-lock
+    - run:
+        name: Install Solidity compiler
+        command: |
+          wget "https://github.com/ethereum/solidity/releases/download/${SOLC_VER}/solc-static-linux" -O "$(pipenv --venv)/bin/solc"
+          chmod +x "$(pipenv --venv)/bin/solc"
+        environment:
+          SOLC_VER: "v0.4.24"
+    - save_cache:
+        paths:
+          - "~/.local/share/virtualenvs/"
+        key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}-{{ .Environment.PY_DEP_VERSION }}
+
 jobs:
-    build:
-        working_directory: ~/nucypher-build
-        docker:
-            - image: circleci/python:3.6
-        steps:
-            - checkout
-            - restore_cache:
-                key: deps1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
-            - run:
-                name: Pipenv installation
-                command: |
-                    pip install pipenv --upgrade
-                    pipenv install --dev --three
-            - run:
-                name: Solc installation
-                command: |
-                    wget https://github.com/solidity/releases/download/v0.4.24/solc-static-linux -O "$(pipenv --venv)/bin/solc"
-                    chmod +x "$(pipenv --venv)/bin/solc"
-            - save_cache:
-                key: deps1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
-                paths:
-                    - "$(pipenv --venv)"
+  build_dependencies-35:
+    <<: *build_dependencies
+    working_directory: ~/nucypher-depends-35
+    docker:
+      - image: circleci/python:3.5
+
+  build_dependencies-36:
+    <<: *build_dependencies
+    working_directory: ~/nucypher-depends-36
+    docker:
+      - image: circleci/python:3.6
+
+  nucypher_tests-35:
+    working_directory: ~/nucypher-depends-35
+    docker:
+      - image: circleci/python:3.5
+        environment:
+          PY_DEP_VERSION: "py3.5"
+    steps:
+      - checkout
+      - restore_cache:
+          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}-{{ .Environment.PY_DEP_VERSION }}
+      - run:
+          name: Run The Tests
+          command: pipenv run pytest --cov=nucypher -v
+
+  nucypher_tests-36:
+    working_directory: ~/nucypher-depends-36
+    docker:
+      - image: circleci/python:3.6
+        environment:
+          PY_DEP_VERSION: "py3.6"
+    steps:
+      - checkout
+      - restore_cache:
+          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}-{{ .Environment.PY_DEP_VERSION }}
+      - run:
+          name: Run The Tests
+          command: pipenv run pytest --cov=nucypher -v
