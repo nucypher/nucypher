@@ -1,5 +1,12 @@
 version: 2.0
 
+workflows:
+  version: 2
+  test:
+    jobs:
+      - nucypher-36
+      - nucypher-35
+
 common: &common
   working_directory: ~/nucypher-build
   steps:
@@ -27,20 +34,15 @@ jobs:
     <<: *common
     docker:
       - image: circleci/python:3.6
-    - run:
-        name: Run Python 3.6 Tests
-        command: pipenv run pytest --cov=nucypher -v
+    steps:
+      - run:
+          name: Run Python 3.6 Tests
+          command: pipenv run pytest --cov=nucypher -v
   nucypher-35:
     <<: *common
     docker:
       - image: circleci/python:3.5
-    - run:
-        name: Run Python 3.5 Tests
-        command: pipenv run pytest --cov=nucypher -v
-
-workflows:
-  version: 2
-  test:
-    jobs:
-      - nucypher-36
-      - nucypher-35
+    steps:
+      - run:
+          name: Run Python 3.5 Tests
+          command: pipenv run pytest --cov=nucypher -v
