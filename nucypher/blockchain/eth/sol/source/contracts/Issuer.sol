@@ -1,10 +1,11 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "contracts/NuCypherToken.sol";
 import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
 import "proxy/Upgradeable.sol";
+import "./lib/AdditionalMath.sol";
 
 
 /**
@@ -12,17 +13,18 @@ import "proxy/Upgradeable.sol";
 **/
 contract Issuer is Upgradeable {
     using SafeMath for uint256;
+    using AdditionalMath for uint32;
 
     /// Issuer is initialized with a reserved reward
     event Initialized(uint256 reservedReward);
 
     NuCypherToken public token;
     uint256 public miningCoefficient;
-    uint256 public secondsPerPeriod;
     uint256 public lockedPeriodsCoefficient;
-    uint256 public awardedPeriods;
+    uint32 public secondsPerPeriod;
+    uint16 public rewardedPeriods;
 
-    uint256 public lastMintedPeriod;
+    uint16 public lastMintedPeriod;
     uint256 public totalSupply;
     /**
     * Current supply is used in the mining formula and is stored to prevent different calculation
@@ -38,19 +40,19 @@ contract Issuer is Upgradeable {
     * @notice Constructor sets address of token contract and coefficients for mining
     * @dev Formula for mining in one period
     (totalSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
-    if allLockedPeriods > awardedPeriods then allLockedPeriods = awardedPeriods
+    if allLockedPeriods > rewardedPeriods then allLockedPeriods = rewardedPeriods
     * @param _token Token contract
     * @param _hoursPerPeriod Size of period in hours
     * @param _miningCoefficient Mining coefficient (k2)
     * @param _lockedPeriodsCoefficient Locked blocks coefficient (k1)
-    * @param _awardedPeriods Max periods that will be additionally awarded
+    * @param _rewardedPeriods Max periods that will be additionally rewarded
     **/
     constructor(
         NuCypherToken _token,
-        uint256 _hoursPerPeriod,
+        uint32 _hoursPerPeriod,
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,
-        uint256 _awardedPeriods
+        uint16 _rewardedPeriods
     )
         public
     {
@@ -58,12 +60,12 @@ contract Issuer is Upgradeable {
             _miningCoefficient != 0 &&
             _hoursPerPeriod != 0 &&
             _lockedPeriodsCoefficient != 0 &&
-            _awardedPeriods != 0);
+            _rewardedPeriods != 0);
         token = _token;
         miningCoefficient = _miningCoefficient;
-        secondsPerPeriod = _hoursPerPeriod.mul(1 hours);
+        secondsPerPeriod = _hoursPerPeriod.mul32(1 hours);
         lockedPeriodsCoefficient = _lockedPeriodsCoefficient;
-        awardedPeriods = _awardedPeriods;
+        rewardedPeriods = _rewardedPeriods;
     }
 
     /**
@@ -78,8 +80,8 @@ contract Issuer is Upgradeable {
     /**
     * @return Number of current period
     **/
-    function getCurrentPeriod() public view returns (uint256) {
-        return block.timestamp / secondsPerPeriod;
+    function getCurrentPeriod() public view returns (uint16) {
+        return uint16(block.timestamp / secondsPerPeriod);
     }
 
     /**
@@ -105,10 +107,10 @@ contract Issuer is Upgradeable {
     * @return Amount of minted tokens.
     */
     function mint(
-        uint256 _period,
+        uint16 _period,
         uint256 _lockedValue,
         uint256 _totalLockedValue,
-        uint256 _allLockedPeriods
+        uint16 _allLockedPeriods
     )
         internal returns (uint256 amount)
     {
@@ -121,8 +123,8 @@ contract Issuer is Upgradeable {
 
         //totalSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2) -
         //currentSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
-        uint256 allLockedPeriods = (_allLockedPeriods <= awardedPeriods ?
-            _allLockedPeriods : awardedPeriods)
+        uint256 allLockedPeriods = uint256(_allLockedPeriods <= rewardedPeriods ?
+            _allLockedPeriods : rewardedPeriods)
             .add(lockedPeriodsCoefficient);
         uint256 denominator = _totalLockedValue.mul(miningCoefficient);
         amount =
@@ -158,10 +160,10 @@ contract Issuer is Upgradeable {
     function verifyState(address _testTarget) public onlyOwner {
         require(address(delegateGet(_testTarget, "token()")) == address(token));
         require(uint256(delegateGet(_testTarget, "miningCoefficient()")) == miningCoefficient);
-        require(uint256(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
         require(uint256(delegateGet(_testTarget, "lockedPeriodsCoefficient()")) == lockedPeriodsCoefficient);
-        require(uint256(delegateGet(_testTarget, "awardedPeriods()")) == awardedPeriods);
-        require(uint256(delegateGet(_testTarget, "lastMintedPeriod()")) == lastMintedPeriod);
+        require(uint32(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
+        require(uint16(delegateGet(_testTarget, "rewardedPeriods()")) == rewardedPeriods);
+        require(uint16(delegateGet(_testTarget, "lastMintedPeriod()")) == lastMintedPeriod);
         require(uint256(delegateGet(_testTarget, "currentSupply1()")) == currentSupply1);
         require(uint256(delegateGet(_testTarget, "currentSupply2()")) == currentSupply2);
         require(uint256(delegateGet(_testTarget, "totalSupply()")) == totalSupply);
@@ -173,6 +175,6 @@ contract Issuer is Upgradeable {
         miningCoefficient = issuer.miningCoefficient();
         secondsPerPeriod = issuer.secondsPerPeriod();
         lockedPeriodsCoefficient = issuer.lockedPeriodsCoefficient();
-        awardedPeriods = issuer.awardedPeriods();
+        rewardedPeriods = issuer.rewardedPeriods();
     }
 }

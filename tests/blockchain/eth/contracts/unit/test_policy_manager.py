@@ -60,9 +60,9 @@ def policy_manager(testerchain, escrow, request):
     return contract
 
 
-policy_id = os.urandom(20)
-policy_id_2 = os.urandom(20)
-policy_id_3 = os.urandom(20)
+policy_id = os.urandom(16)
+policy_id_2 = os.urandom(16)
+policy_id_3 = os.urandom(16)
 rate = 20
 number_of_periods = 10
 value = rate * number_of_periods

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "contracts/Issuer.sol";
@@ -14,10 +14,10 @@ contract IssuerV2Mock is Issuer {
 
     constructor(
         NuCypherToken _token,
-        uint256 _hoursPerPeriod,
+        uint32 _hoursPerPeriod,
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,
-        uint256 _awardedPeriods
+        uint16 _rewardedPeriods
     )
         public
         Issuer(
@@ -25,7 +25,7 @@ contract IssuerV2Mock is Issuer {
             _hoursPerPeriod,
             _miningCoefficient,
             _lockedPeriodsCoefficient,
-            _awardedPeriods
+            _rewardedPeriods
         )
     {
     }
