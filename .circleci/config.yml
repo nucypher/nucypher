@@ -6,6 +6,8 @@ workflows:
     jobs:
       - nucypher-35
       - nucypher-36
+      - nucypher-slow-tests-35
+      - nucypher-slow-tests-36
 
 common: &common
   working_directory: ~/nucypher-build
@@ -60,8 +62,8 @@ contract_tests: &contract_tests
           - "$(pipenv --venv)"
         key: deps1-{{ .Branch }}-{{ checksum "Pipfile" }}
     - run:
-        name: Run The Tests
-        command: pipenv run pytest --cov=nucypher -v
+        name: Run The Slow Tests
+        command: pipenv run pytest --cov=nucypher -v --run-slow
 
 jobs:
   nucypher-35:
@@ -72,7 +74,11 @@ jobs:
     <<: *common
     docker:
       - image: circleci/python:3.6
-  nucypher-37:
-    <<: *common
+  nucypher-slow-tests-35:
+    <<: *contract_tests
     docker:
-      - image: circleci/python:3.7
+      - image: circlecio/python:3.5
+  nucypher-slow-tests-36:
+    <<: *contract_tests
+    docker:
+      - image: circleci/python:3.6
