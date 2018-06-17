@@ -5,15 +5,15 @@ common: &common
   steps:
     - checkout
     - restore_cache:
-        keys: deps1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+        keys: deps1-{{ .Branch }}-{{ checksum "Pipfile" }}
     - run:
-        name: Install pipenv itself
+        name: Install Pipenv Itself
         command: pip install pipenv --upgrade
     - run:
-        name: Install python dependencies
+        name: Install Python Dependencies with Pipenv
         command: pipenv install --dev --three --skip-lock
     - run:
-        name: Solc installation
+        name: Install Solidity Compiler
         command: |
             wget https://github.com/ethereum/solidity/releases/download/v0.4.24/solc-static-linux -O "$(pipenv --venv)/bin/solc"
             chmod +x "$(pipenv --venv)/bin/solc"
@@ -27,13 +27,19 @@ jobs:
     <<: *common
     docker:
       - image: circleci/python:3.6
+    - run:
+        name: Run Python 3.6 Tests
+        command: pipenv run pytest --cov=nucypher -v
   nucypher-35:
     <<: *common
     docker:
       - image: circleci/python:3.5
+    - run:
+        name: Run Python 3.5 Tests
+        command: pipenv run pytest --cov=nucypher -v
 
 workflows:
-  version: 1
+  version: 2
   test:
     jobs:
       - nucypher-36
