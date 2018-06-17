@@ -35,7 +35,7 @@ common: &common
         name: Run The Tests
         command: pipenv run pytest --cov=nucypher -v
 
-common: &common
+contract_tests: &contract_tests
   working_directory: ~/nucypher-build
   steps:
     - checkout
