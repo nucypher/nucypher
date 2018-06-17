@@ -217,6 +217,3 @@ class BlockchainPolicy(Policy):
 
             if len(accepted) < self.n:
                 raise Exception("Selected Ursulas rejected too many arrangements")  # TODO: Better exception
-
-        self._accepted_arrangements.update(accepted)
-        self._rejected_arrangements.append(rejected)
