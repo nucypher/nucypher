@@ -7,9 +7,7 @@ workflows:
       - nucypher-36
       - nucypher-35
 
-common: &common
-  working_directory: ~/nucypher-build
-  steps: &common-setup
+common-steps: &common-setup
     - checkout
     - restore_cache:
         keys: deps1-{{ .Branch }}-{{ checksum "Pipfile" }}
@@ -29,6 +27,10 @@ common: &common
           - "$(pipenv --venv)"
         key: deps1-{{ .Branch }}-{{ checksum "Pipfile" }}
 
+common: &common
+  working_directory: ~/nucypher-build
+
+
 jobs:
   nucypher-36:
     <<: *common
@@ -43,5 +45,3 @@ jobs:
     <<: *common
     docker:
       - image: circleci/python:3.5
-    steps:
-
