@@ -6,7 +6,6 @@ workflows:
     jobs:
       - nucypher-35
       - nucypher-36
-      - nucypher-37
 
 common: &common
   working_directory: ~/nucypher-build
@@ -19,7 +18,10 @@ common: &common
         command: pip install pipenv --upgrade
     - run:
         name: Install Python Dependencies with Pipenv
-        command: pipenv install --dev --three --skip-lock
+        command: |
+          pipenv install --dev --three --skip-lock
+          pipenv uninstall eth-hash[pycryptodome] --skip-lock
+          pipenv install eth-hash[pysha3] --skip-lock
     - run:
         name: Install Solidity Compiler
         command: |
@@ -30,7 +32,35 @@ common: &common
           - "$(pipenv --venv)"
         key: deps1-{{ .Branch }}-{{ checksum "Pipfile" }}
     - run:
-        name: Run Python 3.6 Tests
+        name: Run The Tests
+        command: pipenv run pytest --cov=nucypher -v
+
+common: &common
+  working_directory: ~/nucypher-build
+  steps:
+    - checkout
+    - restore_cache:
+        keys: deps1-{{ .Branch }}-{{ checksum "Pipfile" }}
+    - run:
+        name: Install Pipenv Itself
+        command: pip install pipenv --upgrade
+    - run:
+        name: Install Python Dependencies with Pipenv
+        command: |
+          pipenv install --dev --three --skip-lock
+          pipenv uninstall eth-hash[pycryptodome] --skip-lock
+          pipenv install eth-hash[pysha3] --skip-lock
+    - run:
+        name: Install Solidity Compiler
+        command: |
+            wget https://github.com/ethereum/solidity/releases/download/v0.4.24/solc-static-linux -O "$(pipenv --venv)/bin/solc"
+            chmod +x "$(pipenv --venv)/bin/solc"
+    - save_cache:
+        paths:
+          - "$(pipenv --venv)"
+        key: deps1-{{ .Branch }}-{{ checksum "Pipfile" }}
+    - run:
+        name: Run The Tests
         command: pipenv run pytest --cov=nucypher -v
 
 jobs:
