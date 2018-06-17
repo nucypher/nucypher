@@ -13,23 +13,6 @@ from nucypher.blockchain.eth.agents import MinerAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherTokenDeployer
 
 
-class MockTokenAgent(NucypherTokenAgent):
-
-    def token_airdrop(self, amount: int, origin: str, addresses: List[str]):
-        """Airdrops tokens from creator address to all other addresses!"""
-
-        def txs():
-            for address in addresses:
-                txhash = self.contract.functions.transfer(address, amount).transact({'from': origin})
-                yield txhash
-
-        receipts = list()
-        for tx in txs():    # One at a time
-            receipt = self.blockchain.wait_for_receipt(tx)
-            receipts.append(receipt)
-        return receipts
-
-
 class MockMinerAgent(MinerAgent):
     """MinerAgent with faked config subclass"""
 
