@@ -4,18 +4,36 @@ workflows:
   version: 2
   test:
     jobs:
-      - build_dependencies-35
-      - build_dependencies-36
-      - contract_unit_tests-36:
+      - bundle_dependencies-36
+      - contract_unit:
           requires:
-            - build_dependencies-36
-      - intercontract_integration_tests:
+            - bundle_dependencies-36
+      - intercontract_integration:
           requires:
-            - contract_unit_tests-36
+            - contract_unit
+      - crypto_unit:
+          requires:
+              - bundle_dependencies-36
+      - network_unit:
+          requires:
+              - bundle_dependencies-36
+      - keystore_unit:
+          requires:
+              - bundle_dependencies-36
+      - blockchain_client_unit:
+          requires:
+              - bundle_dependencies-36
+      - character:
+          requires:
+              - crypto_unit
+              - network_unit
+              - keystore_unit
 
-build_dependencies: &build_dependencies
+bundle_dependencies: &bundle_dependencies
   steps:
     - checkout
+    - restore_cache:
+        key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
     - run:
         name: Install Pipenv itself
         command: pip install pipenv --upgrade
@@ -33,46 +51,109 @@ build_dependencies: &build_dependencies
     - save_cache:
         paths:
           - "~/.local/share/virtualenvs/"
-        key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}-{{ .Environment.PY_DEP_VERSION }}
+        key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
 
 jobs:
-  build_dependencies-35:
-    <<: *build_dependencies
-    working_directory: ~/nucypher-depends-35
-    docker:
-      - image: circleci/python:3.5
-
-  build_dependencies-36:
-    <<: *build_dependencies
-    working_directory: ~/nucypher-depends-36
+  bundle_dependencies-36:
+    <<: *bundle_dependencies
+    working_directory: ~/nucypher-depends
     docker:
       - image: circleci/python:3.6
 
-  contract_unit_tests-36:
-    working_directory: ~/nucypher-depends-36
+  contract_unit:
+    parallelism: 3
+    working_directory: ~/nucypher-depends
     docker:
       - image: circleci/python:3.6
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}-{{ .Environment.PY_DEP_VERSION }}
+          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
       - run:
-          name: Ethereum Contract Unit Test
+          name: Ethereum Contract Unit Tests
           command: |
-            pipenv run pytest --cov=nucypher -v --runslow nucypher/tests/blockchain/eth/contracts/unit
+            pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml --cov=nucypher -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/unit/test_*.py | circleci tests split --split-by=timings)
+      - store_test_results:
+          path: ./reports/pytest/
 
-  intercontract_integration_tests-36:
-    working_directory: ~/nucypher-depends-36
+
+  intercontract_integration:
+    working_directory: ~/nucypher-depends
     docker:
       - image: circleci/python:3.6
-        environment:
-          PY_DEP_VERSION: "py3.6"
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}-{{ .Environment.PY_DEP_VERSION }}
+          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
       - run:
           name: Ethereum Inter-Contract Integration Test
           command: |
-            pipenv run pytest --cov=nucypher -v --runslow nucypher/tests/blockchain/eth/contracts/integration
+            pipenv run pytest --cov=nucypher -v --runslow tests/blockchain/eth/contracts/integration
+      - store_test_results:
+          path: ~/nucypher-depends/timing-results/
 
+
+  crypto_unit:
+    working_directory: ~/nucypher-depends
+    docker:
+      - image: circleci/python:3.6
+    steps:
+      - checkout
+      - restore_cache:
+          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+      - run:
+          name: Crypto Character Tests
+          command: |
+            pipenv run pytest --cov=nucypher -v --runslow tests/crypto
+
+  network_unit:
+    working_directory: ~/nucypher-depends
+    docker:
+      - image: circleci/python:3.6
+    steps:
+      - checkout
+      - restore_cache:
+          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+      - run:
+          name: Network Tests
+          command: |
+            pipenv run pytest --cov=nucypher -v --runslow tests/network
+
+  keystore_unit:
+    working_directory: ~/nucypher-depends
+    docker:
+      - image: circleci/python:3.6
+    steps:
+      - checkout
+      - restore_cache:
+          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+      - run:
+          name: Keystore Tests
+          command: |
+            pipenv run pytest --cov=nucypher -v --runslow tests/keystore
+
+  character:
+    working_directory: ~/nucypher-depends
+    docker:
+      - image: circleci/python:3.6
+    steps:
+      - checkout
+      - restore_cache:
+          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+      - run:
+          name: Character Tests
+          command: |
+            pipenv run pytest --cov=nucypher -v --runslow tests/characters
+
+  blockchain_client_unit:
+    working_directory: ~/nucypher-depends
+    docker:
+      - image: circleci/python:3.6
+    steps:
+      - checkout
+      - restore_cache:
+          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+      - run:
+          name: Blockchain Client Tests
+          command: |
+            pipenv run pytest --cov=nucypher -v --runslow tests/blockchain/eth/client
