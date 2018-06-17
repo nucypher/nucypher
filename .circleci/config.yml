@@ -11,7 +11,7 @@ common: &common
         command: pip install pipenv --upgrade
     - run:
         name: Install python dependencies
-        command: pipenv install --dev --three
+        command: pipenv install --dev --three --skip-lock
     - run:
         name: Solc installation
         command: |
