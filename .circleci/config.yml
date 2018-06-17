@@ -33,7 +33,7 @@ build_dependencies: &build_dependencies
     - save_cache:
         paths:
           - "~/.local/share/virtualenvs/"
-        key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}-{{ .Environment.PY_VER }}
+        key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}-{{ .Environment.PY_DEP_VERSION }}
 
 jobs:
   build_dependencies-35:
@@ -53,11 +53,11 @@ jobs:
     docker:
       - image: circleci/python:3.5
         environment:
-          PY_VER: "py3.5"
+          PY_DEP_VERSION: "py3.5"
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}-{{ .Environment.PY_VER }}
+          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}-{{ .Environment.PY_DEP_VERSION }}
       - run:
           name: Run The Tests
           command: pipenv run pytest --cov=nucypher -v
@@ -67,11 +67,11 @@ jobs:
     docker:
       - image: circleci/python:3.6
         environment:
-          PY_VER: "py3.6"
+          PY_DEP_VERSION: "py3.6"
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}-{{ .Environment.PY_VER }}
+          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}-{{ .Environment.PY_DEP_VERSION }}
       - run:
           name: Run The Tests
           command: pipenv run pytest --cov=nucypher -v
