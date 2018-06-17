@@ -20,7 +20,7 @@ common: &common
     - save_cache:
         paths:
           - "$(pipenv --venv)"
-        key: deps1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+        key: deps1-{{ .Branch }}-{{ checksum "Pipfile" }}
 
 jobs:
   nucypher-36:
