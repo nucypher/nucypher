@@ -272,8 +272,9 @@ class Character:
             header, sig, pubkey, ether_address, rest_info, dht_info = node_meta
             message = ether_address + rest_info + dht_info
 
-            if not pubkey in self._known_nodes:
+            if not ether_address in self._known_nodes:
                 if sig.verify(message, pubkey):
+                    self.log.info("Prevously unknown node: {}".format(ether_address))
 
                     # TOOD: Is this too eager?  Does it make sense to only learn later, when we want to make an Arrangement with this node?
                     ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
