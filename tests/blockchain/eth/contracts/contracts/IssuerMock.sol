@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "contracts/Issuer.sol";
@@ -12,10 +12,10 @@ contract IssuerMock is Issuer {
 
     constructor(
         NuCypherToken _token,
-        uint256 _hoursPerPeriod,
+        uint32 _hoursPerPeriod,
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,
-        uint256 _awardedPeriods
+        uint16 _rewardedPeriods
     )
         public
         Issuer(
@@ -23,16 +23,16 @@ contract IssuerMock is Issuer {
             _hoursPerPeriod,
             _miningCoefficient,
             _lockedPeriodsCoefficient,
-            _awardedPeriods
+            _rewardedPeriods
         )
     {
     }
 
     function testMint(
-        uint256 _period,
+        uint16 _period,
         uint256 _lockedValue,
         uint256 _totalLockedValue,
-        uint256 _allLockedPeriods
+        uint16 _allLockedPeriods
     )
         public returns (uint256 amount)
     {

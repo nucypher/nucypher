@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "zeppelin/math/SafeMath.sol";
@@ -9,6 +9,14 @@ import "zeppelin/math/SafeMath.sol";
 **/
 library AdditionalMath {
     using SafeMath for uint256;
+
+    function max16(uint16 a, uint16 b) internal pure returns (uint16) {
+        return a >= b ? a : b;
+    }
+
+    function min16(uint16 a, uint16 b) internal pure returns (uint16) {
+        return a < b ? a : b;
+    }
 
     /**
     * @notice Division and ceil
@@ -57,4 +65,32 @@ library AdditionalMath {
         }
     }
 
+    /**
+    * @dev Multiplies two numbers, throws on overflow.
+    */
+    function mul32(uint32 a, uint32 b) internal pure returns (uint32) {
+        if (a == 0) {
+            return 0;
+        }
+        uint32 c = a * b;
+        assert(c / a == b);
+        return c;
+    }
+
+    /**
+    * @dev Adds two numbers, throws on overflow.
+    */
+    function add16(uint16 a, uint16 b) internal pure returns (uint16) {
+        uint16 c = a + b;
+        assert(c >= a);
+        return c;
+    }
+
+    /**
+    * @dev Subtracts two numbers, throws on overflow (i.e. if subtrahend is greater than minuend).
+    */
+    function sub16(uint16 a, uint16 b) internal pure returns (uint16) {
+        assert(b <= a);
+        return a - b;
+    }
 }
