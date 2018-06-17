@@ -1,24 +1,84 @@
-version: 2
+version: 2.0
+
+workflows:
+  version: 2
+  test:
+    jobs:
+      - nucypher-35
+      - nucypher-36
+      - nucypher-slow-tests-35
+      - nucypher-slow-tests-36
+
+common: &common
+  working_directory: ~/nucypher-build
+  steps:
+    - checkout
+    - restore_cache:
+        keys: deps1-{{ .Branch }}-{{ checksum "Pipfile" }}
+    - run:
+        name: Install Pipenv Itself
+        command: pip install pipenv --upgrade
+    - run:
+        name: Install Python Dependencies with Pipenv
+        command: |
+          pipenv install --dev --three --skip-lock
+          pipenv uninstall eth-hash[pycryptodome]
+          pipenv install eth-hash[pysha3] --skip-lock
+    - run:
+        name: Install Solidity Compiler
+        command: |
+            wget https://github.com/ethereum/solidity/releases/download/v0.4.24/solc-static-linux -O "$(pipenv --venv)/bin/solc"
+            chmod +x "$(pipenv --venv)/bin/solc"
+    - save_cache:
+        paths:
+          - "$(pipenv --venv)"
+        key: deps1-{{ .Branch }}-{{ checksum "Pipfile" }}
+    - run:
+        name: Run The Tests
+        command: pipenv run pytest --cov=nucypher -v
+
+contract_tests: &contract_tests
+  working_directory: ~/nucypher-build
+  steps:
+    - checkout
+    - restore_cache:
+        keys: deps1-{{ .Branch }}-{{ checksum "Pipfile" }}
+    - run:
+        name: Install Pipenv Itself
+        command: pip install pipenv --upgrade
+    - run:
+        name: Install Python Dependencies with Pipenv
+        command: |
+          pipenv install --dev --three --skip-lock
+          pipenv uninstall eth-hash[pycryptodome] --skip-lock
+          pipenv install eth-hash[pysha3] --skip-lock
+    - run:
+        name: Install Solidity Compiler
+        command: |
+            wget https://github.com/ethereum/solidity/releases/download/v0.4.24/solc-static-linux -O "$(pipenv --venv)/bin/solc"
+            chmod +x "$(pipenv --venv)/bin/solc"
+    - save_cache:
+        paths:
+          - "$(pipenv --venv)"
+        key: deps1-{{ .Branch }}-{{ checksum "Pipfile" }}
+    - run:
+        name: Run The Slow Tests
+        command: pipenv run pytest --cov=nucypher -v --run-slow
+
 jobs:
-    build:
-        working_directory: ~/nucypher-build
-        docker:
-            - image: circleci/python:3.6
-        steps:
-            - checkout
-            - restore_cache:
-                key: deps1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
-            - run:
-                name: Pipenv installation
-                command: |
-                    pip install pipenv --upgrade
-                    pipenv install --dev --three
-            - run:
-                name: Solc installation
-                command: |
-                    wget https://github.com/solidity/releases/download/v0.4.24/solc-static-linux -O "$(pipenv --venv)/bin/solc"
-                    chmod +x "$(pipenv --venv)/bin/solc"
-            - save_cache:
-                key: deps1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
-                paths:
-                    - "$(pipenv --venv)"
+  nucypher-35:
+    <<: *common
+    docker:
+      - image: circleci/python:3.5
+  nucypher-36:
+    <<: *common
+    docker:
+      - image: circleci/python:3.6
+  nucypher-slow-tests-35:
+    <<: *contract_tests
+    docker:
+      - image: circleci/python:3.5
+  nucypher-slow-tests-36:
+    <<: *contract_tests
+    docker:
+      - image: circleci/python:3.6

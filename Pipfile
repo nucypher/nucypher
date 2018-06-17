@@ -18,25 +18,25 @@ bidict = "*"
 py_ecc = "*"
 SQLAlchemy = "*"
 apistar = "*"
-mypy = "*"
 maya = "*"
 pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "nucypher-depend"}
 requests = "*"
-hendrix = {git = "https://github.com/hendrix/hendrix", ref = "tags/3.0.0rc1"}
+hendrix = "==3.0.0"
 constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "nucypher-depend"}
 bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git", ref = "nucypher-depend"}
 appdirs = "*"
+web3 = "==4.3.0"
 
 [dev-packages]
-pytest-mypy = "*"
 pytest = "*"
+mypy = "*"
+pytest-mypy = "*"
 codecov = "*"
 coverage = "*"
 pytest-cov = "*"
 py-solc = "*"
 py-evm = "==0.2.0a18"
 eth-tester = "==0.1.0b26"
-web3 = "==4.3.0"
 py-geth = "*"
 
 [pipenv]
