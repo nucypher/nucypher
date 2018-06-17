@@ -77,7 +77,7 @@ jobs:
   nucypher-slow-tests-35:
     <<: *contract_tests
     docker:
-      - image: circlecio/python:3.5
+      - image: circleci/python:3.5
   nucypher-slow-tests-36:
     <<: *contract_tests
     docker:
