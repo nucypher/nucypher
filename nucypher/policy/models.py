@@ -57,7 +57,7 @@ class Arrangement:
 
     def __bytes__(self):
         return bytes(self.alice.stamp) + bytes(
-            self.hrac) + self.expiration.iso8601().encode()
+            self.hrac()) + self.expiration.iso8601().encode()
 
     def id(self):
         if not self.ursula:
@@ -182,13 +182,13 @@ class Policy:
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
         # TODO: Clean this up.  See #172.
-        map_payload = signature_for_ursula + self.alice.stamp + self.hrac() + tmap_message_kit.to_bytes()
+        map_payload = signature_for_ursula + self.alice.stamp + self.alice.public_address + self.hrac() + tmap_message_kit.to_bytes()
         map_id = self.treasure_map_dht_key()
 
-        if not self.alice.known_nodes:
+        if not self.alice._known_nodes:
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
 
-        for node in self.alice.known_nodes.values():
+        for node in self.alice._known_nodes.values():
             response = network_middleare.push_treasure_map_to_node(node, map_id,
                                                                    constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
             # TODO: Do something here based on success or failure
@@ -205,7 +205,7 @@ class Policy:
 
         while len(self._enacted_arrangements) > 0:
             kfrag, arrangement = self._enacted_arrangements.popitem()
-            arrangement.publish(arrangement.kfrag)  # TODO
+            arrangement.publish()
 
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 

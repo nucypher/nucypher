@@ -277,18 +277,19 @@ class ProxyRESTServer:
         # TODO: This function is the epitome of #172.
         treasure_map_id = binascii.unhexlify(treasure_map_id_as_hex)
 
-        header, signature_for_ursula, pubkey_sig_alice, hrac, tmap_message_kit = \
+        header, signature_for_ursula, pubkey_sig_alice, ether_address, hrac, tmap_message_kit = \
             dht_with_hrac_splitter(request.body, return_remainder=True)
         # TODO: This next line is possibly the worst in the entire codebase at the moment.  #172.
         # Also TODO: TTL?
         do_store = self.dht_server.protocol.determine_legality_of_dht_key(
-                    signature_for_ursula, pubkey_sig_alice, tmap_message_kit,
+                    signature_for_ursula, pubkey_sig_alice,
                     hrac, digest(treasure_map_id), request.body)
         if do_store:
             # TODO: Stop storing things in the protocol storage.  Do this better.  #227
             # TODO: Propagate to other nodes.  #235
+            # TODO: Store the ether address?
             self.dht_server.protocol.storage[digest(treasure_map_id)] = request.body
-            return # TODO: Proper response here.
+            return  # TODO: Proper response here.
         else:
             # TODO: Make this a proper 500 or whatever.
             assert False
