@@ -20,7 +20,7 @@ common: &common
         name: Install Python Dependencies with Pipenv
         command: |
           pipenv install --dev --three --skip-lock
-          pipenv uninstall eth-hash[pycryptodome] --skip-lock
+          pipenv uninstall eth-hash[pycryptodome]
           pipenv install eth-hash[pysha3] --skip-lock
     - run:
         name: Install Solidity Compiler
