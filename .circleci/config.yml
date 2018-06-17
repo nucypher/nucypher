@@ -1,24 +1,40 @@
-version: 2
+version: 2.0
+
+common: &common
+  working_directory: ~/nucypher-build
+  steps:
+    - checkout
+    - restore_cache:
+        keys: deps1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+    - run:
+        name: Install pipenv itself
+        command: pip install pipenv --upgrade
+    - run:
+        name: Install python dependencies
+        command: pipenv install --dev --three
+    - run:
+        name: Solc installation
+        command: |
+            wget https://github.com/ethereum/solidity/releases/download/v0.4.24/solc-static-linux -O "$(pipenv --venv)/bin/solc"
+            chmod +x "$(pipenv --venv)/bin/solc"
+    - save_cache:
+        paths:
+          - "$(pipenv --venv)"
+        key: deps1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+
 jobs:
-    build:
-        working_directory: ~/nucypher-build
-        docker:
-            - image: circleci/python:3.6
-        steps:
-            - checkout
-            - restore_cache:
-                key: deps1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
-            - run:
-                name: Pipenv installation
-                command: |
-                    pip install pipenv --upgrade
-                    pipenv install --dev --three
-            - run:
-                name: Solc installation
-                command: |
-                    wget https://github.com/solidity/releases/download/v0.4.24/solc-static-linux -O "$(pipenv --venv)/bin/solc"
-                    chmod +x "$(pipenv --venv)/bin/solc"
-            - save_cache:
-                key: deps1-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
-                paths:
-                    - "$(pipenv --venv)"
+  nucypher-36:
+    <<: *common
+    docker:
+      - image: circleci/python:3.6
+  nucypher-35:
+    <<: *common
+    docker:
+      - image: circleci/python:3.5
+
+workflows:
+  version: 1
+  test:
+    jobs:
+      - nucypher-36
+      - nucypher-35
