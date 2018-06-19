@@ -139,10 +139,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, bob,
     assert bytes(the_cfrag)[:CapsuleFrag.expected_bytes_length()] == bytes(the_correct_cfrag)[
                                                                      :CapsuleFrag.expected_bytes_length()]  # It's the correct cfrag!
 
-    assert the_correct_cfrag.verify_correctness(capsule,
-                                                delegating_pubkey=enacted_policy.public_key,
-                                                signing_pubkey=alice.stamp.as_umbral_pubkey(),
-                                                receiving_pubkey=bob.public_key(EncryptingPower))
+    assert the_correct_cfrag.verify_correctness(capsule)
 
     # Now we'll show that Ursula saved the correct WorkOrder.
     work_orders_from_bob = ursula.work_orders(bob=bob)
