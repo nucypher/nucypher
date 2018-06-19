@@ -3,11 +3,12 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
-[packages]
 
-# Install cryptography wheels from pyUmbral github for now.
-cryptography35_linux = { file="https://github.com/nucypher/pyUmbral/blob/master/wheelhouse/cryptography-2.3.dev1-cp35-cp35m-linux_x86_64.whl?raw=true", markers="python_version >= '3.5' and python_version < '3.6' and platform_system == 'Linux'"}
-cryptography36_linux = { file="https://github.com/nucypher/pyUmbral/blob/master/wheelhouse/cryptography-2.3.dev1-cp36-cp36m-linux_x86_64.whl?raw=true", markers="python_version >= '3.6' and python_version < '3.7' and platform_system == 'Linux'"}
+[packages]
+# Wheels for cryptography until the next release.
+cryptography35_linux = { file='./wheelhouse/cryptography-2.3.dev1-cp35-cp35m-linux_x86_64.whl', markers="python_version >= '3.5' and python_version < '3.6' and platform_system == 'Linux'"}
+cryptography36_linux = { file='./wheelhouse/cryptography-2.3.dev1-cp36-cp36m-linux_x86_64.whl', markers="python_version >= '3.6' and python_version < '3.7' and platform_system == 'Linux'"}
+cryptography36_darwin = { file='./wheelhouse/cryptography-2.3.dev1-cp36-cp36m-macosx_10_13_x86_64.whl', markers="python_version >= '3.6' and python_version < '3.7' and platform_system == 'Darwin'"}
 
 
 rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "nucypher-depend"}
@@ -18,25 +19,25 @@ bidict = "*"
 py_ecc = "*"
 SQLAlchemy = "*"
 apistar = "*"
-mypy = "*"
-pytest-mypy = "*"
 maya = "*"
 pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "nucypher-depend"}
 requests = "*"
-hendrix = {git = "https://github.com/hendrix/hendrix", ref = "tags/3.0.0rc1"}
+hendrix = "==3.0.0"
 constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "nucypher-depend"}
 bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git", ref = "nucypher-depend"}
 appdirs = "*"
+web3 = "==4.3.0"
 
 [dev-packages]
 pytest = "*"
+mypy = "*"
+pytest-mypy = "*"
 codecov = "*"
 coverage = "*"
 pytest-cov = "*"
 py-solc = "*"
 py-evm = "==0.2.0a18"
 eth-tester = "==0.1.0b26"
-web3 = "==4.2.1"
 py-geth = "*"
 
 [pipenv]
