@@ -4,63 +4,53 @@ from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
 def test_registrar_object(tempfile_path):
+
+    with pytest.raises(EthereumContractRegistry.RegistryError):
+        bad_registrar = EthereumContractRegistry(registry_filepath='/fake/file/path/registry.json')
+        bad_registrar.search(contract_address='0xdeadbeef')
+
     # Tests everything is as it should be when initially created
-    test_registrar = EthereumContractRegistry(registrar_filepath=tempfile_path)
-    assert test_registrar._chain_name == 'tester'
+    test_registrar = EthereumContractRegistry(registry_filepath=tempfile_path)
 
     should_be_empty = test_registrar._EthereumContractRegistry__read()
-    assert should_be_empty['tester'] == {}
-
-    contains_registrar = EthereumContractRegistry.get_registrars(tempfile_path)
-    assert isinstance(contains_registrar['tester'], EthereumContractRegistry)
+    assert should_be_empty == []
 
     # Test contract enrollment and dump_chain
+    test_name = 'TestContract'
     test_addr = '0xDEADBEEF'
     test_abi = ['fake', 'data']
-    test_registrar.enroll(test_addr, test_abi)
 
-    chain_data = test_registrar.dump_chain()
-    assert test_addr in chain_data
-    assert chain_data[test_addr]['addr'] == test_addr
-    assert chain_data[test_addr]['abi'] == test_abi
+    test_registrar.enroll(contract_name=test_name,
+                          contract_address=test_addr,
+                          contract_abi=test_abi)
 
-    # Test dump_contract via identifier
-    contract_by_name = test_registrar.dump_contract(test_addr)
-    assert contract_by_name['addr'] == test_addr
-    assert contract_by_name['abi'] == test_abi
+    # Search by name...
+    contract_records = test_registrar.search(contract_name=test_name)
+    assert len(contract_records) == 1, 'More than one record for {}'.format(test_name)
+    assert len(contract_records[0]) == 3, 'Registry record is the wrong length'
+    name, address, abi = contract_records[0]
 
-    contract_by_addr = test_registrar.dump_contract(test_addr)
-    assert contract_by_addr['addr'] == test_addr
-    assert contract_by_addr['abi'] == test_abi
+    assert name == test_name
+    assert address == test_addr
+    assert abi == test_abi
 
-    assert contract_by_name == contract_by_addr
+    # ...or by address
+    contract_record = test_registrar.search(contract_address=test_addr)
+    name, address, abi = contract_record
 
-    # Test enrolling a dispatcher
-    new_test_addr = '0xTESTDISPATCHER'
-    new_test_abi = ['dispatch', 'test', 'info']
-    new_test_name = 'TestNameDispatcher'
-    new_test_target_addr = '0xTARGET'
-    test_registrar.enroll(new_test_addr, new_test_abi, new_test_name, new_test_target_addr)
+    assert name == test_name
+    assert address == test_addr
+    assert abi == test_abi
 
-    contract_by_name = test_registrar.lookup_contract(new_test_name)
-    assert contract_by_name['addr'] == new_test_addr
-    assert contract_by_name['abi'] == new_test_abi
-    assert contract_by_name['name'] == new_test_name
-    assert contract_by_name['target_addr'] == new_test_target_addr
-
-    # Check that it raises an error
+    # Check that searching for an unknown contract raises
     with pytest.raises(EthereumContractRegistry.UnknownContract):
-        test_registrar.lookup_contract('this will not exist')
+        test_registrar.search(contract_name='this does not exist')
 
-    # Test new chain via new registrar object
-    new_chain_name = 'not_tester'
-    new_chain_registrar = EthereumContractRegistry(chain_name=new_chain_name, registrar_filepath=tempfile_path)
-    chains = EthereumContractRegistry.get_registrars(tempfile_path)
-    assert new_chain_name not in chains # Not written yet, shouldn't be there
+    current_dataset = test_registrar._EthereumContractRegistry__read()
+    # Corrupt the registry with a duplicate address
+    current_dataset.append([test_name, test_addr, test_abi])
+    test_registrar._EthereumContractRegistry__write()
 
-    new_chain_registrar.enroll(new_test_addr, test_abi)
-    updated_chains = EthereumContractRegistry.get_registrars(tempfile_path)
-    assert new_chain_name in updated_chains and 'tester' in updated_chains
-
-    with pytest.raises(EthereumContractRegistry.UnknownContract):
-        test_registrar.dump_contract('This should not exist')
+    # Check that searching for an unknown contract raises
+    with pytest.raises(RuntimeError):
+        test_registrar.search(contract_address=test_addr)
