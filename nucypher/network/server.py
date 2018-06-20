@@ -6,7 +6,7 @@ from typing import ClassVar
 import kademlia
 from apistar import http, Route, App
 from apistar.http import Response
-from bytestring_splitter import VariableLengthBytestring
+from bytestring_splitter import VariableLengthBytestring, BytestringSplitter
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
@@ -20,6 +20,9 @@ from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, \
     dht_with_hrac_splitter, InterfaceInfo
 from nucypher.network.storage import SeedOnlyStorage
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 
 
 class NucypherDHTServer(Server):
@@ -83,6 +86,11 @@ class NucypherSeedOnlyDHTServer(NucypherDHTServer):
 
 
 class ProxyRESTServer:
+
+    public_information_splitter = BytestringSplitter(Signature,
+                                      (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
+                                      (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
+                                      int(PUBLIC_ADDRESS_LENGTH))
 
     def __init__(self, host=None, port=None, db_name=None, *args, **kwargs):
         self.rest_interface = InterfaceInfo(host=host, port=port)
