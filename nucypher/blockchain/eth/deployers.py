@@ -225,6 +225,11 @@ class MinerEscrowDeployer(ContractDeployer):
         super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
         self.token_agent = token_agent
 
+    def __check_policy_manager(self):
+        result = self.contract.functions.policyManager().call()
+        if result is constants.NULL_ADDRESS:
+            raise RuntimeError("PolicyManager contract is not initialized.")
+
     def deploy(self) -> Dict[str, str]:
         """
         Deploy and publish the NuCypher Token contract
@@ -296,6 +301,7 @@ class MinerEscrowDeployer(ContractDeployer):
         return deployment_transactions
 
     def make_agent(self) -> EthereumContractAgent:
+        self.__check_policy_manager()  # Ensure the PolicyManager contract has already been initialized
         agent = self.agency(token_agent=self.token_agent, contract=self._contract)
         return agent
 
