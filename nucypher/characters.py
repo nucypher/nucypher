@@ -813,9 +813,8 @@ class Ursula(Character, ProxyRESTServer, Miner):
         return stranger_ursula_from_public_keys
 
     def attach_dht_server(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
-        """ TODO: Network-wide deterministic ID generation (ie, auction or whatever)  See #136."""
         if self.ether_address:
-            id = id or bytes(self.ether_address, encoding='utf-8')
+            id = id or bytes(self.public_address)  # Ursula can still "mine" wallets until she gets a DHT ID she wants.  Does that matter?  #136
         else:
             id = None
         # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
