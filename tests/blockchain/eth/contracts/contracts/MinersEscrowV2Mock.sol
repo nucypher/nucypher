@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "contracts/MinersEscrow.sol";
@@ -14,11 +14,11 @@ contract MinersEscrowV2Mock is MinersEscrow {
 
     constructor(
         NuCypherToken _token,
-        uint256 _hoursPerPeriod,
+        uint32 _hoursPerPeriod,
         uint256 _miningCoefficient,
         uint256 _lockedPeriodsCoefficient,
-        uint256 _awardedPeriods,
-        uint256 _minReleasePeriods,
+        uint16 _rewardedPeriods,
+        uint16 _minReleasePeriods,
         uint256 _minAllowableLockedTokens,
         uint256 _maxAllowableLockedTokens,
         uint256 _valueToCheck
@@ -29,7 +29,7 @@ contract MinersEscrowV2Mock is MinersEscrow {
             _hoursPerPeriod,
             _miningCoefficient,
             _lockedPeriodsCoefficient,
-            _awardedPeriods,
+            _rewardedPeriods,
             _minReleasePeriods,
             _minAllowableLockedTokens,
             _maxAllowableLockedTokens

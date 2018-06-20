@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "proxy/Upgradeable.sol";
@@ -11,14 +11,13 @@ contract IssuerBad is Upgradeable {
 
     address public token;
     uint256 public miningCoefficient;
-    uint256 public secondsPerPeriod;
     uint256 public lockedPeriodsCoefficient;
-    uint256 public awardedPeriods;
+    uint32 public secondsPerPeriod;
+    uint16 public rewardedPeriods;
 
-    uint256 public lastMintedPeriod;
-    mapping (byte => uint256) public totalSupply;
-//    byte public currentIndex;
-    uint256 public futureSupply;
+    uint16 public lastMintedPeriod;
+//    uint256 public currentSupply1;
+    uint256 public currentSupply2;
 
     function verifyState(address) public {}
     function finishUpgrade(address) public {}

@@ -5,289 +5,486 @@ Deploy contracts in tester.
 A simple Python script to deploy contracts and then estimate gas for different methods.
 """
 
-
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 import os
+import tempfile
+from os.path import dirname, abspath
 
-from tests.utilities import TesterBlockchain
+from eth_tester import EthereumTester
+from web3 import EthereumTesterProvider
+from constant_sorrow import constants
+
+from nucypher.blockchain.eth.chains import TesterBlockchain
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
+from nucypher.blockchain.eth.interfaces import EthereumContractRegistrar, DeployerCircumflex
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from tests.blockchain.eth import contracts
+from tests.blockchain.eth.utilities import TesterPyEVMBackend
 
 
-def main():
-    chain = TesterBlockchain()
-    web3 = chain.web3
-    creator, ursula1, ursula2, ursula3, alice1, *everyone_else = web3.eth.accounts
+def estimate_gas():
+    test_contracts_dir = os.path.join(dirname(abspath(contracts.__file__)), 'contracts')
+    solidity_compiler = SolidityCompiler(test_contract_dir=test_contracts_dir)
 
-    print("Web3 __providers are", web3.active_providers)
+    # create a temporary registrar for the tester blockchain
+    _, filepath = tempfile.mkstemp()
+    test_registrar = EthereumContractRegistrar(chain_name='tester', registrar_filepath=filepath)
 
-    # TODO: Updatae to agents and deployers
-    # Create an ERC20 token
-    token = NucypherToken(blockchain=chain)
-    token.arm()
-    token.deploy()
+    # Configure a custom provider
+    overrides = {'gas_limit': 4626271}
+    pyevm_backend = TesterPyEVMBackend(genesis_overrides=overrides)
 
-    # Creator deploys the escrow
-    escrow = Escrow(blockchain=chain, token=token)
-    escrow.arm()
-    escrow.deploy()
+    eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
+    pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
-    # Creator deploys the policy manager
-    policy_manager, txhash = chain.interface.get_or_deploy_contract(
-        'PolicyManager', deploy_args=[escrow.contract.address],
-        deploy_transaction={'from': creator})
-    tx = escrow.transact({'from': creator}).setPolicyManager(policy_manager.address)
-    chain.wait.for_receipt(tx)
+    # Use the the custom provider and registrar to init an interface
+    circumflex = DeployerCircumflex(compiler=solidity_compiler,  # freshly recompile
+                                    registrar=test_registrar,  # use temporary registrar
+                                    providers=(pyevm_provider,))  # use custom test provider
+
+    # Create the blockchain
+    testerchain = TesterBlockchain(interface=circumflex, test_accounts=10)
+    origin, ursula1, ursula2, ursula3, alice1, *everyone_else = testerchain.interface.w3.eth.accounts
+    circumflex.deployer_address = origin  # Set the deployer address from a freshly created test account
+
+    token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
+    token_deployer.arm()
+    token_deployer.deploy()
+    token_agent = token_deployer.make_agent()
+
+    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=origin)
+    miner_escrow_deployer.arm()
+    miner_escrow_deployer.deploy()
+    miner_agent = miner_escrow_deployer.make_agent()
+
+    policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=origin)
+    policy_manager_deployer.arm()
+    policy_manager_deployer.deploy()
+    policy_agent = policy_manager_deployer.make_agent()
+
+    web3 = testerchain.interface.w3
 
     print("Estimate gas:")
     # Pre deposit tokens
-    tx = token.transact({'from': creator}).approve(escrow.contract.address, 10 ** 7)
-    chain.wait.for_receipt(tx)
+    tx = token_agent.contract.functions.approve(miner_agent.contract_address, constants.MIN_ALLOWED_LOCKED * 5)\
+        .transact({'from': origin})
+    testerchain.wait_for_receipt(tx)
     print("Pre-deposit tokens for 5 owners = " +
-          str(escrow.contract.estimateGas({'from': creator}).preDeposit(
-              web3.eth.accounts[4:9], [10 ** 6] * 5, [1] * 5)))
+          str(miner_agent.contract.functions
+              .preDeposit(everyone_else[0:5],
+                          [int(constants.MIN_ALLOWED_LOCKED)] * 5,
+                          [int(constants.MIN_LOCKED_PERIODS)] * 5)
+              .estimateGas({'from': origin})))
 
     # Give Ursula and Alice some coins
-    print("Transfer tokens = " + str(token.contract.estimateGas({'from': creator}).transfer(ursula1, 10 ** 7)))
-    tx = token.transact({'from': creator}).transfer(ursula1, 10 ** 7)
-    chain.wait.for_receipt(tx)
-    tx = token.transact({'from': creator}).transfer(ursula2, 10 ** 7)
-    chain.wait.for_receipt(tx)
-    tx = token.transact({'from': creator}).transfer(ursula3, 10 ** 7)
-    chain.wait.for_receipt(tx)
+    print("Transfer tokens = " +
+          str(token_agent.contract.functions.transfer(ursula1, constants.MIN_ALLOWED_LOCKED * 10)
+              .estimateGas({'from': origin})))
+    tx = token_agent.contract.functions.transfer(ursula1, constants.MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
+    testerchain.wait_for_receipt(tx)
+    tx = token_agent.contract.functions.transfer(ursula2, constants.MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
+    testerchain.wait_for_receipt(tx)
+    tx = token_agent.contract.functions.transfer(ursula3, constants.MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
+    testerchain.wait_for_receipt(tx)
 
     # Ursula and Alice give Escrow rights to transfer
     print("Approving transfer = " +
-          str(token.contract.estimateGas({'from': ursula1}).approve(escrow.contract.address, 5 * 10 ** 6 + 1)))
-    tx = token.transact({'from': ursula1}).approve(escrow.contract.address, 5 * 10 ** 6 + 1)
-    chain.wait.for_receipt(tx)
-    tx = token.transact({'from': ursula2}).approve(escrow.contract.address, 2 * 10 ** 6 + 1)
-    chain.wait.for_receipt(tx)
-    tx = token.transact({'from': ursula3}).approve(escrow.contract.address, 2 * 10 ** 6 + 1)
-    chain.wait.for_receipt(tx)
+          str(token_agent.contract.functions.approve(miner_agent.contract_address, constants.MIN_ALLOWED_LOCKED * 6)
+              .estimateGas({'from': ursula1})))
+    tx = token_agent.contract.functions.approve(miner_agent.contract_address, constants.MIN_ALLOWED_LOCKED * 6)\
+        .transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    tx = token_agent.contract.functions.approve(miner_agent.contract_address, constants.MIN_ALLOWED_LOCKED * 6)\
+        .transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = token_agent.contract.functions.approve(miner_agent.contract_address, constants.MIN_ALLOWED_LOCKED * 6)\
+        .transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
 
     # Ursula and Alice transfer some tokens to the escrow and lock them
-    print("First deposit tokens = " + str(escrow.contract.estimateGas({'from': ursula1}).deposit(5 * 10 ** 6, 1)))
-    tx = escrow.transact({'from': ursula1}).deposit(5 * 10 ** 6, 1)
-    chain.wait.for_receipt(tx)
-    print("Second deposit tokens = " + str(escrow.contract.estimateGas({'from': ursula2}).deposit(2 * 10 ** 6, 1)))
-    tx = escrow.transact({'from': ursula2}).deposit(2 * 10 ** 6, 1)
-    chain.wait.for_receipt(tx)
-    print("Third deposit tokens = " + str(escrow.contract.estimateGas({'from': ursula3}).deposit(2 * 10 ** 6, 1)))
-    tx = escrow.transact({'from': ursula3}).deposit(2 * 10 ** 6, 1)
-    chain.wait.for_receipt(tx)
+    print("First initial deposit tokens = " +
+          str(miner_agent.contract.functions
+              .deposit(constants.MIN_ALLOWED_LOCKED * 3, int(constants.MIN_LOCKED_PERIODS))
+              .estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 3, int(constants.MIN_LOCKED_PERIODS))\
+        .transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second initial deposit tokens = " +
+          str(miner_agent.contract.functions
+              .deposit(constants.MIN_ALLOWED_LOCKED * 3, int(constants.MIN_LOCKED_PERIODS))
+              .estimateGas({'from': ursula2})))
+    tx = miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 3, int(constants.MIN_LOCKED_PERIODS))\
+        .transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    print("Third initial deposit tokens = " +
+          str(miner_agent.contract.functions
+              .deposit(constants.MIN_ALLOWED_LOCKED * 3, int(constants.MIN_LOCKED_PERIODS))
+              .estimateGas({'from': ursula3})))
+    tx = miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 3, int(constants.MIN_LOCKED_PERIODS))\
+        .transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
 
     # Wait 1 period and confirm activity
-    chain.time_travel(1)
-    print("First confirm activity = " + str(escrow.contract.estimateGas({'from': ursula1}).confirmActivity()))
-    tx = escrow.transact({'from': ursula1}).confirmActivity()
-    chain.wait.for_receipt(tx)
-    print("Second confirm activity = " + str(escrow.contract.estimateGas({'from': ursula2}).confirmActivity()))
-    tx = escrow.transact({'from': ursula2}).confirmActivity()
-    chain.wait.for_receipt(tx)
-    print("Third confirm activity = " + str(escrow.contract.estimateGas({'from': ursula3}).confirmActivity()))
-    tx = escrow.transact({'from': ursula3}).confirmActivity()
-    chain.wait.for_receipt(tx)
+    testerchain.time_travel(periods=1)
+    print("First confirm activity = " +
+          str(miner_agent.contract.functions.confirmActivity().estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second confirm activity = " +
+          str(miner_agent.contract.functions.confirmActivity().estimateGas({'from': ursula2})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    print("Third confirm activity = " +
+          str(miner_agent.contract.functions.confirmActivity().estimateGas({'from': ursula3})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
 
     # Wait 1 period and mint tokens
-    chain.time_travel(1)
-    print("First mining = " + str(escrow.contract.estimateGas({'from': ursula1}).mint()))
-    tx = escrow.transact({'from': ursula1}).mint()
-    chain.wait.for_receipt(tx)
-    print("Second mining = " + str(escrow.contract.estimateGas({'from': ursula2}).mint()))
-    tx = escrow.transact({'from': ursula2}).mint()
-    chain.wait.for_receipt(tx)
-    print("Third/last mining = " + str(escrow.contract.estimateGas({'from': ursula3}).mint()))
-    tx = escrow.transact({'from': ursula3}).mint()
-    chain.wait.for_receipt(tx)
+    testerchain.time_travel(periods=1)
+    print("First mining (1 stake) = " + str(miner_agent.contract.functions.mint().estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second mining (1 stake) = " + str(miner_agent.contract.functions.mint().estimateGas({'from': ursula2})))
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    print("Third/last mining (1 stake) = " + str(miner_agent.contract.functions.mint().estimateGas({'from': ursula3})))
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    print("First confirm activity again = " +
+          str(miner_agent.contract.functions.confirmActivity().estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second confirm activity again = " +
+          str(miner_agent.contract.functions.confirmActivity().estimateGas({'from': ursula2})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    print("Third confirm activity again = " +
+          str(miner_agent.contract.functions.confirmActivity().estimateGas({'from': ursula3})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
 
     # Confirm again
-    print("First confirm activity again = " + str(escrow.contract.estimateGas({'from': ursula1}).confirmActivity()))
-    tx = escrow.transact({'from': ursula1}).confirmActivity()
-    chain.wait.for_receipt(tx)
-    print("Second confirm activity again = " + str(escrow.contract.estimateGas({'from': ursula2}).confirmActivity()))
-    tx = escrow.transact({'from': ursula2}).confirmActivity()
-    chain.wait.for_receipt(tx)
-    print("Third confirm activity again = " + str(escrow.contract.estimateGas({'from': ursula3}).confirmActivity()))
-    tx = escrow.transact({'from': ursula3}).confirmActivity()
-    chain.wait.for_receipt(tx)
+    testerchain.time_travel(periods=1)
+    print("First confirm activity + mint = " +
+          str(miner_agent.contract.functions.confirmActivity().estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second confirm activity + mint = " +
+          str(miner_agent.contract.functions.confirmActivity().estimateGas({'from': ursula2})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    print("Third confirm activity + mint = " +
+          str(miner_agent.contract.functions.confirmActivity().estimateGas({'from': ursula3})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
 
     # Get locked tokens
-    print("Getting locked tokens = " + str(escrow.contract.estimateGas().getLockedTokens(ursula1)))
-    print("Calculating locked tokens = " + str(escrow.contract.estimateGas().calculateLockedTokens(ursula1, 1)))
-
-    # Switch to unlock and lock tokens again
-    print("First switch = " + str(escrow.contract.estimateGas({'from': ursula1}).switchLock()))
-    tx = escrow.transact({'from': ursula1}).switchLock()
-    chain.wait.for_receipt(tx)
-    print("Second switch = " + str(escrow.contract.estimateGas({'from': ursula2}).switchLock()))
-    tx = escrow.transact({'from': ursula2}).switchLock()
-    chain.wait.for_receipt(tx)
-    print("Third switch = " + str(escrow.contract.estimateGas({'from': ursula3}).switchLock()))
-    tx = escrow.transact({'from': ursula3}).switchLock()
-    chain.wait.for_receipt(tx)
-    #
-    chain.time_travel(1)
-    print("First locking tokens = " + str(escrow.contract.estimateGas({'from': ursula1}).lock(10 ** 6, 0)))
-    tx = escrow.transact({'from': ursula1}).lock(10 ** 6, 0)
-    chain.wait.for_receipt(tx)
-    print("Second locking tokens = " + str(escrow.contract.estimateGas({'from': ursula2}).lock(10 ** 6, 0)))
-    tx = escrow.transact({'from': ursula2}).lock(10 ** 6, 0)
-    chain.wait.for_receipt(tx)
-    print("Third locking tokens = " + str(escrow.contract.estimateGas({'from': ursula3}).lock(10 ** 6, 0)))
-    tx = escrow.transact({'from': ursula3}).lock(10 ** 6, 0)
-    chain.wait.for_receipt(tx)
+    print("Getting locked tokens = " + str(miner_agent.contract.functions.getLockedTokens(ursula1).estimateGas()))
 
     # Wait 1 period and withdraw tokens
-    chain.time_travel(1)
-    print("First withdraw = " + str(escrow.contract.estimateGas({'from': ursula1}).withdraw(1)))
-    tx = escrow.transact({'from': ursula1}).withdraw(1)
-    chain.wait.for_receipt(tx)
-    print("Second withdraw = " + str(escrow.contract.estimateGas({'from': ursula2}).withdraw(1)))
-    tx = escrow.transact({'from': ursula2}).withdraw(1)
-    chain.wait.for_receipt(tx)
-    print("Third withdraw = " + str(escrow.contract.estimateGas({'from': ursula3}).withdraw(1)))
-    tx = escrow.transact({'from': ursula3}).withdraw(1)
-    chain.wait.for_receipt(tx)
+    testerchain.time_travel(periods=1)
+    print("First withdraw = " + str(miner_agent.contract.functions.withdraw(1).estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.withdraw(1).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second withdraw = " + str(miner_agent.contract.functions.withdraw(1).estimateGas({'from': ursula2})))
+    tx = miner_agent.contract.functions.withdraw(1).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    print("Third withdraw = " + str(miner_agent.contract.functions.withdraw(1).estimateGas({'from': ursula3})))
+    tx = miner_agent.contract.functions.withdraw(1).transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
 
     # Wait 1 period and confirm activity
-    chain.time_travel(1)
-    print("First confirm activity after downtime = " + str(escrow.contract.estimateGas({'from': ursula1}).confirmActivity()))
-    tx = escrow.transact({'from': ursula1}).confirmActivity()
-    chain.wait.for_receipt(tx)
-    print("Second confirm activity after downtime  = " + str(escrow.contract.estimateGas({'from': ursula2}).confirmActivity()))
-    tx = escrow.transact({'from': ursula2}).confirmActivity()
-    chain.wait.for_receipt(tx)
-    print("Third confirm activity after downtime  = " + str(escrow.contract.estimateGas({'from': ursula3}).confirmActivity()))
-    tx = escrow.transact({'from': ursula3}).confirmActivity()
-    chain.wait.for_receipt(tx)
+    testerchain.time_travel(periods=1)
+    print("First confirm activity after downtime = " +
+          str(miner_agent.contract.functions.confirmActivity().estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second confirm activity after downtime  = " +
+          str(miner_agent.contract.functions.confirmActivity().estimateGas({'from': ursula2})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    print("Third confirm activity after downtime  = " +
+          str(miner_agent.contract.functions.confirmActivity().estimateGas({'from': ursula3})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
 
     # Ursula and Alice deposit some tokens to the escrow again
-    print("First deposit tokens again = " + str(escrow.contract.estimateGas({'from': ursula1}).deposit(1, 1)))
-    tx = escrow.transact({'from': ursula1}).deposit(1, 1)
-    chain.wait.for_receipt(tx)
-    print("Second deposit tokens again = " + str(escrow.contract.estimateGas({'from': ursula2}).deposit(1, 1)))
-    tx = escrow.transact({'from': ursula2}).deposit(1, 1)
-    chain.wait.for_receipt(tx)
-    print("Third deposit tokens again = " + str(escrow.contract.estimateGas({'from': ursula3}).deposit(1, 1)))
-    tx = escrow.transact({'from': ursula3}).deposit(1, 1)
-    chain.wait.for_receipt(tx)
+    print("First deposit tokens again = " +
+          str(miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 2, int(constants.MIN_LOCKED_PERIODS))
+              .estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 2, int(constants.MIN_LOCKED_PERIODS))\
+        .transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second deposit tokens again = " +
+          str(miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 2, int(constants.MIN_LOCKED_PERIODS))
+              .estimateGas({'from': ursula2})))
+    tx = miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 2, int(constants.MIN_LOCKED_PERIODS))\
+        .transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    print("Third deposit tokens again = " +
+          str(miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 2, int(constants.MIN_LOCKED_PERIODS))
+              .estimateGas({'from': ursula3})))
+    tx = miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 2, int(constants.MIN_LOCKED_PERIODS))\
+        .transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
 
     # Wait 1 period and mint tokens
-    chain.time_travel(1)
-    print("First mining again = " + str(escrow.contract.estimateGas({'from': ursula1}).mint()))
-    tx = escrow.transact({'from': ursula1}).mint()
-    chain.wait.for_receipt(tx)
-    print("Second mining again = " + str(escrow.contract.estimateGas({'from': ursula2}).mint()))
-    tx = escrow.transact({'from': ursula2}).mint()
-    chain.wait.for_receipt(tx)
-    print("Third/last mining again = " + str(escrow.contract.estimateGas({'from': ursula3}).mint()))
-    tx = escrow.transact({'from': ursula3}).mint()
-    chain.wait.for_receipt(tx)
+    testerchain.time_travel(periods=1)
+    print("First mining again = " + str(miner_agent.contract.functions.mint().estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second mining again = " + str(miner_agent.contract.functions.mint().estimateGas({'from': ursula2})))
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    print("Third/last mining again = " + str(miner_agent.contract.functions.mint().estimateGas({'from': ursula3})))
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
 
     # Create policy
-    policy_id_1 = os.urandom(20)
-    policy_id_2 = os.urandom(20)
+    policy_id_1 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_2 = os.urandom(constants.POLICY_ID_LENGTH)
     number_of_periods = 10
     print("First creating policy (1 node, 10 periods) = " +
-          str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
-              .createPolicy(policy_id_1, number_of_periods, [ursula1])))
-    tx = policy_manager.transact({'from': alice1, 'value': 10000})\
-        .createPolicy(policy_id_1, number_of_periods, [ursula1])
-    chain.wait.for_receipt(tx)
+          str(policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1])
+              .estimateGas({'from': alice1, 'value': 10000})))
+    tx = policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1])\
+        .transact({'from': alice1, 'value': 10000})
+    testerchain.wait_for_receipt(tx)
     print("Second creating policy (1 node, 10 periods) = " +
-          str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
-              .createPolicy(policy_id_2, number_of_periods, [ursula1])))
-    tx = policy_manager.transact({'from': alice1, 'value': 10000}) \
-        .createPolicy(policy_id_2, number_of_periods, [ursula1])
-    chain.wait.for_receipt(tx)
+          str(policy_agent.contract.functions.createPolicy(policy_id_2, number_of_periods, 0, [ursula1])
+              .estimateGas({'from': alice1, 'value': 10000})))
+    tx = policy_agent.contract.functions.createPolicy(policy_id_2, number_of_periods, 0, [ursula1])\
+        .transact({'from': alice1, 'value': 10000})
+    testerchain.wait_for_receipt(tx)
 
     # Revoke policy
     print("Revoking policy = " +
-          str(policy_manager.estimateGas({'from': alice1}).revokePolicy(policy_id_1)))
-    tx = policy_manager.transact({'from': alice1}).revokePolicy(policy_id_1)
-    chain.wait.for_receipt(tx)
-    tx = policy_manager.transact({'from': alice1}).revokePolicy(policy_id_2)
-    chain.wait.for_receipt(tx)
+          str(policy_agent.contract.functions.revokePolicy(policy_id_1).estimateGas({'from': alice1})))
+    tx = policy_agent.contract.functions.revokePolicy(policy_id_1).transact({'from': alice1})
+    testerchain.wait_for_receipt(tx)
+    tx = policy_agent.contract.functions.revokePolicy(policy_id_2).transact({'from': alice1})
+    testerchain.wait_for_receipt(tx)
 
     # Create policy with more periods
-    policy_id_1 = os.urandom(20)
-    policy_id_2 = os.urandom(20)
-    policy_id_3 = os.urandom(20)
+    policy_id_1 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_2 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_3 = os.urandom(constants.POLICY_ID_LENGTH)
     number_of_periods = 100
-    print("First creating policy (1 node, " + str(number_of_periods) + " periods) = " +
-          str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
-              .createPolicy(policy_id_1, number_of_periods, [ursula2])))
-    tx = policy_manager.transact({'from': alice1, 'value': 10000})\
-        .createPolicy(policy_id_1, number_of_periods, [ursula2])
-    chain.wait.for_receipt(tx)
-    chain.time_travel(1)
-    print("Second creating policy (1 node, " + str(number_of_periods) + " periods) = " +
-          str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
-              .createPolicy(policy_id_2, number_of_periods, [ursula2])))
-    tx = policy_manager.transact({'from': alice1, 'value': 10000}) \
-        .createPolicy(policy_id_2, number_of_periods, [ursula2])
-    chain.wait.for_receipt(tx)
-    print("Third creating policy (1 node, " + str(number_of_periods) + " periods) = " +
-          str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
-              .createPolicy(policy_id_3, number_of_periods, [ursula1])))
-    tx = policy_manager.transact({'from': alice1, 'value': 10000}) \
-        .createPolicy(policy_id_3, number_of_periods, [ursula1])
-    chain.wait.for_receipt(tx)
+    print("First creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
+          str(policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula2])
+              .estimateGas({'from': alice1, 'value': 10050})))
+    tx = policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula2])\
+        .transact({'from': alice1, 'value': 10050})
+    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(periods=1)
+    print("Second creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
+          str(policy_agent.contract.functions.createPolicy(policy_id_2, number_of_periods, 50, [ursula2])
+              .estimateGas({'from': alice1, 'value': 10050})))
+    tx = policy_agent.contract.functions.createPolicy(policy_id_2, number_of_periods, 50, [ursula2])\
+        .transact({'from': alice1, 'value': 10050})
+    testerchain.wait_for_receipt(tx)
+    print("Third creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
+          str(policy_agent.contract.functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1])
+              .estimateGas({'from': alice1, 'value': 10050})))
+    tx = policy_agent.contract.functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1])\
+        .transact({'from': alice1, 'value': 10050})
+    testerchain.wait_for_receipt(tx)
 
     # Mine and revoke policy
-    chain.time_travel(10)
-    tx = escrow.transact({'from': ursula2}).confirmActivity()
-    chain.wait.for_receipt(tx)
-    tx = escrow.transact({'from': ursula1}).confirmActivity()
-    chain.wait.for_receipt(tx)
+    testerchain.time_travel(periods=10)
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
 
-    chain.time_travel(1)
-    print("First mining after downtime = " + str(escrow.contract.estimateGas({'from': ursula1}).mint()))
-    tx = escrow.transact({'from': ursula1}).mint()
-    chain.wait.for_receipt(tx)
-    print("Second mining after downtime = " + str(escrow.contract.estimateGas({'from': ursula2}).mint()))
-    tx = escrow.transact({'from': ursula2}).mint()
-    chain.wait.for_receipt(tx)
+    testerchain.time_travel(periods=1)
+    print("First mining after downtime = " + str(miner_agent.contract.functions.mint().estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second mining after downtime = " + str(miner_agent.contract.functions.mint().estimateGas({'from': ursula2})))
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
 
-    chain.time_travel(10)
+    testerchain.time_travel(periods=10)
     print("First revoking policy after downtime = " +
-          str(policy_manager.estimateGas({'from': alice1}).revokePolicy(policy_id_1)))
-    tx = policy_manager.transact({'from': alice1}).revokePolicy(policy_id_1)
-    chain.wait.for_receipt(tx)
+          str(policy_agent.contract.functions.revokePolicy(policy_id_1).estimateGas({'from': alice1})))
+    tx = policy_agent.contract.functions.revokePolicy(policy_id_1).transact({'from': alice1})
+    testerchain.wait_for_receipt(tx)
     print("Second revoking policy after downtime = " +
-          str(policy_manager.estimateGas({'from': alice1}).revokePolicy(policy_id_2)))
-    tx = policy_manager.transact({'from': alice1}).revokePolicy(policy_id_2)
-    chain.wait.for_receipt(tx)
+          str(policy_agent.contract.functions.revokePolicy(policy_id_2).estimateGas({'from': alice1})))
+    tx = policy_agent.contract.functions.revokePolicy(policy_id_2).transact({'from': alice1})
+    testerchain.wait_for_receipt(tx)
     print("Second revoking policy after downtime = " +
-          str(policy_manager.estimateGas({'from': alice1}).revokePolicy(policy_id_3)))
-    tx = policy_manager.transact({'from': alice1}).revokePolicy(policy_id_3)
-    chain.wait.for_receipt(tx)
+          str(policy_agent.contract.functions.revokePolicy(policy_id_3).estimateGas({'from': alice1})))
+    tx = policy_agent.contract.functions.revokePolicy(policy_id_3).transact({'from': alice1})
+    testerchain.wait_for_receipt(tx)
 
     # Create policy with multiple nodes
-    policy_id_1 = os.urandom(20)
-    policy_id_2 = os.urandom(20)
-    policy_id_3 = os.urandom(20)
+    policy_id_1 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_2 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_3 = os.urandom(constants.POLICY_ID_LENGTH)
     number_of_periods = 100
-    print("First creating policy (3 nodes, 100 periods) = " +
-          str(policy_manager.estimateGas({'from': alice1, 'value': 30000})
-              .createPolicy(policy_id_1, number_of_periods, [ursula1, ursula2, ursula3])))
-    tx = policy_manager.transact({'from': alice1, 'value': 30000}) \
-        .createPolicy(policy_id_1, number_of_periods, [ursula1, ursula2, ursula3])
-    chain.wait.for_receipt(tx)
-    print("Second creating policy (3 nodes, 100 periods) = " +
-          str(policy_manager.estimateGas({'from': alice1, 'value': 10000})
-              .createPolicy(policy_id_2, number_of_periods, [ursula1, ursula2, ursula3])))
-    tx = policy_manager.transact({'from': alice1, 'value': 10000}) \
-        .createPolicy(policy_id_2, number_of_periods, [ursula1, ursula2, ursula3])
-    chain.wait.for_receipt(tx)
-    print("Third creating policy (2 nodes, 100 periods) = " +
-          str(policy_manager.estimateGas({'from': alice1, 'value': 20000})
-              .createPolicy(policy_id_3, number_of_periods, [ursula1, ursula2])))
-    tx = policy_manager.transact({'from': alice1, 'value': 20000}) \
-        .createPolicy(policy_id_3, number_of_periods, [ursula1, ursula2])
-    chain.wait.for_receipt(tx)
+    print("First creating policy (3 nodes, 100 periods, first reward) = " +
+          str(policy_agent.contract.functions
+              .createPolicy(policy_id_1, number_of_periods, 50, [ursula1, ursula2, ursula3])
+              .estimateGas({'from': alice1, 'value': 30150})))
+    tx = policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula1, ursula2, ursula3])\
+        .transact({'from': alice1, 'value': 30150})
+    testerchain.wait_for_receipt(tx)
+    print("Second creating policy (3 nodes, 100 periods, first reward) = " +
+          str(policy_agent.contract.functions
+              .createPolicy(policy_id_2, number_of_periods, 50, [ursula1, ursula2, ursula3])
+              .estimateGas({'from': alice1, 'value': 30150})))
+    tx = policy_agent.contract.functions.createPolicy(policy_id_2, number_of_periods, 50, [ursula1, ursula2, ursula3])\
+        .transact({'from': alice1, 'value': 30150})
+    testerchain.wait_for_receipt(tx)
+    print("Third creating policy (2 nodes, 100 periods, first reward) = " +
+          str(policy_agent.contract.functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1, ursula2])
+              .estimateGas({'from': alice1, 'value': 20100})))
+    tx = policy_agent.contract.functions.createPolicy(policy_id_3, number_of_periods, 50, [ursula1, ursula2])\
+        .transact({'from': alice1, 'value': 20100})
+    testerchain.wait_for_receipt(tx)
+
+    for index in range(5):
+        tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula1})
+        testerchain.wait_for_receipt(tx)
+        tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula2})
+        testerchain.wait_for_receipt(tx)
+        tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula3})
+        testerchain.wait_for_receipt(tx)
+        testerchain.time_travel(periods=1)
+
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    # Check regular deposit
+    print("First deposit tokens = " +
+          str(miner_agent.contract.functions.deposit(int(constants.MIN_ALLOWED_LOCKED), int(constants.MIN_LOCKED_PERIODS))
+              .estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.deposit(int(constants.MIN_ALLOWED_LOCKED), int(constants.MIN_LOCKED_PERIODS))\
+        .transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second deposit tokens = " +
+          str(miner_agent.contract.functions.deposit(int(constants.MIN_ALLOWED_LOCKED), int(constants.MIN_LOCKED_PERIODS))
+              .estimateGas({'from': ursula2})))
+    tx = miner_agent.contract.functions.deposit(int(constants.MIN_ALLOWED_LOCKED), int(constants.MIN_LOCKED_PERIODS))\
+        .transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    print("Third deposit tokens = " +
+          str(miner_agent.contract.functions.deposit(int(constants.MIN_ALLOWED_LOCKED), int(constants.MIN_LOCKED_PERIODS))
+              .estimateGas({'from': ursula3})))
+    tx = miner_agent.contract.functions.deposit(int(constants.MIN_ALLOWED_LOCKED), int(constants.MIN_LOCKED_PERIODS))\
+        .transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    # ApproveAndCall
+    testerchain.time_travel(periods=1)
+
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_agent.contract.functions.mint().transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    print("First approveAndCall = " +
+          str(token_agent.contract.functions.approveAndCall(miner_agent.contract_address,
+                                                            int(constants.MIN_ALLOWED_LOCKED) * 2,
+                                                            web3.toBytes(int(constants.MIN_LOCKED_PERIODS)))
+              .estimateGas({'from': ursula1})))
+    tx = token_agent.contract.functions.approveAndCall(miner_agent.contract_address,
+                                                       int(constants.MIN_ALLOWED_LOCKED) * 2,
+                                                       web3.toBytes(int(constants.MIN_LOCKED_PERIODS)))\
+        .transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second approveAndCall = " +
+          str(token_agent.contract.functions.approveAndCall(miner_agent.contract_address,
+                                                            int(constants.MIN_ALLOWED_LOCKED) * 2,
+                                                            web3.toBytes(int(constants.MIN_LOCKED_PERIODS)))
+              .estimateGas({'from': ursula2})))
+    tx = token_agent.contract.functions.approveAndCall(miner_agent.contract_address,
+                                                       int(constants.MIN_ALLOWED_LOCKED) * 2,
+                                                       web3.toBytes(int(constants.MIN_LOCKED_PERIODS)))\
+        .transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    print("Third approveAndCall = " +
+          str(token_agent.contract.functions.approveAndCall(miner_agent.contract_address,
+                                                            int(constants.MIN_ALLOWED_LOCKED) * 2,
+                                                            web3.toBytes(int(constants.MIN_LOCKED_PERIODS)))
+              .estimateGas({'from': ursula3})))
+    tx = token_agent.contract.functions.approveAndCall(miner_agent.contract_address,
+                                                       int(constants.MIN_ALLOWED_LOCKED) * 2,
+                                                       web3.toBytes(int(constants.MIN_LOCKED_PERIODS)))\
+        .transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    # Locking tokens
+    testerchain.time_travel(periods=1)
+
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    print("First locking tokens = " +
+          str(miner_agent.contract.functions.lock(int(constants.MIN_ALLOWED_LOCKED),
+                                                  int(constants.MIN_LOCKED_PERIODS))
+              .estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.lock(int(constants.MIN_ALLOWED_LOCKED),
+                                             int(constants.MIN_LOCKED_PERIODS))\
+        .transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second locking tokens = " +
+          str(miner_agent.contract.functions.lock(int(constants.MIN_ALLOWED_LOCKED),
+                                                  int(constants.MIN_LOCKED_PERIODS))
+              .estimateGas({'from': ursula2})))
+    tx = miner_agent.contract.functions.lock(int(constants.MIN_ALLOWED_LOCKED),
+                                             int(constants.MIN_LOCKED_PERIODS))\
+        .transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    print("Third locking tokens = " +
+          str(miner_agent.contract.functions.lock(int(constants.MIN_ALLOWED_LOCKED),
+                                                  int(constants.MIN_LOCKED_PERIODS))
+              .estimateGas({'from': ursula3})))
+    tx = miner_agent.contract.functions.lock(int(constants.MIN_ALLOWED_LOCKED),
+                                             int(constants.MIN_LOCKED_PERIODS))\
+        .transact({'from': ursula3})
+    testerchain.wait_for_receipt(tx)
+
+    # Divide stake
+    print("First divide stake = " +
+          str(miner_agent.contract.functions.divideStake(1, int(constants.MIN_ALLOWED_LOCKED), 2)
+              .estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.divideStake(1, int(constants.MIN_ALLOWED_LOCKED), 2).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Second divide stake = " +
+          str(miner_agent.contract.functions.divideStake(3, int(constants.MIN_ALLOWED_LOCKED), 2)
+              .estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.divideStake(3, int(constants.MIN_ALLOWED_LOCKED), 2).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+
+    # Divide almost finished stake
+    testerchain.time_travel(periods=1)
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(periods=1)
+    print("Divide stake (next period is not confirmed) = " +
+          str(miner_agent.contract.functions.divideStake(0, int(constants.MIN_ALLOWED_LOCKED), 2)
+              .estimateGas({'from': ursula1})))
+    tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    print("Divide stake (next period is confirmed) = " +
+          str(miner_agent.contract.functions.divideStake(0, int(constants.MIN_ALLOWED_LOCKED), 2)
+              .estimateGas({'from': ursula1})))
 
     print("All done!")
 
 
 if __name__ == "__main__":
-    main()
+    estimate_gas()

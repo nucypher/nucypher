@@ -60,9 +60,10 @@ def policy_manager(testerchain, escrow, request):
     return contract
 
 
-policy_id = os.urandom(20)
-policy_id_2 = os.urandom(20)
-policy_id_3 = os.urandom(20)
+POLICY_ID_LENGTH = 16
+policy_id = os.urandom(POLICY_ID_LENGTH)
+policy_id_2 = os.urandom(POLICY_ID_LENGTH)
+policy_id_3 = os.urandom(POLICY_ID_LENGTH)
 rate = 20
 number_of_periods = 10
 value = rate * number_of_periods
@@ -273,7 +274,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
 
     # Create another policy with pay for first period
-    # Reward rate is calculated as (firstReward + rewardRate * numberOfPeriods) * numberOfNodes
+    # Reward rate is calculated as numberOfNodes * (firstPartialReward + rewardRate * numberOfPeriods)
     period = escrow.functions.getCurrentPeriod().call()
     tx = policy_manager.functions.createPolicy(policy_id_3, number_of_periods, int(0.5 * rate), [node1, node2, node3])\
         .transact({'from': client,

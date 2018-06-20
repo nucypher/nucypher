@@ -111,7 +111,7 @@ def datetime_to_period(datetime: maya.MayaDT) -> int:
     """Converts a MayaDT instance to a period number."""
 
     future_period = datetime._epoch // int(SECONDS_PER_PERIOD)
-    return future_period
+    return int(future_period)
 
 
 def calculate_period_duration(future_time: maya.MayaDT) -> int:

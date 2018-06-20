@@ -85,13 +85,6 @@ class MinerAgent(EthereumContractAgent):
     class NotEnoughMiners(Exception):
         pass
 
-    class MinerInfo(Enum):
-        VALUE = 0
-        DECIMALS = 1
-        LAST_ACTIVE_PERIOD = 2
-        CONFIRMED_PERIOD_1 = 3
-        CONFIRMED_PERIOD_2 = 4
-
     def __init__(self, token_agent: NucypherTokenAgent=None, *args, **kwargs):
         token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
         super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
@@ -108,10 +101,6 @@ class MinerAgent(EthereumContractAgent):
     def get_current_period(self) -> int:
         """Returns the current period"""
         return self.contract.functions.getCurrentPeriod().call()
-
-    def get_total_locked_tokens(self) -> int:
-        """Returns the total amount of locked tokens on the blockchain."""
-        return self.contract.functions.getAllLockedTokens().call()
 
     #
     # MinersEscrow Contract API
@@ -154,7 +143,7 @@ class MinerAgent(EthereumContractAgent):
         return txhash
 
     def mint(self, node_address) -> Tuple[str, str]:
-        """Computes and transfers tokens to the miner's account"""
+        """Computes reward tokens for the miner's account"""
 
         mint_txhash = self.contract.functions.mint().transact({'from': node_address})
         self.blockchain.wait_for_receipt(mint_txhash)
@@ -173,97 +162,52 @@ class MinerAgent(EthereumContractAgent):
 
         return collection_txhash
 
-    # Node Datastore #
-
-    def _publish_datastore(self, node_address: str, data) -> str:
-        """Publish new data to the MinerEscrow contract as a public record associated with this miner."""
-
-        txhash = self.contract.functions.setMinerId(data).transact({'from': node_address})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
-
-    def _get_datastore_entries(self, node_address: str) -> int:
-        count_bytes = self.contract.functions.getMinerIdsLength(node_address).call()
-        datastore_entries = self.blockchain.interface.w3.toInt(count_bytes)
-        return datastore_entries
-
-    def _fetch_node_datastore(self, node_address):
-        """Cache a generator of all asosciated contract data for this miner."""
-
-        datastore_entries = self._get_datastore_entries(node_address=node_address)
-
-        def __node_datastore_reader():
-            for index in range(datastore_entries):
-                value = self.contract.functions.getMinerId(node_address, index).call()
-                yield value
-
-        return __node_datastore_reader()
-
-
     #
     # Contract Utilities
     #
-    def swarm(self, fetch_data: bool=False) -> Union[Generator[str, None, None], Generator[Tuple[str, bytes], None, None]]:
+    def swarm(self) -> Union[Generator[str, None, None], Generator[Tuple[str, bytes], None, None]]:
         """
         Returns an iterator of all miner addresses via cumulative sum, on-network.
-        if fetch_data is true, tuples containing the address and the miners stored data are yielded.
 
         Miner addresses are returned in the order in which they registered with the MinersEscrow contract's ledger
 
         """
 
         for index in range(self.get_miner_population()):
-
             miner_address = self.contract.functions.miners(index).call()
-            validated_address = self.blockchain.interface.w3.toChecksumAddress(miner_address)  # string address of next node
-
-            if fetch_data is True:
-                stored_miner_data = self.contract.functions.getMinerIdsLength(miner_address).call()
-                yield (validated_address, stored_miner_data)
-            else:
-                yield validated_address
+            yield miner_address
 
     def sample(self, quantity: int, duration: int, additional_ursulas: float=1.7, attempts: int=5) -> List[str]:
         """
         Select n random staking Ursulas, according to their stake distribution.
         The returned addresses are shuffled, so one can request more than needed and
         throw away those which do not respond.
-
-                _startIndex
-                v
-      |-------->*--------------->*---->*------------->|
-                |                      ^
-                |                      stopIndex
-                |
-                |       _delta
-                |---------------------------->|
-                |
-                |                       shift
-                |                      |----->|
-
-
         See full diagram here: https://github.com/nucypher/kms-whitepaper/blob/master/pdf/miners-ruler.pdf
-
         """
+
+        miners_population = self.get_miner_population()
+        if quantity > miners_population:
+            raise self.NotEnoughMiners('Only {} miners are available'.format(miners_population))
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
-        n_tokens = self.get_total_locked_tokens()
+        n_tokens = self.contract.functions.getAllLockedTokens(duration).call()
 
-        if not n_tokens > 0:
+        if n_tokens == 0:
             raise self.NotEnoughMiners('There are no locked tokens.')
 
         for _ in range(attempts):
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
-            deltas = [i-j for i, j in zip(points[1:], points[:-1])]
 
-            addrs, addr, index, shift = set(), str(constants.NULL_ADDRESS), 0, 0
-            for delta in deltas:
-                addr, index, shift = self.contract.functions.findCumSum(index, delta + shift, duration).call()
-                addrs.add(addr)
+            deltas = []
+            for next_point, previous_point in zip(points[1:], points[:-1]):
+                deltas.append(next_point - previous_point)
 
-            if len(addrs) >= quantity:
-                return system_random.sample(addrs, quantity)
+            addresses = set(self.contract.functions.sample(deltas, duration).call())
+            addresses.discard(str(constants.NULL_ADDRESS))
+
+            if len(addresses) >= quantity:
+                return system_random.sample(addresses, quantity)
 
         raise self.NotEnoughMiners('Selection failed after {} attempts'.format(attempts))
 
