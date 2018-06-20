@@ -21,7 +21,7 @@ from tests.blockchain.eth import contracts
 from tests.blockchain.eth.utilities import TesterPyEVMBackend
 
 
-def main():
+def estimate_gas():
     test_contracts_dir = os.path.join(dirname(abspath(contracts.__file__)), 'contracts')
     solidity_compiler = SolidityCompiler(test_contract_dir=test_contracts_dir)
 
@@ -241,8 +241,8 @@ def main():
     testerchain.wait_for_receipt(tx)
 
     # Create policy
-    policy_id_1 = os.urandom(16)
-    policy_id_2 = os.urandom(16)
+    policy_id_1 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_2 = os.urandom(constants.POLICY_ID_LENGTH)
     number_of_periods = 10
     print("First creating policy (1 node, 10 periods) = " +
           str(policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1])
@@ -266,9 +266,9 @@ def main():
     testerchain.wait_for_receipt(tx)
 
     # Create policy with more periods
-    policy_id_1 = os.urandom(16)
-    policy_id_2 = os.urandom(16)
-    policy_id_3 = os.urandom(16)
+    policy_id_1 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_2 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_3 = os.urandom(constants.POLICY_ID_LENGTH)
     number_of_periods = 100
     print("First creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
           str(policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula2])
@@ -320,9 +320,9 @@ def main():
     testerchain.wait_for_receipt(tx)
 
     # Create policy with multiple nodes
-    policy_id_1 = os.urandom(16)
-    policy_id_2 = os.urandom(16)
-    policy_id_3 = os.urandom(16)
+    policy_id_1 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_2 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_3 = os.urandom(constants.POLICY_ID_LENGTH)
     number_of_periods = 100
     print("First creating policy (3 nodes, 100 periods, first reward) = " +
           str(policy_agent.contract.functions
@@ -487,4 +487,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    estimate_gas()
