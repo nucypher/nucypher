@@ -61,7 +61,7 @@ class Blockchain:
         Gets an existing contract from the registrar, or raises UnknownContract
         if there is no contract data available for the name/identifier.
         """
-        return self.__interface.get_contract(name)
+        return self.__interface.get_contract_by_name(name)
 
     def wait_for_receipt(self, txhash, timeout=None) -> dict:
         """Wait for a receipt and return it"""

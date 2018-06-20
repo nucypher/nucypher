@@ -62,9 +62,15 @@ class EthereumContractRegistry:
         try:
             with open(self.__registry_filepath, 'r') as registry_file:
                 registry_file.seek(0)
-                registry_data = json.loads(registry_file.read())
-        except (json.decoder.JSONDecodeError, FileNotFoundError):
-            registry_data = list()
+                file_data = registry_file.read()
+                if file_data:
+                    registry_data = json.loads(file_data)
+                else:
+                    registry_data = list()  # Existing, but empty registry
+
+        except FileNotFoundError:
+            raise self.RegistryError("No registar at filepath: {}".format(self.__registry_filepath))
+
         return registry_data
 
     def enroll(self, contract_name, contract_address, contract_abi):
@@ -90,10 +96,18 @@ class EthereumContractRegistry:
 
         contracts = list()
         registry_data = self.__read()
+
         for name, addr, abi in registry_data:
             if (contract_name or contract_address) == name:
                 contracts.append((name, addr, abi))
-        return contracts[0] if len(contracts) == 1 else contracts
+
+        if not contracts:
+            raise self.UnknownContract
+        if contract_address and len(contracts) > 1:
+            m = "Multiple records returned for address {}"
+            raise self.CorruptedRegistrar(m.format(contract_address))
+
+        return contracts if contract_name else contracts[0]
 
 
 class ControlCircumflex:
@@ -217,7 +231,8 @@ class ControlCircumflex:
         """Return node version information"""
         return self.w3.version.node           # type of connected node
 
-    def add_provider(self, provider=None, endpoint_uri: str=None, websocket=False, ipc_path=None, timeout=None) -> None:
+    def add_provider(self, provider=None, endpoint_uri: str=None,
+                     websocket=False, ipc_path=None, timeout=None) -> None:
 
         if provider is None:
             # Validate parameters
@@ -258,17 +273,66 @@ class ControlCircumflex:
 
         return contract
 
-    def get_contract_address(self, contract_name: str) -> List[str]:
-        """Retrieve all known addresses for this contract"""
-        contracts = self._registry.lookup_contract(contract_name=contract_name)
-        addresses = [c['addr'] for c in contracts]
-        return addresses
+    def __wrap_contract(self, dispatcher_contract: Contract,
+                        target_contract: Contract, factory=Contract) -> Contract:
+        """Used for upgradeable contracts."""
 
-    def get_contract(self, address: str) -> Contract:
-        """Instantiate a deployed contract from registry data"""
-        contract_data = self._registry.dump_contract(address=address)
-        contract = self.w3.eth.contract(abi=contract_data['abi'], address=contract_data['addr'])
-        return contract
+        # Wrap the contract
+        wrapped_contract = self.w3.eth.contract(abi=target_contract.abi,
+                                                address=dispatcher_contract.address,
+                                                ContractFactoryClass=factory)
+        return wrapped_contract
+
+    def get_contract_by_address(self, address: str):
+        """Read a single contract's data from the registrar and return it."""
+        try:
+            contract_records = self._registry.search(contract_address=address)
+        except RuntimeError:
+            raise self.InterfaceError('Corrupted Registrar')  # TODO: Integrate with Registry
+        else:
+            if not contract_records:
+                raise self.InterfaceError("No such contract with address {}".format(address))
+            return contract_records[0]
+
+    def get_contract_by_name(self, name: str, upgradeable=False, factory=Contract) -> Contract:
+        """
+        Instantiate a deployed contract from registrar data,
+        and assemble it with it's dispatcher if it is upgradeable.
+        """
+        target_contract_records = self._registry.search(contract_name=name)
+
+        if not target_contract_records:
+            raise self.InterfaceError("No such contract records with name {}".format(name))
+
+        if upgradeable:
+            # Lookup dispatchers
+            dispatcher_records = self._registry.search(contract_name='Dispatcher')
+            for d_name, d_addr, d_abi in dispatcher_records:
+
+                # Read from blockchain
+                dispatcher_contract = self.w3.eth.contract(abi=d_abi, address=d_addr, ContractFactoryClass=factory)
+                live_target_address = dispatcher_contract.functions.target().call()
+
+                for t_name, t_addr, t_abi in target_contract_records:
+                    if t_addr == live_target_address:
+                        selected_contract_address, selected_contract_abi = d_addr, t_abi
+                        break
+
+                else:  # for/else
+                    raise self.InterfaceError("No dispatcher refers to local records for {}".format(name))
+
+        else:
+            if len(target_contract_records) > 1:  # TODO: Allow multiple non-upgradeable records (UserEscrow)
+                m = "Multiple records returned from the registry for non-upgradeable contract {}"
+                raise self.InterfaceError(m.format(name))
+            selected_contract_name, selected_contract_address, selected_contract_abi = target_contract_records[0]
+
+        # Create the contract from selected sources
+        assembled_contract = self.w3.eth.contract(abi=selected_contract_abi,
+                                                  address=selected_contract_address,
+                                                  ContractFactoryClass=factory)
+
+        return assembled_contract
 
 
 class DeployerCircumflex(ControlCircumflex):
@@ -321,7 +385,7 @@ class DeployerCircumflex(ControlCircumflex):
         #
         contract = contract_factory(address=address)
         self._registry.enroll(contract_name=contract_name,
-                               contract_addr=contract.address,
+                               contract_address=contract.address,
                                contract_abi=contract_factory.abi)
 
         return contract, txhash

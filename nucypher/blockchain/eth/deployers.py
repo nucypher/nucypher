@@ -100,8 +100,8 @@ class ContractDeployer:
 
         return True
 
-    def _wrap_government(self, dispatcher_contract: Contract, target_contract: Contract) -> Contract:
-
+    def _wrap_contract(self, dispatcher_contract: Contract, target_contract: Contract) -> Contract:
+        # TODO: Move this to somewhere else
         # Wrap the contract
         wrapped_contract = self.blockchain.interface.w3.eth.contract(abi=target_contract.abi,
                                                                      address=dispatcher_contract.address,
@@ -161,8 +161,8 @@ class ContractDeployer:
 
 class NucypherTokenDeployer(ContractDeployer):
 
-    _contract_name = 'NuCypherToken'
     agency = NucypherTokenAgent
+    _contract_name = agency.contract_name  # TODO
 
     def __init__(self, blockchain, deployer_address):
         if not type(blockchain.interface) is self._interface_class:
@@ -272,9 +272,9 @@ class MinerEscrowDeployer(ContractDeployer):
         dispatcher_contract = dispatcher_deployer.contract
         self.__dispatcher_contract = dispatcher_contract
 
-        # Wrap the escrow contract (Govern)
-        wrapped_escrow_contract = self._wrap_government(dispatcher_contract,
-                                                        target_contract=the_escrow_contract)
+        # Wrap the escrow contract
+        wrapped_escrow_contract = self._wrap_contract(dispatcher_contract,
+                                                      target_contract=the_escrow_contract)
 
         # Switch the contract for the wrapped one
         the_escrow_contract = wrapped_escrow_contract
@@ -343,8 +343,8 @@ class PolicyManagerDeployer(ContractDeployer):
         self.__dispatcher_contract = dispatcher_contract
 
         # Wrap the escrow contract (Govern)
-        wrapped_policy_manager_contract = self._wrap_government(dispatcher_contract,
-                                                                target_contract=the_policy_manager_contract)
+        wrapped_policy_manager_contract = self._wrap_contract(dispatcher_contract,
+                                                              target_contract=the_policy_manager_contract)
 
         # Switch the contract for the wrapped one
         the_policy_manager_contract = wrapped_policy_manager_contract
