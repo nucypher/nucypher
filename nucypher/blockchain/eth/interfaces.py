@@ -88,7 +88,7 @@ class EthereumContractRegistry:
         for name, addr, abi in registry_data:
             if (contract_name or contract_address) == name:
                 contracts.append((name, addr, abi))
-        return contracts[0] if len(contracts) == 1 else return contracts
+        return contracts[0] if len(contracts) == 1 else contracts
 
 
 class ControlCircumflex:

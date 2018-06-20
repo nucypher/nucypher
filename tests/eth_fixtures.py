@@ -15,7 +15,7 @@ from web3 import EthereumTesterProvider, IPCProvider
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
-from nucypher.blockchain.eth.interfaces import EthereumContractRegistrar, DeployerCircumflex
+from nucypher.blockchain.eth.interfaces import EthereumContractRegistry, DeployerCircumflex
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from tests.blockchain.eth import contracts
 from tests.blockchain.eth.utilities import MockMinerEscrowDeployer, TesterPyEVMBackend, MockNucypherTokenDeployer
@@ -120,7 +120,7 @@ def testerchain(solidity_compiler):
 
     # create a temporary registrar for the tester blockchain
     _, filepath = tempfile.mkstemp()
-    test_registrar = EthereumContractRegistrar(chain_name='tester', registrar_filepath=filepath)
+    test_registrar = EthereumContractRegistry(chain_name='tester', registrar_filepath=filepath)
 
     # Configure a custom provider
     overrides = {'gas_limit': 4626271}
