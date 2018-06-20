@@ -14,7 +14,7 @@ from nucypher.blockchain.eth.constants import calculate_period_duration, datetim
 def only_me(func):
     def wrapped(actor=None, *args, **kwargs):
         if not actor.is_me:
-            raise actor.MinerError("Cannot execute contract staking functions with a non-self Miner instance.")
+            raise actor.MinerError("You are not {}".format(actor.__class.__.__name__))
         return func(actor, *args, **kwargs)
     return wrapped
 

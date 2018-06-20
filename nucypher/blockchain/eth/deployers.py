@@ -368,17 +368,19 @@ class PolicyManagerDeployer(ContractDeployer):
 
 class UserEscrowDeployer(ContractDeployer):
     """
+    TODO: Consider Agency amongst many user escrows,
+    goverment, token transfer, and deployment
+
     Depends on Token, MinerEscrow, and PolicyManager
     """
 
-    _contract_name = 'UserEscrow'  # TODO
+    _contract_name = 'UserEscrow'
 
-    def __init__(self, miner_escrow_deployer, policy_deployer):
+    def __init__(self, miner_escrow_deployer, policy_deployer, *args, **kwargs):
         self.miner_deployer = miner_escrow_deployer
         self.policy_deployer = policy_deployer
-
         self.token_deployer = miner_escrow_deployer.token_deployer
-        super().__init__(blockchain=miner_escrow_deployer.blockchain)
+        super().__init__(blockchain=miner_escrow_deployer.blockchain, *args, **kwargs)
 
     def deploy(self):
         is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
@@ -386,7 +388,8 @@ class UserEscrowDeployer(ContractDeployer):
 
         deployment_args = [self.token_deployer.contract_address,
                            self.miner_deployer.contract_address,
-                           self.policy_deployer.contract_address],
+                           self.policy_deployer.contract_address]
+
         deploy_transaction = {'from': self.token_deployer.contract_address}
 
         the_user_escrow_contract, deploy_txhash = self.blockchain.interface.deploy_contract(

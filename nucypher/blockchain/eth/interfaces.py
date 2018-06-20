@@ -25,11 +25,16 @@ class EthereumContractRegistry:
     WARNING: Unless you are developing NuCypher, you most likely won't ever need
     to use this.
     """
-    __default_registry_path = os.path.join(_DEFAULT_CONFIGURATION_DIR,
-                                            'registry.json')
+    __default_registry_path = os.path.join(_DEFAULT_CONFIGURATION_DIR, 'registry.json')
 
-    class UnknownContract(KeyError):
+    class RegistryError(Exception):
         pass
+
+    class UnknownContract(RegistryError):
+        pass
+
+    class CorruptedRegistrar(RegistryError):
+        """Raised when invalid data is encountered in the registry"""
 
     def __init__(self, registry_filepath: str=None):
         self.__registry_filepath = registry_filepath or self.__default_registry_path
@@ -45,7 +50,7 @@ class EthereumContractRegistry:
             registry_file.write(json.dumps(registry_data))
             registry_file.truncate()
 
-    def __read(self) -> dict:
+    def __read(self) -> list:
         """
         Reads the registry file and parses the JSON and returns a list.
         If the file is empty or the JSON is corrupt, it will return an empty
@@ -188,12 +193,13 @@ class ControlCircumflex:
         self.__sol_compiler = compiler
 
         # Setup the registry and base contract factory cache
-        registry = registry if registry is not None else EthereumContractRegistry(chain_name=network)
+        registry = registry if registry is not None else EthereumContractRegistry()
         self._registry = registry
 
-        # Execute the compilation if we're recompiling, otherwise read compiled contract data from the registry
-        interfaces = self.__sol_compiler.compile() if self.__recompile is True else self._registry.dump_chain()
-        self.__raw_contract_cache = interfaces
+        if self.__recompile is True:
+            # Execute the compilation if we're recompiling, otherwise read compiled contract data from the registry
+            interfaces = self.__sol_compiler.compile()
+            self.__raw_contract_cache = interfaces
 
     @property
     def network(self) -> str:

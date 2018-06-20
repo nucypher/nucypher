@@ -120,7 +120,7 @@ def testerchain(solidity_compiler):
 
     # create a temporary registrar for the tester blockchain
     _, filepath = tempfile.mkstemp()
-    test_registrar = EthereumContractRegistry(chain_name='tester', registrar_filepath=filepath)
+    test_registrar = EthereumContractRegistry(registry_filepath=filepath)
 
     # Configure a custom provider
     overrides = {'gas_limit': 4626271}
@@ -133,7 +133,7 @@ def testerchain(solidity_compiler):
 
     # Use the the custom provider and registrar to init an interface
     circumflex = DeployerCircumflex(compiler=solidity_compiler,    # freshly recompile
-                                    registrar=test_registrar,      # use temporary registrar
+                                    registry=test_registrar,      # use temporary registrar
                                     providers=(pyevm_provider, ))  # use custom test provider
 
     # Create the blockchain

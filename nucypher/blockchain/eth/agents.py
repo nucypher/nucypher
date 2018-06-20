@@ -1,6 +1,5 @@
 import random
 from abc import ABC
-from enum import Enum
 from typing import Generator, List, Tuple, Union
 
 from constant_sorrow import constants
