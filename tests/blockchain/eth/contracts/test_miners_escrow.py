@@ -131,20 +131,20 @@ def test_escrow(testerchain, token, escrow_contract):
     events = deposit_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula1 == event_args['owner']
+    assert ursula1 == event_args['miner']
     assert 1000 == event_args['value']
     assert 2 == event_args['periods']
     events = lock_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula1 == event_args['owner']
+    assert ursula1 == event_args['miner']
     assert 1000 == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['firstPeriod']
     assert 2 == event_args['periods']
     events = activity_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula1 == event_args['owner']
+    assert ursula1 == event_args['miner']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
     assert 1000 == event_args['value']
 
@@ -159,20 +159,20 @@ def test_escrow(testerchain, token, escrow_contract):
     events = deposit_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert 500 == event_args['value']
     assert 2 == event_args['periods']
     events = lock_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert 500 == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['firstPeriod']
     assert 2 == event_args['periods']
     events = activity_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
     assert 500 == event_args['value']
 
@@ -198,7 +198,7 @@ def test_escrow(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 3 == len(events)
     event_args = events[2]['args']
-    assert ursula1 == event_args['owner']
+    assert ursula1 == event_args['miner']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
     assert 1000 == event_args['value']
 
@@ -213,7 +213,7 @@ def test_escrow(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 4 == len(events)
     event_args = events[3]['args']
-    assert ursula1 == event_args['owner']
+    assert ursula1 == event_args['miner']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
     assert 500 == event_args['value']
 
@@ -239,7 +239,7 @@ def test_escrow(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 5 == len(events)
     event_args = events[4]['args']
-    assert ursula1 == event_args['owner']
+    assert ursula1 == event_args['miner']
     assert escrow.functions.getCurrentPeriod().call() == event_args['period']
     assert 500 == event_args['value']
 
@@ -251,7 +251,7 @@ def test_escrow(testerchain, token, escrow_contract):
     events = withdraw_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula1 == event_args['owner']
+    assert ursula1 == event_args['miner']
     assert 100 == event_args['value']
 
     # But Ursula can't withdraw all without mining for locked value
@@ -271,7 +271,7 @@ def test_escrow(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 6 == len(events)
     event_args = events[5]['args']
-    assert ursula1 == event_args['owner']
+    assert ursula1 == event_args['miner']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
     assert 500 == event_args['value']
 
@@ -281,7 +281,7 @@ def test_escrow(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 7 == len(events)
     event_args = events[6]['args']
-    assert ursula1 == event_args['owner']
+    assert ursula1 == event_args['miner']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
     assert 100 == event_args['value']
 
@@ -330,14 +330,14 @@ def test_escrow(testerchain, token, escrow_contract):
     events = lock_log.get_all_entries()
     assert 8 == len(events)
     event_args = events[7]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert 200 == event_args['value']
     assert period == event_args['firstPeriod']
     assert 2 == event_args['periods']
     events = divides_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert 500 == event_args['oldValue']
     assert period + 1 == event_args['lastPeriod']
     assert 200 == event_args['newValue']
@@ -360,7 +360,7 @@ def test_escrow(testerchain, token, escrow_contract):
     events = divides_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[1]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert 300 == event_args['oldValue']
     assert period == event_args['lastPeriod']
     assert 200 == event_args['newValue']
@@ -380,7 +380,7 @@ def test_escrow(testerchain, token, escrow_contract):
     events = divides_log.get_all_entries()
     assert 3 == len(events)
     event_args = events[2]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert 200 == event_args['oldValue']
     assert period + 1 == event_args['lastPeriod']
     assert 100 == event_args['newValue']
@@ -409,7 +409,7 @@ def test_escrow(testerchain, token, escrow_contract):
     events = divides_log.get_all_entries()
     assert 4 == len(events)
     event_args = events[3]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert 200 == event_args['oldValue']
     assert period == event_args['lastPeriod']
     assert 100 == event_args['newValue']
@@ -418,15 +418,15 @@ def test_escrow(testerchain, token, escrow_contract):
     events = activity_log.get_all_entries()
     assert 14 == len(events)
     event_args = events[11]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert escrow.functions.getCurrentPeriod().call() == event_args['period']
     assert 300 == event_args['value']
     event_args = events[12]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
     assert 100 == event_args['value']
     event_args = events[13]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert escrow.functions.getCurrentPeriod().call() + 1 == event_args['period']
     assert 100 == event_args['value']
 
@@ -644,11 +644,11 @@ def test_mining(testerchain, token, escrow_contract):
     events = mining_log.get_all_entries()
     assert 2 == len(events)
     event_args = events[0]['args']
-    assert ursula1 == event_args['owner']
+    assert ursula1 == event_args['miner']
     assert 46 == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
     event_args = events[1]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert 25 == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
 
@@ -695,7 +695,7 @@ def test_mining(testerchain, token, escrow_contract):
     events = mining_log.get_all_entries()
     assert 3 == len(events)
     event_args = events[2]['args']
-    assert ursula1 == event_args['owner']
+    assert ursula1 == event_args['miner']
     assert 106 == event_args['value']
     assert period == event_args['period']
 
@@ -714,7 +714,7 @@ def test_mining(testerchain, token, escrow_contract):
     events = mining_log.get_all_entries()
     assert 4 == len(events)
     event_args = events[3]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert 50 == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
 
@@ -770,7 +770,7 @@ def test_mining(testerchain, token, escrow_contract):
     events = mining_log.get_all_entries()
     assert 5 == len(events)
     event_args = events[4]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert 100 == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
 
@@ -795,7 +795,7 @@ def test_mining(testerchain, token, escrow_contract):
     events = withdraw_log.get_all_entries()
     assert 1 == len(events)
     event_args = events[0]['args']
-    assert ursula2 == event_args['owner']
+    assert ursula2 == event_args['miner']
     assert 1083 == event_args['value']
 
     assert 4 == len(deposit_log.get_all_entries())
@@ -879,27 +879,27 @@ def test_pre_deposit(testerchain, token, escrow_contract):
     events = deposit_log.get_all_entries()
     assert 6 == len(events)
     event_args = events[0]['args']
-    assert testerchain.interface.w3.eth.accounts[1] == event_args['owner']
+    assert testerchain.interface.w3.eth.accounts[1] == event_args['miner']
     assert 1000 == event_args['value']
     assert 10 == event_args['periods']
     event_args = events[1]['args']
-    assert owners[0] == event_args['owner']
+    assert owners[0] == event_args['miner']
     assert 100 == event_args['value']
     assert 50 == event_args['periods']
     event_args = events[2]['args']
-    assert owners[1] == event_args['owner']
+    assert owners[1] == event_args['miner']
     assert 200 == event_args['value']
     assert 100 == event_args['periods']
     event_args = events[3]['args']
-    assert owners[2] == event_args['owner']
+    assert owners[2] == event_args['miner']
     assert 300 == event_args['value']
     assert 150 == event_args['periods']
     event_args = events[4]['args']
-    assert owners[3] == event_args['owner']
+    assert owners[3] == event_args['miner']
     assert 400 == event_args['value']
     assert 200 == event_args['periods']
     event_args = events[5]['args']
-    assert owners[4] == event_args['owner']
+    assert owners[4] == event_args['miner']
     assert 500 == event_args['value']
     assert 250 == event_args['periods']
 
