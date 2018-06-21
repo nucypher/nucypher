@@ -1,4 +1,5 @@
 import inspect
+import web3
 from typing import List, Union
 
 from nucypher.keystore import keypairs
@@ -59,6 +60,28 @@ class CryptoPowerUp(object):
     Gives you MORE CryptoPower!
     """
     confers_public_key = False
+
+
+class BlockchainPower(CryptoPowerUp):
+    """
+    Allows for transacting on a Blockchain via web3 backend.
+    """
+
+    def __init__(self, account: str):
+        """
+        Instantiates a BlockchainPower for the given account id.
+        """
+        self.account = account
+
+    def unlock_account(self, password: str, duration: int = None):
+        """
+        Unlocks the account for the specified duration. If no duration is
+        provided, it will remain unlocked indefinitely.
+        """
+        is_unlocked = web3.personal.unlockAccount(self.account, password,
+                                                  duration=duration)
+        if not is_unlocked:
+            raise PowerUpError("Account failed to unlock for {}".format(self.account))
 
 
 class KeyPairBasedPower(CryptoPowerUp):
