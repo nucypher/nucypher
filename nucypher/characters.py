@@ -217,7 +217,10 @@ class Character:
     def cycle_teacher_node(self):
         if not self.teacher_nodes:
             self.select_teacher_nodes()
-        self._current_teacher_node = self.teacher_nodes.pop()
+        try:
+            self._current_teacher_node = self.teacher_nodes.pop()
+        except IndexError:
+            raise self.NotEnoughUrsulas("Don't have enough nodes to select a good teacher.  This is nearly an impossible situation - do you have seed nodes defined?  Is your network connection OK?")
 
     def current_teacher_node(self, cycle=False):
         if not self._current_teacher_node:
