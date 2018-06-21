@@ -6,6 +6,7 @@ from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 from umbral import pre
+from web3.eth import Eth
 
 
 class PowerUpError(TypeError):
@@ -78,10 +79,20 @@ class BlockchainPower(CryptoPowerUp):
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-        is_unlocked = web3.personal.unlockAccount(self.account, password,
-                                                  duration=duration)
-        if not is_unlocked:
+        self.is_unlocked = web3.personal.unlockAccount(self.account, password,
+                                                       duration=duration)
+        if not self.is_unlocked:
             raise PowerUpError("Account failed to unlock for {}".format(self.account))
+
+    def sign_message(self, message: bytes):
+        """
+        Signs the message with the private key of the BlockchainPower.
+        """
+        if not self.is_unlocked:
+            raise PowerUpError("Account is not unlocked.")
+
+        signature = Eth.sign(self.account, data=message)
+        return signature
 
 
 class KeyPairBasedPower(CryptoPowerUp):
