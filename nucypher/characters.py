@@ -512,7 +512,7 @@ class Alice(Character, PolicyAuthor):
 
         return policy
 
-    def grant(self, bob, uri, m=None, n=None, expiration=None, deposit=None):
+    def grant(self, bob, uri, m=None, n=None, expiration=None, deposit=None, ursulas=None):
         if not m:
             # TODO: get m from config  #176
             raise NotImplementedError
@@ -540,6 +540,7 @@ class Alice(Character, PolicyAuthor):
         policy.make_arrangements(network_middleware=self.network_middleware,
                                  deposit=deposit,
                                  expiration=expiration,
+                                 ursulas=ursulas,
                                  )
 
         # REST call happens here, as does population of TreasureMap.
