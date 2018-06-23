@@ -7,6 +7,7 @@ from logging import getLogger
 from typing import Dict, ClassVar, Set
 from typing import Union, List
 
+import binascii
 import kademlia
 import msgpack
 from kademlia.network import Server
@@ -15,6 +16,7 @@ from twisted.internet import task
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
+from eth_utils import to_checksum_address, to_bytes
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.config.configs import CharacterConfiguration
@@ -438,7 +440,17 @@ class Character:
 
     @property
     def public_address(self):
-        return bytes(self.ether_address, encoding="ascii")
+        # TODO: Figure out the *real* way to cast addresses to bytes (ie, hex or whatever without violating checksum).
+        if self.federated_only:
+            hash_of_signing_key = keccak_digest(bytes(self.stamp))
+            public_address = hash_of_signing_key[:PUBLIC_ADDRESS_LENGTH]
+        else:
+            public_address = binascii.unhexlify(self.ether_address[2:])
+
+            # Quick sanity check for length.
+            if not len(public_address) == PUBLIC_ADDRESS_LENGTH:
+                raise ValueError("Can't cast {} to a proper public address; it appears to be an incorrect length.".format(self.ether_address))
+        return public_address
 
     @public_address.setter
     def public_address(self, address_bytes):
