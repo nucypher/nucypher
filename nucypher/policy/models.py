@@ -1,16 +1,14 @@
 import binascii
 import uuid
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from collections import OrderedDict
-from typing import Generator, List
+from typing import Generator, List, Set
 
 import maya
 import msgpack
+
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
-from umbral.config import default_params
-from umbral.pre import Capsule
-
 from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula
 from nucypher.crypto.api import keccak_digest
@@ -18,6 +16,8 @@ from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH
 from nucypher.crypto.powers import SigningPower
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
+from umbral.config import default_params
+from umbral.pre import Capsule
 
 
 class Arrangement:
@@ -177,7 +177,7 @@ class Policy:
         tmap_message_kit, signature_for_bob = self.alice.encrypt_for(
             self.bob,
             self.treasure_map.packed_payload())
-        signature_for_ursula = self.alice.stamp(self.hrac())
+        signature_for_ursula = self.alice.stamp(bytes(self.alice.stamp) + self.hrac())
 
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
