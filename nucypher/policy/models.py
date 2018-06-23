@@ -213,7 +213,6 @@ class Policy:
                 if not arrangement in self._enacted_arrangements.values():
                     arrangement.kfrag = kfrag
                     self._enacted_arrangements[kfrag] = arrangement
-                    print(kfrag, arrangement, arrangement.ursula)
                     yield arrangement
                     break  # This KFrag is now assigned; break the inner loop and go back to assign other kfrags.
             else:
