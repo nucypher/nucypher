@@ -61,19 +61,19 @@ def bob(mining_ursulas):
     return _bob
 
 
-# @pytest.fixture(scope="module")
-# def ursulas(three_agents):
-#     token_agent, miner_agent, policy_agent = three_agents
-#     etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
-#     _receipts = token_airdrop(token_agent=token_agent, origin=etherbase, addresses=all_yall, amount=1000000 * constants.M)
-#     ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
-#
-#     _ursulas = make_ursulas(ether_addresses=ursula_addresses,
-#                             ursula_starting_port=int(constants.URSULA_PORT_SEED))
-#     yield _ursulas
-#     # Remove the DBs that have been sprayed hither and yon.
-#     for port, ursula in enumerate(_ursulas, start=int(constants.URSULA_PORT_SEED)):
-#         os.remove("test-{}".format(port))
+@pytest.fixture(scope="module")
+def ursulas(three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    # TODO: Make this some other way for federated case.
+    ether_addresses = [binascii.b2a_hex(os.urandom(21)).decode() for _ in range(10)]
+    _ursulas = make_ursulas(ether_addresses=ether_addresses,
+                            ursula_starting_port=int(constants.URSULA_PORT_SEED),
+                            miner_agent=miner_agent
+                            )
+    yield _ursulas
+    # Remove the DBs that have been sprayed hither and yon.
+    for port, ursula in enumerate(_ursulas, start=int(constants.URSULA_PORT_SEED)):
+        os.remove("test-{}".format(port))
 
 
 @pytest.fixture(scope="module")

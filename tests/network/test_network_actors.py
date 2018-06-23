@@ -11,7 +11,7 @@ from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitte
 from tests.utilities import TEST_EVENT_LOOP, MockRestMiddleware
 
 
-@pytest.mark.usefixtures('deployed_testerchain')
+@pytest.mark.usefixtures('testerchain')
 def test_all_ursulas_know_about_all_other_ursulas(ursulas, mock_miner_agent):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
@@ -31,6 +31,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     Although Ursulas propagate each other's interface information, as demonstrated above, they do not propagate
     interface information for Vladimir, an Evil Ursula.
     """
+    ursulas = list(ursulas)
     vladimir, ursula = ursulas[0], ursulas[1]
 
     # Ursula hasn't seen any illegal keys.
