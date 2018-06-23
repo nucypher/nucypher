@@ -55,7 +55,7 @@ class Character:
                  network_middleware=None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups=None,
-                 federated=False,
+                 federated_only=False,
                  always_be_learning=True,
                  known_nodes: Set = (),
                  config: CharacterConfiguration = None,
@@ -84,7 +84,7 @@ class Character:
         """
         self.config = config  # TODO: Do not mix with injectable params
 
-        self.is_federated = federated
+        self.federated_only = federated_only
         self._known_nodes = {}
 
         if public_address is not None:
@@ -455,16 +455,17 @@ class Character:
     @public_address.setter
     def public_address(self, address_bytes):
         self.ether_address = str(address_bytes, encoding="ascii")
+        to_checksum_address
 
 
 class Alice(Character, PolicyAuthor):
+
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, is_me=True, federated_only=False, *args, **kwargs):
-        Character.__init__(self, is_me=is_me, *args, **kwargs)
+        Character.__init__(self, is_me=is_me, federated_only=federated_only, *args, **kwargs)
         if is_me and not federated_only:  # TODO: 289
             PolicyAuthor.__init__(self, *args, **kwargs)
-        self.federated_only = federated_only
 
     def generate_kfrags(self, bob, label, m, n) -> List:
         """

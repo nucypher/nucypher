@@ -53,7 +53,8 @@ def alice(mining_ursulas, three_agents):
     alice = Alice(network_middleware=MockRestMiddleware(),
                   policy_agent=policy_agent,
                   ether_address=alice,
-                  known_nodes=mining_ursulas)
+                  known_nodes=mining_ursulas,
+                  federated_only=True)
     alice.recruit = lambda *args, **kwargs: [u.ether_address for u in mining_ursulas]
 
     return alice
