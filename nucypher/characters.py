@@ -545,8 +545,6 @@ class Alice(Character, PolicyAuthor):
 
         # REST call happens here, as does population of TreasureMap.
         policy.enact(network_middleware=self.network_middleware)
-        policy.publish_treasure_map(network_middleare=self.network_middleware)
-
         return policy  # Now with TreasureMap affixed!
 
 

@@ -197,15 +197,9 @@ class Policy:
 
         return tmap_message_kit, map_payload, signature_for_bob, signature_for_ursula
 
-    def publish(self) -> None:
-        """Publish enacted arrangements."""
-
-        if not self._enacted_arrangements:
-            raise RuntimeError("There are no enacted arrangements to publish to the network.")
-
-        while len(self._enacted_arrangements) > 0:
-            kfrag, arrangement = self._enacted_arrangements.popitem()
-            arrangement.publish()
+    def publish(self, network_middleware) -> None:
+        """Spread word of this Policy far and wide."""
+        self.publish_treasure_map(network_middleare=network_middleware)
 
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 
