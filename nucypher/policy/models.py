@@ -260,11 +260,44 @@ class Policy:
     def make_arrangements(self, network_middleware,
                           deposit: int,
                           expiration: maya.MayaDT,
-                          ursulas: List[Ursula]=None) -> None:
+                          ursulas: List[Ursula] = None) -> None:
         """
         Create and consider n Arangement objects.
         """
         raise NotImplementedError
+
+
+class FederatedPolicy(Policy):
+    _arrangement_class = Arrangement
+
+    def __init__(self, ursulas: List[Ursula], *args, **kwargs):
+        self.ursulas = ursulas
+        super().__init__(*args, **kwargs)
+
+    def make_arrangements(self, network_middleware,
+                          deposit: int,
+                          expiration: maya.MayaDT,
+                          ursulas: List[Ursula] = None) -> None:
+        if ursulas is None:
+            ursulas = []
+        ursulas.extend(self.ursulas)
+
+        if len(ursulas) < self.n:
+            raise ValueError(
+                "To make a Policy in federated mode, you need to designate *all*\
+                 the Ursulas you need (in this case, {}); there's no other way to\
+                  know which nodes to use.  Either pass them here or when you make\
+                   the Policy.".format(self.n))
+
+        # TODO: One of these layers needs to add concurrency.
+
+        self._consider_arrangements(network_middleware,
+                                    candidate_ursulas=ursulas,
+                                    deposit=deposit,
+                                    expiration=expiration)
+
+        if len(self._accepted_arrangements) < self.n:
+            raise self.MoreKFragsThanArrangements
 
 
 class TreasureMap(object):

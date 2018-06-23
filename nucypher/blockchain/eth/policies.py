@@ -81,6 +81,7 @@ class BlockchainPolicy(Policy):
     """
     A collection of n BlockchainArrangements representing a single Policy
     """
+    _arrangement_class = BlockchainArrangement
 
     class NoSuchPolicy(Exception):
         pass
