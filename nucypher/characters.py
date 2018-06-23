@@ -500,10 +500,12 @@ class Alice(Character, PolicyAuthor):
                        public_key=public_key,
                        m=m)
 
-        from nucypher.policy.models import Policy
-
         if self.federated_only is True:
-            policy = Policy(alice=self, **payload)
+            from nucypher.policy.models import FederatedPolicy
+            # We can't sample; we can only use known nodes.
+            known_nodes = list(self._known_nodes.values())
+            random.shuffle(known_nodes)
+            policy = FederatedPolicy(alice=self, ursulas=known_nodes, **payload)
         else:
             from nucypher.blockchain.eth.policies import BlockchainPolicy
             policy = BlockchainPolicy(author=self, **payload)
