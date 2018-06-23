@@ -53,13 +53,16 @@ class NucypherHashProtocol(KademliaProtocol):
         # TODO: Push the logic of this if branch down.
         if dht_value[:8] == constants.BYTESTRING_IS_URSULA_IFACE_INFO:
             proper_dht_id = digest(bytes(sender_pubkey_sig))
+            message = hrac
         else:
             proper_dht_id = digest(
                 keccak_digest(bytes(sender_pubkey_sig) + bytes(hrac)))
+            message = bytes(sender_pubkey_sig) + hrac
 
-        verified = signature.verify(hrac, sender_pubkey_sig)
+        verified = signature.verify(message, sender_pubkey_sig)
+        id_is_correct = proper_dht_id == dht_key
 
-        if not verified or not proper_dht_id == dht_key:
+        if not verified or not id_is_correct:
             # Hachidan Kiritsu, it's illegal!
             self.log.warning(
                 "Got request to store illegal k/v: {} / {}".format(dht_key, dht_value))

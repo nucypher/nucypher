@@ -28,7 +28,7 @@ class Arrangement:
                                                  (bytes, 27))
 
     def __init__(self, alice, hrac, expiration, ursula=None,
-                 kfrag=constants.UNKNOWN_KFRAG, alices_signature=None):
+                 kfrag=constants.UNKNOWN_KFRAG, value=None, alices_signature=None):
         """
         :param deposit: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
@@ -40,6 +40,7 @@ class Arrangement:
         self.hrac = hrac
         self.alice = alice
         self.uuid = uuid.uuid4()
+        self.value = None
 
         """
         These will normally not be set if Alice is drawing up this arrangement - she hasn't assigned a kfrag yet
@@ -86,7 +87,6 @@ class Arrangement:
         # Update: We'll probably have her store the Arrangement by hrac.  See #127.
         return bytes(self.kfrag)
 
-    @abstractmethod
     def publish(self):
         """
         Publish arrangement.
@@ -129,8 +129,8 @@ class Policy:
         self.treasure_map = TreasureMap(m=m)
 
         # Keep track of this stuff
-        self._accepted_arrangements = list()
-        self._rejected_arrangements = list()
+        self._accepted_arrangements = set()
+        self._rejected_arrangements = set()
 
         self._enacted_arrangements = OrderedDict()
         self._published_arrangements = OrderedDict()
@@ -246,7 +246,7 @@ class Policy:
         negotiation_result = negotiation_response.status_code == 200
 
         bucket = self._accepted_arrangements if negotiation_result is True else self._rejected_arrangements
-        bucket.append(arrangement)
+        bucket.add(arrangement)
 
         return negotiation_result
 
