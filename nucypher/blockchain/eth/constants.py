@@ -5,18 +5,17 @@ These values are static and do not need to be changed during runtime;
 Once the NuCypherToken contract is deployed to a network with one set of constant values,
 those values are then required to be compatible with the rest of the network.
 """
-import math
 
 import maya
 from constant_sorrow.constants import (NULL_ADDRESS, TOKEN_SATURATION, MINING_COEFFICIENT, TOKEN_SUPPLY,
                                        M, HOURS_PER_PERIOD, MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS,
-                                       MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, SECONDS_PER_PERIOD, )
+                                       MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, SECONDS_PER_PERIOD,
+                                       POLICY_ID_LENGTH, )
 
 
 #
 # Token
 #
-from nucypher.blockchain.eth.chains import Blockchain
 
 
 class TokenConfigError(ValueError):
@@ -62,6 +61,18 @@ __mining_coeff = (           # TODO: label
 )
 
 MINING_COEFFICIENT(__mining_coeff)
+
+
+#
+# Policy
+#
+
+
+class PolicyConfigError(ValueError):
+    pass
+
+
+POLICY_ID_LENGTH(16)
 
 
 def __validate(rulebook) -> bool:

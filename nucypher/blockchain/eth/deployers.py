@@ -162,7 +162,7 @@ class ContractDeployer:
 class NucypherTokenDeployer(ContractDeployer):
 
     agency = NucypherTokenAgent
-    _contract_name = agency.contract_name  # TODO
+    _contract_name = agency.principal_contract_name  # TODO
 
     def __init__(self, blockchain, deployer_address):
         if not type(blockchain.interface) is self._interface_class:
@@ -199,15 +199,14 @@ class DispatcherDeployer(ContractDeployer):
 
     _contract_name = 'Dispatcher'
 
-    def __init__(self, token_agent, target_contract, *args, **kwargs):
-        self.token_agent = token_agent
+    def __init__(self, target_contract, *args, **kwargs):
         self.target_contract = target_contract
-        super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def deploy(self) -> str:
 
-        dispatcher_contract, txhash = self.blockchain.interface.deploy_contract(
-            'Dispatcher', self.target_contract.address)
+        dispatcher_contract, txhash = self.blockchain.interface.deploy_contract('Dispatcher',
+                                                                                self.target_contract.address)
 
         self._contract = dispatcher_contract
         return txhash
@@ -219,7 +218,7 @@ class MinerEscrowDeployer(ContractDeployer):
     """
 
     agency = MinerAgent
-    _contract_name = 'MinersEscrow'
+    _contract_name = agency.principal_contract_name
 
     def __init__(self, token_agent, *args, **kwargs):
         super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
@@ -261,7 +260,7 @@ class MinerEscrowDeployer(ContractDeployer):
                                                       *map(int, constants.MINING_COEFFICIENT))
 
         # 2 - Deploy the dispatcher used for updating this contract #
-        dispatcher_deployer = DispatcherDeployer(token_agent=self.token_agent,
+        dispatcher_deployer = DispatcherDeployer(blockchain=self.token_agent.blockchain,
                                                  target_contract=the_escrow_contract,
                                                  deployer_address=self.deployer_address)
 
@@ -312,7 +311,7 @@ class PolicyManagerDeployer(ContractDeployer):
     """
 
     agency = PolicyAgent
-    _contract_name = 'PolicyManager'
+    _contract_name = agency.principal_contract_name
 
     def make_agent(self) -> EthereumContractAgent:
         agent = self.agency(miner_agent=self.miner_agent, contract=self._contract)
@@ -331,7 +330,7 @@ class PolicyManagerDeployer(ContractDeployer):
         the_policy_manager_contract, deploy_txhash = self.blockchain.interface.deploy_contract(
             self._contract_name, self.miner_agent.contract_address)
 
-        dispatcher_deployer = DispatcherDeployer(token_agent=self.token_agent,
+        dispatcher_deployer = DispatcherDeployer(blockchain=self.token_agent.blockchain,
                                                  target_contract=the_policy_manager_contract,
                                                  deployer_address=self.deployer_address)
 
