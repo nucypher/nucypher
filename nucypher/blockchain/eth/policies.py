@@ -140,34 +140,9 @@ class BlockchainPolicy(Policy):
         #  TODO: Figure out how to handle spare addresses.
         # else:
         #     spare_addresses = ether_addresses  # Successfully collected and/or found n ursulas
-        #     self.alice.nodes_to_seek.update((a for a in spare_addresses if a not in self.alice.known_nodes))
+        #     self.alice.nodes_to_seek.update((a for a in spare_addresses if a not in self.alice._known_nodes))
 
         return found_ursulas
-
-    def __consider_arrangements(self, network_middleware, candidate_ursulas: Set[Ursula],
-                                deposit: int, expiration: maya.MayaDT) -> tuple:
-
-        accepted, rejected = set(), set()
-        for selected_ursula in candidate_ursulas:
-
-            delta = expiration - maya.now()
-            hours = (delta.total_seconds() / 60) / 60
-            periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
-
-            blockchain_arrangement = BlockchainArrangement(author=self.alice, miner=selected_ursula,
-                                                           value=deposit, lock_periods=periods,
-                                                           expiration=expiration, hrac=self.hrac)
-
-            ursula_accepts = self.consider_arrangement(ursula=selected_ursula,
-                                                       arrangement=blockchain_arrangement,
-                                                       network_middleware=network_middleware)
-
-            if ursula_accepts:  # TODO: Read the negotiation results from REST
-                accepted.add(blockchain_arrangement)
-            else:
-                rejected.add(blockchain_arrangement)
-
-        return accepted, rejected
 
     def make_arrangements(self, network_middleware: RestMiddleware,
                           deposit: int, expiration: maya.MayaDT,
@@ -203,7 +178,7 @@ class BlockchainPolicy(Policy):
         #
 
         # Attempt 1
-        accepted, rejected = self.__consider_arrangements(network_middleware, candidate_ursulas=candidates,
+        accepted, rejected = self._consider_arrangements(network_middleware, candidate_ursulas=candidates,
                                                           deposit=deposit, expiration=expiration)
 
         # After all is said and done...
@@ -215,7 +190,7 @@ class BlockchainPolicy(Policy):
             # TODO: Handle spare Ursulas and try to claw back up to n.
             assert False
             found_spare_ursulas, remaining_spare_addresses = self.__find_ursulas(spare_addresses, remaining_quantity)
-            accepted_spares, rejected_spares = self.__consider_arrangements(network_middleware,
+            accepted_spares, rejected_spares = self._consider_arrangements(network_middleware,
                                                                             candidate_ursulas=found_spare_ursulas,
                                                                             deposit=deposit, expiration=expiration)
             accepted.update(accepted_spares)

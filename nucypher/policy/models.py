@@ -266,6 +266,20 @@ class Policy:
         """
         raise NotImplementedError
 
+    def _consider_arrangements(self, network_middleware, candidate_ursulas: Set[Ursula],
+                               deposit: int, expiration: maya.MayaDT) -> tuple:
+
+        for selected_ursula in candidate_ursulas:
+            arrangement = self._arrangement_class(alice=self.alice,
+                                                  ursula=selected_ursula,
+                                                  value=deposit,
+                                                  expiration=expiration,
+                                                  hrac=self.hrac)
+
+            self.consider_arrangement(ursula=selected_ursula,
+                                      arrangement=arrangement,
+                                      network_middleware=network_middleware)
+
 
 class FederatedPolicy(Policy):
     _arrangement_class = Arrangement
