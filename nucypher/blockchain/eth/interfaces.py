@@ -239,6 +239,7 @@ class ControlCircumflex:
                      websocket=False, ipc_path=None, timeout=None) -> None:
 
         if provider is None:
+
             # Validate parameters
             if websocket and not endpoint_uri:
                 if ipc_path is not None:
@@ -309,34 +310,47 @@ class ControlCircumflex:
             raise self.InterfaceError("No such contract records with name {}".format(name))
 
         if upgradeable:
-            # Lookup dispatchers
+            # Lookup dispatchers; Search fot a published dispatcher that targets this contract record
             dispatcher_records = self._registry.search(contract_name='Dispatcher')
-            for d_name, d_addr, d_abi in dispatcher_records:
 
-                # Read from blockchain
-                dispatcher_contract = self.w3.eth.contract(abi=d_abi, address=d_addr, ContractFactoryClass=factory)
+            matching_pairs = list()
+            for dispatcher_name, dispatcher_addr, dispatcher_abi in dispatcher_records:
+
+                dispatcher_contract = self.w3.eth.contract(abi=dispatcher_abi,
+                                                           address=dispatcher_addr,
+                                                           ContractFactoryClass=factory)
+
+                # Read this dispatchers target address from the blockchain
                 live_target_address = dispatcher_contract.functions.target().call()
 
-                for t_name, t_addr, t_abi in target_contract_records:
-                    if t_addr == live_target_address:
-                        selected_contract_address, selected_contract_abi = d_addr, t_abi
-                        break
+                for target_name, target_addr, target_abi in target_contract_records:
+                    if target_addr == live_target_address:
+                        pair = dispatcher_addr, target_abi
+                        matching_pairs.append(pair)
 
-                else:  # for/else
-                    raise self.InterfaceError("No dispatcher refers to local records for {}".format(name))
+            else:  # for/else
 
+                if len(matching_pairs) == 0:
+                    raise self.InterfaceError("No dispatcher targets known contract records for {}".format(name))
+
+                elif len(matching_pairs) > 1:
+                    raise self.InterfaceError("There is more than one dispatcher targeting {}".format(name))
+
+                selected_contract_address, selected_contract_abi = matching_pairs[0]
         else:
             if len(target_contract_records) > 1:  # TODO: Allow multiple non-upgradeable records (UserEscrow)
                 m = "Multiple records returned from the registry for non-upgradeable contract {}"
                 raise self.InterfaceError(m.format(name))
+
             selected_contract_name, selected_contract_address, selected_contract_abi = target_contract_records[0]
 
         # Create the contract from selected sources
-        assembled_contract = self.w3.eth.contract(abi=selected_contract_abi,
-                                                  address=selected_contract_address,
-                                                  ContractFactoryClass=factory)
 
-        return assembled_contract
+        unified_contract = self.w3.eth.contract(abi=selected_contract_abi,
+                                                address=selected_contract_address,
+                                                ContractFactoryClass=factory)
+
+        return unified_contract
 
 
 class DeployerCircumflex(ControlCircumflex):
