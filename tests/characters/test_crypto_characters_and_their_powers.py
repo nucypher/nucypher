@@ -1,7 +1,7 @@
 import pytest
-from constant_sorrow import constants
 
-from nucypher.characters import Alice, Ursula, Character
+from constant_sorrow import constants
+from nucypher.characters import Alice, Ursula, Character, Bob
 from nucypher.crypto import api
 from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower
 
@@ -16,7 +16,7 @@ def test_actor_without_signing_power_cannot_sign():
     This Character can't even sign a message.
     """
     cannot_sign = CryptoPower(power_ups=[])
-    non_signer = Character(crypto_power=cannot_sign)
+    non_signer = Character(crypto_power=cannot_sign, always_be_learning=False)
 
     # The non-signer's stamp doesn't work for signing...
     with pytest.raises(NoSigningPower) as e_info:
@@ -35,7 +35,7 @@ def test_actor_with_signing_power_can_sign():
     """
     message = b"Llamas."
 
-    signer = Character(crypto_power_ups=[SigningPower], is_me=True)
+    signer = Character(crypto_power_ups=[SigningPower], is_me=True, always_be_learning=False)
     stamp_of_the_signer = signer.stamp
 
     # We can use the signer's stamp to sign a message (since the signer is_me)...
@@ -57,10 +57,10 @@ def test_anybody_can_verify(mock_policy_agent):
     """
 
     # Alice can sign by default, by dint of her _default_crypto_powerups.
-    alice = Alice(policy_agent=mock_policy_agent)
+    alice = Alice(policy_agent=mock_policy_agent, always_be_learning=False)
 
     # So, our story is fairly simple: an everyman meets Alice.
-    somebody = Character()
+    somebody = Character(always_be_learning=False)
 
     # Alice signs a message.
     message = b"A message for all my friends who can only verify and not sign."
@@ -81,12 +81,12 @@ def test_anybody_can_encrypt():
     """
     Similar to anybody_can_verify() above; we show that anybody can encrypt.
     """
-    someone = Character()
-    ursula = Ursula(is_me=False)
+    someone = Character(always_be_learning=False)
+    bob = Bob(is_me=False)
 
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
-    ciphertext, signature = someone.encrypt_for(ursula, cleartext, sign=False)
+    ciphertext, signature = someone.encrypt_for(bob, cleartext, sign=False)
 
     assert signature == constants.NOT_SIGNED
     assert ciphertext is not None

@@ -1,5 +1,6 @@
 import datetime
 
+import binascii
 import maya
 import os
 import pytest
@@ -78,18 +79,19 @@ def ursulas(three_agents):
 
 @pytest.fixture(scope="module")
 def mining_ursulas(three_agents):
+    starting_point = constants.URSULA_PORT_SEED + 500
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
     _receipts = token_airdrop(token_agent=token_agent, origin=etherbase, addresses=all_yall, amount=1000000 * constants.M)
     ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
 
     _ursulas = make_ursulas(ether_addresses=ursula_addresses,
-                            ursula_starting_port=int(constants.URSULA_PORT_SEED),
+                            ursula_starting_port=int(starting_point),
                             miner_agent=miner_agent,
                             miners=True)
     yield _ursulas
     # Remove the DBs that have been sprayed hither and yon.
-    for port, ursula in enumerate(_ursulas, start=int(constants.URSULA_PORT_SEED)):
+    for port, ursula in enumerate(_ursulas, start=int(starting_point)):
         os.remove("test-{}".format(port))
 
 
