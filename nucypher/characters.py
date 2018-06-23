@@ -207,9 +207,13 @@ class Character:
     def handle_learning_errors(self, *args, **kwargs):
         self.log.warning("Unhandled error during node learning: {}".format(args))
 
-    def select_teacher_nodes(self):
+    def shuffled_known_nodes(self):
         nodes_we_know_about = list(self._known_nodes.values())
         random.shuffle(nodes_we_know_about)
+        return nodes_we_know_about
+
+    def select_teacher_nodes(self):
+        nodes_we_know_about = self.shuffled_known_nodes()
 
         if nodes_we_know_about is None:
             raise self.NotEnoughUrsulas("Need some nodes to start learning from.")
