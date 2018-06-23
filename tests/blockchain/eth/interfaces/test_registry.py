@@ -3,7 +3,7 @@ import pytest
 from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
-def test_registrar_object(tempfile_path):
+def test_contract_registrary(tempfile_path):
 
     with pytest.raises(EthereumContractRegistry.RegistryError):
         bad_registrar = EthereumContractRegistry(registry_filepath='/fake/file/path/registry.json')

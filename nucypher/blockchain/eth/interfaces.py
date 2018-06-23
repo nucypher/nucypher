@@ -33,11 +33,15 @@ class EthereumContractRegistry:
     class UnknownContract(RegistryError):
         pass
 
-    class CorruptedRegistrar(RegistryError):
+    class IllegalRegistrar(RegistryError):
         """Raised when invalid data is encountered in the registry"""
 
     def __init__(self, registry_filepath: str=None):
         self.__registry_filepath = registry_filepath or self.__default_registry_path
+
+    @property
+    def registry_filepath(self):
+        return self.__registry_filepath
 
     def __write(self, registry_data: list) -> None:
         """
@@ -50,7 +54,7 @@ class EthereumContractRegistry:
             registry_file.write(json.dumps(registry_data))
             registry_file.truncate()
 
-    def __read(self) -> list:
+    def read(self) -> list:
         """
         Reads the registry file and parses the JSON and returns a list.
         If the file is empty or the JSON is corrupt, it will return an empty
@@ -69,7 +73,7 @@ class EthereumContractRegistry:
                     registry_data = list()  # Existing, but empty registry
 
         except FileNotFoundError:
-            raise self.RegistryError("No registar at filepath: {}".format(self.__registry_filepath))
+            raise self.RegistryError("No registy at filepath: {}".format(self.__registry_filepath))
 
         return registry_data
 
@@ -82,7 +86,7 @@ class EthereumContractRegistry:
         need to use this.
         """
         contract_data = [contract_name, contract_address, contract_abi]
-        registry_data = self.__read()
+        registry_data = self.read()
         registry_data.append(contract_data)
         self.__write(registry_data)
 
@@ -95,17 +99,17 @@ class EthereumContractRegistry:
             raise ValueError("Pass contract_name or contract_address, not both.")
 
         contracts = list()
-        registry_data = self.__read()
+        registry_data = self.read()
 
         for name, addr, abi in registry_data:
-            if (contract_name or contract_address) == name:
+            if contract_name == name or contract_address == addr:
                 contracts.append((name, addr, abi))
 
         if not contracts:
             raise self.UnknownContract
         if contract_address and len(contracts) > 1:
             m = "Multiple records returned for address {}"
-            raise self.CorruptedRegistrar(m.format(contract_address))
+            raise self.IllegalRegistrar(m.format(contract_address))
 
         return contracts if contract_name else contracts[0]
 
@@ -385,8 +389,8 @@ class DeployerCircumflex(ControlCircumflex):
         #
         contract = contract_factory(address=address)
         self._registry.enroll(contract_name=contract_name,
-                               contract_address=contract.address,
-                               contract_abi=contract_factory.abi)
+                              contract_address=contract.address,
+                              contract_abi=contract_factory.abi)
 
         return contract, txhash
 
