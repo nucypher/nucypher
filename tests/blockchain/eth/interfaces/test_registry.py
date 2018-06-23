@@ -49,8 +49,8 @@ def test_registrar_object(tempfile_path):
     current_dataset = test_registrar._EthereumContractRegistry__read()
     # Corrupt the registry with a duplicate address
     current_dataset.append([test_name, test_addr, test_abi])
-    test_registrar._EthereumContractRegistry__write()
+    test_registrar._EthereumContractRegistry__write(current_dataset)
 
     # Check that searching for an unknown contract raises
-    with pytest.raises(RuntimeError):
+    with pytest.raises(EthereumContractRegistry.IllegalRegistrar):
         test_registrar.search(contract_address=test_addr)
