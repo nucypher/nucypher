@@ -93,8 +93,14 @@ class BlockchainPower(CryptoPowerUp):
         if not self.is_unlocked:
             raise PowerUpError("Account is not unlocked.")
 
-        signature = Eth.sign(self.account, data=message)
+        signature = self.blockchain.interface.call_backend_sign(self.account, message)
         return signature
+
+    def __del__(self):
+        """
+        Deletes the blockchain power and locks the account.
+        """
+        self.blockchain.interface.w3.personal.lockAccount(self.account)
 
 
 class KeyPairBasedPower(CryptoPowerUp):
