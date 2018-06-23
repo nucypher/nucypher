@@ -210,11 +210,17 @@ class Policy:
 
         for kfrag in self.kfrags:
             for arrangement in self._accepted_arrangements:
-                if kfrag not in self._enacted_arrangements:
+                if not arrangement in self._enacted_arrangements.values():
                     arrangement.kfrag = kfrag
-
                     self._enacted_arrangements[kfrag] = arrangement
+                    print(kfrag, arrangement, arrangement.ursula)
                     yield arrangement
+                    break  # This KFrag is now assigned; break the inner loop and go back to assign other kfrags.
+            else:
+                # We didn't assign that KFrag.  Trouble.
+                # This is ideally an impossible situation, because we don't typically
+                # enter this method unless we've already had n or more Arrangements accepted.
+                raise self.MoreKFragsThanArrangements("Not enough accepted arrangements to assign all KFrags.")
 
     def enact(self, network_middleware, publish=True) -> None:
         """
