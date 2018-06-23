@@ -19,7 +19,7 @@ TEST_EVENT_LOOP = asyncio.get_event_loop()
 asyncio.set_event_loop(TEST_EVENT_LOOP)
 
 constants.URSULA_PORT_SEED(7468)
-constants.NUMBER_OF_URSULAS_IN_NETWORK(6)
+constants.NUMBER_OF_URSULAS_IN_NETWORK(10)
 
 _ALL_URSULAS = {}
 

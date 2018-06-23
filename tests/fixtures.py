@@ -8,6 +8,7 @@ import tempfile
 from sqlalchemy.engine import create_engine
 
 from constant_sorrow import constants
+from eth_utils import to_canonical_address
 from nucypher.characters import Alice, Bob
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
@@ -66,7 +67,7 @@ def bob(mining_ursulas):
 def ursulas(three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     # TODO: Make this some other way for federated case.
-    ether_addresses = [binascii.b2a_hex(os.urandom(21)).decode() for _ in range(10)]
+    ether_addresses = [to_canonical_address(os.urandom(20)) for _ in range(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
     _ursulas = make_ursulas(ether_addresses=ether_addresses,
                             ursula_starting_port=int(constants.URSULA_PORT_SEED),
                             miner_agent=miner_agent

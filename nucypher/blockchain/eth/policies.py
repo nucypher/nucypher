@@ -6,6 +6,7 @@ import maya
 from collections import deque
 
 from constant_sorrow import constants
+from eth_utils import to_canonical_address
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent
@@ -119,7 +120,7 @@ class BlockchainPolicy(Policy):
 
             # Select an ether_address: Prefer the selection pool, then unknowns queue
             if ether_addresses:
-                ether_address = bytes(ether_addresses.pop(), encoding="ascii")
+                ether_address = to_canonical_address(ether_addresses.pop())
             else:
                 ether_address = unknown_addresses.popleft()
 
