@@ -242,7 +242,7 @@ class Policy:
 
         else:  # ...After *all* the policies are enacted
             if publish is True:
-                self.publish()
+                self.publish(network_middleware)
 
     def consider_arrangement(self, network_middleware, ursula, arrangement):
         ursula, negotiation_response = network_middleware.consider_arrangement(ursula=ursula,
