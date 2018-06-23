@@ -118,22 +118,18 @@ def testerchain(solidity_compiler):
     https: // github.com / ethereum / eth - tester     # available-backends
     """
 
-    # create a temporary registrar for the tester blockchain
-    _, filepath = tempfile.mkstemp()
-    test_registrar = EthereumContractRegistry(registry_filepath=filepath)
+    temp_registrar = TemporaryEthereumContractRegistry()
 
     # Configure a custom provider
     overrides = {'gas_limit': 4626271}
-    pyevm_backend = TesterPyEVMBackend(genesis_overrides=overrides)
-
-    # pyevm_backend = PyEVMBackend() # TODO: Remove custom overrides?
+    pyevm_backend = OverridablePyEVMBackend(genesis_overrides=overrides)
 
     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
     pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
     # Use the the custom provider and registrar to init an interface
     circumflex = DeployerCircumflex(compiler=solidity_compiler,    # freshly recompile
-                                    registry=test_registrar,      # use temporary registrar
+                                    registry=temp_registrar,       # use temporary registrar
                                     providers=(pyevm_provider, ))  # use custom test provider
 
     # Create the blockchain
@@ -143,8 +139,7 @@ def testerchain(solidity_compiler):
 
     yield testerchain
 
-    testerchain.sever_connection()  # Destroy the blockchin singelton cache
-    os.remove(filepath)             # remove registrar tempfile
+    testerchain.sever_connection()
 
 
 #

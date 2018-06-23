@@ -36,6 +36,8 @@ def test_token_deployer_and_agent(testerchain):
     assert token_agent.contract_address == same_token_agent.contract_address
     assert token_agent == same_token_agent  # __eq__
 
+    testerchain.interface._registry.clear()
+
 
 @pytest.mark.slow()
 def test_deploy_ethereum_contracts(testerchain):
