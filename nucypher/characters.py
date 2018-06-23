@@ -566,7 +566,7 @@ class Bob(Character):
         if not using_dht:
             for ursula_interface_id in treasure_map:
                 pubkey = UmbralPublicKey.from_bytes(ursula_interface_id)
-                if pubkey in self.known_nodes:
+                if pubkey in self._known_nodes:
                     number_of_known_treasure_ursulas += 1
 
             newly_discovered_nodes = {}
@@ -586,12 +586,12 @@ class Bob(Character):
                         number_of_known_treasure_ursulas += 1
                 newly_discovered_nodes.update(new_nodes)
 
-            self.known_nodes.update(newly_discovered_nodes)
+            self._known_nodes.update(newly_discovered_nodes)
             return newly_discovered_nodes, number_of_known_treasure_ursulas
         else:
             for ursula_interface_id in self.treasure_maps[hrac]:
                 pubkey = UmbralPublicKey.from_bytes(ursula_interface_id)
-                if ursula_interface_id in self.known_nodes:
+                if ursula_interface_id in self._known_nodes:
                     # If we already know about this Ursula,
                     # we needn't learn about it again.
                     continue
@@ -608,7 +608,7 @@ class Bob(Character):
                         raise TypeError("Unknown DHT value.  How did this get on the network?")
 
                 # TODO: If we're going to implement TTL, it will be here.
-                self.known_nodes[ursula_interface_id] = \
+                self._known_nodes[ursula_interface_id] = \
                     Ursula.as_discovered_on_network(
                         dht_port=port,
                         dht_interface=interface,
@@ -623,7 +623,7 @@ class Bob(Character):
             event_loop = asyncio.get_event_loop()
             packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
         else:
-            if not self.known_nodes:
+            if not self._known_nodes:
                 # TODO: Try to find more Ursulas on the blockchain.
                 raise self.NotEnoughUrsulas
             tmap_message_kit = self.get_treasure_map_from_known_ursulas(self.network_middleware,
@@ -654,7 +654,7 @@ class Bob(Character):
         Return the first one who has it.
         TODO: What if a node gives a bunk TreasureMap?
         """
-        for node in self.known_nodes.values():
+        for node in self._known_nodes.values():
             response = networky_stuff.get_treasure_map_from_node(node, map_id)
 
             if response.status_code == 200 and response.content:
@@ -683,7 +683,7 @@ class Bob(Character):
                     capsules))
 
         for ursula_dht_key in treasure_map_to_use:
-            ursula = self.known_nodes[UmbralPublicKey.from_bytes(ursula_dht_key)]
+            ursula = self._known_nodes[UmbralPublicKey.from_bytes(ursula_dht_key)]
 
             capsules_to_include = []
             for capsule in capsules:
@@ -735,7 +735,7 @@ class Bob(Character):
         treasure_map = self.treasure_maps[hrac]
 
         # First, a quick sanity check to make sure we know about at least m nodes.
-        known_nodes_as_bytes = set([bytes(n) for n in self.known_nodes.keys()])
+        known_nodes_as_bytes = set([bytes(n) for n in self._known_nodes.keys()])
         intersection = treasure_map.ids.intersection(known_nodes_as_bytes)
 
         if len(intersection) < treasure_map.m:
@@ -743,7 +743,7 @@ class Bob(Character):
 
         work_orders = self.generate_work_orders(hrac, message_kit.capsule)
         for node_id in self.treasure_maps[hrac]:
-            node = self.known_nodes[UmbralPublicKey.from_bytes(node_id)]
+            node = self._known_nodes[UmbralPublicKey.from_bytes(node_id)]
             cfrags = self.get_reencrypted_c_frags(work_orders[bytes(node.stamp)])
             message_kit.capsule.attach_cfrag(cfrags[0])
         verified, delivered_cleartext = self.verify_from(data_source,

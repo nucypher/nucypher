@@ -98,7 +98,7 @@ class MockPolicy(Policy):
         Create and consider n Arangement objects from all known nodes.
         """
 
-        for ursula in self.alice.known_nodes:
+        for ursula in self.alice._known_nodes:
             arrangement = MockArrangement(alice=self.alice, ursula=ursula,
                                           hrac=self.hrac(),
                                           expiration=expiration)

@@ -13,7 +13,7 @@ def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_policy, bob):
     bob.treasure_maps[hrac] = treasure_map
 
     # Bob knows of no Ursulas.
-    assert len(bob.known_nodes) == 0
+    assert len(bob._known_nodes) == 0
 
     # He can't successfully follow the TreasureMap until he learns of a node to ask.
     with pytest.raises(bob.NotEnoughUrsulas):
@@ -31,13 +31,13 @@ def test_bob_can_follow_treasure_map(enacted_policy, ursulas, bob, alice):
     hrac = enacted_policy.hrac()
 
     # Bob knows of no Ursulas.
-    assert len(bob.known_nodes) == 0
+    assert len(bob._known_nodes) == 0
 
     # Now Bob will ask just a single Ursula to tell him of the nodes about which she's aware.
     bob.network_bootstrap([("127.0.0.1", ursulas[0].rest_port)])
 
     # Success!  This Ursula knew about all the nodes on the network!
-    assert len(bob.known_nodes) == len(ursulas)
+    assert len(bob._known_nodes) == len(ursulas)
 
     # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
     bob.get_treasure_map(alice.stamp, hrac)
@@ -56,9 +56,9 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_p
     bob.treasure_maps[hrac] = treasure_map
 
     # Now, let's create a scenario in which Bob knows of only one node.
-    k, v = bob.known_nodes.popitem()
-    bob.known_nodes = {k: v}
-    assert len(bob.known_nodes) == 1
+    k, v = bob._known_nodes.popitem()
+    bob._known_nodes = {k: v}
+    assert len(bob._known_nodes) == 1
 
     # This time, when he follows the TreasureMap...
     newly_discovered, total_known = bob.follow_treasure_map(hrac)
@@ -84,7 +84,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_policy, bob,
     hrac, treasure_map = enacted_policy.hrac(), enacted_policy.treasure_map
     bob.treasure_maps[hrac] = treasure_map
     bob.follow_treasure_map(hrac)
-    assert len(bob.known_nodes) == len(ursulas)
+    assert len(bob._known_nodes) == len(ursulas)
 
     the_hrac = enacted_policy.hrac()
 

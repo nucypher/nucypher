@@ -53,7 +53,7 @@ def test_alice_finds_ursula_via_rest(alice, ursulas):
     network_middleware = MockRestMiddleware()
 
     # Imagine alice knows of nobody.
-    alice.known_nodes = {}
+    alice._known_nodes = {}
 
     new_nodes = alice.learn_about_nodes(rest_address="https://localhost", port=ursulas[0].rest_port)
     assert len(new_nodes) == len(ursulas)
@@ -148,7 +148,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy, ursula
         treasure_map_from_wire = bob.get_treasure_map(enacted_policy.alice.stamp, enacted_policy.hrac())
 
     # Let's imagine he has learned about some - say, from the blockchain.
-    bob.known_nodes = {u.interface_info_with_metadata(): u for u in ursulas}
+    bob._known_nodes = {u.interface_info_with_metadata(): u for u in ursulas}
 
     # Now try.
     treasure_map_from_wire = bob.get_treasure_map(enacted_policy.alice.stamp, enacted_policy.hrac())
