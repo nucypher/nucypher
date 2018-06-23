@@ -25,7 +25,8 @@ def test_token_deployer_and_agent(testerchain):
 
     # Create a token instance
     token_agent = deployer.make_agent()
-    token_contract = testerchain.get_contract(token_agent.contract_address)
+    token_contract = testerchain.get_contract(token_agent.contract_name)
+
     expected_token_supply = token_contract.functions.totalSupply().call()
     assert expected_token_supply == token_agent.contract.functions.totalSupply().call()
 
@@ -63,8 +64,10 @@ def test_deploy_ethereum_contracts(testerchain):
 
     miner_agent = MinerAgent(token_agent=token_agent)
 
-    policy_manager_contract = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=origin)
-    policy_manager_contract.arm()
-    policy_manager_contract.deploy()
+    policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=origin)
+    policy_manager_deployer.arm()
+    policy_manager_deployer.deploy()
 
-    # TODO: Assert
+    policy_agent = policy_manager_deployer.make_agent()
+
+    # TODO: assert

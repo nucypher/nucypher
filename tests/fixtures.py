@@ -1,14 +1,14 @@
+import contextlib
 import datetime
-
-import binascii
-import maya
 import os
-import pytest
 import tempfile
-from sqlalchemy.engine import create_engine
 
+import maya
+import pytest
 from constant_sorrow import constants
 from eth_utils import to_canonical_address
+from sqlalchemy.engine import create_engine
+
 from nucypher.characters import Alice, Bob
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
@@ -30,7 +30,8 @@ def idle_policy(alice, bob):
 
 
 @pytest.fixture(scope="module")
-def enacted_policy(idle_policy, ursulas, mock_miner_agent, mock_token_agent):
+@pytest.mark.usesfixtures("ursulas", "three_agents")
+def enacted_policy(idle_policy):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = constants.NON_PAYMENT(b"0000000")
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -72,10 +73,13 @@ def ursulas(three_agents):
                             ursula_starting_port=int(constants.URSULA_PORT_SEED),
                             miner_agent=miner_agent
                             )
-    yield _ursulas
-    # Remove the DBs that have been sprayed hither and yon.
-    for port, ursula in enumerate(_ursulas, start=int(constants.URSULA_PORT_SEED)):
-        os.remove("test-{}".format(port))
+    try:
+        yield _ursulas
+    finally:
+        # Remove the DBs that have been sprayed hither and yon.
+        with contextlib.suppress(FileNotFoundError):
+            for port, ursula in enumerate(_ursulas, start=int(constants.URSULA_PORT_SEED)):
+                os.remove("test-{}".format(port))
 
 
 @pytest.fixture(scope="module")
@@ -90,10 +94,13 @@ def mining_ursulas(three_agents):
                             ursula_starting_port=int(starting_point),
                             miner_agent=miner_agent,
                             miners=True)
-    yield _ursulas
-    # Remove the DBs that have been sprayed hither and yon.
-    for port, ursula in enumerate(_ursulas, start=int(starting_point)):
-        os.remove("test-{}".format(port))
+    try:
+        yield _ursulas
+    finally:
+        # Remove the DBs that have been sprayed hither and yon.
+        with contextlib.suppress(FileNotFoundError):
+            for port, ursula in enumerate(_ursulas, start=int(starting_point)):
+                os.remove("test-{}".format(port))
 
 
 @pytest.fixture(scope="module")

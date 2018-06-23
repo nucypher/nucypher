@@ -1,26 +1,23 @@
-import math
-import os
-
 import maya
 import pytest
+from constant_sorrow import constants
 
 from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
-from constant_sorrow import constants
 from tests.blockchain.eth.utilities import token_airdrop
 
 
 class TestMiner:
 
     @pytest.fixture(scope='class')
-    def miner(self, testerchain, mock_token_agent, mock_miner_agent):
+    def miner(self, testerchain, three_agents):
+        token_agent, miner_agent, policy_agent = three_agents
         origin, *everybody_else = testerchain.interface.w3.eth.accounts
-        token_airdrop(mock_token_agent, origin=origin, addresses=everybody_else, amount=1000000*constants.M)
-        miner = Miner(miner_agent=mock_miner_agent, ether_address=everybody_else[0])
+        token_airdrop(token_agent=token_agent, origin=origin, addresses=everybody_else, amount=1000000*constants.M)
+        miner = Miner(miner_agent=miner_agent, ether_address=everybody_else[0])
         return miner
 
-    @pytest.mark.usefixtures("mock_policy_agent")
-    def test_miner_locking_tokens(self, testerchain, miner, mock_miner_agent):
-
+    def test_miner_locking_tokens(self, testerchain, three_agents, miner):
+        token_agent, miner_agent, policy_agent = three_agents
         testerchain.ether_airdrop(amount=10000)
         assert constants.MIN_ALLOWED_LOCKED < miner.token_balance, "Insufficient miner balance"
 
@@ -29,18 +26,18 @@ class TestMiner:
                     expiration=expiration)
 
         # Verify that the escrow is "approved" to receive tokens
-        allowance = mock_miner_agent.token_agent.contract.functions.allowance(
+        allowance = miner_agent.token_agent.contract.functions.allowance(
             miner.ether_address,
-            mock_miner_agent.contract_address).call()
+            miner_agent.contract_address).call()
         assert 0 == allowance
 
         # Staking starts after one period
-        locked_tokens = mock_miner_agent.contract.functions.getLockedTokens(miner.ether_address).call()
+        locked_tokens = miner_agent.contract.functions.getLockedTokens(miner.ether_address).call()
         assert 0 == locked_tokens
-        locked_tokens = mock_miner_agent.contract.functions.getLockedTokens(miner.ether_address, 1).call()
+        locked_tokens = miner_agent.contract.functions.getLockedTokens(miner.ether_address, 1).call()
         assert constants.MIN_ALLOWED_LOCKED == locked_tokens
 
-    @pytest.mark.usefixtures("mock_policy_agent")
+    @pytest.mark.usefixtures("three_agents")
     def test_miner_divides_stake(self, miner):
         current_period = miner.miner_agent.get_current_period()
         stake_value = int(constants.MIN_ALLOWED_LOCKED) * 5
@@ -71,19 +68,16 @@ class TestMiner:
         assert expected_yet_another_stake == stakes[stake_index + 2], 'Third stake values are invalid'
 
     @pytest.mark.slow()
-    @pytest.mark.usefixtures("mock_policy_agent")
-    def test_miner_collects_staking_reward(self, testerchain, miner, mock_token_agent, mock_miner_agent):
+    @pytest.mark.usefixtures("mining_ursulas")
+    def test_miner_collects_staking_reward(self, testerchain, miner, three_agents):
+        token_agent, miner_agent, policy_agent = three_agents
 
         # Capture the current token balance of the miner
         initial_balance = miner.token_balance
-        assert mock_token_agent.get_balance(miner.ether_address) == initial_balance
+        assert token_agent.get_balance(miner.ether_address) == initial_balance
 
         miner.stake(amount=int(constants.MIN_ALLOWED_LOCKED),         # Lock the minimum amount of tokens
                     lock_periods=int(constants.MIN_LOCKED_PERIODS))   # ... for the fewest number of periods
-
-        # Have other address lock tokens
-        _origin, ursula, *everybody_else = testerchain.interface.w3.eth.accounts
-        mock_miner_agent.spawn_random_miners(addresses=everybody_else)
 
         # ...wait out the lock period...
         for _ in range(28):
@@ -95,20 +89,22 @@ class TestMiner:
         miner.mint()
         miner.collect_staking_reward()
 
-        final_balance = mock_token_agent.get_balance(miner.ether_address)
+        final_balance = token_agent.get_balance(miner.ether_address)
         assert final_balance > initial_balance
 
 
 class TestPolicyAuthor:
 
     @pytest.fixture(scope='class')
-    def author(self, testerchain, mock_token_agent, mock_policy_agent):
-        mock_token_agent.ether_airdrop(amount=100000 * constants.M)
+    def author(self, testerchain, three_agents):
+        token_agent, miner_agent, policy_agent = three_agents
+        token_agent.ether_airdrop(amount=100000 * constants.M)
         _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
-        miner = PolicyAuthor(ether_address=alice, policy_agent=mock_policy_agent)
+        miner = PolicyAuthor(ether_address=alice, policy_agent=policy_agent)
         return miner
 
-    def test_create_policy_author(self, testerchain, mock_policy_agent):
+    def test_create_policy_author(self, testerchain, three_agents):
+        token_agent, miner_agent, policy_agent = three_agents
         _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
-        policy_author = PolicyAuthor(policy_agent=mock_policy_agent, ether_address=alice)
+        policy_author = PolicyAuthor(policy_agent=policy_agent, ether_address=alice)
         assert policy_author.ether_address == alice

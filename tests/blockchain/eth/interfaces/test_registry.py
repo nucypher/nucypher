@@ -12,7 +12,7 @@ def test_contract_registrary(tempfile_path):
     # Tests everything is as it should be when initially created
     test_registrar = EthereumContractRegistry(registry_filepath=tempfile_path)
 
-    should_be_empty = test_registrar._EthereumContractRegistry__read()
+    should_be_empty = test_registrar.read()
     assert should_be_empty == []
 
     # Test contract enrollment and dump_chain
@@ -46,7 +46,7 @@ def test_contract_registrary(tempfile_path):
     with pytest.raises(EthereumContractRegistry.UnknownContract):
         test_registrar.search(contract_name='this does not exist')
 
-    current_dataset = test_registrar._EthereumContractRegistry__read()
+    current_dataset = test_registrar.read()
     # Corrupt the registry with a duplicate address
     current_dataset.append([test_name, test_addr, test_abi])
     test_registrar._EthereumContractRegistry__write(current_dataset)

@@ -145,4 +145,5 @@ class InterfaceInfo:
     def __radd__(self, other):
         return bytes(other) + bytes(self)
 
+
 ursula_interface_splitter = dht_value_splitter + BytestringSplitter(InterfaceInfo) * 2

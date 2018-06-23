@@ -1,7 +1,7 @@
 import asyncio
 import random
 from collections import OrderedDict
-from typing import List
+from typing import List, Set
 
 import maya
 from apistar.test import TestClient
