@@ -198,3 +198,15 @@ class BlockchainPolicy(Policy):
 
             if len(accepted) < self.n:
                 raise Exception("Selected Ursulas rejected too many arrangements")  # TODO: Better exception
+
+    def publish(self, network_middleware) -> None:
+        """Publish enacted arrangements."""
+
+        if not self._enacted_arrangements:
+            raise RuntimeError("There are no enacted arrangements to publish to the network.")
+
+        while len(self._enacted_arrangements) > 0:
+            kfrag, arrangement = self._enacted_arrangements.popitem()
+            arrangement.publish()
+
+        super().publish(network_middleware)
