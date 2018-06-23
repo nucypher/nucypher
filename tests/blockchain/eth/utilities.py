@@ -43,7 +43,6 @@ class MockMinerAgent(MinerAgent):
 
 class MockNucypherTokenDeployer(NucypherTokenDeployer):
     """Mock deployer with mock agency"""
-    agency = MockTokenAgent
 
 
 class MockMinerEscrowDeployer(MinerEscrowDeployer):

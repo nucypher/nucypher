@@ -6,6 +6,7 @@ import pytest
 
 from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
 from constant_sorrow import constants
+from tests.blockchain.eth.utilities import token_airdrop
 
 
 class TestMiner:
@@ -13,7 +14,7 @@ class TestMiner:
     @pytest.fixture(scope='class')
     def miner(self, testerchain, mock_token_agent, mock_miner_agent):
         origin, *everybody_else = testerchain.interface.w3.eth.accounts
-        mock_token_agent.token_airdrop(origin=origin, addresses=everybody_else, amount=1000000*constants.M)
+        token_airdrop(mock_token_agent, origin=origin, addresses=everybody_else, amount=1000000*constants.M)
         miner = Miner(miner_agent=mock_miner_agent, ether_address=everybody_else[0])
         return miner
 

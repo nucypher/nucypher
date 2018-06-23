@@ -29,17 +29,12 @@ def idle_policy(alice, bob):
 
 @pytest.fixture(scope="module")
 def enacted_policy(idle_policy, ursulas, mock_miner_agent, mock_token_agent):
-    _origin, ursula, *everybody_else = mock_miner_agent.blockchain.interface.w3.eth.accounts
-    mock_token_agent.token_airdrop(amount=100000 * constants.M)  # blocks
-    mock_miner_agent.spawn_random_miners(addresses=everybody_else)
-    mock_miner_agent.blockchain.time_travel(periods=1)
-
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = constants.NON_PAYMENT(b"0000000")
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()
 
-    idle_policy.make_arrangements(network_middleware, deposit=deposit, quantity=3, expiration=contract_end_datetime)
+    idle_policy.make_arrangements(network_middleware, deposit=deposit, expiration=contract_end_datetime)
     idle_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
 
     return idle_policy
