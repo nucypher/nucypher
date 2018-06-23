@@ -24,8 +24,13 @@ class BlockchainArrangement(Arrangement):
                  miner: Miner,
                  value: int,
                  lock_periods: int,
+                 expiration: maya.MayaDT,
                  *args, **kwargs):
         super().__init__(alice=author, ursula=miner, *args, **kwargs)
+
+        delta = expiration - maya.now()
+        hours = (delta.total_seconds() / 60) / 60
+        periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
 
         # The relationship exists between two addresses
         self.author = author
