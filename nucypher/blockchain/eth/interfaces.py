@@ -410,15 +410,12 @@ class DeployerCircumflex(ControlCircumflex):
         else:
             return self.w3.eth.sign(account, data=message) # Technically deprecated...
 
-    def call_backend_verify(self, pubkey: bytes , signature: str, msg_hash: bytes):
+    def call_backend_verify(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes):
         """
         Verifies a hex string signature and message hash are from the provided
         public key.
         """
-        eth_sig = Signature(signature_bytes=unhexlify(signature[2:]))
-        eth_pubkey = PublicKey(public_key_bytes=pubkey)
+        is_valid_sig = signature.verify_msg_hash(msg_hash, pubkey)
+        sig_pubkey = signature.recover_public_key_from_msg_hash(msg_hash)
 
-        is_valid_sig = eth_sig.verify_msg_hash(msg_hash, eth_pubkey)
-        sig_pubkey = eth_sig.recovery_public_key_from_msg_hash(msg_hash)
-
-        return is_valid_sig and (sig_pubkey == eth_pubkey)
+        return is_valid_sig and (sig_pubkey == pubkey)
