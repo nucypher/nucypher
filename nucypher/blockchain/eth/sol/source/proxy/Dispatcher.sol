@@ -18,6 +18,7 @@ contract Dispatcher is Upgradeable {
     * @param _target Target contract address
     **/
     constructor(address _target) public {
+        require(_target != 0x0);
         target = _target;
         require(target.delegatecall(bytes4(keccak256("finishUpgrade(address)")), target));
         emit Upgraded(0x0, _target, msg.sender);

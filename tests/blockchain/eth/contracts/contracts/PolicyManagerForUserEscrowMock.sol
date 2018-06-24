@@ -8,9 +8,11 @@ contract PolicyManagerForUserEscrowMock {
 
     uint256 public minRewardRate;
 
-    function withdraw() public {
-        require(address(this).balance > 0);
-        msg.sender.transfer(address(this).balance);
+    function withdraw(address _recipient) public returns (uint256) {
+        uint256 value = address(this).balance;
+        require(value > 0);
+        _recipient.transfer(value);
+        return value;
     }
 
     function setMinRewardRate(uint256 _minRewardRate) public {
