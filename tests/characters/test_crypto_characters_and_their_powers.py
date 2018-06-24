@@ -1,9 +1,11 @@
+import eth_utils
 import pytest
 
 from constant_sorrow import constants
 from nucypher.characters import Alice, Ursula, Character, Bob
 from nucypher.crypto import api
-from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower
+from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower,\
+                                   BlockchainPower, PowerUpError
 
 """
 Chapter 1: SIGNING
@@ -70,6 +72,47 @@ def test_anybody_can_verify(mock_policy_agent):
     verification, cleartext = somebody.verify_from(alice, message, signature, decrypt=False)
     assert verification is True
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
+
+
+def test_character_blockchain_power(testerchain):
+    eth_address = testerchain.interface.w3.eth.accounts[0]
+    sig_privkey = testerchain.interface._providers[0].ethereum_tester.backend.\
+                  _key_lookup[eth_utils.to_canonical_address(eth_address)]
+    sig_pubkey = sig_privkey.public_key
+
+    signer = Character(is_me=True)
+    signer._crypto_power.consume_power_up(BlockchainPower(testerchain, eth_address))
+
+    # Due to testing backend, the account is already unlocked.
+    power = signer._crypto_power.power_ups(BlockchainPower)
+    power.is_unlocked = True
+    #power.unlock_account('this-is-not-a-secure-password')
+
+    data_to_sign = b'What does Ursula look like?!?'
+    sig = power.sign_message(data_to_sign)
+
+    is_verified = power.verify_message(eth_address, sig_pubkey.to_bytes(), data_to_sign, sig)
+    assert is_verified == True
+
+    # Test a bad message:
+    with pytest.raises(PowerUpError):
+        power.verify_message( eth_address, sig_pubkey.to_bytes(), data_to_sign + b'bad', sig)
+
+    # Test a bad address/pubkey pair
+    with pytest.raises(ValueError):
+        power.verify_message(
+            testerchain.interface.w3.eth.accounts[1],
+            sig_pubkey.to_bytes(),
+            data_to_sign,
+            sig)
+
+    # Test a signature without unlocking the account
+    power.is_unlocked = False
+    with pytest.raises(PowerUpError):
+        power.sign_message(b'test')
+
+    # Test lockAccount call
+    del(power)
 
 
 """
