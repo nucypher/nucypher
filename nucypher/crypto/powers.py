@@ -1,7 +1,10 @@
 import inspect
 import web3
+from binascii import unhexlify
+from eth_keys.datatypes import PublicKey, Signature
 from typing import List, Union
 
+from eth_utils import keccak
 from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
@@ -95,6 +98,24 @@ class BlockchainPower(CryptoPowerUp):
 
         signature = self.blockchain.interface.call_backend_sign(self.account, message)
         return signature
+
+    def verify_message(self, address: str, pubkey: bytes, message: bytes, signature: str):
+        """
+        Verifies that the message was signed by the keypair.
+        """
+        # Check that address and pubkey match
+        eth_pubkey = PublicKey(pubkey)
+        if not eth_pubkey.to_checksum_address() == address:
+            raise ValueError("Pubkey address ({}) doesn't match the provided address ({})".format(eth_pubkey.to_checksum_address, address))
+
+        hashed_message = keccak(message)
+        eth_signature = Signature(signature_bytes=unhexlify(signature[2:]))
+
+        if not self.blockchain.interface.call_backend_verify(
+                eth_pubkey, eth_signature, hashed_message):
+            raise PowerUpError("Signature is not valid for this message or pubkey.")
+        else:
+            return True
 
     def __del__(self):
         """
