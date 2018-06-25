@@ -7,7 +7,7 @@ from logging import getLogger
 from typing import Dict, ClassVar, Set
 from typing import Union, List
 
-import binascii
+
 import kademlia
 import msgpack
 from kademlia.network import Server
@@ -16,6 +16,7 @@ from twisted.internet import task
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
+from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
@@ -59,7 +60,7 @@ class Character:
                  always_be_learning=True,
                  known_nodes: Set = (),
                  config: CharacterConfiguration = None,
-                 public_address: bytes = None,
+                 canonical_public_address: bytes = None,
                  *args, **kwargs):
         """
         :param attach_dht_server:  Whether to attach a Server when this Character is
@@ -87,8 +88,9 @@ class Character:
         self.federated_only = federated_only
         self._known_nodes = {}
 
-        if public_address is not None:
-            self.public_address = public_address
+        if canonical_public_address is not None:
+            self.canonical_public_address = canonical_public_address
+        self._checksum_address = None
 
         self.log = getLogger("characters")
 
@@ -115,7 +117,6 @@ class Character:
 
             for node in known_nodes:
                 self.remember_node(node)
-
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)
                 self._stamp = signing_power.get_signature_stamp()
@@ -198,7 +199,7 @@ class Character:
     ##
 
     def remember_node(self, node):
-        self._known_nodes[node.public_address] = node
+        self._known_nodes[node.canonical_public_address] = node
 
     def start_learning(self):
         d = self._learning_task.start(10, now=True)
@@ -252,8 +253,8 @@ class Character:
         if self._node_ids_to_learn_about_immediately:
             self.learn_about_nodes_now()
 
-    def learn_about_specific_node(self, ether_address: str):
-        self._node_ids_to_learn_about_immediately.add(ether_address)  # hmmmm
+    def learn_about_specific_nodes(self, canonical_addresses: Set):
+        self._node_ids_to_learn_about_immediately.update(canonical_addresses)  # hmmmm
         self.learn_about_nodes_now()
 
     def learn_from_teacher_node(self, rest_address: str = None, port: int = None):
@@ -443,20 +444,43 @@ class Character:
         return power_up.public_key()
 
     @property
-    def public_address(self):
+    def canonical_public_address(self):
+        return to_canonical_address(self.checksum_public_address)
+
+    @canonical_public_address.setter
+    def canonical_public_address(self, address_bytes):
+        self._ether_address = to_checksum_address(address_bytes)
+
+    @property
+    def ether_address(self):
+        raise NotImplementedError
+
+    @property
+    def checksum_public_address(self):
+        if not self._checksum_address:
+            self._set_checksum_address()
+        return self._checksum_address
+
+    def _set_checksum_address(self):
         if self.federated_only:
             verifying_key = self.public_key(SigningPower)
             uncompressed_bytes = verifying_key.to_bytes(is_compressed=False)
-            hash_of_signing_key = keccak_digest(uncompressed_bytes)
-            public_address = hash_of_signing_key[:PUBLIC_ADDRESS_LENGTH]
+            without_prefix = uncompressed_bytes[1:]
+            verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
+            public_address = verifying_key_as_eth_key.to_checksum_address()
         else:
-            public_address = to_canonical_address(self.ether_address)
+            try:
+                public_address = to_checksum_address(self._ether_address)
+            except NotImplementedError:
+                raise TypeError("You can't use a plain Character in federated mode - you need to implement ether_address.")
 
-        return public_address
+        self._checksum_address = public_address
 
-    @public_address.setter
-    def public_address(self, address_bytes):
-        self.ether_address = to_checksum_address(address_bytes)
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        r = "{} {}"
+        r = r.format(class_name, self.checksum_public_address[12:])
+        return r
 
 
 class Alice(Character, PolicyAuthor):
