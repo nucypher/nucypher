@@ -28,8 +28,14 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
                  miner_agent=None, miners=False, bare=False) -> Set[Ursula]:
     """
     :param ether_addresses: Ethereum addresses to create ursulas with.
-    :param how_many_ursulas: How many Ursulas to create.
     :param ursula_starting_port: The port of the first created Ursula; subsequent Ursulas will increment the port number by 1.
+
+
+    :param miner_agent: A miner agent instance to use when creating ursulas.
+    :param miners: If True, create staking ursulas on the blockchain from the addresses
+    :param bare: If True, Create an non-learning Ursula without a rest app, dht server or database attached,
+                 for testing mining functionality when network transport is not needed. "Just a miner"
+
     :return: A list of created Ursulas
     """
 
@@ -40,7 +46,7 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
 
         if bare:
             ursula = Ursula(is_me=False,            # do not attach dht server
-                            rest_host="127.0.0.1",
+                            rest_host="127.0.0.1",  # TODO: remove rest interface
                             rest_port=port + 100,
                             ether_address=ether_address,
                             always_be_learning=False,

@@ -278,8 +278,8 @@ class ControlCircumflex:
 
         return contract
 
-    def __wrap_contract(self, dispatcher_contract: Contract,
-                        target_contract: Contract, factory=Contract) -> Contract:
+    def _wrap_contract(self, dispatcher_contract: Contract,
+                       target_contract: Contract, factory=Contract) -> Contract:
         """Used for upgradeable contracts."""
 
         # Wrap the contract
@@ -338,14 +338,13 @@ class ControlCircumflex:
 
                 selected_contract_address, selected_contract_abi = matching_pairs[0]
         else:
-            if len(target_contract_records) > 1:  # TODO: Allow multiple non-upgradeable records (UserEscrow)
+            if len(target_contract_records) != 1:  # TODO: Allow multiple non-upgradeable records (UserEscrow)
                 m = "Multiple records returned from the registry for non-upgradeable contract {}"
                 raise self.InterfaceError(m.format(name))
 
             selected_contract_name, selected_contract_address, selected_contract_abi = target_contract_records[0]
 
         # Create the contract from selected sources
-
         unified_contract = self.w3.eth.contract(abi=selected_contract_abi,
                                                 address=selected_contract_address,
                                                 ContractFactoryClass=factory)

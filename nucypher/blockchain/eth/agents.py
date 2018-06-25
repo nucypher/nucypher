@@ -27,7 +27,7 @@ class EthereumContractAgent(ABC):
             blockchain = Blockchain.connect()
         self.blockchain = blockchain
 
-        # Fetch the contract by reading address and abo from the registry and blockchain
+        # Fetch the contract by reading address and abi from the registry and blockchain
         contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
                                                                   upgradeable=self._upgradeable)
         self.__contract = contract

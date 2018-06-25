@@ -100,14 +100,6 @@ class ContractDeployer:
 
         return True
 
-    def _wrap_contract(self, dispatcher_contract: Contract, target_contract: Contract) -> Contract:
-        # TODO: Move this to somewhere else
-        # Wrap the contract
-        wrapped_contract = self.blockchain.interface.w3.eth.contract(abi=target_contract.abi,
-                                                                     address=dispatcher_contract.address,
-                                                                     ContractFactoryClass=Contract)
-        return wrapped_contract
-
     def arm(self, fail_on_abort=True) -> None:
         """
         Safety mechanism for ethereum contract deployment
@@ -272,8 +264,8 @@ class MinerEscrowDeployer(ContractDeployer):
         self.__dispatcher_contract = dispatcher_contract
 
         # Wrap the escrow contract
-        wrapped_escrow_contract = self._wrap_contract(dispatcher_contract,
-                                                      target_contract=the_escrow_contract)
+        wrapped_escrow_contract = self.blockchain.interface._wrap_contract(dispatcher_contract,
+                                                                           target_contract=the_escrow_contract)
 
         # Switch the contract for the wrapped one
         the_escrow_contract = wrapped_escrow_contract
@@ -342,8 +334,8 @@ class PolicyManagerDeployer(ContractDeployer):
         self.__dispatcher_contract = dispatcher_contract
 
         # Wrap the escrow contract (Govern)
-        wrapped_policy_manager_contract = self._wrap_contract(dispatcher_contract,
-                                                              target_contract=the_policy_manager_contract)
+        wrapped_policy_manager_contract = self.blockchain.interface._wrap_contract(dispatcher_contract,
+                                                                                   target_contract=the_policy_manager_contract)
 
         # Switch the contract for the wrapped one
         the_policy_manager_contract = wrapped_policy_manager_contract

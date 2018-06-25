@@ -150,4 +150,4 @@ jobs:
       - run:
           name: Blockchain Client Tests
           command: |
-            pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/client
+            pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/interfaces tests/blockchain/eth/entities
