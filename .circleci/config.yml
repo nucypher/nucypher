@@ -35,9 +35,6 @@ bundle_dependencies: &bundle_dependencies
     - restore_cache:
         key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
     - run:
-        name: Install Pipenv itself
-        command: pip install pipenv --upgrade
-    - run:
         name: Install Python dependencies with Pipenv
         command: |
           pipenv install --three --dev --skip-lock
@@ -72,7 +69,7 @@ jobs:
       - run:
           name: Ethereum Contract Unit Tests
           command: |
-            pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml --cov=nucypher -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/unit/test_*.py | circleci tests split --split-by=timings)
+            pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml --cov=nucypher/blockchain/eth/contracts/unit -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/unit/test_*.py | circleci tests split --split-by=timings)
       - store_test_results:
           path: ./reports/pytest/
 
@@ -88,7 +85,7 @@ jobs:
       - run:
           name: Ethereum Inter-Contract Integration Test
           command: |
-            pipenv run pytest --cov=nucypher -v --runslow tests/blockchain/eth/contracts/integration
+            pipenv run pytest --cov=nucypher/blockchain/eth/contracts/integration -v --runslow tests/blockchain/eth/contracts/integration
       - store_test_results:
           path: ~/nucypher-depends/timing-results/
 
@@ -104,7 +101,7 @@ jobs:
       - run:
           name: Crypto Character Tests
           command: |
-            pipenv run pytest --cov=nucypher -v --runslow tests/crypto
+            pipenv run pytest --cov=nucypher/crypto -v --runslow tests/crypto
 
   network_unit:
     working_directory: ~/nucypher-depends
@@ -117,7 +114,7 @@ jobs:
       - run:
           name: Network Tests
           command: |
-            pipenv run pytest --cov=nucypher -v --runslow tests/network
+            pipenv run pytest --cov=nucypher/network -v --runslow tests/network
 
   keystore_unit:
     working_directory: ~/nucypher-depends
@@ -130,7 +127,7 @@ jobs:
       - run:
           name: Keystore Tests
           command: |
-            pipenv run pytest --cov=nucypher -v --runslow tests/keystore
+            pipenv run pytest --cov=nucypher/keystore -v --runslow tests/keystore
 
   character:
     working_directory: ~/nucypher-depends
@@ -143,7 +140,7 @@ jobs:
       - run:
           name: Character Tests
           command: |
-            pipenv run pytest --cov=nucypher -v --runslow tests/characters
+            pipenv run pytest --cov=nucypher/characters -v --runslow tests/characters
 
   blockchain_client_unit:
     working_directory: ~/nucypher-depends
@@ -156,4 +153,4 @@ jobs:
       - run:
           name: Blockchain Client Tests
           command: |
-            pipenv run pytest --cov=nucypher -v --runslow tests/blockchain/eth/client
+            pipenv run pytest --cov=nucypher/blockchain/eth/client -v --runslow tests/blockchain/eth/client
