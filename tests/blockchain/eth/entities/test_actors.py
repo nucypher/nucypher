@@ -6,6 +6,7 @@ import pytest
 
 from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
 from constant_sorrow import constants
+from tests.blockchain.eth.utilities import token_airdrop
 
 
 class TestMiner:
@@ -13,7 +14,7 @@ class TestMiner:
     @pytest.fixture(scope='class')
     def miner(self, testerchain, mock_token_agent, mock_miner_agent):
         origin, *everybody_else = testerchain.interface.w3.eth.accounts
-        mock_token_agent.token_airdrop(origin=origin, addresses=everybody_else, amount=1000000*constants.M)
+        token_airdrop(mock_token_agent, origin=origin, addresses=everybody_else, amount=1000000*constants.M)
         miner = Miner(miner_agent=mock_miner_agent, ether_address=everybody_else[0])
         return miner
 
@@ -71,7 +72,7 @@ class TestMiner:
 
     @pytest.mark.slow()
     @pytest.mark.usefixtures("mock_policy_agent")
-    def test_miner_collects_staking_reward(self, deployed_testerchain, miner, mock_token_agent, mock_miner_agent):
+    def test_miner_collects_staking_reward(self, testerchain, miner, mock_token_agent, mock_miner_agent):
 
         # Capture the current token balance of the miner
         initial_balance = miner.token_balance
@@ -81,16 +82,16 @@ class TestMiner:
                     lock_periods=int(constants.MIN_LOCKED_PERIODS))   # ... for the fewest number of periods
 
         # Have other address lock tokens
-        _origin, ursula, *everybody_else = deployed_testerchain.interface.w3.eth.accounts
+        _origin, ursula, *everybody_else = testerchain.interface.w3.eth.accounts
         mock_miner_agent.spawn_random_miners(addresses=everybody_else)
 
         # ...wait out the lock period...
         for _ in range(28):
-            deployed_testerchain.time_travel(periods=1)
+            testerchain.time_travel(periods=1)
             miner.confirm_activity()
 
         # ...wait more...
-        deployed_testerchain.time_travel(periods=2)
+        testerchain.time_travel(periods=2)
         miner.mint()
         miner.collect_staking_reward()
 
@@ -101,13 +102,13 @@ class TestMiner:
 class TestPolicyAuthor:
 
     @pytest.fixture(scope='class')
-    def author(self, deployed_testerchain, mock_token_agent, mock_policy_agent):
+    def author(self, testerchain, mock_token_agent, mock_policy_agent):
         mock_token_agent.ether_airdrop(amount=100000 * constants.M)
-        _origin, ursula, alice, *everybody_else = deployed_testerchain.interface.w3.eth.accounts
+        _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
         miner = PolicyAuthor(ether_address=alice, policy_agent=mock_policy_agent)
         return miner
 
-    def test_create_policy_author(self, deployed_testerchain, mock_policy_agent):
-        _origin, ursula, alice, *everybody_else = deployed_testerchain.interface.w3.eth.accounts
+    def test_create_policy_author(self, testerchain, mock_policy_agent):
+        _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
         policy_author = PolicyAuthor(policy_agent=mock_policy_agent, ether_address=alice)
         assert policy_author.ether_address == alice

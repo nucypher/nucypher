@@ -3,62 +3,80 @@ import datetime
 import maya
 import pytest
 from apistar.test import TestClient
-from bytestring_splitter import BytestringSplitter
-from constant_sorrow import constants
-from umbral.fragments import KFrag
-from umbral.keys import UmbralPublicKey
 
 from nucypher.characters import Ursula
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, EncryptingPower
+from umbral.fragments import KFrag
 
 
-@pytest.mark.usefixtures('token_airdrop')
-def test_grant(alice, bob, ursulas, mock_miner_agent):
+class MockPolicyCreation:
+    """
+    Simple mock logic to avoid repeated hammering of blockchain policies.
+    """
+    waited_for_receipt = False
+    tx_hash = "THIS HAS BEEN A TRANSACTION!"
 
-    _etherbase, ursula_address, *everybody_else = mock_miner_agent.blockchain.interface.w3.eth.accounts
-    mock_miner_agent.spawn_random_miners(addresses=everybody_else)
-    mock_miner_agent.blockchain.time_travel(periods=1)
+    def __init__(self, *args, **kwargs):
+        # TODO: Test that proper arguments are passed here once 316 is closed.
+        pass
 
-    ursula, *other_ursulas = ursulas
-    # alice.learn_about_nodes(rest_address=ursula.ip_address, port=ursula.rest_port)
+    def transact(self, payload):
+        # TODO: Make a meaningful assertion regarding the value.
+        assert payload['from'] == alice.ether_address
+        return self.tx_hash
+
+    @classmethod
+    def wait_for_receipt(cls, tx_hash):
+        assert tx_hash == cls.tx_hash
+        cls.waited_for_receipt = True
+
+
+def test_grant(alice, bob, three_agents):
+    # Monkey patch KFrag repr for better debugging.
+    KFrag.__repr__ = lambda kfrag: "KFrag: {}".format(bytes(kfrag)[:10].hex())
 
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
-    n = 5
-    uri = b"this_is_the_path_to_which_access_is_being_granted"
-    policy = alice.grant(bob, uri, m=3, n=n, expiration=policy_end_datetime)
+    n = 3
+    label = b"this_is_the_path_to_which_access_is_being_granted"
+    _token_agent, _miner_agent, policy_agent = three_agents
 
-    # The number of policies is equal to the number of Ursulas we're using (n)
-    assert len(policy._accepted_arrangements) == n
+    policy_agent.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
 
-    # Let's look at the first Ursula.
-    ursula = list(policy._accepted_arrangements.values())[0].ursula
+    policy_agent.contract.functions.createPolicy = MockPolicyCreation
 
-    # Get the Policy from Ursula's datastore, looking up by hrac.
-    proper_hrac = keccak_digest(bytes(alice.stamp) + bytes(bob.stamp) + uri)
-    retrieved_policy = ursula.datastore.get_policy_arrangement(proper_hrac.hex().encode())
+    policy = alice.grant(bob, label, m=2, n=n,
+                         expiration=policy_end_datetime,
+                         )
 
-    # TODO: Make this a legit KFrag, not bytes.
-    retrieved_k_frag = KFrag.from_bytes(retrieved_policy.k_frag)
+    # The number of accepted arrangements at least the number of Ursulas we're using (n)
+    assert len(policy._accepted_arrangements) >= n
 
-    # TODO: Implement KFrag.__eq__
-    found = False
-    for k_frag in policy.kfrags:
-        if bytes(k_frag) == bytes(retrieved_k_frag):
-            found = True
-    assert found
+    # The number of actually enacted arrangements is exactly equal to n.
+    assert len(policy._enacted_arrangements) == n
+
+    # Let's look at the enacted arrangements.
+    for kfrag in policy.kfrags:
+        arrangement = policy._enacted_arrangements[kfrag]
+        ursula = arrangement.ursula
+
+        # Get the Arrangement from Ursula's datastore, looking up by hrac.
+        # This will be changed in 180, when we use the Arrangement ID.
+        proper_hrac = keccak_digest(bytes(alice.stamp) + bytes(bob.stamp) + label)
+        retrieved_policy = ursula.datastore.get_policy_arrangement(proper_hrac.hex().encode())
+        retrieved_kfrag = KFrag.from_bytes(retrieved_policy.k_frag)
+
+        assert kfrag == retrieved_kfrag
 
 
-@pytest.mark.usefixtures('deployed_testerchain')
+@pytest.mark.usefixtures('testerchain')
 def test_alice_can_get_ursulas_keys_via_rest(ursulas):
-    mock_client = TestClient(ursulas[0].rest_app)
+    ursula = ursulas.pop()
+    mock_client = TestClient(ursula.rest_app)
     response = mock_client.get('http://localhost/public_keys')
-    splitter = BytestringSplitter(
-        (UmbralPublicKey, constants.PUBLIC_KEY_LENGTH),
-        (UmbralPublicKey, constants.PUBLIC_KEY_LENGTH)
-    )
-    signing_key, encrypting_key = splitter(response.content)
+    signature, signing_key, encrypting_key, public_address = Ursula.public_information_splitter(response.content)
     public_keys = {SigningPower: signing_key, EncryptingPower: encrypting_key}
-    stranger_ursula_from_public_keys = Ursula.from_public_keys(public_keys)
-    assert stranger_ursula_from_public_keys == ursulas[0]
-
+    stranger_ursula_from_public_keys = Ursula.from_public_keys(public_keys,
+                                                               rest_port=5000,
+                                                               rest_host="not real")
+    assert stranger_ursula_from_public_keys == ursula

@@ -13,23 +13,6 @@ from nucypher.blockchain.eth.agents import MinerAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherTokenDeployer
 
 
-class MockTokenAgent(NucypherTokenAgent):
-
-    def token_airdrop(self, amount: int, origin: str, addresses: List[str]):
-        """Airdrops tokens from creator address to all other addresses!"""
-
-        def txs():
-            for address in addresses:
-                txhash = self.contract.functions.transfer(address, amount).transact({'from': origin})
-                yield txhash
-
-        receipts = list()
-        for tx in txs():    # One at a time
-            receipt = self.blockchain.wait_for_receipt(tx)
-            receipts.append(receipt)
-        return receipts
-
-
 class MockMinerAgent(MinerAgent):
     """MinerAgent with faked config subclass"""
 
@@ -60,7 +43,6 @@ class MockMinerAgent(MinerAgent):
 
 class MockNucypherTokenDeployer(NucypherTokenDeployer):
     """Mock deployer with mock agency"""
-    agency = MockTokenAgent
 
 
 class MockMinerEscrowDeployer(MinerEscrowDeployer):
@@ -136,3 +118,19 @@ class TesterPyEVMBackend(PyEVMBackend):
         chain = MainnetTesterChain.from_genesis(base_db, genesis_params, genesis_state)
 
         self.account_keys, self.chain = account_keys, chain
+
+
+def token_airdrop(token_agent, amount: int, origin: str, addresses: List[str]):
+    """Airdrops tokens from creator address to all other addresses!"""
+
+    def txs():
+        for address in addresses:
+            txhash = token_agent.contract.functions.transfer(address, amount).transact({'from': origin,
+                                                                                 'gas': 2000000})
+            yield txhash
+
+    receipts = list()
+    for tx in txs():    # One at a time
+        receipt = token_agent.blockchain.wait_for_receipt(tx)
+        receipts.append(receipt)
+    return receipts

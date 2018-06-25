@@ -1,21 +1,22 @@
 import asyncio
-import binascii
+import random
+from collections import OrderedDict
+from collections import deque
 from contextlib import suppress
 from logging import getLogger
 from typing import Dict, ClassVar, Set
 from typing import Union, List
 
-import msgpack
-import random
-from collections import OrderedDict
-from collections import deque
-from twisted.internet import task
-
+import binascii
 import kademlia
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants, default_constant_splitter
+import msgpack
 from kademlia.network import Server
 from kademlia.utils import digest
+from twisted.internet import task
+
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow import constants, default_constant_splitter
+from eth_utils import to_checksum_address, to_canonical_address
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.config.configs import CharacterConfiguration
@@ -29,7 +30,6 @@ from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitte
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
-from web3 import Web3
 
 
 class Character:
@@ -55,7 +55,7 @@ class Character:
                  network_middleware=None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups=None,
-                 federated=False,
+                 federated_only=False,
                  always_be_learning=True,
                  known_nodes: Set = (),
                  config: CharacterConfiguration = None,
@@ -84,7 +84,7 @@ class Character:
         """
         self.config = config  # TODO: Do not mix with injectable params
 
-        self.is_federated = federated
+        self.federated_only = federated_only
         self._known_nodes = {}
 
         if public_address is not None:
@@ -207,9 +207,13 @@ class Character:
     def handle_learning_errors(self, *args, **kwargs):
         self.log.warning("Unhandled error during node learning: {}".format(args))
 
-    def select_teacher_nodes(self):
+    def shuffled_known_nodes(self):
         nodes_we_know_about = list(self._known_nodes.values())
         random.shuffle(nodes_we_know_about)
+        return nodes_we_know_about
+
+    def select_teacher_nodes(self):
+        nodes_we_know_about = self.shuffled_known_nodes()
 
         if nodes_we_know_about is None:
             raise self.NotEnoughUrsulas("Need some nodes to start learning from.")
@@ -219,7 +223,10 @@ class Character:
     def cycle_teacher_node(self):
         if not self.teacher_nodes:
             self.select_teacher_nodes()
-        self._current_teacher_node = self.teacher_nodes.pop()
+        try:
+            self._current_teacher_node = self.teacher_nodes.pop()
+        except IndexError:
+            raise self.NotEnoughUrsulas("Don't have enough nodes to select a good teacher.  This is nearly an impossible situation - do you have seed nodes defined?  Is your network connection OK?")
 
     def current_teacher_node(self, cycle=False):
         if not self._current_teacher_node:
@@ -272,8 +279,9 @@ class Character:
             header, sig, pubkey, ether_address, rest_info, dht_info = node_meta
             message = ether_address + rest_info + dht_info
 
-            if not pubkey in self._known_nodes:
+            if not ether_address in self._known_nodes:
                 if sig.verify(message, pubkey):
+                    self.log.info("Prevously unknown node: {}".format(ether_address))
 
                     # TOOD: Is this too eager?  Does it make sense to only learn later, when we want to make an Arrangement with this node?
                     ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
@@ -434,15 +442,31 @@ class Character:
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
 
+    @property
+    def public_address(self):
+        if self.federated_only:
+            verifying_key = self.public_key(SigningPower)
+            uncompressed_bytes = verifying_key.to_bytes(is_compressed=False)
+            hash_of_signing_key = keccak_digest(uncompressed_bytes)
+            public_address = hash_of_signing_key[:PUBLIC_ADDRESS_LENGTH]
+        else:
+            public_address = to_canonical_address(self.ether_address)
+
+        return public_address
+
+    @public_address.setter
+    def public_address(self, address_bytes):
+        self.ether_address = to_checksum_address(address_bytes)
+
 
 class Alice(Character, PolicyAuthor):
+
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, is_me=True, federated_only=False, *args, **kwargs):
-        Character.__init__(self, is_me=is_me, *args, **kwargs)
+        Character.__init__(self, is_me=is_me, federated_only=federated_only, *args, **kwargs)
         if is_me and not federated_only:  # TODO: 289
             PolicyAuthor.__init__(self, *args, **kwargs)
-        self.federated_only = federated_only
 
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
@@ -473,17 +497,18 @@ class Alice(Character, PolicyAuthor):
                        public_key=public_key,
                        m=m)
 
-        from nucypher.policy.models import Policy
-
         if self.federated_only is True:
-            policy = Policy(alice=self, **payload)
+            from nucypher.policy.models import FederatedPolicy
+            # We can't sample; we can only use known nodes.
+            known_nodes = self.shuffled_known_nodes()
+            policy = FederatedPolicy(alice=self, ursulas=known_nodes, **payload)
         else:
             from nucypher.blockchain.eth.policies import BlockchainPolicy
             policy = BlockchainPolicy(author=self, **payload)
 
         return policy
 
-    def grant(self, bob, uri, m=None, n=None, expiration=None, deposit=None):
+    def grant(self, bob, uri, m=None, n=None, expiration=None, deposit=None, ursulas=None):
         if not m:
             # TODO: get m from config  #176
             raise NotImplementedError
@@ -511,12 +536,11 @@ class Alice(Character, PolicyAuthor):
         policy.make_arrangements(network_middleware=self.network_middleware,
                                  deposit=deposit,
                                  expiration=expiration,
+                                 ursulas=ursulas,
                                  )
 
         # REST call happens here, as does population of TreasureMap.
         policy.enact(network_middleware=self.network_middleware)
-        policy.publish_treasure_map(network_middleare=self.network_middleware)
-
         return policy  # Now with TreasureMap affixed!
 
 
@@ -538,7 +562,7 @@ class Bob(Character):
         if not using_dht:
             for ursula_interface_id in treasure_map:
                 pubkey = UmbralPublicKey.from_bytes(ursula_interface_id)
-                if pubkey in self.known_nodes:
+                if pubkey in self._known_nodes:
                     number_of_known_treasure_ursulas += 1
 
             newly_discovered_nodes = {}
@@ -558,12 +582,12 @@ class Bob(Character):
                         number_of_known_treasure_ursulas += 1
                 newly_discovered_nodes.update(new_nodes)
 
-            self.known_nodes.update(newly_discovered_nodes)
+            self._known_nodes.update(newly_discovered_nodes)
             return newly_discovered_nodes, number_of_known_treasure_ursulas
         else:
             for ursula_interface_id in self.treasure_maps[hrac]:
                 pubkey = UmbralPublicKey.from_bytes(ursula_interface_id)
-                if ursula_interface_id in self.known_nodes:
+                if ursula_interface_id in self._known_nodes:
                     # If we already know about this Ursula,
                     # we needn't learn about it again.
                     continue
@@ -580,7 +604,7 @@ class Bob(Character):
                         raise TypeError("Unknown DHT value.  How did this get on the network?")
 
                 # TODO: If we're going to implement TTL, it will be here.
-                self.known_nodes[ursula_interface_id] = \
+                self._known_nodes[ursula_interface_id] = \
                     Ursula.as_discovered_on_network(
                         dht_port=port,
                         dht_interface=interface,
@@ -595,7 +619,7 @@ class Bob(Character):
             event_loop = asyncio.get_event_loop()
             packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
         else:
-            if not self.known_nodes:
+            if not self._known_nodes:
                 # TODO: Try to find more Ursulas on the blockchain.
                 raise self.NotEnoughUrsulas
             tmap_message_kit = self.get_treasure_map_from_known_ursulas(self.network_middleware,
@@ -626,7 +650,7 @@ class Bob(Character):
         Return the first one who has it.
         TODO: What if a node gives a bunk TreasureMap?
         """
-        for node in self.known_nodes.values():
+        for node in self._known_nodes.values():
             response = networky_stuff.get_treasure_map_from_node(node, map_id)
 
             if response.status_code == 200 and response.content:
@@ -655,7 +679,7 @@ class Bob(Character):
                     capsules))
 
         for ursula_dht_key in treasure_map_to_use:
-            ursula = self.known_nodes[UmbralPublicKey.from_bytes(ursula_dht_key)]
+            ursula = self._known_nodes[UmbralPublicKey.from_bytes(ursula_dht_key)]
 
             capsules_to_include = []
             for capsule in capsules:
@@ -707,7 +731,7 @@ class Bob(Character):
         treasure_map = self.treasure_maps[hrac]
 
         # First, a quick sanity check to make sure we know about at least m nodes.
-        known_nodes_as_bytes = set([bytes(n) for n in self.known_nodes.keys()])
+        known_nodes_as_bytes = set([bytes(n) for n in self._known_nodes.keys()])
         intersection = treasure_map.ids.intersection(known_nodes_as_bytes)
 
         if len(intersection) < treasure_map.m:
@@ -715,7 +739,7 @@ class Bob(Character):
 
         work_orders = self.generate_work_orders(hrac, message_kit.capsule)
         for node_id in self.treasure_maps[hrac]:
-            node = self.known_nodes[UmbralPublicKey.from_bytes(node_id)]
+            node = self._known_nodes[UmbralPublicKey.from_bytes(node_id)]
             cfrags = self.get_reencrypted_c_frags(work_orders[bytes(node.stamp)])
             message_kit.capsule.attach_cfrag(cfrags[0])
         verified, delivered_cleartext = self.verify_from(data_source,
@@ -806,14 +830,13 @@ class Ursula(Character, ProxyRESTServer, Miner):
         return stranger_ursula_from_public_keys
 
     def attach_dht_server(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
-        """ TODO: Network-wide deterministic ID generation (ie, auction or whatever)  See #136."""
         if self.ether_address:
-            id = id or bytes(self.ether_address, encoding='utf-8')
+            id = id or bytes(self.public_address)  # Ursula can still "mine" wallets until she gets a DHT ID she wants.  Does that matter?  #136
         else:
             id = None
         # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
         super().attach_dht_server(ksize=ksize, id=digest(id), alpha=alpha, storage=storage)
-        self.attach_rest_server(db_name=self.db_name)
+        self.attach_rest_server()
 
     def dht_listen(self):
         if self.dht_interface is constants.NO_INTERFACE:
@@ -843,11 +866,11 @@ class Ursula(Character, ProxyRESTServer, Miner):
             raise RuntimeError("Must listen before publishing interface information.")
 
         ursula_id = bytes(self.stamp)
-
-        value = self.interface_info_with_metadata()
-        setter = self.dht_server.set(key=ursula_id, value=value)
+        interface_value = self.interface_info_with_metadata()
+        setter = self.dht_server.set(key=ursula_id, value=interface_value)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
+        return interface_value
 
     def work_orders(self, bob=None):
         """
@@ -861,11 +884,3 @@ class Ursula(Character, ProxyRESTServer, Miner):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
-
-    @property
-    def public_address(self):
-        return bytes(self.ether_address, encoding="ascii")
-
-    @public_address.setter
-    def public_address(self, address_bytes):
-        self.ether_address = str(address_bytes, encoding="ascii")

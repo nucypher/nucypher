@@ -11,7 +11,7 @@ from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitte
 from tests.utilities import TEST_EVENT_LOOP, MockRestMiddleware
 
 
-@pytest.mark.usefixtures('deployed_testerchain')
+@pytest.mark.usefixtures('testerchain')
 def test_all_ursulas_know_about_all_other_ursulas(ursulas, mock_miner_agent):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
@@ -31,6 +31,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     Although Ursulas propagate each other's interface information, as demonstrated above, they do not propagate
     interface information for Vladimir, an Evil Ursula.
     """
+    ursulas = list(ursulas)
     vladimir, ursula = ursulas[0], ursulas[1]
 
     # Ursula hasn't seen any illegal keys.
@@ -53,7 +54,7 @@ def test_alice_finds_ursula_via_rest(alice, ursulas):
     network_middleware = MockRestMiddleware()
 
     # Imagine alice knows of nobody.
-    alice.known_nodes = {}
+    alice._known_nodes = {}
 
     new_nodes = alice.learn_about_nodes(rest_address="https://localhost", port=ursulas[0].rest_port)
     assert len(new_nodes) == len(ursulas)
@@ -148,7 +149,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_policy, ursula
         treasure_map_from_wire = bob.get_treasure_map(enacted_policy.alice.stamp, enacted_policy.hrac())
 
     # Let's imagine he has learned about some - say, from the blockchain.
-    bob.known_nodes = {u.interface_info_with_metadata(): u for u in ursulas}
+    bob._known_nodes = {u.interface_info_with_metadata(): u for u in ursulas}
 
     # Now try.
     treasure_map_from_wire = bob.get_treasure_map(enacted_policy.alice.stamp, enacted_policy.hrac())

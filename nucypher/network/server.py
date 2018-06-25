@@ -6,7 +6,7 @@ from typing import ClassVar
 import kademlia
 from apistar import http, Route, App
 from apistar.http import Response
-from bytestring_splitter import VariableLengthBytestring
+from bytestring_splitter import VariableLengthBytestring, BytestringSplitter
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
@@ -20,6 +20,9 @@ from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, \
     dht_with_hrac_splitter, InterfaceInfo
 from nucypher.network.storage import SeedOnlyStorage
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 
 
 class NucypherDHTServer(Server):
@@ -84,6 +87,11 @@ class NucypherSeedOnlyDHTServer(NucypherDHTServer):
 
 class ProxyRESTServer:
 
+    public_information_splitter = BytestringSplitter(Signature,
+                                      (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
+                                      (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
+                                      int(PUBLIC_ADDRESS_LENGTH))
+
     def __init__(self, host=None, port=None, db_name=None, *args, **kwargs):
         self.rest_interface = InterfaceInfo(host=host, port=port)
 
@@ -109,7 +117,7 @@ class ProxyRESTServer:
         """Implemented on Ursula"""
         raise NotImplementedError
 
-    def attach_rest_server(self, db_name):
+    def attach_rest_server(self):
 
         routes = [
             Route('/kFrag/{hrac_as_hex}',
@@ -134,7 +142,7 @@ class ProxyRESTServer:
         ]
 
         self._rest_app = App(routes=routes)
-        self.start_datastore(db_name)
+        self.start_datastore(self.db_name)
 
     def start_datastore(self, db_name):
         if not db_name:
@@ -144,6 +152,7 @@ class ProxyRESTServer:
         from nucypher.keystore.db import Base
         from sqlalchemy.engine import create_engine
 
+        self.log.info("Starting datastore {}".format(db_name))
         engine = create_engine('sqlite:///{}'.format(db_name))
         Base.metadata.create_all(engine)
         self.datastore = keystore.KeyStore(engine)
@@ -276,18 +285,19 @@ class ProxyRESTServer:
         # TODO: This function is the epitome of #172.
         treasure_map_id = binascii.unhexlify(treasure_map_id_as_hex)
 
-        header, signature_for_ursula, pubkey_sig_alice, hrac, tmap_message_kit = \
+        header, signature_for_ursula, pubkey_sig_alice, ether_address, hrac, tmap_message_kit = \
             dht_with_hrac_splitter(request.body, return_remainder=True)
         # TODO: This next line is possibly the worst in the entire codebase at the moment.  #172.
         # Also TODO: TTL?
         do_store = self.dht_server.protocol.determine_legality_of_dht_key(
-                    signature_for_ursula, pubkey_sig_alice, tmap_message_kit,
+                    signature_for_ursula, pubkey_sig_alice,
                     hrac, digest(treasure_map_id), request.body)
         if do_store:
             # TODO: Stop storing things in the protocol storage.  Do this better.  #227
             # TODO: Propagate to other nodes.  #235
+            # TODO: Store the ether address?
             self.dht_server.protocol.storage[digest(treasure_map_id)] = request.body
-            return # TODO: Proper response here.
+            return  # TODO: Proper response here.
         else:
             # TODO: Make this a proper 500 or whatever.
             assert False

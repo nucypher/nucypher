@@ -1,16 +1,14 @@
 import binascii
 import uuid
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from collections import OrderedDict
-from typing import Generator, List
+from typing import Generator, List, Set
 
 import maya
 import msgpack
+
 from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
-from umbral.config import default_params
-from umbral.pre import Capsule
-
 from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula
 from nucypher.crypto.api import keccak_digest
@@ -18,6 +16,8 @@ from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH
 from nucypher.crypto.powers import SigningPower
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
+from umbral.config import default_params
+from umbral.pre import Capsule
 
 
 class Arrangement:
@@ -28,7 +28,7 @@ class Arrangement:
                                                  (bytes, 27))
 
     def __init__(self, alice, hrac, expiration, ursula=None,
-                 kfrag=constants.UNKNOWN_KFRAG, alices_signature=None):
+                 kfrag=constants.UNKNOWN_KFRAG, value=None, alices_signature=None):
         """
         :param deposit: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
@@ -40,6 +40,7 @@ class Arrangement:
         self.hrac = hrac
         self.alice = alice
         self.uuid = uuid.uuid4()
+        self.value = None
 
         """
         These will normally not be set if Alice is drawing up this arrangement - she hasn't assigned a kfrag yet
@@ -57,7 +58,7 @@ class Arrangement:
 
     def __bytes__(self):
         return bytes(self.alice.stamp) + bytes(
-            self.hrac) + self.expiration.iso8601().encode()
+            self.hrac()) + self.expiration.iso8601().encode()
 
     def id(self):
         if not self.ursula:
@@ -86,7 +87,6 @@ class Arrangement:
         # Update: We'll probably have her store the Arrangement by hrac.  See #127.
         return bytes(self.kfrag)
 
-    @abstractmethod
     def publish(self):
         """
         Publish arrangement.
@@ -129,8 +129,8 @@ class Policy:
         self.treasure_map = TreasureMap(m=m)
 
         # Keep track of this stuff
-        self._accepted_arrangements = list()
-        self._rejected_arrangements = list()
+        self._accepted_arrangements = set()
+        self._rejected_arrangements = set()
 
         self._enacted_arrangements = OrderedDict()
         self._published_arrangements = OrderedDict()
@@ -177,18 +177,18 @@ class Policy:
         tmap_message_kit, signature_for_bob = self.alice.encrypt_for(
             self.bob,
             self.treasure_map.packed_payload())
-        signature_for_ursula = self.alice.stamp(self.hrac())
+        signature_for_ursula = self.alice.stamp(bytes(self.alice.stamp) + self.hrac())
 
         # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
         # and, reasons explained in treasure_map_dht_key above, the uri_hash.
         # TODO: Clean this up.  See #172.
-        map_payload = signature_for_ursula + self.alice.stamp + self.hrac() + tmap_message_kit.to_bytes()
+        map_payload = signature_for_ursula + self.alice.stamp + self.alice.public_address + self.hrac() + tmap_message_kit.to_bytes()
         map_id = self.treasure_map_dht_key()
 
-        if not self.alice.known_nodes:
+        if not self.alice._known_nodes:
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
 
-        for node in self.alice.known_nodes.values():
+        for node in self.alice._known_nodes.values():
             response = network_middleare.push_treasure_map_to_node(node, map_id,
                                                                    constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
             # TODO: Do something here based on success or failure
@@ -197,15 +197,9 @@ class Policy:
 
         return tmap_message_kit, map_payload, signature_for_bob, signature_for_ursula
 
-    def publish(self) -> None:
-        """Publish enacted arrangements."""
-
-        if not self._enacted_arrangements:
-            raise RuntimeError("There are no enacted arrangements to publish to the network.")
-
-        while len(self._enacted_arrangements) > 0:
-            kfrag, arrangement = self._enacted_arrangements.popitem()
-            arrangement.publish(arrangement.kfrag)  # TODO
+    def publish(self, network_middleware) -> None:
+        """Spread word of this Policy far and wide."""
+        self.publish_treasure_map(network_middleare=network_middleware)
 
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 
@@ -216,11 +210,16 @@ class Policy:
 
         for kfrag in self.kfrags:
             for arrangement in self._accepted_arrangements:
-                if kfrag not in self._enacted_arrangements:
+                if not arrangement in self._enacted_arrangements.values():
                     arrangement.kfrag = kfrag
-
                     self._enacted_arrangements[kfrag] = arrangement
                     yield arrangement
+                    break  # This KFrag is now assigned; break the inner loop and go back to assign other kfrags.
+            else:
+                # We didn't assign that KFrag.  Trouble.
+                # This is ideally an impossible situation, because we don't typically
+                # enter this method unless we've already had n or more Arrangements accepted.
+                raise self.MoreKFragsThanArrangements("Not enough accepted arrangements to assign all KFrags.")
 
     def enact(self, network_middleware, publish=True) -> None:
         """
@@ -242,7 +241,7 @@ class Policy:
 
         else:  # ...After *all* the policies are enacted
             if publish is True:
-                self.publish()
+                self.publish(network_middleware)
 
     def consider_arrangement(self, network_middleware, ursula, arrangement):
         ursula, negotiation_response = network_middleware.consider_arrangement(ursula=ursula,
@@ -252,7 +251,7 @@ class Policy:
         negotiation_result = negotiation_response.status_code == 200
 
         bucket = self._accepted_arrangements if negotiation_result is True else self._rejected_arrangements
-        bucket.append(arrangement)
+        bucket.add(arrangement)
 
         return negotiation_result
 
@@ -260,11 +259,58 @@ class Policy:
     def make_arrangements(self, network_middleware,
                           deposit: int,
                           expiration: maya.MayaDT,
-                          ursulas: List[Ursula]=None) -> None:
+                          ursulas: List[Ursula] = None) -> None:
         """
         Create and consider n Arangement objects.
         """
         raise NotImplementedError
+
+    def _consider_arrangements(self, network_middleware, candidate_ursulas: Set[Ursula],
+                               deposit: int, expiration: maya.MayaDT) -> tuple:
+
+        for selected_ursula in candidate_ursulas:
+            arrangement = self._arrangement_class(alice=self.alice,
+                                                  ursula=selected_ursula,
+                                                  value=deposit,
+                                                  expiration=expiration,
+                                                  hrac=self.hrac)
+
+            self.consider_arrangement(ursula=selected_ursula,
+                                      arrangement=arrangement,
+                                      network_middleware=network_middleware)
+
+
+class FederatedPolicy(Policy):
+    _arrangement_class = Arrangement
+
+    def __init__(self, ursulas: List[Ursula], *args, **kwargs):
+        self.ursulas = ursulas
+        super().__init__(*args, **kwargs)
+
+    def make_arrangements(self, network_middleware,
+                          deposit: int,
+                          expiration: maya.MayaDT,
+                          ursulas: List[Ursula] = None) -> None:
+        if ursulas is None:
+            ursulas = []
+        ursulas.extend(self.ursulas)
+
+        if len(ursulas) < self.n:
+            raise ValueError(
+                "To make a Policy in federated mode, you need to designate *all*\
+                 the Ursulas you need (in this case, {}); there's no other way to\
+                  know which nodes to use.  Either pass them here or when you make\
+                   the Policy.".format(self.n))
+
+        # TODO: One of these layers needs to add concurrency.
+
+        self._consider_arrangements(network_middleware,
+                                    candidate_ursulas=ursulas,
+                                    deposit=deposit,
+                                    expiration=expiration)
+
+        if len(self._accepted_arrangements) < self.n:
+            raise self.MoreKFragsThanArrangements
 
 
 class TreasureMap(object):

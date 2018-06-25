@@ -6,9 +6,11 @@ import maya
 from collections import deque
 
 from constant_sorrow import constants
+from eth_utils import to_canonical_address
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.constants import calculate_period_duration
 from nucypher.characters import Ursula
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
@@ -23,8 +25,13 @@ class BlockchainArrangement(Arrangement):
                  miner: Miner,
                  value: int,
                  lock_periods: int,
+                 expiration: maya.MayaDT,
                  *args, **kwargs):
         super().__init__(alice=author, ursula=miner, *args, **kwargs)
+
+        delta = expiration - maya.now()
+        hours = (delta.total_seconds() / 60) / 60
+        periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
 
         # The relationship exists between two addresses
         self.author = author
@@ -56,7 +63,7 @@ class BlockchainArrangement(Arrangement):
 
         txhash = self.policy_agent.contract.functions.createPolicy(self.id, self.miner.ether_address,
                                                                    self.lock_periods).transact(payload)
-        self.policy_agent.blockchain.wait.for_receipt(txhash)
+        self.policy_agent.blockchain.wait_for_receipt(txhash)
 
         self.publish_transaction = txhash
         self.is_published = True
@@ -75,6 +82,7 @@ class BlockchainPolicy(Policy):
     """
     A collection of n BlockchainArrangements representing a single Policy
     """
+    _arrangement_class = BlockchainArrangement
 
     class NoSuchPolicy(Exception):
         pass
@@ -112,17 +120,17 @@ class BlockchainPolicy(Policy):
 
             # Select an ether_address: Prefer the selection pool, then unknowns queue
             if ether_addresses:
-                ether_address = ether_addresses.pop()
+                ether_address = to_canonical_address(ether_addresses.pop())
             else:
                 ether_address = unknown_addresses.popleft()
 
             try:
                 # Check if this is a known node.
-                selected_ursula = self.alice.known_nodes[ether_address]
+                selected_ursula = self.alice._known_nodes[ether_address]
 
             except KeyError:
                 # Unknown Node
-                self.alice.nodes_to_seek.add(ether_address)  # enter address in learning loop
+                self.alice.learn_about_specific_node(ether_address)  # enter address in learning loop
                 unknown_addresses.append(ether_address)
                 continue
 
@@ -130,36 +138,12 @@ class BlockchainPolicy(Policy):
                 # Known Node
                 found_ursulas.add(selected_ursula)  # We already knew, or just learned about this ursula
 
-        else:
-            spare_addresses = ether_addresses  # Successfully collected and/or found n ursulas
-            self.alice.nodes_to_seek.update((a for a in spare_addresses if a not in self.alice.known_nodes))
+        #  TODO: Figure out how to handle spare addresses.
+        # else:
+        #     spare_addresses = ether_addresses  # Successfully collected and/or found n ursulas
+        #     self.alice.nodes_to_seek.update((a for a in spare_addresses if a not in self.alice._known_nodes))
 
-        return found_ursulas, spare_addresses
-
-    def __consider_arrangements(self, network_middleware, candidate_ursulas: Set[Ursula],
-                                deposit: int, expiration: maya.MayaDT) -> tuple:
-
-        accepted, rejected = set(), set()
-        for selected_ursula in candidate_ursulas:
-
-            delta = expiration - maya.now()
-            hours = (delta.total_seconds() / 60) / 60
-            periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
-
-            blockchain_arrangement = BlockchainArrangement(author=self.alice, miner=selected_ursula,
-                                                           value=deposit, lock_periods=periods,
-                                                           expiration=expiration, hrac=self.hrac)
-
-            ursula_accepts = self.consider_arrangement(ursula=selected_ursula,
-                                                       arrangement=blockchain_arrangement,
-                                                       network_middleware=network_middleware)
-
-            if ursula_accepts:  # TODO: Read the negotiation results from REST
-                accepted.add(blockchain_arrangement)
-            else:
-                rejected.add(blockchain_arrangement)
-
-        return accepted, rejected
+        return found_ursulas
 
     def make_arrangements(self, network_middleware: RestMiddleware,
                           deposit: int, expiration: maya.MayaDT,
@@ -175,23 +159,27 @@ class BlockchainPolicy(Policy):
         selected_addresses = set()
         try:  # Sample by reading from the Blockchain
             actual_sample_quantity = math.ceil(target_sample_quantity * ADDITIONAL_URSULAS)
-            sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity)
+            duration = int(calculate_period_duration(expiration))
+            sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity,
+                                                   duration=duration,
+                                                   )
         except MinerAgent.NotEnoughMiners:
             error = "Cannot create policy with {} arrangements."
             raise self.NotEnoughBlockchainUrsulas(error.format(self.n))
         else:
             selected_addresses.update(sampled_addresses)
 
-        found_ursulas, spare_addresses = self.__find_ursulas(sampled_addresses, target_sample_quantity)
+        found_ursulas = self.__find_ursulas(sampled_addresses, target_sample_quantity)
 
-        candidates = handpicked_ursulas + found_ursulas
+        candidates = handpicked_ursulas
+        candidates.update(found_ursulas)
 
         #
         # Consider Arrangements
         #
 
         # Attempt 1
-        accepted, rejected = self.__consider_arrangements(network_middleware, candidate_ursulas=candidates,
+        accepted, rejected = self._consider_arrangements(network_middleware, candidate_ursulas=candidates,
                                                           deposit=deposit, expiration=expiration)
 
         # After all is said and done...
@@ -200,8 +188,10 @@ class BlockchainPolicy(Policy):
             # Attempt 2:  Find more ursulas from the spare pile
             remaining_quantity = self.n - len(accepted)
 
+            # TODO: Handle spare Ursulas and try to claw back up to n.
+            assert False
             found_spare_ursulas, remaining_spare_addresses = self.__find_ursulas(spare_addresses, remaining_quantity)
-            accepted_spares, rejected_spares = self.__consider_arrangements(network_middleware,
+            accepted_spares, rejected_spares = self._consider_arrangements(network_middleware,
                                                                             candidate_ursulas=found_spare_ursulas,
                                                                             deposit=deposit, expiration=expiration)
             accepted.update(accepted_spares)
@@ -210,5 +200,14 @@ class BlockchainPolicy(Policy):
             if len(accepted) < self.n:
                 raise Exception("Selected Ursulas rejected too many arrangements")  # TODO: Better exception
 
-        self._accepted_arrangements.update(accepted)
-        self._rejected_arrangements.append(rejected)
+    def publish(self, network_middleware) -> None:
+        """Publish enacted arrangements."""
+
+        if not self._enacted_arrangements:
+            raise RuntimeError("There are no enacted arrangements to publish to the network.")
+
+        while len(self._enacted_arrangements) > 0:
+            kfrag, arrangement = self._enacted_arrangements.popitem()
+            arrangement.publish()
+
+        super().publish(network_middleware)
