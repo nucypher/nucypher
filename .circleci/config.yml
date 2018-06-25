@@ -69,7 +69,7 @@ jobs:
       - run:
           name: Ethereum Contract Unit Tests
           command: |
-            pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml --cov=nucypher/blockchain/eth/contracts/unit -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/unit/test_*.py | circleci tests split --split-by=timings)
+            pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/unit/test_*.py | circleci tests split --split-by=timings)
       - store_test_results:
           path: ./reports/pytest/
 
@@ -85,7 +85,7 @@ jobs:
       - run:
           name: Ethereum Inter-Contract Integration Test
           command: |
-            pipenv run pytest --cov=nucypher/blockchain/eth/contracts/integration -v --runslow tests/blockchain/eth/contracts/integration
+            pipenv run pytest -v --runslow tests/blockchain/eth/contracts/integration
       - store_test_results:
           path: ~/nucypher-depends/timing-results/
 
