@@ -8,13 +8,29 @@ import "contracts/NuCypherToken.sol";
 
 
 /**
-* @notice Contract that can call library contract
+* @notice Contract links library with UserEscrow
 **/
-contract Caller {
+contract UserEscrowLibraryLinker is Ownable {
+
+    address public target;
+
     /**
-    * @notice Target contract address
+    * @param _target Address of the library contract
     **/
-    function target() public returns (address);
+    constructor(address _target) public {
+        require(_target != 0x0);
+        target = _target;
+    }
+
+    /**
+    * @notice Upgrade library
+    * @param _target New contract address
+    **/
+    function upgrade(address _target) public onlyOwner {
+        require(_target != 0x0);
+        target = _target;
+    }
+
 }
 
 
@@ -27,22 +43,22 @@ contract UserEscrow is Ownable {
     using SafeERC20 for NuCypherToken;
     using SafeMath for uint256;
 
-    event Deposited(address indexed sender, uint256 value, uint256 duration);
-    event Withdrawn(address indexed owner, uint256 value);
-    event RewardWithdrawn(address indexed owner, uint256 value);
+    event TokensDeposited(address indexed sender, uint256 value, uint256 duration);
+    event TokensWithdrawn(address indexed owner, uint256 value);
+    event ETHWithdrawn(address indexed owner, uint256 value);
 
-    address public target;
+    UserEscrowLibraryLinker public linker;
     NuCypherToken public token;
     uint256 public lockedValue;
     uint256 public endLockTimestamp;
 
     /**
-    * @param _target UserEscrowProxyInterface contract address
+    * @param _linker UserEscrowProxyInterface contract address
     * @param _token Token contract
     **/
-    constructor(address _target, NuCypherToken _token) public {
-        require(address(_token) != 0x0 && _target != 0x0);
-        target = _target;
+    constructor(UserEscrowLibraryLinker _linker, NuCypherToken _token) public {
+        require(address(_token) != 0x0 && address(_linker) != 0x0);
+        linker = _linker;
         token = _token;
     }
 
@@ -56,7 +72,7 @@ contract UserEscrow is Ownable {
         endLockTimestamp = block.timestamp.add(_duration);
         lockedValue = _value;
         token.safeTransferFrom(msg.sender, address(this), _value);
-        emit Deposited(msg.sender, _value, _duration);
+        emit TokensDeposited(msg.sender, _value, _duration);
     }
 
     /**
@@ -73,29 +89,27 @@ contract UserEscrow is Ownable {
     * @notice Withdraw available amount of tokens to owner
     * @param _value Amount of token to withdraw
     **/
-    // TODO rename?
-    function withdraw(uint256 _value) public onlyOwner {
+    function withdrawTokens(uint256 _value) public onlyOwner {
         require(token.balanceOf(address(this)).sub(getLockedTokens()) >= _value);
         token.safeTransfer(owner, _value);
-        emit Withdrawn(owner, _value);
+        emit TokensWithdrawn(owner, _value);
     }
 
     /**
-    * @notice Withdraw available reward to the owner
+    * @notice Withdraw available ETH to the owner
     **/
-    function rewardWithdraw() public onlyOwner {
+    function withdrawETH() public onlyOwner {
         uint256 balance = address(this).balance;
         require(balance != 0);
         owner.transfer(balance);
-        emit RewardWithdrawn(owner, balance);
+        emit ETHWithdrawn(owner, balance);
     }
 
     /**
     * @dev Fallback function send all requests to the target proxy contract
     **/
     function () public payable onlyOwner {
-        assert(target != 0x0);
-        address libraryTarget = Caller(target).target();
+        address libraryTarget = linker.target();
         assert(libraryTarget != 0x0);
         bool callSuccess = libraryTarget.delegatecall(msg.data);
         if (callSuccess) {
@@ -106,33 +120,6 @@ contract UserEscrow is Ownable {
         } else {
             revert();
         }
-    }
-
-}
-
-
-/**
-* @notice Contract links library with UserEscrow
-**/
-contract UserEscrowLibraryLinker is Ownable {
-
-    address public target;
-
-    /**
-    * @param _target Address of the library contract
-    **/
-    constructor(address _target) {
-        require(_target != 0x0);
-        target = _target;
-    }
-
-    /**
-    * @notice Upgrade library
-    * @param _target New contract address
-    **/
-    function upgrade(address _target) public onlyOwner {
-        require(_target != 0x0);
-        target = _target;
     }
 
 }

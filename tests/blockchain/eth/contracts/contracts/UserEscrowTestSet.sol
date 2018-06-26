@@ -62,3 +62,74 @@ contract MinersEscrowForUserEscrowMock {
         value += 1000;
     }
 }
+
+
+/**
+* @notice Contract for testing user escrow contract
+**/
+contract PolicyManagerForUserEscrowMock {
+
+    uint256 public minRewardRate;
+
+    function withdraw(address _recipient) public returns (uint256) {
+        uint256 value = address(this).balance;
+        require(value > 0);
+        _recipient.transfer(value);
+        return value;
+    }
+
+    function setMinRewardRate(uint256 _minRewardRate) public {
+        minRewardRate = _minRewardRate;
+    }
+
+    function () public payable {}
+}
+
+
+/**
+* @notice Contract for testing the user escrow contract
+**/
+contract GovernmentForUserEscrowMock {
+
+    bool public voteFor;
+
+    function vote(bool _voteFor) public {
+        voteFor = _voteFor;
+    }
+
+}
+
+
+/**
+* @notice Contract for user escrow tests
+**/
+contract UserEscrowLibraryMockV1 {
+
+    function firstMethod() public pure {}
+
+    function secondMethod() public pure returns (uint256) {
+        return 20;
+    }
+
+}
+
+
+/**
+* @notice Contract for user escrow tests
+**/
+contract UserEscrowLibraryMockV2 {
+
+    function () public payable {
+        // can only use with ETH
+        require(msg.value > 0);
+    }
+
+    function firstMethod(uint256) public pure {}
+
+    function secondMethod() public pure returns (uint256) {
+        return 15;
+    }
+
+    function thirdMethod() public pure {}
+
+}

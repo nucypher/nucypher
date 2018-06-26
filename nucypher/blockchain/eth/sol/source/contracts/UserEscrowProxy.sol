@@ -1,6 +1,7 @@
 pragma solidity ^0.4.24;
 
 
+import "./UserEscrow.sol";
 import "contracts/NuCypherToken.sol";
 import "contracts/MinersEscrow.sol";
 import "contracts/PolicyManager.sol";
@@ -8,22 +9,11 @@ import "proxy/Government.sol";
 
 
 /**
-* @notice Contract that can call library contract
-**/
-contract Caller {
-    /**
-    * @notice Target contract address
-    **/
-    function target() public returns (address);
-}
-
-
-/**
-* @notice Proxy interface to access main contracts from the UserEscrow contract
+* @notice Proxy to access main contracts from the UserEscrow contract
 * @dev All methods must be stateless because this code will execute by delegatecall call
-* If state is needed - use getStateAddress() method to access state of this contract
+* If state is needed - use getStateContract() method to access state of this contract
 **/
-contract UserEscrowProxyInterface {
+contract UserEscrowProxy {
 
     event DepositedAsMiner(address indexed owner, uint256 value, uint16 periods);
     event WithdrawnAsMiner(address indexed owner, uint256 value);
@@ -31,7 +21,7 @@ contract UserEscrowProxyInterface {
     event Divided(address indexed owner, uint256 index, uint256 newValue, uint16 periods);
     event ActivityConfirmed(address indexed owner);
     event Mined(address indexed owner);
-    event RewardWithdrawnAsMiner(address indexed owner, uint256 value);
+    event PolicyRewardWithdrawn(address indexed owner, uint256 value);
     event MinRewardRateSet(address indexed owner, uint256 value);
     event Voted(address indexed owner, bool voteFor);
 
@@ -65,15 +55,13 @@ contract UserEscrowProxyInterface {
         government = _government;
     }
 
-    // TODO maybe restrict use ETH in the user escrow (remove)?
-    function () public payable {}
-
     /**
     * @notice Get contract which stores state
-    * @dev Assume that caller has target() method
+    * @dev Assume that `this` is the UserEscrow contract
     **/
-    function getStateContract() internal returns (UserEscrowProxyInterface) {
-        return UserEscrowProxyInterface(Caller(Caller(address(this)).target()).target());
+    function getStateContract() internal view returns (UserEscrowProxy) {
+        UserEscrowLibraryLinker linker = UserEscrow(address(this)).linker();
+        return UserEscrowProxy(linker.target());
     }
 
     /**
@@ -81,9 +69,8 @@ contract UserEscrowProxyInterface {
     * @param _value Amount of token to deposit
     * @param _periods Amount of periods during which tokens will be locked
     **/
-    // TODO rename?
-    function minerDeposit(uint256 _value, uint16 _periods) public {
-        UserEscrowProxyInterface state = getStateContract();
+    function depositAsMiner(uint256 _value, uint16 _periods) public {
+        UserEscrowProxy state = getStateContract();
         NuCypherToken tokenFromState = state.token();
         require(tokenFromState.balanceOf(address(this)) > _value);
         MinersEscrow escrowFromState = state.escrow();
@@ -96,8 +83,7 @@ contract UserEscrowProxyInterface {
     * @notice Withdraw available amount of tokens from the miners escrow to the user escrow
     * @param _value Amount of token to withdraw
     **/
-    // TODO rename?
-    function minerWithdraw(uint256 _value) public {
+    function withdrawAsMiner(uint256 _value) public {
         getStateContract().escrow().withdraw(_value);
         emit WithdrawnAsMiner(msg.sender, _value);
     }
@@ -148,10 +134,9 @@ contract UserEscrowProxyInterface {
     /**
     * @notice Withdraw available reward from the policy manager to the user escrow
     **/
-    function policyRewardWithdraw() public {
-        uint256 balance = address(this).balance;
+    function withdrawPolicyReward() public {
         uint256 value = getStateContract().policyManager().withdraw(msg.sender);
-        emit RewardWithdrawnAsMiner(msg.sender, value);
+        emit PolicyRewardWithdrawn(msg.sender, value);
     }
 
     /**

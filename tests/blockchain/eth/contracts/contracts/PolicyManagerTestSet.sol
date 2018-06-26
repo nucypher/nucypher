@@ -6,6 +6,42 @@ import "contracts/MinersEscrow.sol";
 
 
 /**
+* @notice Upgrade to this contract must lead to fail
+**/
+contract PolicyManagerBad is PolicyManager {
+
+    constructor(MinersEscrow _escrow) public PolicyManager(_escrow) {
+    }
+
+    function getNodeRewardDelta(address, uint16) public view returns (int256)
+    {
+    }
+
+}
+
+
+/**
+* @notice Contract for testing upgrading the PolicyManager contract
+**/
+contract PolicyManagerV2Mock is PolicyManager {
+
+    uint256 public valueToCheck;
+
+    constructor(MinersEscrow _escrow) public PolicyManager(_escrow) {
+    }
+
+    function setValueToCheck(uint256 _valueToCheck) public {
+        valueToCheck = _valueToCheck;
+    }
+
+    function verifyState(address _testTarget) public onlyOwner {
+        super.verifyState(_testTarget);
+        require(uint256(delegateGet(_testTarget, "valueToCheck()")) == valueToCheck);
+    }
+}
+
+
+/**
 * @notice Contract for using in PolicyManager tests
 **/
 contract MinersEscrowForPolicyMock {
