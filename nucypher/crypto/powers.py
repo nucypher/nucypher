@@ -6,7 +6,6 @@ from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 from umbral import pre
-from web3.eth import Eth
 
 
 class PowerUpError(TypeError):
@@ -68,19 +67,22 @@ class BlockchainPower(CryptoPowerUp):
     Allows for transacting on a Blockchain via web3 backend.
     """
 
-    def __init__(self, account: str):
+    def __init__(self, blockchain: 'Blockchain', account: str):
         """
         Instantiates a BlockchainPower for the given account id.
         """
+        self.blockchain = blockchain
         self.account = account
+        self.is_unlocked = False
 
     def unlock_account(self, password: str, duration: int = None):
         """
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-        self.is_unlocked = web3.personal.unlockAccount(self.account, password,
-                                                       duration=duration)
+        self.is_unlocked = self.blockchain.interface.w3.personal.unlockAccount(
+                self.account, password, duration=duration)
+
         if not self.is_unlocked:
             raise PowerUpError("Account failed to unlock for {}".format(self.account))
 

@@ -1,3 +1,4 @@
+import binascii
 import json
 import os
 import warnings
@@ -5,6 +6,9 @@ from pathlib import Path
 from typing import Tuple, List
 
 from constant_sorrow import constants
+from eth_utils import to_canonical_address
+from eth_keys.datatypes import PublicKey, Signature
+from web3.providers.eth_tester.main import EthereumTesterProvider
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 
@@ -244,13 +248,13 @@ class ControlCircumflex:
         #
 
         # If custom __providers are not injected...
-        self.__providers = list() if providers is None else providers
+        self._providers = list() if providers is None else providers
         if providers is None:
-            # Mutates self.__providers
+            # Mutates self._providers
             self.add_provider(endpoint_uri=endpoint_uri, websocket=websocket,
                               ipc_path=ipc_path, timeout=timeout)
 
-        web3_instance = Web3(providers=self.__providers)  # Instantiate Web3 object with provider
+        web3_instance = Web3(providers=self._providers)  # Instantiate Web3 object with provider
         self.w3 = web3_instance                           # capture web3
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
@@ -308,7 +312,7 @@ class ControlCircumflex:
             else:
                 raise self.InterfaceError("Invalid interface parameters. Pass endpoint_uri or ipc_path")
 
-        self.__providers.append(provider)
+        self._providers.append(provider)
 
     def get_contract_factory(self, contract_name) -> Contract:
         """Retrieve compiled interface data from the cache and return web3 contract"""
@@ -390,3 +394,31 @@ class DeployerCircumflex(ControlCircumflex):
                                contract_abi=contract_factory.abi)
 
         return contract, txhash
+
+    def call_backend_sign(self, account: str, message: bytes) -> str:
+        """
+        Calls the appropriate signing function for the specified account on the
+        backend. If the backend is based on eth-tester, then it uses the
+        eth-tester signing interface to do so.
+        """
+        provider = self._providers[0]
+        if isinstance(provider, EthereumTesterProvider):
+            address = to_canonical_address(account)
+            sig_key = provider.ethereum_tester.backend._key_lookup[address]
+            signed_message = sig_key.sign_msg(message)
+            return signed_message.to_hex()
+        else:
+            return self.w3.eth.sign(account, data=message) # Technically deprecated...
+
+    def call_backend_verify(self, pubkey: bytes , signature: str, msg_hash: bytes):
+        """
+        Verifies a hex string signature and message hash are from the provided
+        public key.
+        """
+        eth_sig = Signature(signature_bytes=unhexlify(signature[2:]))
+        eth_pubkey = PublicKey(public_key_bytes=pubkey)
+
+        is_valid_sig = eth_sig.verify_msg_hash(msg_hash, eth_pubkey)
+        sig_pubkey = eth_sig.recovery_public_key_from_msg_hash(msg_hash)
+
+        return is_valid_sig and (sig_pubkey == eth_pubkey)
