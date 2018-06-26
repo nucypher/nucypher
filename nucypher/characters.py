@@ -464,6 +464,7 @@ class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, is_me=True, federated_only=False, *args, **kwargs):
+
         Character.__init__(self, is_me=is_me, federated_only=federated_only, *args, **kwargs)
         if is_me and not federated_only:  # TODO: 289
             PolicyAuthor.__init__(self, *args, **kwargs)
