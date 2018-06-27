@@ -25,19 +25,18 @@ requests = "*"
 hendrix = "==3.0.0"
 constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "nucypher-depend"}
 bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git", ref = "nucypher-depend"}
-appdirs = "*"
-web3 = "==4.3.0"
+web3 = "*"
 
 [dev-packages]
-pytest = "*"
 mypy = "*"
+pytest = "*"
 pytest-mypy = "*"
+pytest-cov = "*"
 codecov = "*"
 coverage = "*"
-pytest-cov = "*"
 py-solc = "*"
-py-evm = "==0.2.0a18"
-eth-tester = "==0.1.0b26"
+py-evm = "*"
+eth-tester = "*"
 py-geth = "*"
 
 [pipenv]
