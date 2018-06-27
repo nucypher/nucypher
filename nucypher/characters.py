@@ -208,10 +208,18 @@ class Character:
     ##
 
     def remember_node(self, node):
-        self._known_nodes[node.canonical_public_address] = node
+        # TODO: 334
+        listeners = self._learning_listeners.pop(node.canonical_public_address, ())
+        address = node.canonical_public_address
+
+        self._known_nodes[address] = node
+        self.log.info("Remembering {}, popping {} listeners.".format(node.checksum_public_address, len(listeners)))
+        for listener in listeners:
+            listener.add(address)
+        self._node_ids_to_learn_about_immediately.discard(address)
 
     def start_learning(self):
-        d = self._learning_task.start(10, now=True)
+        d = self._learning_task.start(interval=self._SECONDS_DELAY_BETWEEN_LEARNING, now=True)
         d.addErrback(self.handle_learning_errors)
 
     def handle_learning_errors(self, *args, **kwargs):
@@ -249,32 +257,65 @@ class Character:
 
         return teacher
 
-    def learn_about_nodes_now(self):
-        self._learning_task.reset()
-        self._learning_task()
+    def learn_about_nodes_now(self, force=False):
+        if self._learning_task.running:
+            self._learning_task.reset()
+            self._learning_task()
+        elif not force:
+            self.log.warning(
+                "Learning loop isn't started; can't learn about nodes now.  You can ovverride this with force=True.")
+        elif force:
+            self.log.info("Learning loop wasn't started; forcing start now.")
+            self._learning_task.start(self._SECONDS_DELAY_BETWEEN_LEARNING, now=True)
 
     def keep_learning_about_nodes(self):
         """
         Continually learn about new nodes.
         """
-        self.learn_from_teacher_node()
-
-        if self._node_ids_to_learn_about_immediately:
-            self.learn_about_nodes_now()
+        self.learn_from_teacher_node(eager=True)  # TODO: Allow the user to set eagerness?
+        #
+        # if self._node_ids_to_learn_about_immediately:
+        #     self.learn_about_nodes_now()
 
     def learn_about_specific_nodes(self, canonical_addresses: Set):
         self._node_ids_to_learn_about_immediately.update(canonical_addresses)  # hmmmm
         self.learn_about_nodes_now()
 
-    def learn_from_teacher_node(self, rest_address: str = None, port: int = None):
+    def block_until_nodes_are_known(self, canonical_addresses: Set, timeout=10, allow_missing=0):
+        start = maya.now()
+        starting_round = self._learning_round
+
+        while True:
+            if not self._learning_task.running:
+                self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
+            rounds_undertaken = self._learning_round - starting_round
+            if (maya.now() - start).seconds < timeout:
+                if canonical_addresses.issubset(self._known_nodes):
+
+                    self.log.info("Learned about all nodes after {} rounds.".format(rounds_undertaken))
+                    return True
+                else:
+                    time.sleep(.1)
+            else:
+                still_unknown = canonical_addresses.difference(self._known_nodes)
+
+                if len(still_unknown) <= allow_missing:
+                    return False
+                else:
+                    raise self.NotEnoughUrsulas("After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
+                        timeout, rounds_undertaken, len(still_unknown), still_unknown))
+
+    def learn_from_teacher_node(self, rest_address: str = None, port: int = None, eager=False):
         """
         Sends a request to node_url to find out about known nodes.
         """
+        self._learning_round += 1
         if rest_address is None:
             current_teacher = self.current_teacher_node()
             rest_address = current_teacher.rest_interface.host
             port = current_teacher.rest_interface.port
 
+        # TODO: Do we really want to try to learn about all these nodes instantly?  Hearing this traffic might give insight to an attacker.
         response = self.network_middleware.get_nodes_via_rest(rest_address,
                                                               port, node_ids=self._node_ids_to_learn_about_immediately)
         if response.status_code != 200:
@@ -285,6 +326,10 @@ class Character:
         ursula_interface_splitter = dht_value_splitter + BytestringSplitter(InterfaceInfo) * 2
         split_nodes = ursula_interface_splitter.repeat(nodes)
 
+        self.log.info("Learning round {}.  Teacher: {} knew about {} nodes.".format(self._learning_round,
+                                                                                    current_teacher.checksum_public_address,
+                                                                                    len(split_nodes)))
+
         for node_meta in split_nodes:
             header, sig, pubkey, ether_address, rest_info, dht_info = node_meta
             message = ether_address + rest_info + dht_info
@@ -293,20 +338,28 @@ class Character:
                 if sig.verify(message, pubkey):
                     self.log.info("Prevously unknown node: {}".format(ether_address))
 
-                    # TOOD: Is this too eager?  Does it make sense to only learn later, when we want to make an Arrangement with this node?
-                    ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
-                                                  host=rest_info.host,
-                                                  port=rest_info.port)
+                    if eager:
+                        ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
+                                                      host=rest_info.host,
+                                                      port=rest_info.port)
 
                     self.remember_node(ursula)
 
                     #####
-                    self._node_ids_to_learn_about_immediately.discard(pubkey)
+
 
                 else:
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                               "Propagated by: {}:{}".format(node_meta, rest_address, port)
                     self.log.warning(message)
+
+    def _push_certain_newly_discovered_nodes_here(self, queue_to_push, node_addresses):
+        """
+        If any node_addresses are discovered, push them to queue_to_push.
+        """
+        for node_address in node_addresses:
+            self.log.info("Adding listener for {}".format(node_address))
+            self._learning_listeners[node_address].append(queue_to_push)
 
     def network_bootstrap(self, node_list: list) -> None:
         for node_addr, port in node_list:
