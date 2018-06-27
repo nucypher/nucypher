@@ -15,11 +15,11 @@ maya = "*"
 hendrix = "==3.0.0"
 constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "nucypher-depend"}
 bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git", ref = "nucypher-depend"}
-SQLAlchemy = "*"
+sqlalchemy = "*"
 apistar = "*"
 rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "nucypher-depend"}
 kademlia = {git = "https://github.com/nucypher/kademlia", ref = "nucypher-depend"}
-PyNaCl = "*"
+pynacl = "*"
 pysha3 = "*"
 py_ecc = "*"
 pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "nucypher-depend"}
@@ -39,6 +39,6 @@ eth-tester = "*"
 [pipenv]
 allow_prereleases = true
 
-
 [scripts]
-install_solc = "./install_solc.sh"
+install_solc = "scripts/install_solc.sh"
+install_circle_commit_hook = "cp -i scripts/validate_config.sh .git/hooks/pre-commit"
