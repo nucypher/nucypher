@@ -41,4 +41,3 @@ allow_prereleases = true
 
 [scripts]
 install_solc = "scripts/install_solc.sh"
-install_circle_commit_hook = "cp -i scripts/validate_config.sh .git/hooks/pre-commit"
