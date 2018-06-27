@@ -1,17 +1,11 @@
 import contextlib
 import os
-import signal
-import subprocess
-import tempfile
 
 import pytest
-import shutil
-import time
 from constant_sorrow import constants
 from eth_tester import EthereumTester
-from geth import LoggingMixin, DevGethProcess
 from os.path import abspath, dirname
-from web3 import EthereumTesterProvider, IPCProvider
+from web3 import EthereumTesterProvider
 
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
@@ -23,82 +17,6 @@ from tests.blockchain.eth.utilities import token_airdrop
 from tests.utilities import make_ursulas
 
 constants.NUMBER_OF_TEST_ETH_ACCOUNTS(10)
-
-
-
-#
-# Provider Fixtures
-#
-
-
-@pytest.fixture(scope='session')
-def manual_geth_ipc_provider():
-    """
-    Provider backend
-    https:// github.com/ethereum/eth-tester
-    """
-    ipc_provider = IPCProvider(ipc_path='/tmp/geth.ipc')
-    yield ipc_provider
-
-
-@pytest.fixture(scope='session')
-def auto_geth_dev_ipc_provider():
-    """
-    Provider backend
-    https:// github.com/ethereum/eth-tester
-    """
-    # TODO: logging
-    geth_cmd = ["geth --dev"]  # WARNING: changing this may have undesireable effects.
-    geth_process = subprocess.Popen(geth_cmd, stdout=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
-
-    time.sleep(10)  #TODO: better wait with file socket
-
-    ipc_provider = IPCProvider(ipc_path=os.path.join('/tmp/geth.ipc'))
-
-    yield ipc_provider
-    os.killpg(os.getpgid(geth_process.pid), signal.SIGTERM)
-
-
-@pytest.fixture(scope='session')
-def auto_geth_ipc_provider():
-    """
-    Provider backend
-    https: // github.com / ethereum / eth - tester     # available-backends
-    """
-
-    #
-    # spin-up geth
-    #
-
-    class IPCDevGethProcess(LoggingMixin, DevGethProcess):
-        data_dir = tempfile.mkdtemp()
-        chain_name = 'tester'
-        ipc_path = os.path.join(data_dir, chain_name, 'geth.ipc')
-
-        def __init__(self, *args, **kwargs):
-            super().__init__(chain_name=self.chain_name,
-                             base_dir=self.data_dir,
-                             *args, **kwargs)
-
-    geth = IPCDevGethProcess()
-    geth.start()
-
-    geth.wait_for_ipc(timeout=30)
-    geth.wait_for_dag(timeout=600)  # 10 min
-    assert geth.is_dag_generated
-    assert geth.is_running
-    assert geth.is_alive
-
-    ipc_provider = IPCProvider(ipc_path=geth.ipc_path)
-    yield ipc_provider
-
-    #
-    # Teardown
-    #
-    geth.stop()
-    assert geth.is_stopped
-    assert not geth.is_alive
-    shutil.rmtree(geth.data_dir)
 
 
 
