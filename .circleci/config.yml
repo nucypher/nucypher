@@ -40,11 +40,7 @@ bundle_dependencies: &bundle_dependencies
           pipenv install --three --dev --skip-lock
     - run:
         name: Install Solidity compiler
-        command: |
-          wget "https://github.com/ethereum/solidity/releases/download/${SOLC_VER}/solc-static-linux" -O "$(pipenv --venv)/bin/solc"
-          chmod +x "$(pipenv --venv)/bin/solc"
-        environment:
-          SOLC_VER: "v0.4.24"
+        command: pipenv run install_solc
     - save_cache:
         paths:
           - "~/.local/share/virtualenvs/"
