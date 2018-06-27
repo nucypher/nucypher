@@ -33,7 +33,7 @@ bundle_dependencies: &bundle_dependencies
   steps:
     - checkout
     - restore_cache:
-        key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+        key: v2-deps-{{ .Branch }}-{{ checksum "Pipfile" }}
     - run:
         name: Install Python dependencies with Pipenv
         command: |
@@ -48,7 +48,7 @@ bundle_dependencies: &bundle_dependencies
     - save_cache:
         paths:
           - "~/.local/share/virtualenvs/"
-        key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+        key: v2-deps-{{ .Branch }}-{{ checksum "Pipfile" }}
 
 jobs:
   bundle_dependencies-36:
@@ -58,14 +58,14 @@ jobs:
       - image: circleci/python:3.6
 
   contract_unit:
-    parallelism: 3
+    parallelism: 4
     working_directory: ~/nucypher-depends
     docker:
       - image: circleci/python:3.6
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+          key: v2-deps-{{ .Branch }}-{{ checksum "Pipfile" }}
       - run:
           name: Ethereum Contract Unit Tests
           command: |
@@ -81,14 +81,11 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+          key: v2-deps-{{ .Branch }}-{{ checksum "Pipfile" }}
       - run:
           name: Ethereum Inter-Contract Integration Test
           command: |
             pipenv run pytest -v --runslow tests/blockchain/eth/contracts/integration
-      - store_test_results:
-          path: ~/nucypher-depends/timing-results/
-
 
   crypto_unit:
     working_directory: ~/nucypher-depends
@@ -97,7 +94,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+          key: v2-deps-{{ .Branch }}-{{ checksum "Pipfile" }}
       - run:
           name: Crypto Character Tests
           command: |
@@ -110,7 +107,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+          key: v2-deps-{{ .Branch }}-{{ checksum "Pipfile" }}
       - run:
           name: Network Tests
           command: |
@@ -123,7 +120,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+          key: v2-deps-{{ .Branch }}-{{ checksum "Pipfile" }}
       - run:
           name: Keystore Tests
           command: |
@@ -136,7 +133,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+          key: v2-deps-{{ .Branch }}-{{ checksum "Pipfile" }}
       - run:
           name: Character Tests
           command: |
@@ -149,8 +146,8 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ .Branch }}-{{ checksum "Pipfile" }}
+          key: v2-deps-{{ .Branch }}-{{ checksum "Pipfile" }}
       - run:
           name: Blockchain Client Tests
           command: |
-            pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/client
+            pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/interfaces tests/blockchain/eth/entities

@@ -12,12 +12,14 @@ from tests.utilities import TEST_EVENT_LOOP, MockRestMiddleware
 
 
 @pytest.mark.usefixtures('testerchain')
-def test_all_ursulas_know_about_all_other_ursulas(ursulas, mock_miner_agent):
+def test_all_ursulas_know_about_all_other_ursulas(ursulas, three_agents):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
     """
+    token_agent, miner_agent, policy_agent = three_agents
+
     ignorance = []
-    for acounter, announcing_ursula in enumerate(mock_miner_agent.swarm(fetch_data=True)):
+    for acounter, announcing_ursula in enumerate(miner_agent.swarm()):
         for counter, propagating_ursula in enumerate(ursulas):
             announcing_ursula_ether_address, announcing_ursula_id = announcing_ursula
             if not digest(bytes(announcing_ursula_id)) in propagating_ursula.server.storage:
@@ -51,12 +53,13 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
 
 
 def test_alice_finds_ursula_via_rest(alice, ursulas):
-    network_middleware = MockRestMiddleware()
 
     # Imagine alice knows of nobody.
     alice._known_nodes = {}
 
-    new_nodes = alice.learn_about_nodes(rest_address="https://localhost", port=ursulas[0].rest_port)
+    some_ursula_interface = ursulas.pop().rest_interface
+
+    new_nodes = alice.learn_from_teacher_node(rest_address=some_ursula_interface.host, port=some_ursula_interface.port)
     assert len(new_nodes) == len(ursulas)
 
     for ursula in ursulas:

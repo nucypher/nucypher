@@ -1,24 +1,26 @@
+import contextlib
 import os
-import shutil
 import signal
 import subprocess
 import tempfile
-import time
-from os.path import abspath, dirname
 
 import pytest
+import shutil
+import time
 from constant_sorrow import constants
 from eth_tester import EthereumTester
 from geth import LoggingMixin, DevGethProcess
+from os.path import abspath, dirname
 from web3 import EthereumTesterProvider, IPCProvider
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
-from nucypher.blockchain.eth.interfaces import EthereumContractRegistrar, DeployerCircumflex
+from nucypher.blockchain.eth.interfaces import DeployerCircumflex
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.blockchain.eth.utilities import OverridablePyEVMBackend, TemporaryEthereumContractRegistry
 from tests.blockchain.eth import contracts
-from tests.blockchain.eth.utilities import MockMinerEscrowDeployer, TesterPyEVMBackend, MockNucypherTokenDeployer
+from tests.blockchain.eth.utilities import token_airdrop
+from tests.utilities import make_ursulas
 
 constants.NUMBER_OF_TEST_ETH_ACCOUNTS(10)
 
@@ -118,22 +120,18 @@ def testerchain(solidity_compiler):
     https: // github.com / ethereum / eth - tester     # available-backends
     """
 
-    # create a temporary registrar for the tester blockchain
-    _, filepath = tempfile.mkstemp()
-    test_registrar = EthereumContractRegistrar(chain_name='tester', registrar_filepath=filepath)
+    temp_registrar = TemporaryEthereumContractRegistry()
 
     # Configure a custom provider
     overrides = {'gas_limit': 4626271}
-    pyevm_backend = TesterPyEVMBackend(genesis_overrides=overrides)
-
-    # pyevm_backend = PyEVMBackend() # TODO: Remove custom overrides?
+    pyevm_backend = OverridablePyEVMBackend(genesis_overrides=overrides)
 
     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
     pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
     # Use the the custom provider and registrar to init an interface
     circumflex = DeployerCircumflex(compiler=solidity_compiler,    # freshly recompile
-                                    registrar=test_registrar,      # use temporary registrar
+                                    registry=temp_registrar,       # use temporary registrar
                                     providers=(pyevm_provider, ))  # use custom test provider
 
     # Create the blockchain
@@ -143,21 +141,7 @@ def testerchain(solidity_compiler):
 
     yield testerchain
 
-    testerchain.sever_connection()  # Destroy the blockchin singelton cache
-    os.remove(filepath)             # remove registrar tempfile
-
-
-#
-# Utility
-#
-
-@pytest.fixture(scope='module')
-def token_airdrop(testerchain, mock_token_agent):
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
-    mock_token_agent.token_airdrop(origin=origin,
-                                   addresses=everybody_else,
-                                   amount=100000*constants.M)
-    yield
+    testerchain.sever_connection()
 
 
 @pytest.fixture(scope='module')
@@ -167,6 +151,8 @@ def three_agents(testerchain):
     Launch the big three contracts on provided chain,
     make agents for each and return them.
     """
+
+    """Launch all Nucypher ethereum contracts"""
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
@@ -185,83 +171,32 @@ def three_agents(testerchain):
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
 
-    return token_agent, miner_agent, policy_manager_deployer.make_agent()
+    policy_agent = policy_manager_deployer.make_agent()
+
+    return token_agent, miner_agent, policy_agent
 
 
-# 
-# Deployers #
-# 
+@pytest.fixture(scope="module")
+def non_ursula_miners(three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
 
+    ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
 
-@pytest.fixture(scope='module')
-def mock_token_deployer(testerchain):
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
-    token_deployer = MockNucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
-    token_deployer.arm()
-    token_deployer.deploy()
-    yield token_deployer
+    _receipts = token_airdrop(token_agent=token_agent, origin=etherbase,
+                              addresses=all_yall, amount=1000000 * constants.M)
 
+    starting_point = constants.URSULA_PORT_SEED + 500
 
-@pytest.fixture(scope='module')
-def mock_miner_escrow_deployer(testerchain, mock_token_agent):
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
-    escrow = MockMinerEscrowDeployer(token_agent=mock_token_agent, deployer_address=origin)
-    escrow.arm()
-    escrow.deploy()
-    yield escrow
-
-
-@pytest.fixture(scope='module')
-def mock_policy_manager_deployer(testerchain, mock_miner_agent):
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
-    policy_manager_deployer = PolicyManagerDeployer(miner_agent=mock_miner_agent, deployer_address=origin)
-    policy_manager_deployer.arm()
-    policy_manager_deployer.deploy()
-    yield policy_manager_deployer
-
-
-#
-# Agents #
-#
-
-@pytest.fixture(scope='module')
-def mock_token_agent(mock_token_deployer):
-    token_agent = mock_token_deployer.make_agent()
-    assert mock_token_deployer.contract.address == token_agent.contract_address
-    yield token_agent
-
-
-@pytest.fixture(scope='module')
-@pytest.mark.usefixtures("mock_token_agent")
-def mock_miner_agent(mock_miner_escrow_deployer):
-    miner_agent = mock_miner_escrow_deployer.make_agent()
-    assert mock_miner_escrow_deployer.contract.address == miner_agent.contract_address
-    yield miner_agent
-
-
-@pytest.fixture(scope='module')
-@pytest.mark.usefixtures("mock_miner_agent")
-def mock_policy_agent(mock_policy_manager_deployer):
-    policy_agent = mock_policy_manager_deployer.make_agent()
-    assert mock_policy_manager_deployer.contract.address == policy_agent.contract_address
-    yield policy_agent
-
-
-#
-# Actors
-#
-
-@pytest.fixture(scope='module')
-@pytest.mark.usefixtures("mock_policy_agent")
-def miners(testerchain, mock_miner_agent, mock_token_agent):
-    mock_token_agent.blockchain.ether_airdrop(amount=10000)
-
-    origin, *everybody_else = testerchain.interface.w3.eth.accounts
-    mock_token_agent.token_airdrop(origin=origin,
-                                   addresses=everybody_else,
-                                   amount=100000*constants.M)
-    mock_miner_agent.blockchain.time_travel(periods=1)
-
-    miners = mock_miner_agent.spawn_random_miners(addresses=everybody_else)
-    testerchain.time_travel(periods=1)
-    yield miners
+    _ursulas = make_ursulas(ether_addresses=ursula_addresses,
+                            ursula_starting_port=int(starting_point),
+                            miner_agent=miner_agent,
+                            miners=True,
+                            bare=True)
+    try:
+        yield _ursulas
+    finally:
+        # Remove the DBs that have been sprayed hither and yon.
+        with contextlib.suppress(FileNotFoundError):
+            for port, ursula in enumerate(_ursulas, start=int(starting_point)):
+                os.remove("test-{}".format(port))

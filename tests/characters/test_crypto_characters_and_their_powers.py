@@ -51,15 +51,16 @@ def test_actor_with_signing_power_can_sign():
     assert verification is True
 
 
-def test_anybody_can_verify(mock_policy_agent):
+def test_anybody_can_verify(three_agents):
     """
     In the last example, we used the lower-level Crypto API to verify the signature.
 
     Here, we show that anybody can do it without needing to directly access Crypto.
     """
+    token_agent, miner_agent, policy_agent = three_agents
 
     # Alice can sign by default, by dint of her _default_crypto_powerups.
-    alice = Alice(policy_agent=mock_policy_agent, always_be_learning=False)
+    alice = Alice(policy_agent=policy_agent, always_be_learning=False)
 
     # So, our story is fairly simple: an everyman meets Alice.
     somebody = Character(always_be_learning=False)

@@ -6,7 +6,11 @@ A simple Python script to deploy contracts and then estimate gas for different m
 """
 
 import os
-import tempfile
+import sys
+
+
+sys.path.append(os.path.abspath(os.getcwd()))
+
 from os.path import dirname, abspath
 
 from eth_tester import EthereumTester
@@ -15,30 +19,31 @@ from constant_sorrow import constants
 
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
-from nucypher.blockchain.eth.interfaces import EthereumContractRegistrar, DeployerCircumflex
+from nucypher.blockchain.eth.interfaces import DeployerCircumflex
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from tests.blockchain.eth import contracts
-from tests.blockchain.eth.utilities import TesterPyEVMBackend
+from nucypher.blockchain.eth.utilities import OverridablePyEVMBackend, TemporaryEthereumContractRegistry
+
+from nucypher.blockchain.eth import sol
+
+CONTRACTS_DIR = os.path.join(dirname(abspath(sol.__file__)), 'source', 'contracts')
 
 
 def estimate_gas():
-    test_contracts_dir = os.path.join(dirname(abspath(contracts.__file__)), 'contracts')
-    solidity_compiler = SolidityCompiler(test_contract_dir=test_contracts_dir)
+    solidity_compiler = SolidityCompiler(test_contract_dir=CONTRACTS_DIR)
 
     # create a temporary registrar for the tester blockchain
-    _, filepath = tempfile.mkstemp()
-    test_registrar = EthereumContractRegistrar(chain_name='tester', registrar_filepath=filepath)
+    temporary_registry = TemporaryEthereumContractRegistry()
 
     # Configure a custom provider
     overrides = {'gas_limit': 4626271}
-    pyevm_backend = TesterPyEVMBackend(genesis_overrides=overrides)
+    pyevm_backend = OverridablePyEVMBackend(genesis_overrides=overrides)
 
     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
     pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
     # Use the the custom provider and registrar to init an interface
     circumflex = DeployerCircumflex(compiler=solidity_compiler,  # freshly recompile
-                                    registrar=test_registrar,  # use temporary registrar
+                                    registry=temporary_registry,  # use temporary registrar
                                     providers=(pyevm_provider,))  # use custom test provider
 
     # Create the blockchain
@@ -241,8 +246,8 @@ def estimate_gas():
     testerchain.wait_for_receipt(tx)
 
     # Create policy
-    policy_id_1 = os.urandom(constants.POLICY_ID_LENGTH)
-    policy_id_2 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_1 = os.urandom(int(constants.POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(constants.POLICY_ID_LENGTH))
     number_of_periods = 10
     print("First creating policy (1 node, 10 periods) = " +
           str(policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1])
@@ -266,9 +271,9 @@ def estimate_gas():
     testerchain.wait_for_receipt(tx)
 
     # Create policy with more periods
-    policy_id_1 = os.urandom(constants.POLICY_ID_LENGTH)
-    policy_id_2 = os.urandom(constants.POLICY_ID_LENGTH)
-    policy_id_3 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_1 = os.urandom(int(constants.POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(constants.POLICY_ID_LENGTH))
+    policy_id_3 = os.urandom(int(constants.POLICY_ID_LENGTH))
     number_of_periods = 100
     print("First creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
           str(policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula2])
@@ -320,9 +325,9 @@ def estimate_gas():
     testerchain.wait_for_receipt(tx)
 
     # Create policy with multiple nodes
-    policy_id_1 = os.urandom(constants.POLICY_ID_LENGTH)
-    policy_id_2 = os.urandom(constants.POLICY_ID_LENGTH)
-    policy_id_3 = os.urandom(constants.POLICY_ID_LENGTH)
+    policy_id_1 = os.urandom(int(constants.POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(constants.POLICY_ID_LENGTH))
+    policy_id_3 = os.urandom(int(constants.POLICY_ID_LENGTH))
     number_of_periods = 100
     print("First creating policy (3 nodes, 100 periods, first reward) = " +
           str(policy_agent.contract.functions

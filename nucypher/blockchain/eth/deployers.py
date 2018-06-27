@@ -100,14 +100,6 @@ class ContractDeployer:
 
         return True
 
-    def _wrap_government(self, dispatcher_contract: Contract, target_contract: Contract) -> Contract:
-
-        # Wrap the contract
-        wrapped_contract = self.blockchain.interface.w3.eth.contract(abi=target_contract.abi,
-                                                                     address=dispatcher_contract.address,
-                                                                     ContractFactoryClass=Contract)
-        return wrapped_contract
-
     def arm(self, fail_on_abort=True) -> None:
         """
         Safety mechanism for ethereum contract deployment
@@ -161,8 +153,8 @@ class ContractDeployer:
 
 class NucypherTokenDeployer(ContractDeployer):
 
-    _contract_name = 'NuCypherToken'
     agency = NucypherTokenAgent
+    _contract_name = agency.principal_contract_name  # TODO
 
     def __init__(self, blockchain, deployer_address):
         if not type(blockchain.interface) is self._interface_class:
@@ -199,15 +191,14 @@ class DispatcherDeployer(ContractDeployer):
 
     _contract_name = 'Dispatcher'
 
-    def __init__(self, token_agent, target_contract, *args, **kwargs):
-        self.token_agent = token_agent
+    def __init__(self, target_contract, *args, **kwargs):
         self.target_contract = target_contract
-        super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def deploy(self) -> str:
 
-        dispatcher_contract, txhash = self.blockchain.interface.deploy_contract(
-            'Dispatcher', self.target_contract.address)
+        dispatcher_contract, txhash = self.blockchain.interface.deploy_contract('Dispatcher',
+                                                                                self.target_contract.address)
 
         self._contract = dispatcher_contract
         return txhash
@@ -219,11 +210,16 @@ class MinerEscrowDeployer(ContractDeployer):
     """
 
     agency = MinerAgent
-    _contract_name = 'MinersEscrow'
+    _contract_name = agency.principal_contract_name
 
     def __init__(self, token_agent, *args, **kwargs):
         super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
         self.token_agent = token_agent
+
+    def __check_policy_manager(self):
+        result = self.contract.functions.policyManager().call()
+        if result is constants.NULL_ADDRESS:
+            raise RuntimeError("PolicyManager contract is not initialized.")
 
     def deploy(self) -> Dict[str, str]:
         """
@@ -256,7 +252,7 @@ class MinerEscrowDeployer(ContractDeployer):
                                                       *map(int, constants.MINING_COEFFICIENT))
 
         # 2 - Deploy the dispatcher used for updating this contract #
-        dispatcher_deployer = DispatcherDeployer(token_agent=self.token_agent,
+        dispatcher_deployer = DispatcherDeployer(blockchain=self.token_agent.blockchain,
                                                  target_contract=the_escrow_contract,
                                                  deployer_address=self.deployer_address)
 
@@ -267,9 +263,9 @@ class MinerEscrowDeployer(ContractDeployer):
         dispatcher_contract = dispatcher_deployer.contract
         self.__dispatcher_contract = dispatcher_contract
 
-        # Wrap the escrow contract (Govern)
-        wrapped_escrow_contract = self._wrap_government(dispatcher_contract,
-                                                        target_contract=the_escrow_contract)
+        # Wrap the escrow contract
+        wrapped_escrow_contract = self.blockchain.interface._wrap_contract(dispatcher_contract,
+                                                                           target_contract=the_escrow_contract)
 
         # Switch the contract for the wrapped one
         the_escrow_contract = wrapped_escrow_contract
@@ -296,6 +292,7 @@ class MinerEscrowDeployer(ContractDeployer):
         return deployment_transactions
 
     def make_agent(self) -> EthereumContractAgent:
+        self.__check_policy_manager()  # Ensure the PolicyManager contract has already been initialized
         agent = self.agency(token_agent=self.token_agent, contract=self._contract)
         return agent
 
@@ -306,7 +303,7 @@ class PolicyManagerDeployer(ContractDeployer):
     """
 
     agency = PolicyAgent
-    _contract_name = 'PolicyManager'
+    _contract_name = agency.principal_contract_name
 
     def make_agent(self) -> EthereumContractAgent:
         agent = self.agency(miner_agent=self.miner_agent, contract=self._contract)
@@ -325,7 +322,7 @@ class PolicyManagerDeployer(ContractDeployer):
         the_policy_manager_contract, deploy_txhash = self.blockchain.interface.deploy_contract(
             self._contract_name, self.miner_agent.contract_address)
 
-        dispatcher_deployer = DispatcherDeployer(token_agent=self.token_agent,
+        dispatcher_deployer = DispatcherDeployer(blockchain=self.token_agent.blockchain,
                                                  target_contract=the_policy_manager_contract,
                                                  deployer_address=self.deployer_address)
 
@@ -337,8 +334,8 @@ class PolicyManagerDeployer(ContractDeployer):
         self.__dispatcher_contract = dispatcher_contract
 
         # Wrap the escrow contract (Govern)
-        wrapped_policy_manager_contract = self._wrap_government(dispatcher_contract,
-                                                                target_contract=the_policy_manager_contract)
+        wrapped_policy_manager_contract = self.blockchain.interface._wrap_contract(dispatcher_contract,
+                                                                                   target_contract=the_policy_manager_contract)
 
         # Switch the contract for the wrapped one
         the_policy_manager_contract = wrapped_policy_manager_contract
@@ -362,17 +359,19 @@ class PolicyManagerDeployer(ContractDeployer):
 
 class UserEscrowDeployer(ContractDeployer):
     """
+    TODO: Consider Agency amongst many user escrows,
+    goverment, token transfer, and deployment
+
     Depends on Token, MinerEscrow, and PolicyManager
     """
 
-    _contract_name = 'UserEscrow'  # TODO
+    _contract_name = 'UserEscrow'
 
-    def __init__(self, miner_escrow_deployer, policy_deployer):
+    def __init__(self, miner_escrow_deployer, policy_deployer, *args, **kwargs):
         self.miner_deployer = miner_escrow_deployer
         self.policy_deployer = policy_deployer
-
         self.token_deployer = miner_escrow_deployer.token_deployer
-        super().__init__(blockchain=miner_escrow_deployer.blockchain)
+        super().__init__(blockchain=miner_escrow_deployer.blockchain, *args, **kwargs)
 
     def deploy(self):
         is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
@@ -380,7 +379,8 @@ class UserEscrowDeployer(ContractDeployer):
 
         deployment_args = [self.token_deployer.contract_address,
                            self.miner_deployer.contract_address,
-                           self.policy_deployer.contract_address],
+                           self.policy_deployer.contract_address]
+
         deploy_transaction = {'from': self.token_deployer.contract_address}
 
         the_user_escrow_contract, deploy_txhash = self.blockchain.interface.deploy_contract(

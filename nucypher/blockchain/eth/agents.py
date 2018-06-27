@@ -1,10 +1,8 @@
 import random
 from abc import ABC
-from enum import Enum
 from typing import Generator, List, Tuple, Union
 
 from constant_sorrow import constants
-from web3.contract import Contract
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
@@ -15,29 +13,31 @@ class EthereumContractAgent(ABC):
     Base class for ethereum contract wrapper types that interact with blockchain contract instances
     """
 
-    _principal_contract_name = NotImplemented
+    _upgradeable = NotImplemented
+
+    principal_contract_name = NotImplemented
     __contract_address = NotImplemented
 
     class ContractNotDeployed(Exception):
         pass
 
-    def __init__(self, blockchain: Blockchain=None, contract: Contract=None, *args, **kwargs):
+    def __init__(self, blockchain: Blockchain=None, *args, **kwargs):
 
         if blockchain is None:
             blockchain = Blockchain.connect()
         self.blockchain = blockchain
 
-        if contract is None:
-            address = blockchain.interface.get_contract_address(contract_name=self._principal_contract_name)[-1]  # TODO: Handle multiple
-            contract = blockchain.interface.get_contract(address)
+        # Fetch the contract by reading address and abi from the registry and blockchain
+        contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
+                                                                  upgradeable=self._upgradeable)
         self.__contract = contract
 
-        super().__init__(*args, **kwargs)
+        super().__init__()
 
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(blockchain={}, contract={})"
-        return r.format(class_name, self.blockchain, self._principal_contract_name)
+        return r.format(class_name, self.blockchain, self.principal_contract_name)
 
     def __eq__(self, other):
         return bool(self.contract_address == other.contract_address)
@@ -52,7 +52,7 @@ class EthereumContractAgent(ABC):
 
     @property
     def contract_name(self) -> str:
-        return self._principal_contract_name
+        return self.principal_contract_name
 
     def get_balance(self, address: str=None) -> int:
         """Get the balance of a token address, or of this contract address"""
@@ -61,7 +61,8 @@ class EthereumContractAgent(ABC):
 
 
 class NucypherTokenAgent(EthereumContractAgent):
-    _principal_contract_name = "NuCypherToken"
+    principal_contract_name = "NuCypherToken"
+    _upgradeable = False
 
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
@@ -80,7 +81,8 @@ class MinerAgent(EthereumContractAgent):
     for a duration measured in periods.
     """
 
-    _principal_contract_name = "MinersEscrow"
+    principal_contract_name = "MinersEscrow"
+    _upgradeable = True
 
     class NotEnoughMiners(Exception):
         pass
@@ -214,7 +216,8 @@ class MinerAgent(EthereumContractAgent):
 
 class PolicyAgent(EthereumContractAgent):
 
-    _principal_contract_name = "PolicyManager"
+    principal_contract_name = "PolicyManager"
+    _upgradeable = True
 
     def __init__(self, miner_agent: MinerAgent, *args, **kwargs):
         super().__init__(blockchain=miner_agent.blockchain, *args, **kwargs)
