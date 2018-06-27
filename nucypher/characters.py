@@ -4,19 +4,20 @@ from collections import OrderedDict
 from collections import deque
 from contextlib import suppress
 from logging import getLogger
-from typing import Dict, ClassVar, Set
+from typing import Dict, ClassVar, Set, DefaultDict
 from typing import Union, List
 
-
 import kademlia
+import maya
 import msgpack
+import time
+from eth_keys import KeyAPI as EthKeyAPI
 from kademlia.network import Server
 from kademlia.utils import digest
 from twisted.internet import task
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
-from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
@@ -27,7 +28,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter, StrangerStamp
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.protocols import dht_value_splitter, dht_with_hrac_splitter, InterfaceInfo
+from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
@@ -42,6 +43,8 @@ class Character:
 
     _default_crypto_powerups = None
     _stamp = None
+
+    _SECONDS_DELAY_BETWEEN_LEARNING = 2
 
     class NotEnoughUrsulas(MinerAgent.NotEnoughMiners):
         """
@@ -88,9 +91,9 @@ class Character:
         self.federated_only = federated_only
         self._known_nodes = {}
 
+        self._checksum_address = None
         if canonical_public_address is not None:
             self.canonical_public_address = canonical_public_address
-        self._checksum_address = None
 
         self.log = getLogger("characters")
 
@@ -115,22 +118,27 @@ class Character:
         if is_me is True:
             self.network_middleware = network_middleware or RestMiddleware()
 
+            ##### LEARNING STUFF (Maybe move to a different class?) #####
+            self._learning_listeners = DefaultDict(list)
+            self._node_ids_to_learn_about_immediately = set()
+
             for node in known_nodes:
                 self.remember_node(node)
+
+            self.teacher_nodes = deque()
+            self._current_teacher_node = None
+            self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
+            self._learning_round = 0
+
+            if always_be_learning:
+                self.start_learning()
+            #####
+
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)
                 self._stamp = signing_power.get_signature_stamp()
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
-
-            self._node_ids_to_learn_about_immediately = set()
-
-            self.teacher_nodes = deque()
-            self._current_teacher_node = None
-            self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
-
-            if always_be_learning:
-                self.start_learning()
 
         else:  # Feel like a stranger
             if network_middleware is not None:
@@ -176,7 +184,8 @@ class Character:
         if self._dht_server:
             raise RuntimeError("Attaching the server twice is almost certainly a bad idea.")
 
-        self._dht_server = self._dht_server_class(ksize=ksize, alpha=alpha, id=id, storage=storage, *args, **kwargs)
+        self._dht_server = self._dht_server_class(ursula_storage=self._known_nodes, ksize=ksize, alpha=alpha, id=id,
+                                                  storage=storage, *args, **kwargs)
 
     @property
     def stamp(self):
