@@ -137,6 +137,6 @@ jobs:
           key: v1-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
       - run:
           name: Run Mypy Static Type Checks
-          command: pipenv run mypy --xslt-html-report ./mypy_report ./nucypher
+          command: pipenv run mypy --xslt-html-report ./mypy_report ./nucypher --config-file=mypy.ini
       - store_artifacts:
           path: ./mypy_report
