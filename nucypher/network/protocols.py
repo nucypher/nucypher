@@ -1,20 +1,14 @@
+import asyncio
+
 import kademlia
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import default_constant_splitter, constants
 from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
-from umbral.signing import Signature
-from umbral.keys import UmbralPublicKey
 
+from bytestring_splitter import VariableLengthBytestring
+from constant_sorrow import default_constant_splitter, constants
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.network.routing import NucypherRoutingTable
-
-dht_value_splitter = default_constant_splitter + BytestringSplitter(Signature,
-                                                                    (UmbralPublicKey, PUBLIC_KEY_LENGTH),
-                                                                    int(PUBLIC_ADDRESS_LENGTH))
-dht_with_hrac_splitter = dht_value_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH))
 
 
 class NucypherHashProtocol(KademliaProtocol):
@@ -22,11 +16,20 @@ class NucypherHashProtocol(KademliaProtocol):
         super().__init__(sourceNode, storage, ksize, *args, **kwargs)
 
         self.router = NucypherRoutingTable(self, ksize, sourceNode)
-        self.illegal_keys_seen = []
+        self.illegal_keys_seen = []  # TODO: 340
 
-        # TODO: This is the wrong way to do this.  See #227.
-        self.treasure_maps = {}
-        self.ursulas = {}
+    @property
+    def ursulas(self):
+        raise NotImplementedError("This approach is deprecated.  Find a way to use _known_nodes instead.  See #227.")
+
+    @property
+    def storage(self):
+        raise NotImplementedError("This approach is deprecated.  Find a way to use _known_nodes instead.  See #227.")
+
+    @storage.setter
+    def storage(self, not_gonna_use_this):
+        # TODO: 331
+        pass
 
     def check_node_for_storage(self, node):
         try:
