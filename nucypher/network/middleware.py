@@ -24,7 +24,7 @@ class RestMiddleware:
         response = requests.get(endpoint, verify=False)
         return response
 
-    def push_treasure_map_to_node(self, node, map_id, map_payload):
+    def put_treasure_map_on_node(self, node, map_id, map_payload):
         port = node.rest_port
         address = node.ip_address
         endpoint = "https://{}:{}/treasure_map/{}".format(address, port, map_id.hex())
