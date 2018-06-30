@@ -59,7 +59,7 @@ def test_alice_finds_ursula_via_rest(alice, ursulas):
 
     some_ursula_interface = ursulas.pop().rest_interface
 
-    new_nodes = alice.learn_from_teacher_node(rest_address=some_ursula_interface.host, port=some_ursula_interface.port)
+    new_nodes = alice.learn_from_teacher_node()
     assert len(new_nodes) == len(ursulas)
 
     for ursula in ursulas:

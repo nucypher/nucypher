@@ -325,20 +325,21 @@ class Character:
                 if len(still_unknown) <= allow_missing:
                     return False
                 elif not self._learning_task.running:
-                    raise self.NotEnoughUrsulas("We didn't discover any nodes because the learning loop isn't running.  Start it with start_learning().")
+                    raise self.NotEnoughUrsulas(
+                        "We didn't discover any nodes because the learning loop isn't running.  Start it with start_learning().")
                 else:
                     raise self.NotEnoughUrsulas("After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
                         timeout, rounds_undertaken, len(still_unknown), still_unknown))
 
-    def learn_from_teacher_node(self, rest_address: str = None, port: int = None, eager=False):
+    def learn_from_teacher_node(self, eager=False):
         """
         Sends a request to node_url to find out about known nodes.
         """
         self._learning_round += 1
-        if rest_address is None:
-            current_teacher = self.current_teacher_node()
-            rest_address = current_teacher.rest_interface.host
-            port = current_teacher.rest_interface.port
+
+        current_teacher = self.current_teacher_node()
+        rest_address = current_teacher.rest_interface.host
+        port = current_teacher.rest_interface.port
 
         # TODO: Do we really want to try to learn about all these nodes instantly?  Hearing this traffic might give insight to an attacker.
         response = self.network_middleware.get_nodes_via_rest(rest_address,
@@ -362,10 +363,11 @@ class Character:
 
                 if eager:
                     ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
-                                                  host=rest_info.host,
-                                                  port=rest_info.port)
-
-                self.remember_node(node)
+                                                  host=node.rest_interface.host,
+                                                  port=node.rest_interface.port)
+                    self.remember_node(ursula)
+                else:
+                    self.remember_node(node)
 
             else:
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
