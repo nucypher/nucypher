@@ -10,7 +10,6 @@ from typing import Union, List
 
 import kademlia
 import maya
-import msgpack
 import time
 from eth_keys import KeyAPI as EthKeyAPI
 from kademlia.network import Server
@@ -148,15 +147,15 @@ class Character:
 
         if not federated_only:
             if not checksum_address:
-                raise ValueError("For a Character to have decentralized capabilities, you must supply a checksum_address.")
+                raise ValueError(
+                    "For a Character to have decentralized capabilities, you must supply a checksum_address.")
             else:
                 self._checksum_address = checksum_address
         elif checksum_address:
-            raise ValueError("Can't set the checksum address for a federated-only Character; you have to set it using _set_checksum_address")
+            raise ValueError(
+                "Can't set the checksum address for a federated-only Character; you have to set it using _set_checksum_address")
         else:
             self._checksum_address = None
-
-
 
     def __eq__(self, other):
         return bytes(self.stamp) == bytes(other.stamp)
@@ -532,7 +531,7 @@ class Character:
 
     @canonical_public_address.setter
     def canonical_public_address(self, address_bytes):
-        self._ether_address = to_checksum_address(address_bytes)
+        self._checksum_address = to_checksum_address(address_bytes)
 
     @property
     def ether_address(self):
@@ -553,9 +552,12 @@ class Character:
             public_address = verifying_key_as_eth_key.to_checksum_address()
         else:
             try:
-                public_address = to_checksum_address(self._ether_address)
+                public_address = to_checksum_address(self.canonical_public_address)
+            except TypeError:
+                raise TypeError("You can't use a decentralized character without a _checksum_address.")
             except NotImplementedError:
-                raise TypeError("You can't use a plain Character in federated mode - you need to implement ether_address.")
+                raise TypeError(
+                    "You can't use a plain Character in federated mode - you need to implement ether_address.")
 
         self._checksum_address = public_address
 
@@ -567,7 +569,6 @@ class Character:
 
 
 class Alice(Character, PolicyAuthor):
-
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
     def __init__(self, is_me=True, federated_only=False, *args, **kwargs):
@@ -592,7 +593,7 @@ class Alice(Character, PolicyAuthor):
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
         return delegating_power.generate_kfrags(bob_pubkey_enc, self.stamp, label, m, n)
 
-    def create_policy(self, bob: "Bob", label: bytes, m: int, n: int):
+    def create_policy(self, bob: "Bob", label: bytes, m: int, n: int, federated=False):
         """
         Create a Policy to share uri with bob.
         Generates KFrags and attaches them.
@@ -605,7 +606,7 @@ class Alice(Character, PolicyAuthor):
                        public_key=public_key,
                        m=m)
 
-        if self.federated_only is True:
+        if self.federated_only is True or federated is True:
             from nucypher.policy.models import FederatedPolicy
             # We can't sample; we can only use known nodes.
             known_nodes = self.shuffled_known_nodes()
