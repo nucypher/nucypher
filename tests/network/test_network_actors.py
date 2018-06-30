@@ -77,27 +77,27 @@ def test_alice_creates_policy_group_with_correct_hrac(idle_policy):
         bytes(alice.stamp) + bytes(bob.stamp) + alice.__resource_id)
 
 
-@pytest.mark.parametrize("via_dht", (True, False))
-def test_alice_sets_treasure_map(enacted_policy, ursulas, via_dht):
+def test_alice_sets_treasure_map(enacted_federated_policy, ursulas):
     """
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
     """
     networky_stuff = MockRestMiddleware()
-    _, packed_encrypted_treasure_map, _, _ = enacted_policy.publish_treasure_map(network_middleare=networky_stuff, use_dht=via_dht)
+    _, packed_encrypted_treasure_map, _, _ = enacted_federated_policy.publish_treasure_map(network_middleare=networky_stuff, use_dht=via_dht)
 
     treasure_map_as_set_on_network = ursulas[0].server.storage[
-        digest(enacted_policy.treasure_map_dht_key())]
+        digest(enacted_federated_policy.treasure_map_dht_key())]
     assert treasure_map_as_set_on_network == constants.BYTESTRING_IS_TREASURE_MAP + packed_encrypted_treasure_map
 
 
-def test_treasure_map_with_bad_id_does_not_propagate(idle_policy, ursulas):
+@pytest.mark.skip("Needs cleanup.")
+def test_treasure_map_with_bad_id_does_not_propagate(idle_federated_policy, ursulas):
     """
     In order to prevent spam attacks, Ursula refuses to propagate a TreasureMap whose PolicyGroup ID does not comport to convention.
     """
     illegal_policygroup_id = b"This is not a conventional policygroup id"
-    alice = idle_policy.alice
-    bob = idle_policy.bob
-    treasure_map = idle_policy.treasure_map
+    alice = idle_federated_policy.alice
+    bob = idle_federated_policy.bob
+    treasure_map = idle_federated_policy.treasure_map
 
     message_kit, signature = alice.encrypt_for(bob, treasure_map.packed_payload())
 
@@ -113,7 +113,6 @@ def test_treasure_map_with_bad_id_does_not_propagate(idle_policy, ursulas):
     assert False
 
 
-@pytest.mark.usefixtures("treasure_map_is_set_on_dht")
 def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ursulas, enacted_policy):
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
