@@ -273,37 +273,41 @@ class ProxyRESTServer:
 
         return Response(content=cfrag_byte_stream, headers=headers)
 
-    def provide_treasure_map(self, treasure_map_id_as_hex):
-        # For now, grab the TreasureMap for the DHT storage.  Soon, no do that.  #TODO!
-        treasure_map_id = binascii.unhexlify(treasure_map_id_as_hex)
+    def provide_treasure_map(self, treasure_map_id):
         headers = {'Content-Type': 'application/octet-stream'}
 
         try:
-            treasure_map_bytes = self.dht_server.storage[digest(treasure_map_id)]
-            response = Response(content=treasure_map_bytes, headers=headers)
+            treasure_map = self.treasure_maps[digest(treasure_map_id)]
+            response = Response(content=bytes(treasure_map), headers=headers)
+            self.log.info("{} providing TreasureMap {}".format(self, treasure_map_id))
         except KeyError:
+            self.log.info("{} doesn't have requested TreasureMap {}".format(self, treasure_map_id))
             response = Response("No Treasure Map with ID {}".format(treasure_map_id),
                                 status_code=404, headers=headers)
 
         return response
 
-    def receive_treasure_map(self, treasure_map_id_as_hex, request: http.Request):
-        # TODO: This function is the epitome of #172.
-        treasure_map_id = binascii.unhexlify(treasure_map_id_as_hex)
+    def receive_treasure_map(self, treasure_map_id, request: http.Request):
+        from nucypher.policy.models import TreasureMap
 
-        header, signature_for_ursula, pubkey_sig_alice, ether_address, hrac, tmap_message_kit = \
-            dht_with_hrac_splitter(request.body, return_remainder=True)
-        # TODO: This next line is possibly the worst in the entire codebase at the moment.  #172.
-        # Also TODO: TTL?
-        do_store = self.dht_server.protocol.determine_legality_of_dht_key(
-                    signature_for_ursula, pubkey_sig_alice,
-                    hrac, digest(treasure_map_id), request.body)
+        try:
+            treasure_map = TreasureMap.from_bytes(
+                bytes_representation=request.body,
+                verify=True)
+        except TreasureMap.InvalidPublicSignature:
+            do_store = False
+        else:
+            do_store = treasure_map.public_id() == treasure_map_id
+
         if do_store:
-            # TODO: Stop storing things in the protocol storage.  Do this better.  #227
-            # TODO: Propagate to other nodes.  #235
-            # TODO: Store the ether address?
-            self.dht_server.protocol.storage[digest(treasure_map_id)] = request.body
-            return  # TODO: Proper response here.
+            self.log.info("{} storing TreasureMap {}".format(self, treasure_map_id))
+            self.dht_server.set_now(binascii.unhexlify(treasure_map_id),
+                                    constants.BYTESTRING_IS_TREASURE_MAP + bytes(treasure_map))
+
+            # TODO 341 - what if we already have this TreasureMap?
+            self.treasure_maps[digest(treasure_map_id)] = treasure_map
+            return Response(content=bytes(treasure_map), status_code=202)
         else:
             # TODO: Make this a proper 500 or whatever.
+            self.log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
