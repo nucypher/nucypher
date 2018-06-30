@@ -81,17 +81,37 @@ class NucypherHashProtocol(KademliaProtocol):
         else:
             self.log.info(
                 "Got request to store bad k/v: {} / {}".format(key, value))
-            do_store = False
+            return False
 
-        if do_store:
-            self.log.info("Storing k/v: {} / {}".format(key, value))
-            self.storage[key] = value
-            if value.startswith(bytes(constants.BYTESTRING_IS_URSULA_IFACE_INFO)):
-                self.ursulas[key] = value
-            if value.startswith(bytes(constants.BYTESTRING_IS_TREASURE_MAP)):
-                self.treasure_maps[key] = value
+    def welcomeIfNewNode(self, node):
+        """
+        Given a new node, send it all the keys/values it should be storing,
+        then add it to the routing table.
 
-        return do_store
+        @param node: A new node that just joined (or that we just found out
+        about).
+
+        Process:
+        For each key in storage, get k closest nodes.  If newnode is closer
+        than the furtherst in that list, and the node for this server
+        is closer than the closest in that list, then store the key/value
+        on the new node (per section 2.5 of the paper)
+        """
+        if not self.router.isNewNode(node):
+            return
+
+        self.log.info("never seen %s before, adding to router and setting nearby " % node)
+        # TODO: 331 and 340 next two lines
+        ursulas = [(id, bytes(node)) for id, node in self.sourceNode._node_storage.items()]
+        for key, value in tuple(self.sourceNode._treasure_maps.items()) + tuple(ursulas):
+            keynode = Node(digest(key))
+            neighbors = self.router.findNeighbors(keynode)
+            if len(neighbors) > 0:
+                newNodeClose = node.distanceTo(keynode) < neighbors[-1].distanceTo(keynode)
+                thisNodeClosest = self.sourceNode.distanceTo(keynode) < neighbors[0].distanceTo(keynode)
+            if len(neighbors) == 0 or (newNodeClose and thisNodeClosest):
+                asyncio.ensure_future(self.callStore(node, key, value))
+        self.router.addContact(node)
 
 
 class NucypherSeedOnlyProtocol(NucypherHashProtocol):
