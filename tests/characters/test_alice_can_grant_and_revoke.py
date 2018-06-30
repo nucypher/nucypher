@@ -7,6 +7,7 @@ from apistar.test import TestClient
 from nucypher.characters import Ursula
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, EncryptingPower
+from tests.utilities import _ALL_URSULAS
 from umbral.fragments import KFrag
 
 
@@ -23,7 +24,7 @@ class MockPolicyCreation:
 
     def transact(self, payload):
         # TODO: Make a meaningful assertion regarding the value.
-        assert payload['from'] == alice.ether_address
+        assert payload['from'] == alice._ether_address
         return self.tx_hash
 
     @classmethod
@@ -58,7 +59,7 @@ def test_grant(alice, bob, three_agents):
     # Let's look at the enacted arrangements.
     for kfrag in policy.kfrags:
         arrangement = policy._enacted_arrangements[kfrag]
-        ursula = arrangement.ursula
+        ursula = _ALL_URSULAS[arrangement.ursula.rest_interface.port]
 
         # Get the Arrangement from Ursula's datastore, looking up by hrac.
         # This will be changed in 180, when we use the Arrangement ID.
