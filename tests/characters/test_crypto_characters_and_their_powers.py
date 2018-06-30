@@ -18,7 +18,9 @@ def test_actor_without_signing_power_cannot_sign():
     This Character can't even sign a message.
     """
     cannot_sign = CryptoPower(power_ups=[])
-    non_signer = Character(crypto_power=cannot_sign, always_be_learning=False)
+    non_signer = Character(crypto_power=cannot_sign,
+                           always_be_learning=False,
+                           federated_only=True)
 
     # The non-signer's stamp doesn't work for signing...
     with pytest.raises(NoSigningPower) as e_info:
@@ -37,7 +39,8 @@ def test_actor_with_signing_power_can_sign():
     """
     message = b"Llamas."
 
-    signer = Character(crypto_power_ups=[SigningPower], is_me=True, always_be_learning=False)
+    signer = Character(crypto_power_ups=[SigningPower], is_me=True,
+                       always_be_learning=False, federated_only=True)
     stamp_of_the_signer = signer.stamp
 
     # We can use the signer's stamp to sign a message (since the signer is_me)...
@@ -51,19 +54,17 @@ def test_actor_with_signing_power_can_sign():
     assert verification is True
 
 
-def test_anybody_can_verify(three_agents):
+def test_anybody_can_verify():
     """
     In the last example, we used the lower-level Crypto API to verify the signature.
 
     Here, we show that anybody can do it without needing to directly access Crypto.
     """
-    token_agent, miner_agent, policy_agent = three_agents
-
     # Alice can sign by default, by dint of her _default_crypto_powerups.
-    alice = Alice(policy_agent=policy_agent, always_be_learning=False)
+    alice = Alice(federated_only=True, always_be_learning=False)
 
     # So, our story is fairly simple: an everyman meets Alice.
-    somebody = Character(always_be_learning=False)
+    somebody = Character(always_be_learning=False, federated_only=True)
 
     # Alice signs a message.
     message = b"A message for all my friends who can only verify and not sign."
@@ -125,8 +126,8 @@ def test_anybody_can_encrypt():
     """
     Similar to anybody_can_verify() above; we show that anybody can encrypt.
     """
-    someone = Character(always_be_learning=False)
-    bob = Bob(is_me=False)
+    someone = Character(always_be_learning=False, federated_only=True)
+    bob = Bob(is_me=False, federated_only=True)
 
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
