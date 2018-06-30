@@ -347,37 +347,32 @@ class Character:
         if response.status_code != 200:
             raise RuntimeError
         signature, nodes = signature_splitter(response.content, return_remainder=True)
-
-        # TODO: Although not treasure map-related, this has a whiff of #172.
-        ursula_interface_splitter = dht_value_splitter + BytestringSplitter(InterfaceInfo) * 2
-        split_nodes = ursula_interface_splitter.repeat(nodes)
+        node_list = Ursula.batch_from_bytes(nodes, federated_only=True)
 
         self.log.info("Learning round {}.  Teacher: {} knew about {} nodes.".format(self._learning_round,
                                                                                     current_teacher.checksum_public_address,
-                                                                                    len(split_nodes)))
+                                                                                    len(node_list)))
 
-        for node_meta in split_nodes:
-            header, sig, pubkey, ether_address, rest_info, dht_info = node_meta
-            message = ether_address + rest_info + dht_info
+        for node in node_list:
 
-            if not ether_address in self._known_nodes:
-                if sig.verify(message, pubkey):
-                    self.log.info("Prevously unknown node: {}".format(ether_address))
+            if node.checksum_public_address in self._known_nodes:
+                continue  # TODO: 168 Check version and update if required.
 
-                    if eager:
-                        ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
-                                                      host=rest_info.host,
-                                                      port=rest_info.port)
+            if node.verify_interface():
+                self.log.info("Prevously unknown node: {}".format(node.checksum_public_address))
 
-                    self.remember_node(ursula)
+                if eager:
+                    ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
+                                                  host=rest_info.host,
+                                                  port=rest_info.port)
 
-                    #####
+                self.remember_node(node)
 
-
-                else:
-                    message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
-                              "Propagated by: {}:{}".format(node_meta, rest_address, port)
-                    self.log.warning(message)
+            else:
+                message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
+                          "Propagated by: {}:{}".format(current_teacher.checksum_public_address,
+                                                        rest_address, port)
+                self.log.warning(message)
 
     def _push_certain_newly_discovered_nodes_here(self, queue_to_push, node_addresses):
         """
