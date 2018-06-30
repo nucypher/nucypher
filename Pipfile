@@ -23,7 +23,7 @@ pynacl = "*"
 pysha3 = "*"
 py_ecc = "*"
 pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "nucypher-depend"}
-web3 = "*"
+web3 = "==4.4.1"
 
 [dev-packages]
 pytest = "*"
@@ -33,8 +33,8 @@ codecov = "*"
 coverage = "*"
 pytest-cov = "*"
 py-solc = "*"
-py-evm = "*"
-eth-tester = "*"
+py-evm = "==0.2.0a18"
+eth-tester = "==0.1.0b28"
 
 [pipenv]
 allow_prereleases = true
