@@ -851,6 +851,12 @@ class Bob(Character):
 
 
 class Ursula(Character, ProxyRESTServer, Miner):
+    _internal_splitter = BytestringSplitter(Signature,
+                                            (UmbralPublicKey, PUBLIC_KEY_LENGTH),
+                                            (UmbralPublicKey, PUBLIC_KEY_LENGTH),
+                                            int(PUBLIC_ADDRESS_LENGTH),
+                                            InterfaceInfo,
+                                            InterfaceInfo)
     _dht_server_class = NucypherDHTServer
     _alice_class = Alice
     _default_crypto_powerups = [SigningPower, EncryptingPower]
@@ -866,6 +872,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
                  dht_host=None,
                  dht_port=None,
                  federated_only=False,
+                 interface_signature=None,
                  *args,
                  **kwargs):
         if dht_host:
@@ -874,13 +881,16 @@ class Ursula(Character, ProxyRESTServer, Miner):
             self.dht_interface = constants.NO_INTERFACE.bool_value(False)
         self._work_orders = []
 
-        Character.__init__(self, is_me=is_me, *args, **kwargs)
+        Character.__init__(self, is_me=is_me, federated_only=federated_only, *args, **kwargs)
         if not federated_only:
             Miner.__init__(self, is_me=is_me, *args, **kwargs)
         ProxyRESTServer.__init__(self, host=rest_host, port=rest_port, *args, **kwargs)
 
         if is_me is True:
+            # TODO: 340
+            self._stored_treasure_maps = {}
             self.attach_dht_server()
+        self.__interface_signature = interface_signature
 
     @property
     def rest_app(self):
@@ -892,7 +902,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
     @classmethod
     def from_miner(cls, miner, *args, **kwargs):
-        instance = cls(miner_agent=miner.miner_agent, ether_address=miner.ether_address,
+        instance = cls(miner_agent=miner.miner_agent, ether_address=miner._ether_address,
                        ferated_only=False, *args, **kwargs)
 
         instance.attach_dht_server()
@@ -910,13 +920,14 @@ class Ursula(Character, ProxyRESTServer, Miner):
                                       (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
                                       (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
                                       int(PUBLIC_ADDRESS_LENGTH))
-        signature, signing_key, encrypting_key, public_address = splitter(response.content)
+        signature, signing_key, encrypting_key, canonical_public_address = splitter(response.content)
 
-        if signature.verify(bytes(signing_key) + bytes(encrypting_key) + public_address, signing_key):
+        if signature.verify(bytes(signing_key) + bytes(encrypting_key) + canonical_public_address, signing_key):
 
+            # TODO: Use from_bytes.
             stranger_ursula_from_public_keys = cls.from_public_keys(
                 {SigningPower: signing_key, EncryptingPower: encrypting_key},
-                public_address=public_address,  # TODO: Federated version of this.
+                canonical_public_address=canonical_public_address,
                 rest_host=host,
                 rest_port=port,
                 federated_only=federated_only  # TODO: 289
@@ -926,11 +937,23 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
         return stranger_ursula_from_public_keys
 
+    def _signable_interface_info_message(self):
+        message = self.canonical_public_address + self.rest_interface + self.dht_interface
+        return message
+
+    def _sign_interface_info(self):
+        message = self._signable_interface_info_message()
+        self.__interface_signature = self.stamp(message)
+
+    @property
+    def _interface_signature(self):
+        if not self.__interface_signature:
+            self._sign_interface_info()
+        return self.__interface_signature
+
     def attach_dht_server(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
-        if self.ether_address:
-            id = id or bytes(self.public_address)  # Ursula can still "mine" wallets until she gets a DHT ID she wants.  Does that matter?  #136
-        else:
-            id = None
+        id = id or bytes(
+            self.canonical_public_address)  # Ursula can still "mine" wallets until she gets a DHT ID she wants.  Does that matter?  #136
         # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
         super().attach_dht_server(ksize=ksize, id=digest(id), alpha=alpha, storage=storage)
         self.attach_rest_server()
@@ -941,28 +964,17 @@ class Ursula(Character, ProxyRESTServer, Miner):
         return self.dht_server.listen(self.dht_interface.port,
                                       self.dht_interface.host)
 
-    # def interface_information(self):
-    #     interface_info = VariableLengthBytestring(self.rest_interface)
-    #     if self.dht_interface:
-    #         interface_info += VariableLengthBytestring(self.dht_interface)
-    #     return interface_info
-
     def interface_info_with_metadata(self):
-        message = self.public_address + self.rest_interface
-        interface_info = VariableLengthBytestring(self.rest_interface)
+        # TODO: Do we ever actually use this without using the rest of the serialized Ursula?  337
 
-        if self.dht_interface:
-            message += self.dht_interface
-            interface_info += VariableLengthBytestring(self.dht_interface)
-
-        signature = self.stamp(message)
-        return constants.BYTESTRING_IS_URSULA_IFACE_INFO + signature + self.stamp + self.public_address + interface_info
+        return constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(self)
 
     def publish_dht_information(self):
+        # TODO: Simplify or wholesale deprecate this.  337
         if not self.dht_interface:
             raise RuntimeError("Must listen before publishing interface information.")
 
-        ursula_id = bytes(self.stamp)
+        ursula_id = self.canonical_public_address
         interface_value = self.interface_info_with_metadata()
         setter = self.dht_server.set(key=ursula_id, value=interface_value)
         loop = asyncio.get_event_loop()
@@ -981,3 +993,64 @@ class Ursula(Character, ProxyRESTServer, Miner):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
+
+    @classmethod
+    def from_bytes(cls, ursula_as_bytes, federated_only=False):
+        # TODO: Include encrypting key?
+        signature, verifying_key, encrypting_key, public_address, rest_info, dht_info = cls._internal_splitter(
+            ursula_as_bytes)
+        stranger_ursula_from_public_keys = cls.from_public_keys(
+            {SigningPower: verifying_key, EncryptingPower: encrypting_key},
+            interface_signature=signature,
+            canonical_public_address=public_address,
+            rest_host=rest_info.host,
+            rest_port=rest_info.port,
+            dht_host=dht_info.host,
+            dht_port=dht_info.port,
+            federated_only=federated_only  # TODO: 289
+        )
+        return stranger_ursula_from_public_keys
+
+    @classmethod
+    def batch_from_bytes(cls, ursulas_as_bytes, federated_only=False):
+        # TODO: Make a better splitter for this.  This is a workaround until bytestringSplitter #8 is closed.
+
+        stranger_ursulas = []
+
+        ursulas_attrs = cls._internal_splitter.repeat(ursulas_as_bytes)
+        for (signature, verifying_key, encrypting_key, public_address, rest_info, dht_info) in ursulas_attrs:
+            stranger_ursula_from_public_keys = cls.from_public_keys(
+                {SigningPower: verifying_key, EncryptingPower: encrypting_key},
+                interface_signature=signature,
+                checksum_public_address=to_checksum_address(public_address),
+                rest_host=rest_info.host,
+                rest_port=rest_info.port,
+                dht_host=dht_info.host,
+                dht_port=dht_info.port,
+                federated_only=federated_only  # TODO: 289
+            )
+            stranger_ursulas.append(stranger_ursula_from_public_keys)
+
+        return stranger_ursulas
+
+    def verify_interface(self):
+        message = self._signable_interface_info_message()
+        interface_is_valid = self._interface_signature.verify(message, self.public_key(SigningPower))
+        self.verified = interface_is_valid
+        return interface_is_valid
+
+    def __bytes__(self):
+        message = self.canonical_public_address + self.rest_interface
+        interface_info = VariableLengthBytestring(self.rest_interface)
+
+        if self.dht_interface:
+            message += self.dht_interface
+            interface_info += VariableLengthBytestring(self.dht_interface)
+
+        as_bytes = bytes().join((bytes(self._interface_signature),
+                                 bytes(self.public_key(SigningPower)),
+                                 bytes(self.public_key(EncryptingPower)),
+                                 self.canonical_public_address,
+                                 interface_info)
+                                )
+        return as_bytes
