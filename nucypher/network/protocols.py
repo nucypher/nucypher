@@ -7,7 +7,6 @@ from kademlia.utils import digest
 
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import default_constant_splitter, constants
-from nucypher.crypto.api import keccak_digest
 from nucypher.network.routing import NucypherRoutingTable
 
 
@@ -58,7 +57,8 @@ class NucypherHashProtocol(KademliaProtocol):
 
         if header == constants.BYTESTRING_IS_URSULA_IFACE_INFO:
             from nucypher.characters import Ursula
-            stranger_ursula = Ursula.from_bytes(payload, federated_only=True)  # TODO: Is federated_only the right thing here?
+            stranger_ursula = Ursula.from_bytes(payload,
+                                                federated_only=True)  # TODO: Is federated_only the right thing here?
 
             if stranger_ursula.verify_interface() and key == digest(stranger_ursula.canonical_public_address):
                 self.sourceNode._node_storage[key] = stranger_ursula  # TODO: 340
@@ -128,7 +128,6 @@ class NucypherSeedOnlyProtocol(NucypherHashProtocol):
 
 
 class InterfaceInfo:
-
     expected_bytes_length = lambda: VariableLengthBytestring
 
     def __init__(self, host, port):
@@ -150,6 +149,3 @@ class InterfaceInfo:
 
     def __radd__(self, other):
         return bytes(other) + bytes(self)
-
-
-ursula_interface_splitter = dht_value_splitter + BytestringSplitter(InterfaceInfo) * 2
