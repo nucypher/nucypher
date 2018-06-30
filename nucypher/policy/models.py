@@ -7,13 +7,14 @@ from typing import Generator, List, Set
 import maya
 import msgpack
 
-from bytestring_splitter import BytestringSplitter
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
 from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula
-from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.constants import KECCAK_DIGEST_LENGTH
-from nucypher.crypto.powers import SigningPower
+from nucypher.crypto.api import keccak_digest, encrypt_and_sign
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
+from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.powers import SigningPower, EncryptingPower
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
 from umbral.config import default_params
@@ -149,6 +150,8 @@ class Policy:
 
     def hrac(self):
         """
+        This function is hanging on for dear life.  After 180 is closed, it can be completely deprecated.
+
         The "hashed resource authentication code".
 
         A hash of:
@@ -274,17 +277,17 @@ class Policy:
 class FederatedPolicy(Policy):
     _arrangement_class = Arrangement
 
-    def __init__(self, ursulas: List[Ursula], *args, **kwargs):
+    def __init__(self, ursulas: Set[Ursula], *args, **kwargs):
         self.ursulas = ursulas
         super().__init__(*args, **kwargs)
 
     def make_arrangements(self, network_middleware,
                           deposit: int,
                           expiration: maya.MayaDT,
-                          ursulas: List[Ursula] = None) -> None:
+                          ursulas: Set[Ursula] = None) -> None:
         if ursulas is None:
-            ursulas = []
-        ursulas.extend(self.ursulas)
+            ursulas = set()
+        ursulas.update(self.ursulas)
 
         if len(ursulas) < self.n:
             raise ValueError(
@@ -452,10 +455,10 @@ class WorkOrder(object):
         self.ursula = ursula  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
 
     def __repr__(self):
-        return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for {ursulas}".format(
+        return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for Ursula: {node}".format(
             hrac=self.kfrag_hrac.hex()[:6],
             capsule_bytes=[binascii.hexlify(bytes(cap))[:6] for cap in self.capsules],
-            ursulas=binascii.hexlify(bytes(self.ursula.stamp))[:6])
+            node=binascii.hexlify(bytes(self.ursula.stamp))[:6])
 
     def __eq__(self, other):
         return (self.receipt_bytes, self.receipt_signature) == (
@@ -466,7 +469,7 @@ class WorkOrder(object):
 
     @classmethod
     def construct_by_bob(cls, kfrag_hrac, capsules, ursula, bob):
-        receipt_bytes = b"wo:" + ursula.interface_information()  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
+        receipt_bytes = b"wo:" + ursula.canonical_public_address  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
         receipt_signature = bob.stamp(receipt_bytes)
         return cls(bob, kfrag_hrac, capsules, receipt_bytes, receipt_signature,
                    ursula)
@@ -522,8 +525,8 @@ class WorkOrderHistory:
 
     def by_capsule(self, capsule):
         ursulas_by_capsules = {}
-        for ursula, pfrags in self.by_ursula.items():
-            for saved_pfrag, work_order in pfrags.items():
-                if saved_pfrag == capsule:
+        for ursula, capsules in self.by_ursula.items():
+            for saved_capsule, work_order in capsules.items():
+                if saved_capsule == capsule:
                     ursulas_by_capsules[ursula] = work_order
         return ursulas_by_capsules
