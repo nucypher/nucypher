@@ -3,6 +3,7 @@ import random
 from collections import OrderedDict
 from collections import deque
 from contextlib import suppress
+from functools import partial
 from logging import getLogger
 from typing import Dict, ClassVar, Set, DefaultDict
 from typing import Union, List
@@ -14,7 +15,7 @@ import time
 from eth_keys import KeyAPI as EthKeyAPI
 from kademlia.network import Server
 from kademlia.utils import digest
-from twisted.internet import task
+from twisted.internet import task, threads
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
@@ -168,7 +169,8 @@ class Character:
         return self.__class__.__name__
 
     @classmethod
-    def from_public_keys(cls, powers_and_keys: Dict, *args, **kwargs) -> 'Character':
+    def from_public_keys(cls, powers_and_keys: Dict, federated_only=True, *args, **kwargs) -> 'Character':
+        # TODO: Need to be federated only until we figure out the best way to get the checksum_address in here.
         """
         Sometimes we discover a Character and, at the same moment, learn one or
         more of their public keys. Here, we take a Dict
@@ -189,7 +191,7 @@ class Character:
 
             crypto_power.consume_power_up(power_up(pubkey=umbral_key))
 
-        return cls(is_me=False, crypto_power=crypto_power, *args, **kwargs)
+        return cls(is_me=False, federated_only=federated_only, crypto_power=crypto_power, *args, **kwargs)
 
     def attach_dht_server(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs) -> None:
         if self._dht_server:
