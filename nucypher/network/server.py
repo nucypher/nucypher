@@ -30,9 +30,14 @@ class NucypherDHTServer(Server):
     capabilities = ()
     digests_set = 0
 
-    def __init__(self, id=None, *args, **kwargs):
+    def __init__(self, node_storage, treasure_map_storaage, id=None, *args, **kwargs):
         super().__init__(ksize=20, alpha=3, id=None, storage=None)
-        self.node = kademlia.node.Node(id=id or digest(random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
+        self.node = kademlia.node.Node(id=id or digest(
+            random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
+
+        # What an awful monkey patch.  Part of the journey of deprecating the DHT.  # TODO: 340
+        self.node._node_storage = node_storage
+        self.node._treasure_maps = treasure_map_storaage
 
     async def set_digest(self, dkey, value):
         """
