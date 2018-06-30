@@ -161,41 +161,32 @@ class Policy:
         """
         return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
-    def treasure_map_dht_key(self):
-        """
-        We need a key that Bob can glean from knowledge he already has *and* which Ursula can verify came from us.
-        Ursula will refuse to propagate this key if it she can't prove that our public key, which is included in it,
-        was used to sign the payload.
-
-        Our public key (which everybody knows) and the hrac above.
-        """
-        return keccak_digest(bytes(self.alice.stamp) + self.hrac())
-
-    def publish_treasure_map(self, network_middleare=None, use_dht=False):
-        if network_middleare is None and use_dht is False:
-            raise ValueError("Can't engage the REST swarm without networky stuff.")
-        tmap_message_kit, signature_for_bob = self.alice.encrypt_for(
-            self.bob,
-            self.treasure_map.packed_payload())
-        signature_for_ursula = self.alice.stamp(bytes(self.alice.stamp) + self.hrac())
-
-        # In order to know this is safe to propagate, Ursula needs to see a signature, our public key,
-        # and, reasons explained in treasure_map_dht_key above, the uri_hash.
-        # TODO: Clean this up.  See #172.
-        map_payload = signature_for_ursula + self.alice.stamp + self.alice.public_address + self.hrac() + tmap_message_kit.to_bytes()
-        map_id = self.treasure_map_dht_key()
-
+    def publish_treasure_map(self, network_middleare):
+        self.treasure_map.prepare_for_publication(self.bob.public_key(EncryptingPower),
+                                                  self.bob.public_key(SigningPower),
+                                                  self.alice.stamp,
+                                                  self.label
+                                                  )
         if not self.alice._known_nodes:
+            # TODO: Optionally block.
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
 
-        for node in self.alice._known_nodes.values():
-            response = network_middleare.push_treasure_map_to_node(node, map_id,
-                                                                   constants.BYTESTRING_IS_TREASURE_MAP + map_payload)
-            # TODO: Do something here based on success or failure
-            if response.status_code == 204:
-                pass
+        responses = {}
 
-        return tmap_message_kit, map_payload, signature_for_bob, signature_for_ursula
+        for node in self.alice._known_nodes.values():
+            # TODO: It's way overkill to push this to every node we know about.  Come up with a system.  342
+            response = network_middleare.put_treasure_map_on_node(node,
+                                                                  self.treasure_map.public_id(),
+                                                                  bytes(self.treasure_map)
+                                                                  )
+            if response.status_code == 202:
+                responses[node] = response
+                # TODO: Handle response wherein node already had a copy of this TreasureMap.  341
+            else:
+                # TODO: Do something useful here.
+                raise RuntimeError
+
+        return responses
 
     def publish(self, network_middleware) -> None:
         """Spread word of this Policy far and wide."""
@@ -313,28 +304,141 @@ class FederatedPolicy(Policy):
             raise self.MoreKFragsThanArrangements
 
 
-class TreasureMap(object):
-    def __init__(self, m, ursula_interface_ids=None):
-        self.m = m
-        self.ids = set(ursula_interface_ids or set())
+class TreasureMap:
+    splitter = BytestringSplitter(Signature,
+                                  (bytes, KECCAK_DIGEST_LENGTH),  # hrac
+                                  (UmbralMessageKit, VariableLengthBytestring)
+                                  )
+    node_id_splitter = BytestringSplitter(PUBLIC_ADDRESS_LENGTH)
 
-    def packed_payload(self):
-        return msgpack.dumps(self.nodes_as_bytes() + [self.m])
+    class InvalidPublicSignature(Exception):
+        """Raised when the public signature (typically intended for Ursula) is not valid."""
+
+    def __init__(self,
+                 m=None,
+                 node_ids=None,
+                 message_kit=None,
+                 public_signature=None,
+                 hrac=None):
+
+        if m is not None:
+            if m > 255:
+                raise ValueError(
+                    "Largest allowed value for m is 255.  Why the heck are you trying to make it larger than that anyway?  That's too big.")
+            self.m = m
+            self.node_ids = node_ids or set()
+        else:
+            self.m = constants.NO_DECRYPTION_PERFORMED
+            self.node_ids = constants.NO_DECRYPTION_PERFORMED
+
+        self.message_kit = message_kit
+        self._signature_for_bob = None
+        self._public_signature = public_signature
+        self._hrac = hrac
+        self._payload = None
+
+    def prepare_for_publication(self, bob_encrypting_key, bob_verifying_key, alice_stamp, label):
+        plaintext = self.m.to_bytes(1, "big") + self.nodes_as_bytes()
+
+        self.message_kit, _signature_for_bob = encrypt_and_sign(bob_encrypting_key,
+                                                                plaintext=plaintext,
+                                                                signer=alice_stamp,
+                                                                )
+        """
+        Here's our "hashed resource authentication code".
+
+        A hash of:
+        * Alice's public key
+        * Bob's public key
+        * the uri
+
+        Alice and Bob have all the information they need to construct this.
+        Ursula does not, so we share it with her.
+        
+        This way, Bob can generate it and use it to find the TreasureMap.
+        """
+        self._hrac = keccak_digest(bytes(alice_stamp) + bytes(bob_verifying_key) + label)
+        self._public_signature = alice_stamp(bytes(alice_stamp) + self._hrac)
+        self._set_payload()
+
+    def _set_payload(self):
+        self._payload = self._public_signature + self._hrac + bytes(
+            VariableLengthBytestring(self.message_kit.to_bytes()))
+
+    def __bytes__(self):
+        if self._payload is None:
+            self._set_payload()
+
+        return self._payload
+
+    @property
+    def _verifying_key(self):
+        return self.message_kit.sender_pubkey_sig
 
     def nodes_as_bytes(self):
-        return [bytes(ursula_id) for ursula_id in self.ids]
+        if self.node_ids == constants.NO_DECRYPTION_PERFORMED:
+            return constants.NO_DECRYPTION_PERFORMED
+        else:
+            return bytes().join(bytes(ursula_id) for ursula_id in self.node_ids)
 
     def add_ursula(self, ursula):
-        self.ids.add(bytes(ursula.stamp))
+        if self.node_ids == constants.NO_DECRYPTION_PERFORMED:
+            raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
+        self.node_ids.add(ursula.canonical_public_address)
+
+    def public_id(self):
+        """
+        We need an ID that Bob can glean from knowledge he already has *and* which Ursula can verify came from Alice.
+        Ursula will refuse to propagate this if it she can't prove the payload is signed by Alice's public key,
+        which is included in it,
+        """
+        return keccak_digest(bytes(self._verifying_key) + bytes(self._hrac)).hex()
+
+    @classmethod
+    def from_bytes(cls, bytes_representation, verify=True):
+        signature, hrac, tmap_message_kit = \
+            cls.splitter(bytes_representation)
+
+        treasure_map = cls(
+            message_kit=tmap_message_kit,
+            public_signature=signature,
+            hrac=hrac,
+        )
+
+        if verify:
+            treasure_map.public_verify()
+
+        return treasure_map
+
+    def public_verify(self):
+        message = bytes(self._verifying_key) + self._hrac
+        verified = self._public_signature.verify(message, self._verifying_key)
+
+        if verified:
+            return True
+        else:
+            raise self.InvalidPublicSignature("This TreasureMap is not properly publicly signed by Alice.")
+
+    def orient(self, compass):
+        """
+        When Bob receives the TreasureMap, he'll pass a compass (a callable which can verify and decrypt the
+        payload message kit).
+        """
+        verified, map_in_the_clear = compass(message_kit=self.message_kit)
+        if verified:
+            self.m = map_in_the_clear[0]
+            self.node_ids = self.node_id_splitter.repeat(map_in_the_clear[1:], as_set=True)
+        else:
+            raise self.InvalidPublicSignature("This TreasureMap does not contain the correct signature from Alice to Bob.")
 
     def __eq__(self, other):
-        return self.ids == other.ids
+        return self.node_ids == other.node_ids
 
     def __iter__(self):
-        return iter(self.ids)
+        return iter(self.node_ids)
 
     def __len__(self):
-        return len(self.ids)
+        return len(self.node_ids)
 
 
 class WorkOrder(object):
