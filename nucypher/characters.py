@@ -682,15 +682,61 @@ class Bob(Character):
 
         return unknown_treasure_ursulas, known_treasure_ursulas
 
-        if not verified:
-            return constants.NOT_FROM_ALICE
-        else:
-            from nucypher.policy.models import TreasureMap
-            node_list = msgpack.loads(packed_node_list)
-            m = node_list.pop()
-            treasure_map = TreasureMap(m=m, ursula_interface_ids=node_list)
+    def follow_treasure_map(self, hrac, block=False, new_thread=False,
+                            timeout=10,
+                            allow_missing=0):
+        """
+        Follows a known TreasureMap, looking it up by hrac.
+
+        Determines which Ursulas are known and which are unknown.
+
+        If block, will block until either unknown nodes are discovered or until timeout seconds have elapsed.
+        After timeout seconds, if more than allow_missing nodes are still unknown, raises NotEnoughUrsulas.
+
+        If block and new_thread, does the same thing but on a different thread, returning a Deferred which
+        fires after the blocking has concluded.
+
+        Otherwise, returns (unknown_nodes, known_nodes).
+
+        # TODO: Check if nodes are up, declare them phantom if not.
+        """
+        unknown_ursulas, known_ursulas = self.peek_at_treasure_map(hrac)
+
+        if unknown_ursulas:
+            self.learn_about_specific_nodes(unknown_ursulas)
+
+        self._push_certain_newly_discovered_nodes_here(known_ursulas, unknown_ursulas)
+
+        if block:
+            if new_thread:
+                return threads.deferToThread(self.block_until_nodes_are_known, unknown_ursulas,
+                                             timeout=timeout,
+                                             allow_missing=allow_missing)
+            else:
+                self.block_until_nodes_are_known(unknown_ursulas, timeout=timeout, allow_missing=allow_missing)
+
+        return unknown_ursulas, known_ursulas
+
+    def get_treasure_map(self, alice_pubkey_sig, hrac):
+        map_id = keccak_digest(alice_pubkey_sig + hrac).hex()
+
+        if not self._known_nodes and not self._learning_task.running:
+            # Quick sanity check - if we don't know of *any* Ursulas, and we have no
+            # plans to learn about any more, than this function will surely fail.
+            raise self.NotEnoughUrsulas
+
+        treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
+                                                                map_id)
+
+        alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
+        compass = partial(self.verify_from, alice, decrypt=True)
+        treasure_map.orient(compass)
+        try:
             self.treasure_maps[hrac] = treasure_map
-            return treasure_map
+        except treasure_map.InvalidPublicSignature:
+            raise  # TODO: Maybe do something here?
+
+        return treasure_map
 
     def get_treasure_map_from_known_ursulas(self, networky_stuff, map_id):
         """
@@ -702,13 +748,16 @@ class Bob(Character):
             response = networky_stuff.get_treasure_map_from_node(node, map_id)
 
             if response.status_code == 200 and response.content:
-                # TODO: Make this prettier
-                header, _signature_for_ursula, pubkey_sig_alice, hrac, encrypted_treasure_map = \
-                    dht_with_hrac_splitter(response.content, return_remainder=True)
-                tmap_messaage_kit = UmbralMessageKit.from_bytes(encrypted_treasure_map)
-                return tmap_messaage_kit
+                from nucypher.policy.models import TreasureMap
+                treasure_map = TreasureMap.from_bytes(response.content)
+                break
             else:
-                assert False
+                continue  # TODO: Actually, handle error case here.
+        else:
+            # TODO: Work out what to do in this scenario - if Bob can't get the TreasureMap, he needs to rest on the learning mutex or something.
+            assert False
+
+        return treasure_map
 
     def generate_work_orders(self, kfrag_hrac, *capsules, num_ursulas=None):
         from nucypher.policy.models import WorkOrder  # Prevent circular import
@@ -726,19 +775,19 @@ class Bob(Character):
                 "Bob doesn't have a TreasureMap to match any of these capsules: {}".format(
                     capsules))
 
-        for ursula_dht_key in treasure_map_to_use:
-            ursula = self._known_nodes[UmbralPublicKey.from_bytes(ursula_dht_key)]
+        for node_id in treasure_map_to_use:
+            ursula = self._known_nodes[node_id]
 
             capsules_to_include = []
             for capsule in capsules:
-                if not capsule in self._saved_work_orders[ursula_dht_key]:
+                if not capsule in self._saved_work_orders[node_id]:
                     capsules_to_include.append(capsule)
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
                     kfrag_hrac, capsules_to_include, ursula, self)
-                generated_work_orders[ursula_dht_key] = work_order
-                self._saved_work_orders[ursula_dht_key][capsule] = work_order
+                generated_work_orders[node_id] = work_order
+                self._saved_work_orders[node_id][capsule] = work_order
 
             if num_ursulas is not None:
                 if num_ursulas == len(generated_work_orders):
@@ -753,7 +802,7 @@ class Bob(Character):
         for counter, capsule in enumerate(work_order.capsules):
             # TODO: Ursula is actually supposed to sign this.  See #141.
             # TODO: Maybe just update the work order here instead of setting it anew.
-            work_orders_by_ursula = self._saved_work_orders[bytes(work_order.ursula.stamp)]
+            work_orders_by_ursula = self._saved_work_orders[bytes(work_order.ursula.canonical_public_address)]
             work_orders_by_ursula[capsule] = work_order
         return cfrags
 
