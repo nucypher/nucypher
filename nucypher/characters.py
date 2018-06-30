@@ -197,7 +197,9 @@ class Character:
         if self._dht_server:
             raise RuntimeError("Attaching the server twice is almost certainly a bad idea.")
 
-        self._dht_server = self._dht_server_class(ursula_storage=self._known_nodes, ksize=ksize, alpha=alpha, id=id,
+        self._dht_server = self._dht_server_class(node_storage=self._known_nodes,  # TODO: 340
+                                                  treasure_map_storaage=self._stored_treasure_maps,  # TODO: 340
+                                                  ksize=ksize, alpha=alpha, id=id,
                                                   storage=storage, *args, **kwargs)
 
     @property
