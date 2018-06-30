@@ -63,7 +63,8 @@ class Character:
                  always_be_learning=True,
                  known_nodes: Set = (),
                  config: CharacterConfiguration = None,
-                 canonical_public_address: bytes = None,
+                 checksum_address: bytes = None,
+                 abort_on_learning_error: bool = False,
                  *args, **kwargs):
         """
         :param attach_dht_server:  Whether to attach a Server when this Character is
@@ -89,11 +90,7 @@ class Character:
         self.config = config  # TODO: Do not mix with injectable params
 
         self.federated_only = federated_only
-        self._known_nodes = {}
-
-        self._checksum_address = None
-        if canonical_public_address is not None:
-            self.canonical_public_address = canonical_public_address
+        self._abort_on_learning_error = abort_on_learning_error
 
         self.log = getLogger("characters")
 
@@ -116,6 +113,8 @@ class Character:
         # Identity and Network
         #
         if is_me is True:
+            self._known_nodes = {}
+            self.treasure_maps = {}
             self.network_middleware = network_middleware or RestMiddleware()
 
             ##### LEARNING STUFF (Maybe move to a different class?) #####
@@ -145,6 +144,18 @@ class Character:
                 raise TypeError(
                     "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
             self._stamp = StrangerStamp(self.public_key(SigningPower))
+
+        if not federated_only:
+            if not checksum_address:
+                raise ValueError("For a Character to have decentralized capabilities, you must supply a checksum_address.")
+            else:
+                self._checksum_address = checksum_address
+        elif checksum_address:
+            raise ValueError("Can't set the checksum address for a federated-only Character; you have to set it using _set_checksum_address")
+        else:
+            self._checksum_address = None
+
+
 
     def __eq__(self, other):
         return bytes(self.stamp) == bytes(other.stamp)
@@ -637,7 +648,6 @@ class Bob(Character):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.treasure_maps = {}
 
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
