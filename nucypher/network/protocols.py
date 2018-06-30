@@ -54,22 +54,30 @@ class NucypherHashProtocol(KademliaProtocol):
         self.welcomeIfNewNode(source)
         self.log.debug("got a store request from %s" % str(sender))
 
-        # TODO: Why is this logic here?  This is madness.  See #172.
-        if value.startswith(bytes(constants.BYTESTRING_IS_URSULA_IFACE_INFO)):
-            header, signature, sender_pubkey_sig,\
-            public_address, rest_info, dht_info = ursula_interface_splitter(value)
+        header, payload = default_constant_splitter(value, return_remainder=True)
 
-            # TODO: TTL?
-            hrac = public_address + rest_info + dht_info
-            do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig,
-                                                          hrac, key, value)
-        elif value.startswith(bytes(constants.BYTESTRING_IS_TREASURE_MAP)):
-            header, signature, sender_pubkey_sig, hrac, message = dht_with_hrac_splitter(
-                value, return_remainder=True)
+        if header == constants.BYTESTRING_IS_URSULA_IFACE_INFO:
+            from nucypher.characters import Ursula
+            stranger_ursula = Ursula.from_bytes(payload, federated_only=True)  # TODO: Is federated_only the right thing here?
 
-            # TODO: TTL?
-            do_store = self.determine_legality_of_dht_key(signature, sender_pubkey_sig,
-                                                          hrac, key, value)
+            if stranger_ursula.verify_interface() and key == digest(stranger_ursula.canonical_public_address):
+                self.sourceNode._node_storage[key] = stranger_ursula  # TODO: 340
+                return True
+            else:
+                self.log.warning("Got request to store invalid node: {} / {}".format(key, value))
+                self.illegal_keys_seen.append(key)
+                return False
+        elif header == constants.BYTESTRING_IS_TREASURE_MAP:
+            from nucypher.policy.models import TreasureMap
+            try:
+                treasure_map = TreasureMap.from_bytes(payload)
+                self.log.info("Storing TreasureMap: {} / {}".format(key, value))
+                self.sourceNode._treasure_maps[treasure_map.public_id()] = value
+                return True
+            except TreasureMap.InvalidPublicSignature:
+                self.log.warning("Got request to store invalid TreasureMap: {} / {}".format(key, value))
+                self.illegal_keys_seen.append(key)
+                return False
         else:
             self.log.info(
                 "Got request to store bad k/v: {} / {}".format(key, value))
