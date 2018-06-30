@@ -665,84 +665,22 @@ class Bob(Character):
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
 
-    def follow_treasure_map(self, hrac, using_dht=False):
+    def peek_at_treasure_map(self, hrac):
+        """
+        Take a quick gander at the TreasureMap matching hrac to see which
+        nodes are already kwown to us.
 
+        Don't do any learning, pinging, or anything other than just seeing
+        whether we know or don't know the nodes.
+
+        Return two sets: nodes that are unknown to us, nodes that are known to us.
+        """
         treasure_map = self.treasure_maps[hrac]
-        number_of_known_treasure_ursulas = 0
-        if not using_dht:
-            for ursula_interface_id in treasure_map:
-                pubkey = UmbralPublicKey.from_bytes(ursula_interface_id)
-                if pubkey in self._known_nodes:
-                    number_of_known_treasure_ursulas += 1
 
-            newly_discovered_nodes = {}
-            nodes_to_check = iter(self._known_nodes.values())
+        known_treasure_ursulas = treasure_map.node_ids.intersection(self._known_nodes)
+        unknown_treasure_ursulas = treasure_map.node_ids.difference(self._known_nodes)
 
-            while number_of_known_treasure_ursulas < treasure_map.m:
-                try:
-                    node_to_check = next(nodes_to_check)
-                except StopIteration:
-                    raise self.NotEnoughUrsulas(
-                        "Unable to follow the TreasureMap; we just don't know enough nodes to ask about this. Maybe try using the DHT instead.")
-
-                new_nodes = self.learn_about_nodes(node_to_check.ip_address,
-                                                   node_to_check.rest_port)
-                for new_node_pubkey in new_nodes.keys():
-                    if new_node_pubkey in treasure_map:
-                        number_of_known_treasure_ursulas += 1
-                newly_discovered_nodes.update(new_nodes)
-
-            self._known_nodes.update(newly_discovered_nodes)
-            return newly_discovered_nodes, number_of_known_treasure_ursulas
-        else:
-            for ursula_interface_id in self.treasure_maps[hrac]:
-                pubkey = UmbralPublicKey.from_bytes(ursula_interface_id)
-                if ursula_interface_id in self._known_nodes:
-                    # If we already know about this Ursula,
-                    # we needn't learn about it again.
-                    continue
-
-                if using_dht:
-                    # TODO: perform this part concurrently.
-                    value = self.dht_server.get_now(ursula_interface_id)
-
-                    # TODO: Make this much prettier
-                    header, signature, ursula_pubkey_sig, _hrac, (
-                        port, interface, ttl) = dht_value_splitter(value, msgpack_remainder=True)
-
-                    if header != constants.BYTESTRING_IS_URSULA_IFACE_INFO:
-                        raise TypeError("Unknown DHT value.  How did this get on the network?")
-
-                # TODO: If we're going to implement TTL, it will be here.
-                self._known_nodes[ursula_interface_id] = \
-                    Ursula.as_discovered_on_network(
-                        dht_port=port,
-                        dht_interface=interface,
-                        powers_and_keys=({SigningPower: ursula_pubkey_sig})
-                    )
-
-    def get_treasure_map(self, alice_pubkey_sig, hrac, using_dht=False, verify_sig=True):
-        map_id = keccak_digest(alice_pubkey_sig + hrac)
-
-        if using_dht:
-            ursula_coro = self.dht_server.get(map_id)
-            event_loop = asyncio.get_event_loop()
-            packed_encrypted_treasure_map = event_loop.run_until_complete(ursula_coro)
-        else:
-            if not self._known_nodes:
-                # TODO: Try to find more Ursulas on the blockchain.
-                raise self.NotEnoughUrsulas
-            tmap_message_kit = self.get_treasure_map_from_known_ursulas(self.network_middleware,
-                                                                        map_id)
-
-        if verify_sig:
-            alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
-            verified, packed_node_list = self.verify_from(
-                alice, tmap_message_kit,
-                decrypt=True
-            )
-        else:
-            assert False
+        return unknown_treasure_ursulas, known_treasure_ursulas
 
         if not verified:
             return constants.NOT_FROM_ALICE
