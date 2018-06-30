@@ -267,7 +267,8 @@ class Character:
         try:
             self._current_teacher_node = self.teacher_nodes.pop()
         except IndexError:
-            raise self.NotEnoughUrsulas("Don't have enough nodes to select a good teacher.  This is nearly an impossible situation - do you have seed nodes defined?  Is your network connection OK?")
+            raise self.NotEnoughUrsulas(
+                "Don't have enough nodes to select a good teacher.  This is nearly an impossible situation - do you have seed nodes defined?  Is your network connection OK?")
 
     def current_teacher_node(self, cycle=False):
         if not self._current_teacher_node:
@@ -295,7 +296,7 @@ class Character:
         """
         Continually learn about new nodes.
         """
-        self.learn_from_teacher_node(eager=True)  # TODO: Allow the user to set eagerness?
+        self.learn_from_teacher_node(eager=False)  # TODO: Allow the user to set eagerness?
         #
         # if self._node_ids_to_learn_about_immediately:
         #     self.learn_about_nodes_now()
@@ -324,6 +325,8 @@ class Character:
 
                 if len(still_unknown) <= allow_missing:
                     return False
+                elif not self._learning_task.running:
+                    raise self.NotEnoughUrsulas("We didn't discover any nodes because the learning loop isn't running.  Start it with start_learning().")
                 else:
                     raise self.NotEnoughUrsulas("After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
                         timeout, rounds_undertaken, len(still_unknown), still_unknown))
