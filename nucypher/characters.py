@@ -234,11 +234,19 @@ class Character:
         self._node_ids_to_learn_about_immediately.discard(address)
 
     def start_learning(self):
-        d = self._learning_task.start(interval=self._SECONDS_DELAY_BETWEEN_LEARNING, now=True)
-        d.addErrback(self.handle_learning_errors)
+        if self._learning_task.running:
+            return False
+        else:
+            d = self._learning_task.start(interval=self._SECONDS_DELAY_BETWEEN_LEARNING, now=True)
+            d.addErrback(self.handle_learning_errors)
+            return d
 
     def handle_learning_errors(self, *args, **kwargs):
-        self.log.warning("Unhandled error during node learning: {}".format(args))
+        failure = args[0]
+        if self._abort_on_learning_error:
+            failure.raiseException()
+        else:
+            self.log.warning("Unhandled error during node learning: {}".format(failure.getTraceback()))
 
     def shuffled_known_nodes(self):
         nodes_we_know_about = list(self._known_nodes.values())
