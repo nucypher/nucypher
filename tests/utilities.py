@@ -170,7 +170,8 @@ class MockRestMiddleware(RestMiddleware):
         return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(hrac_as_hex), payload)
 
     def get_treasure_map_from_node(self, node, map_id):
-        mock_client = TestClient(node.rest_app)
+        running_node = _ALL_URSULAS[node.rest_interface.port]
+        mock_client = TestClient(running_node.rest_app)
         return mock_client.get("http://localhost/treasure_map/{}".format(map_id))
 
     def ursula_from_rest_interface(self, address, port):

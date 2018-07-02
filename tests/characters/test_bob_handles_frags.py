@@ -28,8 +28,6 @@ def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_polic
 
 
 def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, ursulas, bob, alice):
-    hrac = enacted_federated_policy.hrac()
-
     # Bob knows of no Ursulas.
     assert len(bob._known_nodes) == 0
 
@@ -38,8 +36,8 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, u
         bob.remember_node(ursula)
 
     # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
-    bob.get_treasure_map(alice.stamp, hrac)
-    unknown, known = bob.peek_at_treasure_map(hrac)
+    map = bob.get_treasure_map(alice.stamp, enacted_federated_policy.label)
+    unknown, known = bob.peek_at_treasure_map(map.public_id())
 
     # He finds that he didn't need to discover any new nodes...
     assert len(unknown) == 0
