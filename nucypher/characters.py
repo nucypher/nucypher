@@ -717,8 +717,8 @@ class Bob(Character):
 
         return unknown_ursulas, known_ursulas
 
-    def get_treasure_map(self, alice_pubkey_sig, hrac):
-        map_id = keccak_digest(alice_pubkey_sig + hrac).hex()
+    def get_treasure_map(self, alice_verifying_key, label):
+        map_id = self.construct_map_id(verifying_key=alice_verifying_key, label=label)
 
         if not self._known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
@@ -728,15 +728,26 @@ class Bob(Character):
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                 map_id)
 
-        alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
-        compass = partial(self.verify_from, alice, decrypt=True)
+        alice = Alice.from_public_keys({SigningPower: alice_verifying_key})
+        compass = self.make_compass_for_alice(alice)
         treasure_map.orient(compass)
         try:
-            self.treasure_maps[hrac] = treasure_map
+            self.treasure_maps[map_id] = treasure_map
         except treasure_map.InvalidPublicSignature:
             raise  # TODO: Maybe do something here?
 
         return treasure_map
+
+    def make_compass_for_alice(self, alice):
+        return partial(self.verify_from, alice, decrypt=True)
+
+    def construct_policy_hrac(self, verifying_key, label):
+        return keccak_digest(bytes(verifying_key) + self.stamp + label)
+
+    def construct_map_id(self, verifying_key, label):
+        hrac = self.construct_policy_hrac(verifying_key, label)
+        map_id = keccak_digest(verifying_key + hrac).hex()
+        return map_id
 
     def get_treasure_map_from_known_ursulas(self, networky_stuff, map_id):
         """
