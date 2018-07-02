@@ -770,14 +770,15 @@ class Bob(Character):
 
         return treasure_map
 
-    def generate_work_orders(self, kfrag_hrac, *capsules, num_ursulas=None):
+    def generate_work_orders(self, hrac, *capsules, num_ursulas=None):
         from nucypher.policy.models import WorkOrder  # Prevent circular import
 
         try:
-            treasure_map_to_use = self.treasure_maps[kfrag_hrac]
+            # TODO: Wait... are we saving treasure_maps by hrac here?  Or map id?  Is this just a misnomer?
+            treasure_map_to_use = self.treasure_maps[hrac]
         except KeyError:
             raise KeyError(
-                "Bob doesn't have a TreasureMap matching the hrac {}".format(kfrag_hrac))
+                "Bob doesn't have a TreasureMap matching the hrac {}".format(hrac))
 
         generated_work_orders = OrderedDict()
 
@@ -796,7 +797,7 @@ class Bob(Character):
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
-                    kfrag_hrac, capsules_to_include, ursula, self)
+                    hrac, capsules_to_include, ursula, self)
                 generated_work_orders[node_id] = work_order
                 self._saved_work_orders[node_id][capsule] = work_order
 
@@ -828,14 +829,14 @@ class Bob(Character):
         self.get_treasure_map(alice_pubkey_sig, hrac, using_dht=using_dht, verify_sig=verify_sig)
         self.follow_treasure_map(hrac, using_dht=using_dht)
 
-    def retrieve(self, message_kit, data_source, alice_pubkey_sig):
+    def retrieve(self, message_kit, data_source, alice_verifying_key):
 
         message_kit.capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
             receiving=self.public_key(EncryptingPower),
-            verifying=alice_pubkey_sig)
+            verifying=alice_verifying_key)
 
-        hrac = keccak_digest(bytes(alice_pubkey_sig) + self.stamp + data_source.label)
+        hrac = self.construct_treasure_map_id(alice_verifying_key, data_source.label)
         treasure_map = self.treasure_maps[hrac]
 
         # First, a quick sanity check to make sure we know about at least m nodes.
