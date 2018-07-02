@@ -197,7 +197,7 @@ class Character:
             raise RuntimeError("Attaching the server twice is almost certainly a bad idea.")
 
         self._dht_server = self._dht_server_class(node_storage=self._known_nodes,  # TODO: 340
-                                                  treasure_map_storaage=self._stored_treasure_maps,  # TODO: 340
+                                                  treasure_map_storage=self._stored_treasure_maps,  # TODO: 340
                                                   ksize=ksize, alpha=alpha, id=id,
                                                   storage=storage, *args, **kwargs)
 
@@ -665,9 +665,9 @@ class Bob(Character):
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
 
-    def peek_at_treasure_map(self, hrac):
+    def peek_at_treasure_map(self, map_id):
         """
-        Take a quick gander at the TreasureMap matching hrac to see which
+        Take a quick gander at the TreasureMap matching map_id to see which
         nodes are already kwown to us.
 
         Don't do any learning, pinging, or anything other than just seeing
@@ -675,18 +675,18 @@ class Bob(Character):
 
         Return two sets: nodes that are unknown to us, nodes that are known to us.
         """
-        treasure_map = self.treasure_maps[hrac]
+        treasure_map = self.treasure_maps[map_id]
 
         known_treasure_ursulas = treasure_map.node_ids.intersection(self._known_nodes)
         unknown_treasure_ursulas = treasure_map.node_ids.difference(self._known_nodes)
 
         return unknown_treasure_ursulas, known_treasure_ursulas
 
-    def follow_treasure_map(self, hrac, block=False, new_thread=False,
+    def follow_treasure_map(self, map_id, block=False, new_thread=False,
                             timeout=10,
                             allow_missing=0):
         """
-        Follows a known TreasureMap, looking it up by hrac.
+        Follows a known TreasureMap, looking it up by map_id.
 
         Determines which Ursulas are known and which are unknown.
 
@@ -700,7 +700,7 @@ class Bob(Character):
 
         # TODO: Check if nodes are up, declare them phantom if not.
         """
-        unknown_ursulas, known_ursulas = self.peek_at_treasure_map(hrac)
+        unknown_ursulas, known_ursulas = self.peek_at_treasure_map(map_id)
 
         if unknown_ursulas:
             self.learn_about_specific_nodes(unknown_ursulas)
