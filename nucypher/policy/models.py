@@ -435,7 +435,7 @@ class TreasureMap:
             raise self.InvalidPublicSignature("This TreasureMap does not contain the correct signature from Alice to Bob.")
 
     def __eq__(self, other):
-        return self.node_ids == other.node_ids
+        return bytes(self) == bytes(other)
 
     def __iter__(self):
         return iter(self.node_ids)
