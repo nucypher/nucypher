@@ -77,7 +77,6 @@ def alice(ursulas, three_agents):
 
     alice = Alice(network_middleware=MockRestMiddleware(),
                   policy_agent=policy_agent,
-                  ether_address=alice,
                   known_nodes=ursulas,
                   federated_only=True,
                   abort_on_learning_error=True)

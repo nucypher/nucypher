@@ -65,7 +65,7 @@ class Character:
                  config: CharacterConfiguration = None,
                  checksum_address: bytes = None,
                  abort_on_learning_error: bool = False,
-                 *args, **kwargs):
+                 ):
         """
         :param attach_dht_server:  Whether to attach a Server when this Character is
             born.
@@ -575,9 +575,11 @@ class Alice(Character, PolicyAuthor):
 
     def __init__(self, is_me=True, federated_only=False, *args, **kwargs):
 
+        policy_agent = kwargs.pop("policy_agent", None)
         Character.__init__(self, is_me=is_me, federated_only=federated_only, *args, **kwargs)
+
         if is_me and not federated_only:  # TODO: 289
-            PolicyAuthor.__init__(self, *args, **kwargs)
+            PolicyAuthor.__init__(self, policy_agent=policy_agent, *args, **kwargs)
 
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
@@ -893,7 +895,15 @@ class Ursula(Character, ProxyRESTServer, Miner):
             self.dht_interface = constants.NO_INTERFACE.bool_value(False)
         self._work_orders = []
 
-        Character.__init__(self, is_me=is_me, federated_only=federated_only, *args, **kwargs)
+        checksum_address = kwargs.pop("checksum_address", None)
+        always_be_learning = kwargs.pop("always_be_learning", None)
+        crypto_power = kwargs.pop("crypto_power", None)
+
+        Character.__init__(self, is_me=is_me,
+                           checksum_address=checksum_address,
+                           always_be_learning=always_be_learning,
+                           federated_only=federated_only,
+                           crypto_power=crypto_power)
         if not federated_only:
             Miner.__init__(self, is_me=is_me, *args, **kwargs)
         ProxyRESTServer.__init__(self, host=rest_host, port=rest_port, *args, **kwargs)
