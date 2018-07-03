@@ -56,8 +56,11 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
             ursula.is_me = True  # Patch to allow execution of transacting methods in tests
 
         else:
+            federated_only = not miners
+            if federated_only:
+                ether_address = None
             ursula = Ursula(is_me=True,
-                            checksum_public_address=ether_address,
+                            checksum_address=ether_address,
                             dht_host="127.0.0.1",
                             dht_port=port,
                             db_name="test-{}".format(port),
@@ -65,7 +68,7 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
                             rest_port=port+100,
                             always_be_learning=False,
                             miner_agent=miner_agent,
-                            federated_only=True)
+                            federated_only=federated_only)
 
             ursula.attach_rest_server()
 
