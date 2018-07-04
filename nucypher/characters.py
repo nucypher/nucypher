@@ -200,6 +200,7 @@ class Character:
 
         self._dht_server = self._dht_server_class(node_storage=self._known_nodes,  # TODO: 340
                                                   treasure_map_storage=self._stored_treasure_maps,  # TODO: 340
+                                                  federated_only=self.federated_only,
                                                   ksize=ksize, alpha=alpha, id=id,
                                                   storage=storage, *args, **kwargs)
 
