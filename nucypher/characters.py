@@ -152,8 +152,10 @@ class Character:
             else:
                 self._checksum_address = checksum_address
         elif checksum_address:
-            raise ValueError(
-                "Can't set the checksum address for a federated-only Character; you have to set it using _set_checksum_address")
+            self._set_checksum_address()
+            if not checksum_address == self.checksum_public_address:
+                raise ValueError(
+                    "Federated-only Characters derive their address from their Signing key; you can't set it to anything else.")
         else:
             self._checksum_address = None
 
