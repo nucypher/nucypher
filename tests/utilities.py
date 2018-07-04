@@ -48,7 +48,7 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
             ursula = Ursula(is_me=False,            # do not attach dht server
                             rest_host="127.0.0.1",  # TODO: remove rest interface
                             rest_port=port + 100,
-                            ether_address=ether_address,
+                            checksum_address=ether_address,
                             always_be_learning=False,
                             miner_agent=miner_agent,
                             abort_on_learning_error=True)
@@ -100,7 +100,6 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
             periods = random.randint(min_locktime, max_locktime)
 
             ursula.stake(amount=amount, lock_periods=periods)
-            ursula.miner_agent.blockchain.time_travel(periods=1)
         else:
             ursula.federated_only = True
 
@@ -142,50 +141,45 @@ class MockRestMiddleware(RestMiddleware):
     class NotEnoughMockUrsulas(MinerAgent.NotEnoughMiners):
         pass
 
-    def __get_local_rest_app_by_port(self, port):  # TODO
+    def __get_mock_client_by_port(self, port):  # TODO
         try:
             ursula = _ALL_URSULAS[port]
             rest_app = ursula.rest_app
+            mock_client = TestClient(rest_app)
         except KeyError:
             raise RuntimeError(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
-        return rest_app
+        return mock_client
 
     def consider_arrangement(self, ursula, arrangement=None):
-        running_node = _ALL_URSULAS[ursula.rest_interface.port]
-        mock_client = TestClient(running_node.rest_app)
+        mock_client = self.__get_mock_client_by_port(ursula.rest_interface.port)
         response = mock_client.post("http://localhost/consider_arrangement", bytes(arrangement))
         assert response.status_code == 200
         return ursula, response
 
     def enact_policy(self, ursula, hrac, payload):
-        running_node = _ALL_URSULAS[ursula.rest_interface.port]
-        mock_client = TestClient(running_node.rest_app)
+        mock_client = self.__get_mock_client_by_port(ursula.rest_interface.port)
         response = mock_client.post('http://localhost/kFrag/{}'.format(hrac.hex()), payload)
         assert response.status_code == 200
         return True, ursula.stamp.as_umbral_pubkey()
 
     def send_work_order_payload_to_ursula(self, work_order):
-        running_node = _ALL_URSULAS[work_order.ursula.rest_interface.port]
-        mock_client = TestClient(running_node.rest_app)
+        mock_client = self.__get_mock_client_by_port(work_order.ursula.rest_interface.port)
         payload = work_order.payload()
         hrac_as_hex = work_order.kfrag_hrac.hex()
         return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(hrac_as_hex), payload)
 
     def get_treasure_map_from_node(self, node, map_id):
-        running_node = _ALL_URSULAS[node.rest_interface.port]
-        mock_client = TestClient(running_node.rest_app)
+        mock_client = self.__get_mock_client_by_port(node.rest_interface.port)
         return mock_client.get("http://localhost/treasure_map/{}".format(map_id))
 
     def ursula_from_rest_interface(self, address, port):
-        rest_app = self.__get_local_rest_app_by_port(port)
-        mock_client = TestClient(rest_app)
+        mock_client = self.__get_mock_client_by_port(port)
         response = mock_client.get("http://localhost/public_keys")
         return response
 
     def get_nodes_via_rest(self, address, port, node_ids):
-        rest_app = self.__get_local_rest_app_by_port(port)
-        mock_client = TestClient(rest_app)
+        mock_client = self.__get_mock_client_by_port(port)
         # TODO: Better passage of node IDs here.
         # if node_ids:
         #     node_address_bytestring = bytes().join(bytes(id) for id in node_ids)
@@ -196,8 +190,7 @@ class MockRestMiddleware(RestMiddleware):
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
-        running_node = _ALL_URSULAS[node.rest_interface.port]
-        mock_client = TestClient(running_node.rest_app)
+        mock_client = self.__get_mock_client_by_port(node.rest_interface.port)
         response = mock_client.post("http://localhost/treasure_map/{}".format(map_id),
                       data=map_payload, verify=False)
         return response

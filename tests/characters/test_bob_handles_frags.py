@@ -3,7 +3,6 @@ import pytest_twisted
 from twisted.internet import threads
 
 from nucypher.crypto.powers import EncryptingPower
-from tests.utilities import _ALL_URSULAS
 from umbral import pre
 from umbral.fragments import KFrag, CapsuleFrag
 
@@ -47,7 +46,8 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, u
 
 
 @pytest_twisted.inlineCallbacks
-def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_federated_policy, bob):
+def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_federated_policy, bob,
+                                                                       ursulas):
     """
     Similar to above, but this time, we'll show that if Bob can connect to a single node, he can
     learn enough to follow the TreasureMap.
@@ -62,14 +62,14 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     # Now, let's create a scenario in which Bob knows of only one node.
     bob._known_nodes = {}
     assert len(bob._known_nodes) == 0
-    first_ursula = list(_ALL_URSULAS.values())[0]
+    first_ursula = list(ursulas).pop(0)
     bob.remember_node(first_ursula)
     assert len(bob._known_nodes) == 1
 
     # This time, when he follows the TreasureMap...
     unknown_nodes, known_nodes = bob.peek_at_treasure_map(hrac)
 
-    # The newly discovered nodes are all those in the TreasureMap except the one about which he already knew.
+    # Bob already knew about one node; the rest are unknown.
     assert len(unknown_nodes) == len(treasure_map) - 1
 
     # He needs to actually follow the treasure map to get the rest.
@@ -91,7 +91,6 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     assert len(bob._known_nodes) == len(treasure_map)
 
 
-@pytest_twisted.inlineCallbacks
 def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_policy, bob,
                                                          alice, ursulas, capsule_side_channel):
     """
@@ -107,7 +106,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     bob.treasure_maps[hrac] = treasure_map
     bob.start_learning()
 
-    yield bob.follow_treasure_map(hrac, block=True)
+    bob.follow_treasure_map(hrac, block=True)
 
     assert len(bob._known_nodes) == len(ursulas)
 
@@ -149,7 +148,12 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
     # the correct cFrag (ie, that Ursula performed reencryption properly).
-    ursula = _ALL_URSULAS[work_order.ursula.rest_interface.port]
+    for u in ursulas:
+        if u.rest_interface.port == work_order.ursula.rest_interface.port:
+            ursula = u
+            break
+    else:
+        raise RuntimeError("We've lost track of the Ursula that has the WorkOrder.  Can't really proceed.")
 
     kfrag_bytes = ursula.datastore.get_policy_arrangement(
         work_order.kfrag_hrac.hex().encode()).k_frag

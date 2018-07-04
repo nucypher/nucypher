@@ -30,14 +30,14 @@ class TestMiner:
 
         # Verify that the escrow is "approved" to receive tokens
         allowance = miner_agent.token_agent.contract.functions.allowance(
-            miner._ether_address,
+            miner.checksum_public_address,
             miner_agent.contract_address).call()
         assert 0 == allowance
 
         # Staking starts after one period
-        locked_tokens = miner_agent.contract.functions.getLockedTokens(miner._ether_address).call()
+        locked_tokens = miner_agent.contract.functions.getLockedTokens(miner.checksum_public_address).call()
         assert 0 == locked_tokens
-        locked_tokens = miner_agent.contract.functions.getLockedTokens(miner._ether_address, 1).call()
+        locked_tokens = miner_agent.contract.functions.getLockedTokens(miner.checksum_public_address, 1).call()
         assert constants.MIN_ALLOWED_LOCKED == locked_tokens
 
     @pytest.mark.usefixtures("three_agents")
@@ -77,7 +77,7 @@ class TestMiner:
 
         # Capture the current token balance of the miner
         initial_balance = miner.token_balance
-        assert token_agent.get_balance(miner._ether_address) == initial_balance
+        assert token_agent.get_balance(miner.checksum_public_address) == initial_balance
 
         miner.stake(amount=int(constants.MIN_ALLOWED_LOCKED),         # Lock the minimum amount of tokens
                     lock_periods=int(constants.MIN_LOCKED_PERIODS))   # ... for the fewest number of periods
@@ -92,7 +92,7 @@ class TestMiner:
         miner.mint()
         miner.collect_staking_reward()
 
-        final_balance = token_agent.get_balance(miner._ether_address)
+        final_balance = token_agent.get_balance(miner.checksum_public_address)
         assert final_balance > initial_balance
 
 
@@ -109,5 +109,5 @@ class TestPolicyAuthor:
     def test_create_policy_author(self, testerchain, three_agents):
         token_agent, miner_agent, policy_agent = three_agents
         _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
-        policy_author = PolicyAuthor(policy_agent=policy_agent, ether_address=alice)
-        assert policy_author._ether_address == alice
+        policy_author = PolicyAuthor(policy_agent=policy_agent, checksum_address=alice)
+        assert policy_author.checksum_public_address == alice
