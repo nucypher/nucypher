@@ -16,7 +16,7 @@ class TestMiner:
         token_agent, miner_agent, policy_agent = three_agents
         origin, *everybody_else = testerchain.interface.w3.eth.accounts
         token_airdrop(token_agent, origin=origin, addresses=everybody_else, amount=1000000*constants.M)
-        miner = Miner(miner_agent=miner_agent, ether_address=everybody_else[0])
+        miner = Miner(miner_agent=miner_agent, checksum_address=everybody_else[0])
         return miner
 
     def test_miner_locking_tokens(self, testerchain, three_agents, miner):

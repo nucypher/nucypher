@@ -579,10 +579,12 @@ class Alice(Character, PolicyAuthor):
     def __init__(self, is_me=True, federated_only=False, *args, **kwargs):
 
         policy_agent = kwargs.pop("policy_agent", None)
-        Character.__init__(self, is_me=is_me, federated_only=federated_only, *args, **kwargs)
+        checksum_address = kwargs.pop("checksum_address", None)
+        Character.__init__(self, is_me=is_me, federated_only=federated_only,
+                           checksum_address=checksum_address, *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: 289
-            PolicyAuthor.__init__(self, policy_agent=policy_agent, *args, **kwargs)
+            PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address, *args, **kwargs)
 
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
@@ -883,33 +885,39 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
     # TODO: 289
     def __init__(self,
+                 # Ursula things
                  rest_host,
                  rest_port,
+                 db_name=None,
                  is_me=True,
                  dht_host=None,
                  dht_port=None,
-                 federated_only=False,
                  interface_signature=None,
-                 *args,
-                 **kwargs):
+                 miner_agent=None,
+
+                 # Character things
+                 abort_on_learning_error=False,
+                 federated_only=False,
+                 checksum_address=None,
+                 always_be_learning=None,
+                 crypto_power=None
+                 ):
         if dht_host:
             self.dht_interface = InterfaceInfo(host=dht_host, port=dht_port)
         else:
             self.dht_interface = constants.NO_INTERFACE.bool_value(False)
         self._work_orders = []
 
-        checksum_address = kwargs.pop("checksum_address", None)
-        always_be_learning = kwargs.pop("always_be_learning", None)
-        crypto_power = kwargs.pop("crypto_power", None)
-
         Character.__init__(self, is_me=is_me,
                            checksum_address=checksum_address,
                            always_be_learning=always_be_learning,
                            federated_only=federated_only,
-                           crypto_power=crypto_power)
+                           crypto_power=crypto_power,
+                           abort_on_learning_error=abort_on_learning_error)
+
         if not federated_only:
-            Miner.__init__(self, is_me=is_me, *args, **kwargs)
-        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port, *args, **kwargs)
+            Miner.__init__(self, miner_agent=miner_agent, is_me=is_me, checksum_address=checksum_address)
+        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port, db_name=db_name)
 
         if is_me is True:
             # TODO: 340
@@ -1027,7 +1035,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: verifying_key, EncryptingPower: encrypting_key},
             interface_signature=signature,
-            canonical_public_address=public_address,
+            checksum_address=to_checksum_address(public_address),
             rest_host=rest_info.host,
             rest_port=rest_info.port,
             dht_host=dht_info.host,
@@ -1047,7 +1055,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
             stranger_ursula_from_public_keys = cls.from_public_keys(
                 {SigningPower: verifying_key, EncryptingPower: encrypting_key},
                 interface_signature=signature,
-                checksum_public_address=to_checksum_address(public_address),
+                checksum_address=to_checksum_address(public_address),
                 rest_host=rest_info.host,
                 rest_port=rest_info.port,
                 dht_host=dht_info.host,
