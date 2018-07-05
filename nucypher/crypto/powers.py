@@ -23,6 +23,10 @@ class NoEncryptingPower(PowerUpError):
     pass
 
 
+class NoBlockchainPower(PowerUpError):
+    pass
+
+
 class CryptoPower(object):
     def __init__(self, power_ups=None):
         self._power_ups = {}
@@ -69,6 +73,7 @@ class BlockchainPower(CryptoPowerUp):
     """
     Allows for transacting on a Blockchain via web3 backend.
     """
+    not_found_error = NoBlockchainPower
 
     def __init__(self, blockchain: 'Blockchain', account: str):
         """
@@ -83,7 +88,7 @@ class BlockchainPower(CryptoPowerUp):
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-        self.is_unlocked = self.blockchain.interface.w3.personal.unlockAccount(
+        self.is_unlocked = self.blockchain.unlock_account(
                 self.account, password, duration=duration)
 
         if not self.is_unlocked:
@@ -99,7 +104,7 @@ class BlockchainPower(CryptoPowerUp):
         signature = self.blockchain.interface.call_backend_sign(self.account, message)
         return signature
 
-    def verify_message(self, address: str, pubkey: bytes, message: bytes, signature: str):
+    def verify_message(self, address: str, pubkey: bytes, message: bytes, signature: Signature):
         """
         Verifies that the message was signed by the keypair.
         """
@@ -109,10 +114,9 @@ class BlockchainPower(CryptoPowerUp):
             raise ValueError("Pubkey address ({}) doesn't match the provided address ({})".format(eth_pubkey.to_checksum_address, address))
 
         hashed_message = keccak(message)
-        eth_signature = Signature(signature_bytes=unhexlify(signature[2:]))
 
         if not self.blockchain.interface.call_backend_verify(
-                eth_pubkey, eth_signature, hashed_message):
+                eth_pubkey, signature, hashed_message):
             raise PowerUpError("Signature is not valid for this message or pubkey.")
         else:
             return True
