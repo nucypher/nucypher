@@ -27,26 +27,29 @@ class NucypherTokenActor:
     class ActorError(Exception):
         pass
 
-    def __init__(self, ether_address: str=None, token_agent: NucypherTokenAgent=None, *args, **kwargs):
+    def __init__(self, checksum_address: str=None, token_agent: NucypherTokenAgent=None):
         """
-        :param ether_address:  If not passed, we assume this is an unknown actor
+        :param checksum_address:  If not passed, we assume this is an unknown actor
 
         :param token_agent:  The token agent with the blockchain attached; If not passed, A default
         token agent and blockchain connection will be created from default values.
 
         """
+        try:
+            parent_address = self.checksum_public_address
+            if checksum_address is not None:
+                if parent_address != checksum_address:
+                    raise ValueError("Can't have two different addresses.")
+        except AttributeError:
+            self.checksum_public_address = checksum_address
 
-        # Auto-connect, if needed
         self.token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
-
-        if not kwargs.get("public_address"):
-            self._ether_address = ether_address if ether_address is not None else constants.UNKNOWN_ACTOR
         self._transaction_cache = list()  # track transactions transmitted
 
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(address='{}')"
-        r = r.format(class_name, self._ether_address)
+        r = r.format(class_name, self.checksum_public_address)
         return r
 
     @classmethod
@@ -57,13 +60,13 @@ class NucypherTokenActor:
     @property
     def eth_balance(self):
         """Return this actors's current ETH balance"""
-        balance = self.token_agent.blockchain.interface.w3.eth.getBalance(self._ether_address)
+        balance = self.token_agent.blockchain.interface.w3.eth.getBalance(self.checksum_public_address)
         return balance
 
     @property
     def token_balance(self):
         """Return this actors's current token balance"""
-        balance = self.token_agent.get_balance(address=self._ether_address)
+        balance = self.token_agent.get_balance(address=self.checksum_public_address)
         return balance
 
 
@@ -94,7 +97,7 @@ class Miner(NucypherTokenActor):
         # Use BlockchainConfig to default to the first wallet address
         wallet_address = blockchain_config.wallet_addresses[0]
 
-        instance = cls(ether_address=wallet_address)
+        instance = cls(checksum_address=wallet_address)
         return instance
 
     #
@@ -108,11 +111,11 @@ class Miner(NucypherTokenActor):
     @property
     def locked_tokens(self, ):
         """Returns the amount of tokens this miner has locked."""
-        return self.miner_agent.get_locked_tokens(node_address=self._ether_address)
+        return self.miner_agent.get_locked_tokens(node_address=self.checksum_public_address)
 
     @property
     def stakes(self):
-        stakes_reader = self.miner_agent.get_all_stakes(miner_address=self._ether_address)
+        stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
         return stakes_reader
 
     @only_me
@@ -123,11 +126,11 @@ class Miner(NucypherTokenActor):
 
         approve_txhash = self.token_agent.approve_transfer(amount=amount,
                                                            target_address=self.miner_agent.contract_address,
-                                                           sender_address=self._ether_address)
+                                                           sender_address=self.checksum_public_address)
 
         deposit_txhash = self.miner_agent.deposit_tokens(amount=amount,
                                                          lock_periods=lock_periods,
-                                                         sender_address=self._ether_address)
+                                                         sender_address=self.checksum_public_address)
 
         return approve_txhash, deposit_txhash
 
@@ -150,7 +153,7 @@ class Miner(NucypherTokenActor):
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
 
         _first_period, last_period, locked_value = self.miner_agent.get_stake_info(
-            miner_address=self._ether_address, stake_index=stake_index)
+            miner_address=self.checksum_public_address, stake_index=stake_index)
         if expiration:
             additional_periods = datetime_to_period(datetime=expiration) - last_period
 
@@ -164,7 +167,7 @@ class Miner(NucypherTokenActor):
         validate_stake_amount(amount=target_value)
         validate_stake_amount(amount=locked_value-target_value)
 
-        tx = self.miner_agent.divide_stake(miner_address=self._ether_address,
+        tx = self.miner_agent.divide_stake(miner_address=self.checksum_public_address,
                                            stake_index=stake_index,
                                            target_value=target_value,
                                            periods=additional_periods)
@@ -225,7 +228,7 @@ class Miner(NucypherTokenActor):
     def confirm_activity(self) -> str:
         """Miner rewarded for every confirmed period"""
 
-        txhash = self.miner_agent.confirm_activity(node_address=self._ether_address)
+        txhash = self.miner_agent.confirm_activity(node_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), txhash))
 
         return txhash
@@ -234,7 +237,7 @@ class Miner(NucypherTokenActor):
     def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the miner's account"""
 
-        mint_txhash = self.miner_agent.mint(node_address=self._ether_address)
+        mint_txhash = self.miner_agent.mint(node_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), mint_txhash))
 
         return mint_txhash
@@ -243,7 +246,7 @@ class Miner(NucypherTokenActor):
     def collect_policy_reward(self, policy_manager):
         """Collect rewarded ETH"""
 
-        policy_reward_txhash = policy_manager.collect_policy_reward(collector_address=self._ether_address)
+        policy_reward_txhash = policy_manager.collect_policy_reward(collector_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), policy_reward_txhash))
 
         return policy_reward_txhash
@@ -252,7 +255,7 @@ class Miner(NucypherTokenActor):
     def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
 
-        collection_txhash = self.miner_agent.collect_staking_reward(collector_address=self._ether_address)
+        collection_txhash = self.miner_agent.collect_staking_reward(collector_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), collection_txhash))
 
         return collection_txhash

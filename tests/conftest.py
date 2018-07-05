@@ -3,11 +3,8 @@ from umbral.config import set_default_curve
 
 set_default_curve(ec.SECP256K1())
 
-
-# NOTICE:  Depends on fixture modules; do not delete
-from .eth_fixtures import *
+"""NOTICE:  Depends on fixture modules; do not delete"""
 from .fixtures import *
-
 import pytest
 
 

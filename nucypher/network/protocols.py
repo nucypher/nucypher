@@ -58,7 +58,7 @@ class NucypherHashProtocol(KademliaProtocol):
         if header == constants.BYTESTRING_IS_URSULA_IFACE_INFO:
             from nucypher.characters import Ursula
             stranger_ursula = Ursula.from_bytes(payload,
-                                                federated_only=True)  # TODO: Is federated_only the right thing here?
+                                                federated_only=self.sourceNode.federated_only)  # TODO: Is federated_only the right thing here?
 
             if stranger_ursula.verify_interface() and key == digest(stranger_ursula.canonical_public_address):
                 self.sourceNode._node_storage[key] = stranger_ursula  # TODO: 340

@@ -65,7 +65,7 @@ class Character:
                  config: CharacterConfiguration = None,
                  checksum_address: bytes = None,
                  abort_on_learning_error: bool = False,
-                 *args, **kwargs):
+                 ):
         """
         :param attach_dht_server:  Whether to attach a Server when this Character is
             born.
@@ -152,8 +152,10 @@ class Character:
             else:
                 self._checksum_address = checksum_address
         elif checksum_address:
-            raise ValueError(
-                "Can't set the checksum address for a federated-only Character; you have to set it using _set_checksum_address")
+            self._set_checksum_address()
+            if not checksum_address == self.checksum_public_address:
+                raise ValueError(
+                    "Federated-only Characters derive their address from their Signing key; you can't set it to anything else.")
         else:
             self._checksum_address = None
 
@@ -197,7 +199,8 @@ class Character:
             raise RuntimeError("Attaching the server twice is almost certainly a bad idea.")
 
         self._dht_server = self._dht_server_class(node_storage=self._known_nodes,  # TODO: 340
-                                                  treasure_map_storaage=self._stored_treasure_maps,  # TODO: 340
+                                                  treasure_map_storage=self._stored_treasure_maps,  # TODO: 340
+                                                  federated_only=self.federated_only,
                                                   ksize=ksize, alpha=alpha, id=id,
                                                   storage=storage, *args, **kwargs)
 
@@ -575,9 +578,13 @@ class Alice(Character, PolicyAuthor):
 
     def __init__(self, is_me=True, federated_only=False, *args, **kwargs):
 
-        Character.__init__(self, is_me=is_me, federated_only=federated_only, *args, **kwargs)
+        policy_agent = kwargs.pop("policy_agent", None)
+        checksum_address = kwargs.pop("checksum_address", None)
+        Character.__init__(self, is_me=is_me, federated_only=federated_only,
+                           checksum_address=checksum_address, *args, **kwargs)
+
         if is_me and not federated_only:  # TODO: 289
-            PolicyAuthor.__init__(self, *args, **kwargs)
+            PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address, *args, **kwargs)
 
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
@@ -665,9 +672,9 @@ class Bob(Character):
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
 
-    def peek_at_treasure_map(self, hrac):
+    def peek_at_treasure_map(self, map_id):
         """
-        Take a quick gander at the TreasureMap matching hrac to see which
+        Take a quick gander at the TreasureMap matching map_id to see which
         nodes are already kwown to us.
 
         Don't do any learning, pinging, or anything other than just seeing
@@ -675,18 +682,18 @@ class Bob(Character):
 
         Return two sets: nodes that are unknown to us, nodes that are known to us.
         """
-        treasure_map = self.treasure_maps[hrac]
+        treasure_map = self.treasure_maps[map_id]
 
         known_treasure_ursulas = treasure_map.node_ids.intersection(self._known_nodes)
         unknown_treasure_ursulas = treasure_map.node_ids.difference(self._known_nodes)
 
         return unknown_treasure_ursulas, known_treasure_ursulas
 
-    def follow_treasure_map(self, hrac, block=False, new_thread=False,
+    def follow_treasure_map(self, map_id, block=False, new_thread=False,
                             timeout=10,
                             allow_missing=0):
         """
-        Follows a known TreasureMap, looking it up by hrac.
+        Follows a known TreasureMap, looking it up by map_id.
 
         Determines which Ursulas are known and which are unknown.
 
@@ -700,7 +707,7 @@ class Bob(Character):
 
         # TODO: Check if nodes are up, declare them phantom if not.
         """
-        unknown_ursulas, known_ursulas = self.peek_at_treasure_map(hrac)
+        unknown_ursulas, known_ursulas = self.peek_at_treasure_map(map_id)
 
         if unknown_ursulas:
             self.learn_about_specific_nodes(unknown_ursulas)
@@ -717,8 +724,8 @@ class Bob(Character):
 
         return unknown_ursulas, known_ursulas
 
-    def get_treasure_map(self, alice_pubkey_sig, hrac):
-        map_id = keccak_digest(alice_pubkey_sig + hrac).hex()
+    def get_treasure_map(self, alice_verifying_key, label):
+        map_id = self.construct_map_id(verifying_key=alice_verifying_key, label=label)
 
         if not self._known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
@@ -728,15 +735,26 @@ class Bob(Character):
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                 map_id)
 
-        alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
-        compass = partial(self.verify_from, alice, decrypt=True)
+        alice = Alice.from_public_keys({SigningPower: alice_verifying_key})
+        compass = self.make_compass_for_alice(alice)
         treasure_map.orient(compass)
         try:
-            self.treasure_maps[hrac] = treasure_map
+            self.treasure_maps[map_id] = treasure_map
         except treasure_map.InvalidPublicSignature:
             raise  # TODO: Maybe do something here?
 
         return treasure_map
+
+    def make_compass_for_alice(self, alice):
+        return partial(self.verify_from, alice, decrypt=True)
+
+    def construct_policy_hrac(self, verifying_key, label):
+        return keccak_digest(bytes(verifying_key) + self.stamp + label)
+
+    def construct_map_id(self, verifying_key, label):
+        hrac = self.construct_policy_hrac(verifying_key, label)
+        map_id = keccak_digest(verifying_key + hrac).hex()
+        return map_id
 
     def get_treasure_map_from_known_ursulas(self, networky_stuff, map_id):
         """
@@ -759,14 +777,15 @@ class Bob(Character):
 
         return treasure_map
 
-    def generate_work_orders(self, kfrag_hrac, *capsules, num_ursulas=None):
+    def generate_work_orders(self, hrac, *capsules, num_ursulas=None):
         from nucypher.policy.models import WorkOrder  # Prevent circular import
 
         try:
-            treasure_map_to_use = self.treasure_maps[kfrag_hrac]
+            # TODO: Wait... are we saving treasure_maps by hrac here?  Or map id?  Is this just a misnomer?
+            treasure_map_to_use = self.treasure_maps[hrac]
         except KeyError:
             raise KeyError(
-                "Bob doesn't have a TreasureMap matching the hrac {}".format(kfrag_hrac))
+                "Bob doesn't have a TreasureMap matching the hrac {}".format(hrac))
 
         generated_work_orders = OrderedDict()
 
@@ -785,7 +804,7 @@ class Bob(Character):
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
-                    kfrag_hrac, capsules_to_include, ursula, self)
+                    hrac, capsules_to_include, ursula, self)
                 generated_work_orders[node_id] = work_order
                 self._saved_work_orders[node_id][capsule] = work_order
 
@@ -817,14 +836,14 @@ class Bob(Character):
         self.get_treasure_map(alice_pubkey_sig, hrac, using_dht=using_dht, verify_sig=verify_sig)
         self.follow_treasure_map(hrac, using_dht=using_dht)
 
-    def retrieve(self, message_kit, data_source, alice_pubkey_sig):
+    def retrieve(self, message_kit, data_source, alice_verifying_key):
 
         message_kit.capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
             receiving=self.public_key(EncryptingPower),
-            verifying=alice_pubkey_sig)
+            verifying=alice_verifying_key)
 
-        hrac = keccak_digest(bytes(alice_pubkey_sig) + self.stamp + data_source.label)
+        hrac = self.construct_treasure_map_id(alice_verifying_key, data_source.label)
         treasure_map = self.treasure_maps[hrac]
 
         # First, a quick sanity check to make sure we know about at least m nodes.
@@ -866,25 +885,39 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
     # TODO: 289
     def __init__(self,
+                 # Ursula things
                  rest_host,
                  rest_port,
+                 db_name=None,
                  is_me=True,
                  dht_host=None,
                  dht_port=None,
-                 federated_only=False,
                  interface_signature=None,
-                 *args,
-                 **kwargs):
+                 miner_agent=None,
+
+                 # Character things
+                 abort_on_learning_error=False,
+                 federated_only=False,
+                 checksum_address=None,
+                 always_be_learning=None,
+                 crypto_power=None
+                 ):
         if dht_host:
             self.dht_interface = InterfaceInfo(host=dht_host, port=dht_port)
         else:
             self.dht_interface = constants.NO_INTERFACE.bool_value(False)
         self._work_orders = []
 
-        Character.__init__(self, is_me=is_me, federated_only=federated_only, *args, **kwargs)
+        Character.__init__(self, is_me=is_me,
+                           checksum_address=checksum_address,
+                           always_be_learning=always_be_learning,
+                           federated_only=federated_only,
+                           crypto_power=crypto_power,
+                           abort_on_learning_error=abort_on_learning_error)
+
         if not federated_only:
-            Miner.__init__(self, is_me=is_me, *args, **kwargs)
-        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port, *args, **kwargs)
+            Miner.__init__(self, miner_agent=miner_agent, is_me=is_me, checksum_address=checksum_address)
+        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port, db_name=db_name)
 
         if is_me is True:
             # TODO: 340
@@ -1002,7 +1035,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: verifying_key, EncryptingPower: encrypting_key},
             interface_signature=signature,
-            canonical_public_address=public_address,
+            checksum_address=to_checksum_address(public_address),
             rest_host=rest_info.host,
             rest_port=rest_info.port,
             dht_host=dht_info.host,
@@ -1022,7 +1055,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
             stranger_ursula_from_public_keys = cls.from_public_keys(
                 {SigningPower: verifying_key, EncryptingPower: encrypting_key},
                 interface_signature=signature,
-                checksum_public_address=to_checksum_address(public_address),
+                checksum_address=to_checksum_address(public_address),
                 rest_host=rest_info.host,
                 rest_port=rest_info.port,
                 dht_host=dht_info.host,
