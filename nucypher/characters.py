@@ -25,7 +25,8 @@ from nucypher.config.configs import CharacterConfiguration
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower
+from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower, \
+    BlockchainPower
 from nucypher.crypto.signing import signature_splitter, StrangerStamp
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import InterfaceInfo
@@ -871,6 +872,7 @@ class Bob(Character):
 
 class Ursula(Character, ProxyRESTServer, Miner):
     _internal_splitter = BytestringSplitter(Signature,
+                                            VariableLengthBytestring,
                                             (UmbralPublicKey, PUBLIC_KEY_LENGTH),
                                             (UmbralPublicKey, PUBLIC_KEY_LENGTH),
                                             int(PUBLIC_ADDRESS_LENGTH),
@@ -902,6 +904,8 @@ class Ursula(Character, ProxyRESTServer, Miner):
                  always_be_learning=None,
                  crypto_power=None
                  ):
+        self.evidence_of_decentralized_identity = constants.NOT_SIGNED
+
         if dht_host:
             self.dht_interface = InterfaceInfo(host=dht_host, port=dht_port)
         else:
@@ -917,12 +921,16 @@ class Ursula(Character, ProxyRESTServer, Miner):
 
         if not federated_only:
             Miner.__init__(self, miner_agent=miner_agent, is_me=is_me, checksum_address=checksum_address)
+            blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
+            self._crypto_power.consume_power_up(blockchain_power)
         ProxyRESTServer.__init__(self, host=rest_host, port=rest_port, db_name=db_name)
 
         if is_me is True:
             # TODO: 340
             self._stored_treasure_maps = {}
             self.attach_dht_server()
+            if not federated_only:
+                self.substantiate_stamp()
         self.__interface_signature = interface_signature
 
     @property
@@ -1030,7 +1038,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
     @classmethod
     def from_bytes(cls, ursula_as_bytes, federated_only=False):
         # TODO: Include encrypting key?
-        signature, verifying_key, encrypting_key, public_address, rest_info, dht_info = cls._internal_splitter(
+        signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info = cls._internal_splitter(
             ursula_as_bytes)
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: verifying_key, EncryptingPower: encrypting_key},
@@ -1051,7 +1059,7 @@ class Ursula(Character, ProxyRESTServer, Miner):
         stranger_ursulas = []
 
         ursulas_attrs = cls._internal_splitter.repeat(ursulas_as_bytes)
-        for (signature, verifying_key, encrypting_key, public_address, rest_info, dht_info) in ursulas_attrs:
+        for (signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info) in ursulas_attrs:
             stranger_ursula_from_public_keys = cls.from_public_keys(
                 {SigningPower: verifying_key, EncryptingPower: encrypting_key},
                 interface_signature=signature,
@@ -1072,6 +1080,12 @@ class Ursula(Character, ProxyRESTServer, Miner):
         self.verified = interface_is_valid
         return interface_is_valid
 
+    def substantiate_stamp(self):
+        blockchain_power = self._crypto_power.power_ups(BlockchainPower)
+        blockchain_power.unlock_account('this-is-not-a-secure-password')  # TODO: 349
+        signature = blockchain_power.sign_message(bytes(self.stamp))
+        self.evidence_of_decentralized_identity = signature
+
     def __bytes__(self):
         message = self.canonical_public_address + self.rest_interface
         interface_info = VariableLengthBytestring(self.rest_interface)
@@ -1080,7 +1094,10 @@ class Ursula(Character, ProxyRESTServer, Miner):
             message += self.dht_interface
             interface_info += VariableLengthBytestring(self.dht_interface)
 
+        identity_evidence = VariableLengthBytestring(self.evidence_of_decentralized_identity)
+
         as_bytes = bytes().join((bytes(self._interface_signature),
+                                 bytes(identity_evidence),
                                  bytes(self.public_key(SigningPower)),
                                  bytes(self.public_key(EncryptingPower)),
                                  self.canonical_public_address,
