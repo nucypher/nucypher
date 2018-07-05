@@ -1,44 +1,11 @@
 import requests
-from kademlia.node import Node
-
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from nucypher.network.capabilities import ServerCapability
-
 from umbral.fragments import CapsuleFrag
 
 
-class NucypherDHTNode(Node):
+class RestMiddleware:
 
-    def __init__(self, id, ip=None, port=None, capabilities=None, capabilities_as_strings=None, *args, **kwargs):
-
-        if capabilities_as_strings is None:
-            capabilities_as_strings = []
-
-        self.id = id
-        self.ip = ip
-        self.port = port
-        self.long_id = int(id.hex(), 16)
-
-        self.capabilities = capabilities or []
-
-        for capability_name in capabilities_as_strings:
-            self.capabilities.append(ServerCapability.from_name(capability_name))
-
-        super().__init__(id, ip, port, *args, **kwargs)
-
-    def can_store(self):
-        for c in self.capabilities:
-            if c.prohibits_storage:
-                return False
-        return True
-
-
-class NetworkyStuff(object):
-
-    class NotEnoughQualifiedUrsulas(Exception):
-        pass
-
-    def find_ursula(self, id, offer=None):
+    def consider_arrangement(self, ursula, arrangement=None):
         pass
 
     def reencrypt(self, work_order):
@@ -57,7 +24,7 @@ class NetworkyStuff(object):
         response = requests.get(endpoint, verify=False)
         return response
 
-    def push_treasure_map_to_node(self, node, map_id, map_payload):
+    def put_treasure_map_on_node(self, node, map_id, map_payload):
         port = node.rest_port
         address = node.ip_address
         endpoint = "https://{}:{}/treasure_map/{}".format(address, port, map_id.hex())
@@ -73,6 +40,10 @@ class NetworkyStuff(object):
     def ursula_from_rest_interface(self, address, port):
         return requests.get("https://{}:{}/public_keys".format(address, port), verify=False)  # TODO: TLS-only.
 
-    def get_nodes_via_rest(self, address, port):
+    def get_nodes_via_rest(self, address, port, node_ids=None):
+        if node_ids:
+            # Include node_ids in the request; if the teacher node doesn't know about the
+            # nodes matching these ids, then it will ask other nodes via the DHT or whatever.
+            raise NotImplementedError
         response = requests.get("https://{}:{}/list_nodes".format(address, port), verify=False)  # TODO: TLS-only.
         return response

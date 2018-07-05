@@ -1,15 +1,17 @@
 from cryptography.hazmat.primitives.asymmetric import ec
 from umbral.config import set_default_curve
+
 set_default_curve(ec.SECP256K1())
 
-from .eth_fixtures import *
+"""NOTICE:  Depends on fixture modules; do not delete"""
 from .fixtures import *
-
-
 import pytest
+
+
 def pytest_addoption(parser):
     parser.addoption("--runslow", action="store_true",
                      default=False, help="run slow tests")
+
 
 def pytest_collection_modifyitems(config, items):
     if config.getoption("--runslow"):

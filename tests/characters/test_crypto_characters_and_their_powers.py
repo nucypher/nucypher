@@ -1,9 +1,11 @@
+import eth_utils
 import pytest
-from constant_sorrow import constants
 
-from nucypher.characters import Alice, Ursula, Character
+from constant_sorrow import constants
+from nucypher.characters import Alice, Ursula, Character, Bob
 from nucypher.crypto import api
-from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower
+from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower,\
+                                   BlockchainPower, PowerUpError
 
 """
 Chapter 1: SIGNING
@@ -16,7 +18,9 @@ def test_actor_without_signing_power_cannot_sign():
     This Character can't even sign a message.
     """
     cannot_sign = CryptoPower(power_ups=[])
-    non_signer = Character(crypto_power=cannot_sign)
+    non_signer = Character(crypto_power=cannot_sign,
+                           always_be_learning=False,
+                           federated_only=True)
 
     # The non-signer's stamp doesn't work for signing...
     with pytest.raises(NoSigningPower) as e_info:
@@ -35,7 +39,8 @@ def test_actor_with_signing_power_can_sign():
     """
     message = b"Llamas."
 
-    signer = Character(crypto_power_ups=[SigningPower], is_me=True)
+    signer = Character(crypto_power_ups=[SigningPower], is_me=True,
+                       always_be_learning=False, federated_only=True)
     stamp_of_the_signer = signer.stamp
 
     # We can use the signer's stamp to sign a message (since the signer is_me)...
@@ -49,18 +54,17 @@ def test_actor_with_signing_power_can_sign():
     assert verification is True
 
 
-def test_anybody_can_verify(nucypher_test_config, mock_policy_agent):
+def test_anybody_can_verify():
     """
     In the last example, we used the lower-level Crypto API to verify the signature.
 
     Here, we show that anybody can do it without needing to directly access Crypto.
     """
-
     # Alice can sign by default, by dint of her _default_crypto_powerups.
-    alice = Alice(config=nucypher_test_config, policy_agent=mock_policy_agent)
+    alice = Alice(federated_only=True, always_be_learning=False)
 
     # So, our story is fairly simple: an everyman meets Alice.
-    somebody = Character(config=nucypher_test_config)
+    somebody = Character(always_be_learning=False, federated_only=True)
 
     # Alice signs a message.
     message = b"A message for all my friends who can only verify and not sign."
@@ -72,6 +76,47 @@ def test_anybody_can_verify(nucypher_test_config, mock_policy_agent):
     assert cleartext is constants.NO_DECRYPTION_PERFORMED
 
 
+def test_character_blockchain_power(testerchain):
+    eth_address = testerchain.interface.w3.eth.accounts[0]
+    sig_privkey = testerchain.interface._providers[0].ethereum_tester.backend.\
+                  _key_lookup[eth_utils.to_canonical_address(eth_address)]
+    sig_pubkey = sig_privkey.public_key
+
+    signer = Character(is_me=True, checksum_address=eth_address)
+    signer._crypto_power.consume_power_up(BlockchainPower(testerchain, eth_address))
+
+    # Due to testing backend, the account is already unlocked.
+    power = signer._crypto_power.power_ups(BlockchainPower)
+    power.is_unlocked = True
+    #power.unlock_account('this-is-not-a-secure-password')
+
+    data_to_sign = b'What does Ursula look like?!?'
+    sig = power.sign_message(data_to_sign)
+
+    is_verified = power.verify_message(eth_address, sig_pubkey.to_bytes(), data_to_sign, sig)
+    assert is_verified == True
+
+    # Test a bad message:
+    with pytest.raises(PowerUpError):
+        power.verify_message( eth_address, sig_pubkey.to_bytes(), data_to_sign + b'bad', sig)
+
+    # Test a bad address/pubkey pair
+    with pytest.raises(ValueError):
+        power.verify_message(
+            testerchain.interface.w3.eth.accounts[1],
+            sig_pubkey.to_bytes(),
+            data_to_sign,
+            sig)
+
+    # Test a signature without unlocking the account
+    power.is_unlocked = False
+    with pytest.raises(PowerUpError):
+        power.sign_message(b'test')
+
+    # Test lockAccount call
+    del(power)
+
+
 """
 Chapter 2: ENCRYPTION
 """
@@ -81,12 +126,12 @@ def test_anybody_can_encrypt():
     """
     Similar to anybody_can_verify() above; we show that anybody can encrypt.
     """
-    everyman = Character()
-    ursula = Ursula(is_me=False)
+    someone = Character(always_be_learning=False, federated_only=True)
+    bob = Bob(is_me=False, federated_only=True)
 
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
-    ciphertext, signature = everyman.encrypt_for(ursula, cleartext, sign=False)
+    ciphertext, signature = someone.encrypt_for(bob, cleartext, sign=False)
 
     assert signature == constants.NOT_SIGNED
     assert ciphertext is not None

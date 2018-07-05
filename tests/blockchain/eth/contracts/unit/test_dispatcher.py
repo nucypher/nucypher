@@ -4,19 +4,19 @@ from web3.contract import Contract
 
 
 @pytest.mark.slow
-def test_dispatcher(web3, chain):
-    creator = web3.eth.accounts[0]
-    account = web3.eth.accounts[1]
+def test_dispatcher(testerchain):
+    creator = testerchain.interface.w3.eth.accounts[0]
+    account = testerchain.interface.w3.eth.accounts[1]
 
     # Load contract interface
-    contract_interface = chain.interface.get_contract_factory('ContractInterface')
+    contract_interface = testerchain.interface.get_contract_factory('ContractInterface')
 
     # Deploy contracts and dispatcher for them
-    contract1_lib, _ = chain.interface.deploy_contract('ContractV1', 1)
-    contract2_lib, _ = chain.interface.deploy_contract('ContractV2', 1)
-    contract3_lib, _ = chain.interface.deploy_contract('ContractV3', 2)
-    contract2_bad_lib, _ = chain.interface.deploy_contract('ContractV2Bad')
-    dispatcher, _ = chain.interface.deploy_contract('Dispatcher', contract1_lib.address)
+    contract1_lib, _ = testerchain.interface.deploy_contract('ContractV1', 1)
+    contract2_lib, _ = testerchain.interface.deploy_contract('ContractV2', 1)
+    contract3_lib, _ = testerchain.interface.deploy_contract('ContractV3', 2)
+    contract2_bad_lib, _ = testerchain.interface.deploy_contract('ContractV2Bad')
+    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract1_lib.address)
 
     upgrades = dispatcher.events.Upgraded.createFilter(fromBlock=0)
     assert dispatcher.functions.target().call() == contract1_lib.address
@@ -30,62 +30,62 @@ def test_dispatcher(web3, chain):
 
     # Assign dispatcher address as contract.
     # In addition to the interface can be used ContractV1, ContractV2 or ContractV3 ABI
-    contract_instance = web3.eth.contract(
+    contract_instance = testerchain.interface.w3.eth.contract(
         abi=contract_interface.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
 
     # Only owner can change target address for dispatcher
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract2_lib.address).transact({'from': account})
-        chain.wait_for_receipt(tx)
+        tx =  dispatcher.functions.upgrade(contract2_lib.address).transact({'from': account})
+        testerchain.wait_for_receipt(tx)
     assert dispatcher.functions.target().call() == contract1_lib.address
 
     # Check values before upgrade
     assert contract_instance.functions.getStorageValue().call() == 1
     assert contract_instance.functions.returnValue().call() == 10
     tx = contract_instance.functions.setStorageValue(5).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getStorageValue().call() == 5
     tx = contract_instance.functions.pushArrayValue(12).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getArrayValueLength().call() == 1
     assert contract_instance.functions.getArrayValue(0).call() == 12
     tx = contract_instance.functions.pushArrayValue(232).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getArrayValueLength().call() == 2
     assert contract_instance.functions.getArrayValue(1).call() == 232
     tx = contract_instance.functions.setMappingValue(14, 41).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getMappingValue(14).call() == 41
     tx = contract_instance.functions.pushStructureValue1(3).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureValue1(0).call() == 3
     tx = contract_instance.functions.pushStructureArrayValue1(0, 11).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     tx = contract_instance.functions.pushStructureArrayValue1(0, 111).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureArrayValue1(0, 0).call() == 11
     assert contract_instance.functions.getStructureArrayValue1(0, 1).call() == 111
     tx = contract_instance.functions.pushStructureValue2(4).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureValue2(0).call() == 4
     tx = contract_instance.functions.pushStructureArrayValue2(0, 12).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureArrayValue2(0, 0).call() == 12
     tx = contract_instance.functions.setDynamicallySizedValue('Hola').transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getDynamicallySizedValue().call() == 'Hola'
 
     # Can't upgrade to bad version
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract2_bad_lib.address).transact({'from': creator})
-        chain.wait_for_receipt(tx)
+        testerchain.wait_for_receipt(tx)
     assert dispatcher.functions.target().call() == contract1_lib.address
 
     # Upgrade contract
     tx = dispatcher.functions.upgrade(contract2_lib.address).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert dispatcher.functions.target().call() == contract2_lib.address
 
     events = upgrades.get_all_entries()
@@ -100,39 +100,39 @@ def test_dispatcher(web3, chain):
     assert contract_instance.functions.returnValue().call() == 20
     assert contract_instance.functions.getStorageValue().call() == 5
     tx = contract_instance.functions.setStorageValue(5).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getStorageValue().call() == 10
     assert contract_instance.functions.getArrayValueLength().call() == 2
     assert contract_instance.functions.getArrayValue(0).call() == 12
     assert contract_instance.functions.getArrayValue(1).call() == 232
     tx = contract_instance.functions.setMappingValue(13, 31).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getMappingValue(14).call() == 41
     assert contract_instance.functions.getMappingValue(13).call() == 31
     tx = contract_instance.functions.pushStructureValue1(4).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureValue1(0).call() == 3
     assert contract_instance.functions.getStructureValue1(1).call() == 4
     tx = contract_instance.functions.pushStructureArrayValue1(0, 12).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureArrayValue1(0, 0).call() == 11
     assert contract_instance.functions.getStructureArrayValue1(0, 1).call() == 111
     assert contract_instance.functions.getStructureArrayValue1(0, 2).call() == 12
     tx = contract_instance.functions.pushStructureValue2(5).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureValue2(0).call() == 4
     assert contract_instance.functions.getStructureValue2(1).call() == 5
     tx = contract_instance.functions.pushStructureArrayValue2(0, 13).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureArrayValue2(0, 0).call() == 12
     assert contract_instance.functions.getStructureArrayValue2(0, 1).call() == 13
     assert contract_instance.functions.getDynamicallySizedValue().call() == 'Hola'
     tx = contract_instance.functions.setDynamicallySizedValue('Hello').transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getDynamicallySizedValue().call() == 'Hello'
 
     # Changes ABI to ContractV2 for using additional methods
-    contract_instance = web3.eth.contract(
+    contract_instance = testerchain.interface.w3.eth.contract(
         abi=contract2_lib.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -140,32 +140,32 @@ def test_dispatcher(web3, chain):
     # Check new method and finish upgrade method
     assert contract_instance.functions.storageValueToCheck().call() == 1
     tx = contract_instance.functions.setStructureValueToCheck2(0, 55).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getStructureValueToCheck2(0).call() == 55
 
     # Can't downgrade to first version due to storage
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract1_lib.address).transact({'from': creator})
-        chain.wait_for_receipt(tx)
+        testerchain.wait_for_receipt(tx)
 
     # And can't upgrade to bad version
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract2_bad_lib.address).transact({'from': creator})
-        chain.wait_for_receipt(tx)
+        testerchain.wait_for_receipt(tx)
     assert dispatcher.functions.target().call() == contract2_lib.address
 
     rollbacks = dispatcher.events.RolledBack.createFilter(fromBlock='latest')
 
     # But can rollback
     tx = dispatcher.functions.rollback().transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert dispatcher.functions.target().call() == contract1_lib.address
     assert contract_instance.functions.getArrayValueLength().call() == 2
     assert contract_instance.functions.getArrayValue(0).call() == 12
     assert contract_instance.functions.getArrayValue(1).call() == 232
     assert contract_instance.functions.getStorageValue().call() == 1
     tx = contract_instance.functions.setStorageValue(5).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     assert contract_instance.functions.getStorageValue().call() == 5
 
     events = rollbacks.get_all_entries()
@@ -178,27 +178,27 @@ def test_dispatcher(web3, chain):
     # Can't upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract2_bad_lib.address).transact({'from': creator})
-        chain.wait_for_receipt(tx)
+        testerchain.wait_for_receipt(tx)
     assert dispatcher.functions.target().call() == contract1_lib.address
 
     # Create Event
-    contract_instance = web3.eth.contract(
+    contract_instance = testerchain.interface.w3.eth.contract(
         abi=contract1_lib.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
     test_events = contract_instance.events.EventV1.createFilter(fromBlock=0)
     tx = contract_instance.functions.createEvent(33).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     events = test_events.get_all_entries()
     assert 1 == len(events)
     assert 33 == events[0]['args']['value']
 
     # Upgrade to version 3
     tx = dispatcher.functions.upgrade(contract2_lib.address).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     tx = dispatcher.functions.upgrade(contract3_lib.address).transact({'from': creator})
-    chain.wait_for_receipt(tx)
-    contract_instance = web3.eth.contract(
+    testerchain.wait_for_receipt(tx)
+    contract_instance = testerchain.interface.w3.eth.contract(
         abi=contract2_lib.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
@@ -239,13 +239,13 @@ def test_dispatcher(web3, chain):
 
     # Create and check events
     tx = contract_instance.functions.createEvent(22).transact({'from': creator})
-    chain.wait_for_receipt(tx)
+    testerchain.wait_for_receipt(tx)
     test_eventv2_log = contract_instance.events.EventV2.createFilter(fromBlock=0)
     events = test_eventv2_log.get_all_entries()
     assert 1 == len(events)
     assert 22 == events[0]['args']['value']
 
-    contract_instance = web3.eth.contract(
+    contract_instance = testerchain.interface.w3.eth.contract(
         abi=contract1_lib.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)

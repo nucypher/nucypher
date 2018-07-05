@@ -52,8 +52,7 @@ class KeyStore(object):
 
         return new_key
 
-    def get_key(self, fingerprint: bytes, session=None) -> Union[keypairs.EncryptingKeypair,
-                                                   keypairs.SigningKeypair]:
+    def get_key(self, fingerprint: bytes, session=None) -> Union[keypairs.EncryptingKeypair, keypairs.SigningKeypair]:
         """
         Returns a key from the KeyStore.
 
@@ -83,9 +82,10 @@ class KeyStore(object):
         session.query(Key).filter_by(fingerprint=fingerprint).delete()
         session.commit()
 
-    def add_policy_arrangement(self, expiration, deposit, hrac, kfrag=None,
-                               alice_pubkey_sig=None, # alice_pubkey_enc,
-                               alice_signature=None, session=None) -> PolicyArrangement:
+    def add_policy_arrangement(self, expiration, hrac, kfrag=None,
+                               alice_pubkey_sig=None,
+                               alice_signature=None,
+                               session=None) -> PolicyArrangement:
         """
         Creates a PolicyArrangement to the Keystore.
 
@@ -100,7 +100,7 @@ class KeyStore(object):
         # bob_pubkey_sig = self.add_key(bob_pubkey_sig)
 
         new_policy_arrangement = PolicyArrangement(
-            expiration, deposit, hrac, kfrag, alice_pubkey_sig=alice_key_instance,
+            expiration, hrac, kfrag, alice_pubkey_sig=alice_key_instance,
             alice_signature=None, # bob_pubkey_sig.id
         )
 

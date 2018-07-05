@@ -1,250 +1,309 @@
+import itertools
+import math
 from collections import OrderedDict
 from datetime import datetime
-from typing import Tuple, List, Union
+from typing import Tuple
+
+import maya
+from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
+from nucypher.blockchain.eth.constants import calculate_period_duration, datetime_to_period, validate_stake_amount
+
+
+def only_me(func):
+    def wrapped(actor=None, *args, **kwargs):
+        if not actor.is_me:
+            raise actor.MinerError("You are not {}".format(actor.__class.__.__name__))
+        return func(actor, *args, **kwargs)
+    return wrapped
 
 
 class NucypherTokenActor:
+    """
+    Concrete base class for any actor that will interface with NuCypher's ethereum smart contracts.
+    """
 
     class ActorError(Exception):
         pass
 
-    def __init__(self, address: Union[str, bytes], token_agent: NucypherTokenAgent=None, *args, **kwargs):
+    def __init__(self, ether_address: str=None, token_agent: NucypherTokenAgent=None, *args, **kwargs):
+        """
+        :param ether_address:  If not passed, we assume this is an unknown actor
 
-        if token_agent is None:
-            token_agent = NucypherTokenAgent()
-        self.token_agent = token_agent
+        :param token_agent:  The token agent with the blockchain attached; If not passed, A default
+        token agent and blockchain connection will be created from default values.
 
-        if isinstance(address, bytes):
-            address = address.hex()
-        self.address = address
+        """
 
-        self._transactions = list()
+        # Auto-connect, if needed
+        self.token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
+
+        if not kwargs.get("public_address"):
+            self._ether_address = ether_address if ether_address is not None else constants.UNKNOWN_ACTOR
+        self._transaction_cache = list()  # track transactions transmitted
 
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(address='{}')"
-        r = r.format(class_name, self.address)
+        r = r.format(class_name, self._ether_address)
         return r
 
+    @classmethod
+    def from_config(cls, config):
+        """Read actor data from a configuration file, and create an actor instance."""
+        raise NotImplementedError
+
+    @property
     def eth_balance(self):
         """Return this actors's current ETH balance"""
-        balance = self.token_agent.blockchain.interface.w3.eth.getBalance(self.address)
+        balance = self.token_agent.blockchain.interface.w3.eth.getBalance(self._ether_address)
         return balance
 
+    @property
     def token_balance(self):
         """Return this actors's current token balance"""
-        balance = self.token_agent.get_balance(address=self.address)
+        balance = self.token_agent.get_balance(address=self._ether_address)
         return balance
 
 
 class Miner(NucypherTokenActor):
     """
-    Ursula - practically carrying a pickaxe.
+    Ursula baseclass for blockchain operations, practically carrying a pickaxe.
     """
 
-    class StakingError(NucypherTokenActor.ActorError):
+    class MinerError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self, miner_agent: MinerAgent=None, *args, **kwargs):
-        if miner_agent is None:
-            miner_agent = MinerAgent(token_agent=NucypherTokenAgent())
+    def __init__(self, is_me=True, miner_agent: MinerAgent=None, *args, **kwargs):
+        miner_agent = miner_agent if miner_agent is not None else MinerAgent()
         super().__init__(token_agent=miner_agent.token_agent, *args, **kwargs)
 
+        # Extrapolate dependencies
         self.miner_agent = miner_agent
-        miner_agent.miners.append(self)    # Track Miners
-
         self.token_agent = miner_agent.token_agent
         self.blockchain = self.token_agent.blockchain
 
-        self.__locked_tokens = None
-        self.__update_locked_tokens()
+        # Establish initial state
+        self.is_me = is_me
 
-    def __update_locked_tokens(self) -> None:
-        """Query the contract for the amount of locked tokens on this miner's eth address and cache it"""
+    @classmethod
+    def from_config(cls, blockchain_config) -> 'Miner':
+        """Read miner data from a configuration file, and create an miner instance."""
 
-        self.__locked_tokens = self.miner_agent.contract.functions.getLockedTokens(self.address).call()
+        # Use BlockchainConfig to default to the first wallet address
+        wallet_address = blockchain_config.wallet_addresses[0]
 
+        instance = cls(ether_address=wallet_address)
+        return instance
+
+    #
+    # Staking
+    #
     @property
     def is_staking(self):
         """Checks if this Miner currently has locked tokens."""
-
-        self.__update_locked_tokens()
-        return bool(self.__locked_tokens > 0)
+        return bool(self.locked_tokens > 0)
 
     @property
-    def locked_tokens(self,):
+    def locked_tokens(self, ):
         """Returns the amount of tokens this miner has locked."""
+        return self.miner_agent.get_locked_tokens(node_address=self._ether_address)
 
-        self.__update_locked_tokens()
-        return self.__locked_tokens
+    @property
+    def stakes(self):
+        stakes_reader = self.miner_agent.get_all_stakes(miner_address=self._ether_address)
+        return stakes_reader
 
-    def _approve_escrow(self, amount: int) -> str:
-        """Approve the transfer of token from the miner's address to the escrow contract."""
-
-        txhash = self.token_agent.contract.functions.approve(self.miner_agent.contract_address, amount).transact({'from': self.address})
-        self.blockchain.wait_for_receipt(txhash)
-
-        self._transactions.append((datetime.utcnow(), txhash))
-
-        return txhash
-
-    def _send_tokens_to_escrow(self, amount, lock_periods) -> str:
-        """Send tokes to the escrow from the miner's address"""
-
-        deposit_txhash = self.miner_agent.contract.functions.deposit(amount, lock_periods).transact({'from': self.address})
-
-        self.blockchain.wait_for_receipt(deposit_txhash)
-
-        self._transactions.append((datetime.utcnow(), deposit_txhash))
-
-        return deposit_txhash
-
+    @only_me
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
-        approve_txhash = self._approve_escrow(amount=amount)
-        deposit_txhash = self._send_tokens_to_escrow(amount=amount, lock_periods=lock_periods)
+        if not self.is_me:
+            raise self.MinerError("Cannot execute miner staking functions with a non-self Miner instance.")
+
+        approve_txhash = self.token_agent.approve_transfer(amount=amount,
+                                                           target_address=self.miner_agent.contract_address,
+                                                           sender_address=self._ether_address)
+
+        deposit_txhash = self.miner_agent.deposit_tokens(amount=amount,
+                                                         lock_periods=lock_periods,
+                                                         sender_address=self._ether_address)
 
         return approve_txhash, deposit_txhash
 
-    # TODO add divide_stake method
-    def switch_lock(self):
-        lock_txhash = self.miner_agent.contract.functions.switchLock().transact({'from': self.address})
-        self.blockchain.wait_for_receipt(lock_txhash)
+    @only_me
+    def divide_stake(self, stake_index: int, target_value: int,
+                     additional_periods: int=None, expiration: maya.MayaDT=None) -> dict:
+        """
+        Modifies the unlocking schedule and value of already locked tokens.
 
-        self._transactions.append((datetime.utcnow(), lock_txhash))
-        return lock_txhash
+        This actor requires that is_me is True, and that the expiration datetime is after the existing
+        locking schedule of this miner, or an exception will be raised.
 
-    def confirm_activity(self) -> str:
-        """Miner rewarded for every confirmed period"""
+        :param target_value:  The quantity of tokens in the smallest denomination.
+        :param expiration: The new expiration date to set.
+        :return: Returns the blockchain transaction hash
 
-        txhash = self.miner_agent.contract.functions.confirmActivity().transact({'from': self.address})
-        self.blockchain.wait_for_receipt(txhash)
+        """
 
-        self._transactions.append((datetime.utcnow(), txhash))
+        if additional_periods and expiration:
+            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
 
-        return txhash
+        _first_period, last_period, locked_value = self.miner_agent.get_stake_info(
+            miner_address=self._ether_address, stake_index=stake_index)
+        if expiration:
+            additional_periods = datetime_to_period(datetime=expiration) - last_period
 
-    def mint(self) -> Tuple[str, str]:
-        """Computes and transfers tokens to the miner's account"""
+            if additional_periods <= 0:
+                raise self.MinerError("Expiration {} must be at least 1 period from now.".format(expiration))
 
-        mint_txhash = self.miner_agent.contract.functions.mint().transact({'from': self.address})
+        if target_value >= locked_value:
+            raise self.MinerError("Cannot divide stake; Value must be less than the specified stake value.")
 
-        self.blockchain.wait_for_receipt(mint_txhash)
-        self._transactions.append((datetime.utcnow(), mint_txhash))
+        # Ensure both halves are for valid amounts
+        validate_stake_amount(amount=target_value)
+        validate_stake_amount(amount=locked_value-target_value)
 
-        return mint_txhash
+        tx = self.miner_agent.divide_stake(miner_address=self._ether_address,
+                                           stake_index=stake_index,
+                                           target_value=target_value,
+                                           periods=additional_periods)
 
-    def collect_policy_reward(self, policy_manager):
-        """Collect rewarded ETH"""
+        self.blockchain.wait_for_receipt(tx)
+        return tx
 
-        policy_reward_txhash = policy_manager.contract.functions.withdraw().transact({'from': self.address})
-        self.blockchain.wait_for_receipt(policy_reward_txhash)
-
-        self._transactions.append((datetime.utcnow(), policy_reward_txhash))
-
-        return policy_reward_txhash
-
-    def collect_staking_reward(self) -> str:
-        """Withdraw tokens rewarded for staking."""
-
-        token_amount = self.miner_agent.contract.functions.minerInfo(self.address).call()[0]
-        staked_amount = max(self.miner_agent.contract.functions.getLockedTokens(self.address).call(),
-                            self.miner_agent.contract.functions.getLockedTokens(self.address, 1).call())
-
-        collection_txhash = self.miner_agent.contract.functions.withdraw(token_amount - staked_amount).transact({'from': self.address})
-
-        self.blockchain.wait_for_receipt(collection_txhash)
-        self._transactions.append((datetime.utcnow(), collection_txhash))
-
-        return collection_txhash
-
+    @only_me
     def __validate_stake(self, amount: int, lock_periods: int) -> bool:
 
-        assert self.miner_agent.validate_stake_amount(amount=amount)
-        assert self.miner_agent.validate_locktime(lock_periods=lock_periods)
+        from .constants import validate_locktime, validate_stake_amount
+        assert validate_stake_amount(amount=amount)
+        assert validate_locktime(lock_periods=lock_periods)
 
-        if not self.token_balance() >= amount:
-            raise self.StakingError("Insufficient miner token balance ({balance})".format(balance=self.token_balance()))
+        if not self.token_balance >= amount:
+            raise self.MinerError("Insufficient miner token balance ({balance})".format(balance=self.token_balance))
         else:
             return True
 
-    def stake(self, amount, lock_periods, entire_balance=False):
+    @only_me
+    def stake(self, amount: int, lock_periods: int=None, expiration: maya.MayaDT=None, entire_balance: bool=False) -> dict:
         """
         High level staking method for Miners.
+
+        :param amount: Amount of tokens to stake denominated in the smallest unit.
+        :param lock_periods: Duration of stake in periods.
+        :param expiration: A MayaDT object representing the time the stake expires; used to calculate lock_periods.
+        :param entire_balance: If True, stake the entire balance of this node, or the maximum possible.
+
         """
 
-        staking_transactions = OrderedDict()  # Time series of txhases
-
+        if lock_periods and expiration:
+            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
         if entire_balance and amount:
-            raise self.StakingError("Specify an amount or entire balance, not both")
+            raise self.MinerError("Specify an amount or entire balance, not both")
 
+        if expiration:
+            lock_periods = calculate_period_duration(future_time=expiration)
         if entire_balance is True:
-            amount = self.miner_agent.contract.functions.getMinerInfo(self.miner_agent.MinerInfo.VALUE.value,
-                                                                       self.address, 0).call()
-        amount = self.blockchain.interface.w3.toInt(amount)
+            amount = self.token_balance
 
+        staking_transactions = OrderedDict()                   # Time series of txhases
+
+        # Validate
         assert self.__validate_stake(amount=amount, lock_periods=lock_periods)
 
+        # Transact
         approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, lock_periods=lock_periods)
-        self._transactions.append((datetime.utcnow(), initial_deposit_txhash))
+        self._transaction_cache.append((datetime.utcnow(), initial_deposit_txhash))
 
         return staking_transactions
 
-    def publish_data(self, data) -> str:
-        """Store new data"""
+    #
+    # Reward and Collection
+    #
 
-        txhash = self.miner_agent.contract.functions.setMinerId(data).transact({'from': self.address})
-        self.blockchain.wait_for_receipt(txhash)
+    @only_me
+    def confirm_activity(self) -> str:
+        """Miner rewarded for every confirmed period"""
 
-        self._transactions.append((datetime.utcnow(), txhash))
+        txhash = self.miner_agent.confirm_activity(node_address=self._ether_address)
+        self._transaction_cache.append((datetime.utcnow(), txhash))
 
         return txhash
 
-    def fetch_data(self) -> tuple:
-        """Retrieve all asosciated contract data for this miner."""
+    @only_me
+    def mint(self) -> Tuple[str, str]:
+        """Computes and transfers tokens to the miner's account"""
 
-        count_bytes = self.miner_agent.contract.functions.getMinerIdsLength(self.address).call()
+        mint_txhash = self.miner_agent.mint(node_address=self._ether_address)
+        self._transaction_cache.append((datetime.utcnow(), mint_txhash))
 
-        count = self.blockchain.interface.w3.toInt(count_bytes)
+        return mint_txhash
 
-        miner_ids = list()
-        for index in range(count):
-            miner_id = self.miner_agent.contract.functions.getMinerId(self.address, index).call()
-            miner_ids.append(miner_id)
-        return tuple(miner_ids)
+    @only_me
+    def collect_policy_reward(self, policy_manager):
+        """Collect rewarded ETH"""
+
+        policy_reward_txhash = policy_manager.collect_policy_reward(collector_address=self._ether_address)
+        self._transaction_cache.append((datetime.utcnow(), policy_reward_txhash))
+
+        return policy_reward_txhash
+
+    @only_me
+    def collect_staking_reward(self) -> str:
+        """Withdraw tokens rewarded for staking."""
+
+        collection_txhash = self.miner_agent.collect_staking_reward(collector_address=self._ether_address)
+        self._transaction_cache.append((datetime.utcnow(), collection_txhash))
+
+        return collection_txhash
 
 
 class PolicyAuthor(NucypherTokenActor):
-    """Alice"""
+    """Alice base class for blockchain operations, mocking up new policies!"""
 
     def __init__(self, policy_agent: PolicyAgent=None, *args, **kwargs):
+        """
+        :param policy_agent: A policy agent with the blockchain attached; If not passed, A default policy
+        agent and blockchain connection will be created from default values.
+
+        """
 
         if policy_agent is None:
-            # all defaults
-            token_agent = NucypherTokenAgent()
-            miner_agent = MinerAgent(token_agent=token_agent)
-            policy_agent = PolicyAgent(miner_agent=miner_agent)
+            # From defaults
+            self.token_agent = NucypherTokenAgent()
+            self.miner_agent = MinerAgent(token_agent=self.token_agent)
+            self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
+        else:
+            # From agent
+            self.policy_agent = policy_agent
+            self.miner_agent = policy_agent.miner_agent
+            self.token_agent = policy_agent.miner_agent.token_agent
 
-        self.policy_agent = policy_agent
+        self.__sampled_ether_addresses = set()  # TODO: uptake into node learning api with high priority
         super().__init__(token_agent=self.policy_agent.token_agent, *args, **kwargs)
 
-        self._arrangements = OrderedDict()    # Track authored policies by id
+    def recruit(self, quantity: int, **options) -> None:
+        """
+        Uses sampling logic to gather miners from the blockchain and
+        caches the resulting node ethereum addresses.
 
-    def revoke_arrangement(self, arrangement_id):
-        """Get the arrangement from the cache and revoke it on the blockchain"""
-        try:
-            arrangement = self._arrangements[arrangement_id]
-        except KeyError:
-            raise self.ActorError('No such arrangement')
-        else:
-            txhash = arrangement.revoke()
-        return txhash
+        :param quantity: Number of ursulas to sample from the blockchain.
+        :return: None; Since it only mutates self
 
-    def recruit(self, quantity: int) -> List[str]:
-        """Uses sampling logic to gather miner address from the blockchain"""
+        """
 
-        miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity)
-        return miner_addresses
+        miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity, **options)
+        self.__sampled_ether_addresses.update(miner_addresses)
 
+    def create_policy(self, *args, **kwargs):
+        """
+        Hence the name, a PolicyAuthor can create
+        a BlockchainPolicy with themself as the author.
+
+        :return: Returns a newly authored BlockchainPolicy with n proposed arrangements.
+
+        """
+
+        from nucypher.blockchain.eth.policies import BlockchainPolicy
+        blockchain_policy = BlockchainPolicy(author=self, *args, **kwargs)
+        return blockchain_policy

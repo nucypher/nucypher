@@ -1,25 +1,19 @@
 import pytest
 
 from nucypher.blockchain.eth.agents import MinerAgent
+from constant_sorrow import constants
 
-M = 10 ** 6
+
+M = 10 ** 6  # FIXME: Make this the same value as mining coeff?
 
 
 @pytest.mark.slow()
-@pytest.mark.usefixtures("mock_policy_agent")
-def test_get_swarm(chain, mock_token_agent, mock_miner_agent):
+def test_get_swarm(three_agents, non_ursula_miners):
+    token_agent, miner_agent, policy_agent = three_agents
 
-    mock_token_agent.token_airdrop(amount=100000 * mock_token_agent.M)
-
-    creator, *addresses = chain.interface.w3.eth.accounts
-
-    mock_miner_agent.spawn_random_miners(addresses=addresses)
-
-    chain.time_travel(periods=1)
-
-    swarm = mock_miner_agent.swarm()
+    swarm = miner_agent.swarm()
     swarm_addresses = list(swarm)
-    assert len(swarm_addresses) == 9
+    assert len(swarm_addresses) == len(non_ursula_miners)
 
     # Grab a miner address from the swarm
     miner_addr = swarm_addresses[0]
@@ -33,18 +27,16 @@ def test_get_swarm(chain, mock_token_agent, mock_miner_agent):
 
 
 @pytest.mark.slow()
-def test_sample_miners(chain, mock_miner_agent, mock_token_agent):
-    mock_token_agent.token_airdrop(amount=100000 * mock_token_agent.M)
+@pytest.mark.usefixtures("non_ursula_miners")
+def test_sample_miners(testerchain, three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    miners_population = miner_agent.get_miner_population()
 
-    # Have other address lock tokens
-    _origin, ursula, *everybody_else = chain.interface.w3.eth.accounts
-    mock_miner_agent.spawn_random_miners(addresses=everybody_else)
+    testerchain.time_travel(periods=1)
 
-    chain.time_travel(periods=1)
+    with pytest.raises(MinerAgent.NotEnoughMiners):
+        miner_agent.sample(quantity=miners_population + 1, duration=1)  # One more than we have deployed
 
-    with pytest.raises(MinerAgent.NotEnoughUrsulas):
-        mock_miner_agent.sample(quantity=100)  # Waay more than we have deployed
-
-    miners = mock_miner_agent.sample(quantity=3)
-    assert len(miners) == 3
-    assert len(set(miners)) == 3
+    miners = miner_agent.sample(quantity=3, duration=1)
+    assert len(miners) == 3       # Three...
+    assert len(set(miners)) == 3  # ...unique addresses

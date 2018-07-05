@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "contracts/NuCypherToken.sol";
@@ -13,14 +13,15 @@ contract MinersEscrowForUserEscrowMock {
     address public node;
     uint256 public value;
     uint256 public lockedValue;
-    uint256 public periods;
-    uint256 public confirmedPeriod;
+    uint16 public periods;
+    uint16 public confirmedPeriod;
+    uint256 public index;
 
     constructor(NuCypherToken _token) public {
         token = _token;
     }
 
-    function deposit(uint256 _value, uint256 _periods) public {
+    function deposit(uint256 _value, uint16 _periods) public {
         node = msg.sender;
         value = _value;
         lockedValue = _value;
@@ -28,21 +29,15 @@ contract MinersEscrowForUserEscrowMock {
         token.transferFrom(msg.sender, address(this), _value);
     }
 
-    function lock(uint256 _value, uint256 _periods) public {
+    function lock(uint256 _value, uint16 _periods) public {
         require(node == msg.sender);
         lockedValue += _value;
         periods += _periods;
     }
 
-    function divideStake(
-        uint256 _oldValue,
-        uint256 _lastPeriod,
-        uint256 _newValue,
-        uint256 _periods
-    )
-        public
-    {
-        require(node == msg.sender && lockedValue == _oldValue && periods == _lastPeriod);
+    function divideStake(uint256 _index, uint256 _newValue, uint16 _periods) public {
+        require(node == msg.sender);
+        index = _index;
         lockedValue += _newValue;
         periods += _periods;
     }

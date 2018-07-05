@@ -3,30 +3,27 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
-
 [packages]
-# Wheels for cryptography until the next release.
-cryptography35_linux = { file='./wheelhouse/cryptography-2.3.dev1-cp35-cp35m-linux_x86_64.whl', markers="python_version >= '3.5' and python_version < '3.6' and platform_system == 'Linux'"}
-cryptography36_linux = { file='./wheelhouse/cryptography-2.3.dev1-cp36-cp36m-linux_x86_64.whl', markers="python_version >= '3.6' and python_version < '3.7' and platform_system == 'Linux'"}
-cryptography36_darwin = { file='./wheelhouse/cryptography-2.3.dev1-cp36-cp36m-macosx_10_13_x86_64.whl', markers="python_version >= '3.6' and python_version < '3.7' and platform_system == 'Darwin'"}
 
+# Wheels for cryptography until the next release
+cryptography35_linux = { path='./wheelhouse/cryptography-2.3.dev1-cp35-cp35m-linux_x86_64.whl', markers="python_version >= '3.5' and python_version < '3.6' and platform_system == 'Linux'"}
+cryptography36_linux = { path='./wheelhouse/cryptography-2.3.dev1-cp36-cp36m-linux_x86_64.whl', markers="python_version >= '3.6' and python_version < '3.7' and platform_system == 'Linux'"}
+cryptography36_darwin = { path='./wheelhouse/cryptography-2.3.dev1-cp36-cp36m-macosx_10_13_x86_64.whl', markers="python_version >= '3.6' and python_version < '3.7' and platform_system == 'Darwin'"}
 
-rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "nucypher-depend"}
-kademlia = {git = "https://github.com/nucypher/kademlia", ref = "nucypher-depend"}
-PyNaCl = "*"
-"pysha3" = "*"
-bidict = "*"
-py_ecc = "*"
-SQLAlchemy = "*"
-apistar = "*"
-maya = "*"
-pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "nucypher-depend"}
 requests = "*"
+maya = "*"
 hendrix = "==3.0.0"
 constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "nucypher-depend"}
 bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git", ref = "nucypher-depend"}
-appdirs = "*"
-web3 = "==4.3.0"
+sqlalchemy = "*"
+apistar = "*"
+rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "nucypher-depend"}
+kademlia = {git = "https://github.com/nucypher/kademlia", ref = "nucypher-depend"}
+pynacl = "*"
+pysha3 = "*"
+py_ecc = "*"
+pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "nucypher-depend"}
+web3 = "==4.4.1"
 
 [dev-packages]
 pytest = "*"
@@ -37,8 +34,10 @@ coverage = "*"
 pytest-cov = "*"
 py-solc = "*"
 py-evm = "==0.2.0a18"
-eth-tester = "==0.1.0b26"
-py-geth = "*"
+eth-tester = "==0.1.0b28"
 
 [pipenv]
 allow_prereleases = true
+
+[scripts]
+install_solc = "scripts/install_solc.sh"

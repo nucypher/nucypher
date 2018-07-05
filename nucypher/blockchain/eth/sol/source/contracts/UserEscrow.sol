@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "zeppelin/token/ERC20/SafeERC20.sol";
@@ -20,16 +20,10 @@ contract UserEscrow is Ownable {
 
     event Deposited(address indexed sender, uint256 value, uint256 duration);
     event Withdrawn(address indexed owner, uint256 value);
-    event DepositedAsMiner(address indexed owner, uint256 value, uint256 periods);
+    event DepositedAsMiner(address indexed owner, uint256 value, uint16 periods);
     event WithdrawnAsMiner(address indexed owner, uint256 value);
-    event Locked(address indexed owner, uint256 value, uint256 periods);
-    event Divided(
-        address indexed owner,
-        uint256 oldValue,
-        uint256 lastPeriod,
-        uint256 newValue,
-        uint256 periods
-    );
+    event Locked(address indexed owner, uint256 value, uint16 periods);
+    event Divided(address indexed owner, uint256 index, uint256 newValue, uint16 periods);
     event ActivityConfirmed(address indexed owner);
     event Mined(address indexed owner);
     event RewardWithdrawnAsMiner(address indexed owner, uint256 value);
@@ -109,7 +103,7 @@ contract UserEscrow is Ownable {
     * @param _value Amount of token to deposit
     * @param _periods Amount of periods during which tokens will be locked
     **/
-    function minerDeposit(uint256 _value, uint256 _periods) public onlyOwner {
+    function minerDeposit(uint256 _value, uint16 _periods) public onlyOwner {
         require(token.balanceOf(address(this)) > _value);
         token.approve(address(escrow), _value);
         escrow.deposit(_value, _periods);
@@ -130,28 +124,26 @@ contract UserEscrow is Ownable {
     * @param _value Amount of tokens which should lock
     * @param _periods Amount of periods during which tokens will be locked
     **/
-    function lock(uint256 _value, uint256 _periods) public onlyOwner {
+    function lock(uint256 _value, uint16 _periods) public onlyOwner {
         escrow.lock(_value, _periods);
         emit Locked(owner, _value, _periods);
     }
 
     /**
     * @notice Divide stake into two parts
-    * @param _oldValue Old stake value
-    * @param _lastPeriod Last period of stake
+    * @param _index Index of stake
     * @param _newValue New stake value
     * @param _periods Amount of periods for extending stake
     **/
     function divideStake(
-        uint256 _oldValue,
-        uint256 _lastPeriod,
+        uint256 _index,
         uint256 _newValue,
-        uint256 _periods
+        uint16 _periods
     )
         public onlyOwner
     {
-        escrow.divideStake(_oldValue, _lastPeriod, _newValue, _periods);
-        emit Divided(owner, _oldValue, _lastPeriod, _newValue, _periods);
+        escrow.divideStake(_index, _newValue, _periods);
+        emit Divided(owner, _index, _newValue, _periods);
     }
 
     /**
