@@ -87,20 +87,6 @@ contract PolicyManagerForUserEscrowMock {
 
 
 /**
-* @notice Contract for testing the user escrow contract
-**/
-contract GovernmentForUserEscrowMock {
-
-    bool public voteFor;
-
-    function vote(bool _voteFor) public {
-        voteFor = _voteFor;
-    }
-
-}
-
-
-/**
 * @notice Contract for user escrow tests
 **/
 contract UserEscrowLibraryMockV1 {

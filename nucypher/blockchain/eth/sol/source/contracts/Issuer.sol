@@ -4,7 +4,7 @@ pragma solidity ^0.4.24;
 import "contracts/NuCypherToken.sol";
 import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
-import "proxy/Upgradeable.sol";
+import "contracts/proxy/Upgradeable.sol";
 import "./lib/AdditionalMath.sol";
 
 

@@ -306,39 +306,7 @@ def test_policy(testerchain, policy_manager, user_escrow, user_escrow_proxy):
 
 
 @pytest.mark.slow
-def test_government(testerchain, government, user_escrow_proxy):
-    creator = testerchain.interface.w3.eth.accounts[0]
-    user = testerchain.interface.w3.eth.accounts[1]
-    votes = user_escrow_proxy.events.Voted.createFilter(fromBlock='latest')
-
-    # Only user can vote
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = user_escrow_proxy.functions.vote(True).transact({'from': creator})
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = user_escrow_proxy.functions.vote(False).transact({'from': creator})
-        testerchain.wait_for_receipt(tx)
-
-    tx = user_escrow_proxy.functions.vote(True).transact({'from': user})
-    testerchain.wait_for_receipt(tx)
-    assert government.functions.voteFor().call()
-    tx = user_escrow_proxy.functions.vote(False).transact({'from': user})
-    testerchain.wait_for_receipt(tx)
-    assert not government.functions.voteFor().call()
-
-    events = votes.get_all_entries()
-    assert 2 == len(events)
-    event_args = events[0]['args']
-    assert user == event_args['owner']
-    assert event_args['voteFor']
-    event_args = events[1]['args']
-    assert user == event_args['owner']
-    assert not event_args['voteFor']
-
-
-@pytest.mark.slow
-def test_library(testerchain, government, user_escrow_proxy):
-    creator = testerchain.interface.w3.eth.accounts[0]
+def test_library(testerchain, policy_manager, user_escrow_proxy):
     user = testerchain.interface.w3.eth.accounts[1]
     tx = testerchain.interface.w3.eth.sendTransaction(
         {'from': testerchain.interface.w3.eth.coinbase, 'to': user, 'value': 1})
@@ -346,13 +314,13 @@ def test_library(testerchain, government, user_escrow_proxy):
 
     # Create fake instance of the user escrow contract
     fake_user_escrow = testerchain.interface.w3.eth.contract(
-        abi=government.abi,
+        abi=policy_manager.abi,
         address=user_escrow_proxy.address,
         ContractFactoryClass=Contract)
 
     # Can't execute method that not in the proxy
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = fake_user_escrow.functions.vote(False).transact({'from': user})
+        tx = fake_user_escrow.functions.setMinRewardRate(1).transact({'from': user})
         testerchain.wait_for_receipt(tx)
 
     # And can't send ETH to the user escrow

@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 // Note we don't need to use this interface (although it is advised if it's unlikely it will change).
 // We can cast the UpgradableContractProxy as the specific implementations eg ContractV1.sol or ContractV2.sol.

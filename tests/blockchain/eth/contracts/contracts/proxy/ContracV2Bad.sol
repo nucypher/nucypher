@@ -1,8 +1,8 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "./ContractInterface.sol";
-import "proxy/Upgradeable.sol";
+import "contracts/proxy/Upgradeable.sol";
 
 
 contract ContractV2Bad is ContractInterface, Upgradeable {

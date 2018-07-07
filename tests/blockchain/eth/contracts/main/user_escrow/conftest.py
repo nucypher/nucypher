@@ -29,16 +29,10 @@ def policy_manager(testerchain):
 
 
 @pytest.fixture()
-def government(testerchain):
-    contract, _ = testerchain.interface.deploy_contract('GovernmentForUserEscrowMock')
-    return contract
-
-
-@pytest.fixture()
-def proxy(testerchain, token, escrow, policy_manager, government):
+def proxy(testerchain, token, escrow, policy_manager):
     # Creator deploys the user escrow proxy
     contract, _ = testerchain.interface.deploy_contract(
-        'UserEscrowProxy', token.address, escrow.address, policy_manager.address, government.address)
+        'UserEscrowProxy', token.address, escrow.address, policy_manager.address)
     return contract
 
 

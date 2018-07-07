@@ -30,21 +30,9 @@ New versions of contract can expand values, but must contain all old values (fir
 This contract is like library because it's storage is not used.
 If client send request to the contract without using dispatcher then request could be executed without exception
 but using wrong target address (should be dispatcher address) and wrong storage (should be dispatcher storage).
-* Government - contract that organizes voting for upgrade of contracts and carries out this update.
-
-# Interaction order
-* Admin creates contract_v1 and creates dispatcher using contract_v1 address
-* Client instantiates contract_v1 using dispatcher address and sends requests
-* Admin or any client creates contract_v2 and creates voting in the government contract
-* All clients vote for or against upgrade during the voting time
-* After successful voting admin or any client commits upgrade in the government contract
-* Client uses old instance without changing (if the methods are not changed)
 
 # Development
 * Use Upgradeable as base contract for all contracts that will be used with Dispatcher
 * Implement `verifyState(address)` method which checks that new version has correct storage
 * Implement `finishUpgrade(address)` method which should copy initialization data from library storage to the dispatcher storage 
 * Each upgrade should include tests which check storage equivalence
-
-# TODO
-* Fix return size from `delegatecall` in Dispatcher after eth-testrpc will include Byzantium hard fork.

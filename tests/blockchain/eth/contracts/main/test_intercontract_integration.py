@@ -27,13 +27,6 @@ ACTIVE_STATE = 0
 UPGRADE_WAITING_STATE = 1
 FINISHED_STATE = 2
 
-UPGRADE_GOVERNMENT = 0
-UPGRADE_ESCROW = 1
-UPGRADE_POLICY_MANAGER = 2
-ROLLBACK_GOVERNMENT = 3
-ROLLBACK_ESCROW = 4
-ROLLBACK_POLICY_MANAGER = 5
-
 
 @pytest.fixture()
 def token(testerchain):
@@ -81,32 +74,10 @@ def policy_manager(testerchain, escrow):
 
 
 @pytest.fixture()
-def government(testerchain, escrow, policy_manager):
-    creator = testerchain.interface.w3.eth.accounts[0]
-
-    # Creator deploys the government
-    contract, _ = testerchain.interface.deploy_contract('Government', escrow.address, policy_manager.address, 1)
-    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address)
-
-    # Wrap dispatcher contract
-    contract = testerchain.interface.w3.eth.contract(abi=contract.abi, address=dispatcher.address, ContractFactoryClass=Contract)
-
-    # Transfer ownership
-    tx = contract.functions.transferOwnership(contract.address).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.transferOwnership(contract.address).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-    tx = policy_manager.functions.transferOwnership(contract.address).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-
-    return contract
-
-
-@pytest.fixture()
-def user_escrow_proxy(testerchain, token, escrow, policy_manager, government):
+def user_escrow_proxy(testerchain, token, escrow, policy_manager):
     # Creator deploys the user escrow proxy
     contract, _ = testerchain.interface.deploy_contract(
-        'UserEscrowProxy', token.address, escrow.address, policy_manager.address, government.address)
+        'UserEscrowProxy', token.address, escrow.address, policy_manager.address)
     return contract
 
 
@@ -117,7 +88,7 @@ def user_escrow_linker(testerchain, user_escrow_proxy):
 
 
 @pytest.mark.slow
-def test_all(testerchain, token, escrow, policy_manager, government, user_escrow_proxy, user_escrow_linker):
+def test_all(testerchain, token, escrow, policy_manager, user_escrow_proxy, user_escrow_linker):
     creator, ursula1, ursula2, ursula3, ursula4, alice1, alice2, *everyone_else = testerchain.interface.w3.eth.accounts
 
     # Give clients some ether
@@ -426,185 +397,8 @@ def test_all(testerchain, token, escrow, policy_manager, government, user_escrow
     testerchain.wait_for_receipt(tx)
     assert alice2_balance < testerchain.interface.w3.eth.getBalance(alice2)
 
-    # Voting for upgrade
-    escrow_v1 = escrow.functions.target().call()
-    policy_manager_v1 = policy_manager.functions.target().call()
-    government_v1 = government.functions.target().call()
-    # Creator deploys the contracts as the second versions
-    escrow_v2, _ = testerchain.interface.deploy_contract(
-        'MinersEscrow',
-        token.address,
-        1,
-        4 * 2 * 10 ** 7,
-        4,
-        4,
-        2,
-        100,
-        2000)
-    policy_manager_v2, _ = testerchain.interface.deploy_contract('PolicyManager', escrow.address)
-    government_v2, _ = testerchain.interface.deploy_contract('Government', escrow.address, policy_manager.address, 1)
-    assert FINISHED_STATE == government.functions.getVotingState().call()
-
-    # Alice can't create voting
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.functions.createVoting(UPGRADE_GOVERNMENT, government_v2.address).transact({'from': alice1})
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.functions.createVoting(UPGRADE_GOVERNMENT, government_v2.address).transact({'from': alice2})
-        testerchain.wait_for_receipt(tx)
-
-    # Vote and upgrade government contract
-    tx = government.functions.createVoting(UPGRADE_GOVERNMENT, government_v2.address).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    assert ACTIVE_STATE == government.functions.getVotingState().call()
-    # Alice can't vote
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.functions.vote(False).transact({'from': alice1})
-        testerchain.wait_for_receipt(tx)
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.functions.vote(False).transact({'from': alice2})
-        testerchain.wait_for_receipt(tx)
-
-    tx = government.functions.vote(True).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = government.functions.vote(False).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = user_escrow_proxy_1.functions.vote(True).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
-
-    # Can't vote again
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = government.functions.vote(False).transact({'from': ursula1})
-        testerchain.wait_for_receipt(tx)
-
-    testerchain.time_travel(seconds=3600)
-    assert UPGRADE_WAITING_STATE == government.functions.getVotingState().call()
-    tx = government.functions.commitUpgrade().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    assert FINISHED_STATE == government.functions.getVotingState().call()
-    assert government_v2.address == government.functions.target().call()
-
-    # Vote and upgrade escrow contract
-    tx = government.functions.createVoting(UPGRADE_ESCROW, escrow_v2.address).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    assert ACTIVE_STATE == government.functions.getVotingState().call()
-    tx = government.functions.vote(False).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = government.functions.vote(True).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = user_escrow_proxy_1.functions.vote(True).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
-    testerchain.time_travel(seconds=3600)
-    assert UPGRADE_WAITING_STATE == government.functions.getVotingState().call()
-    tx = government.functions.commitUpgrade().transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    assert FINISHED_STATE == government.functions.getVotingState().call()
-    assert escrow_v2.address == escrow.functions.target().call()
-
-    # Vote and upgrade policy manager contract
-    tx = government.functions.createVoting(
-        UPGRADE_POLICY_MANAGER, policy_manager_v2.address).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    assert ACTIVE_STATE == government.functions.getVotingState().call()
-    tx = government.functions.vote(False).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = government.functions.vote(True).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = user_escrow_proxy_1.functions.vote(True).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
-    testerchain.time_travel(seconds=3600)
-    assert UPGRADE_WAITING_STATE == government.functions.getVotingState().call()
-    tx = government.functions.commitUpgrade().transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
-    assert FINISHED_STATE == government.functions.getVotingState().call()
-    assert policy_manager_v2.address == policy_manager.functions.target().call()
-
-    # Voting against rollback
-    tx = government.functions.createVoting(ROLLBACK_GOVERNMENT, NULL_ADDR).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    assert ACTIVE_STATE == government.functions.getVotingState().call()
-    tx = government.functions.vote(True).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = user_escrow_proxy_1.functions.vote(False).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
-    testerchain.time_travel(seconds=3600)
-    assert FINISHED_STATE == government.functions.getVotingState().call()
-    assert government_v2.address == government.functions.target().call()
-
-    tx = government.functions.createVoting(ROLLBACK_ESCROW, NULL_ADDR).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    assert ACTIVE_STATE == government.functions.getVotingState().call()
-    tx = government.functions.vote(True).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    tx = user_escrow_proxy_1.functions.vote(False).transact({'from': ursula3})
-    testerchain.wait_for_receipt(tx)
-    testerchain.time_travel(seconds=3600)
-    assert FINISHED_STATE == government.functions.getVotingState().call()
-    assert escrow_v2.address == escrow.functions.target().call()
-
-    tx = government.functions.createVoting(ROLLBACK_ESCROW, NULL_ADDR).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    assert ACTIVE_STATE == government.functions.getVotingState().call()
-    tx = government.functions.vote(True).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = government.functions.vote(False).transact({'from': ursula2})
-    testerchain.wait_for_receipt(tx)
-    testerchain.time_travel(seconds=3600)
-    assert FINISHED_STATE == government.functions.getVotingState().call()
-    assert policy_manager_v2.address == policy_manager.functions.target().call()
-
-    # Voting for upgrade with errors
-    tx = government.functions.createVoting(UPGRADE_GOVERNMENT, escrow_v2.address).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = government.functions.vote(True).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    testerchain.time_travel(seconds=3600)
-    assert UPGRADE_WAITING_STATE == government.functions.getVotingState().call()
-    tx = government.functions.commitUpgrade().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    assert FINISHED_STATE == government.functions.getVotingState().call()
-    assert government_v2.address == government.functions.target().call()
-
-    # Some activity
-    for index in range(5):
-        tx = escrow.functions.confirmActivity().transact({'from': ursula1})
-        testerchain.wait_for_receipt(tx)
-        tx = escrow.functions.confirmActivity().transact({'from': ursula2})
-        testerchain.wait_for_receipt(tx)
-        tx = user_escrow_proxy_1.functions.confirmActivity().transact({'from': ursula3})
-        testerchain.wait_for_receipt(tx)
-        testerchain.time_travel(hours=1)
-
-    # Vote and rollback all contracts
-    tx = government.functions.createVoting(ROLLBACK_GOVERNMENT, NULL_ADDR).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = government.functions.vote(True).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    testerchain.time_travel(seconds=3600)
-    tx = government.functions.commitUpgrade().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    assert government_v1 == government.functions.target().call()
-
-    tx = government.functions.createVoting(ROLLBACK_ESCROW, NULL_ADDR).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = government.functions.vote(True).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    testerchain.time_travel(seconds=3600)
-    tx = government.functions.commitUpgrade().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    assert escrow_v1 == escrow.functions.target().call()
-
-    tx = government.functions.createVoting(ROLLBACK_POLICY_MANAGER, NULL_ADDR).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    tx = government.functions.vote(True).transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    testerchain.time_travel(seconds=3600)
-    tx = government.functions.commitUpgrade().transact({'from': ursula1})
-    testerchain.wait_for_receipt(tx)
-    assert policy_manager_v1 == policy_manager.functions.target().call()
-
     # Unlock and withdraw all tokens in MinersEscrow
-    for index in range(6):
+    for index in range(11):
         tx = escrow.functions.confirmActivity().transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
         tx = escrow.functions.confirmActivity().transact({'from': ursula2})
