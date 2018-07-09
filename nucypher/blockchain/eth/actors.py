@@ -1,11 +1,8 @@
-import itertools
-import math
 from collections import OrderedDict
 from datetime import datetime
 from typing import Tuple
 
 import maya
-from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
 from nucypher.blockchain.eth.constants import calculate_period_duration, datetime_to_period, validate_stake_amount
@@ -16,6 +13,7 @@ def only_me(func):
         if not actor.is_me:
             raise actor.MinerError("You are not {}".format(actor.__class.__.__name__))
         return func(actor, *args, **kwargs)
+
     return wrapped
 
 
@@ -27,7 +25,7 @@ class NucypherTokenActor:
     class ActorError(Exception):
         pass
 
-    def __init__(self, checksum_address: str=None, token_agent: NucypherTokenAgent=None):
+    def __init__(self, checksum_address: str = None, token_agent: NucypherTokenAgent = None):
         """
         :param checksum_address:  If not passed, we assume this is an unknown actor
 
@@ -78,7 +76,7 @@ class Miner(NucypherTokenActor):
     class MinerError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self, is_me=True, miner_agent: MinerAgent=None, *args, **kwargs):
+    def __init__(self, is_me=True, miner_agent: MinerAgent = None, *args, **kwargs):
         miner_agent = miner_agent if miner_agent is not None else MinerAgent()
         super().__init__(token_agent=miner_agent.token_agent, *args, **kwargs)
 
@@ -136,7 +134,7 @@ class Miner(NucypherTokenActor):
 
     @only_me
     def divide_stake(self, stake_index: int, target_value: int,
-                     additional_periods: int=None, expiration: maya.MayaDT=None) -> dict:
+                     additional_periods: int = None, expiration: maya.MayaDT = None) -> dict:
         """
         Modifies the unlocking schedule and value of already locked tokens.
 
@@ -165,7 +163,7 @@ class Miner(NucypherTokenActor):
 
         # Ensure both halves are for valid amounts
         validate_stake_amount(amount=target_value)
-        validate_stake_amount(amount=locked_value-target_value)
+        validate_stake_amount(amount=locked_value - target_value)
 
         tx = self.miner_agent.divide_stake(miner_address=self.checksum_public_address,
                                            stake_index=stake_index,
@@ -188,7 +186,8 @@ class Miner(NucypherTokenActor):
             return True
 
     @only_me
-    def stake(self, amount: int, lock_periods: int=None, expiration: maya.MayaDT=None, entire_balance: bool=False) -> dict:
+    def stake(self, amount: int, lock_periods: int = None, expiration: maya.MayaDT = None,
+              entire_balance: bool = False) -> dict:
         """
         High level staking method for Miners.
 
@@ -209,7 +208,7 @@ class Miner(NucypherTokenActor):
         if entire_balance is True:
             amount = self.token_balance
 
-        staking_transactions = OrderedDict()                   # Time series of txhases
+        staking_transactions = OrderedDict()  # Time series of txhases
 
         # Validate
         assert self.__validate_stake(amount=amount, lock_periods=lock_periods)
@@ -264,7 +263,7 @@ class Miner(NucypherTokenActor):
 class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
-    def __init__(self, policy_agent: PolicyAgent=None, *args, **kwargs):
+    def __init__(self, checksum_address, policy_agent: PolicyAgent = None):
         """
         :param policy_agent: A policy agent with the blockchain attached; If not passed, A default policy
         agent and blockchain connection will be created from default values.
@@ -273,17 +272,17 @@ class PolicyAuthor(NucypherTokenActor):
 
         if policy_agent is None:
             # From defaults
-            self.token_agent = NucypherTokenAgent()
             self.miner_agent = MinerAgent(token_agent=self.token_agent)
             self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
         else:
             # From agent
             self.policy_agent = policy_agent
             self.miner_agent = policy_agent.miner_agent
-            self.token_agent = policy_agent.miner_agent.token_agent
 
         self.__sampled_ether_addresses = set()  # TODO: uptake into node learning api with high priority
-        super().__init__(token_agent=self.policy_agent.token_agent, *args, **kwargs)
+        super().__init__(token_agent=self.policy_agent.token_agent,
+                         checksum_address=checksum_address,
+                         )
 
     def recruit(self, quantity: int, **options) -> None:
         """
