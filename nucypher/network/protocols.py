@@ -10,6 +10,10 @@ from constant_sorrow import default_constant_splitter, constants
 from nucypher.network.routing import NucypherRoutingTable
 
 
+class SuspiciousActivity(RuntimeError):
+    """raised when an action appears to amount to malicious conduct."""
+
+
 class NucypherHashProtocol(KademliaProtocol):
     def __init__(self, sourceNode, storage, ksize, *args, **kwargs):
         super().__init__(sourceNode, storage, ksize, *args, **kwargs)

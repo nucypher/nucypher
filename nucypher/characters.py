@@ -47,14 +47,13 @@ class Character:
 
     _SECONDS_DELAY_BETWEEN_LEARNING = 2
 
+    from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
+
     class NotEnoughUrsulas(MinerAgent.NotEnoughMiners):
         """
         All Characters depend on knowing about enough Ursulas to perform their role.
         This exception is raised when a piece of logic can't proceed without more Ursulas.
         """
-
-    class SuspiciousActivity(RuntimeError):
-        """raised when an action appears to amount to malicious conduct."""
 
     def __init__(self, is_me=True,
                  network_middleware=None,
