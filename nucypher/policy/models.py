@@ -12,7 +12,7 @@ from constant_sorrow import constants
 from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, EncryptingPower
 from nucypher.crypto.signing import Signature
@@ -25,6 +25,8 @@ class Arrangement:
     """
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
+    federated = True
+
     splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
                                                  (bytes, 27))
 

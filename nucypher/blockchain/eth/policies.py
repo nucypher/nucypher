@@ -20,6 +20,7 @@ class BlockchainArrangement(Arrangement):
     """
     A relationship between Alice and a single Ursula as part of Blockchain Policy
     """
+    federated = False
 
     def __init__(self, author: PolicyAuthor,
                  miner: Miner,
