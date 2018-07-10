@@ -1,6 +1,7 @@
 import contextlib
 import os
 import tempfile
+import logging
 from os.path import abspath, dirname
 
 import datetime
@@ -86,13 +87,12 @@ def enacted_federated_policy(idle_federated_policy, ursulas):
 
 
 @pytest.fixture(scope="module")
-def idle_blockchain_policy(alice, bob):
+def idle_blockchain_policy(blockchain_alice, bob):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique uri (soon to be "label" - see #183)
     """
-    n = int(constants.NUMBER_OF_URSULAS_IN_NETWORK)
     random_label = b'label://' + os.urandom(32)
-    policy = alice.create_policy(bob, label=random_label, m=3, n=n)
+    policy = blockchain_alice.create_policy(bob, label=random_label, m=2, n=3)
     return policy
 
 
@@ -115,16 +115,27 @@ def enacted_blockchain_policy(idle_blockchain_policy, ursulas):
 #
 
 @pytest.fixture(scope="module")
-def alice(ursulas, three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
-    etherbase, alice, bob, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
-
+def alice(ursulas):
     alice = Alice(network_middleware=MockRestMiddleware(),
-                  policy_agent=policy_agent,
                   known_nodes=ursulas,
                   federated_only=True,
                   abort_on_learning_error=True)
     alice.recruit = lambda *args, **kwargs: [u._ether_address for u in ursulas]
+
+    return alice
+
+
+@pytest.fixture(scope="module")
+def blockchain_alice(mining_ursulas, three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
+
+    alice = Alice(network_middleware=MockRestMiddleware(),
+                  policy_agent=policy_agent,
+                  known_nodes=mining_ursulas,
+                  abort_on_learning_error=True,
+                  checksum_address=alice_address)
+    # alice.recruit = lambda *args, **kwargs: [u._ether_address for u in ursulas]
 
     return alice
 

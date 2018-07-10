@@ -442,7 +442,8 @@ class TreasureMap:
             self.m = map_in_the_clear[0]
             self.node_ids = self.node_id_splitter.repeat(map_in_the_clear[1:], as_set=True)
         else:
-            raise self.InvalidPublicSignature("This TreasureMap does not contain the correct signature from Alice to Bob.")
+            raise self.InvalidPublicSignature(
+                "This TreasureMap does not contain the correct signature from Alice to Bob.")
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)

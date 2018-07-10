@@ -3,8 +3,10 @@ import asyncio
 import pytest
 from kademlia.utils import digest
 
+from nucypher.characters import Ursula
 from nucypher.crypto.api import keccak_digest
-from tests.utilities import MockRestMiddleware
+from nucypher.crypto.powers import CryptoPower, SigningPower
+from tests.utilities import MockRestMiddleware, MockArrangement
 
 
 @pytest.mark.usefixtures('testerchain')
