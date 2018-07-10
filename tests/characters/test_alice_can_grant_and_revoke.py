@@ -6,7 +6,7 @@ from apistar.test import TestClient
 
 from nucypher.characters import Ursula
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.powers import SigningPower, EncryptingPower
+from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower
 from tests.utilities import _ALL_URSULAS
 from umbral.fragments import KFrag
 
@@ -43,7 +43,6 @@ def test_grant(alice, bob, three_agents):
     _token_agent, _miner_agent, policy_agent = three_agents
 
     policy_agent.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
-
     policy_agent.contract.functions.createPolicy = MockPolicyCreation
 
     policy = alice.grant(bob, label, m=2, n=n,
@@ -74,10 +73,11 @@ def test_grant(alice, bob, three_agents):
 def test_alice_can_get_ursulas_keys_via_rest(ursulas):
     ursula = ursulas.pop()
     mock_client = TestClient(ursula.rest_app)
-    response = mock_client.get('http://localhost/public_keys')
+    response = mock_client.get('http://localhost/public_information')
     signature, signing_key, encrypting_key, public_address = Ursula.public_information_splitter(response.content)
     public_keys = {SigningPower: signing_key, EncryptingPower: encrypting_key}
     stranger_ursula_from_public_keys = Ursula.from_public_keys(public_keys,
                                                                rest_port=5000,
                                                                rest_host="not real")
     assert stranger_ursula_from_public_keys == ursula
+

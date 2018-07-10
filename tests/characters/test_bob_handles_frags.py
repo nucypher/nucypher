@@ -46,7 +46,8 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, u
 
 
 @pytest_twisted.inlineCallbacks
-def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_federated_policy, bob,
+def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_federated_policy,
+                                                                       bob,
                                                                        ursulas):
     """
     Similar to above, but this time, we'll show that if Bob can connect to a single node, he can
@@ -82,12 +83,13 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     assert len(bob._known_nodes) == 1
 
     # Now, we'll start his learning loop.
-    bob.start_learning()
+    bob.start_learning_loop()
 
     # ...and block until the unknown_nodes have all been found.
     yield threads.deferToThread(bob.block_until_nodes_are_known, unknown_nodes)
 
     # ...and he now has no more unknown_nodes.
+    print(len(bob._known_nodes))
     assert len(bob._known_nodes) == len(treasure_map)
 
 
@@ -104,9 +106,9 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # We pick up our story with Bob already having followed the treasure map above, ie:
     hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
     bob.treasure_maps[hrac] = treasure_map
-    bob.start_learning()
+    bob.start_learning_loop()
 
-    bob.follow_treasure_map(hrac, block=True)
+    bob.follow_treasure_map(hrac, block=True, timeout=1000)
 
     assert len(bob._known_nodes) == len(ursulas)
 

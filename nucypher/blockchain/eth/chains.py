@@ -69,6 +69,10 @@ class Blockchain:
         result = self.__interface.w3.eth.waitForTransactionReceipt(txhash, timeout=timeout)
         return result
 
+    def unlock_account(self, address, password, duration):
+        return self.interface.w3.personal.unlockAccount(
+            address, password, duration)
+
 
 class TesterBlockchain(Blockchain):
     """
@@ -143,3 +147,7 @@ class TesterBlockchain(Blockchain):
 
         self.interface.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
         self.interface.w3.eth.web3.testing.mine(1)
+
+    def unlock_account(self, address, password, duration):
+        # Test accounts are unlocked anyway.
+        return True

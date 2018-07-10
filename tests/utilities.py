@@ -151,11 +151,11 @@ class MockRestMiddleware(RestMiddleware):
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
         return mock_client
 
-    def consider_arrangement(self, ursula, arrangement=None):
-        mock_client = self.__get_mock_client_by_port(ursula.rest_interface.port)
+    def consider_arrangement(self, arrangement=None):
+        mock_client = self.__get_mock_client_by_port(arrangement.ursula.rest_interface.port)
         response = mock_client.post("http://localhost/consider_arrangement", bytes(arrangement))
         assert response.status_code == 200
-        return ursula, response
+        return response
 
     def enact_policy(self, ursula, hrac, payload):
         mock_client = self.__get_mock_client_by_port(ursula.rest_interface.port)
@@ -173,9 +173,9 @@ class MockRestMiddleware(RestMiddleware):
         mock_client = self.__get_mock_client_by_port(node.rest_interface.port)
         return mock_client.get("http://localhost/treasure_map/{}".format(map_id))
 
-    def ursula_from_rest_interface(self, address, port):
+    def node_information(self, host, port):
         mock_client = self.__get_mock_client_by_port(port)
-        response = mock_client.get("http://localhost/public_keys")
+        response = mock_client.get("http://localhost/public_information")
         return response
 
     def get_nodes_via_rest(self, address, port, node_ids):

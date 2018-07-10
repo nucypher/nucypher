@@ -418,7 +418,7 @@ class DeployerCircumflex(ControlCircumflex):
             address = to_canonical_address(account)
             sig_key = provider.ethereum_tester.backend._key_lookup[address]
             signed_message = sig_key.sign_msg(message)
-            return signed_message.to_hex()
+            return signed_message
         else:
             return self.w3.eth.sign(account, data=message) # Technically deprecated...
 

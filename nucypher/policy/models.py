@@ -12,7 +12,7 @@ from constant_sorrow import constants
 from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH, KECCAK_DIGEST_LENGTH
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, EncryptingPower
 from nucypher.crypto.signing import Signature
@@ -25,6 +25,8 @@ class Arrangement:
     """
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
+    federated = True
+
     splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
                                                  (bytes, 27))
 
@@ -238,8 +240,16 @@ class Policy:
                 self.publish(network_middleware)
 
     def consider_arrangement(self, network_middleware, ursula, arrangement):
-        ursula, negotiation_response = network_middleware.consider_arrangement(ursula=ursula,
-                                                                               arrangement=arrangement)
+
+        try:
+            ursula.verify_node(network_middleware, accept_federated_only=arrangement.federated)
+        except ursula.InvalidNode:
+            # TODO: What do we actually do here?  Report this at least (355)?  Maybe also have another bucket for invalid nodes?
+            # It's possible that nothing sordid is happening here; this node may be updating its interface info or rotating a signing key
+            #  and we learned about a previous one.
+            raise
+
+        negotiation_response = network_middleware.consider_arrangement(arrangement=arrangement)
 
         # TODO: check out the response: need to assess the result and see if we're actually good to go.
         negotiation_result = negotiation_response.status_code == 200
@@ -432,7 +442,8 @@ class TreasureMap:
             self.m = map_in_the_clear[0]
             self.node_ids = self.node_id_splitter.repeat(map_in_the_clear[1:], as_set=True)
         else:
-            raise self.InvalidPublicSignature("This TreasureMap does not contain the correct signature from Alice to Bob.")
+            raise self.InvalidPublicSignature(
+                "This TreasureMap does not contain the correct signature from Alice to Bob.")
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)

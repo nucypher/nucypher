@@ -10,6 +10,10 @@ from constant_sorrow import default_constant_splitter, constants
 from nucypher.network.routing import NucypherRoutingTable
 
 
+class SuspiciousActivity(RuntimeError):
+    """raised when an action appears to amount to malicious conduct."""
+
+
 class NucypherHashProtocol(KademliaProtocol):
     def __init__(self, sourceNode, storage, ksize, *args, **kwargs):
         super().__init__(sourceNode, storage, ksize, *args, **kwargs)
@@ -60,7 +64,7 @@ class NucypherHashProtocol(KademliaProtocol):
             stranger_ursula = Ursula.from_bytes(payload,
                                                 federated_only=self.sourceNode.federated_only)  # TODO: Is federated_only the right thing here?
 
-            if stranger_ursula.verify_interface() and key == digest(stranger_ursula.canonical_public_address):
+            if stranger_ursula.interface_is_valid() and key == digest(stranger_ursula.canonical_public_address):
                 self.sourceNode._node_storage[key] = stranger_ursula  # TODO: 340
                 return True
             else:

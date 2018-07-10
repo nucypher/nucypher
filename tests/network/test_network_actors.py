@@ -3,8 +3,10 @@ import asyncio
 import pytest
 from kademlia.utils import digest
 
+from nucypher.characters import Ursula
 from nucypher.crypto.api import keccak_digest
-from tests.utilities import MockRestMiddleware
+from nucypher.crypto.powers import CryptoPower, SigningPower
+from tests.utilities import MockRestMiddleware, MockArrangement
 
 
 @pytest.mark.usefixtures('testerchain')
@@ -155,3 +157,26 @@ def test_treaure_map_is_legit(enacted_federated_policy):
     """
     for ursula_address in enacted_federated_policy.treasure_map:
         assert ursula_address in enacted_federated_policy.bob._known_nodes
+
+
+def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_alice, idle_blockchain_policy, mining_ursulas):
+    target = list(mining_ursulas)[2]
+    # First, let's imagine that Alice has sampled a Vladimir while making this policy.
+    vladimir = Ursula(crypto_power=CryptoPower(power_ups=Ursula._default_crypto_powerups),
+                      rest_host=target.rest_interface.host,
+                      rest_port=target.rest_interface.port,
+                      checksum_address='0xE57bFE9F44b819898F47BF37E5AF72a0783e1141',  # Fradulent address
+                      is_me=False)
+    message = vladimir._signable_interface_info_message()
+    signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
+    vladimir.substantiate_stamp()
+    vladimir._interface_signature_object = signature
+
+    class FakeArrangement:
+        federated = False
+
+    with pytest.raises(vladimir.InvalidNode):
+        idle_blockchain_policy.consider_arrangement(network_middleware=blockchain_alice.network_middleware,
+                                                    arrangement=FakeArrangement(),
+                                                    ursula=vladimir
+                                                    )

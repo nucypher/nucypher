@@ -136,7 +136,7 @@ class ProxyRESTServer:
             Route('/kFrag/{hrac_as_hex}/reencrypt',
                   'POST',
                   self.reencrypt_via_rest),
-            Route('/public_keys', 'GET',
+            Route('/public_information', 'GET',
                   self.public_information),
             Route('/list_nodes', 'GET',
                   self.list_all_active_nodes_about_which_we_know),
@@ -179,7 +179,6 @@ class ProxyRESTServer:
         """
         REST endpoint for public keys and address..
         """
-
         headers = {'Content-Type': 'application/octet-stream'}
         # TODO: Calling public_address() works here because this is mixed in with Character, but it's not really right.
         message = bytes(self.public_key(SigningPower)) + bytes(
