@@ -2,7 +2,7 @@ import json
 import os
 import stat
 
-from .configs import _DEFAULT_CONFIGURATION_DIR, NucypherConfigurationError
+from .configs import NucypherConfiguration
 
 
 def _save_private_keyfile(keypath: str, key_data: dict) -> str:
@@ -87,7 +87,7 @@ def _parse_keyfile(keypath: str):
         try:
             key_metadata = json.loads(keyfile)
         except json.JSONDecodeError:
-            raise NucypherConfigurationError("Invalid data in keyfile {}".format(keypath))
+            raise NucypherConfiguration.NucypherConfigurationError("Invalid data in keyfile {}".format(keypath))
         else:
             return key_metadata
 
@@ -97,7 +97,7 @@ def generate_confg_dir(path: str=None,) -> None:
     Create the configuration directory tree.
     If the directory already exists, FileExistsError is raised.
     """
-    path = path if path else _DEFAULT_CONFIGURATION_DIR
+    path = path if path else NucypherConfiguration._default_configuration_directory
 
     if not os.path.exists(path):
         os.mkdir(path, mode=0o755)
@@ -112,12 +112,12 @@ def validate_passphrase(passphrase) -> bool:
 
     for rule, failure_message in rules:
         if not rule:
-            raise NucypherConfigurationError(failure_message)
+            raise NucypherConfiguration.NucypherConfigurationError(failure_message)
     return True
 
 
 def check_config_tree(configuration_dir: str=None) -> bool:
-    path = configuration_dir if configuration_dir else _DEFAULT_CONFIGURATION_DIR
+    path = configuration_dir if configuration_dir else NucypherConfiguration._default_configuration_directory
     if not os.path.exists(path):
         raise FileNotFoundError('No NuCypher configuration directory found at {}.'.format(configuration_dir))
     return True
@@ -126,7 +126,6 @@ def check_config_tree(configuration_dir: str=None) -> bool:
 def check_config_runtime() -> bool:
     rules = (
         (os.getuid() != 0, 'Cannot run as root user.'),
-
     )
 
     for rule, failure_reason in rules:

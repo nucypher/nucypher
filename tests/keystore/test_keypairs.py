@@ -1,7 +1,8 @@
 import pytest
 import sha3
 from nucypher.keystore import keypairs
-from umbral.keys import UmbralPrivateKey, UmbralPublicKey
+from umbral.keys import UmbralPrivateKey
+from constant_sorrow.constants import PUBLIC_ONLY
 
 
 def test_gen_keypair_if_needed():
@@ -24,8 +25,7 @@ def test_keypair_with_umbral_keys():
 
     new_keypair_from_pub = keypairs.Keypair(umbral_pubkey)
     assert new_keypair_from_pub.pubkey.to_bytes() == umbral_pubkey.to_bytes()
-    with pytest.raises(AttributeError):
-        new_keypair_from_pub._privkey
+    assert new_keypair_from_pub._privkey == PUBLIC_ONLY
 
 
 def test_keypair_serialization():

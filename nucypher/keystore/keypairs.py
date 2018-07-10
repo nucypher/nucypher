@@ -3,11 +3,12 @@ from typing import Union
 
 from nucypher.crypto import api as API
 from nucypher.crypto.api import generate_self_signed_certificate
+from constant_sorrow.constants import PUBLIC_ONLY
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral import pre
 from umbral.config import default_curve
 from nucypher.crypto.kits import MessageKit
-from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 from umbral.signing import Signature, Signer
 
 
@@ -30,6 +31,7 @@ class Keypair(object):
             self._privkey = umbral_key
         except NotImplementedError:
             self.pubkey = umbral_key
+            self._privkey = PUBLIC_ONLY
         except AttributeError:
             # They didn't pass anything we recognize as a valid key.
             if generate_keys_if_needed:
@@ -106,5 +108,9 @@ class SigningKeypair(Keypair):
         return generate_self_signed_certificate(common_name, default_curve(), cryptography_key)
 
     def get_signature_stamp(self):
-        signer = Signer(self._privkey)
-        return SignatureStamp(signing_key=self.pubkey, signer=signer)
+        if self._privkey == PUBLIC_ONLY:
+            return StrangerStamp(verifying_key=self.pubkey)
+        else:
+            signer = Signer(self._privkey)
+            return SignatureStamp(verifying_key=self.pubkey, signer=signer)
+
