@@ -124,7 +124,7 @@ jobs:
           key: v3-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
       - run:
           name: Character Tests
-          command: pipenv run pytest --cov=nucypher/characters -v --runslow tests/characters --junitxml=./reports/pytest/results.xml
+          command: pipenv run pytest --cov=nucypher -v --runslow tests/characters --junitxml=./reports/pytest/results.xml
       - store_test_results:
           path: ./reports/pytest/
 
