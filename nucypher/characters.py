@@ -64,7 +64,7 @@ class Character:
                  federated_only=False,
                  config: CharacterConfiguration = None,
                  checksum_address: bytes = None,
-                 always_be_learning=True,
+                 always_be_learning=False,
                  start_learning_on_same_thread=False,
                  known_nodes: Set = (),
                  abort_on_learning_error: bool = False,
