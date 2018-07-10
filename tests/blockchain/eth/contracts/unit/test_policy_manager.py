@@ -358,7 +358,8 @@ def test_reward(testerchain, escrow, policy_manager):
     assert 0 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     # Create policy
-    tx = policy_manager.functions.createPolicy(policy_id, number_of_periods, 0, [node1, node3]).transact({'from': client, 'value': 2 * value})
+    tx = policy_manager.functions.createPolicy(policy_id, number_of_periods, 0, [node1, node3])\
+        .transact({'from': client, 'value': 2 * value})
     testerchain.wait_for_receipt(tx)
 
     # Nothing to withdraw
@@ -391,6 +392,7 @@ def test_reward(testerchain, escrow, policy_manager):
     assert 1 == len(events)
     event_args = events[0]['args']
     assert node1 == event_args['node']
+    assert node1 == event_args['recipient']
     assert 80 == event_args['value']
 
     # Mint more periods
@@ -404,7 +406,7 @@ def test_reward(testerchain, escrow, policy_manager):
     assert 120 == policy_manager.functions.nodes(node1).call()[REWARD_FIELD]
 
     # Withdraw
-    tx = policy_manager.functions.withdraw().transact({'from': node1, 'gas_price': 0})
+    tx = policy_manager.functions.withdraw(node1).transact({'from': node1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert node_balance + value == testerchain.interface.w3.eth.getBalance(node1)
     assert value == testerchain.interface.w3.eth.getBalance(policy_manager.address)
@@ -413,6 +415,7 @@ def test_reward(testerchain, escrow, policy_manager):
     assert 2 == len(events)
     event_args = events[1]['args']
     assert node1 == event_args['node']
+    assert node1 == event_args['recipient']
     assert 120 == event_args['value']
 
     # Create policy
@@ -433,6 +436,22 @@ def test_reward(testerchain, escrow, policy_manager):
         testerchain.wait_for_receipt(tx)
         period += 1
     assert 210 == policy_manager.functions.nodes(node2).call()[REWARD_FIELD]
+
+    # Withdraw
+    node_balance = testerchain.interface.w3.eth.getBalance(node1)
+    node_2_balance = testerchain.interface.w3.eth.getBalance(node2)
+    tx = policy_manager.functions.withdraw(node1).transact({'from': node2, 'gas_price': 0})
+    testerchain.wait_for_receipt(tx)
+    assert node_balance + 210 == testerchain.interface.w3.eth.getBalance(node1)
+    assert node_2_balance == testerchain.interface.w3.eth.getBalance(node2)
+    assert value + 210 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
+
+    events = withdraw_log.get_all_entries()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    assert node2 == event_args['node']
+    assert node1 == event_args['recipient']
+    assert 210 == event_args['value']
 
 
 @pytest.mark.slow

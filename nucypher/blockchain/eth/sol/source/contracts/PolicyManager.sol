@@ -35,7 +35,11 @@ contract PolicyManager is Upgradeable {
         address indexed node,
         uint256 value
     );
-    event Withdrawn(address indexed node, uint256 value);
+    event Withdrawn(
+        address indexed node,
+        address indexed recipient,
+        uint256 value
+    );
     event RefundForArrangement(
         bytes16 indexed policyId,
         address indexed client,
@@ -198,13 +202,22 @@ contract PolicyManager is Upgradeable {
     /**
     * @notice Withdraw reward by node
     **/
-    function withdraw() public {
+    function withdraw() public returns (uint256) {
+        return withdraw(msg.sender);
+    }
+
+    /**
+    * @notice Withdraw reward by node
+    * @param _recipient Recipient of the reward
+    **/
+    function withdraw(address _recipient) public returns (uint256) {
         NodeInfo storage node = nodes[msg.sender];
         uint256 reward = node.reward;
         require(reward != 0);
         node.reward = 0;
-        msg.sender.transfer(reward);
-        emit Withdrawn(msg.sender, reward);
+        _recipient.transfer(reward);
+        emit Withdrawn(msg.sender, _recipient, reward);
+        return reward;
     }
 
     /**
