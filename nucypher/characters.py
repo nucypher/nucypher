@@ -361,22 +361,21 @@ class Character:
             if node.checksum_public_address in self._known_nodes:
                 continue  # TODO: 168 Check version and update if required.
 
-            if node.verify_interface():
-                self.log.info("Prevously unknown node: {}".format(node.checksum_public_address))
-
+            try:
                 if eager:
-                    ursula = Ursula.from_rest_url(network_middleware=self.network_middleware,
-                                                  host=node.rest_interface.host,
-                                                  port=node.rest_interface.port)
-                    self.remember_node(ursula)
+                    node.verify(self.network_middleware, accept_federated_only=self.federated_only)
                 else:
-                    self.remember_node(node)
-
-            else:
+                    node.validate_metadata(accept_federated_only=self.federated_only)
+            except node.SuspiciousActivity:
+                # TODO: Account for possibility that stamp, rather than interface, was bad.
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                           "Propagated by: {}:{}".format(current_teacher.checksum_public_address,
                                                         rest_address, port)
                 self.log.warning(message)
+                
+            self.log.info("Prevously unknown node: {}".format(node.checksum_public_address))
+
+            self.remember_node(node)
 
     def _push_certain_newly_discovered_nodes_here(self, queue_to_push, node_addresses):
         """
@@ -576,15 +575,15 @@ class Character:
 class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
-    def __init__(self, is_me=True, federated_only=False, *args, **kwargs):
+    def __init__(self, is_me=True, federated_only=False, network_middleware=None, *args, **kwargs):
 
         policy_agent = kwargs.pop("policy_agent", None)
         checksum_address = kwargs.pop("checksum_address", None)
         Character.__init__(self, is_me=is_me, federated_only=federated_only,
-                           checksum_address=checksum_address, *args, **kwargs)
+                           checksum_address=checksum_address, network_middleware=network_middleware, *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: 289
-            PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address, *args, **kwargs)
+            PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address)
 
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
@@ -1066,7 +1065,7 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             message += self.dht_interface
             interface_info += VariableLengthBytestring(self.dht_interface)
 
-        identity_evidence = VariableLengthBytestring(self.evidence_of_decentralized_identity)
+        identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
 
         as_bytes = bytes().join((bytes(self._interface_signature),
                                  bytes(identity_evidence),
