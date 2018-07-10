@@ -1,14 +1,13 @@
 import inspect
-import web3
-from binascii import unhexlify
-from eth_keys.datatypes import PublicKey, Signature
 from typing import List, Union
+
+from eth_keys.datatypes import PublicKey, Signature as EthSignature
 
 from eth_utils import keccak
 from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair
-from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 from umbral import pre
+from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
 
 class PowerUpError(TypeError):
@@ -102,14 +101,15 @@ class BlockchainPower(CryptoPowerUp):
             raise PowerUpError("Account is not unlocked.")
 
         signature = self.blockchain.interface.call_backend_sign(self.account, message)
-        return signature
+        return signature.to_bytes()
 
-    def verify_message(self, address: str, pubkey: bytes, message: bytes, signature: Signature):
+    def verify_message(self, address: str, pubkey: bytes, message: bytes, signature_bytes: bytes):
         """
         Verifies that the message was signed by the keypair.
         """
         # Check that address and pubkey match
         eth_pubkey = PublicKey(pubkey)
+        signature = EthSignature(signature_bytes=signature_bytes)
         if not eth_pubkey.to_checksum_address() == address:
             raise ValueError("Pubkey address ({}) doesn't match the provided address ({})".format(eth_pubkey.to_checksum_address, address))
 

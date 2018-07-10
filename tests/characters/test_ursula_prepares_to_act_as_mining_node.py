@@ -2,6 +2,7 @@ import pytest
 
 from nucypher.characters import Ursula
 from nucypher.crypto.powers import SigningPower, CryptoPower
+from eth_keys.datatypes import Signature as EthSignature
 
 
 @pytest.mark.usesfixtures('testerchain')
@@ -19,7 +20,8 @@ def test_federated_ursula_substantiates_stamp():
 
 def test_blockchain_ursula_substantiates_stamp(mining_ursulas):
     first_ursula = list(mining_ursulas)[0]
-    signature = first_ursula._evidence_of_decentralized_identity
+    signature_as_bytes = first_ursula._evidence_of_decentralized_identity
+    signature = EthSignature(signature_bytes=signature_as_bytes)
     proper_public_key_for_first_ursula = signature.recover_public_key_from_msg(bytes(first_ursula.stamp))
     proper_address_for_first_ursula = proper_public_key_for_first_ursula.to_checksum_address()
     assert proper_address_for_first_ursula == first_ursula.checksum_public_address

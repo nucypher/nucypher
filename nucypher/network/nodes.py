@@ -1,6 +1,7 @@
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower
 from constant_sorrow import constants
 from nucypher.network.protocols import SuspiciousActivity
+from eth_keys.datatypes import Signature as EthSignature
 
 
 class VerifiableNode:
@@ -24,9 +25,11 @@ class VerifiableNode:
         """
 
     def _stamp_has_valid_wallet_signature(self):
-        signature = self._evidence_of_decentralized_identity
-        if signature is constants.NOT_SIGNED:
+        signature_bytes = self._evidence_of_decentralized_identity
+        if signature_bytes is constants.NOT_SIGNED:
             return False
+        else:
+            signature = EthSignature(signature_bytes)
         proper_pubkey = signature.recover_public_key_from_msg(bytes(self.stamp))
         proper_address = proper_pubkey.to_checksum_address()
         return proper_address == self.checksum_public_address
