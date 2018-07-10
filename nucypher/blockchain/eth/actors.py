@@ -279,7 +279,6 @@ class PolicyAuthor(NucypherTokenActor):
             self.policy_agent = policy_agent
             self.miner_agent = policy_agent.miner_agent
 
-        self.__sampled_ether_addresses = set()  # TODO: uptake into node learning api with high priority
         super().__init__(token_agent=self.policy_agent.token_agent,
                          checksum_address=checksum_address,
                          )
@@ -295,7 +294,7 @@ class PolicyAuthor(NucypherTokenActor):
         """
 
         miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity, **options)
-        self.__sampled_ether_addresses.update(miner_addresses)
+        return miner_addresses
 
     def create_policy(self, *args, **kwargs):
         """
