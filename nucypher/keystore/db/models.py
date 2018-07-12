@@ -35,7 +35,7 @@ class Key(Base):
 class PolicyArrangement(Base):
     __tablename__ = 'policyarrangements'
 
-    hrac = Column(LargeBinary, unique=True, primary_key=True)
+    id = Column(LargeBinary, unique=True, primary_key=True)
     expiration = Column(DateTime)
     k_frag = Column(LargeBinary, unique=True, nullable=True)
     alice_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
@@ -46,12 +46,12 @@ class PolicyArrangement(Base):
     alice_signature = Column(LargeBinary, unique=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    def __init__(self, expiration, hrac,
+    def __init__(self, expiration, id,
                  k_frag=None, alice_pubkey_sig=None,
                  # alice_pubkey_enc_id, bob_pubkey_sig_id,
                  alice_signature=None):
         self.expiration = expiration
-        self.hrac = hrac
+        self.id = id
         self.k_frag = k_frag
         self.alice_pubkey_sig = alice_pubkey_sig
         # self.alice_pubkey_enc_id = alice_pubkey_enc_id

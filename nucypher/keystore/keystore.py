@@ -82,7 +82,7 @@ class KeyStore(object):
         session.query(Key).filter_by(fingerprint=fingerprint).delete()
         session.commit()
 
-    def add_policy_arrangement(self, expiration, hrac, kfrag=None,
+    def add_policy_arrangement(self, expiration, id, kfrag=None,
                                alice_pubkey_sig=None,
                                alice_signature=None,
                                session=None) -> PolicyArrangement:
@@ -96,11 +96,9 @@ class KeyStore(object):
         alice_key_instance = session.query(Key).filter_by(key_data=bytes(alice_pubkey_sig)).first()
         if not alice_key_instance:
             alice_key_instance = Key.from_umbral_key(alice_pubkey_sig, is_signing=True)
-        # alice_pubkey_enc = self.add_key(alice_pubkey_enc)
-        # bob_pubkey_sig = self.add_key(bob_pubkey_sig)
 
         new_policy_arrangement = PolicyArrangement(
-            expiration, hrac, kfrag, alice_pubkey_sig=alice_key_instance,
+            expiration, id, kfrag, alice_pubkey_sig=alice_key_instance,
             alice_signature=None, # bob_pubkey_sig.id
         )
 
@@ -109,7 +107,7 @@ class KeyStore(object):
 
         return new_policy_arrangement
 
-    def get_policy_arrangement(self, hrac: bytes, session=None) -> PolicyArrangement:
+    def get_policy_arrangement(self, arrangement_id: bytes, session=None) -> PolicyArrangement:
         """
         Returns the PolicyArrangement by its HRAC.
 
@@ -117,28 +115,28 @@ class KeyStore(object):
         """
         session = session or self._session_on_init_thread
 
-        policy_arrangement = session.query(PolicyArrangement).filter_by(hrac=hrac).first()
+        policy_arrangement = session.query(PolicyArrangement).filter_by(arrangement_id=arrangement_id).first()
 
         if not policy_arrangement:
-            raise NotFound("No PolicyArrangement with {} HRAC found.".format(hrac))
+            raise NotFound("No PolicyArrangement with {} HRAC found.".format(arrangement_id))
         return policy_arrangement
 
-    def del_policy_arrangement(self, hrac: bytes, session=None):
+    def del_policy_arrangement(self, arrangement_id: bytes, session=None):
         """
         Deletes a PolicyArrangement from the Keystore.
         """
         session = session or self._session_on_init_thread
 
-        session.query(PolicyArrangement).filter_by(hrac=hrac).delete()
+        session.query(PolicyArrangement).filter_by(arrangement_id=arrangement_id).delete()
         session.commit()
 
-    def attach_kfrag_to_saved_arrangement(self, alice, hrac_as_hex, kfrag, session=None):
+    def attach_kfrag_to_saved_arrangement(self, alice, id_as_hex, kfrag, session=None):
         session = session or self._session_on_init_thread
         
-        policy_arrangement = session.query(PolicyArrangement).filter_by(hrac=hrac_as_hex.encode()).first()
+        policy_arrangement = session.query(PolicyArrangement).filter_by(id=id_as_hex.encode()).first()
 
         if policy_arrangement is None:
-            raise NotFound("Can't attach a kfrag to non-existent Arrangement with hrac {}".format(hrac_as_hex))
+            raise NotFound("Can't attach a kfrag to non-existent Arrangement {}".format(id_as_hex))
 
         if policy_arrangement.alice_pubkey_sig.key_data != alice.stamp:
             raise alice.SuspiciousActivity
@@ -146,38 +144,38 @@ class KeyStore(object):
         policy_arrangement.k_frag = bytes(kfrag)
         session.commit()
 
-    def add_workorder(self, bob_pubkey_sig, bob_signature, hrac, session=None) -> Workorder:
+    def add_workorder(self, bob_pubkey_sig, bob_signature, arrangement_id, session=None) -> Workorder:
         """
         Adds a Workorder to the keystore.
         """
         session = session or self._session_on_init_thread
         bob_pubkey_sig = self.add_key(bob_pubkey_sig)
-        new_workorder = Workorder(bob_pubkey_sig.id, bob_signature, hrac)
+        new_workorder = Workorder(bob_pubkey_sig.id, bob_signature, arrangement_id)
 
         session.add(new_workorder)
         session.commit()
 
         return new_workorder
 
-    def get_workorders(self, hrac: bytes, session=None) -> Workorder:
+    def get_workorders(self, arrangement_id: bytes, session=None) -> Workorder:
         """
         Returns a list of Workorders by HRAC.
         """
         session = session or self._session_on_init_thread
 
-        workorders = session.query(Workorder).filter_by(hrac=hrac)
+        workorders = session.query(Workorder).filter_by(arrangement_id=arrangement_id)
 
         if not workorders:
-            raise NotFound("No Workorders with {} HRAC found.".format(hrac))
+            raise NotFound("No Workorders with {} HRAC found.".format(arrangement_id))
         return workorders
 
-    def del_workorders(self, hrac: bytes, session=None):
+    def del_workorders(self, arrangement_id: bytes, session=None):
         """
         Deletes a Workorder from the Keystore.
         """
         session = session or self._session_on_init_thread
 
-        workorders = session.query(Workorder).filter_by(hrac=hrac)
+        workorders = session.query(Workorder).filter_by(arrangement_id=arrangement_id)
         deleted = workorders.delete()
         session.commit()
 
