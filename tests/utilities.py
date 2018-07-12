@@ -128,7 +128,6 @@ class MockPolicy(Policy):
 
         for ursula in self.alice._known_nodes:
             arrangement = MockArrangement(alice=self.alice, ursula=ursula,
-                                          hrac=self.hrac(),
                                           expiration=expiration)
 
             self.consider_arrangement(network_middleware=network_middleware, arrangement=arrangement)
@@ -157,17 +156,17 @@ class MockRestMiddleware(RestMiddleware):
         assert response.status_code == 200
         return response
 
-    def enact_policy(self, ursula, hrac, payload):
+    def enact_policy(self, ursula, id, payload):
         mock_client = self.__get_mock_client_by_port(ursula.rest_interface.port)
-        response = mock_client.post('http://localhost/kFrag/{}'.format(hrac.hex()), payload)
+        response = mock_client.post('http://localhost/kFrag/{}'.format(id.hex()), payload)
         assert response.status_code == 200
         return True, ursula.stamp.as_umbral_pubkey()
 
     def send_work_order_payload_to_ursula(self, work_order):
         mock_client = self.__get_mock_client_by_port(work_order.ursula.rest_interface.port)
         payload = work_order.payload()
-        hrac_as_hex = work_order.kfrag_hrac.hex()
-        return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(hrac_as_hex), payload)
+        id_as_hex = work_order.kfrag_id.hex()
+        return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(id_as_hex), payload)
 
     def get_treasure_map_from_node(self, node, map_id):
         mock_client = self.__get_mock_client_by_port(node.rest_interface.port)

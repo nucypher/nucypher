@@ -11,7 +11,7 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
 from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula
-from nucypher.crypto.api import keccak_digest, encrypt_and_sign
+from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, EncryptingPower
@@ -26,11 +26,12 @@ class Arrangement:
     A Policy must be implemented by arrangements with n Ursulas.  This class tracks the status of that implementation.
     """
     federated = True
+    ID_LENGTH = 32
 
-    splitter = key_splitter + BytestringSplitter((bytes, KECCAK_DIGEST_LENGTH),
+    splitter = key_splitter + BytestringSplitter((bytes, ID_LENGTH),
                                                  (bytes, 27))
 
-    def __init__(self, alice, hrac, expiration, ursula=None,
+    def __init__(self, alice, expiration, ursula=None, id=None,
                  kfrag=constants.UNKNOWN_KFRAG, value=None, alices_signature=None):
         """
         :param deposit: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
@@ -39,8 +40,8 @@ class Arrangement:
 
         Other params are hopefully self-evident.
         """
+        self.id = id or secure_random(self.ID_LENGTH)
         self.expiration = expiration
-        self.hrac = hrac
         self.alice = alice
         self.uuid = uuid.uuid4()
         self.value = None
@@ -52,31 +53,16 @@ class Arrangement:
         self.kfrag = kfrag
         self.ursula = ursula
 
-        arrangement_delta = maya.now() - self.expiration
-        policy_duration = arrangement_delta.days
-        #
-        # super().__init__(author=self.alice, miner=ursula,
-        #                  value=self.deposit, lock_periods=lock_periods,
-        #                  arrangement_id=self.id())
-
     def __bytes__(self):
-        return bytes(self.alice.stamp) + bytes(
-            self.hrac()) + self.expiration.iso8601().encode()
-
-    def id(self):
-        if not self.ursula:
-            raise TypeError("Can't make an ID for this arrangement yet as we don't know the Ursula.")
-        id_nugget = keccak_digest(self.ursula + self.uuid)
-        full_id = keccak_digest(self.alice.stamp + id_nugget)
-        return id_nugget, full_id
+        return bytes(self.alice.stamp) + self.id + self.expiration.iso8601().encode()
 
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
         # Still unclear how to arrive at the correct number of bytes to represent a deposit.  See #148.
-        alice_pubkey_sig, hrac, expiration_bytes = cls.splitter(arrangement_as_bytes)
+        alice_pubkey_sig, id, expiration_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.parse(expiration_bytes.decode())
         alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
-        return cls(alice=alice, hrac=hrac, expiration=expiration)
+        return cls(alice=alice, id=id, expiration=expiration)
 
     def encrypt_payload_for_ursula(self):
         """Craft an offer to send to Ursula."""
@@ -226,14 +212,14 @@ class Policy:
             policy_message_kit = arrangement.encrypt_payload_for_ursula()
 
             response = network_middleware.enact_policy(arrangement.ursula,
-                                                       self.hrac(),
+                                                       arrangement.id,
                                                        policy_message_kit.to_bytes())
 
             if not response:
                 pass  # TODO: Parse response for confirmation.
 
             # Assuming response is what we hope for.
-            self.treasure_map.add_ursula(arrangement.ursula)
+            self.treasure_map.add_arrangement(arrangement)
 
         else:  # ...After *all* the policies are enacted
             if publish is True:
@@ -277,7 +263,7 @@ class Policy:
                                                   ursula=selected_ursula,
                                                   value=deposit,
                                                   expiration=expiration,
-                                                  hrac=self.hrac)
+                                                  )
 
             self.consider_arrangement(ursula=selected_ursula,
                                       arrangement=arrangement,
@@ -322,9 +308,9 @@ class TreasureMap:
                                   (bytes, KECCAK_DIGEST_LENGTH),  # hrac
                                   (UmbralMessageKit, VariableLengthBytestring)
                                   )
-    node_id_splitter = BytestringSplitter(PUBLIC_ADDRESS_LENGTH)
+    node_id_splitter = BytestringSplitter(Arrangement.ID_LENGTH, PUBLIC_ADDRESS_LENGTH)
 
-    class InvalidPublicSignature(Exception):
+    class InvalidSignature(Exception):
         """Raised when the public signature (typically intended for Ursula) is not valid."""
 
     def __init__(self,
@@ -394,10 +380,10 @@ class TreasureMap:
         else:
             return bytes().join(bytes(ursula_id) for ursula_id in self.node_ids)
 
-    def add_ursula(self, ursula):
+    def add_arrangement(self, arrangement):
         if self.node_ids == constants.NO_DECRYPTION_PERFORMED:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
-        self.node_ids.add(ursula.canonical_public_address)
+        self.node_ids.add(arrangement.id + arrangement.ursula.canonical_public_address)
 
     def public_id(self):
         """
@@ -430,7 +416,7 @@ class TreasureMap:
         if verified:
             return True
         else:
-            raise self.InvalidPublicSignature("This TreasureMap is not properly publicly signed by Alice.")
+            raise self.InvalidSignature("This TreasureMap is not properly publicly signed by Alice.")
 
     def orient(self, compass):
         """
@@ -440,9 +426,9 @@ class TreasureMap:
         verified, map_in_the_clear = compass(message_kit=self.message_kit)
         if verified:
             self.m = map_in_the_clear[0]
-            self.node_ids = self.node_id_splitter.repeat(map_in_the_clear[1:], as_set=True)
+            self.node_ids = dict(self.node_id_splitter.repeat(map_in_the_clear[1:], as_set=True))
         else:
-            raise self.InvalidPublicSignature(
+            raise self.InvalidSignature(
                 "This TreasureMap does not contain the correct signature from Alice to Bob.")
 
     def __eq__(self, other):
@@ -456,10 +442,10 @@ class TreasureMap:
 
 
 class WorkOrder(object):
-    def __init__(self, bob, kfrag_hrac, capsules, receipt_bytes,
+    def __init__(self, bob, arrangement_id, capsules, receipt_bytes,
                  receipt_signature, ursula=None):
         self.bob = bob
-        self.kfrag_hrac = kfrag_hrac
+        self.arrangement_id = arrangement_id
         self.capsules = capsules
         self.receipt_bytes = receipt_bytes
         self.receipt_signature = receipt_signature
@@ -467,7 +453,7 @@ class WorkOrder(object):
 
     def __repr__(self):
         return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for Ursula: {node}".format(
-            hrac=self.kfrag_hrac.hex()[:6],
+            hrac=self.arrangement_id.hex()[:6],
             capsule_bytes=[binascii.hexlify(bytes(cap))[:6] for cap in self.capsules],
             node=binascii.hexlify(bytes(self.ursula.stamp))[:6])
 
@@ -479,14 +465,14 @@ class WorkOrder(object):
         return len(self.capsules)
 
     @classmethod
-    def construct_by_bob(cls, kfrag_hrac, capsules, ursula, bob):
+    def construct_by_bob(cls, arrangement_id, capsules, ursula, bob):
         receipt_bytes = b"wo:" + ursula.canonical_public_address  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
         receipt_signature = bob.stamp(receipt_bytes)
-        return cls(bob, kfrag_hrac, capsules, receipt_bytes, receipt_signature,
+        return cls(bob, arrangement_id, capsules, receipt_bytes, receipt_signature,
                    ursula)
 
     @classmethod
-    def from_rest_payload(cls, kfrag_hrac, rest_payload):
+    def from_rest_payload(cls, arrangement_id, rest_payload):
         payload_splitter = BytestringSplitter(Signature) + key_splitter
         signature, bob_pubkey_sig, (receipt_bytes, packed_capsules) = payload_splitter(rest_payload,
                                                                                        msgpack_remainder=True)
@@ -495,7 +481,7 @@ class WorkOrder(object):
         if not verified:
             raise ValueError("This doesn't appear to be from Bob.")
         bob = Bob.from_public_keys({SigningPower: bob_pubkey_sig})
-        return cls(bob, kfrag_hrac, capsules, receipt_bytes, signature)
+        return cls(bob, arrangement_id, capsules, receipt_bytes, signature)
 
     def payload(self):
         capsules_as_bytes = [bytes(p) for p in self.capsules]
