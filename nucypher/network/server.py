@@ -130,10 +130,10 @@ class ProxyRESTServer:
     def attach_rest_server(self):
 
         routes = [
-            Route('/kFrag/{hrac_as_hex}',
+            Route('/kFrag/{id_as_hex}',
                   'POST',
                   self.set_policy),
-            Route('/kFrag/{hrac_as_hex}/reencrypt',
+            Route('/kFrag/{id_as_hex}/reencrypt',
                   'POST',
                   self.reencrypt_via_rest),
             Route('/public_information', 'GET',
@@ -206,7 +206,7 @@ class ProxyRESTServer:
         with ThreadedSession(self.db_engine) as session:
             new_policyarrangement = self.datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
-                hrac=arrangement.hrac.hex().encode(),
+                id=arrangement.id.hex().encode(),
                 alice_pubkey_sig=arrangement.alice.stamp,
                 session=session,
             )
@@ -217,7 +217,7 @@ class ProxyRESTServer:
         # TODO: Make this a legit response #234.
         return Response(b"This will eventually be an actual acceptance of the arrangement.", headers=headers)
 
-    def set_policy(self, hrac_as_hex, request: http.Request):
+    def set_policy(self, id_as_hex, request: http.Request):
         """
         REST endpoint for setting a kFrag.
         TODO: Instead of taking a Request, use the apistar typing system to type
@@ -225,7 +225,6 @@ class ProxyRESTServer:
         TODO: Validate that the kfrag being saved is pursuant to an approved
             Policy (see #121).
         """
-        hrac = binascii.unhexlify(hrac_as_hex)
         policy_message_kit = UmbralMessageKit.from_bytes(request.body)
 
         alice = self._alice_class.from_public_keys({SigningPower: policy_message_kit.sender_pubkey_sig})
@@ -246,18 +245,18 @@ class ProxyRESTServer:
         with ThreadedSession(self.db_engine) as session:
             self.datastore.attach_kfrag_to_saved_arrangement(
                 alice,
-                hrac_as_hex,
+                id_as_hex,
                 kfrag,
                 session=session)
 
         return  # TODO: Return A 200, with whatever policy metadata.
 
-    def reencrypt_via_rest(self, hrac_as_hex, request: http.Request):
+    def reencrypt_via_rest(self, id_as_hex, request: http.Request):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
-        hrac = binascii.unhexlify(hrac_as_hex)
-        work_order = WorkOrder.from_rest_payload(hrac, request.body)
+        id = binascii.unhexlify(id_as_hex)
+        work_order = WorkOrder.from_rest_payload(id, request.body)
         with ThreadedSession(self.db_engine) as session:
-            kfrag_bytes = self.datastore.get_policy_arrangement(hrac.hex().encode(),
+            kfrag_bytes = self.datastore.get_policy_arrangement(id.hex().encode(),
                                                                 session=session).k_frag  # Careful!  :-)
         # TODO: Push this to a lower level.
         kfrag = KFrag.from_bytes(kfrag_bytes)
@@ -295,7 +294,7 @@ class ProxyRESTServer:
             treasure_map = TreasureMap.from_bytes(
                 bytes_representation=request.body,
                 verify=True)
-        except TreasureMap.InvalidPublicSignature:
+        except TreasureMap.InvalidSignature:
             do_store = False
         else:
             do_store = treasure_map.public_id() == treasure_map_id
