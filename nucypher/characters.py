@@ -307,13 +307,16 @@ class Character:
         self._node_ids_to_learn_about_immediately.update(canonical_addresses)  # hmmmm
         self.learn_about_nodes_now()
 
-    def block_until_nodes_are_known(self, canonical_addresses: Set, timeout=10, allow_missing=0):
+    def block_until_nodes_are_known(self, canonical_addresses: Set, timeout=10, allow_missing=0,
+                                    learn_on_this_thread=False):
         start = maya.now()
         starting_round = self._learning_round
 
         while True:
             if not self._learning_task.running:
                 self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
+            if learn_on_this_thread:
+                self.learn_from_teacher_node(eager=True)
             rounds_undertaken = self._learning_round - starting_round
             if (maya.now() - start).seconds < timeout:
                 if canonical_addresses.issubset(self._known_nodes):
@@ -363,7 +366,7 @@ class Character:
 
             try:
                 if eager:
-                    node.verify(self.network_middleware, accept_federated_only=self.federated_only)
+                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)
                 else:
                     node.validate_metadata(accept_federated_only=self.federated_only)
             except node.SuspiciousActivity:
