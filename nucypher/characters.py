@@ -725,7 +725,10 @@ class Bob(Character):
                                              timeout=timeout,
                                              allow_missing=allow_missing)
             else:
-                self.block_until_nodes_are_known(unknown_ursulas, timeout=timeout, allow_missing=allow_missing)
+                self.block_until_nodes_are_known(unknown_ursulas,
+                                                 timeout=timeout,
+                                                 allow_missing=allow_missing,
+                                                 learn_on_this_thread=True)
 
         return unknown_ursulas, known_ursulas
 
