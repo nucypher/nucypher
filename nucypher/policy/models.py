@@ -308,14 +308,14 @@ class TreasureMap:
                                   (bytes, KECCAK_DIGEST_LENGTH),  # hrac
                                   (UmbralMessageKit, VariableLengthBytestring)
                                   )
-    node_id_splitter = BytestringSplitter(Arrangement.ID_LENGTH, PUBLIC_ADDRESS_LENGTH)
+    node_id_splitter = BytestringSplitter(int(PUBLIC_ADDRESS_LENGTH), Arrangement.ID_LENGTH)
 
     class InvalidSignature(Exception):
         """Raised when the public signature (typically intended for Ursula) is not valid."""
 
     def __init__(self,
                  m=None,
-                 node_ids=None,
+                 destinations=None,
                  message_kit=None,
                  public_signature=None,
                  hrac=None):
@@ -325,10 +325,10 @@ class TreasureMap:
                 raise ValueError(
                     "Largest allowed value for m is 255.  Why the heck are you trying to make it larger than that anyway?  That's too big.")
             self.m = m
-            self.node_ids = node_ids or set()
+            self.destinations = destinations or {}
         else:
             self.m = constants.NO_DECRYPTION_PERFORMED
-            self.node_ids = constants.NO_DECRYPTION_PERFORMED
+            self.destinations = constants.NO_DECRYPTION_PERFORMED
 
         self.message_kit = message_kit
         self._signature_for_bob = None
@@ -375,15 +375,15 @@ class TreasureMap:
         return self.message_kit.sender_pubkey_sig
 
     def nodes_as_bytes(self):
-        if self.node_ids == constants.NO_DECRYPTION_PERFORMED:
+        if self.destinations == constants.NO_DECRYPTION_PERFORMED:
             return constants.NO_DECRYPTION_PERFORMED
         else:
-            return bytes().join(bytes(ursula_id) for ursula_id in self.node_ids)
+            return bytes().join(ursula_id + arrangement_id for ursula_id, arrangement_id in self.destinations.items())
 
     def add_arrangement(self, arrangement):
-        if self.node_ids == constants.NO_DECRYPTION_PERFORMED:
+        if self.destinations == constants.NO_DECRYPTION_PERFORMED:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
-        self.node_ids.add(arrangement.id + arrangement.ursula.canonical_public_address)
+        self.destinations[arrangement.ursula.canonical_public_address] = arrangement.id
 
     def public_id(self):
         """
@@ -426,7 +426,7 @@ class TreasureMap:
         verified, map_in_the_clear = compass(message_kit=self.message_kit)
         if verified:
             self.m = map_in_the_clear[0]
-            self.node_ids = dict(self.node_id_splitter.repeat(map_in_the_clear[1:], as_set=True))
+            self.destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
         else:
             raise self.InvalidSignature(
                 "This TreasureMap does not contain the correct signature from Alice to Bob.")
@@ -435,10 +435,10 @@ class TreasureMap:
         return bytes(self) == bytes(other)
 
     def __iter__(self):
-        return iter(self.node_ids)
+        return iter(self.destinations.items())
 
     def __len__(self):
-        return len(self.node_ids)
+        return len(self.destinations)
 
 
 class WorkOrder(object):

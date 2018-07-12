@@ -686,8 +686,11 @@ class Bob(Character):
         """
         treasure_map = self.treasure_maps[map_id]
 
-        known_treasure_ursulas = treasure_map.node_ids.intersection(self._known_nodes)
-        unknown_treasure_ursulas = treasure_map.node_ids.difference(self._known_nodes)
+        # The intersection of the map and our known nodes will be the known Ursulas...
+        known_treasure_ursulas = treasure_map.destinations.keys() & self._known_nodes.keys()
+
+        # while the difference will be the unknown Ursulas.
+        unknown_treasure_ursulas = treasure_map.destinations.keys() - self._known_nodes.keys()
 
         return unknown_treasure_ursulas, known_treasure_ursulas
 
@@ -797,7 +800,7 @@ class Bob(Character):
                 "Bob doesn't have a TreasureMap to match any of these capsules: {}".format(
                     capsules))
 
-        for node_id in treasure_map_to_use:
+        for node_id, arrangement_id in treasure_map_to_use:
             ursula = self._known_nodes[node_id]
 
             capsules_to_include = []
