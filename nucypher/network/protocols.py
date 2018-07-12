@@ -78,7 +78,7 @@ class NucypherHashProtocol(KademliaProtocol):
                 self.log.info("Storing TreasureMap: {} / {}".format(key, value))
                 self.sourceNode._treasure_maps[treasure_map.public_id()] = value
                 return True
-            except TreasureMap.InvalidPublicSignature:
+            except TreasureMap.InvalidSignature:
                 self.log.warning("Got request to store invalid TreasureMap: {} / {}".format(key, value))
                 self.illegal_keys_seen.append(key)
                 return False

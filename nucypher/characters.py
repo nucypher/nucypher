@@ -736,11 +736,12 @@ class Bob(Character):
 
         alice = Alice.from_public_keys({SigningPower: alice_verifying_key})
         compass = self.make_compass_for_alice(alice)
-        treasure_map.orient(compass)
         try:
-            self.treasure_maps[map_id] = treasure_map
-        except treasure_map.InvalidPublicSignature:
+            treasure_map.orient(compass)
+        except treasure_map.InvalidSignature:
             raise  # TODO: Maybe do something here?
+        else:
+            self.treasure_maps[map_id] = treasure_map
 
         return treasure_map
 
