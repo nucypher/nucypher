@@ -106,7 +106,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # We pick up our story with Bob already having followed the treasure map above, ie:
     hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
     bob.treasure_maps[hrac] = treasure_map
-    bob.start_learning_loop()
+    d = bob.start_learning_loop()
 
     bob.follow_treasure_map(hrac, block=True, timeout=1000)
 
@@ -158,7 +158,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
         raise RuntimeError("We've lost track of the Ursula that has the WorkOrder.  Can't really proceed.")
 
     kfrag_bytes = ursula.datastore.get_policy_arrangement(
-        work_order.kfrag_hrac.hex().encode()).k_frag
+        work_order.arrangement_id.hex().encode()).k_frag
     the_kfrag = KFrag.from_bytes(kfrag_bytes)
     the_correct_cfrag = pre.reencrypt(the_kfrag, capsule)
 

@@ -65,10 +65,10 @@ class Workorder(Base):
     id = Column(Integer, primary_key=True)
     bob_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
     bob_signature = Column(LargeBinary, unique=True)
-    hrac = Column(LargeBinary, unique=False)
+    arrangement_id = Column(LargeBinary, unique=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    def __init__(self, bob_pubkey_sig_id, bob_signature, hrac):
+    def __init__(self, bob_pubkey_sig_id, bob_signature, arrangement_id):
         self.bob_pubkey_sig_id = bob_pubkey_sig_id
         self.bob_signature = bob_signature
-        self.hrac = hrac
+        self.arrangement_id = arrangement_id

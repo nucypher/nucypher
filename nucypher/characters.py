@@ -813,7 +813,7 @@ class Bob(Character):
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
-                    hrac, capsules_to_include, ursula, self)
+                    arrangement_id, capsules_to_include, ursula, self)
                 generated_work_orders[node_id] = work_order
                 self._saved_work_orders[node_id][capsule] = work_order
 

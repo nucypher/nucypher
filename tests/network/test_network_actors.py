@@ -155,7 +155,7 @@ def test_treaure_map_is_legit(enacted_federated_policy):
     """
     Sure, the TreasureMap can get to Bob, but we also need to know that each Ursula in the TreasureMap is on the network.
     """
-    for ursula_address in enacted_federated_policy.treasure_map:
+    for ursula_address, _node_id in enacted_federated_policy.treasure_map:
         assert ursula_address in enacted_federated_policy.bob._known_nodes
 
 

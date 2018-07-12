@@ -115,10 +115,10 @@ class KeyStore(object):
         """
         session = session or self._session_on_init_thread
 
-        policy_arrangement = session.query(PolicyArrangement).filter_by(arrangement_id=arrangement_id).first()
+        policy_arrangement = session.query(PolicyArrangement).filter_by(id=arrangement_id).first()
 
         if not policy_arrangement:
-            raise NotFound("No PolicyArrangement with {} HRAC found.".format(arrangement_id))
+            raise NotFound("No PolicyArrangement {} found.".format(arrangement_id))
         return policy_arrangement
 
     def del_policy_arrangement(self, arrangement_id: bytes, session=None):
@@ -127,7 +127,7 @@ class KeyStore(object):
         """
         session = session or self._session_on_init_thread
 
-        session.query(PolicyArrangement).filter_by(arrangement_id=arrangement_id).delete()
+        session.query(PolicyArrangement).filter_by(id=arrangement_id).delete()
         session.commit()
 
     def attach_kfrag_to_saved_arrangement(self, alice, id_as_hex, kfrag, session=None):
