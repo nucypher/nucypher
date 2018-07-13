@@ -171,7 +171,7 @@ class ProxyRESTServer:
         self.db_engine = engine
 
     def rest_url(self):
-        return "{}:{}".format(self.ip_address, self.rest_port)
+        return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
 
     #####################################
     # Actual REST Endpoints and utilities
@@ -182,13 +182,8 @@ class ProxyRESTServer:
         REST endpoint for public keys and address..
         """
         headers = {'Content-Type': 'application/octet-stream'}
-        # TODO: Calling public_address() works here because this is mixed in with Character, but it's not really right.
-        message = bytes(self.public_key(SigningPower)) + bytes(
-            self.public_key(EncryptingPower)) + self.canonical_public_address
-        signature = self.stamp(message)
-
         response = Response(
-            content=signature + message,
+            content=bytes(self),
             headers=headers)
 
         return response
