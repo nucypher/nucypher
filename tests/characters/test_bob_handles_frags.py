@@ -11,18 +11,18 @@ def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_polic
 
     # Assume for the moment that Bob has already received a TreasureMap, perhaps via a side channel.
     hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
-    bob.treasure_maps[hrac] = treasure_map
+    bob.treasure_maps[treasure_map.public_id()] = treasure_map
 
     # Bob knows of no Ursulas.
     assert len(bob._known_nodes) == 0
 
     # He can't successfully follow the TreasureMap until he learns of a node to ask.
-    unknown, known = bob.peek_at_treasure_map(hrac)
+    unknown, known = bob.peek_at_treasure_map(map_id=treasure_map.public_id())
     assert len(known) == 0
 
     # TODO: Show that even with learning loop going, nothing happens here.
     # Probably use Clock?
-    bob.follow_treasure_map(hrac)
+    bob.follow_treasure_map(treasure_map=treasure_map)
     assert len(known) == 0
 
 
@@ -36,7 +36,7 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, u
 
     # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
     map = bob.get_treasure_map(alice.stamp, enacted_federated_policy.label)
-    unknown, known = bob.peek_at_treasure_map(map.public_id())
+    unknown, known = bob.peek_at_treasure_map(treasure_map=map)
 
     # He finds that he didn't need to discover any new nodes...
     assert len(unknown) == 0
@@ -58,7 +58,8 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
 
     # Again, let's assume that he received the TreasureMap via a side channel.
     hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
-    bob.treasure_maps[hrac] = treasure_map
+    map_id = treasure_map.public_id()
+    bob.treasure_maps[map_id] = treasure_map
 
     # Now, let's create a scenario in which Bob knows of only one node.
     bob._known_nodes = {}
@@ -68,13 +69,13 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     assert len(bob._known_nodes) == 1
 
     # This time, when he follows the TreasureMap...
-    unknown_nodes, known_nodes = bob.peek_at_treasure_map(hrac)
+    unknown_nodes, known_nodes = bob.peek_at_treasure_map(map_id=map_id)
 
     # Bob already knew about one node; the rest are unknown.
     assert len(unknown_nodes) == len(treasure_map) - 1
 
     # He needs to actually follow the treasure map to get the rest.
-    bob.follow_treasure_map(hrac)
+    bob.follow_treasure_map(map_id=map_id)
 
     # The nodes in the learning loop are now his top target, but he's not learning yet.
     assert not bob._learning_task.running
@@ -105,10 +106,11 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
     hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
-    bob.treasure_maps[hrac] = treasure_map
+    map_id = treasure_map.public_id()
+    bob.treasure_maps[map_id] = treasure_map
     d = bob.start_learning_loop()
 
-    bob.follow_treasure_map(hrac, block=True, timeout=1000)
+    bob.follow_treasure_map(map_id=map_id, block=True, timeout=1000)
 
     assert len(bob._known_nodes) == len(ursulas)
 
@@ -119,7 +121,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     # We'll test against just a single Ursula - here, we make a WorkOrder for just one.
     # We can pass any number of capsules as args; here we pass just one.
-    work_orders = bob.generate_work_orders(the_hrac, capsule_side_channel[0].capsule, num_ursulas=1)
+    work_orders = bob.generate_work_orders(map_id, capsule_side_channel[0].capsule, num_ursulas=1)
 
     # Again: one Ursula, one work_order.
     assert len(work_orders) == 1
@@ -132,7 +134,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     ursula_id, work_order = list(work_orders.items())[0]
 
     # **** RE-ENCRYPTION HAPPENS HERE! ****
-    cfrags = bob.get_reencrypted_c_frags(work_order)
+    cfrags = bob.get_reencrypted_cfrags(work_order)
 
     # We only gave one Capsule, so we only got one cFrag.
     assert len(cfrags) == 1
@@ -189,7 +191,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     saved_work_order = list(workorders_by_capsule.values())[0]
 
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
-    generated_work_orders = bob.generate_work_orders(enacted_federated_policy.hrac(),
+    generated_work_orders = bob.generate_work_orders(enacted_federated_policy.treasure_map.public_id(),
                                                      capsule_side_channel[0].capsule,
                                                      num_ursulas=1)
     id_of_this_new_ursula, new_work_order = list(generated_work_orders.items())[0]
@@ -205,7 +207,7 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
     assert new_work_order != saved_work_order
 
     # We can get a new CFrag, just like last time.
-    cfrags = bob.get_reencrypted_c_frags(new_work_order)
+    cfrags = bob.get_reencrypted_cfrags(new_work_order)
 
     # Again: one Capsule, one cFrag.
     assert len(cfrags) == 1
@@ -231,12 +233,12 @@ def test_bob_gathers_and_combines(enacted_federated_policy, bob, alice, capsule_
 
     number_left_to_collect = enacted_federated_policy.treasure_map.m - len(bob._saved_work_orders)
 
-    new_work_orders = bob.generate_work_orders(enacted_federated_policy.hrac(),
+    new_work_orders = bob.generate_work_orders(enacted_federated_policy.treasure_map.public_id(),
                                                the_message_kit.capsule,
                                                num_ursulas=number_left_to_collect)
     _id_of_yet_another_ursula, new_work_order = list(new_work_orders.items())[0]
 
-    cfrags = bob.get_reencrypted_c_frags(new_work_order)
+    cfrags = bob.get_reencrypted_cfrags(new_work_order)
     the_message_kit.capsule.attach_cfrag(cfrags[0])
 
     # Now.
