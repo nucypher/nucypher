@@ -753,7 +753,7 @@ class Bob(Character):
         return unknown_ursulas, known_ursulas
 
     def get_treasure_map(self, alice_verifying_key, label):
-        map_id = self.construct_map_id(verifying_key=alice_verifying_key, label=label)
+        _hrac, map_id = self.construct_hrac_and_map_id(verifying_key=alice_verifying_key, label=label)
 
         if not self._known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
@@ -780,10 +780,10 @@ class Bob(Character):
     def construct_policy_hrac(self, verifying_key, label):
         return keccak_digest(bytes(verifying_key) + self.stamp + label)
 
-    def construct_map_id(self, verifying_key, label):
+    def construct_hrac_and_map_id(self, verifying_key, label):
         hrac = self.construct_policy_hrac(verifying_key, label)
-        map_id = keccak_digest(verifying_key + hrac).hex()
-        return map_id
+        map_id = keccak_digest(bytes(verifying_key) + hrac).hex()
+        return hrac, map_id
 
     def get_treasure_map_from_known_ursulas(self, networky_stuff, map_id):
         """
@@ -806,15 +806,14 @@ class Bob(Character):
 
         return treasure_map
 
-    def generate_work_orders(self, hrac, *capsules, num_ursulas=None):
+    def generate_work_orders(self, map_id, *capsules, num_ursulas=None):
         from nucypher.policy.models import WorkOrder  # Prevent circular import
 
         try:
-            # TODO: Wait... are we saving treasure_maps by hrac here?  Or map id?  Is this just a misnomer?
-            treasure_map_to_use = self.treasure_maps[hrac]
+            treasure_map_to_use = self.treasure_maps[map_id]
         except KeyError:
             raise KeyError(
-                "Bob doesn't have a TreasureMap matching the hrac {}".format(hrac))
+                "Bob doesn't have the TreasureMap {}; can't generate work orders.".format(map_id))
 
         generated_work_orders = OrderedDict()
 
