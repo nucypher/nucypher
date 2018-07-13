@@ -857,12 +857,12 @@ class Bob(Character):
         return self._ursulas[ursula_id]
 
     def join_policy(self, label, alice_pubkey_sig,
-                    using_dht=False, node_list=None, verify_sig=True):
+                    node_list=None, verify_sig=True):
         hrac = keccak_digest(bytes(alice_pubkey_sig) + bytes(self.stamp) + label)
         if node_list:
-            self.network_bootstrap(node_list)
-        self.get_treasure_map(alice_pubkey_sig, hrac, using_dht=using_dht, verify_sig=verify_sig)
-        self.follow_treasure_map(hrac, using_dht=using_dht)
+            self._node_ids_to_learn_about_immediately.update(node_list)
+        treasure_map = self.get_treasure_map(alice_pubkey_sig, label)
+        self.follow_treasure_map(treasure_map=treasure_map)
 
     def retrieve(self, message_kit, data_source, alice_verifying_key):
 
@@ -871,28 +871,27 @@ class Bob(Character):
             receiving=self.public_key(EncryptingPower),
             verifying=alice_verifying_key)
 
-        hrac = self.construct_treasure_map_id(alice_verifying_key, data_source.label)
-        treasure_map = self.treasure_maps[hrac]
+        hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, data_source.label)
+        self.follow_treasure_map(map_id=map_id)
 
-        # First, a quick sanity check to make sure we know about at least m nodes.
-        known_nodes_as_bytes = set([bytes(n) for n in self._known_nodes.keys()])
-        intersection = treasure_map.ids.intersection(known_nodes_as_bytes)
+        work_orders = self.generate_work_orders(map_id, message_kit.capsule)
 
-        if len(intersection) < treasure_map.m:
-            raise RuntimeError("Not enough known nodes.  Try following the TreasureMap again.")
+        cleartexts = []
 
         for work_order in work_orders.values():
             cfrags = self.get_reencrypted_cfrags(work_order)
             message_kit.capsule.attach_cfrag(cfrags[0])
-        verified, delivered_cleartext = self.verify_from(data_source,
-                                                         message_kit,
-                                                         decrypt=True,
-                                                         delegator_signing_key=alice_pubkey_sig)
 
-        if verified:
-            return delivered_cleartext
-        else:
-            raise RuntimeError("Not verified - replace this with real message.")
+            verified, delivered_cleartext = self.verify_from(data_source,
+                                                             message_kit,
+                                                             decrypt=True,
+                                                             delegator_signing_key=alice_verifying_key)
+
+            if verified:
+                cleartexts.append(delivered_cleartext)
+            else:
+                raise RuntimeError("Not verified - replace this with real message.")  # TODO: Actually raise an error in verify_from instead of here 358
+        return cleartexts
 
 
 class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
@@ -978,28 +977,11 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
     @classmethod
     def from_rest_url(cls, network_middleware, host, port, federated_only=False):
-        response = network_middleware.ursula_from_rest_interface(host, port)
+        response = network_middleware.node_information(host, port)
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 
-        splitter = BytestringSplitter(Signature,
-                                      (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
-                                      (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
-                                      int(PUBLIC_ADDRESS_LENGTH))
-        signature, signing_key, encrypting_key, canonical_public_address = splitter(response.content)
-
-        if signature.verify(bytes(signing_key) + bytes(encrypting_key) + canonical_public_address, signing_key):
-
-            # TODO: Use from_bytes.
-            stranger_ursula_from_public_keys = cls.from_public_keys(
-                {SigningPower: signing_key, EncryptingPower: encrypting_key},
-                canonical_public_address=canonical_public_address,
-                rest_host=host,
-                rest_port=port,
-                federated_only=federated_only  # TODO: 289
-            )
-        else:
-            raise cls.SuspiciousActivity("Ursula's signature on her public information didn't verify.")
+        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only)
 
         return stranger_ursula_from_public_keys
 
