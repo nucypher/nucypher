@@ -76,7 +76,13 @@ class NucypherDHTServer(Server):
         return loop.run_until_complete(self.get(bytes(key)))
 
     def set_now(self, key, value):
-        loop = asyncio.get_event_loop()
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # Terrible.  We cant' get off the DHT soon enough.
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
         return loop.run_until_complete(self.set(key, value))
 
     async def set(self, key, value):
