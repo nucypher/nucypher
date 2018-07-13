@@ -307,13 +307,16 @@ class Character:
         self._node_ids_to_learn_about_immediately.update(canonical_addresses)  # hmmmm
         self.learn_about_nodes_now()
 
-    def block_until_nodes_are_known(self, canonical_addresses: Set, timeout=10, allow_missing=0):
+    def block_until_nodes_are_known(self, canonical_addresses: Set, timeout=10, allow_missing=0,
+                                    learn_on_this_thread=False):
         start = maya.now()
         starting_round = self._learning_round
 
         while True:
             if not self._learning_task.running:
                 self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
+            if learn_on_this_thread:
+                self.learn_from_teacher_node(eager=True)
             rounds_undertaken = self._learning_round - starting_round
             if (maya.now() - start).seconds < timeout:
                 if canonical_addresses.issubset(self._known_nodes):
@@ -363,7 +366,7 @@ class Character:
 
             try:
                 if eager:
-                    node.verify(self.network_middleware, accept_federated_only=self.federated_only)
+                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)
                 else:
                     node.validate_metadata(accept_federated_only=self.federated_only)
             except node.SuspiciousActivity:
@@ -683,8 +686,11 @@ class Bob(Character):
         """
         treasure_map = self.treasure_maps[map_id]
 
-        known_treasure_ursulas = treasure_map.node_ids.intersection(self._known_nodes)
-        unknown_treasure_ursulas = treasure_map.node_ids.difference(self._known_nodes)
+        # The intersection of the map and our known nodes will be the known Ursulas...
+        known_treasure_ursulas = treasure_map.destinations.keys() & self._known_nodes.keys()
+
+        # while the difference will be the unknown Ursulas.
+        unknown_treasure_ursulas = treasure_map.destinations.keys() - self._known_nodes.keys()
 
         return unknown_treasure_ursulas, known_treasure_ursulas
 
@@ -719,7 +725,10 @@ class Bob(Character):
                                              timeout=timeout,
                                              allow_missing=allow_missing)
             else:
-                self.block_until_nodes_are_known(unknown_ursulas, timeout=timeout, allow_missing=allow_missing)
+                self.block_until_nodes_are_known(unknown_ursulas,
+                                                 timeout=timeout,
+                                                 allow_missing=allow_missing,
+                                                 learn_on_this_thread=True)
 
         return unknown_ursulas, known_ursulas
 
@@ -736,11 +745,12 @@ class Bob(Character):
 
         alice = Alice.from_public_keys({SigningPower: alice_verifying_key})
         compass = self.make_compass_for_alice(alice)
-        treasure_map.orient(compass)
         try:
-            self.treasure_maps[map_id] = treasure_map
-        except treasure_map.InvalidPublicSignature:
+            treasure_map.orient(compass)
+        except treasure_map.InvalidSignature:
             raise  # TODO: Maybe do something here?
+        else:
+            self.treasure_maps[map_id] = treasure_map
 
         return treasure_map
 
@@ -793,7 +803,7 @@ class Bob(Character):
                 "Bob doesn't have a TreasureMap to match any of these capsules: {}".format(
                     capsules))
 
-        for node_id in treasure_map_to_use:
+        for node_id, arrangement_id in treasure_map_to_use:
             ursula = self._known_nodes[node_id]
 
             capsules_to_include = []
@@ -803,7 +813,7 @@ class Bob(Character):
 
             if capsules_to_include:
                 work_order = WorkOrder.construct_by_bob(
-                    hrac, capsules_to_include, ursula, self)
+                    arrangement_id, capsules_to_include, ursula, self)
                 generated_work_orders[node_id] = work_order
                 self._saved_work_orders[node_id][capsule] = work_order
 
