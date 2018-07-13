@@ -674,7 +674,7 @@ class Bob(Character):
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
 
-    def peek_at_treasure_map(self, map_id):
+    def peek_at_treasure_map(self, treasure_map=None, map_id=None):
         """
         Take a quick gander at the TreasureMap matching map_id to see which
         nodes are already kwown to us.
@@ -684,7 +684,14 @@ class Bob(Character):
 
         Return two sets: nodes that are unknown to us, nodes that are known to us.
         """
-        treasure_map = self.treasure_maps[map_id]
+        if not treasure_map:
+            if map_id:
+                treasure_map = self.treasure_maps[map_id]
+            else:
+                raise ValueError("You need to pass either treasure_map or map_id.")
+        else:
+            if map_id:
+                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
 
         # The intersection of the map and our known nodes will be the known Ursulas...
         known_treasure_ursulas = treasure_map.destinations.keys() & self._known_nodes.keys()
@@ -694,7 +701,11 @@ class Bob(Character):
 
         return unknown_treasure_ursulas, known_treasure_ursulas
 
-    def follow_treasure_map(self, map_id, block=False, new_thread=False,
+    def follow_treasure_map(self,
+                            treasure_map=None,
+                            map_id=None,
+                            block=False,
+                            new_thread=False,
                             timeout=10,
                             allow_missing=0):
         """
@@ -712,7 +723,16 @@ class Bob(Character):
 
         # TODO: Check if nodes are up, declare them phantom if not.
         """
-        unknown_ursulas, known_ursulas = self.peek_at_treasure_map(map_id)
+        if not treasure_map:
+            if map_id:
+                treasure_map = self.treasure_maps[map_id]
+            else:
+                raise ValueError("You need to pass either treasure_map or map_id.")
+        else:
+            if map_id:
+                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
+
+        unknown_ursulas, known_ursulas = self.peek_at_treasure_map(treasure_map=treasure_map)
 
         if unknown_ursulas:
             self.learn_about_specific_nodes(unknown_ursulas)
