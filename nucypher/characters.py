@@ -842,7 +842,7 @@ class Bob(Character):
 
         return generated_work_orders
 
-    def get_reencrypted_c_frags(self, work_order):
+    def get_reencrypted_cfrags(self, work_order):
         cfrags = self.network_middleware.reencrypt(work_order)
         if not len(work_order) == len(cfrags):
             raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
@@ -881,10 +881,8 @@ class Bob(Character):
         if len(intersection) < treasure_map.m:
             raise RuntimeError("Not enough known nodes.  Try following the TreasureMap again.")
 
-        work_orders = self.generate_work_orders(hrac, message_kit.capsule)
-        for node_id in self.treasure_maps[hrac]:
-            node = self._known_nodes[UmbralPublicKey.from_bytes(node_id)]
-            cfrags = self.get_reencrypted_c_frags(work_orders[bytes(node.stamp)])
+        for work_order in work_orders.values():
+            cfrags = self.get_reencrypted_cfrags(work_order)
             message_kit.capsule.attach_cfrag(cfrags[0])
         verified, delivered_cleartext = self.verify_from(data_source,
                                                          message_kit,
