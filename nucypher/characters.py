@@ -863,7 +863,6 @@ class Bob(Character):
 
     def join_policy(self, label, alice_pubkey_sig,
                     node_list=None, verify_sig=True):
-        hrac = keccak_digest(bytes(alice_pubkey_sig) + bytes(self.stamp) + label)
         if node_list:
             self._node_ids_to_learn_about_immediately.update(node_list)
         treasure_map = self.get_treasure_map(alice_pubkey_sig, label)
@@ -887,15 +886,15 @@ class Bob(Character):
             cfrags = self.get_reencrypted_cfrags(work_order)
             message_kit.capsule.attach_cfrag(cfrags[0])
 
-            verified, delivered_cleartext = self.verify_from(data_source,
-                                                             message_kit,
-                                                             decrypt=True,
-                                                             delegator_signing_key=alice_verifying_key)
-
-            if verified:
-                cleartexts.append(delivered_cleartext)
+            try:
+                delivered_cleartext = self.verify_from(data_source,
+                                                       message_kit,
+                                                       decrypt=True,
+                                                       delegator_signing_key=alice_verifying_key)
+            except self.InvalidSignature as e:
+                raise RuntimeError(e)
             else:
-                raise RuntimeError("Not verified - replace this with real message.")  # TODO: Actually raise an error in verify_from instead of here 358
+                cleartexts.append(delivered_cleartext)
         return cleartexts
 
 
