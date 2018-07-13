@@ -103,10 +103,6 @@ class NucypherSeedOnlyDHTServer(NucypherDHTServer):
 
 
 class ProxyRESTServer:
-    public_information_splitter = BytestringSplitter(Signature,
-                                                     (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
-                                                     (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
-                                                     int(PUBLIC_ADDRESS_LENGTH))
 
     def __init__(self, host=None, port=None, db_name=None, *args, **kwargs):
         self.rest_interface = InterfaceInfo(host=host, port=port)
