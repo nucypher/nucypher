@@ -67,17 +67,3 @@ def test_grant(alice, bob, three_agents):
         retrieved_kfrag = KFrag.from_bytes(retrieved_policy.k_frag)
 
         assert kfrag == retrieved_kfrag
-
-
-@pytest.mark.usefixtures('testerchain')
-def test_alice_can_get_ursulas_keys_via_rest(ursulas):
-    ursula = ursulas.pop()
-    mock_client = TestClient(ursula.rest_app)
-    response = mock_client.get('http://localhost/public_information')
-    signature, signing_key, encrypting_key, public_address = Ursula.public_information_splitter(response.content)
-    public_keys = {SigningPower: signing_key, EncryptingPower: encrypting_key}
-    stranger_ursula_from_public_keys = Ursula.from_public_keys(public_keys,
-                                                               rest_port=5000,
-                                                               rest_host="not real")
-    assert stranger_ursula_from_public_keys == ursula
-
