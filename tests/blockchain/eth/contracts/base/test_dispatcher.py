@@ -35,13 +35,13 @@ def test_dispatcher(testerchain):
         address=dispatcher.address,
         ContractFactoryClass=Contract)
 
-    # Only owner can change target address for dispatcher
+    # Only owner can change target address for the dispatcher
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract2_lib.address).transact({'from': account})
         testerchain.wait_for_receipt(tx)
     assert contract1_lib.address == dispatcher.functions.target().call()
 
-    # Check values before upgrade
+    # Check values and methods before upgrade
     assert 1 == contract_instance.functions.getStorageValue().call()
     assert 10 == contract_instance.functions.returnValue().call()
     tx = contract_instance.functions.setStorageValue(5).transact({'from': creator})
@@ -77,7 +77,7 @@ def test_dispatcher(testerchain):
     testerchain.wait_for_receipt(tx)
     assert 'Hola' == contract_instance.functions.getDynamicallySizedValue().call()
 
-    # Can't upgrade to bad version
+    # Can't upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract2_bad_lib.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
@@ -96,7 +96,7 @@ def test_dispatcher(testerchain):
     assert contract2_lib.address == event_args['to']
     assert creator == event_args['owner']
 
-    # Check values after upgrade
+    # Check values and methods after upgrade
     assert 20 == contract_instance.functions.returnValue().call()
     assert 5 == contract_instance.functions.getStorageValue().call()
     tx = contract_instance.functions.setStorageValue(5).transact({'from': creator})
@@ -137,18 +137,18 @@ def test_dispatcher(testerchain):
         address=dispatcher.address,
         ContractFactoryClass=Contract)
 
-    # Check new method and finish upgrade method
+    # Check new method and finishUpgrade method
     assert 1 == contract_instance.functions.storageValueToCheck().call()
     tx = contract_instance.functions.setStructureValueToCheck2(0, 55).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 55 == contract_instance.functions.getStructureValueToCheck2(0).call()
 
-    # Can't downgrade to first version due to storage
+    # Can't downgrade to the first version due to new storage variables
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract1_lib.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
-    # And can't upgrade to bad version
+    # And can't upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract2_bad_lib.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
@@ -156,7 +156,7 @@ def test_dispatcher(testerchain):
 
     rollbacks = dispatcher.events.RolledBack.createFilter(fromBlock='latest')
 
-    # But can rollback
+    # Can rollback to the first version
     tx = dispatcher.functions.rollback().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert contract1_lib.address == dispatcher.functions.target().call()
@@ -193,7 +193,7 @@ def test_dispatcher(testerchain):
     assert 1 == len(events)
     assert 33 == events[0]['args']['value']
 
-    # Upgrade to version 3
+    # Upgrade to the version 3
     tx = dispatcher.functions.upgrade(contract2_lib.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = dispatcher.functions.upgrade(contract3_lib.address).transact({'from': creator})

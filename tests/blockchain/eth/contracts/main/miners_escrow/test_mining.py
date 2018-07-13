@@ -58,13 +58,14 @@ def test_mining(testerchain, token, escrow_contract):
     tx = escrow.functions.deposit(1000, 2).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(500, 2).transact({'from': ursula2})
-
     testerchain.wait_for_receipt(tx)
+    # Check parameters in call of the policy manager mock
     period = escrow.functions.getCurrentPeriod().call()
     assert 1 == policy_manager.functions.getPeriodsLength(ursula1).call()
     assert 1 == policy_manager.functions.getPeriodsLength(ursula2).call()
     assert period == policy_manager.functions.getPeriod(ursula1, 0).call()
     assert period == policy_manager.functions.getPeriod(ursula2, 0).call()
+    # Check downtime parameters
     assert 1 == escrow.functions.getDowntimeLength(ursula1).call()
     downtime = escrow.functions.getDowntime(ursula1, 0).call()
     assert 1 == downtime[0]
@@ -80,19 +81,19 @@ def test_mining(testerchain, token, escrow_contract):
     tx = escrow.functions.divideStake(0, 500, 1).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
-    # Ursula can't use method from Issuer contract
+    # Ursula can't use method from Issuer contract directly, only from mint() method
     with pytest.raises(Exception):
         tx = escrow.functions.mint(1, 1, 1, 1).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # Only Ursula confirm next period
+    # Only Ursula confirms next period
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
 
     testerchain.wait_for_receipt(tx)
     assert 1 == escrow.functions.getDowntimeLength(ursula1).call()
 
-    # Checks that no error
+    # Checks that no error from repeated method call
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
@@ -102,12 +103,13 @@ def test_mining(testerchain, token, escrow_contract):
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.mint().transact({'from': ursula2})
-
     testerchain.wait_for_receipt(tx)
-    period = escrow.functions.getCurrentPeriod().call()
 
+    period = escrow.functions.getCurrentPeriod().call()
+    # Check result of mining
     assert 1046 == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
     assert 525 == escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
+    # Check that downtime value has not changed
     assert 1 == escrow.functions.getDowntimeLength(ursula1).call()
     assert 1 == escrow.functions.getDowntimeLength(ursula2).call()
     assert period + 1 == escrow.functions.getLastActivePeriod(ursula1).call()
@@ -124,20 +126,22 @@ def test_mining(testerchain, token, escrow_contract):
     assert 25 == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
 
+    # Check parameters in call of the policy manager mock
     assert 2 == policy_manager.functions.getPeriodsLength(ursula1).call()
     assert 2 == policy_manager.functions.getPeriodsLength(ursula2).call()
     period = escrow.functions.getCurrentPeriod().call() - 1
     assert period == policy_manager.functions.getPeriod(ursula1, 1).call()
     assert period == policy_manager.functions.getPeriod(ursula2, 1).call()
 
-    # Ursula try to mint again
+    # Ursula tries to mint again and doesn't receive a reward
+    # There are no more confirmed periods that are ready to mint
     tx = escrow.functions.mint().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     assert 1046 == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
     events = mining_log.get_all_entries()
     assert 2 == len(events)
 
-    # Ursula can't confirm next period
+    # Ursula can't confirm next period because stake is unlocked in current period
     testerchain.time_travel(hours=1)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.confirmActivity().transact({'from': ursula1})
@@ -146,15 +150,15 @@ def test_mining(testerchain, token, escrow_contract):
     period = escrow.functions.getCurrentPeriod().call()
     assert period - 2 == escrow.functions.getLastActivePeriod(ursula2).call()
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
-
     testerchain.wait_for_receipt(tx)
+
     assert period + 1 == escrow.functions.getLastActivePeriod(ursula2).call()
     assert 2 == escrow.functions.getDowntimeLength(ursula2).call()
     downtime = escrow.functions.getDowntime(ursula2, 1).call()
     assert period - 1 == downtime[0]
     assert period == downtime[1]
 
-    # Ursula mint tokens
+    # Ursula mints tokens
     testerchain.time_travel(hours=1)
     tx = escrow.functions.mint().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
@@ -176,7 +180,7 @@ def test_mining(testerchain, token, escrow_contract):
     assert period - 1 == policy_manager.functions.getPeriod(ursula1, 2).call()
     assert period == policy_manager.functions.getPeriod(ursula1, 3).call()
 
-    # Ursula(2) mint tokens
+    # Ursula(2) mints tokens
     testerchain.time_travel(hours=1)
     tx = escrow.functions.mint().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
@@ -195,7 +199,7 @@ def test_mining(testerchain, token, escrow_contract):
     assert 3 == policy_manager.functions.getPeriodsLength(ursula2).call()
     assert period == policy_manager.functions.getPeriod(ursula2, 2).call()
 
-    # Ursula(2) can't more confirm activity
+    # Ursula(2) can't more confirm activity because stake is unlocked
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.confirmActivity().transact({'from': ursula2})
         testerchain.wait_for_receipt(tx)
@@ -205,8 +209,8 @@ def test_mining(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     period = escrow.functions.getCurrentPeriod().call()
     assert period - 2 == escrow.functions.getLastActivePeriod(ursula1).call()
-
     assert 1152 == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
+    # Ursula still can't confirm activity
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow.functions.confirmActivity().transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
@@ -215,18 +219,19 @@ def test_mining(testerchain, token, escrow_contract):
     tx = escrow.functions.deposit(250, 4).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.lock(500, 2).transact({'from': ursula2})
-
     testerchain.wait_for_receipt(tx)
+
     assert 3 == escrow.functions.getDowntimeLength(ursula2).call()
     downtime = escrow.functions.getDowntime(ursula2, 2).call()
     assert period == downtime[0]
     assert period == downtime[1]
 
-    # Ursula(2) mint only one period (by using deposit/approveAndCall function)
+    # Ursula(2) mints only one period (by using deposit/approveAndCall function)
     testerchain.time_travel(hours=5)
     period = escrow.functions.getCurrentPeriod().call()
     assert period - 4 == escrow.functions.getLastActivePeriod(ursula2).call()
-    tx = token.functions.approveAndCall(escrow.address, 100, testerchain.interface.w3.toBytes(2)).transact({'from': ursula2})
+    tx = token.functions.approveAndCall(escrow.address, 100, testerchain.interface.w3.toBytes(2))\
+        .transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
 
     assert 1152 == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
@@ -246,17 +251,16 @@ def test_mining(testerchain, token, escrow_contract):
     assert 100 == event_args['value']
     assert escrow.functions.getCurrentPeriod().call() - 1 == event_args['period']
 
-    # Ursula(2) confirm activity for remaining periods
+    # Ursula(2) confirms activity for remaining periods
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert 4 == escrow.functions.getDowntimeLength(ursula2).call()
     testerchain.time_travel(hours=1)
-
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
 
-    # Ursula(2) can withdraw all
+    # Ursula(2) withdraws all
     testerchain.time_travel(hours=2)
     assert 0 == escrow.functions.getLockedTokens(ursula2).call()
     tx = escrow.functions.withdraw(1083).transact({'from': ursula2})

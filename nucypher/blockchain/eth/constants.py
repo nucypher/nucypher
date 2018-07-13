@@ -50,14 +50,22 @@ MIN_ALLOWED_LOCKED(15000*M)
 MAX_ALLOWED_LOCKED(int(4e6)*M)
 
 
-__mining_coeff = (           # TODO: label
-    HOURS_PER_PERIOD,
-    2 * 10 ** 7,
-    MAX_MINTING_PERIODS,
-    MAX_MINTING_PERIODS,
-    MIN_LOCKED_PERIODS,
-    MIN_ALLOWED_LOCKED,
-    MAX_ALLOWED_LOCKED
+# Mining formula for one stake in one period
+# (totalSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
+# totalSupply - Token supply cap
+# currentSupply - Current supply cap
+# lockedValue - Amount of tokens in one miner's stake in one period
+# totalLockedValue - Amount of tokens in all stakes in one period
+# allLockedPeriods - Duration of the current miner's stake
+# if allLockedPeriods > rewardedPeriods then allLockedPeriods = rewardedPeriods
+__mining_coeff = (
+    HOURS_PER_PERIOD,       # Hours in single period
+    2 * 10 ** 7,            # Mining coefficient (k2)
+    MAX_MINTING_PERIODS,    # Locked periods coefficient (k1)
+    MAX_MINTING_PERIODS,    # Max periods that will be additionally rewarded (rewardedPeriods)
+    MIN_LOCKED_PERIODS,     # Min amount of periods during which tokens can be locked
+    MIN_ALLOWED_LOCKED,     # Min amount of tokens that can be locked
+    MAX_ALLOWED_LOCKED      # Max amount of tokens that can be locked
 )
 
 MINING_COEFFICIENT(__mining_coeff)

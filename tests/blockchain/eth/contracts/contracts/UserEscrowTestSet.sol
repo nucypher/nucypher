@@ -82,6 +82,10 @@ contract PolicyManagerForUserEscrowMock {
         minRewardRate = _minRewardRate;
     }
 
+    function additionalMethod(uint256 _minRewardRate) public {
+        minRewardRate = _minRewardRate;
+    }
+
     function () public payable {}
 }
 

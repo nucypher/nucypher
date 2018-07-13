@@ -38,13 +38,13 @@ contract Issuer is Upgradeable {
 
     /**
     * @notice Constructor sets address of token contract and coefficients for mining
-    * @dev Formula for mining in one period
+    * @dev Mining formula for one stake in one period
     (totalSupply - currentSupply) * (lockedValue / totalLockedValue) * (k1 + allLockedPeriods) / k2
     if allLockedPeriods > rewardedPeriods then allLockedPeriods = rewardedPeriods
     * @param _token Token contract
     * @param _hoursPerPeriod Size of period in hours
     * @param _miningCoefficient Mining coefficient (k2)
-    * @param _lockedPeriodsCoefficient Locked blocks coefficient (k1)
+    * @param _lockedPeriodsCoefficient Locked periods coefficient (k1)
     * @param _rewardedPeriods Max periods that will be additionally rewarded
     **/
     constructor(
@@ -87,7 +87,7 @@ contract Issuer is Upgradeable {
     /**
     * @notice Initialize reserved tokens for reward
     **/
-    function initialize() public {
+    function initialize() public onlyOwner {
         require(currentSupply1 == 0);
         lastMintedPeriod = getCurrentPeriod();
         totalSupply = token.totalSupply();

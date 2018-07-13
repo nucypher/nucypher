@@ -11,7 +11,7 @@ LAST_ACTIVE_PERIOD_FIELD = 4
 
 
 @pytest.mark.slow
-def test_verifying_state(testerchain, token):
+def test_upgrading(testerchain, token):
     creator = testerchain.interface.w3.eth.accounts[0]
     miner = testerchain.interface.w3.eth.accounts[1]
 
@@ -51,12 +51,13 @@ def test_verifying_state(testerchain, token):
 
     # Upgrade to the second version
     tx = dispatcher.functions.upgrade(contract_library_v2.address).transact({'from': creator})
-
     testerchain.wait_for_receipt(tx)
+    # Check constructor and storage values
     assert contract_library_v2.address == dispatcher.functions.target().call()
     assert 1500 == contract.functions.maxAllowableLockedTokens().call()
     assert policy_manager.address == contract.functions.policyManager().call()
     assert 2 == contract.functions.valueToCheck().call()
+    # Check new ABI
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 3 == contract.functions.valueToCheck().call()
@@ -65,7 +66,6 @@ def test_verifying_state(testerchain, token):
     contract_library_bad, _ = testerchain.interface.deploy_contract(
         'MinersEscrowBad', token.address, 2, 2, 2, 2, 2, 2, 2
     )
-
     with pytest.raises((TransactionFailed, ValueError)):
         tx = dispatcher.functions.upgrade(contract_library_v1.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
@@ -78,7 +78,7 @@ def test_verifying_state(testerchain, token):
     testerchain.wait_for_receipt(tx)
     assert contract_library_v1.address == dispatcher.functions.target().call()
     assert policy_manager.address == contract.functions.policyManager().call()
-
+    # After rollback new ABI is unavailable
     with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.functions.setValueToCheck(2).transact({'from': creator})
         testerchain.wait_for_receipt(tx)

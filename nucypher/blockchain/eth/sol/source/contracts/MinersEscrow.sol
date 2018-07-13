@@ -92,7 +92,7 @@ contract MinersEscrow is Issuer {
     * @param _token Token contract
     * @param _hoursPerPeriod Size of period in hours
     * @param _miningCoefficient Mining coefficient
-    * @param _minLockedPeriods Min amount of periods during which tokens will be locked
+    * @param _minLockedPeriods Min amount of periods during which tokens can be locked
     * @param _lockedPeriodsCoefficient Locked blocks coefficient
     * @param _rewardedPeriods Max periods that will be additionally rewarded
     * @param _minAllowableLockedTokens Min amount of tokens that can be locked

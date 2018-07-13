@@ -47,25 +47,27 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert 0 < policy_manager.functions.nodes(node3).call()[LAST_MINED_PERIOD_FIELD]
     assert 0 == policy_manager.functions.nodes(bad_node).call()[LAST_MINED_PERIOD_FIELD]
 
-    # Try create policy for bad node
+    # Try to create policy for bad (unregistered) node
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.createPolicy(policy_id, 1, 0, [bad_node]).transact({'from': client, 'value': value})
+        tx = policy_manager.functions.createPolicy(policy_id, 1, 0, [bad_node])\
+            .transact({'from': client, 'value': value})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager.functions.createPolicy(policy_id, 1, 0, [node1, bad_node])\
+            .transact({'from': client, 'value': value})
         testerchain.wait_for_receipt(tx)
 
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.createPolicy(policy_id, 1, 0, [node1, bad_node]).transact({'from': client, 'value': value})
-        testerchain.wait_for_receipt(tx)
-
-    # Try create policy with no ETH
+    # Try to create policy with no ETH
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.createPolicy(policy_id, 1, 0, [node1]).transact({'from': client})
         testerchain.wait_for_receipt(tx)
 
     # Create policy
     period = escrow.functions.getCurrentPeriod().call()
-    tx = policy_manager.functions.createPolicy(policy_id, number_of_periods, 0, [node1]).transact({'from': client, 'value': value, 'gas_price': 0})
-
+    tx = policy_manager.functions.createPolicy(policy_id, number_of_periods, 0, [node1])\
+        .transact({'from': client, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
+    # Check balances and policy info
     assert value == testerchain.interface.w3.eth.getBalance(policy_manager.address)
     assert client_balance - 200 == testerchain.interface.w3.eth.getBalance(client)
     policy = policy_manager.functions.policies(policy_id).call()
@@ -83,14 +85,14 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     event_args = events[0]['args']
     assert policy_id == event_args['policyId']
     assert client == event_args['client']
-    # assert node1 == event_args['nodes'][0]
 
-    # Try to create policy again
+    # Can't create policy with the same id
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.createPolicy(policy_id, number_of_periods, 0, [node1]).transact({'from': client, 'value': value})
+        tx = policy_manager.functions.createPolicy(policy_id, number_of_periods, 0, [node1])\
+            .transact({'from': client, 'value': value})
         testerchain.wait_for_receipt(tx)
 
-    # Only client can revoke policy
+    # Only policy owner can revoke policy
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.revokePolicy(policy_id).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
@@ -113,7 +115,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert node1 == event_args['node']
     assert value == event_args['value']
 
-    # Can't revoke again
+    # Can't revoke again because policy and all arrangements are disabled
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.revokePolicy(policy_id).transact({'from': client})
         testerchain.wait_for_receipt(tx)
@@ -121,9 +123,10 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         tx = policy_manager.functions.revokeArrangement(policy_id, node1).transact({'from': client})
         testerchain.wait_for_receipt(tx)
 
-    # Create another policy
+    # Create new policy
     period = escrow.functions.getCurrentPeriod().call()
-    tx = policy_manager.functions.createPolicy(policy_id_2, number_of_periods, 0, [node1, node2, node3]).transact({'from': client, 'value': 6 * value, 'gas_price': 0})
+    tx = policy_manager.functions.createPolicy(policy_id_2, number_of_periods, 0, [node1, node2, node3])\
+        .transact({'from': client, 'value': 6 * value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert 6 * value == testerchain.interface.w3.eth.getBalance(policy_manager.address)
     assert client_balance - 6 * value == testerchain.interface.w3.eth.getBalance(client)
@@ -140,16 +143,18 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     event_args = events[1]['args']
     assert policy_id_2 == event_args['policyId']
     assert client == event_args['client']
-    # assert node == event_args['node']
 
     # Can't revoke nonexistent arrangement
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.revokeArrangement(policy_id_2, testerchain.interface.w3.eth.accounts[6]).transact({'from': client})
+        tx = policy_manager.functions.revokeArrangement(policy_id_2, testerchain.interface.w3.eth.accounts[6])\
+            .transact({'from': client})
         testerchain.wait_for_receipt(tx)
+    # Can't revoke null arrangement (also it's nonexistent)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.revokeArrangement(policy_id_2, NULL_ADDR).transact({'from': client})
         testerchain.wait_for_receipt(tx)
 
+    # Revoke only one arrangement
     tx = policy_manager.functions.revokeArrangement(policy_id_2, node1).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert 4 * value == testerchain.interface.w3.eth.getBalance(policy_manager.address)
@@ -164,14 +169,16 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert node1 == event_args['node']
     assert 2 * value == event_args['value']
 
-    # Can't revoke again
+    # Can't revoke again because arrangement is disabled
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.revokeArrangement(policy_id_2, node1).transact({'from': client})
         testerchain.wait_for_receipt(tx)
+    # Can't revoke null arrangement (it's nonexistent)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.revokeArrangement(policy_id_2, NULL_ADDR).transact({'from': client})
         testerchain.wait_for_receipt(tx)
 
+    # Revoke policy with remaining arrangements
     tx = policy_manager.functions.revokePolicy(policy_id_2).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert 0 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
@@ -199,7 +206,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert client == event_args['client']
     assert 4 * value == event_args['value']
 
-    # Can't revoke again
+    # Can't revoke policy again because policy and all arrangements are disabled
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.revokePolicy(policy_id_2).transact({'from': client})
         testerchain.wait_for_receipt(tx)
@@ -207,7 +214,8 @@ def test_create_revoke(testerchain, escrow, policy_manager):
         tx = policy_manager.functions.revokeArrangement(policy_id_2, node1).transact({'from': client})
         testerchain.wait_for_receipt(tx)
 
-    # Try to create policy with wrong value
+    # Can't create policy with wrong ETH value - when reward is not calculated by formula:
+    # numberOfNodes * (firstPartialReward + rewardRate * numberOfPeriods)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = policy_manager.functions.createPolicy(policy_id_3, 10, 0, [node1]).transact({'from': client, 'value': 11})
         testerchain.wait_for_receipt(tx)
@@ -228,14 +236,15 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
     # Try to create policy with low rate
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.createPolicy(policy_id_3, 1, 0, [node1]).transact({'from': client, 'value': 5})
+        tx = policy_manager.functions.createPolicy(policy_id_3, 1, 0, [node1])\
+            .transact({'from': client, 'value': 5})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = policy_manager.functions.createPolicy(policy_id_3, 1, 0, [node1, node2]).transact({'from': client, 'value': 30})
+        tx = policy_manager.functions.createPolicy(policy_id_3, 1, 0, [node1, node2])\
+            .transact({'from': client, 'value': 30})
         testerchain.wait_for_receipt(tx)
 
-    # Create another policy with pay for first period
-    # Reward rate is calculated as numberOfNodes * (firstPartialReward + rewardRate * numberOfPeriods)
+    # Create new policy with payment for the first period
     period = escrow.functions.getCurrentPeriod().call()
     tx = policy_manager.functions.createPolicy(policy_id_3, number_of_periods, int(0.5 * rate), [node1, node2, node3])\
         .transact({'from': client,
@@ -257,8 +266,8 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     event_args = events[2]['args']
     assert policy_id_3 == event_args['policyId']
     assert client == event_args['client']
-    # assert node == event_args['node']
 
+    # Revoke only one arrangement
     tx = policy_manager.functions.revokeArrangement(policy_id_3, node1).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert 2 * value + rate == testerchain.interface.w3.eth.getBalance(policy_manager.address)
@@ -273,6 +282,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
     assert node1 == event_args['node']
     assert value + 0.5 * rate == event_args['value']
 
+    # Revoke policy
     tx = policy_manager.functions.revokePolicy(policy_id_3).transact({'from': client, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert 0 == testerchain.interface.w3.eth.getBalance(policy_manager.address)
@@ -310,7 +320,7 @@ def test_create_revoke(testerchain, escrow, policy_manager):
 
 
 @pytest.mark.slow
-def test_verifying_state(testerchain):
+def test_upgrading(testerchain):
     creator = testerchain.interface.w3.eth.accounts[0]
 
     # Deploy contracts
@@ -332,8 +342,10 @@ def test_verifying_state(testerchain):
     assert address1 == contract.functions.escrow().call()
     tx = dispatcher.functions.upgrade(contract_library_v2.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
+    # Check constructor and storage values
     assert contract_library_v2.address == dispatcher.functions.target().call()
     assert address2 == contract.functions.escrow().call()
+    # Check new ABI
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 3 == contract.functions.valueToCheck().call()
@@ -352,6 +364,7 @@ def test_verifying_state(testerchain):
     testerchain.wait_for_receipt(tx)
     assert contract_library_v1.address == dispatcher.functions.target().call()
     assert address1 == contract.functions.escrow().call()
+    # After rollback new ABI is unavailable
     with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.functions.setValueToCheck(2).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
