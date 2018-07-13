@@ -57,6 +57,11 @@ class Character:
         This exception is raised when a piece of logic can't proceed without more Ursulas.
         """
 
+    class InvalidSignature(Exception):
+        """
+        Raised when a signature doesn't pass validation/verification.
+        """
+
     def __init__(self, is_me=True,
                  network_middleware=None,
                  crypto_power: CryptoPower = None,
@@ -494,16 +499,16 @@ class Character:
 
         if signature_to_use:
             is_valid = signature_to_use.verify(message, sender_pubkey_sig)
+            if not is_valid:
+                raise self.InvalidSignature("Signature for message isn't valid.")
         else:
-            # Meh, we didn't even get a signature.  Not much we can do.
-            is_valid = False
-
-        return is_valid, cleartext
+            raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
+        return cleartext
 
         """
         Next we have decrypt(), sign(), and generate_self_signed_certificate() - these use the private 
         keys of their respective powers; any character who has these powers can use these functions.
-        
+
         If they don't have the correct Power, the appropriate PowerUpError is raised.
         """
 
