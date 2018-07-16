@@ -12,10 +12,12 @@ from kademlia.network import Server
 from kademlia.utils import digest
 
 from bytestring_splitter import VariableLengthBytestring, BytestringSplitter
+from hendrix.deploy.tls import HendrixDeployTLS
 from nucypher.config.configs import NetworkConfiguration
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import EncryptingPower, SigningPower
+from nucypher.crypto.powers import EncryptingPower, SigningPower, TLSHostingPower
+from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, InterfaceInfo
 from nucypher.network.storage import SeedOnlyStorage
@@ -104,11 +106,21 @@ class NucypherSeedOnlyDHTServer(NucypherDHTServer):
 
 class ProxyRESTServer:
 
-    def __init__(self, host=None, port=None, db_name=None, *args, **kwargs):
+    def __init__(self,
+                 host=None,
+                 port=None,
+                 db_name=None,
+                 tls_private_key=None,
+                 tls_curve=None,
+                 *args, **kwargs):
         self.rest_interface = InterfaceInfo(host=host, port=port)
 
         self.db_name = db_name
         self._rest_app = None
+        tls_hosting_keypair = HostingKeypair(common_name=self.checksum_public_address,
+                                             private_key=tls_private_key, curve=tls_curve)
+        tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair)
+        self._crypto_power.consume_power_up(tls_hosting_power)
 
     @classmethod
     def from_config(cls, network_config: NetworkConfiguration = None):
@@ -309,3 +321,9 @@ class ProxyRESTServer:
             # TODO: Make this a proper 500 or whatever.
             self.log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
+
+    def get_deployer(self):
+        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self._rest_app,
+                                                                              port=self.rest_interface.port)
+        return deployer
+

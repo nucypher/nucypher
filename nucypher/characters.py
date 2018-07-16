@@ -26,7 +26,7 @@ from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower, \
-    BlockchainPower
+    BlockchainPower, TLSHostingPower
 from nucypher.crypto.signing import signature_splitter, StrangerStamp
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
@@ -505,7 +505,7 @@ class Character:
         return cleartext
 
         """
-        Next we have decrypt(), sign(), and generate_self_signed_certificate() - these use the private 
+        Next we have decrypt() and sign() - these use the private 
         keys of their respective powers; any character who has these powers can use these functions.
 
         If they don't have the correct Power, the appropriate PowerUpError is raised.
@@ -516,10 +516,6 @@ class Character:
 
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
-
-    def generate_self_signed_certificate(self):
-        signing_power = self._crypto_power.power_ups(SigningPower)
-        return signing_power.generate_self_signed_cert(self.stamp.fingerprint().decode())
 
     """
     And finally, some miscellaneous but generally-applicable abilities:
@@ -907,6 +903,7 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                                             InterfaceInfo)
     _dht_server_class = NucypherDHTServer
     _alice_class = Alice
+    # TODO: Maybe this wants to be a registry, so that, for example, TLSHostingPower still can enjoy default status, but on a different class
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
     class NotFound(Exception):
@@ -929,7 +926,10 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                  federated_only=False,
                  checksum_address=None,
                  always_be_learning=None,
-                 crypto_power=None
+                 crypto_power=None,
+                 tls_curve=None,
+                 tls_private_key=None,  # Obviously config here. 361
+                 known_nodes=(),
                  ):
 
         VerifiableNode.__init__(self, interface_signature=interface_signature)
@@ -945,13 +945,17 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                            always_be_learning=always_be_learning,
                            federated_only=federated_only,
                            crypto_power=crypto_power,
-                           abort_on_learning_error=abort_on_learning_error)
+                           abort_on_learning_error=abort_on_learning_error,
+                           known_nodes=known_nodes)
 
         if not federated_only:
             Miner.__init__(self, miner_agent=miner_agent, is_me=is_me, checksum_address=checksum_address)
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
-        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port, db_name=db_name)
+        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port,
+                                 db_name=db_name,
+                                 tls_private_key=tls_private_key, tls_curve=tls_curve
+                                 )
 
         if is_me is True:
             # TODO: 340

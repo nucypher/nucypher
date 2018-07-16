@@ -1,14 +1,19 @@
-import sha3
 from typing import Union
 
+import sha3
+from OpenSSL.SSL import TLSv1_2_METHOD
+from OpenSSL.crypto import X509
+from cryptography.hazmat.primitives.asymmetric import ec
+from constant_sorrow import constants
+from hendrix.deploy.tls import HendrixDeployTLS
+from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from nucypher.crypto import api as API
 from nucypher.crypto.api import generate_self_signed_certificate
-from constant_sorrow.constants import PUBLIC_ONLY
-from umbral.keys import UmbralPrivateKey, UmbralPublicKey
-from umbral import pre
-from umbral.config import default_curve
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
+from umbral import pre
+from umbral.config import default_curve
+from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
 
 
@@ -17,26 +22,29 @@ class Keypair(object):
     A parent Keypair class for all types of Keypairs.
     """
 
+    _private_key_source = UmbralPrivateKey.gen_key
+    _public_key_method = "get_pubkey"
+
     def __init__(self,
-                 umbral_key: Union[UmbralPrivateKey, UmbralPublicKey] = None,
+                 private_key: Union[UmbralPrivateKey, UmbralPublicKey] = None,
                  generate_keys_if_needed=True):
         """
         Initalizes a Keypair object with an Umbral key object.
 
-        :param umbral_key: An UmbralPrivateKey or UmbralPublicKey
+        :param private_key: An UmbralPrivateKey or UmbralPublicKey
         :param generate_keys_if_needed: Generate keys or not?
         """
         try:
-            self.pubkey = umbral_key.get_pubkey()
-            self._privkey = umbral_key
+            self.pubkey = getattr(private_key, self._public_key_method)()
+            self._privkey = private_key
         except NotImplementedError:
-            self.pubkey = umbral_key
-            self._privkey = PUBLIC_ONLY
+            self.pubkey = private_key
+            self._privkey = constants.PUBLIC_ONLY
         except AttributeError:
             # They didn't pass anything we recognize as a valid key.
             if generate_keys_if_needed:
-                self._privkey = UmbralPrivateKey.gen_key()
-                self.pubkey = self._privkey.get_pubkey()
+                self._privkey = self._private_key_source()
+                self.pubkey = getattr(self._privkey, self._public_key_method)()
             else:
                 raise ValueError(
                     "Either pass a valid key as umbral_key or, if you want to generate keys, set generate_keys_if_needed to True.")
@@ -103,14 +111,49 @@ class SigningKeypair(Keypair):
         signature_der_bytes = API.ecdsa_sign(message, self._privkey)
         return Signature.from_bytes(signature_der_bytes, der_encoded=True)
 
-    def generate_self_signed_cert(self, common_name):
-        cryptography_key = self._privkey.to_cryptography_privkey()
-        return generate_self_signed_certificate(common_name, default_curve(), cryptography_key)
-
     def get_signature_stamp(self):
-        if self._privkey == PUBLIC_ONLY:
+        if self._privkey == constants.PUBLIC_ONLY:
             return StrangerStamp(verifying_key=self.pubkey)
         else:
             signer = Signer(self._privkey)
             return SignatureStamp(verifying_key=self.pubkey, signer=signer)
 
+
+class HostingKeypair(Keypair):
+    """
+    A keypair for TLS'ing.
+    """
+    _private_key_source = ec.generate_private_key
+    _public_key_method = "public_key"
+
+    _DEFAULT_CURVE = ec.SECP384R1
+
+    def __init__(self,
+                 common_name,
+                 private_key: Union[UmbralPrivateKey, UmbralPublicKey] = None,
+                 certificate=None,
+                 curve=None,
+                 generate_keys_if_needed=True):
+
+        self.curve = curve or self._DEFAULT_CURVE
+
+        if not certificate:
+            self._certificate, private_key = generate_self_signed_certificate(common_name=common_name,
+                                                                 private_key=private_key,
+                                                                 curve=self.curve)
+        else:
+            self._certificate = certificate
+        super().__init__(private_key=private_key)
+
+    def generate_self_signed_cert(self, common_name):
+        cryptography_key = self._privkey.to_cryptography_privkey()
+        return generate_self_signed_certificate(common_name, default_curve(), cryptography_key)
+
+    def get_deployer(self, rest_app, port):
+        return HendrixDeployTLS("start",
+                                key=self._privkey,
+                                cert=X509.from_cryptography(self._certificate),
+                                context_factory=ExistingKeyTLSContextFactory,
+                                context_factory_kwargs={"curve_name": self.curve.name,
+                                                        "sslmethod": TLSv1_2_METHOD},
+                                options={"wsgi": rest_app, "https_port": port})

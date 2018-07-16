@@ -125,7 +125,7 @@ def generate_self_signed_certificate(common_name, curve, private_key=None, days_
     cert = cert.serial_number(x509.random_serial_number())
     cert = cert.not_valid_before(now)
     cert = cert.not_valid_after(now + datetime.timedelta(days=days_valid))
-    # TODO: What domain here?  Not localhost presumably - ENS?  #146
+    # TODO: What are we going to do about domain name here? 179
     cert = cert.add_extension(x509.SubjectAlternativeName([x509.DNSName(u"localhost")]), critical=False)
     cert = cert.sign(private_key, hashes.SHA512(), default_backend())
     return cert, private_key
