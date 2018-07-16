@@ -71,7 +71,7 @@ class Character:
                  checksum_address: bytes = None,
                  always_be_learning=False,
                  start_learning_on_same_thread=False,
-                 known_nodes: Set = (),
+                 known_nodes: tuple = (),
                  abort_on_learning_error: bool = False,
                  ):
         """
@@ -347,7 +347,12 @@ class Character:
         """
         self._learning_round += 1
 
-        current_teacher = self.current_teacher_node()
+        try:
+            current_teacher = self.current_teacher_node()
+        except self.NotEnoughUrsulas as e:
+            self.log.warning("Can't learn right now: {}".format(e.args[0]))
+            return
+
         rest_address = current_teacher.rest_interface.host
         port = current_teacher.rest_interface.port
 
@@ -355,7 +360,8 @@ class Character:
         response = self.network_middleware.get_nodes_via_rest(rest_address,
                                                               port, node_ids=self._node_ids_to_learn_about_immediately)
         if response.status_code != 200:
-            raise RuntimeError
+            raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content
+                                                                           ))
         signature, nodes = signature_splitter(response.content, return_remainder=True)
         node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)  # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
 
