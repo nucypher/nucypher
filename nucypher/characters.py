@@ -234,8 +234,8 @@ class Character:
 
     def remember_node(self, node):
         # TODO: 334
-        listeners = self._learning_listeners.pop(node.canonical_public_address, ())
-        address = node.canonical_public_address
+        listeners = self._learning_listeners.pop(node.checksum_public_address, ())
+        address = node.checksum_public_address
 
         self._known_nodes[address] = node
         self.log.info("Remembering {}, popping {} listeners.".format(node.checksum_public_address, len(listeners)))
@@ -325,7 +325,6 @@ class Character:
             rounds_undertaken = self._learning_round - starting_round
             if (maya.now() - start).seconds < timeout:
                 if canonical_addresses.issubset(self._known_nodes):
-
                     self.log.info("Learned about all nodes after {} rounds.".format(rounds_undertaken))
                     return True
                 else:
@@ -381,7 +380,7 @@ class Character:
                                                         rest_address, port)
                 self.log.warning(message)
                 
-            self.log.info("Prevously unknown node: {}".format(node.checksum_public_address))
+            self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
 
             self.remember_node(node)
 
@@ -1071,11 +1070,9 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
         return stranger_ursulas
 
     def __bytes__(self):
-        message = self.canonical_public_address + self.rest_interface
         interface_info = VariableLengthBytestring(self.rest_interface)
 
         if self.dht_interface:
-            message += self.dht_interface
             interface_info += VariableLengthBytestring(self.dht_interface)
 
         identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
