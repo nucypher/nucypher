@@ -12,9 +12,9 @@ import kademlia
 import maya
 import time
 from eth_keys import KeyAPI as EthKeyAPI
-from eth_keys.datatypes import Signature
 from kademlia.network import Server
 from kademlia.utils import digest
+from twisted.internet import task, threads
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
@@ -26,13 +26,12 @@ from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower, \
-    BlockchainPower, TLSHostingPower
+    BlockchainPower
 from nucypher.crypto.signing import signature_splitter, StrangerStamp
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
-from twisted.internet import task, threads
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -363,7 +362,8 @@ class Character:
             raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content
                                                                            ))
         signature, nodes = signature_splitter(response.content, return_remainder=True)
-        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)  # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
+        node_list = Ursula.batch_from_bytes(nodes,
+                                            federated_only=self.federated_only)  # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
 
         self.log.info("Learning round {}.  Teacher: {} knew about {} nodes.".format(self._learning_round,
                                                                                     current_teacher.checksum_public_address,
@@ -385,7 +385,7 @@ class Character:
                           "Propagated by: {}:{}".format(current_teacher.checksum_public_address,
                                                         rest_address, port)
                 self.log.warning(message)
-                
+
             self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
 
             self.remember_node(node)
@@ -505,7 +505,8 @@ class Character:
         if signature_to_use:
             is_valid = signature_to_use.verify(message, sender_pubkey_sig)
             if not is_valid:
-                raise mystery_stranger.InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
+                raise mystery_stranger.InvalidSignature(
+                    "Signature for message isn't valid: {}".format(signature_to_use))
         else:
             raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
         return cleartext
@@ -855,15 +856,14 @@ class Bob(Character):
         for counter, capsule in enumerate(work_order.capsules):
             # TODO: Ursula is actually supposed to sign this.  See #141.
             # TODO: Maybe just update the work order here instead of setting it anew.
-            work_orders_by_ursula = self._saved_work_orders[bytes(work_order.ursula.canonical_public_address)]
+            work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_public_address]
             work_orders_by_ursula[capsule] = work_order
         return cfrags
 
     def get_ursula(self, ursula_id):
         return self._ursulas[ursula_id]
 
-    def join_policy(self, label, alice_pubkey_sig,
-                    node_list=None, verify_sig=True):
+    def join_policy(self, label, alice_pubkey_sig, node_list=None):
         if node_list:
             self._node_ids_to_learn_about_immediately.update(node_list)
         treasure_map = self.get_treasure_map(alice_pubkey_sig, label)
@@ -1044,7 +1044,7 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
     @classmethod
     def from_bytes(cls, ursula_as_bytes, federated_only=False):
         signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info = cls._internal_splitter(
-                ursula_as_bytes)
+            ursula_as_bytes)
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: verifying_key, EncryptingPower: encrypting_key},
             interface_signature=signature,
@@ -1064,7 +1064,8 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
         stranger_ursulas = []
 
         ursulas_attrs = cls._internal_splitter.repeat(ursulas_as_bytes)
-        for (signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info) in ursulas_attrs:
+        for (signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info,
+             dht_info) in ursulas_attrs:
             stranger_ursula_from_public_keys = cls.from_public_keys(
                 {SigningPower: verifying_key, EncryptingPower: encrypting_key},
                 interface_signature=signature,

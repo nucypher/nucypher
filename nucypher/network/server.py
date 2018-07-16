@@ -6,25 +6,21 @@ from typing import ClassVar
 import kademlia
 from apistar import http, Route, App
 from apistar.http import Response
-from constant_sorrow import constants
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
 
-from bytestring_splitter import VariableLengthBytestring, BytestringSplitter
-from hendrix.deploy.tls import HendrixDeployTLS
+from bytestring_splitter import VariableLengthBytestring
+from constant_sorrow import constants
 from nucypher.config.configs import NetworkConfiguration
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import EncryptingPower, SigningPower, TLSHostingPower
+from nucypher.crypto.powers import SigningPower, TLSHostingPower
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, InterfaceInfo
 from nucypher.network.storage import SeedOnlyStorage
 from umbral import pre
 from umbral.fragments import KFrag
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 
 class NucypherDHTServer(Server):
@@ -244,12 +240,6 @@ class ProxyRESTServer:
             # TODO: What do we do if the Policy isn't signed properly?
             pass
 
-        #
-        # alices_signature, policy_payload =BytestringSplitter(Signature)(cleartext, return_remainder=True)
-
-        # TODO: If we're not adding anything else in the payload, stop using the
-        # splitter here.
-        # kfrag = policy_payload_splitter(policy_payload)[0]
         kfrag = KFrag.from_bytes(cleartext)
 
         with ThreadedSession(self.db_engine) as session:
@@ -326,4 +316,3 @@ class ProxyRESTServer:
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self._rest_app,
                                                                               port=self.rest_interface.port)
         return deployer
-
