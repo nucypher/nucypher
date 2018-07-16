@@ -500,7 +500,7 @@ class Character:
         if signature_to_use:
             is_valid = signature_to_use.verify(message, sender_pubkey_sig)
             if not is_valid:
-                raise self.InvalidSignature("Signature for message isn't valid.")
+                raise mystery_stranger.InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
         else:
             raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
         return cleartext

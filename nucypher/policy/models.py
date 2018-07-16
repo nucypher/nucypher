@@ -10,7 +10,7 @@ import msgpack
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
 from nucypher.characters import Alice
-from nucypher.characters import Bob, Ursula
+from nucypher.characters import Bob, Ursula, Character
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -423,13 +423,14 @@ class TreasureMap:
         When Bob receives the TreasureMap, he'll pass a compass (a callable which can verify and decrypt the
         payload message kit).
         """
-        verified, map_in_the_clear = compass(message_kit=self.message_kit)
-        if verified:
-            self.m = map_in_the_clear[0]
-            self.destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
-        else:
+        try:
+            map_in_the_clear = compass(message_kit=self.message_kit)
+        except Character.InvalidSignature:
             raise self.InvalidSignature(
                 "This TreasureMap does not contain the correct signature from Alice to Bob.")
+        else:
+            self.m = map_in_the_clear[0]
+            self.destinations = dict(self.node_id_splitter.repeat(map_in_the_clear[1:]))
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)

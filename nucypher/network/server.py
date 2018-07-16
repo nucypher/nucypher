@@ -227,7 +227,7 @@ class ProxyRESTServer:
         alice = self._alice_class.from_public_keys({SigningPower: policy_message_kit.sender_pubkey_sig})
 
         try:
-            verified, cleartext = self.verify_from(alice, policy_message_kit, decrypt=True)
+            cleartext = self.verify_from(alice, policy_message_kit, decrypt=True)
         except self.InvalidSignature:
             # TODO: What do we do if the Policy isn't signed properly?
             pass

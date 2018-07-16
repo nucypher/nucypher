@@ -243,8 +243,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, bob, alice, capsule_
 
     # Now.
     # At long last.
-    is_valid, cleartext = bob.verify_from(the_data_source, the_message_kit,
-                                          decrypt=True,
-                                          delegator_signing_key=alice.stamp.as_umbral_pubkey())
+    cleartext = bob.verify_from(the_data_source, the_message_kit,
+                                decrypt=True,
+                                delegator_signing_key=alice.stamp.as_umbral_pubkey())
     assert cleartext == b'Welcome to the flippering.'
-    assert is_valid
