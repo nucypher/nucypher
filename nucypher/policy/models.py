@@ -105,7 +105,7 @@ class Arrangement:
     @abstractmethod
     def revoke(self):
         """
-        Publish arrangement.
+        Revoke arrangement.
         """
         raise NotImplementedError
 
