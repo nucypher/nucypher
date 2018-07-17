@@ -17,6 +17,7 @@ from nucypher.config.configs import NetworkConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, TLSHostingPower
 from nucypher.keystore.keypairs import HostingKeypair
+from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, InterfaceInfo
 from nucypher.network.storage import SeedOnlyStorage
@@ -147,6 +148,9 @@ class ProxyRESTServer:
             Route('/kFrag/{id_as_hex}/reencrypt',
                   'POST',
                   self.reencrypt_via_rest),
+            Route('/kFrag/revoke',
+                  'POST',
+                  self.revoke_arrangement),
             Route('/public_information', 'GET',
                   self.public_information),
             Route('/node_metadata', 'GET',
@@ -236,7 +240,7 @@ class ProxyRESTServer:
         arrangement = Arrangement.from_bytes(request.body)
 
         with ThreadedSession(self.db_engine) as session:
-            new_policyarrangement = self.datastore.add_policy_arrangement(
+            new_policy_arrangement = self.datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
                 id=arrangement.id.hex().encode(),
                 alice_pubkey_sig=arrangement.alice.stamp,
@@ -277,6 +281,22 @@ class ProxyRESTServer:
                 session=session)
 
         return  # TODO: Return A 200, with whatever policy metadata.
+
+    def revoke_arrangement(self, request: http.Request):
+        """
+        REST endpoint for revoking/deleting a KFrag from a node.
+        TODO: How do we want to verify that this request comes from Alice?
+              What/How is she going to sign?
+        """
+        arrangement_id = request.body
+        try:
+            with ThreadedSession(self.db_engine) as session:
+                self.datastore.del_policy_arrangement(
+                    arrangement_id,
+                    session=session)
+        except NotFound:
+            return 404  # TODO: Should we 404 or do something else?
+        return 200
 
     def reencrypt_via_rest(self, id_as_hex, request: http.Request):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
