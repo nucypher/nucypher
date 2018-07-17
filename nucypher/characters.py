@@ -760,6 +760,9 @@ class Alice(Character, PolicyAuthor):
         policy.enact(network_middleware=self.network_middleware)
         return policy  # Now with TreasureMap affixed!
 
+    def revoke(self):
+        raise NotImplementedError
+
 
 class Bob(Character):
     _dht_server_class = NucypherSeedOnlyDHTServer
