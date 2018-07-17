@@ -104,6 +104,9 @@ class ProxyRESTRoutes:
             Route('/kFrag/{id_as_hex}/reencrypt',
                   'POST',
                   self.reencrypt_via_rest),
+            Route('/kFrag/revoke',
+                  'POST',
+                  self.revoke_arrangement),
             Route('/public_information', 'GET',
                   self.public_information),
             Route('/node_metadata', 'GET',
@@ -203,7 +206,7 @@ class ProxyRESTRoutes:
         arrangement = Arrangement.from_bytes(request.body)
 
         with ThreadedSession(self.db_engine) as session:
-            new_policyarrangement = self.datastore.add_policy_arrangement(
+            new_policy_arrangement = self.datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
                 id=arrangement.id.hex().encode(),
                 alice_pubkey_sig=arrangement.alice.stamp,
@@ -250,7 +253,23 @@ class ProxyRESTRoutes:
         # TODO: Sign the arrangement here.  #495
         return  # TODO: Return A 200, with whatever policy metadata.
 
-    def reencrypt_via_rest(self, id_as_hex, request: Request):
+    def revoke_arrangement(self, request: http.Request):
+        """
+        REST endpoint for revoking/deleting a KFrag from a node.
+        TODO: How do we want to verify that this request comes from Alice?
+              What/How is she going to sign?
+        """
+        arrangement_id = request.body
+        try:
+            with ThreadedSession(self.db_engine) as session:
+                self.datastore.del_policy_arrangement(
+                    arrangement_id,
+                    session=session)
+        except NotFound:
+            return 404  # TODO: Should we 404 or do something else?
+        return 200
+
+    def reencrypt_via_rest(self, id_as_hex, request: http.Request):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
         work_order = WorkOrder.from_rest_payload(arrangement_id, request.body)
