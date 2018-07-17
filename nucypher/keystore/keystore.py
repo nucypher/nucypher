@@ -127,7 +127,11 @@ class KeyStore(object):
         """
         session = session or self._session_on_init_thread
 
-        session.query(PolicyArrangement).filter_by(id=arrangement_id).delete()
+        policy_arrangement = session.query(PolicyArrangement).filter_by(id=arrangement_id)
+        if not policy_arrangement:
+            raise NotFound("No PolicyArrangement {} found.".format(arrangement_id))
+
+        policy_arrangement.delete()
         session.commit()
 
     def attach_kfrag_to_saved_arrangement(self, alice, id_as_hex, kfrag, session=None):
