@@ -6,27 +6,29 @@
 import datetime
 import sys
 
+import maya
 from sandbox_resources import SandboxRestMiddleware
+
 from nucypher.characters import Alice, Bob, Ursula
 from nucypher.data_sources import DataSource
-import maya
-
 # This is already running in another process.
 from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey
 
 URSULA = Ursula.from_rest_url(network_middleware=RestMiddleware(),
                               host="localhost",
-                              port=3601)
+                              port=3601,
+                              federated_only=True)
 
 network_middleware = SandboxRestMiddleware([URSULA])
-
 
 #########
 # Alice #
 #########
 
-ALICE = Alice(network_middleware=network_middleware, federated_only=True)  # TODO: 289
+ALICE = Alice(network_middleware=network_middleware,
+              known_nodes=(URSULA,),  # in lieu of seed nodes
+              federated_only=True)  # TODO: 289
 
 # Here are our Policy details.
 policy_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -34,13 +36,8 @@ m = 1
 n = 1
 label = b"secret/files/and/stuff"
 
-
-# Alice gets on the network and, knowing about at least one Ursula,
-# Is able to discover all Ursulas.
-ALICE.network_bootstrap([("localhost", 3601)])
-
 # Alice grants to Bob.
-BOB = Bob()
+BOB = Bob(known_nodes=(URSULA,), federated_only=True)
 policy = ALICE.grant(BOB, label, m=m, n=n,
                      expiration=policy_end_datetime)
 
@@ -90,10 +87,9 @@ for counter, plaintext in enumerate(finnegans_wake):
         print("PREs per second: {}".format(counter / seconds))
         print("********************************")
 
-
-################################################################################
-# ...here.  OK, pay attention again.
-# Now it's time for...
+    ################################################################################
+    # ...here.  OK, pay attention again.
+    # Now it's time for...
 
     #####################
     # Using DataSources #
@@ -139,10 +135,10 @@ for counter, plaintext in enumerate(finnegans_wake):
     # Now Bob can retrieve the original message.  He just needs the MessageKit
     # and the DataSource which produced it.
     alice_pubkey_restored_from_ancient_scroll = UmbralPublicKey.from_bytes(alices_pubkey_bytes_saved_for_posterity)
-    delivered_cleartext = BOB.retrieve(message_kit=message_kit,
+    delivered_cleartexts = BOB.retrieve(message_kit=message_kit,
                                        data_source=datasource_as_understood_by_bob,
-                                       alice_pubkey_sig=alice_pubkey_restored_from_ancient_scroll)
+                                       alice_verifying_key=alice_pubkey_restored_from_ancient_scroll)
 
     # We show that indeed this is the passage originally encrypted by the DataSource.
-    assert plaintext == delivered_cleartext
-    print("Retrieved: {}".format(delivered_cleartext))
+    assert plaintext == delivered_cleartexts[0]
+    print("Retrieved: {}".format(delivered_cleartexts[0]))

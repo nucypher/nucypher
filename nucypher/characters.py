@@ -674,7 +674,7 @@ class Bob(Character):
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
 
-    def peek_at_treasure_map(self, map_id):
+    def peek_at_treasure_map(self, treasure_map=None, map_id=None):
         """
         Take a quick gander at the TreasureMap matching map_id to see which
         nodes are already kwown to us.
@@ -684,7 +684,14 @@ class Bob(Character):
 
         Return two sets: nodes that are unknown to us, nodes that are known to us.
         """
-        treasure_map = self.treasure_maps[map_id]
+        if not treasure_map:
+            if map_id:
+                treasure_map = self.treasure_maps[map_id]
+            else:
+                raise ValueError("You need to pass either treasure_map or map_id.")
+        else:
+            if map_id:
+                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
 
         # The intersection of the map and our known nodes will be the known Ursulas...
         known_treasure_ursulas = treasure_map.destinations.keys() & self._known_nodes.keys()
@@ -694,7 +701,11 @@ class Bob(Character):
 
         return unknown_treasure_ursulas, known_treasure_ursulas
 
-    def follow_treasure_map(self, map_id, block=False, new_thread=False,
+    def follow_treasure_map(self,
+                            treasure_map=None,
+                            map_id=None,
+                            block=False,
+                            new_thread=False,
                             timeout=10,
                             allow_missing=0):
         """
@@ -712,7 +723,16 @@ class Bob(Character):
 
         # TODO: Check if nodes are up, declare them phantom if not.
         """
-        unknown_ursulas, known_ursulas = self.peek_at_treasure_map(map_id)
+        if not treasure_map:
+            if map_id:
+                treasure_map = self.treasure_maps[map_id]
+            else:
+                raise ValueError("You need to pass either treasure_map or map_id.")
+        else:
+            if map_id:
+                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
+
+        unknown_ursulas, known_ursulas = self.peek_at_treasure_map(treasure_map=treasure_map)
 
         if unknown_ursulas:
             self.learn_about_specific_nodes(unknown_ursulas)
@@ -733,7 +753,7 @@ class Bob(Character):
         return unknown_ursulas, known_ursulas
 
     def get_treasure_map(self, alice_verifying_key, label):
-        map_id = self.construct_map_id(verifying_key=alice_verifying_key, label=label)
+        _hrac, map_id = self.construct_hrac_and_map_id(verifying_key=alice_verifying_key, label=label)
 
         if not self._known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
@@ -760,10 +780,10 @@ class Bob(Character):
     def construct_policy_hrac(self, verifying_key, label):
         return keccak_digest(bytes(verifying_key) + self.stamp + label)
 
-    def construct_map_id(self, verifying_key, label):
+    def construct_hrac_and_map_id(self, verifying_key, label):
         hrac = self.construct_policy_hrac(verifying_key, label)
-        map_id = keccak_digest(verifying_key + hrac).hex()
-        return map_id
+        map_id = keccak_digest(bytes(verifying_key) + hrac).hex()
+        return hrac, map_id
 
     def get_treasure_map_from_known_ursulas(self, networky_stuff, map_id):
         """
@@ -786,15 +806,14 @@ class Bob(Character):
 
         return treasure_map
 
-    def generate_work_orders(self, hrac, *capsules, num_ursulas=None):
+    def generate_work_orders(self, map_id, *capsules, num_ursulas=None):
         from nucypher.policy.models import WorkOrder  # Prevent circular import
 
         try:
-            # TODO: Wait... are we saving treasure_maps by hrac here?  Or map id?  Is this just a misnomer?
-            treasure_map_to_use = self.treasure_maps[hrac]
+            treasure_map_to_use = self.treasure_maps[map_id]
         except KeyError:
             raise KeyError(
-                "Bob doesn't have a TreasureMap matching the hrac {}".format(hrac))
+                "Bob doesn't have the TreasureMap {}; can't generate work orders.".format(map_id))
 
         generated_work_orders = OrderedDict()
 
@@ -823,7 +842,7 @@ class Bob(Character):
 
         return generated_work_orders
 
-    def get_reencrypted_c_frags(self, work_order):
+    def get_reencrypted_cfrags(self, work_order):
         cfrags = self.network_middleware.reencrypt(work_order)
         if not len(work_order) == len(cfrags):
             raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
@@ -838,12 +857,12 @@ class Bob(Character):
         return self._ursulas[ursula_id]
 
     def join_policy(self, label, alice_pubkey_sig,
-                    using_dht=False, node_list=None, verify_sig=True):
+                    node_list=None, verify_sig=True):
         hrac = keccak_digest(bytes(alice_pubkey_sig) + bytes(self.stamp) + label)
         if node_list:
-            self.network_bootstrap(node_list)
-        self.get_treasure_map(alice_pubkey_sig, hrac, using_dht=using_dht, verify_sig=verify_sig)
-        self.follow_treasure_map(hrac, using_dht=using_dht)
+            self._node_ids_to_learn_about_immediately.update(node_list)
+        treasure_map = self.get_treasure_map(alice_pubkey_sig, label)
+        self.follow_treasure_map(treasure_map=treasure_map)
 
     def retrieve(self, message_kit, data_source, alice_verifying_key):
 
@@ -852,30 +871,27 @@ class Bob(Character):
             receiving=self.public_key(EncryptingPower),
             verifying=alice_verifying_key)
 
-        hrac = self.construct_treasure_map_id(alice_verifying_key, data_source.label)
-        treasure_map = self.treasure_maps[hrac]
+        hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, data_source.label)
+        self.follow_treasure_map(map_id=map_id)
 
-        # First, a quick sanity check to make sure we know about at least m nodes.
-        known_nodes_as_bytes = set([bytes(n) for n in self._known_nodes.keys()])
-        intersection = treasure_map.ids.intersection(known_nodes_as_bytes)
+        work_orders = self.generate_work_orders(map_id, message_kit.capsule)
 
-        if len(intersection) < treasure_map.m:
-            raise RuntimeError("Not enough known nodes.  Try following the TreasureMap again.")
+        cleartexts = []
 
-        work_orders = self.generate_work_orders(hrac, message_kit.capsule)
-        for node_id in self.treasure_maps[hrac]:
-            node = self._known_nodes[UmbralPublicKey.from_bytes(node_id)]
-            cfrags = self.get_reencrypted_c_frags(work_orders[bytes(node.stamp)])
+        for work_order in work_orders.values():
+            cfrags = self.get_reencrypted_cfrags(work_order)
             message_kit.capsule.attach_cfrag(cfrags[0])
-        verified, delivered_cleartext = self.verify_from(data_source,
-                                                         message_kit,
-                                                         decrypt=True,
-                                                         delegator_signing_key=alice_pubkey_sig)
 
-        if verified:
-            return delivered_cleartext
-        else:
-            raise RuntimeError("Not verified - replace this with real message.")
+            verified, delivered_cleartext = self.verify_from(data_source,
+                                                             message_kit,
+                                                             decrypt=True,
+                                                             delegator_signing_key=alice_verifying_key)
+
+            if verified:
+                cleartexts.append(delivered_cleartext)
+            else:
+                raise RuntimeError("Not verified - replace this with real message.")  # TODO: Actually raise an error in verify_from instead of here 358
+        return cleartexts
 
 
 class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
@@ -961,28 +977,11 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
     @classmethod
     def from_rest_url(cls, network_middleware, host, port, federated_only=False):
-        response = network_middleware.ursula_from_rest_interface(host, port)
+        response = network_middleware.node_information(host, port)
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 
-        splitter = BytestringSplitter(Signature,
-                                      (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
-                                      (UmbralPublicKey, int(PUBLIC_KEY_LENGTH)),
-                                      int(PUBLIC_ADDRESS_LENGTH))
-        signature, signing_key, encrypting_key, canonical_public_address = splitter(response.content)
-
-        if signature.verify(bytes(signing_key) + bytes(encrypting_key) + canonical_public_address, signing_key):
-
-            # TODO: Use from_bytes.
-            stranger_ursula_from_public_keys = cls.from_public_keys(
-                {SigningPower: signing_key, EncryptingPower: encrypting_key},
-                canonical_public_address=canonical_public_address,
-                rest_host=host,
-                rest_port=port,
-                federated_only=federated_only  # TODO: 289
-            )
-        else:
-            raise cls.SuspiciousActivity("Ursula's signature on her public information didn't verify.")
+        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only)
 
         return stranger_ursula_from_public_keys
 

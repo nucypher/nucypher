@@ -1,5 +1,5 @@
-from nucypher.crypto.api import keccak_digest
 from bytestring_splitter import BytestringSplitter
+from nucypher.crypto.api import keccak_digest
 from umbral.signing import Signature, Signer
 
 signature_splitter = BytestringSplitter(Signature)
@@ -11,7 +11,7 @@ class SignatureStamp(object):
     key as bytes.
     """
 
-    def __init__(self, verifying_key, signer: Signer=None):
+    def __init__(self, verifying_key, signer: Signer = None):
         self.__signer = signer
         self._as_bytes = bytes(verifying_key)
         self._as_umbral_pubkey = verifying_key
@@ -56,6 +56,8 @@ class StrangerStamp(SignatureStamp):
     """
     SignatureStamp of a stranger (ie, can only be used to glean public key, not to sign)
     """
+
     def __call__(self, *args, **kwargs):
+        from nucypher.crypto.powers import NoSigningPower
         message = "This isn't your SignatureStamp; it belongs to (a Stranger).  You can't sign with it."
-        raise TypeError(message)
+        raise NoSigningPower(message)

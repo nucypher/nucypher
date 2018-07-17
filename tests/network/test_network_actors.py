@@ -122,7 +122,7 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ur
     hrac_by_bob = bob.construct_policy_hrac(alice.stamp, enacted_federated_policy.label)
     assert enacted_federated_policy.hrac() == hrac_by_bob
 
-    map_id_by_bob = bob.construct_map_id(alice.stamp, enacted_federated_policy.label)
+    hrac, map_id_by_bob = bob.construct_hrac_and_map_id(alice.stamp, enacted_federated_policy.label)
     assert map_id_by_bob == treasure_map_as_set_on_network.public_id()
 
 

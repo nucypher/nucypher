@@ -1,4 +1,4 @@
-from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower
+from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, PowerUpError, NoSigningPower
 from constant_sorrow import constants
 from nucypher.network.protocols import SuspiciousActivity
 from eth_keys.datatypes import Signature as EthSignature
@@ -72,22 +72,29 @@ class VerifiableNode:
                     raise
 
     def verify_node(self, network_middleware, accept_federated_only=False, force=False):
+        """
+        Three things happening here:
+
+        * Verify that the stamp matches the address (raises InvalidNode is it's not valid, or WrongMode if it's a federated mode and being verified as a decentralized node)
+        * Verify the interface signature (raises InvalidNode if not valid)
+        * Connect to the node, make sure that it's up, and that the signature and address we checked are the same ones this node is using now. (raises InvalidNode if not valid; also emits a specific warning depending on which check failed).
+        """
         if not force:
             if self._verified_node:
                 return True
 
-        self.validate_metadata(accept_federated_only)
+        self.validate_metadata(accept_federated_only)  # This is both the stamp and interface check.
 
         # The node's metadata is valid; let's be sure the interface is in order.
         response = network_middleware.node_information(host=self.rest_interface.host,
                                             port=self.rest_interface.port)
         if not response.status_code == 200:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
-        signature, verifying_key, encrypting_key, canonical_address = self.public_information_splitter(response.content)
+        signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info = self._internal_splitter(response.content)
 
         verifying_keys_match = verifying_key == self.public_key(SigningPower)
         encrypting_keys_match = encrypting_key == self.public_key(EncryptingPower)
-        addresses_match = canonical_address == self.canonical_public_address
+        addresses_match = public_address == self.canonical_public_address
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match)):
             # TODO: Optional reporting.  355
@@ -96,14 +103,6 @@ class VerifiableNode:
             if not verifying_keys_match:
                 self.log.warning("Verifying key swapped out.  It appears that someone is impersonating this node.")
             raise self.InvalidNode("Wrong cryptographic material for this node - something fishy going on.")
-
-        verified = signature.verify(message=response.content[len(signature):], verifying_key=verifying_key)
-
-        if verified:
-            self._verified_node = True
-            return True
-        else:
-            raise self.InvalidNode("Node signature was invalid after all.  It may be misconfigured, or this may be an attack.")
 
     def substantiate_stamp(self):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
@@ -122,5 +121,8 @@ class VerifiableNode:
     @property
     def _interface_signature(self):
         if not self._interface_signature_object:
-            self._sign_interface_info()
+            try:
+                self._sign_interface_info()
+            except NoSigningPower:
+                raise NoSigningPower("This Ursula is a Stranger; you didn't init with an interface signature, so you can't verify.")
         return self._interface_signature_object

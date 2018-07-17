@@ -19,14 +19,19 @@ from nucypher.crypto.api import generate_self_signed_certificate
 
 DB_NAME = "non-mining-proxy-node"
 
-_URSULA = Ursula(dht_port=3501, rest_port=3601, ip_address="localhost", db_name=DB_NAME, federated_only=True)
+_URSULA = Ursula(dht_port=3501,
+                 rest_port=3601,
+                 rest_host="localhost",
+                 dht_host="localhost",
+                 db_name=DB_NAME,
+                 federated_only=True)
 _URSULA.dht_listen()
 
 CURVE = ec.SECP256R1
 cert, private_key = generate_self_signed_certificate(_URSULA.stamp.fingerprint().decode(), CURVE)
 
 deployer = HendrixDeployTLS("start",
-                            {"wsgi":_URSULA.rest_app, "https_port": _URSULA.rest_port},
+                            {"wsgi":_URSULA.rest_app, "https_port": _URSULA.rest_interface.port},
                             key=private_key,
                             cert=X509.from_cryptography(cert),
                             context_factory=ExistingKeyTLSContextFactory,

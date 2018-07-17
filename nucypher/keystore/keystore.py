@@ -118,7 +118,7 @@ class KeyStore(object):
         policy_arrangement = session.query(PolicyArrangement).filter_by(id=arrangement_id).first()
 
         if not policy_arrangement:
-            raise NotFound("No PolicyArrangement {} found.".format(arrangement_id))
+              raise NotFound("No PolicyArrangement {} found.".format(arrangement_id))
         return policy_arrangement
 
     def del_policy_arrangement(self, arrangement_id: bytes, session=None):

@@ -1,7 +1,8 @@
 from cryptography.hazmat.primitives.asymmetric import ec
 from umbral.config import set_default_curve
+from umbral.curve import SECP256K1
 
-set_default_curve(ec.SECP256K1())
+set_default_curve(SECP256K1)
 
 """NOTICE:  Depends on fixture modules; do not delete"""
 from .fixtures import *
