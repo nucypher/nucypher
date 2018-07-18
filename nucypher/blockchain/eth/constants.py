@@ -10,7 +10,19 @@ import maya
 from constant_sorrow.constants import (NULL_ADDRESS, TOKEN_SATURATION, MINING_COEFFICIENT, TOKEN_SUPPLY,
                                        M, HOURS_PER_PERIOD, MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS,
                                        MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED, SECONDS_PER_PERIOD,
-                                       POLICY_ID_LENGTH, )
+                                       POLICY_ID_LENGTH, DISPATCHER_SECRET_LENGTH, )
+
+
+#
+# Dispatcher
+#
+
+
+class DispatcherConfigError(ValueError):
+    pass
+
+
+DISPATCHER_SECRET_LENGTH(32)
 
 
 #

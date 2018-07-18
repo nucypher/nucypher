@@ -360,12 +360,12 @@ contract MinersEscrow is Issuer {
     )
         public onlyMiner
     {
-        uint16 currentPeriod = getCurrentPeriod();
+        MinerInfo storage info = minerInfo[msg.sender];
         require(_newValue >= minAllowableLockedTokens &&
             _periods > 0 &&
             _index < info.stakes.length);
-        MinerInfo storage info = minerInfo[msg.sender];
         StakeInfo storage stake = info.stakes[_index];
+        uint16 currentPeriod = getCurrentPeriod();
         uint16 startPeriod = getStartPeriod(info, currentPeriod);
         uint16 lastPeriod = getLastPeriodOfStake(stake, startPeriod);
         require(lastPeriod >= currentPeriod);

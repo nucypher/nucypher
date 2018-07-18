@@ -1,6 +1,10 @@
+import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
+
+
+SECRET_LENGTH = 32
 
 
 @pytest.fixture()
@@ -118,9 +122,14 @@ def test_inflation_rate(testerchain, token):
 def test_upgrading(testerchain, token):
     creator = testerchain.interface.w3.eth.accounts[0]
 
+    secret = os.urandom(SECRET_LENGTH)
+    secret_hash = testerchain.interface.w3.sha3(secret)
+    secret2 = os.urandom(SECRET_LENGTH)
+    secret2_hash = testerchain.interface.w3.sha3(secret2)
+
     # Deploy contract
     contract_library_v1, _ = testerchain.interface.deploy_contract('Issuer', token.address, 1, 1, 1, 1)
-    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract_library_v1.address)
+    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
     # Deploy second version of the contract
     contract_library_v2, _ = testerchain.interface.deploy_contract('IssuerV2Mock', token.address, 2, 2, 2, 2)
@@ -138,7 +147,7 @@ def test_upgrading(testerchain, token):
     # Upgrade to the second version, check new and old values of variables
     period = contract.functions.lastMintedPeriod().call()
     assert 1 == contract.functions.miningCoefficient().call()
-    tx = dispatcher.functions.upgrade(contract_library_v2.address).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract_library_v2.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert contract_library_v2.address == dispatcher.functions.target().call()
     assert 2 == contract.functions.miningCoefficient().call()
@@ -155,14 +164,16 @@ def test_upgrading(testerchain, token):
     # Can't upgrade to the previous version or to the bad version
     contract_library_bad, _ = testerchain.interface.deploy_contract('IssuerBad', token.address, 2, 2, 2, 2)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract_library_v1.address).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash)\
+            .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract_library_bad.address).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret2, secret_hash)\
+            .transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # But can rollback
-    tx = dispatcher.functions.rollback().transact({'from': creator})
+    tx = dispatcher.functions.rollback(secret2, secret_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     # Check old values
     assert contract_library_v1.address == dispatcher.functions.target().call()
@@ -179,5 +190,6 @@ def test_upgrading(testerchain, token):
 
     # Try to upgrade to the bad version again
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract_library_bad.address).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret, secret2_hash)\
+            .transact({'from': creator})
         testerchain.wait_for_receipt(tx)

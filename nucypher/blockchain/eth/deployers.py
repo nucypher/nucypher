@@ -194,14 +194,16 @@ class DispatcherDeployer(ContractDeployer):
 
     _contract_name = 'Dispatcher'
 
-    def __init__(self, target_contract, *args, **kwargs):
+    def __init__(self, target_contract, secret_hash, *args, **kwargs):
         self.target_contract = target_contract
+        self.secret_hash = secret_hash
         super().__init__(*args, **kwargs)
 
     def deploy(self) -> str:
 
         dispatcher_contract, txhash = self.blockchain.interface.deploy_contract('Dispatcher',
-                                                                                self.target_contract.address)
+                                                                                self.target_contract.address,
+                                                                                self.secret_hash)
 
         self._contract = dispatcher_contract
         return txhash
@@ -215,9 +217,10 @@ class MinerEscrowDeployer(ContractDeployer):
     agency = MinerAgent
     _contract_name = agency.principal_contract_name
 
-    def __init__(self, token_agent, *args, **kwargs):
+    def __init__(self, token_agent, secret_hash, *args, **kwargs):
         super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
         self.token_agent = token_agent
+        self.secret_hash = secret_hash
 
     def __check_policy_manager(self):
         result = self.contract.functions.policyManager().call()
@@ -257,7 +260,8 @@ class MinerEscrowDeployer(ContractDeployer):
         # 2 - Deploy the dispatcher used for updating this contract #
         dispatcher_deployer = DispatcherDeployer(blockchain=self.token_agent.blockchain,
                                                  target_contract=the_escrow_contract,
-                                                 deployer_address=self.deployer_address)
+                                                 deployer_address=self.deployer_address,
+                                                 secret_hash=self.secret_hash)
 
         dispatcher_deployer.arm(fail_on_abort=True)
         dispatcher_deploy_txhash = dispatcher_deployer.deploy()
@@ -312,9 +316,10 @@ class PolicyManagerDeployer(ContractDeployer):
         agent = self.agency(miner_agent=self.miner_agent, contract=self._contract)
         return agent
 
-    def __init__(self, miner_agent, *args, **kwargs):
+    def __init__(self, miner_agent, secret_hash, *args, **kwargs):
         self.token_agent = miner_agent.token_agent
         self.miner_agent = miner_agent
+        self.secret_hash = secret_hash
         super().__init__(blockchain=self.miner_agent.blockchain, *args, **kwargs)
 
     def deploy(self) -> Dict[str, str]:
@@ -327,7 +332,8 @@ class PolicyManagerDeployer(ContractDeployer):
 
         dispatcher_deployer = DispatcherDeployer(blockchain=self.token_agent.blockchain,
                                                  target_contract=the_policy_manager_contract,
-                                                 deployer_address=self.deployer_address)
+                                                 deployer_address=self.deployer_address,
+                                                 secret_hash=self.secret_hash)
 
         dispatcher_deployer.arm(fail_on_abort=True)
         dispatcher_deploy_txhash = dispatcher_deployer.deploy()

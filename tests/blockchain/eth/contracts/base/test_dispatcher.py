@@ -1,12 +1,23 @@
 import pytest
+import os
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
+
+
+SECRET_LENGTH = 32
 
 
 @pytest.mark.slow
 def test_dispatcher(testerchain):
     creator = testerchain.interface.w3.eth.accounts[0]
     account = testerchain.interface.w3.eth.accounts[1]
+
+    secret = os.urandom(SECRET_LENGTH)
+    secret_hash = testerchain.interface.w3.sha3(secret)
+    secret2 = os.urandom(SECRET_LENGTH)
+    secret2_hash = testerchain.interface.w3.sha3(secret2)
+    secret3 = os.urandom(SECRET_LENGTH)
+    secret3_hash = testerchain.interface.w3.sha3(secret3)
 
     # Load contract interface
     contract_interface = testerchain.interface.get_contract_factory('ContractInterface')
@@ -16,7 +27,7 @@ def test_dispatcher(testerchain):
     contract2_lib, _ = testerchain.interface.deploy_contract('ContractV2', 1)
     contract3_lib, _ = testerchain.interface.deploy_contract('ContractV3', 2)
     contract2_bad_lib, _ = testerchain.interface.deploy_contract('ContractV2Bad')
-    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract1_lib.address)
+    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract1_lib.address, secret_hash)
 
     upgrades = dispatcher.events.Upgraded.createFilter(fromBlock=0)
     assert contract1_lib.address == dispatcher.functions.target().call()
@@ -34,12 +45,6 @@ def test_dispatcher(testerchain):
         abi=contract_interface.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
-
-    # Only owner can change target address for the dispatcher
-    with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract2_lib.address).transact({'from': account})
-        testerchain.wait_for_receipt(tx)
-    assert contract1_lib.address == dispatcher.functions.target().call()
 
     # Check values and methods before upgrade
     assert 1 == contract_instance.functions.getStorageValue().call()
@@ -77,14 +82,29 @@ def test_dispatcher(testerchain):
     testerchain.wait_for_receipt(tx)
     assert 'Hola' == contract_instance.functions.getDynamicallySizedValue().call()
 
+    # Only owner can change target address for the dispatcher
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(contract2_lib.address, secret, secret2_hash).transact({'from': account})
+        testerchain.wait_for_receipt(tx)
+
+    # Owner must know the secret
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(contract2_lib.address, secret2, secret2_hash).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # Owner can't use the same secret again because it's insecure
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(contract2_lib.address, secret, secret_hash).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
     # Can't upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract2_bad_lib.address).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract2_bad_lib.address, secret, secret2_hash).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
-    assert contract1_lib.address == dispatcher.functions.target().call()
 
     # Upgrade contract
-    tx = dispatcher.functions.upgrade(contract2_lib.address).transact({'from': creator})
+    assert contract1_lib.address == dispatcher.functions.target().call()
+    tx = dispatcher.functions.upgrade(contract2_lib.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert contract2_lib.address == dispatcher.functions.target().call()
 
@@ -145,19 +165,34 @@ def test_dispatcher(testerchain):
 
     # Can't downgrade to the first version due to new storage variables
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract1_lib.address).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract1_lib.address, secret2, secret3_hash).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
     # And can't upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract2_bad_lib.address).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract2_bad_lib.address, secret2, secret3_hash).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     assert contract2_lib.address == dispatcher.functions.target().call()
 
     rollbacks = dispatcher.events.RolledBack.createFilter(fromBlock='latest')
 
+    # Only owner can rollback
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.rollback(secret2, secret3_hash).transact({'from': account})
+        testerchain.wait_for_receipt(tx)
+
+    # Owner must know the secret
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.rollback(secret3, secret3_hash).transact({'from': account})
+        testerchain.wait_for_receipt(tx)
+
+    # Owner can't use the same secret again because it's insecure
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.rollback(secret2, secret2_hash).transact({'from': account})
+        testerchain.wait_for_receipt(tx)
+
     # Can rollback to the first version
-    tx = dispatcher.functions.rollback().transact({'from': creator})
+    tx = dispatcher.functions.rollback(secret2, secret3_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert contract1_lib.address == dispatcher.functions.target().call()
     assert 2 == contract_instance.functions.getArrayValueLength().call()
@@ -177,7 +212,7 @@ def test_dispatcher(testerchain):
 
     # Can't upgrade to the bad version
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = dispatcher.functions.upgrade(contract2_bad_lib.address).transact({'from': creator})
+        tx = dispatcher.functions.upgrade(contract2_bad_lib.address, secret3, secret_hash).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
     assert contract1_lib.address == dispatcher.functions.target().call()
 
@@ -194,9 +229,9 @@ def test_dispatcher(testerchain):
     assert 33 == events[0]['args']['value']
 
     # Upgrade to the version 3
-    tx = dispatcher.functions.upgrade(contract2_lib.address).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract2_lib.address, secret3, secret_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = dispatcher.functions.upgrade(contract3_lib.address).transact({'from': creator})
+    tx = dispatcher.functions.upgrade(contract3_lib.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     contract_instance = testerchain.interface.w3.eth.contract(
         abi=contract2_lib.abi,

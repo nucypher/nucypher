@@ -27,6 +27,10 @@ ACTIVE_STATE = 0
 UPGRADE_WAITING_STATE = 1
 FINISHED_STATE = 2
 
+SECRET_LENGTH = 32
+secret = os.urandom(SECRET_LENGTH)
+secret2 = os.urandom(SECRET_LENGTH)
+
 
 @pytest.fixture()
 def token(testerchain):
@@ -49,10 +53,14 @@ def escrow(testerchain, token):
         100,
         2000)
 
-    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address)
+    secret_hash = testerchain.interface.w3.sha3(secret)
+    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
 
     # Wrap dispatcher contract
-    contract = testerchain.interface.w3.eth.contract(abi=contract.abi, address=dispatcher.address, ContractFactoryClass=Contract)
+    contract = testerchain.interface.w3.eth.contract(
+        abi=contract.abi,
+        address=dispatcher.address,
+        ContractFactoryClass=Contract)
     return contract
 
 
@@ -60,12 +68,17 @@ def escrow(testerchain, token):
 def policy_manager(testerchain, escrow):
     creator = testerchain.interface.w3.eth.accounts[0]
 
+    secret_hash = testerchain.interface.w3.sha3(secret)
+
     # Creator deploys the policy manager
     contract, _ = testerchain.interface.deploy_contract('PolicyManager', escrow.address)
-    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address)
+    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
 
     # Wrap dispatcher contract
-    contract = testerchain.interface.w3.eth.contract(abi=contract.abi, address=dispatcher.address, ContractFactoryClass=Contract)
+    contract = testerchain.interface.w3.eth.contract(
+        abi=contract.abi,
+        address=dispatcher.address,
+        ContractFactoryClass=Contract)
 
     tx = escrow.functions.setPolicyManager(contract.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)

@@ -8,6 +8,8 @@ CONFIRMED_PERIOD_1_FIELD = 2
 CONFIRMED_PERIOD_2_FIELD = 3
 LAST_ACTIVE_PERIOD_FIELD = 4
 
+secret = (123456).to_bytes(32, byteorder='big')
+
 
 @pytest.fixture()
 def token(testerchain):
@@ -24,7 +26,8 @@ def escrow_contract(testerchain, token, request):
             'MinersEscrow', token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, max_allowed_locked_tokens)
 
         if request.param:
-            dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address)
+            secret_hash = testerchain.interface.w3.sha3(secret)
+            dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
             contract = testerchain.interface.w3.eth.contract(
                 abi=contract.abi,
                 address=dispatcher.address,
