@@ -1,13 +1,37 @@
 import pytest
 
 from nucypher.characters import Ursula
+from nucypher.crypto.api import secure_random
 from nucypher.crypto.powers import SigningPower, CryptoPower
 from eth_keys.datatypes import Signature as EthSignature
+
+from tests.utilities import make_ursulas, MockRestMiddleware
 
 
 @pytest.mark.skip
 def test_federated_ursula_substantiates_stamp():
     assert False
+
+
+def test_new_ursula_announces_herself():
+    ursula_here, ursula_there = make_ursulas(2,
+                                             know_each_other=False,
+                                             network_middleware=MockRestMiddleware())
+
+    # Neither Ursula knows about the other.
+    assert ursula_here._known_nodes == ursula_there._known_nodes == {}
+
+    ursula_here.remember_node(ursula_there)
+
+    # OK, now, ursula_here knows about ursula_there, but not vice-versa.
+    assert ursula_there in ursula_here._known_nodes.values()
+    assert not ursula_here in ursula_there._known_nodes.values()
+
+    # But as ursula_here learns, she'll announce herself to ursula_there.
+    ursula_here.learn_from_teacher_node()
+
+    assert ursula_there in ursula_here._known_nodes.values()
+    assert ursula_here in ursula_there._known_nodes.values()
 
 
 def test_blockchain_ursula_substantiates_stamp(mining_ursulas):
