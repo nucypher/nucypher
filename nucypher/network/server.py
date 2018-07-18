@@ -12,6 +12,7 @@ from kademlia.utils import digest
 
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
+from hendrix.experience import crosstown_traffic
 from nucypher.config.configs import NetworkConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, TLSHostingPower
@@ -148,8 +149,10 @@ class ProxyRESTServer:
                   self.reencrypt_via_rest),
             Route('/public_information', 'GET',
                   self.public_information),
-            Route('/list_nodes', 'GET',
-                  self.list_all_active_nodes_about_which_we_know),
+            Route('/node_metadata', 'GET',
+                  self.all_known_nodes),
+            Route('/node_metadata', 'POST',
+                  self.node_metadata_exchange),
             Route('/consider_arrangement',
                   'POST',
                   self.consider_arrangement),
@@ -196,13 +199,37 @@ class ProxyRESTServer:
 
         return response
 
-    def list_all_active_nodes_about_which_we_know(self, request: http.Request):
+    def all_known_nodes(self, request: http.Request):
         headers = {'Content-Type': 'application/octet-stream'}
-        # TODO: mm hmmph *slowly exhales* fffff.  Some 227 right here.
         ursulas_as_bytes = bytes().join(bytes(n) for n in self._known_nodes.values())
         ursulas_as_bytes += bytes(self)
         signature = self.stamp(ursulas_as_bytes)
         return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
+
+    def node_metadata_exchange(self, request: http.Request, query_params: http.QueryParams):
+
+        nodes = self.batch_from_bytes(request.body, federated_only=self.federated_only)
+        # TODO: This logic is basically repeated in learn_from_teacher_node.  Let's find a better way.
+        for node in nodes:
+
+            if node.checksum_public_address in self._known_nodes:
+                continue  # TODO: 168 Check version and update if required.
+
+            @crosstown_traffic()
+            def learn_about_announced_nodes():
+                try:
+                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)
+                except node.SuspiciousActivity:
+                    # TODO: Account for possibility that stamp, rather than interface, was bad.
+                    message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
+                              " Announced via REST."  # TODO: Include data about caller?
+                    self.log.warning(message)
+
+                self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
+                self.remember_node(node)
+
+        # TODO: What's the right status code here?  202?  Different if we already knew about the node?
+        return self.all_known_nodes(request)
 
     def consider_arrangement(self, request: http.Request):
         from nucypher.policy.models import Arrangement

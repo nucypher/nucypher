@@ -943,6 +943,7 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                  tls_curve=None,
                  tls_private_key=None,  # Obviously config here. 361
                  known_nodes=(),
+                 **character_kwargs
                  ):
 
         VerifiableNode.__init__(self, interface_signature=interface_signature)
@@ -959,7 +960,8 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                            federated_only=federated_only,
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
-                           known_nodes=known_nodes)
+                           known_nodes=known_nodes,
+                           **character_kwargs)
 
         if not federated_only:
             Miner.__init__(self, miner_agent=miner_agent, is_me=is_me, checksum_address=checksum_address)

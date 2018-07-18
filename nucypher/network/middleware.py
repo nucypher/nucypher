@@ -1,4 +1,5 @@
 import requests
+
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from umbral.fragments import CapsuleFrag
 
@@ -40,10 +41,16 @@ class RestMiddleware:
     def node_information(self, host, port):
         return requests.get("https://{}:{}/public_information".format(host, port), verify=False)  # TODO: TLS-only.
 
-    def get_nodes_via_rest(self, address, port, node_ids=None):
-        if node_ids:
+    def get_nodes_via_rest(self, address, port, announce_nodes=None, nodes_i_need=None):
+        if nodes_i_need:
             # Include node_ids in the request; if the teacher node doesn't know about the
             # nodes matching these ids, then it will ask other nodes via the DHT or whatever.
             raise NotImplementedError
-        response = requests.get("https://{}:{}/list_nodes".format(address, port), verify=False)  # TODO: TLS-only.
+        if announce_nodes:
+            response = requests.post("https://{}:{}/node_metadata".format(address, port),
+                                     verify=False,
+                                     data=bytes().join(bytes(n) for n in announce_nodes))  # TODO: TLS-only.
+        else:
+            response = requests.get("https://{}:{}/node_metadata".format(address, port),
+                                    verify=False)  # TODO: TLS-only.
         return response
