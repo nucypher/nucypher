@@ -356,11 +356,18 @@ class Character:
         port = current_teacher.rest_interface.port
 
         # TODO: Do we really want to try to learn about all these nodes instantly?  Hearing this traffic might give insight to an attacker.
+        if VerifiableNode in self.__class__.__bases__:
+            announce_nodes = [self]
+        else:
+            announce_nodes = None
+
         response = self.network_middleware.get_nodes_via_rest(rest_address,
-                                                              port, node_ids=self._node_ids_to_learn_about_immediately)
+                                                              port,
+                                                              nodes_i_need=self._node_ids_to_learn_about_immediately,
+                                                              announce_nodes=announce_nodes)
         if response.status_code != 200:
             raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content
-                                                                           ))
+                                                                         ))
         signature, nodes = signature_splitter(response.content, return_remainder=True)
         node_list = Ursula.batch_from_bytes(nodes,
                                             federated_only=self.federated_only)  # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
