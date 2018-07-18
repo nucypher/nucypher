@@ -168,7 +168,6 @@ def ursulas(three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     ether_addresses = [to_checksum_address(os.urandom(20)) for _ in range(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
     _ursulas = make_ursulas(ether_addresses=ether_addresses,
-                            ursula_starting_port=int(constants.URSULA_PORT_SEED),
                             miner_agent=miner_agent
                             )
     try:
@@ -190,7 +189,6 @@ def mining_ursulas(three_agents):
     ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
 
     _ursulas = make_ursulas(ether_addresses=ursula_addresses,
-                            ursula_starting_port=int(starting_point),
                             miner_agent=miner_agent,
                             miners=True)
     try:
