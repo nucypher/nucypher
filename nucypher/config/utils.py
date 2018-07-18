@@ -125,7 +125,7 @@ def check_config_tree(configuration_dir: str=None) -> bool:
 
 def check_config_runtime() -> bool:
     rules = (
-        (os.getuid() != 0, 'Cannot run as root user.'),
+        (os.name == 'nt' or os.getuid() != 0, 'Cannot run as root user.'),
     )
 
     for rule, failure_reason in rules:

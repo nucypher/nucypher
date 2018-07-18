@@ -1,4 +1,4 @@
-import distutils
+import shutil
 import itertools
 import os
 
@@ -9,11 +9,13 @@ from solc.exceptions import SolcError
 
 
 class SolidityCompiler:
-    __default_version = 'v0.4.22'
+    __default_version = 'v0.4.24'
     __default_configuration_path = os.path.join(dirname(abspath(__file__)), './compiler.json')
 
-    __bin_path = os.path.dirname(distutils.spawn.find_executable('python'))
-    __default_sol_binary_path = os.path.join(__bin_path, 'solc')
+    __default_sol_binary_path = shutil.which('solc')
+    if __default_sol_binary_path is None:
+        __bin_path = os.path.dirname(shutil.which('python'))
+        __default_sol_binary_path = os.path.join(__bin_path, 'solc')
 
     __default_contract_dir = os.path.join(dirname(abspath(__file__)), 'source', 'contracts')
     __default_chain_name = 'tester'

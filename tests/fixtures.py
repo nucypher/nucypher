@@ -40,8 +40,9 @@ def tempfile_path():
     """
     User is responsible for closing the file given at the path.
     """
-    _, path = tempfile.mkstemp()
+    fd, path = tempfile.mkstemp()
     yield path
+    os.close(fd)
     os.remove(path)
 
 
