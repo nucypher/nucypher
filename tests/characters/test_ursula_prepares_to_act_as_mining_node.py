@@ -5,7 +5,8 @@ from nucypher.crypto.api import secure_random
 from nucypher.crypto.powers import SigningPower, CryptoPower
 from eth_keys.datatypes import Signature as EthSignature
 
-from tests.utilities import make_ursulas, MockRestMiddleware
+from tests.utilities.blockchain import make_ursulas
+from tests.utilities.network import MockRestMiddleware
 
 
 @pytest.mark.skip

@@ -118,13 +118,6 @@ class ProxyRESTServer:
         tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair)
         self._crypto_power.consume_power_up(tls_hosting_power)
 
-    @classmethod
-    def from_config(cls, network_config = None):
-        """Create a server object from config values, or from a config file."""
-        # if network_config is None:
-        # NetworkConfiguration._load()
-        instance = cls()
-
     def public_key(self, power_class: ClassVar):
         """Implemented on Ursula"""
         raise NotImplementedError

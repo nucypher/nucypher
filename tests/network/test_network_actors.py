@@ -6,7 +6,7 @@ from kademlia.utils import digest
 from nucypher.characters import Ursula
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import CryptoPower, SigningPower
-from tests.utilities import MockRestMiddleware, MockArrangement
+from tests.utilities.network import MockRestMiddleware
 
 
 @pytest.mark.usefixtures('testerchain')

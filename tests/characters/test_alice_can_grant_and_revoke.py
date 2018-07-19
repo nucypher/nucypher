@@ -7,7 +7,7 @@ from apistar.test import TestClient
 from nucypher.characters import Ursula
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower
-from tests.utilities import _ALL_URSULAS
+from tests.utilities.network import _ALL_URSULAS
 from umbral.fragments import KFrag
 
 

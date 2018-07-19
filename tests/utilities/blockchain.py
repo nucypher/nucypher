@@ -1,15 +1,18 @@
 import asyncio
 import random
-
-from constant_sorrow import constants
 from typing import Set
 
+from constant_sorrow import constants
+
+from nucypher.blockchain.eth.chains import TesterBlockchain
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.characters import Ursula
+from tests.blockchain.eth.utilities import token_airdrop
 from tests.utilities.network import _ALL_URSULAS
 
 
 def make_ursulas(ether_addresses: list, ursula_starting_port: int,
-                 miner_agent=None, miners=False, bare=False, threaded=False) -> Set[Ursula]:
+                 miner_agent=None, miners=False, bare=False) -> Set[Ursula]:
     """
     :param ether_addresses: Ethereum addresses to create ursulas with.
     :param ursula_starting_port: The port of the first created Ursula; subsequent Ursulas will increment the port number by 1.
@@ -74,7 +77,6 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
                 ursula.publish_dht_information()
 
         if miners is True:
-            # TODO: 309
             # stake a random amount
             min_stake, balance = int(constants.MIN_ALLOWED_LOCKED), ursula.token_balance
             amount = random.randint(min_stake, balance)
@@ -91,3 +93,38 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
         _ALL_URSULAS[ursula.rest_interface.port] = ursula
 
     return ursulas
+
+
+def bootstrap_fake_network() -> tuple:
+
+    # Connect to the blockchain
+    blockchain = TesterBlockchain.from_config()
+
+    # Parse addresses
+    etherbase, alice, bob, *ursulas = blockchain.interface.w3.eth.accounts
+    origin, *everybody_else = blockchain.interface.w3.eth.accounts
+
+    # Deploy contracts
+    token_deployer = NucypherTokenDeployer(blockchain=blockchain, deployer_address=origin)
+    token_deployer.arm()
+    token_deployer.deploy()
+    token_agent = token_deployer.make_agent()
+
+    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=origin)
+    miner_escrow_deployer.arm()
+    miner_escrow_deployer.deploy()
+    miner_agent = miner_escrow_deployer.make_agent()
+
+    policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=origin)
+    policy_manager_deployer.arm()
+    policy_manager_deployer.deploy()
+    _policy_agent = policy_manager_deployer.make_agent()
+
+    # Airdrop ethereum
+    airdrop_amount = 1000000 * int(constants.M)
+    _receipts = token_airdrop(token_agent=token_agent,
+                              origin=etherbase,
+                              addresses=ursulas,
+                              amount=airdrop_amount)
+
+    return token_agent, miner_agent, _policy_agent
