@@ -21,7 +21,7 @@ setup(name='nucypher',
           'blockchain/eth/sol_source/contracts/zepellin/token/*']},
       include_package_data=True,
       entry_points='''
-          [console_scripts]
-          nucypher-cli=cli.main:cli
-      '''
+                   [console_scripts]
+                   nucypher-cli=nucypher_cli.main:cli
+                   '''
       )
