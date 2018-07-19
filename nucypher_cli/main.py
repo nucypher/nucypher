@@ -48,6 +48,7 @@ class NucypherClickConfig:
         # Set runtime defaults
         self.verbose = True
         self.config_filepath = './.nucypher.ini'
+        self.simulation_running = False
 
         # Set simulation defaults
         self.simulation_running = False

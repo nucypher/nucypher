@@ -1155,9 +1155,9 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             pass
 
     @classmethod
-    def from_config(cls, *args, **kwargs) -> 'Ursula':
+    def from_config(cls) -> 'Ursula':
         payload = parse_nucypher_ini_config()
-        return cls(**payload, *args, **kwargs)
+        return cls(**payload)
 
     @only_me
     def stake(self,
