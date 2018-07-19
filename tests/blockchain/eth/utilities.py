@@ -1,8 +1,8 @@
 import random
-from typing import List
 
 from constant_sorrow import constants
-from umbral import keys
+from typing import List
+from umbral.keys import UmbralPrivateKey
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import MinerAgent
