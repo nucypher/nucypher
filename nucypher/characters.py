@@ -20,9 +20,8 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
 from nucypher.blockchain.eth.agents import MinerAgent
-from nucypher.blockchain.eth.constants import datetime_to_period
+from nucypher.blockchain.eth.constants import calculate_period_duration, datetime_to_period
 from nucypher.config.utils import parse_nucypher_ini_config
-
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -1059,9 +1058,15 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                 self.substantiate_stamp()
 
     @classmethod
+<<<<<<< HEAD
     def from_config(cls) -> 'Ursula':
         payload = parse_nucypher_ini_config()
         return cls(**payload)
+=======
+    def from_config(cls, *args, **kwargs) -> 'Ursula':
+        payload = parse_nucypher_ini_config()
+        return cls(**payload, *args, **kwargs)
+>>>>>>> 2915f3f6... High-level staking method for long-running proc
 
     @only_me
     def stake(self,
