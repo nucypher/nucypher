@@ -87,22 +87,6 @@ class Miner(NucypherTokenActor):
 
         # Establish initial state
         self.is_me = is_me
-
-        if self.is_me:
-            try:
-                stake = self.stakes[stake_index]
-
-            except IndexError:
-                # passed an index
-                raise self.MinerError("No stake index {} for {}".format(stake_index, self.checksum_public_address))
-
-            except TypeError:
-                # stake_index is None
-                if len(self.stakes) > 0:
-                    raise self.MinerError("There is an active stake for {}".format(self.checksum_public_address))
-
-            else:
-                self.active_stake = stake
     #
     # Staking
     #
