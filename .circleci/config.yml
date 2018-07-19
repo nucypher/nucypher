@@ -5,9 +5,9 @@ workflows:
   test:
     jobs:
       - bundle_dependencies-36
-#      - mypy_type_check:
-#          requires:
-#            - bundle_dependencies-36
+      - mypy_type_check:
+          requires:
+            - bundle_dependencies-36
       - eth_contract_unit:
           requires:
             - bundle_dependencies-36
@@ -53,14 +53,14 @@ jobs:
       - save_cache:
           paths:
             - "~/.local/share/virtualenvs/"
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+          key: v1-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
 
   blockchain_interface_unit:
     <<: *python_36_base
     steps:
       - checkout
       - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+          key: v1-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
       - run:
           name: Blockchain Interface Tests
           command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/interfaces tests/blockchain/eth/entities --junitxml=./reports/pytest/results.xml
@@ -73,7 +73,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+          key: v1-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
       - run:
           name: Ethereum Contract Unit Tests
           command: |
@@ -86,7 +86,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+          key: v1-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
       - run:
           name: Crypto Character Tests
           command: pipenv run pytest --cov=nucypher/crypto -v --runslow tests/crypto --junitxml=./reports/pytest/results.xml
@@ -98,7 +98,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+          key: v1-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
       - run:
           name: Network Tests
           command: pipenv run pytest --cov=nucypher/network -v --runslow tests/network --junitxml=./reports/pytest/results.xml
@@ -110,7 +110,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+          key: v1-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
       - run:
           name: Keystore Tests
           command: pipenv run pytest --cov=nucypher/keystore -v --runslow tests/keystore --junitxml=./reports/pytest/results.xml
@@ -122,7 +122,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+          key: v1-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
       - run:
           name: Character Tests
           command: pipenv run pytest --cov=nucypher -v --runslow tests/characters --junitxml=./reports/pytest/results.xml
@@ -134,27 +134,27 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+          key: v1-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
       - run:
           name: Ethereum Inter-Contract Integration Test
           command: |
             pipenv run pytest -v --runslow tests/blockchain/eth/contracts/integration --junitxml=./reports/pytest/results.xml
       - store_test_results:
           path: ./reports/pytest/
-#
-#  mypy_type_check:
-#    <<: *python_36_base
-#    steps:
-#      - checkout
-#      - restore_cache:
-#          key: v3-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
-#      - run:
-#          name: Run Mypy Static Type Checks
-#          command: |
-#              mkdir ./mypy_reports ./mypy_results
-#              export MYPYPATH=./nucypher
-#              pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount --junit-xml ./mypy_results/results.xml
-#      - store_artifacts:
-#          path: ./mypy_reports
-#      - store_test_results:
-#          path: ./mypy_results
+
+  mypy_type_check:
+    <<: *python_36_base
+    steps:
+      - checkout
+      - restore_cache:
+          key: v1-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+      - run:
+          name: Run Mypy Static Type Checks
+          command: |
+              mkdir ./mypy_reports ./mypy_results
+              export MYPYPATH=./nucypher
+              pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount --junit-xml ./mypy_results/results.xml || true
+      - store_artifacts:
+          path: ./mypy_reports
+      - store_test_results:
+          path: ./mypy_results
