@@ -4,7 +4,6 @@ from typing import Tuple
 
 from web3 import IPCProvider
 
-from nucypher.blockchain.eth.chains import Blockchain, TesterBlockchain
 from nucypher.blockchain.eth.interfaces import EthereumContractRegistry, DeployerCircumflex, ControlCircumflex
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utilities import TemporaryEthereumContractRegistry
@@ -67,29 +66,30 @@ def validate_nucypher_ini_config(config=None,
     except:
         raise  # FIXME
 
-    required_sections = ("provider", "nucypher")
+    required_sections = ("blockchain.provider", "nucypher")
 
     missing_sections = list()
     for section in required_sections:
         if section not in config.sections():
             missing_sections.append(section)
             if raise_on_failure is True:
-                raise RuntimeError("Invalid config file")
+                raise RuntimeError("Invalid config file: missing section '{}'".format(section))
     else:
         if len(missing_sections) > 0:
             return False, missing_sections
 
 
 def parse_blockchain_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict:
+    from nucypher.blockchain.eth.chains import Blockchain, TesterBlockchain
 
     if config is None:
         config = configparser.ConfigParser()
         config.read(filepath)
 
     providers = list()
-    if config['provider']['type'] == 'ipc':
+    if config['blockchain.provider']['type'] == 'ipc':
         try:
-            provider = IPCProvider(config['provider']['ipc_path'])
+            provider = IPCProvider(config['blockchain.provider']['ipc_path'])
         except KeyError:
             message = "ipc_path must be provided when using an IPC provider"
             raise Exception(message)  # FIXME
@@ -98,7 +98,7 @@ def parse_blockchain_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> 
     else:
         raise NotImplementedError
 
-    poa = config.getboolean(section='provider', option='poa', fallback=True)
+    poa = config.getboolean(section='blockchain.provider', option='poa', fallback=True)
     tester = config.getboolean(section='blockchain', option='tester', fallback=False)
     test_accounts = config.getint(section='blockchain', option='test_accounts', fallback=0)
     deploy = config.getboolean(section='blockchain', option='deploy', fallback=False)
@@ -147,22 +147,22 @@ def parse_blockchain_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> 
     return blockchain_payload
 
 
-def parse_character_config(config=None, filepath: str=DEFAULT_INI_FILEPATH):
+def _parse_character_config(config=None, filepath: str=DEFAULT_INI_FILEPATH):
 
     if config is None:
         config = configparser.ConfigParser()
         config.read(filepath)
 
-    character_payload = dict(start_learning_on_same_thread=config.getboolean(section='nucypher.character', option='temporary_registry'),
-                             abort_on_learning_error=config.getboolean(section='nucypher.character', option='abort_on_learning_error'),
-                             federated_only=config.getboolean(section='nucypher.character', option='federated'),
-                             checksum_address=config.get(section='nucypher.character', option='ethereum_address'),
-                             always_be_learning=config.getboolean(section='nucypher.character', option='always_be_learning'))
+    character_payload = dict(start_learning_on_same_thread=config.getboolean(section='character', option='start_learning_on_same_thread'),
+                             abort_on_learning_error=config.getboolean(section='character', option='abort_on_learning_error'),
+                             federated_only=config.getboolean(section='character', option='federated'),
+                             checksum_address=config.get(section='character', option='ethereum_address'),
+                             always_be_learning=config.getboolean(section='character', option='always_be_learning'))
 
     return character_payload
 
 
-def parse_ursula_config(config=None, filepath: str=DEFAULT_INI_FILEPATH):
+def _parse_ursula_config(config=None, filepath: str=DEFAULT_INI_FILEPATH):
 
     if config is None:
         config = configparser.ConfigParser()
@@ -182,13 +182,13 @@ def parse_ursula_config(config=None, filepath: str=DEFAULT_INI_FILEPATH):
     ursula_payload = dict(checksum_address=config.get(section='ursula', option='wallet_address'),
 
                           # Rest
-                          rest_host=config.get(section='ursula.network.rest', option='rest_host'),
-                          rest_port=config.getint(section='ursula.network.rest', option='rest_port'),
+                          rest_host=config.get(section='ursula.network.rest', option='host'),
+                          rest_port=config.getint(section='ursula.network.rest', option='port'),
                           db_name=config.get(section='ursula.network.rest', option='db_name'),
 
                           # DHT
-                          dht_host=config.get(section='ursula.network.dht', option='dht_host'),
-                          dht_port=config.getint(section='ursula.network.dht', option='dht_port'))
+                          dht_host=config.get(section='ursula.network.dht', option='host'),
+                          dht_port=config.getint(section='ursula.network.dht', option='port'))
 
     return ursula_payload
 
@@ -202,18 +202,18 @@ def parse_nucypher_ini_config(filepath: str=DEFAULT_INI_FILEPATH) -> dict:
     config.read(filepath)
 
     # Parser router
-    parsers = {"character": parse_character_config,
+    parsers = {"character": _parse_character_config,
                "blockchain": parse_blockchain_config,
-               "ursula": parse_ursula_config,
+               "ursula": _parse_ursula_config,
                }
 
-    staged_payloads = set()
+    staged_payloads = list()
     for section, parser in parsers.items():
         section_payload = parser(config)
-        staged_payloads.add(section_payload)
+        staged_payloads.append(section_payload)
 
     payload = dict()
-    for payload in staged_payloads:
-        payload.update(payload)
+    for staged_payload in staged_payloads:
+        payload.update(staged_payload)
 
     return payload

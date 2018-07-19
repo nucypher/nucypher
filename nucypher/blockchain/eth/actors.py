@@ -50,11 +50,6 @@ class NucypherTokenActor:
         r = r.format(class_name, self.checksum_public_address)
         return r
 
-    @classmethod
-    def from_config(cls, config):
-        """Read actor data from a configuration file, and create an actor instance."""
-        raise NotImplementedError
-
     @property
     def eth_balance(self):
         """Return this actors's current ETH balance"""
@@ -87,16 +82,6 @@ class Miner(NucypherTokenActor):
 
         # Establish initial state
         self.is_me = is_me
-
-    @classmethod
-    def from_config(cls, blockchain_config) -> 'Miner':
-        """Read miner data from a configuration file, and create an miner instance."""
-
-        # Use BlockchainConfig to default to the first wallet address
-        wallet_address = blockchain_config.wallet_addresses[0]
-
-        instance = cls(checksum_address=wallet_address)
-        return instance
 
     #
     # Staking

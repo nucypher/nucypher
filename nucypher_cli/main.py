@@ -25,6 +25,7 @@ class NucypherClickConfig:
 
         self.verbose = True
         self.config_filepath = './.nucypher.ini'
+        self.simulation_running = False
 
         # Connect to blockchain
         if not os.path.isfile(self.config_filepath):
@@ -135,7 +136,7 @@ def simulate(config, action, nodes):
             raise RuntimeError("Network simulation already running")
 
         click.echo("Starting SimulationProtocol")
-        for index in range(nodes):
+        for index in range(int(nodes)):
             simulationProtocol = SimulatedUrsulaProcessProtocol()
             reactor.spawnProcess(simulationProtocol, "python", ["run_ursula"])
         config.simulation_running = True
