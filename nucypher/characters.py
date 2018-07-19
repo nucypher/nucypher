@@ -407,18 +407,16 @@ class Character:
                                                               announce_nodes=announce_nodes)
         if response.status_code != 200:
             raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content
-                                                                         ))
+                                                                           ))
         signature, nodes = signature_splitter(response.content, return_remainder=True)
         node_list = Ursula.batch_from_bytes(nodes,
                                             federated_only=self.federated_only)  # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
 
-        self.log.info("Learning round {}.  Teacher: {} knew about {} nodes.".format(self._learning_round,
-                                                                                    current_teacher.checksum_public_address,
-                                                                                    len(node_list)))
+        new_nodes = []
 
         for node in node_list:
 
-            if node.checksum_public_address in self._known_nodes:
+            if node.checksum_public_address in self._known_nodes or node.checksum_public_address == self.checksum_public_address:
                 continue  # TODO: 168 Check version and update if required.
 
             try:
@@ -432,18 +430,18 @@ class Character:
                           "Propagated by: {}:{}".format(current_teacher.checksum_public_address,
                                                         rest_address, port)
                 self.log.warning(message)
-
             self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
 
+            self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
             self.remember_node(node)
             new_nodes.append(node)
 
         self._adjust_learning(new_nodes)
 
         self.log.info("Learning round {}.  Teacher: {} knew about {} nodes, {} were new.".format(self._learning_round,
-                                                                                                  current_teacher.checksum_public_address,
-                                                                                                  len(node_list),
-                                                                                                  len(new_nodes)),
+                                                                                                 current_teacher.checksum_public_address,
+                                                                                                 len(node_list),
+                                                                                                 len(new_nodes)),
                       )
 
     def _adjust_learning(self, node_list):
@@ -459,8 +457,9 @@ class Character:
         else:
             self._rounds_without_new_nodes += 1
             if self._rounds_without_new_nodes > self._ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN:
-                self.log.info("After {} rounds with no new nodes, it's time to slow down to {} seconds.".format(self._ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN,
-                                                                                                                self._LONG_LEARNING_DELAY))
+                self.log.info("After {} rounds with no new nodes, it's time to slow down to {} seconds.".format(
+                    self._ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN,
+                    self._LONG_LEARNING_DELAY))
                 self._learning_task.interval = self._LONG_LEARNING_DELAY
 
     def _push_certain_newly_discovered_nodes_here(self, queue_to_push, node_addresses):
@@ -708,7 +707,7 @@ class Alice(Character, PolicyAuthor):
 
         return policy
 
-    def grant(self, bob, uri, m=None, n=None, expiration=None, deposit=None, ursulas=None):
+    def grant(self, bob, uri, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None):
         if not m:
             # TODO: get m from config  #176
             raise NotImplementedError
@@ -724,6 +723,8 @@ class Alice(Character, PolicyAuthor):
                 deposit = self.network_middleware.get_competitive_rate()
                 if deposit == NotImplemented:
                     deposit = constants.NON_PAYMENT(b"0000000")
+        if handpicked_ursulas is None:
+            handpicked_ursulas = set()
 
         policy = self.create_policy(bob, uri, m, n)
 
@@ -976,15 +977,16 @@ class Bob(Character):
             cfrags = self.get_reencrypted_cfrags(work_order)
             message_kit.capsule.attach_cfrag(cfrags[0])
 
-            try:
-                delivered_cleartext = self.verify_from(data_source,
-                                                       message_kit,
-                                                       decrypt=True,
-                                                       delegator_signing_key=alice_verifying_key)
-            except self.InvalidSignature as e:
-                raise RuntimeError(e)
-            else:
-                cleartexts.append(delivered_cleartext)
+        verified, delivered_cleartext = self.verify_from(data_source,
+                                                         message_kit,
+                                                         decrypt=True,
+                                                         delegator_signing_key=alice_verifying_key)
+
+        if verified:
+            cleartexts.append(delivered_cleartext)
+        else:
+            raise RuntimeError(
+                "Not verified - replace this with real message.")  # TODO: Actually raise an error in verify_from instead of here 358
         return cleartexts
 
 
