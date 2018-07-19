@@ -46,25 +46,18 @@ class MockMinerEscrowDeployer(MinerEscrowDeployer):
     agency = MockMinerAgent
 
 
-class NucypherUmbralPrivateKey(keys.UmbralPrivateKey):
-
-    def export(self, importing_function, *args, **kwargs):
-        result = importing_function(private_key=bytes(self.bn_key), *args, **kwargs)
-        return result
-
-
 def generate_accounts(w3: Web3, quantity: int) -> List[str]:
     """
     Generate additional unlocked accounts transferring wei_balance to each account on creation.
     """
-    umbral_priv_key = NucypherUmbralPrivateKey.gen_key()
-    umbral_pub_key = umbral_priv_key.get_pubkey()
 
     addresses = list()
     insecure_passphrase = 'this-is-not-a-secure-password'
     for _ in range(quantity):
-        address = umbral_priv_key.export(importing_function=w3.personal.importRawKey,
-                                         passphrase=insecure_passphrase)
+        umbral_priv_key = UmbralPrivateKey.gen_key()
+
+        address = w3.personal.importRawKey(private_key=umbral_priv_key.to_bytes(),
+                                           passphrase=insecure_passphrase)
 
         w3.personal.unlockAccount(address, passphrase=insecure_passphrase)
         addresses.append(addresses)
