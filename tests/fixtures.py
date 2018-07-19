@@ -81,7 +81,7 @@ def enacted_federated_policy(idle_federated_policy, ursulas):
     idle_federated_policy.make_arrangements(network_middleware,
                                             deposit=deposit,
                                             expiration=contract_end_datetime,
-                                            ursulas=ursulas)
+                                            handpicked_ursulas=ursulas)
     idle_federated_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
 
     return idle_federated_policy

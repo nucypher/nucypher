@@ -314,24 +314,58 @@ class Character:
         self._node_ids_to_learn_about_immediately.update(canonical_addresses)  # hmmmm
         self.learn_about_nodes_now()
 
-    def block_until_nodes_are_known(self, canonical_addresses: Set, timeout=10, allow_missing=0,
-                                    learn_on_this_thread=False):
+    # TODO: Dehydrate these next two methods.
+
+    def block_until_number_of_known_nodes_is(self, number_of_nodes_to_know: int,
+                                             timeout=10,
+                                             learn_on_this_thread=False):
         start = maya.now()
         starting_round = self._learning_round
 
         while True:
+            rounds_undertaken = self._learning_round - starting_round
+            if len(self._known_nodes) >= number_of_nodes_to_know:
+                if rounds_undertaken:
+                    self.log.info("Learned about enough nodes after {} rounds.".format(rounds_undertaken))
+                return True
+
             if not self._learning_task.running:
                 self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
             if learn_on_this_thread:
                 self.learn_from_teacher_node(eager=True)
-            rounds_undertaken = self._learning_round - starting_round
-            if (maya.now() - start).seconds < timeout:
-                if canonical_addresses.issubset(self._known_nodes):
-                    self.log.info("Learned about all nodes after {} rounds.".format(rounds_undertaken))
-                    return True
+
+            if (maya.now() - start).seconds > timeout:
+                if not self._learning_task.running:
+                    raise self.NotEnoughUrsulas(
+                        "We didn't discover any nodes because the learning loop isn't running.  Start it with start_learning().")
                 else:
-                    time.sleep(.1)
+                    raise self.NotEnoughUrsulas("After {} seconds and {} rounds, didn't find {} nodes".format(
+                        timeout, rounds_undertaken, number_of_nodes_to_know))
             else:
+                time.sleep(.1)
+
+    def block_until_specific_nodes_are_known(self,
+                                             canonical_addresses: Set,
+                                             timeout=10,
+                                             allow_missing=0,
+                                             learn_on_this_thread=False):
+        start = maya.now()
+        starting_round = self._learning_round
+
+        while True:
+            rounds_undertaken = self._learning_round - starting_round
+            if canonical_addresses.issubset(self._known_nodes):
+                if rounds_undertaken:
+                    self.log.info("Learned about all nodes after {} rounds.".format(rounds_undertaken))
+                return True
+
+            if not self._learning_task.running:
+                self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
+            if learn_on_this_thread:
+                self.learn_from_teacher_node(eager=True)
+
+            if (maya.now() - start).seconds > timeout:
+
                 still_unknown = canonical_addresses.difference(self._known_nodes)
 
                 if len(still_unknown) <= allow_missing:
@@ -342,6 +376,9 @@ class Character:
                 else:
                     raise self.NotEnoughUrsulas("After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
                         timeout, rounds_undertaken, len(still_unknown), still_unknown))
+
+            else:
+                time.sleep(.1)
 
     def learn_from_teacher_node(self, eager=True):
         """
@@ -696,10 +733,26 @@ class Alice(Character, PolicyAuthor):
         # Users may decide to inject some market strategies here.
         #
         # TODO: 289
+
+        # If we're federated only, we need to block to make sure we have enough nodes.
+        if self.federated_only and len(self._known_nodes) < n:
+            good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=True)
+            if not good_to_go:
+                raise ValueError(
+                    "To make a Policy in federated mode, you need to know about\
+                     all the Ursulas you need (in this case, {}); there's no other way to\
+                      know which nodes to use.  Either pass them here or when you make\
+                       the Policy, or run the learning loop on a network with enough Ursulas.".format(self.n))
+
+            if len(handpicked_ursulas) < n:
+                number_of_ursulas_needed = n - len(handpicked_ursulas)
+                new_ursulas = random.sample(list(self._known_nodes.values()), number_of_ursulas_needed)
+                handpicked_ursulas.update(new_ursulas)
+
         policy.make_arrangements(network_middleware=self.network_middleware,
                                  deposit=deposit,
                                  expiration=expiration,
-                                 ursulas=ursulas,
+                                 handpicked_ursulas=handpicked_ursulas,
                                  )
 
         # REST call happens here, as does population of TreasureMap.
@@ -784,14 +837,14 @@ class Bob(Character):
 
         if block:
             if new_thread:
-                return threads.deferToThread(self.block_until_nodes_are_known, unknown_ursulas,
+                return threads.deferToThread(self.block_until_specific_nodes_are_known, unknown_ursulas,
                                              timeout=timeout,
                                              allow_missing=allow_missing)
             else:
-                self.block_until_nodes_are_known(unknown_ursulas,
-                                                 timeout=timeout,
-                                                 allow_missing=allow_missing,
-                                                 learn_on_this_thread=True)
+                self.block_until_specific_nodes_are_known(unknown_ursulas,
+                                                          timeout=timeout,
+                                                          allow_missing=allow_missing,
+                                                          learn_on_this_thread=True)
 
         return unknown_ursulas, known_ursulas
 
@@ -913,7 +966,7 @@ class Bob(Character):
             verifying=alice_verifying_key)
 
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, data_source.label)
-        self.follow_treasure_map(map_id=map_id)
+        self.follow_treasure_map(map_id=map_id, block=True)
 
         work_orders = self.generate_work_orders(map_id, message_kit.capsule)
 
