@@ -281,9 +281,11 @@ class FederatedPolicy(Policy):
     def make_arrangements(self, network_middleware,
                           deposit: int,
                           expiration: maya.MayaDT,
-                          ursulas: Set[Ursula] = None) -> None:
-        if ursulas is None:
+                          handpicked_ursulas: Set[Ursula] = None) -> None:
+        if handpicked_ursulas is None:
             ursulas = set()
+        else:
+            ursulas = handpicked_ursulas
         ursulas.update(self.ursulas)
 
         if len(ursulas) < self.n:

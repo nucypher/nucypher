@@ -136,7 +136,7 @@ class InterfaceInfo:
 
     def __init__(self, host, port):
         self.host = host
-        self.port = port
+        self.port = int(port)
 
     @classmethod
     def from_bytes(cls, url_string):

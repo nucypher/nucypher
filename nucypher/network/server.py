@@ -282,6 +282,7 @@ class ProxyRESTServer:
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         id = binascii.unhexlify(id_as_hex)
         work_order = WorkOrder.from_rest_payload(id, request.body)
+        self.log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
         with ThreadedSession(self.db_engine) as session:
             kfrag_bytes = self.datastore.get_policy_arrangement(id.hex().encode(),
                                                                 session=session).k_frag  # Careful!  :-)
@@ -291,7 +292,9 @@ class ProxyRESTServer:
 
         for capsule in work_order.capsules:
             # TODO: Sign the result of this.  See #141.
-            cfrag_byte_stream += VariableLengthBytestring(pre.reencrypt(kfrag, capsule))
+            cfrag = pre.reencrypt(kfrag, capsule)
+            self.log.info("Re-encrypting for Capsule {}, made CFrag {}.".format(capsule, cfrag))
+            cfrag_byte_stream += VariableLengthBytestring(cfrag)
 
         # TODO: Put this in Ursula's datastore
         self._work_orders.append(work_order)

@@ -13,7 +13,7 @@ class VerifiableNode:
     verified_interface = False
     _verified_node = False
 
-    def __init__(self, interface_signature):
+    def __init__(self, interface_signature=constants.NOT_SIGNED.bool_value(False)):
         self._interface_signature_object = interface_signature
 
     class InvalidNode(SuspiciousActivity):
