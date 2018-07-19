@@ -7,7 +7,7 @@ from umbral.config import set_default_curve
 set_default_curve()
 
 from nucypher.config.utils import parse_nucypher_ini_config, validate_nucypher_ini_config
-from tests.utilities.simulate import SimulatedUrsulaProcessProtocol
+from tests.utilities.simulate import SimulatedUrsulaProcessProtocol, UrsulaProcessProtocol
 
 __version__ = '0.1.0-mock'  # TODO
 
@@ -103,8 +103,9 @@ def accounts(config, action):
 @cli.command()
 @click.argument('action', default='list', required=False)
 @click.argument('ethereum_address', required=False)
+@click.option('--simulate', help="auto-stake a random amount and lock time", is_flag=True)
 @uses_config
-def stakes(config, action, ethereum_address):
+def stake(config, action, ethereum_address, simulate):
     """Manage active node stakes on the blockchain"""
 
     if action == 'list':
@@ -112,40 +113,36 @@ def stakes(config, action, ethereum_address):
             row = '{} | {}'.format(index, stake_info)
             click.echo(row)
 
+    elif action == 'start':
+        if simulate:
+            protocol = SimulatedUrsulaProcessProtocol()
+        else:
+            protocol = UrsulaProcessProtocol()
+
+        reactor.spawnProcess(protocol, "python", ["run_ursula"])
+        config.simulation_running = True
+
 
 @cli.command()
 @click.argument('action')
-@click.option('--local', help="Run the simulation thread pool in a subprocess", is_flag=True)
-@click.option('--remote', help="Run the simulation on remote hosts", is_flag=True)
+@click.option('--nodes', help="The number of nodes to simulate")
 @uses_config
-def simulate(config, action, async):
+def simulate(config, action, nodes):
     """Simulate the nucypher blockchain network"""
 
     if action == 'start':
         if config.simulation_running is True:
             raise RuntimeError("Network simulation already running")
 
-        if async:
-            print("Starting SimulationProtocol")
+        click.echo("Starting SimulationProtocol")
+        for index in range(nodes):
             simulationProtocol = SimulatedUrsulaProcessProtocol()
-            reactor.spawnProcess(simulationProtocol, "nucypher-cli", ["stake"])
-            config.simulation_running = True
-
-        else:
-            pass
+            reactor.spawnProcess(simulationProtocol, "python", ["run_ursula"])
+        config.simulation_running = True
 
     elif action == 'stop':
         if config.simulation_running is not True:
             raise RuntimeError("Network simulation is not running")
-
-        print("Joining threadpool")
-        for address, t in config.tpool.items():
-            if t.is_alive():
-                t.join()
-            print("Joining {}:{}".format(address, t))
-        else:
-            print("Simulation Ended")
-
         config.simulation_running = False
 
 
