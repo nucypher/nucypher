@@ -1,15 +1,14 @@
 import contextlib
-import os
-import tempfile
-import logging
-from os.path import abspath, dirname
 
 import datetime
 import maya
+import os
 import pytest
+import tempfile
 from constant_sorrow import constants
 from eth_tester import EthereumTester
 from eth_utils import to_checksum_address
+from os.path import abspath, dirname
 from sqlalchemy.engine import create_engine
 from web3 import EthereumTesterProvider
 
@@ -25,12 +24,13 @@ from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from tests.blockchain.eth import contracts
 from tests.blockchain.eth.utilities import token_airdrop
-from tests.utilities import MockRestMiddleware
-from tests.utilities import make_ursulas
+from tests.utilities.blockchain import make_ursulas
+from tests.utilities.network import MockRestMiddleware
 
 #
 # Setup
 #
+
 
 constants.NUMBER_OF_TEST_ETH_ACCOUNTS(10)
 
