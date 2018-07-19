@@ -207,8 +207,10 @@ def non_ursula_miners(three_agents):
 
     ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
 
-    _receipts = token_airdrop(token_agent=token_agent, origin=etherbase,
-                              addresses=all_yall, amount=1000000 * constants.M)
+    _receipts = token_airdrop(token_agent=token_agent,
+                              origin=etherbase,
+                              addresses=all_yall,
+                              amount=1000000*constants.M)
 
     starting_point = constants.URSULA_PORT_SEED + 500
 
@@ -252,10 +254,12 @@ def testerchain(solidity_compiler):
     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
     pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
+    test_providers = (pyevm_provider, )
+
     # Use the the custom provider and registrar to init an interface
-    circumflex = DeployerCircumflex(compiler=solidity_compiler,    # freshly recompile
-                                    registry=temp_registrar,       # use temporary registrar
-                                    providers=(pyevm_provider, ))  # use custom test provider
+    circumflex = DeployerCircumflex(compiler=solidity_compiler,    # freshly recompile if not None
+                                    registry=temp_registrar,
+                                    providers=test_providers)
 
     # Create the blockchain
     testerchain = TesterBlockchain(interface=circumflex, test_accounts=10)
