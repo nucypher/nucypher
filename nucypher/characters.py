@@ -46,7 +46,9 @@ class Character:
     _default_crypto_powerups = None
     _stamp = None
 
-    _SECONDS_DELAY_BETWEEN_LEARNING = 2
+    _SHORT_LEARNING_DELAY = 5
+    _LONG_LEARNING_DELAY = 90
+    _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 10
 
     from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
 
@@ -135,6 +137,7 @@ class Character:
             self._current_teacher_node = None
             self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
             self._learning_round = 0
+            self._rounds_without_new_nodes = 0
 
             if always_be_learning:
                 self.start_learning_loop(now=start_learning_on_same_thread)
@@ -246,7 +249,7 @@ class Character:
         if self._learning_task.running:
             return False
         else:
-            d = self._learning_task.start(interval=self._SECONDS_DELAY_BETWEEN_LEARNING, now=now)
+            d = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
             d.addErrback(self.handle_learning_errors)
             return d
 
@@ -299,7 +302,7 @@ class Character:
                 "Learning loop isn't started; can't learn about nodes now.  You can ovverride this with force=True.")
         elif force:
             self.log.info("Learning loop wasn't started; forcing start now.")
-            self._learning_task.start(self._SECONDS_DELAY_BETWEEN_LEARNING, now=True)
+            self._learning_task.start(self._SHORT_LEARNING_DELAY, now=True)
 
     def keep_learning_about_nodes(self):
         """
@@ -396,6 +399,32 @@ class Character:
             self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
 
             self.remember_node(node)
+            new_nodes.append(node)
+
+        self._adjust_learning(new_nodes)
+
+        self.log.info("Learning round {}.  Teacher: {} knew about {} nodes, {} were new.".format(self._learning_round,
+                                                                                                  current_teacher.checksum_public_address,
+                                                                                                  len(node_list),
+                                                                                                  len(new_nodes)),
+                      )
+
+    def _adjust_learning(self, node_list):
+        """
+        Takes a list of new nodes, adjusts learning accordingly.
+
+        Currently, simply slows down learning loop when no new nodes have been discovered in a while.
+        TODO: Do other important things - scrub, bucket, etc.
+        """
+        if node_list:
+            self._rounds_without_new_nodes = 0
+            self._learning_task.interval = self._SHORT_LEARNING_DELAY
+        else:
+            self._rounds_without_new_nodes += 1
+            if self._rounds_without_new_nodes > self._ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN:
+                self.log.info("After {} rounds with no new nodes, it's time to slow down to {} seconds.".format(self._ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN,
+                                                                                                                self._LONG_LEARNING_DELAY))
+                self._learning_task.interval = self._LONG_LEARNING_DELAY
 
     def _push_certain_newly_discovered_nodes_here(self, queue_to_push, node_addresses):
         """
