@@ -1154,6 +1154,77 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
             pass
 
+    @classmethod
+    def from_config(cls, *args, **kwargs) -> 'Ursula':
+        payload = parse_nucypher_ini_config()
+        return cls(**payload, *args, **kwargs)
+
+    @only_me
+    def stake(self,
+              sample_rate: int = 10,
+              refresh_rate: int = 60,
+              confirm_now=True,
+              resume: bool = False,
+              expiration: maya.MayaDT = None,
+              lock_periods: int = None,
+              *args, **kwargs):
+        """
+        High-level staking daemon loop
+
+        amount: int,
+        lock_periods: int = None,
+        expiration: maya.MayaDT = None,
+        entire_balance: bool = False
+        """
+
+        if lock_periods and expiration:
+            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
+        if expiration:
+            lock_periods = datetime_to_period(expiration)
+
+        if resume is False:
+            _staking_receipts = super().stake(expiration=expiration,
+                                              lock_periods=lock_periods,
+                                              *args, **kwargs)
+        if confirm_now:
+            self.confirm_activity()
+
+        # record start time and periods
+        start_time = maya.now()
+        uptime_period = self.miner_agent.get_current_period()
+        terminal_period = uptime_period + lock_periods
+        current_period = uptime_period
+
+        try:
+            while True:
+
+                # calculate timedeltas
+                now = maya.now()
+                initialization_delta = now - start_time
+
+                # check if iteration re-samples
+                sample_stale = initialization_delta.seconds > (refresh_rate - 1)
+                if sample_stale:
+
+                    period = self.miner_agent.get_current_period()
+                    # check for stale sample data
+                    if current_period != period:
+
+                        # check for stake expiration
+                        stake_expired = current_period >= terminal_period
+                        if stake_expired:
+                            break
+
+                        self.confirm_activity()
+                        current_period = period
+
+                # wait before resampling
+                time.sleep(sample_rate)
+                continue
+
+        finally:
+            pass
+
     @property
     def rest_app(self):
         if not self._rest_app:
