@@ -5,9 +5,9 @@ workflows:
   test:
     jobs:
       - bundle_dependencies-36
-#      - mypy_type_check:
-#          requires:
-#            - bundle_dependencies-36
+      - mypy_type_check:
+          requires:
+            - bundle_dependencies-36
       - eth_contract_unit:
           requires:
             - bundle_dependencies-36
@@ -141,20 +141,20 @@ jobs:
             pipenv run pytest -v --runslow tests/blockchain/eth/contracts/integration --junitxml=./reports/pytest/results.xml
       - store_test_results:
           path: ./reports/pytest/
-#
-#  mypy_type_check:
-#    <<: *python_36_base
-#    steps:
-#      - checkout
-#      - attach_workspace:
-#          at: ~/.local/share/virtualenvs/
-#      - run:
-#          name: Run Mypy Static Type Checks
-#          command: |
-#              mkdir ./mypy_reports ./mypy_results
-#              export MYPYPATH=./nucypher
-#              pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount --junit-xml ./mypy_results/results.xml
-#      - store_artifacts:
-#          path: ./mypy_reports
-#      - store_test_results:
-#          path: ./mypy_results
+
+  mypy_type_check:
+    <<: *python_36_base
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
+      - run:
+          name: Run Mypy Static Type Checks
+          command: |
+              mkdir ./mypy_reports ./mypy_results
+              export MYPYPATH=./nucypher
+              pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount --junit-xml ./mypy_results/results.xml || true
+      - store_artifacts:
+          path: ./mypy_reports
+      - store_test_results:
+          path: ./mypy_results
