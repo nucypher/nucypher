@@ -76,6 +76,8 @@ class ContractDeployer:
         rules = (
             (self.is_armed is True, 'Contract not armed'),
             (self.is_deployed is not True, 'Contract already deployed'),
+            (self.deployer_address is not constants.NO_DEPLOYER_CONFIGURED, 'No deployer origin address set.'),
+
             )
 
         disqualifications = list()
@@ -172,6 +174,7 @@ class NucypherTokenDeployer(ContractDeployer):
         The contract must be armed before it can be deployed.
         Deployment can only ever be executed exactly once!
         """
+
         is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
         assert is_ready
 

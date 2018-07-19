@@ -101,7 +101,7 @@ class BlockchainPower(CryptoPowerUp):
             raise PowerUpError("Account is not unlocked.")
 
         signature = self.blockchain.interface.call_backend_sign(self.account, message)
-        return signature.to_bytes()
+        return bytes(signature)
 
     def verify_message(self, address: str, pubkey: bytes, message: bytes, signature_bytes: bytes):
         """

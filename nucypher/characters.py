@@ -1073,8 +1073,10 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
     @classmethod
     def from_miner(cls, miner, *args, **kwargs):
-        instance = cls(miner_agent=miner.miner_agent, ether_address=miner._ether_address,
-                       ferated_only=False, *args, **kwargs)
+        instance = cls(miner_agent=miner.miner_agent,
+                       ether_address=miner._ether_address,
+                       ferated_only=False,
+                       *args, **kwargs)
 
         instance.attach_dht_server()
         # instance.attach_rest_server()
