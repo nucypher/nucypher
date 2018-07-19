@@ -104,13 +104,13 @@ class NucypherSeedOnlyDHTServer(NucypherDHTServer):
 class ProxyRESTServer:
 
     def __init__(self,
-                 host=None,
-                 port=None,
+                 rest_host=None,
+                 rest_port=None,
                  db_name=None,
                  tls_private_key=None,
                  tls_curve=None,
                  *args, **kwargs):
-        self.rest_interface = InterfaceInfo(host=host, port=port)
+        self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
 
         self.db_name = db_name
         self._rest_app = None

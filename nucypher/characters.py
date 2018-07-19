@@ -1053,7 +1053,7 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             Miner.__init__(self, miner_agent=miner_agent, is_me=is_me, checksum_address=checksum_address)
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
-        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port,
+        ProxyRESTServer.__init__(self, rest_host=rest_host, rest_port=rest_port,
                                  db_name=db_name,
                                  tls_private_key=tls_private_key, tls_curve=tls_curve
                                  )
