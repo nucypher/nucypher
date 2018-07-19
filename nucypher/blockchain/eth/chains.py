@@ -4,6 +4,7 @@ from constant_sorrow import constants
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.interfaces import ControlCircumflex, DeployerCircumflex
+from nucypher.config.utils import parse_blockchain_config
 
 
 class Blockchain:
@@ -36,6 +37,10 @@ class Blockchain:
         class_name = self.__class__.__name__
         r = "{}(interface={})"
         return r.format(class_name, self.__interface)
+
+    @classmethod
+    def from_config(cls) -> 'Blockchain':
+        return cls(**parse_blockchain_config())
 
     @classmethod
     def connect(cls):
