@@ -143,7 +143,7 @@ def stake(config, action, ethereum_address, stake_index):
 @click.argument('action')
 @click.option('--nodes', help="The number of nodes to simulate")
 @uses_config
-def simulate(config, action, nodes):
+def simulation(config, action, nodes):
     """Simulate the nucypher blockchain network"""
 
     if action == 'start':
@@ -160,6 +160,55 @@ def simulate(config, action, nodes):
         if config.simulation_running is not True:
             raise RuntimeError("Network simulation is not running")
         config.simulation_running = False
+
+
+@cli.command()
+@uses_config
+def status(config):
+
+    payload = """
+    
+    | {chain_type} Interface |
+     
+    Status ................... {connection}
+    Provider Type ............ {provider_type}    
+    Etherbase ................ {etherbase}
+    Local Accounts ........... {accounts}
+    
+    
+    | NuCypher ETH Contracts |
+    
+    Registry Path ............ {registry_filepath}
+    NucypherToken ............ {token}
+    MinerEscrow .............. {escrow}
+    PolicyManager ............ {manager}
+        
+    | Blockchain Network |
+    
+    Current Period ........... {period}
+    Active Staking Ursulas ... {ursulas}
+    
+    | Swarm |
+    
+    Known Nodes .............. 
+    Verified Nodes ........... 
+    Phantom Nodes ............ NotImplemented
+    
+    
+    """.format(report_time=maya.now(),
+               chain_type=config.blockchain.__class__.__name__,
+               connection='Connected' if config.blockchain.interface.is_connected else 'No Connection',
+               registry_filepath=config.blockchain.interface.registry_filepath,
+               etherbase=config.accounts[0],
+               accounts=len(config.accounts),
+               token=config.token_agent.contract_address,
+               escrow=config.miner_agent.contract_address,
+               manager=config.policy_agent.contract_address,
+               provider_type=config.blockchain.interface.provider_type,
+               period=config.miner_agent.get_current_period(),
+               ursulas=config.miner_agent.get_miner_population())
+
+    click.echo(payload)
 
 
 if __name__ == "__main__":
