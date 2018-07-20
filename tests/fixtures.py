@@ -213,7 +213,6 @@ def non_ursula_miners(three_agents):
     starting_point = constants.URSULA_PORT_SEED + 500
 
     _ursulas = make_ursulas(ether_addresses=ursula_addresses,
-                            ursula_starting_port=int(starting_point),
                             miner_agent=miner_agent,
                             miners=True,
                             bare=True)

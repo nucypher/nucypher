@@ -112,7 +112,7 @@ def make_ursulas(ether_addresses: list,
         ursulas.add(ursula)
         _ALL_URSULAS[ursula.rest_interface.port] = ursula
 
-    if know_each_other:
+    if know_each_other and not bare:
 
         for ursula_to_teach in ursulas:
             # Add other Ursulas as known nodes.
