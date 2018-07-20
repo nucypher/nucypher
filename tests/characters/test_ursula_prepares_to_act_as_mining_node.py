@@ -1,10 +1,8 @@
 import pytest
-
-from nucypher.characters import Ursula
-from nucypher.crypto.api import secure_random
-from nucypher.crypto.powers import SigningPower, CryptoPower
 from eth_keys.datatypes import Signature as EthSignature
 
+from nucypher.characters import Ursula
+from nucypher.crypto.powers import SigningPower, CryptoPower
 from tests.utilities.blockchain import make_ursulas
 from tests.utilities.network import MockRestMiddleware
 
