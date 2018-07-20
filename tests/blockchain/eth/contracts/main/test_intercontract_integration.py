@@ -28,8 +28,8 @@ UPGRADE_WAITING_STATE = 1
 FINISHED_STATE = 2
 
 SECRET_LENGTH = 32
-secret = os.urandom(SECRET_LENGTH)
-secret2 = os.urandom(SECRET_LENGTH)
+escrow_secret = os.urandom(SECRET_LENGTH)
+policy_manager_secret = os.urandom(SECRET_LENGTH)
 
 
 @pytest.fixture()
@@ -53,7 +53,7 @@ def escrow(testerchain, token):
         100,
         2000)
 
-    secret_hash = testerchain.interface.w3.sha3(secret)
+    secret_hash = testerchain.interface.w3.sha3(escrow_secret)
     dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
 
     # Wrap dispatcher contract
@@ -61,14 +61,15 @@ def escrow(testerchain, token):
         abi=contract.abi,
         address=dispatcher.address,
         ContractFactoryClass=Contract)
-    return contract
+    return contract, dispatcher
 
 
 @pytest.fixture()
 def policy_manager(testerchain, escrow):
+    escrow, _ = escrow
     creator = testerchain.interface.w3.eth.accounts[0]
 
-    secret_hash = testerchain.interface.w3.sha3(secret)
+    secret_hash = testerchain.interface.w3.sha3(policy_manager_secret)
 
     # Creator deploys the policy manager
     contract, _ = testerchain.interface.deploy_contract('PolicyManager', escrow.address)
@@ -83,25 +84,25 @@ def policy_manager(testerchain, escrow):
     tx = escrow.functions.setPolicyManager(contract.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
-    return contract
+    return contract, dispatcher
 
 
 @pytest.fixture()
 def user_escrow_proxy(testerchain, token, escrow, policy_manager):
+    escrow, _ = escrow
+    policy_manager, _ = policy_manager
     # Creator deploys the user escrow proxy
-    contract, _ = testerchain.interface.deploy_contract(
+    user_escrow_proxy, _ = testerchain.interface.deploy_contract(
         'UserEscrowProxy', token.address, escrow.address, policy_manager.address)
-    return contract
-
-
-@pytest.fixture()
-def user_escrow_linker(testerchain, user_escrow_proxy):
     linker, _ = testerchain.interface.deploy_contract('UserEscrowLibraryLinker', user_escrow_proxy.address)
-    return linker
+    return user_escrow_proxy, linker
 
 
 @pytest.mark.slow
-def test_all(testerchain, token, escrow, policy_manager, user_escrow_proxy, user_escrow_linker):
+def test_all(testerchain, token, escrow, policy_manager, user_escrow_proxy):
+    escrow, escrow_dispatcher = escrow
+    policy_manager, policy_manager_dispatcher = policy_manager
+    user_escrow_proxy, user_escrow_linker = user_escrow_proxy
     creator, ursula1, ursula2, ursula3, ursula4, alice1, alice2, *everyone_else = testerchain.interface.w3.eth.accounts
 
     # Give clients some ether
@@ -409,6 +410,86 @@ def test_all(testerchain, token, escrow, policy_manager, user_escrow_proxy, user
     tx = policy_manager.functions.refund(policy_id_4).transact({'from': alice2, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     assert alice2_balance < testerchain.interface.w3.eth.getBalance(alice2)
+
+    # Upgrade by owner
+    escrow_secret2 = os.urandom(SECRET_LENGTH)
+    policy_manager_secret2 = os.urandom(SECRET_LENGTH)
+    escrow_secret2_hash = testerchain.interface.w3.sha3(escrow_secret2)
+    policy_manager_secret2_hash = testerchain.interface.w3.sha3(policy_manager_secret2)
+    escrow_v1 = escrow.functions.target().call()
+    policy_manager_v1 = policy_manager.functions.target().call()
+    # Creator deploys the contracts as the second versions
+    escrow_v2, _ = testerchain.interface.deploy_contract(
+        'MinersEscrow',
+        token.address,
+        1,
+        4 * 2 * 10 ** 7,
+        4,
+        4,
+        2,
+        100,
+        2000)
+    policy_manager_v2, _ = testerchain.interface.deploy_contract('PolicyManager', escrow.address)
+    # Ursula and Alice can't upgrade contracts, only owner can
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow_dispatcher.functions.upgrade(escrow_v2.address, escrow_secret, escrow_secret2_hash)\
+            .transact({'from': alice1})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow_dispatcher.functions.upgrade(escrow_v2.address, escrow_secret, escrow_secret2_hash) \
+            .transact({'from': ursula1})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager_dispatcher.functions\
+            .upgrade(policy_manager_v2.address, policy_manager_secret, policy_manager_secret2_hash)\
+            .transact({'from': alice1})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager_dispatcher.functions\
+            .upgrade(policy_manager_v2.address, policy_manager_secret, policy_manager_secret2_hash) \
+            .transact({'from': ursula1})
+        testerchain.wait_for_receipt(tx)
+
+    # Upgrade contracts
+    tx = escrow_dispatcher.functions.upgrade(escrow_v2.address, escrow_secret, escrow_secret2_hash) \
+        .transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert escrow_v2.address == escrow.functions.target().call()
+    tx = policy_manager_dispatcher.functions\
+        .upgrade(policy_manager_v2.address, policy_manager_secret, policy_manager_secret2_hash) \
+        .transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager_v2.address == policy_manager.functions.target().call()
+
+    # Ursula and Alice can't rollback contracts, only owner can
+    escrow_secret3 = os.urandom(SECRET_LENGTH)
+    policy_manager_secret3 = os.urandom(SECRET_LENGTH)
+    escrow_secret3_hash = testerchain.interface.w3.sha3(escrow_secret3)
+    policy_manager_secret3_hash = testerchain.interface.w3.sha3(policy_manager_secret3)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow_dispatcher.functions.rollback(escrow_secret2, escrow_secret3_hash).transact({'from': alice1})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow_dispatcher.functions.rollback(escrow_secret2, escrow_secret3_hash).transact({'from': ursula1})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager_dispatcher.functions.rollback(policy_manager_secret2, policy_manager_secret3_hash)\
+            .transact({'from': alice1})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = policy_manager_dispatcher.functions.rollback(policy_manager_secret2, policy_manager_secret3_hash) \
+            .transact({'from': ursula1})
+        testerchain.wait_for_receipt(tx)
+
+    # Rollback contracts
+    tx = escrow_dispatcher.functions.rollback(escrow_secret2, escrow_secret3_hash) \
+        .transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert escrow_v1 == escrow.functions.target().call()
+    tx = policy_manager_dispatcher.functions.rollback(policy_manager_secret2, policy_manager_secret3_hash) \
+        .transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert policy_manager_v1 == policy_manager.functions.target().call()
 
     # Unlock and withdraw all tokens in MinersEscrow
     for index in range(11):
