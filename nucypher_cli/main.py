@@ -18,6 +18,8 @@ BANNER = """
 
 """.format(__version__)
 
+from tests.utilities.blockchain import bootstrap_fake_network
+
 
 # Set Default Curve #
 #####################
@@ -311,6 +313,7 @@ def stake(config, action, address, index, value, duration):
         click.confirm("Are you sure you want to abort the staking process?", abort=True)
         # os.kill(pid=NotImplemented)
         raise NotImplementedError
+
 
 
 @cli.command()

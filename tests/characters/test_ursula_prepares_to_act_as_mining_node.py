@@ -1,10 +1,12 @@
 import pytest
 from eth_keys.datatypes import Signature as EthSignature
+from tests.utilities.network import MockRestMiddleware
 
 from nucypher.characters import Ursula
 from nucypher.crypto.powers import SigningPower, CryptoPower
 from nucypher.utilities.blockchain import make_ursulas
 from nucypher.utilities.network import MockRestMiddleware
+from tests.utilities.blockchain import make_ursulas
 
 
 @pytest.mark.skip
