@@ -1,8 +1,11 @@
 import os
 
 import click
+import maya as maya
 from twisted.internet import reactor
 from umbral.config import set_default_curve
+
+from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
 
 set_default_curve()
 
@@ -12,11 +15,6 @@ from tests.utilities.simulate import SimulatedUrsulaProcessProtocol, UrsulaProce
 __version__ = '0.1.0-mock'  # TODO
 
 DEFAULT_CONF_FILEPATH = '.'
-
-blockchain_stakes = ['Ribeye',
-                     'Tri-tip',
-                     'Serlion',
-                     'Filet Mingion']
 
 
 class NucypherClickConfig:
@@ -33,6 +31,11 @@ class NucypherClickConfig:
 
         self.payload = parse_nucypher_ini_config(filepath=self.config_filepath)
         self.blockchain = self.payload['blockchain']
+
+        # Three agents
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.miner_agent = MinerAgent(token_agent=self.token_agent)
+        self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
 
         self.accounts = self.blockchain.interface.w3.eth.accounts
 
@@ -104,25 +107,37 @@ def accounts(config, action):
 @cli.command()
 @click.argument('action', default='list', required=False)
 @click.argument('ethereum_address', required=False)
-@click.option('--simulate', help="auto-stake a random amount and lock time", is_flag=True)
+@click.option('--stake-index', help="auto-stake a random amount and lock time", is_flag=True)
 @uses_config
-def stake(config, action, ethereum_address, simulate):
+def stake(config, action, ethereum_address, stake_index):
     """Manage active node stakes on the blockchain"""
 
     if action == 'list':
-        for index, stake_info in enumerate(blockchain_stakes):
+        live_stakes = config.miner_agent.get_all_stakes(miner_address=ethereum_address)
+        for index, stake_info in enumerate(live_stakes):
             row = '{} | {}'.format(index, stake_info)
             click.echo(row)
 
-    elif action == 'start':
-        if simulate:
-            protocol = SimulatedUrsulaProcessProtocol()
-        else:
-            protocol = UrsulaProcessProtocol()
+    elif action == 'info':
+        config.miner_agent.get_stake_info(miner_address=ethereum_address,
+                                   stake_index=stake_index)
 
+    elif action == 'start':
+        protocol = UrsulaProcessProtocol()
         reactor.spawnProcess(protocol, "python", ["run_ursula"])
         config.simulation_running = True
 
+    elif action == 'confirm-activity':
+        config.miner_agent.confirm_activity(node_address=ethereum_address)
+
+    # elif action == 'divide-stake':
+    #     config.miner_agent.divide_stake(miner_address=ethereum_address,
+    #                              stake_index=stake_index,
+    #                              target_value=target,
+    #                              periods=periods)
+    #
+    # elif action == 'collect-reward':
+    #     config.miner_agent.collect_staking_reward(collector_address=withdraw_address)
 
 @cli.command()
 @click.argument('action')
