@@ -6,6 +6,7 @@ from constant_sorrow import constants
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
 class EthereumContractAgent(ABC):
@@ -33,9 +34,13 @@ class EthereumContractAgent(ABC):
             blockchain = Blockchain.connect()
         self.blockchain = blockchain
 
-        # Fetch the contract by reading address and abi from the registry and blockchain
-        contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
-                                                                  upgradeable=self._upgradeable)
+        try:
+            # Fetch the contract by reading address and abi from the registry and blockchain
+            contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
+                                                                      upgradeable=self._upgradeable)
+        except EthereumContractRegistry.UnknownContract:
+            raise self.ContractNotDeployed("There is no registry entry for {}".format(self.principal_contract_name))
+
         self.__contract = contract
         super().__init__()
 
