@@ -6,6 +6,7 @@ from twisted.internet import reactor
 from umbral.config import set_default_curve
 
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
+from tests.utilities.blockchain import bootstrap_fake_network
 
 set_default_curve()
 
@@ -139,6 +140,7 @@ def stake(config, action, ethereum_address, stake_index):
     # elif action == 'collect-reward':
     #     config.miner_agent.collect_staking_reward(collector_address=withdraw_address)
 
+
 @cli.command()
 @click.argument('action')
 @click.option('--nodes', help="The number of nodes to simulate")
@@ -149,6 +151,9 @@ def simulation(config, action, nodes):
     if action == 'start':
         if config.simulation_running is True:
             raise RuntimeError("Network simulation already running")
+
+        click.echo("Bootstrapping blockchain network")
+        three_agents = bootstrap_fake_network()
 
         click.echo("Starting SimulationProtocol")
         for index in range(int(nodes)):

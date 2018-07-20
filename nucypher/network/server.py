@@ -1,27 +1,26 @@
 import asyncio
 import binascii
 import random
-from typing import ClassVar
 
 import kademlia
 from apistar import http, Route, App
 from apistar.http import Response
-from kademlia.crawling import NodeSpiderCrawl
-from kademlia.network import Server
-from kademlia.utils import digest
-
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from hendrix.experience import crosstown_traffic
-from nucypher.config.configs import NetworkConfiguration
+from kademlia.crawling import NodeSpiderCrawl
+from kademlia.network import Server
+from kademlia.utils import digest
+from typing import ClassVar
+from umbral import pre
+from umbral.fragments import KFrag
+
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, TLSHostingPower
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, InterfaceInfo
 from nucypher.network.storage import SeedOnlyStorage
-from umbral import pre
-from umbral.fragments import KFrag
 
 
 class NucypherDHTServer(Server):
