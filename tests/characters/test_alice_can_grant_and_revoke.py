@@ -1,6 +1,7 @@
 import datetime
 
 import maya
+from tests.utilities.network import _ALL_URSULAS
 from umbral.fragments import KFrag
 
 from nucypher.crypto.api import keccak_digest

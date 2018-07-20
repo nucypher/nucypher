@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 from kademlia.utils import digest
+from tests.utilities.network import MockRestMiddleware
 
 from nucypher.characters import Ursula
 from nucypher.crypto.api import keccak_digest
