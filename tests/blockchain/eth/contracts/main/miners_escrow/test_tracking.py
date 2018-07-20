@@ -157,7 +157,7 @@ def test_pre_deposit(testerchain, token, escrow_contract):
     period = escrow.functions.getCurrentPeriod().call()
     assert 1 == policy_manager.functions.getPeriodsLength(owner).call()
     assert period == policy_manager.functions.getPeriod(owner, 0).call()
-    assert 0 == escrow.functions.getDowntimeLength(owner).call()
+    assert 0 == escrow.functions.getPastDowntimeLength(owner).call()
     assert 0 == escrow.functions.getLastActivePeriod(owner).call()
 
     # Can't pre-deposit tokens again for the same miner twice
@@ -195,7 +195,7 @@ def test_pre_deposit(testerchain, token, escrow_contract):
         assert 0 == escrow.functions.getLockedTokens(owner, 50 * (index + 1) + 1).call()
         assert 1 == policy_manager.functions.getPeriodsLength(owner).call()
         assert period == policy_manager.functions.getPeriod(owner, 0).call()
-        assert 0 == escrow.functions.getDowntimeLength(owner).call()
+        assert 0 == escrow.functions.getPastDowntimeLength(owner).call()
         assert 0 == escrow.functions.getLastActivePeriod(owner).call()
 
     events = deposit_log.get_all_entries()

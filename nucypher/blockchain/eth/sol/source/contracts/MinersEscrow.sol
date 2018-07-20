@@ -64,7 +64,7 @@ contract MinersEscrow is Issuer {
         uint16 confirmedPeriod2;
         // downtime
         uint16 lastActivePeriod;
-        Downtime[] downtime;
+        Downtime[] pastDowntime;
         StakeInfo[] stakes;
     }
 
@@ -448,7 +448,7 @@ contract MinersEscrow is Issuer {
 
         // miner was inactive for several periods
         if (_lastActivePeriod < currentPeriod) {
-            info.downtime.push(Downtime(_lastActivePeriod + 1, currentPeriod));
+            info.pastDowntime.push(Downtime(_lastActivePeriod + 1, currentPeriod));
         }
         emit ActivityConfirmed(_miner, nextPeriod, _lockedValue);
     }
@@ -681,21 +681,21 @@ contract MinersEscrow is Issuer {
     }
 
     /**
-    * @notice Return the length of the downtime array
+    * @notice Return the length of the array of past downtime
     **/
-    function getDowntimeLength(address _miner) public view returns (uint256) {
-        return minerInfo[_miner].downtime.length;
+    function getPastDowntimeLength(address _miner) public view returns (uint256) {
+        return minerInfo[_miner].pastDowntime.length;
     }
 
     /**
-    * @notice Return the information about downtime
+    * @notice Return the information about past downtime
     **/
-    function getDowntime(address _miner, uint256 _index)
+    function  getPastDowntime(address _miner, uint256 _index)
     // TODO change to structure when ABIEncoderV2 is released
 //        public view returns (Downtime)
         public view returns (uint16 startPeriod, uint16 endPeriod)
     {
-        Downtime storage downtime = minerInfo[_miner].downtime[_index];
+        Downtime storage downtime = minerInfo[_miner].pastDowntime[_index];
         startPeriod = downtime.startPeriod;
         endPeriod = downtime.endPeriod;
     }
@@ -728,11 +728,11 @@ contract MinersEscrow is Issuer {
     /**
     * @dev Get Downtime structure by delegatecall
     **/
-    function delegateGetDowntime(address _target, address _miner, uint256 _index)
+    function delegateGetPastDowntime(address _target, address _miner, uint256 _index)
         internal returns (Downtime memory result)
     {
         bytes32 memoryAddress = delegateGetData(
-            _target, "getDowntime(address,uint256)", 2, bytes32(_miner), bytes32(_index));
+            _target, "getPastDowntime(address,uint256)", 2, bytes32(_miner), bytes32(_index));
         assembly {
             result := memoryAddress
         }
@@ -764,10 +764,11 @@ contract MinersEscrow is Issuer {
             infoToCheck.confirmedPeriod2 == info.confirmedPeriod2 &&
             infoToCheck.lastActivePeriod == info.lastActivePeriod);
 
-        require(uint256(delegateGet(_testTarget, "getDowntimeLength(address)", miner)) == info.downtime.length);
-        for (i = 0; i < info.downtime.length && i < MAX_CHECKED_VALUES; i++) {
-            Downtime storage downtime = info.downtime[i];
-            Downtime memory downtimeToCheck = delegateGetDowntime(_testTarget, minerAddress, i);
+        require(uint256(delegateGet(_testTarget, "getPastDowntimeLength(address)", miner)) ==
+            info.pastDowntime.length);
+        for (i = 0; i < info.pastDowntime.length && i < MAX_CHECKED_VALUES; i++) {
+            Downtime storage downtime = info.pastDowntime[i];
+            Downtime memory downtimeToCheck = delegateGetPastDowntime(_testTarget, minerAddress, i);
             require(downtimeToCheck.startPeriod == downtime.startPeriod &&
                 downtimeToCheck.endPeriod == downtime.endPeriod);
         }

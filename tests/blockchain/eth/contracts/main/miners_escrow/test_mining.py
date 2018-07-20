@@ -66,12 +66,12 @@ def test_mining(testerchain, token, escrow_contract):
     assert period == policy_manager.functions.getPeriod(ursula1, 0).call()
     assert period == policy_manager.functions.getPeriod(ursula2, 0).call()
     # Check downtime parameters
-    assert 1 == escrow.functions.getDowntimeLength(ursula1).call()
-    downtime = escrow.functions.getDowntime(ursula1, 0).call()
+    assert 1 == escrow.functions.getPastDowntimeLength(ursula1).call()
+    downtime = escrow.functions.getPastDowntime(ursula1, 0).call()
     assert 1 == downtime[0]
     assert period == downtime[1]
-    assert 1 == escrow.functions.getDowntimeLength(ursula2).call()
-    downtime = escrow.functions.getDowntime(ursula2, 0).call()
+    assert 1 == escrow.functions.getPastDowntimeLength(ursula2).call()
+    downtime = escrow.functions.getPastDowntime(ursula2, 0).call()
     assert 1 == downtime[0]
     assert period == downtime[1]
     assert period + 1 == escrow.functions.getLastActivePeriod(ursula1).call()
@@ -91,7 +91,7 @@ def test_mining(testerchain, token, escrow_contract):
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
 
     testerchain.wait_for_receipt(tx)
-    assert 1 == escrow.functions.getDowntimeLength(ursula1).call()
+    assert 1 == escrow.functions.getPastDowntimeLength(ursula1).call()
 
     # Checks that no error from repeated method call
     tx = escrow.functions.confirmActivity().transact({'from': ursula1})
@@ -110,8 +110,8 @@ def test_mining(testerchain, token, escrow_contract):
     assert 1046 == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
     assert 525 == escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
     # Check that downtime value has not changed
-    assert 1 == escrow.functions.getDowntimeLength(ursula1).call()
-    assert 1 == escrow.functions.getDowntimeLength(ursula2).call()
+    assert 1 == escrow.functions.getPastDowntimeLength(ursula1).call()
+    assert 1 == escrow.functions.getPastDowntimeLength(ursula2).call()
     assert period + 1 == escrow.functions.getLastActivePeriod(ursula1).call()
     assert period - 1 == escrow.functions.getLastActivePeriod(ursula2).call()
 
@@ -153,8 +153,8 @@ def test_mining(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
 
     assert period + 1 == escrow.functions.getLastActivePeriod(ursula2).call()
-    assert 2 == escrow.functions.getDowntimeLength(ursula2).call()
-    downtime = escrow.functions.getDowntime(ursula2, 1).call()
+    assert 2 == escrow.functions.getPastDowntimeLength(ursula2).call()
+    downtime = escrow.functions.getPastDowntime(ursula2, 1).call()
     assert period - 1 == downtime[0]
     assert period == downtime[1]
 
@@ -221,8 +221,8 @@ def test_mining(testerchain, token, escrow_contract):
     tx = escrow.functions.lock(500, 2).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
 
-    assert 3 == escrow.functions.getDowntimeLength(ursula2).call()
-    downtime = escrow.functions.getDowntime(ursula2, 2).call()
+    assert 3 == escrow.functions.getPastDowntimeLength(ursula2).call()
+    downtime = escrow.functions.getPastDowntime(ursula2, 2).call()
     assert period == downtime[0]
     assert period == downtime[1]
 
@@ -236,8 +236,8 @@ def test_mining(testerchain, token, escrow_contract):
 
     assert 1152 == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
     assert 1025 == escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
-    assert 4 == escrow.functions.getDowntimeLength(ursula2).call()
-    downtime = escrow.functions.getDowntime(ursula2, 3).call()
+    assert 4 == escrow.functions.getPastDowntimeLength(ursula2).call()
+    downtime = escrow.functions.getPastDowntime(ursula2, 3).call()
     assert period - 3 == downtime[0]
     assert period == downtime[1]
 
@@ -255,7 +255,7 @@ def test_mining(testerchain, token, escrow_contract):
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    assert 4 == escrow.functions.getDowntimeLength(ursula2).call()
+    assert 4 == escrow.functions.getPastDowntimeLength(ursula2).call()
     testerchain.time_travel(hours=1)
     tx = escrow.functions.confirmActivity().transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
