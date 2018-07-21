@@ -128,21 +128,50 @@ def accounts(config, action):
 
 @cli.command()
 @click.argument('action', default='list', required=False)
-@click.argument('ethereum_address', required=False)
-@click.option('--stake-index', help="auto-stake a random amount and lock time", is_flag=True)
+@click.argument('value', required=False)
+@click.argument('periods', required=False)
+@click.option('--stake-index', help="The zero-based stake index for this address")
+@click.option('--wallet-address', help="Send rewarded tokens to a specific address, instead of the default.")
 @uses_config
-def stake(config, action, ethereum_address, stake_index):
-    """Manage active node stakes on the blockchain"""
+def stake(config, action, wallet_address, stake_index, value, periods):
+    """
+    Manage active and inactive node blockchain stakes.
+
+    Arguments
+    ==========
+
+    action - Which action to perform; The choices are:
+
+        - list: List all stakes for this node
+        - info: Display info about a specific stake
+        - start: Start the staking daemon
+        - confirm-activity: Manually confirm-activity for the current period
+        - divide-stake: Divide an existing stake
+
+    value - The quantity of tokens to stake.
+
+    periods - The duration (in periods) of the stake.
+
+    Options
+    ========
+
+    --wallet-address - A valid ethereum checksum address to use instead of the default
+    --stake-index - The zero-based stake index, or stake tag for this wallet-address
+
+    """
+
+    if not wallet_address:
+        wallet_address = config.blockchain.interface.w3.eth.etherbase
 
     if action == 'list':
-        live_stakes = config.miner_agent.get_all_stakes(miner_address=ethereum_address)
+        live_stakes = config.miner_agent.get_all_stakes(miner_address=wallet_address)
         for index, stake_info in enumerate(live_stakes):
             row = '{} | {}'.format(index, stake_info)
             click.echo(row)
 
     elif action == 'info':
-        config.miner_agent.get_stake_info(miner_address=ethereum_address,
-                                   stake_index=stake_index)
+        config.miner_agent.get_stake_info(miner_address=wallet_address,
+                                          stake_index=stake_index)
 
     elif action == 'start':
         protocol = UrsulaProcessProtocol()
@@ -150,24 +179,41 @@ def stake(config, action, ethereum_address, stake_index):
         config.simulation_running = True
 
     elif action == 'confirm-activity':
-        config.miner_agent.confirm_activity(node_address=ethereum_address)
+        config.miner_agent.confirm_activity(node_address=wallet_address)
 
-    # elif action == 'divide-stake':
-    #     config.miner_agent.divide_stake(miner_address=ethereum_address,
-    #                              stake_index=stake_index,
-    #                              target_value=target,
-    #                              periods=periods)
-    #
-    # elif action == 'collect-reward':
-    #     config.miner_agent.collect_staking_reward(collector_address=withdraw_address)
+    elif action == 'divide-stake':
+        config.miner_agent.divide_stake(miner_address=wallet_address,
+                                        stake_index=stake_index,
+                                        value=value,
+                                        periods=periods)
+
+    elif action == 'collect-reward':
+        config.miner_agent.collect_staking_reward(collector_address=wallet_address)
 
 
 @cli.command()
 @click.argument('action')
 @click.option('--nodes', help="The number of nodes to simulate")
+@click.option('--duration', help="The number of periods to run the simulation for")
 @uses_config
 def simulation(config, action, nodes):
-    """Simulate the nucypher blockchain network"""
+    """
+    Simulate the nucypher blockchain network
+
+    Arguments
+    ==========
+
+    action - Which action to perform; The choices are:
+        - start: Start a multi-process nucypher network simulation
+        - stop: Stop a running simulation gracefully
+
+    Options
+    ========
+
+    --nodes - The quantity of nodes (processes) to execute during the simulation
+    --duration = The number of periods to run the simulation before termination
+
+    """
 
     if action == 'start':
         if config.simulation_running is True:
@@ -179,8 +225,11 @@ def simulation(config, action, nodes):
         click.echo("Starting SimulationProtocol")
         for index in range(int(nodes)):
             simulationProtocol = SimulatedUrsulaProcessProtocol()
-            reactor.spawnProcess(simulationProtocol, "python", ["run_ursula"])
-        config.simulation_running = True
+
+            args = ["run_ursula", "ipc:///tmp/geth.ipc", "https://127.0.0.1:5551"]
+            reactor.spawnProcess(simulationProtocol, "python", args)
+
+            config.simulation_running = True
 
     elif action == 'stop':
         if config.simulation_running is not True:
@@ -189,18 +238,32 @@ def simulation(config, action, nodes):
 
 
 @cli.command()
+@click.option('--provider', help="Echo blockchain provider info", is_flag=True)
+@click.option('--contracts', help="Echo nucypher smart contract info", is_flag=True)
+@click.option('--network', help="Echo the network status", is_flag=True)
+@click.option('--all', help="Output all data", default=True, is_flag=True)
 @uses_config
-def status(config):
+def status(config, provier, contracts, network, all):
+    """
+    Echo a snapshot of live network metadata.
+    """
 
-    payload = """
-    
+    provider_payload = """
+
     | {chain_type} Interface |
      
     Status ................... {connection}
     Provider Type ............ {provider_type}    
     Etherbase ................ {etherbase}
     Local Accounts ........... {accounts}
-    
+
+    """.format(chain_type=config.blockchain.__class__.__name__,
+               connection='Connected' if config.blockchain.interface.is_connected else 'No Connection',
+               provider_type=config.blockchain.interface.provider_type,
+               etherbase=config.accounts[0],
+               accounts=len(config.accounts))
+
+    contract_payload = """
     
     | NuCypher ETH Contracts |
     
@@ -209,6 +272,14 @@ def status(config):
     MinerEscrow .............. {escrow}
     PolicyManager ............ {manager}
         
+    """.format(registry_filepath=config.blockchain.interface.registry_filepath,
+               token=config.token_agent.contract_address,
+               escrow=config.miner_agent.contract_address,
+               manager=config.policy_agent.contract_address,
+               period=config.miner_agent.get_current_period())
+
+    network_payload = """
+    
     | Blockchain Network |
     
     Current Period ........... {period}
@@ -219,20 +290,23 @@ def status(config):
     Known Nodes .............. 
     Verified Nodes ........... 
     Phantom Nodes ............ NotImplemented
+        
     
-    
-    """.format(report_time=maya.now(),
-               chain_type=config.blockchain.__class__.__name__,
-               connection='Connected' if config.blockchain.interface.is_connected else 'No Connection',
-               registry_filepath=config.blockchain.interface.registry_filepath,
-               etherbase=config.accounts[0],
-               accounts=len(config.accounts),
-               token=config.token_agent.contract_address,
-               escrow=config.miner_agent.contract_address,
-               manager=config.policy_agent.contract_address,
-               provider_type=config.blockchain.interface.provider_type,
-               period=config.miner_agent.get_current_period(),
+    """.format(period=config.miner_agent.get_current_period(),
                ursulas=config.miner_agent.get_miner_population())
+
+    subpayloads = ((provier, provider_payload),
+                   (contracts, contract_payload),
+                   (network, network_payload),
+                   )
+
+    if all:
+        payload = ''.join(sp[1] for sp in subpayloads)
+    else:
+        payload = str()
+        for requested, subpayload in subpayloads:
+            if requested is True:
+                payload += subpayload
 
     click.echo(payload)
 
