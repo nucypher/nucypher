@@ -97,8 +97,6 @@ class Character:
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
-        self.config = config  # TODO: Do not mix with injectable params
-
         self.federated_only = federated_only
         self._abort_on_learning_error = abort_on_learning_error
 
@@ -476,7 +474,7 @@ class Character:
             new_nodes = self.learn_about_nodes(node_addr, port)
             self._known_nodes.update(new_nodes)
 
-    def get_nodes_by_ids(self, ids):
+    def get_nodes_by_ids(self, node_ids):
         for node_id in node_ids:
             try:
                 # Scenario 1: We already know about this node.
