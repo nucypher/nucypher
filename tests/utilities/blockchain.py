@@ -99,10 +99,26 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
 def bootstrap_fake_network(blockchain: TesterBlockchain=None,
                            eth_airdrop: bool=True
                            ) -> Tuple[EthereumContractAgent, ...]:
+    """
+
+    Deploys all NuCypher ethereum contracts to the TesterBlockchain,
+    then (optionally) airdrops 1 Million ethereum to each test account.
+
+    Note: This utility is intended only for use in conjunction with EthereumTester, Circumflex Web3 Providers,
+    the TesterBlockchain and network simulation command line tools.
+
+    WARNING: This is an unsafe deployment script. Intended for simulation purposes only.
+
+    """
 
     # Connect to the blockchain
     if blockchain is None:
         blockchain = TesterBlockchain.from_config()
+
+    # Enforce Saftey #
+    conditions = ()
+
+    assert True
 
     # Parse addresses
     etherbase, alice, bob, *ursulas = blockchain.interface.w3.eth.accounts
