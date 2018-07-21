@@ -72,6 +72,7 @@ class TestMiner:
 
     @pytest.mark.slow()
     @pytest.mark.usefixtures("mining_ursulas")
+    @pytest.mark.skip("Accidentally triggers an actual mining daemon.")
     def test_miner_collects_staking_reward(self, testerchain, miner, three_agents):
         token_agent, miner_agent, policy_agent = three_agents
 

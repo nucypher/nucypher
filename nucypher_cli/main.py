@@ -234,8 +234,8 @@ def simulation(config, action, nodes):
         for index in range(int(nodes)):
             simulationProtocol = SimulatedUrsulaProcessProtocol()
 
-            args = ["run_ursula", "ipc:///tmp/geth.ipc", "https://127.0.0.1:5551"]
-            reactor.spawnProcess(simulationProtocol, "python", args)
+            # args = ["run_ursula", "ipc:///tmp/geth.ipc", "https://127.0.0.1:5551"]
+            reactor.spawnProcess(simulationProtocol, "python", ['run_ursula'])
 
             config.simulation_running = True
 
@@ -249,9 +249,8 @@ def simulation(config, action, nodes):
 @click.option('--provider', help="Echo blockchain provider info", is_flag=True)
 @click.option('--contracts', help="Echo nucypher smart contract info", is_flag=True)
 @click.option('--network', help="Echo the network status", is_flag=True)
-@click.option('--all', help="Output all data", default=True, is_flag=True)
 @uses_config
-def status(config, provier, contracts, network, all):
+def status(config, provider, contracts, network, all):
     """
     Echo a snapshot of live network metadata.
     """
@@ -303,12 +302,12 @@ def status(config, provier, contracts, network, all):
     """.format(period=config.miner_agent.get_current_period(),
                ursulas=config.miner_agent.get_miner_population())
 
-    subpayloads = ((provier, provider_payload),
+    subpayloads = ((provider, provider_payload),
                    (contracts, contract_payload),
                    (network, network_payload),
                    )
 
-    if all:
+    if not any(sp[0] for sp in subpayloads):
         payload = ''.join(sp[1] for sp in subpayloads)
     else:
         payload = str()
