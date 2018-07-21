@@ -188,7 +188,8 @@ def mining_ursulas(three_agents):
                               amount=1000000 * constants.M)
     ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
 
-    _ursulas = make_ursulas(ether_addresses=ursula_addresses,
+    _ursulas = make_ursulas(ursula_starting_port=starting_point,
+                            ether_addresses=ursula_addresses,
                             miner_agent=miner_agent,
                             miners=True)
     try:
