@@ -1061,9 +1061,16 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                 self.substantiate_stamp()
 
     @classmethod
-    def from_config(cls) -> 'Ursula':
+    def from_config(cls, *args, **kwargs) -> 'Ursula':
+        """
+        Initialize Ursula from .ini configuration file.
+
+        Keyword arguments passed will take precedence over values
+        in the configuration file.
+        """
         payload = parse_nucypher_ini_config()
-        return cls(**payload)
+        payload.update(kwargs)
+        return cls(*args, **payload)
 
     @only_me
     def stake(self,
@@ -1074,14 +1081,8 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
               expiration: maya.MayaDT = None,
               lock_periods: int = None,
               *args, **kwargs):
-        """
-        High-level staking daemon loop
 
-        amount: int,
-        lock_periods: int = None,
-        expiration: maya.MayaDT = None,
-        entire_balance: bool = False
-        """
+        """High-level staking daemon loop"""
 
         if lock_periods and expiration:
             raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
@@ -1092,6 +1093,11 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             _staking_receipts = super().stake(expiration=expiration,
                                               lock_periods=lock_periods,
                                               *args, **kwargs)
+
+        # TODO: Check if this period has already been confirmed
+        # TODO: Check if there is an active stake in the current period: Resume staking daemon
+        # TODO: Validation and Sanity checks
+
         if confirm_now:
             self.confirm_activity()
 
@@ -1100,6 +1106,10 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
         uptime_period = self.miner_agent.get_current_period()
         terminal_period = uptime_period + lock_periods
         current_period = uptime_period
+
+        #
+        # Daemon
+        #
 
         try:
             while True:
@@ -1129,6 +1139,9 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                 continue
 
         finally:
+
+            # Cleanup #
+
             pass
 
     @property
