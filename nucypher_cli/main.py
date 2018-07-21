@@ -114,8 +114,9 @@ def config(config, action, config_file):
 
 @cli.command()
 @click.argument('action', default='list', required=False)
+@click.option('--wallet-address', help="The account to lock/unlock instead of the default")
 @uses_config
-def accounts(config, action):
+def accounts(config, action, wallet_address):
     """Manage ethereum node accounts"""
 
     if action == 'list':
@@ -125,6 +126,12 @@ def accounts(config, action):
             else:
                 row = '{} ....... | {}'.format(index, address)
             click.echo(row)
+
+    elif action == 'unlock':
+        pass
+
+    elif action == 'lock':
+        pass
 
 
 @cli.command()
