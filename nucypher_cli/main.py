@@ -52,16 +52,20 @@ class NucypherClickConfig:
 
         self.payload = parse_nucypher_ini_config(filepath=self.config_filepath)
         self.blockchain = self.payload['blockchain']
-
-        # Three agents
-        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.miner_agent = MinerAgent(token_agent=self.token_agent)
-        self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
-
         self.accounts = self.blockchain.interface.w3.eth.accounts
 
         if self.payload['tester'] and self.payload['deploy']:
             self.blockchain.interface.deployer_address = self.accounts[0]
+
+        # Three agents
+        self.token_agent = None
+        self.miner_agent = None
+        self.policy_agent = None
+
+    def adhere_agents(self):
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.miner_agent = MinerAgent(token_agent=self.token_agent)
+        self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
 
     @property
     def provider_uri(self):
@@ -204,7 +208,7 @@ def stake(config, action, wallet_address, stake_index, value, periods):
 @click.option('--nodes', help="The number of nodes to simulate")
 @click.option('--duration', help="The number of periods to run the simulation for")
 @uses_config
-def simulation(config, action, nodes):
+def simulation(config, action, nodes, duration):
     """
     Simulate the nucypher blockchain network
 
@@ -228,7 +232,8 @@ def simulation(config, action, nodes):
             raise RuntimeError("Network simulation already running")
 
         click.echo("Bootstrapping blockchain network")
-        three_agents = bootstrap_fake_network()
+        three_agents = bootstrap_fake_network(blockchain=config.blockchain)
+        config.adhere_agents()
 
         click.echo("Starting SimulationProtocol")
         for index in range(int(nodes)):
