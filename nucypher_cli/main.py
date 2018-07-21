@@ -50,6 +50,20 @@ class NucypherClickConfig:
         if self.payload['tester'] and self.payload['deploy']:
             self.blockchain.interface.deployer_address = self.accounts[0]
 
+    @property
+    def provider_uri(self):
+        payload = self.payload['blockchain.provider']
+        type, path = payload['type'], payload['path']
+        uri_template = "{}://{}"
+        return uri_template.format(type, path)
+
+    @property
+    def rest_uri(self):
+        payload = self.payload['ursula.network.rest']
+        host, port = payload['host'], payload['port']
+        uri_template = "https://{}:{}"
+        return uri_template.format(host, port)
+
 
 uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 
