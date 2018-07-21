@@ -26,28 +26,27 @@ class Keypair(object):
     _public_key_method = "get_pubkey"
 
     def __init__(self,
-                 private_key: Union[UmbralPrivateKey, UmbralPublicKey] = None,
+                 private_key=None,
+                 public_key=None,
                  generate_keys_if_needed=True):
         """
         Initalizes a Keypair object with an Umbral key object.
-
-        :param private_key: An UmbralPrivateKey or UmbralPublicKey
         :param generate_keys_if_needed: Generate keys or not?
         """
-        try:
+        if private_key and public_key:
+            raise ValueError("Pass either private_key or public_key - not both.")
+        elif private_key:
             self.pubkey = getattr(private_key, self._public_key_method)()
             self._privkey = private_key
-        except NotImplementedError:
-            self.pubkey = private_key
+        elif public_key:
+            self.pubkey = public_key
             self._privkey = constants.PUBLIC_ONLY
-        except AttributeError:
-            # They didn't pass anything we recognize as a valid key.
-            if generate_keys_if_needed:
-                self._privkey = self._private_key_source()
-                self.pubkey = getattr(self._privkey, self._public_key_method)()
-            else:
-                raise ValueError(
-                    "Either pass a valid key as umbral_key or, if you want to generate keys, set generate_keys_if_needed to True.")
+        elif generate_keys_if_needed:
+            self._privkey = self._private_key_source()
+            self.pubkey = getattr(self._privkey, self._public_key_method)()
+        else:
+            raise ValueError(
+                "Either pass a valid key or, if you want to generate keys, set generate_keys_if_needed to True.")
 
     def serialize_pubkey(self, as_b64=False) -> bytes:
         """

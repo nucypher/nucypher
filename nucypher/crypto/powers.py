@@ -131,6 +131,7 @@ class BlockchainPower(CryptoPowerUp):
 class KeyPairBasedPower(CryptoPowerUp):
     confers_public_key = True
     _keypair_class = keypairs.Keypair
+    _default_private_key_class = UmbralPrivateKey
 
     def __init__(self,
                  pubkey: UmbralPublicKey = None,
@@ -146,17 +147,17 @@ class KeyPairBasedPower(CryptoPowerUp):
             # UmbralPublicKey if they provided such a thing.
             if pubkey:
                 try:
-                    key_to_pass_to_keypair = pubkey.as_umbral_pubkey()
+                    public_key = pubkey.as_umbral_pubkey()
                 except AttributeError:
                     try:
-                        key_to_pass_to_keypair = UmbralPublicKey.from_bytes(pubkey)
+                        public_key = UmbralPublicKey.from_bytes(pubkey)
                     except TypeError:
-                        key_to_pass_to_keypair = pubkey
+                        public_key = pubkey
+                self.keypair = self._keypair_class(
+                    public_key=public_key)
             else:
-                # They didn't even pass pubkey_bytes.  We'll generate a keypair.
-                key_to_pass_to_keypair = UmbralPrivateKey.gen_key()
-            self.keypair = self._keypair_class(
-                private_key=key_to_pass_to_keypair)
+                # They didn't even pass a public key.  We have no choice but to generate a keypair.
+                self.keypair = self._keypair_class(generate_keys_if_needed=True)
 
     def __getattr__(self, item):
         if item in self.provides:
