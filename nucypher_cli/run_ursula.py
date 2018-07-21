@@ -34,4 +34,6 @@ def spin_up_ursula(provider_uri=None, rest_uri=None, seed_node_dir=None):
 
 
 if __name__ == "__main__":
+    _, *args = sys.argv
+
     spin_up_ursula()

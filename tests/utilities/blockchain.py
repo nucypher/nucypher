@@ -1,10 +1,11 @@
 import asyncio
 import random
-from typing import Set
+from typing import Set, Tuple
 
 from constant_sorrow import constants
 
-from nucypher.blockchain.eth.chains import TesterBlockchain
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, EthereumContractAgent
+from nucypher.blockchain.eth.chains import TesterBlockchain, Blockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.characters import Ursula
 from tests.blockchain.eth.utilities import token_airdrop
@@ -95,10 +96,13 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
     return ursulas
 
 
-def bootstrap_fake_network() -> tuple:
+def bootstrap_fake_network(blockchain: TesterBlockchain=None,
+                           eth_airdrop: bool=True
+                           ) -> Tuple[EthereumContractAgent, ...]:
 
     # Connect to the blockchain
-    blockchain = TesterBlockchain.from_config()
+    if blockchain is None:
+        blockchain = TesterBlockchain.from_config()
 
     # Parse addresses
     etherbase, alice, bob, *ursulas = blockchain.interface.w3.eth.accounts
@@ -121,10 +125,11 @@ def bootstrap_fake_network() -> tuple:
     _policy_agent = policy_manager_deployer.make_agent()
 
     # Airdrop ethereum
-    airdrop_amount = 1000000 * int(constants.M)
-    _receipts = token_airdrop(token_agent=token_agent,
-                              origin=etherbase,
-                              addresses=ursulas,
-                              amount=airdrop_amount)
+    if eth_airdrop is True:
+        airdrop_amount = 1000000 * int(constants.M)
+        _receipts = token_airdrop(token_agent=token_agent,
+                                  origin=etherbase,
+                                  addresses=ursulas,
+                                  amount=airdrop_amount)
 
     return token_agent, miner_agent, _policy_agent
