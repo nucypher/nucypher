@@ -5,12 +5,17 @@
 """
 
 import asyncio
+import sys
 
 from nucypher.characters import Ursula
 from nucypher_cli.metadata import DEFAULT_SEED_NODE_DIR, collect_stored_nodes, write_node_metadata
 
 
-def spin_up_ursula(seed_node_dir=DEFAULT_SEED_NODE_DIR):
+def spin_up_ursula(provider_uri=None, rest_uri=None, seed_node_dir=None):
+
+    # Prep #
+    if seed_node_dir is None:
+        seed_node_dir = DEFAULT_SEED_NODE_DIR
 
     # Initialize #
 
