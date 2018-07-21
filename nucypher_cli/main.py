@@ -1,6 +1,20 @@
-"""
-NuCypher CLI
-"""
+"""NuCypher CLI"""
+
+__version__ = '0.1.0-mock'
+
+BANNER = """
+                                  _               
+                                 | |              
+     _ __  _   _  ___ _   _ _ __ | |__   ___ _ __ 
+    | '_ \| | | |/ __| | | | '_ \| '_ \ / _ \ '__|
+    | | | | |_| | (__| |_| | |_) | | | |  __/ |   
+    |_| |_|\__,_|\___|\__, | .__/|_| |_|\___|_|   
+                       __/ | |                    
+                      |___/|_|      
+                                    
+    version {}
+
+""".format(__version__)
 
 
 # Set Default Curve #
@@ -20,7 +34,6 @@ from tests.utilities.blockchain import bootstrap_fake_network
 from nucypher.config.utils import parse_nucypher_ini_config, validate_nucypher_ini_config
 from tests.utilities.simulate import SimulatedUrsulaProcessProtocol, UrsulaProcessProtocol
 
-__version__ = '0.1.0-mock'  # TODO
 
 DEFAULT_CONF_FILEPATH = '.'
 
@@ -76,19 +89,7 @@ uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 def cli(config, verbose, version, config_file):
     """Configure and manage a nucypher nodes"""
 
-    click.echo('''\n
-                                  _               
-                                 | |              
-     _ __  _   _  ___ _   _ _ __ | |__   ___ _ __ 
-    | '_ \| | | |/ __| | | | '_ \| '_ \ / _ \ '__|
-    | | | | |_| | (__| |_| | |_) | | | |  __/ |   
-    |_| |_|\__,_|\___|\__, | .__/|_| |_|\___|_|   
-                       __/ | |                    
-                      |___/|_|      
-                                    
-    version {}
-    
-    \n'''.format(__version__))
+    click.echo(BANNER)
 
     # Store config data
     config.verbose = verbose
