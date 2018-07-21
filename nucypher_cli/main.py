@@ -1,15 +1,22 @@
-import os
+"""
+NuCypher CLI
+"""
 
-import click
-import maya as maya
-from twisted.internet import reactor
+
+# Set Default Curve #
+#####################
+
 from umbral.config import set_default_curve
+set_default_curve()
+
+#####################
+
+import os
+import click
+from twisted.internet import reactor
 
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
 from tests.utilities.blockchain import bootstrap_fake_network
-
-set_default_curve()
-
 from nucypher.config.utils import parse_nucypher_ini_config, validate_nucypher_ini_config
 from tests.utilities.simulate import SimulatedUrsulaProcessProtocol, UrsulaProcessProtocol
 
