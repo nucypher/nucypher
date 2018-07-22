@@ -81,7 +81,7 @@ def enacted_federated_policy(idle_federated_policy, ursulas):
     idle_federated_policy.make_arrangements(network_middleware,
                                             deposit=deposit,
                                             expiration=contract_end_datetime,
-                                            ursulas=ursulas)
+                                            handpicked_ursulas=ursulas)
     idle_federated_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
 
     return idle_federated_policy
@@ -168,7 +168,6 @@ def ursulas(three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     ether_addresses = [to_checksum_address(os.urandom(20)) for _ in range(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
     _ursulas = make_ursulas(ether_addresses=ether_addresses,
-                            ursula_starting_port=int(constants.URSULA_PORT_SEED),
                             miner_agent=miner_agent
                             )
     try:
@@ -190,7 +189,6 @@ def mining_ursulas(three_agents):
     ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
 
     _ursulas = make_ursulas(ether_addresses=ursula_addresses,
-                            ursula_starting_port=int(starting_point),
                             miner_agent=miner_agent,
                             miners=True)
     try:
@@ -215,7 +213,6 @@ def non_ursula_miners(three_agents):
     starting_point = constants.URSULA_PORT_SEED + 500
 
     _ursulas = make_ursulas(ether_addresses=ursula_addresses,
-                            ursula_starting_port=int(starting_point),
                             miner_agent=miner_agent,
                             miners=True,
                             bare=True)

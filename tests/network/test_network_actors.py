@@ -142,7 +142,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_poli
                                                       enacted_federated_policy.label)
 
     # Let's imagine he has learned about some - say, from the blockchain.
-    bob._known_nodes = {u.canonical_public_address: u for u in ursulas}
+    bob._known_nodes = {u.checksum_public_address: u for u in ursulas}
 
     # Now try.
     treasure_map_from_wire = bob.get_treasure_map(enacted_federated_policy.alice.stamp,

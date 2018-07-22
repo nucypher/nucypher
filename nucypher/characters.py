@@ -12,9 +12,9 @@ import kademlia
 import maya
 import time
 from eth_keys import KeyAPI as EthKeyAPI
-from eth_keys.datatypes import Signature
 from kademlia.network import Server
 from kademlia.utils import digest
+from twisted.internet import task, threads
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
@@ -32,7 +32,6 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
-from twisted.internet import task, threads
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -47,7 +46,9 @@ class Character:
     _default_crypto_powerups = None
     _stamp = None
 
-    _SECONDS_DELAY_BETWEEN_LEARNING = 2
+    _SHORT_LEARNING_DELAY = 5
+    _LONG_LEARNING_DELAY = 90
+    _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 10
 
     from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
 
@@ -71,7 +72,7 @@ class Character:
                  checksum_address: bytes = None,
                  always_be_learning=False,
                  start_learning_on_same_thread=False,
-                 known_nodes: Set = (),
+                 known_nodes: tuple = (),
                  abort_on_learning_error: bool = False,
                  ):
         """
@@ -136,6 +137,7 @@ class Character:
             self._current_teacher_node = None
             self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
             self._learning_round = 0
+            self._rounds_without_new_nodes = 0
 
             if always_be_learning:
                 self.start_learning_loop(now=start_learning_on_same_thread)
@@ -234,8 +236,8 @@ class Character:
 
     def remember_node(self, node):
         # TODO: 334
-        listeners = self._learning_listeners.pop(node.canonical_public_address, ())
-        address = node.canonical_public_address
+        listeners = self._learning_listeners.pop(node.checksum_public_address, ())
+        address = node.checksum_public_address
 
         self._known_nodes[address] = node
         self.log.info("Remembering {}, popping {} listeners.".format(node.checksum_public_address, len(listeners)))
@@ -247,7 +249,7 @@ class Character:
         if self._learning_task.running:
             return False
         else:
-            d = self._learning_task.start(interval=self._SECONDS_DELAY_BETWEEN_LEARNING, now=now)
+            d = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
             d.addErrback(self.handle_learning_errors)
             return d
 
@@ -300,7 +302,7 @@ class Character:
                 "Learning loop isn't started; can't learn about nodes now.  You can ovverride this with force=True.")
         elif force:
             self.log.info("Learning loop wasn't started; forcing start now.")
-            self._learning_task.start(self._SECONDS_DELAY_BETWEEN_LEARNING, now=True)
+            self._learning_task.start(self._SHORT_LEARNING_DELAY, now=True)
 
     def keep_learning_about_nodes(self):
         """
@@ -312,25 +314,58 @@ class Character:
         self._node_ids_to_learn_about_immediately.update(canonical_addresses)  # hmmmm
         self.learn_about_nodes_now()
 
-    def block_until_nodes_are_known(self, canonical_addresses: Set, timeout=10, allow_missing=0,
-                                    learn_on_this_thread=False):
+    # TODO: Dehydrate these next two methods.
+
+    def block_until_number_of_known_nodes_is(self, number_of_nodes_to_know: int,
+                                             timeout=10,
+                                             learn_on_this_thread=False):
         start = maya.now()
         starting_round = self._learning_round
 
         while True:
+            rounds_undertaken = self._learning_round - starting_round
+            if len(self._known_nodes) >= number_of_nodes_to_know:
+                if rounds_undertaken:
+                    self.log.info("Learned about enough nodes after {} rounds.".format(rounds_undertaken))
+                return True
+
             if not self._learning_task.running:
                 self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
             if learn_on_this_thread:
                 self.learn_from_teacher_node(eager=True)
-            rounds_undertaken = self._learning_round - starting_round
-            if (maya.now() - start).seconds < timeout:
-                if canonical_addresses.issubset(self._known_nodes):
 
-                    self.log.info("Learned about all nodes after {} rounds.".format(rounds_undertaken))
-                    return True
+            if (maya.now() - start).seconds > timeout:
+                if not self._learning_task.running:
+                    raise self.NotEnoughUrsulas(
+                        "We didn't discover any nodes because the learning loop isn't running.  Start it with start_learning().")
                 else:
-                    time.sleep(.1)
+                    raise self.NotEnoughUrsulas("After {} seconds and {} rounds, didn't find {} nodes".format(
+                        timeout, rounds_undertaken, number_of_nodes_to_know))
             else:
+                time.sleep(.1)
+
+    def block_until_specific_nodes_are_known(self,
+                                             canonical_addresses: Set,
+                                             timeout=10,
+                                             allow_missing=0,
+                                             learn_on_this_thread=False):
+        start = maya.now()
+        starting_round = self._learning_round
+
+        while True:
+            rounds_undertaken = self._learning_round - starting_round
+            if canonical_addresses.issubset(self._known_nodes):
+                if rounds_undertaken:
+                    self.log.info("Learned about all nodes after {} rounds.".format(rounds_undertaken))
+                return True
+
+            if not self._learning_task.running:
+                self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
+            if learn_on_this_thread:
+                self.learn_from_teacher_node(eager=True)
+
+            if (maya.now() - start).seconds > timeout:
+
                 still_unknown = canonical_addresses.difference(self._known_nodes)
 
                 if len(still_unknown) <= allow_missing:
@@ -342,31 +377,46 @@ class Character:
                     raise self.NotEnoughUrsulas("After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
                         timeout, rounds_undertaken, len(still_unknown), still_unknown))
 
+            else:
+                time.sleep(.1)
+
     def learn_from_teacher_node(self, eager=True):
         """
         Sends a request to node_url to find out about known nodes.
         """
         self._learning_round += 1
 
-        current_teacher = self.current_teacher_node()
+        try:
+            current_teacher = self.current_teacher_node()
+        except self.NotEnoughUrsulas as e:
+            self.log.warning("Can't learn right now: {}".format(e.args[0]))
+            return
+
         rest_address = current_teacher.rest_interface.host
         port = current_teacher.rest_interface.port
 
         # TODO: Do we really want to try to learn about all these nodes instantly?  Hearing this traffic might give insight to an attacker.
-        response = self.network_middleware.get_nodes_via_rest(rest_address,
-                                                              port, node_ids=self._node_ids_to_learn_about_immediately)
-        if response.status_code != 200:
-            raise RuntimeError
-        signature, nodes = signature_splitter(response.content, return_remainder=True)
-        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)  # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
+        if VerifiableNode in self.__class__.__bases__:
+            announce_nodes = [self]
+        else:
+            announce_nodes = None
 
-        self.log.info("Learning round {}.  Teacher: {} knew about {} nodes.".format(self._learning_round,
-                                                                                    current_teacher.checksum_public_address,
-                                                                                    len(node_list)))
+        response = self.network_middleware.get_nodes_via_rest(rest_address,
+                                                              port,
+                                                              nodes_i_need=self._node_ids_to_learn_about_immediately,
+                                                              announce_nodes=announce_nodes)
+        if response.status_code != 200:
+            raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content
+                                                                           ))
+        signature, nodes = signature_splitter(response.content, return_remainder=True)
+        node_list = Ursula.batch_from_bytes(nodes,
+                                            federated_only=self.federated_only)  # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
+
+        new_nodes = []
 
         for node in node_list:
 
-            if node.checksum_public_address in self._known_nodes:
+            if node.checksum_public_address in self._known_nodes or node.checksum_public_address == self.checksum_public_address:
                 continue  # TODO: 168 Check version and update if required.
 
             try:
@@ -380,10 +430,37 @@ class Character:
                           "Propagated by: {}:{}".format(current_teacher.checksum_public_address,
                                                         rest_address, port)
                 self.log.warning(message)
-                
-            self.log.info("Prevously unknown node: {}".format(node.checksum_public_address))
+            self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
 
+            self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
             self.remember_node(node)
+            new_nodes.append(node)
+
+        self._adjust_learning(new_nodes)
+
+        self.log.info("Learning round {}.  Teacher: {} knew about {} nodes, {} were new.".format(self._learning_round,
+                                                                                                 current_teacher.checksum_public_address,
+                                                                                                 len(node_list),
+                                                                                                 len(new_nodes)),
+                      )
+
+    def _adjust_learning(self, node_list):
+        """
+        Takes a list of new nodes, adjusts learning accordingly.
+
+        Currently, simply slows down learning loop when no new nodes have been discovered in a while.
+        TODO: Do other important things - scrub, bucket, etc.
+        """
+        if node_list:
+            self._rounds_without_new_nodes = 0
+            self._learning_task.interval = self._SHORT_LEARNING_DELAY
+        else:
+            self._rounds_without_new_nodes += 1
+            if self._rounds_without_new_nodes > self._ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN:
+                self.log.info("After {} rounds with no new nodes, it's time to slow down to {} seconds.".format(
+                    self._ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN,
+                    self._LONG_LEARNING_DELAY))
+                self._learning_task.interval = self._LONG_LEARNING_DELAY
 
     def _push_certain_newly_discovered_nodes_here(self, queue_to_push, node_addresses):
         """
@@ -500,13 +577,14 @@ class Character:
         if signature_to_use:
             is_valid = signature_to_use.verify(message, sender_pubkey_sig)
             if not is_valid:
-                raise mystery_stranger.InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
+                raise mystery_stranger.InvalidSignature(
+                    "Signature for message isn't valid: {}".format(signature_to_use))
         else:
             raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
         return cleartext
 
         """
-        Next we have decrypt(), sign(), and generate_self_signed_certificate() - these use the private 
+        Next we have decrypt() and sign() - these use the private 
         keys of their respective powers; any character who has these powers can use these functions.
 
         If they don't have the correct Power, the appropriate PowerUpError is raised.
@@ -517,10 +595,6 @@ class Character:
 
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
-
-    def generate_self_signed_certificate(self):
-        signing_power = self._crypto_power.power_ups(SigningPower)
-        return signing_power.generate_self_signed_cert(self.stamp.fingerprint().decode())
 
     """
     And finally, some miscellaneous but generally-applicable abilities:
@@ -633,7 +707,7 @@ class Alice(Character, PolicyAuthor):
 
         return policy
 
-    def grant(self, bob, uri, m=None, n=None, expiration=None, deposit=None, ursulas=None):
+    def grant(self, bob, uri, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None):
         if not m:
             # TODO: get m from config  #176
             raise NotImplementedError
@@ -649,6 +723,8 @@ class Alice(Character, PolicyAuthor):
                 deposit = self.network_middleware.get_competitive_rate()
                 if deposit == NotImplemented:
                     deposit = constants.NON_PAYMENT(b"0000000")
+        if handpicked_ursulas is None:
+            handpicked_ursulas = set()
 
         policy = self.create_policy(bob, uri, m, n)
 
@@ -658,10 +734,26 @@ class Alice(Character, PolicyAuthor):
         # Users may decide to inject some market strategies here.
         #
         # TODO: 289
+
+        # If we're federated only, we need to block to make sure we have enough nodes.
+        if self.federated_only and len(self._known_nodes) < n:
+            good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=True)
+            if not good_to_go:
+                raise ValueError(
+                    "To make a Policy in federated mode, you need to know about\
+                     all the Ursulas you need (in this case, {}); there's no other way to\
+                      know which nodes to use.  Either pass them here or when you make\
+                       the Policy, or run the learning loop on a network with enough Ursulas.".format(self.n))
+
+            if len(handpicked_ursulas) < n:
+                number_of_ursulas_needed = n - len(handpicked_ursulas)
+                new_ursulas = random.sample(list(self._known_nodes.values()), number_of_ursulas_needed)
+                handpicked_ursulas.update(new_ursulas)
+
         policy.make_arrangements(network_middleware=self.network_middleware,
                                  deposit=deposit,
                                  expiration=expiration,
-                                 ursulas=ursulas,
+                                 handpicked_ursulas=handpicked_ursulas,
                                  )
 
         # REST call happens here, as does population of TreasureMap.
@@ -746,14 +838,14 @@ class Bob(Character):
 
         if block:
             if new_thread:
-                return threads.deferToThread(self.block_until_nodes_are_known, unknown_ursulas,
+                return threads.deferToThread(self.block_until_specific_nodes_are_known, unknown_ursulas,
                                              timeout=timeout,
                                              allow_missing=allow_missing)
             else:
-                self.block_until_nodes_are_known(unknown_ursulas,
-                                                 timeout=timeout,
-                                                 allow_missing=allow_missing,
-                                                 learn_on_this_thread=True)
+                self.block_until_specific_nodes_are_known(unknown_ursulas,
+                                                          timeout=timeout,
+                                                          allow_missing=allow_missing,
+                                                          learn_on_this_thread=True)
 
         return unknown_ursulas, known_ursulas
 
@@ -854,15 +946,14 @@ class Bob(Character):
         for counter, capsule in enumerate(work_order.capsules):
             # TODO: Ursula is actually supposed to sign this.  See #141.
             # TODO: Maybe just update the work order here instead of setting it anew.
-            work_orders_by_ursula = self._saved_work_orders[bytes(work_order.ursula.canonical_public_address)]
+            work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_public_address]
             work_orders_by_ursula[capsule] = work_order
         return cfrags
 
     def get_ursula(self, ursula_id):
         return self._ursulas[ursula_id]
 
-    def join_policy(self, label, alice_pubkey_sig,
-                    node_list=None, verify_sig=True):
+    def join_policy(self, label, alice_pubkey_sig, node_list=None):
         if node_list:
             self._node_ids_to_learn_about_immediately.update(node_list)
         treasure_map = self.get_treasure_map(alice_pubkey_sig, label)
@@ -876,7 +967,7 @@ class Bob(Character):
             verifying=alice_verifying_key)
 
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, data_source.label)
-        self.follow_treasure_map(map_id=map_id)
+        self.follow_treasure_map(map_id=map_id, block=True)
 
         work_orders = self.generate_work_orders(map_id, message_kit.capsule)
 
@@ -886,15 +977,16 @@ class Bob(Character):
             cfrags = self.get_reencrypted_cfrags(work_order)
             message_kit.capsule.attach_cfrag(cfrags[0])
 
-            try:
-                delivered_cleartext = self.verify_from(data_source,
-                                                       message_kit,
-                                                       decrypt=True,
-                                                       delegator_signing_key=alice_verifying_key)
-            except self.InvalidSignature as e:
-                raise RuntimeError(e)
-            else:
-                cleartexts.append(delivered_cleartext)
+        verified, delivered_cleartext = self.verify_from(data_source,
+                                                         message_kit,
+                                                         decrypt=True,
+                                                         delegator_signing_key=alice_verifying_key)
+
+        if verified:
+            cleartexts.append(delivered_cleartext)
+        else:
+            raise RuntimeError(
+                "Not verified - replace this with real message.")  # TODO: Actually raise an error in verify_from instead of here 358
         return cleartexts
 
 
@@ -908,6 +1000,7 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                                             InterfaceInfo)
     _dht_server_class = NucypherDHTServer
     _alice_class = Alice
+    # TODO: Maybe this wants to be a registry, so that, for example, TLSHostingPower still can enjoy default status, but on a different class
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
     class NotFound(Exception):
@@ -930,7 +1023,11 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                  federated_only=False,
                  checksum_address=None,
                  always_be_learning=None,
-                 crypto_power=None
+                 crypto_power=None,
+                 tls_curve=None,
+                 tls_private_key=None,  # Obviously config here. 361
+                 known_nodes=(),
+                 **character_kwargs
                  ):
 
         VerifiableNode.__init__(self, interface_signature=interface_signature)
@@ -946,13 +1043,18 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                            always_be_learning=always_be_learning,
                            federated_only=federated_only,
                            crypto_power=crypto_power,
-                           abort_on_learning_error=abort_on_learning_error)
+                           abort_on_learning_error=abort_on_learning_error,
+                           known_nodes=known_nodes,
+                           **character_kwargs)
 
         if not federated_only:
             Miner.__init__(self, miner_agent=miner_agent, is_me=is_me, checksum_address=checksum_address)
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
-        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port, db_name=db_name)
+        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port,
+                                 db_name=db_name,
+                                 tls_private_key=tls_private_key, tls_curve=tls_curve
+                                 )
 
         if is_me is True:
             # TODO: 340
@@ -1035,7 +1137,7 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
     @classmethod
     def from_bytes(cls, ursula_as_bytes, federated_only=False):
         signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info = cls._internal_splitter(
-                ursula_as_bytes)
+            ursula_as_bytes)
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: verifying_key, EncryptingPower: encrypting_key},
             interface_signature=signature,
@@ -1055,7 +1157,8 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
         stranger_ursulas = []
 
         ursulas_attrs = cls._internal_splitter.repeat(ursulas_as_bytes)
-        for (signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info) in ursulas_attrs:
+        for (signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info,
+             dht_info) in ursulas_attrs:
             stranger_ursula_from_public_keys = cls.from_public_keys(
                 {SigningPower: verifying_key, EncryptingPower: encrypting_key},
                 interface_signature=signature,
@@ -1071,11 +1174,9 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
         return stranger_ursulas
 
     def __bytes__(self):
-        message = self.canonical_public_address + self.rest_interface
         interface_info = VariableLengthBytestring(self.rest_interface)
 
         if self.dht_interface:
-            message += self.dht_interface
             interface_info += VariableLengthBytestring(self.dht_interface)
 
         identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)

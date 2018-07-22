@@ -1,7 +1,9 @@
-from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, PowerUpError, NoSigningPower
+from nucypher.blockchain.eth.actors import only_me
+from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from constant_sorrow import constants
 from nucypher.network.protocols import SuspiciousActivity
 from eth_keys.datatypes import Signature as EthSignature
+import maya
 
 
 class VerifiableNode:
@@ -11,7 +13,7 @@ class VerifiableNode:
     verified_interface = False
     _verified_node = False
 
-    def __init__(self, interface_signature):
+    def __init__(self, interface_signature=constants.NOT_SIGNED.bool_value(False)):
         self._interface_signature_object = interface_signature
 
     class InvalidNode(SuspiciousActivity):

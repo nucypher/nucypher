@@ -3,11 +3,12 @@
 
 # WIP w/ hendrix@3.0.0
 
+import binascii
 import datetime
+import logging
 import sys
 
 import maya
-from sandbox_resources import SandboxRestMiddleware
 
 from nucypher.characters import Alice, Bob, Ursula
 from nucypher.data_sources import DataSource
@@ -15,29 +16,43 @@ from nucypher.data_sources import DataSource
 from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey
 
-URSULA = Ursula.from_rest_url(network_middleware=RestMiddleware(),
-                              host="localhost",
-                              port=3601,
-                              federated_only=True)
+root = logging.getLogger()
+root.setLevel(logging.DEBUG)
 
-network_middleware = SandboxRestMiddleware([URSULA])
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+root.addHandler(ch)
+
+teacher_dht_port = 3552
+teacher_rest_port = 3652
+with open("examples-runtime-cruft/node-metadata-{}".format(teacher_rest_port), "r") as f:
+    f.seek(0)
+    teacher_bytes = binascii.unhexlify(f.read())
+URSULA = Ursula.from_bytes(teacher_bytes, federated_only=True)
+print("Will learn from {}".format(URSULA))
+
+# network_middleware = SandboxRestMiddleware([URSULA])
 
 #########
 # Alice #
 #########
 
-ALICE = Alice(network_middleware=network_middleware,
+ALICE = Alice(network_middleware=RestMiddleware(),
               known_nodes=(URSULA,),  # in lieu of seed nodes
-              federated_only=True)  # TODO: 289
+              federated_only=True,
+              always_be_learning=True)  # TODO: 289
 
 # Here are our Policy details.
 policy_end_datetime = maya.now() + datetime.timedelta(days=5)
-m = 1
-n = 1
+m = 2
+n = 3
 label = b"secret/files/and/stuff"
 
 # Alice grants to Bob.
-BOB = Bob(known_nodes=(URSULA,), federated_only=True)
+BOB = Bob(known_nodes=(URSULA,), federated_only=True, always_be_learning=True)
+ALICE.start_learning_loop(now=True)
 policy = ALICE.grant(BOB, label, m=m, n=n,
                      expiration=policy_end_datetime)
 
@@ -52,15 +67,16 @@ del ALICE
 #####################
 # some time passes. #
 # ...               #
+#                   #
+# ...               #
 # And now for Bob.  #
 #####################
 
 # Bob wants to join the policy so that he can receive any future
 # data shared on it.
-# He needs a few piece of knowledge to do that.
+# He needs a few pieces of knowledge to do that.
 BOB.join_policy(label,  # The label - he needs to know what data he's after.
                 alices_pubkey_bytes_saved_for_posterity,  # To verify the signature, he'll need Alice's public key.
-                verify_sig=True,  # And yes, he usually wants to verify that signature.
                 # He can also bootstrap himself onto the network more quickly
                 # by providing a list of known nodes at this time.
                 node_list=[("localhost", 3601)]
@@ -136,8 +152,8 @@ for counter, plaintext in enumerate(finnegans_wake):
     # and the DataSource which produced it.
     alice_pubkey_restored_from_ancient_scroll = UmbralPublicKey.from_bytes(alices_pubkey_bytes_saved_for_posterity)
     delivered_cleartexts = BOB.retrieve(message_kit=message_kit,
-                                       data_source=datasource_as_understood_by_bob,
-                                       alice_verifying_key=alice_pubkey_restored_from_ancient_scroll)
+                                        data_source=datasource_as_understood_by_bob,
+                                        alice_verifying_key=alice_pubkey_restored_from_ancient_scroll)
 
     # We show that indeed this is the passage originally encrypted by the DataSource.
     assert plaintext == delivered_cleartexts[0]

@@ -9,6 +9,7 @@ import msgpack
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
+from eth_utils import to_canonical_address, to_checksum_address
 from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula, Character
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
@@ -280,9 +281,11 @@ class FederatedPolicy(Policy):
     def make_arrangements(self, network_middleware,
                           deposit: int,
                           expiration: maya.MayaDT,
-                          ursulas: Set[Ursula] = None) -> None:
-        if ursulas is None:
+                          handpicked_ursulas: Set[Ursula] = None) -> None:
+        if handpicked_ursulas is None:
             ursulas = set()
+        else:
+            ursulas = handpicked_ursulas
         ursulas.update(self.ursulas)
 
         if len(ursulas) < self.n:
@@ -308,7 +311,7 @@ class TreasureMap:
                                   (bytes, KECCAK_DIGEST_LENGTH),  # hrac
                                   (UmbralMessageKit, VariableLengthBytestring)
                                   )
-    node_id_splitter = BytestringSplitter(int(PUBLIC_ADDRESS_LENGTH), Arrangement.ID_LENGTH)
+    node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), Arrangement.ID_LENGTH)
 
     class InvalidSignature(Exception):
         """Raised when the public signature (typically intended for Ursula) is not valid."""
@@ -378,12 +381,12 @@ class TreasureMap:
         if self.destinations == constants.NO_DECRYPTION_PERFORMED:
             return constants.NO_DECRYPTION_PERFORMED
         else:
-            return bytes().join(ursula_id + arrangement_id for ursula_id, arrangement_id in self.destinations.items())
+            return bytes().join(to_canonical_address(ursula_id) + arrangement_id for ursula_id, arrangement_id in self.destinations.items())
 
     def add_arrangement(self, arrangement):
         if self.destinations == constants.NO_DECRYPTION_PERFORMED:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
-        self.destinations[arrangement.ursula.canonical_public_address] = arrangement.id
+        self.destinations[arrangement.ursula.checksum_public_address] = arrangement.id
 
     def public_id(self):
         """
@@ -505,11 +508,7 @@ class WorkOrderHistory:
         assert False
 
     def __getitem__(self, item):
-        if isinstance(item, bytes):
-            return self.by_ursula.setdefault(item, {})
-        else:
-            raise TypeError(
-                "If you want to lookup a WorkOrder by Ursula, you need to pass bytes of her signing public key.")
+        return self.by_ursula.setdefault(item, {})
 
     def __setitem__(self, key, value):
         assert False

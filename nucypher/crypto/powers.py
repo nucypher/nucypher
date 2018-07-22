@@ -5,7 +5,7 @@ from eth_keys.datatypes import PublicKey, Signature as EthSignature
 
 from eth_utils import keccak
 from nucypher.keystore import keypairs
-from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair
+from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair, HostingKeypair
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
@@ -131,6 +131,7 @@ class BlockchainPower(CryptoPowerUp):
 class KeyPairBasedPower(CryptoPowerUp):
     confers_public_key = True
     _keypair_class = keypairs.Keypair
+    _default_private_key_class = UmbralPrivateKey
 
     def __init__(self,
                  pubkey: UmbralPublicKey = None,
@@ -146,17 +147,17 @@ class KeyPairBasedPower(CryptoPowerUp):
             # UmbralPublicKey if they provided such a thing.
             if pubkey:
                 try:
-                    key_to_pass_to_keypair = pubkey.as_umbral_pubkey()
+                    public_key = pubkey.as_umbral_pubkey()
                 except AttributeError:
                     try:
-                        key_to_pass_to_keypair = UmbralPublicKey.from_bytes(pubkey)
+                        public_key = UmbralPublicKey.from_bytes(pubkey)
                     except TypeError:
-                        key_to_pass_to_keypair = pubkey
+                        public_key = pubkey
+                self.keypair = self._keypair_class(
+                    public_key=public_key)
             else:
-                # They didn't even pass pubkey_bytes.  We'll generate a keypair.
-                key_to_pass_to_keypair = UmbralPrivateKey.gen_key()
-            self.keypair = self._keypair_class(
-                umbral_key=key_to_pass_to_keypair)
+                # They didn't even pass a public key.  We have no choice but to generate a keypair.
+                self.keypair = self._keypair_class(generate_keys_if_needed=True)
 
     def __getattr__(self, item):
         if item in self.provides:
@@ -184,13 +185,18 @@ class DerivedKeyBasedPower(CryptoPowerUp):
 class SigningPower(KeyPairBasedPower):
     _keypair_class = SigningKeypair
     not_found_error = NoSigningPower
-    provides = ("sign", "generate_self_signed_cert", "get_signature_stamp")
+    provides = ("sign", "get_signature_stamp")
 
 
 class EncryptingPower(KeyPairBasedPower):
     _keypair_class = EncryptingKeypair
     not_found_error = NoEncryptingPower
     provides = ("decrypt",)
+
+
+class TLSHostingPower(KeyPairBasedPower):
+    _keypair_class = HostingKeypair
+    provides = ("get_deployer",)
 
 
 class DelegatingPower(DerivedKeyBasedPower):

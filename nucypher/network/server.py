@@ -6,23 +6,22 @@ from typing import ClassVar
 import kademlia
 from apistar import http, Route, App
 from apistar.http import Response
-from constant_sorrow import constants
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
 
-from bytestring_splitter import VariableLengthBytestring, BytestringSplitter
+from bytestring_splitter import VariableLengthBytestring
+from constant_sorrow import constants
+from hendrix.experience import crosstown_traffic
 from nucypher.config.configs import NetworkConfiguration
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import EncryptingPower, SigningPower
+from nucypher.crypto.powers import SigningPower, TLSHostingPower
+from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, InterfaceInfo
 from nucypher.network.storage import SeedOnlyStorage
 from umbral import pre
 from umbral.fragments import KFrag
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 
 class NucypherDHTServer(Server):
@@ -104,11 +103,21 @@ class NucypherSeedOnlyDHTServer(NucypherDHTServer):
 
 class ProxyRESTServer:
 
-    def __init__(self, host=None, port=None, db_name=None, *args, **kwargs):
+    def __init__(self,
+                 host=None,
+                 port=None,
+                 db_name=None,
+                 tls_private_key=None,
+                 tls_curve=None,
+                 *args, **kwargs):
         self.rest_interface = InterfaceInfo(host=host, port=port)
 
         self.db_name = db_name
         self._rest_app = None
+        tls_hosting_keypair = HostingKeypair(common_name=self.checksum_public_address,
+                                             private_key=tls_private_key, curve=tls_curve)
+        tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair)
+        self._crypto_power.consume_power_up(tls_hosting_power)
 
     @classmethod
     def from_config(cls, network_config: NetworkConfiguration = None):
@@ -140,8 +149,10 @@ class ProxyRESTServer:
                   self.reencrypt_via_rest),
             Route('/public_information', 'GET',
                   self.public_information),
-            Route('/list_nodes', 'GET',
-                  self.list_all_active_nodes_about_which_we_know),
+            Route('/node_metadata', 'GET',
+                  self.all_known_nodes),
+            Route('/node_metadata', 'POST',
+                  self.node_metadata_exchange),
             Route('/consider_arrangement',
                   'POST',
                   self.consider_arrangement),
@@ -188,13 +199,37 @@ class ProxyRESTServer:
 
         return response
 
-    def list_all_active_nodes_about_which_we_know(self, request: http.Request):
+    def all_known_nodes(self, request: http.Request):
         headers = {'Content-Type': 'application/octet-stream'}
-        # TODO: mm hmmph *slowly exhales* fffff.  Some 227 right here.
         ursulas_as_bytes = bytes().join(bytes(n) for n in self._known_nodes.values())
         ursulas_as_bytes += bytes(self)
         signature = self.stamp(ursulas_as_bytes)
         return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
+
+    def node_metadata_exchange(self, request: http.Request, query_params: http.QueryParams):
+
+        nodes = self.batch_from_bytes(request.body, federated_only=self.federated_only)
+        # TODO: This logic is basically repeated in learn_from_teacher_node.  Let's find a better way.
+        for node in nodes:
+
+            if node.checksum_public_address in self._known_nodes:
+                continue  # TODO: 168 Check version and update if required.
+
+            @crosstown_traffic()
+            def learn_about_announced_nodes():
+                try:
+                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)
+                except node.SuspiciousActivity:
+                    # TODO: Account for possibility that stamp, rather than interface, was bad.
+                    message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
+                              " Announced via REST."  # TODO: Include data about caller?
+                    self.log.warning(message)
+
+                self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
+                self.remember_node(node)
+
+        # TODO: What's the right status code here?  202?  Different if we already knew about the node?
+        return self.all_known_nodes(request)
 
     def consider_arrangement(self, request: http.Request):
         from nucypher.policy.models import Arrangement
@@ -232,12 +267,6 @@ class ProxyRESTServer:
             # TODO: What do we do if the Policy isn't signed properly?
             pass
 
-        #
-        # alices_signature, policy_payload =BytestringSplitter(Signature)(cleartext, return_remainder=True)
-
-        # TODO: If we're not adding anything else in the payload, stop using the
-        # splitter here.
-        # kfrag = policy_payload_splitter(policy_payload)[0]
         kfrag = KFrag.from_bytes(cleartext)
 
         with ThreadedSession(self.db_engine) as session:
@@ -253,6 +282,7 @@ class ProxyRESTServer:
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         id = binascii.unhexlify(id_as_hex)
         work_order = WorkOrder.from_rest_payload(id, request.body)
+        self.log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
         with ThreadedSession(self.db_engine) as session:
             kfrag_bytes = self.datastore.get_policy_arrangement(id.hex().encode(),
                                                                 session=session).k_frag  # Careful!  :-)
@@ -262,7 +292,9 @@ class ProxyRESTServer:
 
         for capsule in work_order.capsules:
             # TODO: Sign the result of this.  See #141.
-            cfrag_byte_stream += VariableLengthBytestring(pre.reencrypt(kfrag, capsule))
+            cfrag = pre.reencrypt(kfrag, capsule)
+            self.log.info("Re-encrypting for Capsule {}, made CFrag {}.".format(capsule, cfrag))
+            cfrag_byte_stream += VariableLengthBytestring(cfrag)
 
         # TODO: Put this in Ursula's datastore
         self._work_orders.append(work_order)
@@ -309,3 +341,8 @@ class ProxyRESTServer:
             # TODO: Make this a proper 500 or whatever.
             self.log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
+
+    def get_deployer(self):
+        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self._rest_app,
+                                                                              port=self.rest_interface.port)
+        return deployer
