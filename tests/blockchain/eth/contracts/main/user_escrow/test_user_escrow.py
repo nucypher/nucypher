@@ -1,6 +1,11 @@
+import os
+
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
+
+
+secret = (123456).to_bytes(32, byteorder='big')
 
 
 @pytest.mark.slow
@@ -349,9 +354,14 @@ def test_upgrading(testerchain, token):
         {'from': testerchain.interface.w3.eth.coinbase, 'to': user, 'value': 1})
     testerchain.wait_for_receipt(tx)
 
+    secret2 = os.urandom(32)
+    secret_hash = testerchain.interface.w3.sha3(secret)
+    secret2_hash = testerchain.interface.w3.sha3(secret2)
+
     library_v1, _ = testerchain.interface.deploy_contract('UserEscrowLibraryMockV1')
     library_v2, _ = testerchain.interface.deploy_contract('UserEscrowLibraryMockV2')
-    linker_contract, _ = testerchain.interface.deploy_contract('UserEscrowLibraryLinker', library_v1.address)
+    linker_contract, _ = testerchain.interface.deploy_contract(
+        'UserEscrowLibraryLinker', library_v1.address, secret_hash)
     user_escrow_contract, _ = testerchain.interface.deploy_contract(
         'UserEscrow', linker_contract.address, token.address)
     # Transfer ownership
@@ -385,12 +395,23 @@ def test_upgrading(testerchain, token):
             {'from': user, 'to': user_escrow_contract.address, 'value': 1, 'gas_price': 0})
         testerchain.wait_for_receipt(tx)
 
-    # Only creator can update library
+    # Only creator can update a library
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = linker_contract.functions.upgrade(library_v2.address).transact({'from': user})
+        tx = linker_contract.functions.upgrade(library_v2.address, secret, secret2_hash).transact({'from': user})
         testerchain.wait_for_receipt(tx)
+
+    # Creator must know the secret
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = linker_contract.functions.upgrade(library_v2.address, secret2, secret2_hash).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # Creator can't use the same secret again because it's insecure
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = linker_contract.functions.upgrade(library_v2.address, secret, secret_hash).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
     assert library_v1.address == linker_contract.functions.target().call()
-    tx = linker_contract.functions.upgrade(library_v2.address).transact({'from': creator})
+    tx = linker_contract.functions.upgrade(library_v2.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert library_v2.address == linker_contract.functions.target().call()
 

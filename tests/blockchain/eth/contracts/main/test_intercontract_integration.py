@@ -30,6 +30,7 @@ FINISHED_STATE = 2
 SECRET_LENGTH = 32
 escrow_secret = os.urandom(SECRET_LENGTH)
 policy_manager_secret = os.urandom(SECRET_LENGTH)
+user_escrow_secret = os.urandom(SECRET_LENGTH)
 
 
 @pytest.fixture()
@@ -91,10 +92,12 @@ def policy_manager(testerchain, escrow):
 def user_escrow_proxy(testerchain, token, escrow, policy_manager):
     escrow, _ = escrow
     policy_manager, _ = policy_manager
+    secret_hash = testerchain.interface.w3.sha3(user_escrow_secret)
     # Creator deploys the user escrow proxy
     user_escrow_proxy, _ = testerchain.interface.deploy_contract(
         'UserEscrowProxy', token.address, escrow.address, policy_manager.address)
-    linker, _ = testerchain.interface.deploy_contract('UserEscrowLibraryLinker', user_escrow_proxy.address)
+    linker, _ = testerchain.interface.deploy_contract(
+        'UserEscrowLibraryLinker', user_escrow_proxy.address, secret_hash)
     return user_escrow_proxy, linker
 
 
@@ -411,7 +414,7 @@ def test_all(testerchain, token, escrow, policy_manager, user_escrow_proxy):
     testerchain.wait_for_receipt(tx)
     assert alice2_balance < testerchain.interface.w3.eth.getBalance(alice2)
 
-    # Upgrade by owner
+    # Upgrade main contracts
     escrow_secret2 = os.urandom(SECRET_LENGTH)
     policy_manager_secret2 = os.urandom(SECRET_LENGTH)
     escrow_secret2_hash = testerchain.interface.w3.sha3(escrow_secret2)
@@ -490,6 +493,31 @@ def test_all(testerchain, token, escrow, policy_manager, user_escrow_proxy):
         .transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert policy_manager_v1 == policy_manager.functions.target().call()
+
+    # Upgrade the user escrow library
+    # Deploy the same contract as the second version
+    user_escrow_proxy_v2, _ = testerchain.interface.deploy_contract(
+        'UserEscrowProxy', token.address, escrow.address, policy_manager.address)
+    user_escrow_secret2 = os.urandom(SECRET_LENGTH)
+    user_escrow_secret2_hash = testerchain.interface.w3.sha3(user_escrow_secret2)
+    # Ursula and Alice can't upgrade library, only owner can
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = user_escrow_linker.functions\
+            .upgrade(user_escrow_proxy_v2.address, user_escrow_secret, user_escrow_secret2_hash) \
+            .transact({'from': alice1})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = user_escrow_linker.functions\
+            .upgrade(user_escrow_proxy_v2.address, user_escrow_secret, user_escrow_secret2_hash) \
+            .transact({'from': ursula1})
+        testerchain.wait_for_receipt(tx)
+
+    # Upgrade library
+    tx = user_escrow_linker.functions\
+        .upgrade(user_escrow_proxy_v2.address, user_escrow_secret, user_escrow_secret2_hash) \
+        .transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert user_escrow_proxy_v2.address == user_escrow_linker.functions.target().call()
 
     # Unlock and withdraw all tokens in MinersEscrow
     for index in range(11):
