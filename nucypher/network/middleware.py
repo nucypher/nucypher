@@ -77,6 +77,17 @@ class RestMiddleware:
             cfrags_and_signatures)
         return cfrags
 
+    def revoke_arrangement(self, arrangement):
+        node = arrangement.ursula
+        port = node.rest_interface.port
+        address = node.rest_interface.host
+        response = requests.post("https://{}:{}/kFrag/revoke".format(address, port), arrangement.id)
+        if not response.status_code == 200:
+            if response.status_code == 404:
+                raise RuntimeError("KFrag doesn't exist to revoke with id {}".format(arrangement.id))
+            raise RuntimeError("Bad response: {}".format(response.content))
+        return response
+
     def get_competitive_rate(self):
         return NotImplemented
 
