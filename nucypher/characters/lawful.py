@@ -158,6 +158,29 @@ class Alice(Character, PolicyAuthor):
         policy.enact(network_middleware=self.network_middleware)
         return policy  # Now with TreasureMap affixed!
 
+    def revoke(self, policy):
+        """
+        Parses the treasure map and revokes arrangements in it.
+        If any arrangements can't be revoked (other than a 404 status), then
+        the node_id and arrangement_id are added to a list and returned.
+
+        TODO: How do we tell the user that a revocation was successful or not?
+        """
+        failed_revocations = list()
+        for node_id, arrangement_id in policy.treasure_map:
+            # TODO: What about nodes we don't know about?
+            ursula = self._known_nodes[node_id]
+            try:
+                self.network_middleware.revoke_arrangement(ursula, arrangement_id)
+            except RuntimeError as e:
+                # Check the status code of the response to determine what to do
+                # TODO: What do we do in the event of a 404? Is there are way
+                # to check if it's a real 404 and not SuspiciousActivity?
+                if e[1] != 404:
+                    failed_revocations.append((node_id, arrangement_id))
+                continue
+        return failed_revocations
+
 
 class Bob(Character):
     _default_crypto_powerups = [SigningPower, EncryptingPower]
