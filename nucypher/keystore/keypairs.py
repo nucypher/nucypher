@@ -130,17 +130,19 @@ class HostingKeypair(Keypair):
 
     def __init__(self,
                  common_name,
+                 host,
                  private_key: Union[UmbralPrivateKey, UmbralPublicKey] = None,
                  certificate=None,
                  curve=None,
-                 generate_keys_if_needed=True):
+                 ):
 
         self.curve = curve or self._DEFAULT_CURVE
 
         if not certificate:
             self._certificate, private_key = generate_self_signed_certificate(common_name=common_name,
-                                                                 private_key=private_key,
-                                                                 curve=self.curve)
+                                                                              private_key=private_key,
+                                                                              curve=self.curve,
+                                                                              host=host)
         else:
             self._certificate = certificate
         super().__init__(private_key=private_key)
