@@ -14,10 +14,13 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import datetime
 import maya
 import os
 import pytest
+from apistar.test import TestClient
 from umbral.fragments import KFrag
 
 from nucypher.characters.lawful import Bob, Ursula
@@ -94,6 +97,9 @@ def test_federated_grant(federated_alice, federated_bob):
         retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
 
         assert kfrag == retrieved_kfrag
+
+    failed_revocations = alice.revoke(policy)
+    assert len(failed_revocations) == 0
 
 
 def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
