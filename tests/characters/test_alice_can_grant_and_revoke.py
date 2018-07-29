@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import datetime
 import maya
 import pytest
+from apistar.test import TestClient
 from umbral.fragments import KFrag
 
 from nucypher.crypto.api import keccak_digest
@@ -87,3 +88,6 @@ def test_federated_grant(federated_alice, federated_bob):
         retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
 
         assert kfrag == retrieved_kfrag
+
+    failed_revocations = alice.revoke(policy)
+    assert len(failed_revocations) == 0
