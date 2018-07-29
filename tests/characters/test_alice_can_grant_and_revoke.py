@@ -1,7 +1,6 @@
 import datetime
 
 import maya
-import pytest
 from apistar.test import TestClient
 
 from nucypher.characters import Ursula
@@ -33,7 +32,7 @@ class MockPolicyCreation:
         cls.waited_for_receipt = True
 
 
-def test_grant(alice, bob, three_agents):
+def test_grant_and_revoke(alice, bob, three_agents):
     # Monkey patch KFrag repr for better debugging.
     KFrag.__repr__ = lambda kfrag: "KFrag: {}".format(bytes(kfrag)[:10].hex())
 
@@ -67,3 +66,6 @@ def test_grant(alice, bob, three_agents):
         retrieved_kfrag = KFrag.from_bytes(retrieved_policy.k_frag)
 
         assert kfrag == retrieved_kfrag
+
+    failed_revocations = alice.revoke(policy)
+    assert len(failed_revocations) == 0

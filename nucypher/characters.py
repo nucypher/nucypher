@@ -775,9 +775,10 @@ class Alice(Character, PolicyAuthor):
             try:
                 self.network_middleware.revoke_arrangement(ursula, arrangement_id)
             except RuntimeError as e:
-                # Check the status code of the response to determine what to do
                 # TODO: What do we do in the event of a 404? Is there are way
                 # to check if it's a real 404 and not SuspiciousActivity?
+
+                # Check the status code of the response to determine what to do
                 if e[1] != 404:
                     failed_revocations.append((node_id, arrangement_id))
                 continue

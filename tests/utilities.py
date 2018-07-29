@@ -174,6 +174,15 @@ class MockRestMiddleware(RestMiddleware):
         assert response.status_code == 200
         return response
 
+    def revoke_arrangement(self, ursula, arrangement_id):
+        mock_client = self.__get_mock_client_by_port(ursula.rest_interface.port)
+        response = mock_client.post('http://localhost/kFrag/revoke', arrangement_id)
+        if not response.status_code == 200:
+            if response.status_code == 404:
+                raise RuntimeError("KFrag doesn't exist to revoke with id {}".format(arrangement_id), response.status_code)
+            raise RuntimeError("Bad response: {}".format(response.content), response.status_code)
+        return response
+
     def enact_policy(self, ursula, id, payload):
         mock_client = self.__get_mock_client_by_port(ursula.rest_interface.port)
         response = mock_client.post('http://localhost/kFrag/{}'.format(id.hex()), payload)
