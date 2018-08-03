@@ -10,21 +10,35 @@ import "zeppelin/math/SafeMath.sol";
 contract MultiSig {
     using SafeMath for uint256;
 
+    event Executed(address indexed sender, uint256 indexed nonce, address indexed destination, uint256 value);
+    event OwnerAdded(address indexed owner);
+    event OwnerRemoved(address indexed owner);
+    event RequirementChanged(uint16 required);
+
+    uint256 constant public MAX_OWNER_COUNT = 50;
+
     uint256 public nonce;
-    uint16 public threshold;
+    uint8 public required;
     mapping (address => bool) public isOwner;
     address[] public owners;
+
+    // @notice Only this contract can call method
+    modifier onlyThisContract() {
+        require(msg.sender == address(this));
+        _;
+    }
 
     function () public payable {}
 
     /**
-    * @param _threshold Number of required signings
+    * @param _required Number of required signings
     * @param _owners List of initial owners.
     **/
-    constructor (uint16 _threshold, address[] _owners) public {
+    constructor (uint8 _required, address[] _owners) public {
         require(_owners.length > 0 &&
-        _threshold <= _owners.length &&
-        _threshold > 0);
+            _owners.length <= MAX_OWNER_COUNT &&
+            _required <= _owners.length &&
+            _required > 0);
 
         for (uint256 i = 0; i < _owners.length; i++) {
             address owner = _owners[i];
@@ -32,7 +46,7 @@ contract MultiSig {
             isOwner[owner] = true;
         }
         owners = _owners;
-        threshold = _threshold;
+        required = _required;
     }
 
     /**
@@ -74,13 +88,13 @@ contract MultiSig {
     )
         external
     {
-        require(_sigR.length == threshold &&
+        require(_sigR.length == required &&
             _sigR.length == _sigS.length &&
             _sigR.length == _sigV.length);
 
         bytes32 txHash = getUnsignedTransactionHash(_destination, _value, _data, nonce);
         address lastAdd = 0x0;
-        for (uint256 i = 0; i < threshold; i++) {
+        for (uint256 i = 0; i < required; i++) {
             address recovered = ecrecover(txHash, _sigV[i], _sigR[i], _sigS[i]);
             require(recovered > lastAdd && isOwner[recovered]);
             lastAdd = recovered;
@@ -88,6 +102,59 @@ contract MultiSig {
 
         nonce = nonce.add(1);
         require(_destination.call.value(_value)(_data));
+        emit Executed(msg.sender, nonce, _destination, _value);
+    }
+
+    /**
+    * @notice Allows to add a new owner
+    * @dev Transaction has to be sent by `execute` method.
+    * @param _owner Address of new owner
+    **/
+    function addOwner(address _owner)
+        public
+        onlyThisContract
+    {
+        require(owners.length < MAX_OWNER_COUNT &&
+            _owner != 0x0 &&
+            !isOwner[_owner]);
+        isOwner[_owner] = true;
+        owners.push(_owner);
+        emit OwnerAdded(_owner);
+    }
+
+    /**
+    * @notice Allows to remove an owner
+    * @dev Transaction has to be sent by `execute` method.
+    * @param _owner Address of owner
+    **/
+    function removeOwner(address _owner)
+        public
+        onlyThisContract
+    {
+        require(owners.length > required && isOwner[_owner]);
+        isOwner[_owner] = false;
+        for (uint256 i = 0; i < owners.length - 1; i++) {
+            if (owners[i] == _owner) {
+                owners[i] = owners[owners.length - 1];
+                break;
+            }
+        }
+        owners.length -= 1;
+        emit OwnerRemoved(_owner);
+    }
+
+    /**
+    * @notice Allows to change the number of required signings
+    * @dev Transaction has to be sent by `execute` method
+    * @param _required Number of required signings
+    **/
+    function changeRequirement(uint8 _required)
+        public
+        onlyThisContract
+    {
+        require(_required <= owners.length && _required > 0);
+        required = _required;
+        emit RequirementChanged(_required);
     }
 
 }

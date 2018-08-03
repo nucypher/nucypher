@@ -15,13 +15,15 @@ def to_32byte_hex(w3, value):
     return w3.toHex(w3.toBytes(value).rjust(32, b'\0'))
 
 
+NULL_ADDR = '0x' + '0' * 40
+
+
 @pytest.mark.slow
 def test_execute(testerchain):
     w3 = testerchain.interface.w3
-    accounts = sorted(testerchain.interface.w3.eth.accounts)
+    accounts = sorted(w3.eth.accounts)
     owners = accounts[0:5]
     others = accounts[5:]
-    NULL_ADDR = '0x' + '0' * 40
     token, _ = testerchain.interface.deploy_contract('NuCypherToken', 2 * 10 ** 40)
 
     # Can't create the contract with the address 0x0 (address 0x0 is restricted for use)
@@ -197,3 +199,142 @@ def test_execute(testerchain):
     testerchain.wait_for_receipt(tx)
     assert 100 == token.functions.balanceOf(owners[0]).call()
     assert 0 == token.functions.balanceOf(multisig.address).call()
+
+
+def execute_transaction(testerchain, multisig, accounts, tx):
+    nonce = multisig.functions.nonce().call()
+    tx_hash = multisig.functions.getUnsignedTransactionHash(tx['to'], 0, tx['data'], nonce).call()
+    signatures = [sign_hash(testerchain, account, tx_hash) for account in accounts]
+    w3 = testerchain.interface.w3
+    tx = multisig.functions.execute(
+        [signature.v for signature in signatures],
+        [to_32byte_hex(w3, signature.r) for signature in signatures],
+        [to_32byte_hex(w3, signature.s) for signature in signatures],
+        tx['to'],
+        0,
+        tx['data']
+    ).transact({'from': accounts[0]})
+    testerchain.wait_for_receipt(tx)
+
+
+@pytest.mark.slow
+def test_owners_management(testerchain):
+    w3 = testerchain.interface.w3
+    accounts = sorted(w3.eth.accounts)
+    owners = accounts[0:3]
+    multisig, _ = testerchain.interface.deploy_contract('MultiSig', 2, owners)
+
+    execution_log = multisig.events.Executed.createFilter(fromBlock='latest')
+    owner_addition_log = multisig.events.OwnerAdded.createFilter(fromBlock='latest')
+    owner_removal_log = multisig.events.OwnerRemoved.createFilter(fromBlock='latest')
+    requirement_changes_log = multisig.events.RequirementChanged.createFilter(fromBlock='latest')
+
+    # Methods for owners management are restricted for public use
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = multisig.functions.addOwner(accounts[2]).transact()
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = multisig.functions.removeOwner(owners[0]).transact()
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = multisig.functions.changeRequirement(1).transact()
+        testerchain.wait_for_receipt(tx)
+
+    # Add new owner
+    nonce = multisig.functions.nonce().call()
+    tx = multisig.functions.addOwner(accounts[3]).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    assert not multisig.functions.isOwner(accounts[3]).call()
+    execute_transaction(testerchain, multisig, [owners[0], owners[1]], tx)
+    assert multisig.functions.isOwner(accounts[3]).call()
+
+    # Check that all events are emitted
+    events = execution_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert owners[0] == event_args['sender']
+    assert multisig.address == event_args['destination']
+    assert 0 == event_args['value']
+    assert 1 == event_args['nonce']
+
+    events = owner_addition_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert accounts[3] == event_args['owner']
+
+    # Remove owner
+    nonce += 1
+    tx = multisig.functions.removeOwner(accounts[3]).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    assert multisig.functions.isOwner(accounts[3]).call()
+    execute_transaction(testerchain, multisig, [owners[0], accounts[3]], tx)
+    assert not multisig.functions.isOwner(accounts[3]).call()
+
+    # Check that all events are emitted
+    events = execution_log.get_all_entries()
+    assert 2 == len(events)
+    event_args = events[1]['args']
+    assert owners[0] == event_args['sender']
+    assert multisig.address == event_args['destination']
+    assert 0 == event_args['value']
+    assert 2 == event_args['nonce']
+
+    events = owner_removal_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert accounts[3] == event_args['owner']
+
+    # Change requirement
+    nonce += 1
+    tx = multisig.functions.changeRequirement(1).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    assert 2 == multisig.functions.required().call()
+    execute_transaction(testerchain, multisig, [owners[1], owners[2]], tx)
+    assert 1 == multisig.functions.required().call()
+
+    # Check that all events are emitted
+    events = execution_log.get_all_entries()
+    assert 3 == len(events)
+    event_args = events[2]['args']
+    assert owners[1] == event_args['sender']
+    assert multisig.address == event_args['destination']
+    assert 0 == event_args['value']
+    assert 3 == event_args['nonce']
+
+    events = requirement_changes_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert 1 == event_args['required']
+
+    # Change requirement back
+    nonce += 1
+    tx = multisig.functions.changeRequirement(2).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_transaction(testerchain, multisig, [owners[0]], tx)
+
+    # Can't add the same owner again
+    with pytest.raises((TransactionFailed, ValueError)):
+        multisig.functions.addOwner(owners[0]).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    # Can't add the address 0x0 as an owner
+    with pytest.raises((TransactionFailed, ValueError)):
+        multisig.functions.addOwner(NULL_ADDR).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+
+    # Can't remove nonexistent owner
+    with pytest.raises((TransactionFailed, ValueError)):
+        multisig.functions.removeOwner(accounts[3]).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    # Remove one owner
+    nonce += 1
+    tx = multisig.functions.removeOwner(owners[2]).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_transaction(testerchain, multisig, [owners[0], owners[1]], tx)
+    # The next owner can not be deleted because the number of owners can not be less than the requirement value
+    with pytest.raises((TransactionFailed, ValueError)):
+        multisig.functions.removeOwner(accounts[3]).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+
+    # Can't change requirement to 0 because this means that no signs are required
+    with pytest.raises((TransactionFailed, ValueError)):
+        multisig.functions.changeRequirement(0).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    # Requirement can't be more than number of owners
+    # In this case  there are always not enough owners who can sign the transaction
+    with pytest.raises((TransactionFailed, ValueError)):
+        multisig.functions.changeRequirement(3).buildTransaction({'from': multisig.address, 'gasPrice': 0})
+
+    assert 5 == len(execution_log.get_all_entries())
+    assert 1 == len(owner_addition_log.get_all_entries())
+    assert 2 == len(owner_removal_log.get_all_entries())
+    assert 2 == len(requirement_changes_log.get_all_entries())

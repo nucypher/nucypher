@@ -240,8 +240,53 @@ def user_escrow_proxy(testerchain, token, escrow, policy_manager):
     return user_escrow_proxy, linker
 
 
+@pytest.fixture()
+def multisig(testerchain, escrow, policy_manager, user_escrow_proxy):
+    escrow, escrow_dispatcher = escrow
+    policy_manager, policy_manager_dispatcher = policy_manager
+    user_escrow_proxy, user_escrow_linker = user_escrow_proxy
+    creator, ursula1, ursula2, ursula3, ursula4, alice1, alice2, *contract_owners =\
+        testerchain.interface.w3.eth.accounts
+    contract_owners = sorted(contract_owners)
+    contract, _ = testerchain.interface.deploy_contract('MultiSig', 2, contract_owners)
+    tx = escrow.functions.transferOwnership(contract.address).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = policy_manager.functions.transferOwnership(contract.address).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = user_escrow_linker.functions.transferOwnership(contract.address).transact()
+    testerchain.wait_for_receipt(tx)
+    return contract
+
+
+def execute_multisig_transaction(testerchain, multisig, accounts, tx):
+
+    def to_32byte_hex(w3, value):
+        return w3.toHex(w3.toBytes(value).rjust(32, b'\0'))
+
+    def sign_hash(testerchain, account: str, data_hash: bytes) -> dict:
+        provider = testerchain.interface.providers[0]
+        address = to_canonical_address(account)
+        key = provider.ethereum_tester.backend._key_lookup[address]._raw_key
+        signed_data = testerchain.interface.w3.eth.account.signHash(data_hash, key)
+        return signed_data
+
+    nonce = multisig.functions.nonce().call()
+    tx_hash = multisig.functions.getUnsignedTransactionHash(tx['to'], 0, tx['data'], nonce).call()
+    signatures = [sign_hash(testerchain, account, tx_hash) for account in accounts]
+    w3 = testerchain.interface.w3
+    tx = multisig.functions.execute(
+        [signature.v for signature in signatures],
+        [to_32byte_hex(w3, signature.r) for signature in signatures],
+        [to_32byte_hex(w3, signature.s) for signature in signatures],
+        tx['to'],
+        0,
+        tx['data']
+    ).transact({'from': accounts[0]})
+    testerchain.wait_for_receipt(tx)
+
+
 @pytest.mark.slow
-def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escrow_proxy):
+def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escrow_proxy, multisig):
     # Travel to the start of the next period to prevent problems with unexpected overflow first period
     testerchain.time_travel(hours=1)
 
@@ -249,7 +294,9 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     policy_manager, policy_manager_dispatcher = policy_manager
     adjudicator, adjudicator_dispatcher = adjudicator
     user_escrow_proxy, user_escrow_linker = user_escrow_proxy
-    creator, ursula1, ursula2, ursula3, ursula4, alice1, alice2, *everyone_else = testerchain.interface.w3.eth.accounts
+    creator, ursula1, ursula2, ursula3, ursula4, alice1, alice2, *contracts_owners =\
+        testerchain.interface.w3.eth.accounts
+    contracts_owners = sorted(contracts_owners)
 
     # Give clients some ether
     tx = testerchain.interface.w3.eth.sendTransaction(
@@ -285,8 +332,8 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     reward = 10 ** 9
     tx = token.functions.transfer(escrow.address, reward).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
-    tx = escrow.functions.initialize().transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
+    tx = escrow.functions.initialize().buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx)
 
     # Deposit some tokens to the user escrow and lock them
     user_escrow_1, _ = testerchain.interface.deploy_contract(
@@ -337,7 +384,7 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
     assert 0 == escrow.functions.getLockedTokens(ursula4).call()
     assert 0 == escrow.functions.getLockedTokens(user_escrow_1.address).call()
     assert 0 == escrow.functions.getLockedTokens(user_escrow_2.address).call()
-    assert 0 == escrow.functions.getLockedTokens(everyone_else[0]).call()
+    assert 0 == escrow.functions.getLockedTokens(contracts_owners[0]).call()
 
     # Ursula can't deposit and lock too low value
     with pytest.raises((TransactionFailed, ValueError)):
@@ -596,15 +643,26 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
             .transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # Upgrade contracts
-    tx = escrow_dispatcher.functions.upgrade(escrow_v2.address, escrow_secret, escrow_secret2_hash) \
-        .transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
+    # Prepare transactions to upgrade contracts
+    tx1 = escrow_dispatcher.functions.upgrade(escrow_v2.address, escrow_secret, escrow_secret2_hash)\
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    tx2 = policy_manager_dispatcher.functions\
+        .upgrade(policy_manager_v2.address, policy_manager_secret, policy_manager_secret2_hash)\
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    # Ursula and Alice can't sign this transactions
+    with pytest.raises((TransactionFailed, ValueError)):
+        execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], ursula1], tx1)
+    with pytest.raises((TransactionFailed, ValueError)):
+        execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], alice1], tx1)
+    with pytest.raises((TransactionFailed, ValueError)):
+        execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], ursula1], tx2)
+    with pytest.raises((TransactionFailed, ValueError)):
+        execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], alice1], tx2)
+
+    # Execute transactions
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx1)
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], contracts_owners[1]], tx2)
     assert escrow_v2.address == escrow.functions.target().call()
-    tx = policy_manager_dispatcher.functions \
-        .upgrade(policy_manager_v2.address, policy_manager_secret, policy_manager_secret2_hash) \
-        .transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
     assert policy_manager_v2.address == policy_manager.functions.target().call()
 
     # Ursula and Alice can't rollback contracts, only owner can
@@ -627,14 +685,25 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
             .transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # Rollback contracts
-    tx = escrow_dispatcher.functions.rollback(escrow_secret2, escrow_secret3_hash) \
-        .transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
+    # Prepare transactions to rollback contracts
+    tx1 = escrow_dispatcher.functions.rollback(escrow_secret2, escrow_secret3_hash) \
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    tx2 = policy_manager_dispatcher.functions.rollback(policy_manager_secret2, policy_manager_secret3_hash) \
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    # Ursula and Alice can't sign this transactions
+    with pytest.raises((TransactionFailed, ValueError)):
+        execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], ursula1], tx1)
+    with pytest.raises((TransactionFailed, ValueError)):
+        execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], alice1], tx1)
+    with pytest.raises((TransactionFailed, ValueError)):
+        execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], ursula1], tx2)
+    with pytest.raises((TransactionFailed, ValueError)):
+        execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], alice1], tx2)
+
+    # Execute transactions
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[1], contracts_owners[2]], tx1)
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[1], contracts_owners[2]], tx2)
     assert escrow_v1 == escrow.functions.target().call()
-    tx = policy_manager_dispatcher.functions.rollback(policy_manager_secret2, policy_manager_secret3_hash) \
-        .transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
     assert policy_manager_v1 == policy_manager.functions.target().call()
 
     # Upgrade the user escrow library
@@ -655,11 +724,18 @@ def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escro
             .transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
-    # Upgrade library
+    # Prepare transactions to upgrade library
     tx = user_escrow_linker.functions \
-        .upgrade(user_escrow_proxy_v2.address, user_escrow_secret, user_escrow_secret2_hash) \
-        .transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
+        .upgrade(user_escrow_proxy_v2.address, user_escrow_secret, user_escrow_secret2_hash)\
+        .buildTransaction({'from': multisig.address, 'gasPrice': 0})
+    # Ursula and Alice can't sign this transactions
+    with pytest.raises((TransactionFailed, ValueError)):
+        execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], ursula1], tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        execute_multisig_transaction(testerchain, multisig, [contracts_owners[0], alice1], tx)
+
+    # Execute transactions
+    execute_multisig_transaction(testerchain, multisig, [contracts_owners[1], contracts_owners[2]], tx)
     assert user_escrow_proxy_v2.address == user_escrow_linker.functions.target().call()
 
     # Slash miners
