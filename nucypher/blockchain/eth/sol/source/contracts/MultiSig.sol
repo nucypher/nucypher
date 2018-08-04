@@ -52,12 +52,14 @@ contract MultiSig {
     /**
     * @notice Get unsigned hash for transaction parameters
     * @dev Follows ERC191 signature scheme: https://github.com/ethereum/EIPs/issues/191
+    * @param _sender Trustee who will execute the transaction
     * @param _destination Destination address
     * @param _value Amount of ETH to transfer
     * @param _data Call data
     * @param _nonce Nonce
     **/
     function getUnsignedTransactionHash(
+        address _sender,
         address _destination,
         uint256 _value,
         bytes _data,
@@ -66,7 +68,7 @@ contract MultiSig {
         public view returns (bytes32)
     {
         return keccak256(
-            abi.encodePacked(byte(0x19), byte(0), address(this), _destination, _value, _data, _nonce));
+            abi.encodePacked(byte(0x19), byte(0), address(this), _sender, _destination, _value, _data, _nonce));
     }
 
     /**
@@ -92,7 +94,7 @@ contract MultiSig {
             _sigR.length == _sigS.length &&
             _sigR.length == _sigV.length);
 
-        bytes32 txHash = getUnsignedTransactionHash(_destination, _value, _data, nonce);
+        bytes32 txHash = getUnsignedTransactionHash(msg.sender, _destination, _value, _data, nonce);
         address lastAdd = 0x0;
         for (uint256 i = 0; i < required; i++) {
             address recovered = ecrecover(txHash, _sigV[i], _sigR[i], _sigS[i]);
@@ -100,9 +102,9 @@ contract MultiSig {
             lastAdd = recovered;
         }
 
+        emit Executed(msg.sender, nonce, _destination, _value);
         nonce = nonce.add(1);
         require(_destination.call.value(_value)(_data));
-        emit Executed(msg.sender, nonce, _destination, _value);
     }
 
     /**

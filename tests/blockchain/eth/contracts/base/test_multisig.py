@@ -54,7 +54,7 @@ def test_execute(testerchain):
 
     # Prepare data
     nonce = multisig.functions.nonce().call()
-    tx_hash = multisig.functions.getUnsignedTransactionHash(others[0], 100, w3.toBytes(0), nonce).call()
+    tx_hash = multisig.functions.getUnsignedTransactionHash(owners[0], others[0], 100, w3.toBytes(0), nonce).call()
     signed_tx_hash_0 = sign_hash(testerchain, owners[0], tx_hash)
     signed_tx_hash_1 = sign_hash(testerchain, owners[1], tx_hash)
     signed_tx_hash_2 = sign_hash(testerchain, owners[2], tx_hash)
@@ -71,7 +71,7 @@ def test_execute(testerchain):
             others[0],
             100,
             w3.toBytes(0)
-        ).transact()
+        ).transact({'from': owners[0]})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = multisig.functions.execute(
@@ -83,7 +83,7 @@ def test_execute(testerchain):
             others[0],
             100,
             w3.toBytes(0)
-        ).transact()
+        ).transact({'from': owners[0]})
         testerchain.wait_for_receipt(tx)
 
     # Only owners can sign transactions
@@ -97,11 +97,12 @@ def test_execute(testerchain):
             others[0],
             100,
             w3.toBytes(0)
-        ).transact()
+        ).transact({'from': owners[0]})
         testerchain.wait_for_receipt(tx)
 
     # All owners must sign the same transaction
-    tx_hash_bad = multisig.functions.getUnsignedTransactionHash(others[0], 100, w3.toBytes(0), nonce + 1).call()
+    tx_hash_bad = multisig.functions\
+        .getUnsignedTransactionHash(owners[0], others[0], 100, w3.toBytes(0), nonce + 1).call()
     signed_tx_hash_bad = sign_hash(testerchain, owners[0], tx_hash_bad)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = multisig.functions.execute(
@@ -113,7 +114,7 @@ def test_execute(testerchain):
             others[0],
             100,
             w3.toBytes(0)
-        ).transact()
+        ).transact({'from': owners[0]})
         testerchain.wait_for_receipt(tx)
 
     # The owner's signatures must be in ascending order of addresses (function restrictions)
@@ -127,7 +128,7 @@ def test_execute(testerchain):
             others[0],
             100,
             w3.toBytes(0)
-        ).transact()
+        ).transact({'from': owners[0]})
         testerchain.wait_for_receipt(tx)
 
     # Can't use wrong signatures (one of S value is wrong)
@@ -141,7 +142,21 @@ def test_execute(testerchain):
             others[0],
             100,
             w3.toBytes(0)
-        ).transact()
+        ).transact({'from': owners[0]})
+        testerchain.wait_for_receipt(tx)
+
+    # Only the trustee that was used in the hash can execute the transaction
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = multisig.functions.execute(
+            [signed_tx_hash_0.v, signed_tx_hash_1.v, signed_tx_hash_2.v],
+            [to_32byte_hex(w3, signed_tx_hash_0.r), to_32byte_hex(w3, signed_tx_hash_1.r),
+             to_32byte_hex(w3, signed_tx_hash_2.r)],
+            [to_32byte_hex(w3, signed_tx_hash_0.s), to_32byte_hex(w3, signed_tx_hash_1.s),
+             to_32byte_hex(w3, signed_tx_hash_2.s)],
+            others[0],
+            100,
+            w3.toBytes(0)
+        ).transact({'from': owners[1]})
         testerchain.wait_for_receipt(tx)
 
     assert balance == w3.eth.getBalance(others[0])
@@ -155,7 +170,7 @@ def test_execute(testerchain):
         others[0],
         100,
         w3.toBytes(0)
-    ).transact()
+    ).transact({'from': owners[0]})
     testerchain.wait_for_receipt(tx)
     assert balance + 100 == w3.eth.getBalance(others[0])
     assert 100 == w3.eth.getBalance(multisig.address)
@@ -171,7 +186,7 @@ def test_execute(testerchain):
             others[0],
             100,
             w3.toBytes(0)
-        ).transact()
+        ).transact({'from': owners[0]})
         testerchain.wait_for_receipt(tx)
 
     # Transfer tokens to the multisig contract
@@ -182,7 +197,7 @@ def test_execute(testerchain):
     # Prepare transaction
     nonce = multisig.functions.nonce().call()
     tx = token.functions.transfer(owners[0], 100).buildTransaction()
-    tx_hash = multisig.functions.getUnsignedTransactionHash(token.address, 0, tx['data'], nonce).call()
+    tx_hash = multisig.functions.getUnsignedTransactionHash(owners[0], token.address, 0, tx['data'], nonce).call()
     signed_tx_hash_0 = sign_hash(testerchain, owners[0], tx_hash)
     signed_tx_hash_1 = sign_hash(testerchain, owners[3], tx_hash)
     signed_tx_hash_2 = sign_hash(testerchain, owners[4], tx_hash)
@@ -195,7 +210,7 @@ def test_execute(testerchain):
         token.address,
         0,
         tx['data']
-    ).transact()
+    ).transact({'from': owners[0]})
     testerchain.wait_for_receipt(tx)
     assert 100 == token.functions.balanceOf(owners[0]).call()
     assert 0 == token.functions.balanceOf(multisig.address).call()
@@ -203,7 +218,7 @@ def test_execute(testerchain):
 
 def execute_transaction(testerchain, multisig, accounts, tx):
     nonce = multisig.functions.nonce().call()
-    tx_hash = multisig.functions.getUnsignedTransactionHash(tx['to'], 0, tx['data'], nonce).call()
+    tx_hash = multisig.functions.getUnsignedTransactionHash(accounts[0], tx['to'], 0, tx['data'], nonce).call()
     signatures = [sign_hash(testerchain, account, tx_hash) for account in accounts]
     w3 = testerchain.interface.w3
     tx = multisig.functions.execute(
@@ -254,7 +269,7 @@ def test_owners_management(testerchain):
     assert owners[0] == event_args['sender']
     assert multisig.address == event_args['destination']
     assert 0 == event_args['value']
-    assert 1 == event_args['nonce']
+    assert 0 == event_args['nonce']
 
     events = owner_addition_log.get_all_entries()
     assert 1 == len(events)
@@ -275,7 +290,7 @@ def test_owners_management(testerchain):
     assert owners[0] == event_args['sender']
     assert multisig.address == event_args['destination']
     assert 0 == event_args['value']
-    assert 2 == event_args['nonce']
+    assert 1 == event_args['nonce']
 
     events = owner_removal_log.get_all_entries()
     assert 1 == len(events)
@@ -296,7 +311,7 @@ def test_owners_management(testerchain):
     assert owners[1] == event_args['sender']
     assert multisig.address == event_args['destination']
     assert 0 == event_args['value']
-    assert 3 == event_args['nonce']
+    assert 2 == event_args['nonce']
 
     events = requirement_changes_log.get_all_entries()
     assert 1 == len(events)

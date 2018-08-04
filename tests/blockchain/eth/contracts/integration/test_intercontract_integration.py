@@ -271,7 +271,7 @@ def execute_multisig_transaction(testerchain, multisig, accounts, tx):
         return signed_data
 
     nonce = multisig.functions.nonce().call()
-    tx_hash = multisig.functions.getUnsignedTransactionHash(tx['to'], 0, tx['data'], nonce).call()
+    tx_hash = multisig.functions.getUnsignedTransactionHash(accounts[0], tx['to'], 0, tx['data'], nonce).call()
     signatures = [sign_hash(testerchain, account, tx_hash) for account in accounts]
     w3 = testerchain.interface.w3
     tx = multisig.functions.execute(
