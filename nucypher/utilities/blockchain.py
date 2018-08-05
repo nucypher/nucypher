@@ -1,15 +1,21 @@
 import asyncio
 import random
-from typing import Set, Tuple
 
 from constant_sorrow import constants
+from typing import List
+from typing import Set, Tuple
+from umbral.keys import UmbralPrivateKey
+from web3 import Web3
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, EthereumContractAgent
-from nucypher.blockchain.eth.chains import TesterBlockchain, Blockchain
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
+from nucypher.blockchain.eth.agents import EthereumContractAgent
+from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.chains import TesterBlockchain
+from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherTokenDeployer
+from nucypher.blockchain.eth.deployers import PolicyManagerDeployer
 from nucypher.characters import Ursula
-from tests.blockchain.eth.utilities import token_airdrop
-from tests.utilities.network import _ALL_URSULAS
+
+
+_ALL_URSULAS = {}
 
 
 def make_ursulas(ether_addresses: list, ursula_starting_port: int,
@@ -86,7 +92,7 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
             min_locktime, max_locktime = int(constants.MIN_LOCKED_PERIODS), int(constants.MAX_MINTING_PERIODS)
             periods = random.randint(min_locktime, max_locktime)
 
-            ursula.stake(amount=amount, lock_periods=periods)
+            ursula.initialize_stake(amount=amount, lock_periods=periods)
         else:
             ursula.federated_only = True
 
@@ -149,3 +155,74 @@ def bootstrap_fake_network(blockchain: TesterBlockchain=None,
                                   amount=airdrop_amount)
 
     return token_agent, miner_agent, _policy_agent
+
+
+class MockMinerAgent(MinerAgent):
+    """MinerAgent with faked config subclass"""
+
+    def spawn_random_miners(self, addresses: list) -> list:
+        """
+        Deposit and lock a random amount of tokens in the miner escrow
+        from each address, "spawning" new Miners.
+        """
+        from nucypher.blockchain.eth.actors import Miner
+
+        miners = list()
+        for address in addresses:
+            miner = Miner(miner_agent=self, ether_address=address)
+            miners.append(miner)
+
+            # stake a random amount
+            min_stake, balance = constants.MIN_ALLOWED_LOCKED, miner.token_balance
+            amount = random.randint(min_stake, balance)
+
+            # for a random lock duration
+            min_locktime, max_locktime = constants.MIN_LOCKED_PERIODS, constants.MAX_MINTING_PERIODS
+            periods = random.randint(min_locktime, max_locktime)
+
+            miner.initialize_stake(amount=amount, lock_periods=periods)
+
+        return miners
+
+
+class MockNucypherTokenDeployer(NucypherTokenDeployer):
+    """Mock deployer with mock agency"""
+
+
+class MockMinerEscrowDeployer(MinerEscrowDeployer):
+    """Helper class for MockMinerAgent, using a mock miner config"""
+    agency = MockMinerAgent
+
+
+def generate_accounts(w3: Web3, quantity: int) -> List[str]:
+    """
+    Generate additional unlocked accounts transferring wei_balance to each account on creation.
+    """
+
+    addresses = list()
+    insecure_passphrase = 'this-is-not-a-secure-password'
+    for _ in range(quantity):
+        umbral_priv_key = UmbralPrivateKey.gen_key()
+
+        address = w3.personal.importRawKey(private_key=umbral_priv_key.to_bytes(),
+                                           passphrase=insecure_passphrase)
+
+        w3.personal.unlockAccount(address, passphrase=insecure_passphrase)
+        addresses.append(addresses)
+    return addresses
+
+
+def token_airdrop(token_agent, amount: int, origin: str, addresses: List[str]):
+    """Airdrops tokens from creator address to all other addresses!"""
+
+    def txs():
+        for address in addresses:
+            txhash = token_agent.contract.functions.transfer(address, amount).transact({'from': origin,
+                                                                                        'gas': 2000000})
+            yield txhash
+
+    receipts = list()
+    for tx in txs():    # One at a time
+        receipt = token_agent.blockchain.wait_for_receipt(tx)
+        receipts.append(receipt)
+    return receipts

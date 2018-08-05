@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 VERSION = '0.1'
 
@@ -12,7 +12,7 @@ setup(name='nucypher',
       description='A proxy re-encryption network to empower privacy in decentralized systems.',
       install_requires=INSTALL_REQUIRES,
       extras_require={'testing': TESTS_REQUIRE},
-      packages=['nucypher'],
+      packages=find_packages(),
       package_data={'nucypher': [
           'blockchain/eth/*', 'project/contracts/*',
           'blockchain/eth/sol_source/contracts/lib/*',

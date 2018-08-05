@@ -24,8 +24,8 @@ from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from tests.blockchain.eth import contracts
 from tests.blockchain.eth.utilities import token_airdrop
-from tests.utilities.blockchain import make_ursulas
-from tests.utilities.network import MockRestMiddleware
+from nucypher.utilities.blockchain import make_ursulas
+from nucypher.utilities.network import MockRestMiddleware
 
 #
 # Setup
