@@ -1,5 +1,7 @@
 """NuCypher CLI"""
 
+from constant_sorrow import constants
+
 __version__ = '0.1.0-mock'
 
 BANNER = """
@@ -30,23 +32,28 @@ import click
 from twisted.internet import reactor
 
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
-from tests.utilities.blockchain import bootstrap_fake_network
+from nucypher.utilities.blockchain import bootstrap_fake_network
 from nucypher.config.utils import parse_nucypher_ini_config, validate_nucypher_ini_config
-from tests.utilities.simulate import SimulatedUrsulaProcessProtocol, UrsulaProcessProtocol
-
+from nucypher.utilities.simulate import UrsulaStakingProtocol
 
 DEFAULT_CONF_FILEPATH = '.'
+DEFAULT_SIMULATION_PORT = 5555
+DEFAULT_SIMULATION_REGISTRY_FILEPATH = './simulation_registry.json'
 
 
 class NucypherClickConfig:
 
     def __init__(self):
 
+        # Set runtime defaults
         self.verbose = True
         self.config_filepath = './.nucypher.ini'
-        self.simulation_running = False
 
-        # Connect to blockchain
+        # Set simulation defaults
+        self.simulation_running = False
+        self.ursula_processes = list()
+
+        # Connect to blockchain  # FIXME: Detect no .ipc file
         if not os.path.isfile(self.config_filepath):
             raise RuntimeError("No such config file {}".format(self.config_filepath))
 
@@ -118,9 +125,9 @@ def config(config, action, config_file):
 
 @cli.command()
 @click.argument('action', default='list', required=False)
-@click.option('--wallet-address', help="The account to lock/unlock instead of the default")
+@click.option('--address', help="The account to lock/unlock instead of the default")
 @uses_config
-def accounts(config, action, wallet_address):
+def accounts(config, action, address):
     """Manage ethereum node accounts"""
 
     if action == 'list':
@@ -132,20 +139,20 @@ def accounts(config, action, wallet_address):
             click.echo(row)
 
     elif action == 'unlock':
-        pass
+        raise NotImplementedError
 
     elif action == 'lock':
-        pass
+        raise NotImplementedError
 
 
 @cli.command()
 @click.argument('action', default='list', required=False)
-@click.argument('value', required=False)
-@click.argument('periods', required=False)
-@click.option('--stake-index', help="The zero-based stake index for this address")
-@click.option('--wallet-address', help="Send rewarded tokens to a specific address, instead of the default.")
+@click.option('--address', help="Send rewarded tokens to a specific address, instead of the default.")
+@click.option('--value', help="Stake value in the smallest denomination")
+@click.option('--duration', help="Stake duration in periods")
+@click.option('--index', help="A specific stake index to resume")
 @uses_config
-def stake(config, action, wallet_address, stake_index, value, periods):
+def stake(config, action, address, index, value, duration):
     """
     Manage active and inactive node blockchain stakes.
 
