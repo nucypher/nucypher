@@ -10,10 +10,10 @@ RUNTIME_DIR = './.nucypher'
 
 @click.option('--rest-port', type=int)
 @click.option('--dht-port', type=int)
-@click.option('--db-name')
+@click.option('--db-name', type=str)
 @click.option('--checksum-address', type=hex)
 @click.option('--stake-index', type=int)
-@click.option('--metadata-dir')
+@click.option('--metadata-dir', type=click.Path())
 @click.command()
 def run_ursula(rest_port, dht_port, db_name, checksum_address, stake_index, metadata_dir) -> None:
     """

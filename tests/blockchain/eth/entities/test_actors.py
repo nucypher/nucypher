@@ -1,12 +1,9 @@
-import math
-import os
-
 import maya
 import pytest
+from constant_sorrow import constants
 
 from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
-from constant_sorrow import constants
-from tests.blockchain.eth.utilities import token_airdrop
+from nucypher.utilities.blockchain import token_airdrop
 
 
 class TestMiner:

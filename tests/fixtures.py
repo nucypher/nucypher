@@ -1,17 +1,18 @@
 import contextlib
+import os
+import tempfile
+from os.path import abspath, dirname
 
 import datetime
 import maya
-import os
 import pytest
-import tempfile
 from constant_sorrow import constants
 from eth_tester import EthereumTester
 from eth_utils import to_checksum_address
-from os.path import abspath, dirname
 from sqlalchemy.engine import create_engine
 from web3 import EthereumTesterProvider
 
+import nucypher
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import DeployerCircumflex
@@ -22,15 +23,17 @@ from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
-from tests.blockchain.eth import contracts
-from tests.blockchain.eth.utilities import token_airdrop
-from nucypher.utilities.blockchain import make_ursulas
+from nucypher.utilities.blockchain import make_ursulas, token_airdrop
 from nucypher.utilities.network import MockRestMiddleware
 
 #
 # Setup
 #
 
+BASE_DIR = abspath(dirname(dirname(nucypher.__file__)))
+
+test_contract_dir = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
+constants.TEST_CONTRACTS_DIR(test_contract_dir)
 
 constants.NUMBER_OF_TEST_ETH_ACCOUNTS(10)
 
@@ -235,8 +238,7 @@ def non_ursula_miners(three_agents):
 @pytest.fixture(scope='session')
 def solidity_compiler():
     """Doing this more than once per session will result in slower test run times."""
-    test_contracts_dir = os.path.join(dirname(abspath(contracts.__file__)), 'contracts')
-    compiler = SolidityCompiler(test_contract_dir=test_contracts_dir)
+    compiler = SolidityCompiler(test_contract_dir=str(constants.TEST_CONTRACTS_DIR))
     yield compiler
 
 
