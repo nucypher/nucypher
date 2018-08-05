@@ -1003,7 +1003,8 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
     # TODO: 289
     def __init__(self,
-                 # Ursula things
+
+                 # Ursula
                  rest_host,
                  rest_port,
                  db_name=None,
@@ -1011,19 +1012,25 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                  dht_host=None,
                  dht_port=None,
                  interface_signature=None,
-                 miner_agent=None,
 
-                 # Character things
+                 # Blockchain
+                 miner_agent=None,
+                 stake_index=None,
+                 checksum_address=None,
+
+                 # Character
                  abort_on_learning_error=False,
                  federated_only=False,
-                 checksum_address=None,
                  always_be_learning=None,
                  crypto_power=None,
                  tls_curve=None,
                  tls_private_key=None,  # Obviously config here. 361
-                 known_nodes=(),
+                 known_nodes=None,
                  **character_kwargs
-                 ):
+                 ) -> None:
+
+        if known_nodes is None:
+            known_nodes = tuple()
 
         VerifiableNode.__init__(self, interface_signature=interface_signature)
 
@@ -1043,9 +1050,15 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                            **character_kwargs)
 
         if not federated_only:
-            Miner.__init__(self, miner_agent=miner_agent, is_me=is_me, checksum_address=checksum_address)
+
+            Miner.__init__(self, is_me=is_me,
+                           miner_agent=miner_agent,
+                           checksum_address=checksum_address,
+                           stake_index=stake_index)
+
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
+
         ProxyRESTServer.__init__(self, rest_host=rest_host, rest_port=rest_port,
                                  db_name=db_name,
                                  tls_private_key=tls_private_key, tls_curve=tls_curve
@@ -1057,6 +1070,7 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             self.attach_dht_server()
             if not federated_only:
                 self.substantiate_stamp()
+                self.initialize_stake()
 
     @classmethod
     def from_config(cls, *args, **kwargs) -> 'Ursula':
