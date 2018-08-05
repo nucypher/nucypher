@@ -4,7 +4,7 @@ import maya
 from umbral.fragments import KFrag
 
 from nucypher.crypto.api import keccak_digest
-from tests.utilities.network import _ALL_URSULAS
+from nucypher.utilities.network import _ALL_URSULAS
 
 
 class MockPolicyCreation:
