@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 
 import pkg_resources
@@ -21,6 +22,10 @@ class TemporaryEthereumContractRegistry(EthereumContractRegistry):
 
     def reset(self):
         os.remove(self.temp_filepath)  # remove registrar tempfile
+
+    def commit(self, filepath) -> str:
+        """writes the current state of the registry to a file"""
+        return shutil.copy(self.temp_filepath, filepath)
 
 
 class OverridablePyEVMBackend(PyEVMBackend):
