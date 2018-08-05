@@ -71,7 +71,12 @@ class Miner(NucypherTokenActor):
     class MinerError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self, is_me=True, miner_agent: MinerAgent = None, *args, **kwargs):
+    def __init__(self,
+                 is_me=True,
+                 miner_agent: MinerAgent = None,
+                 stake_index: int = None,
+                 *args, **kwargs):
+
         miner_agent = miner_agent if miner_agent is not None else MinerAgent()
         super().__init__(token_agent=miner_agent.token_agent, *args, **kwargs)
 
@@ -83,6 +88,21 @@ class Miner(NucypherTokenActor):
         # Establish initial state
         self.is_me = is_me
 
+        if self.is_me:
+            try:
+                stake = self.stakes[stake_index]
+
+            except IndexError:
+                # passed an index
+                raise self.MinerError("No stake index {} for {}".format(stake_index, self.checksum_public_address))
+
+            except TypeError:
+                # stake_index is None
+                if len(self.stakes) > 0:
+                    raise self.MinerError("There is an active stake for {}".format(self.checksum_public_address))
+
+            else:
+                self.active_stake = stake
     #
     # Staking
     #
@@ -171,8 +191,11 @@ class Miner(NucypherTokenActor):
             return True
 
     @only_me
-    def stake(self, amount: int, lock_periods: int = None, expiration: maya.MayaDT = None,
-              entire_balance: bool = False) -> dict:
+    def initialize_stake(self,
+                         amount: int,
+                         lock_periods: int = None,
+                         expiration: maya.MayaDT = None,
+                         entire_balance: bool = False) -> dict:
         """
         High level staking method for Miners.
 
