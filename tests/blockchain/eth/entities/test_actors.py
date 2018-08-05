@@ -25,8 +25,8 @@ class TestMiner:
         assert constants.MIN_ALLOWED_LOCKED < miner.token_balance, "Insufficient miner balance"
 
         expiration = maya.now().add(days=constants.MIN_LOCKED_PERIODS)
-        miner.stake(amount=int(constants.MIN_ALLOWED_LOCKED),         # Lock the minimum amount of tokens
-                    expiration=expiration)
+        miner.initialize_stake(amount=int(constants.MIN_ALLOWED_LOCKED),  # Lock the minimum amount of tokens
+                               expiration=expiration)
 
         # Verify that the escrow is "approved" to receive tokens
         allowance = miner_agent.token_agent.contract.functions.allowance(
@@ -47,7 +47,7 @@ class TestMiner:
         new_stake_value = int(constants.MIN_ALLOWED_LOCKED) * 2
 
         stake_index = len(list(miner.stakes))
-        miner.stake(amount=stake_value, lock_periods=int(constants.MIN_LOCKED_PERIODS))
+        miner.initialize_stake(amount=stake_value, lock_periods=int(constants.MIN_LOCKED_PERIODS))
         miner.divide_stake(target_value=new_stake_value, stake_index=stake_index, additional_periods=2)
 
         stakes = list(miner.stakes)
@@ -80,8 +80,8 @@ class TestMiner:
         initial_balance = miner.token_balance
         assert token_agent.get_balance(miner.checksum_public_address) == initial_balance
 
-        miner.stake(amount=int(constants.MIN_ALLOWED_LOCKED),         # Lock the minimum amount of tokens
-                    lock_periods=int(constants.MIN_LOCKED_PERIODS))   # ... for the fewest number of periods
+        miner.initialize_stake(amount=int(constants.MIN_ALLOWED_LOCKED),  # Lock the minimum amount of tokens
+                               lock_periods=int(constants.MIN_LOCKED_PERIODS))   # ... for the fewest number of periods
 
         # ...wait out the lock period...
         for _ in range(28):
