@@ -99,11 +99,12 @@ class TesterBlockchain(Blockchain):
         # Generate additional ethereum accounts for testing
         enough_accounts = len(self.interface.w3.eth.accounts) > self.__default_num_test_accounts
         if test_accounts is not None and not enough_accounts:
-            from tests.blockchain.eth import utilities
 
             accounts_to_make = self.__default_num_test_accounts - len(self.interface.w3.eth.accounts)
             test_accounts = test_accounts if test_accounts is not None else self.__default_num_test_accounts
-            utilities.generate_accounts(w3=self.interface.w3, quantity=accounts_to_make)
+
+            from nucypher.utilities.blockchain import generate_accounts
+            generate_accounts(w3=self.interface.w3, quantity=accounts_to_make)
 
             assert test_accounts == len(self.interface.w3.eth.accounts)
 
