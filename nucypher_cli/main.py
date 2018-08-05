@@ -179,43 +179,146 @@ def stake(config, action, address, index, value, duration):
 
     """
 
-    if not wallet_address:
-        wallet_address = config.blockchain.interface.w3.eth.etherbase
+    config.adhere_agents()  # TODO: better place to do this?
+
+    if not address:
+
+        for index, address in enumerate(config.accounts):
+            if index == 0:
+                row = 'etherbase (0) | {}'.format(address)
+            else:
+                row = '{} .......... | {}'.format(index, address)
+            click.echo(row)
+
+        click.echo("Select ethereum address")
+        account_selection = click.prompt("Enter 0-{}".format(len(config.accounts)), type=int)
+        address = config.accounts[account_selection]
 
     if action == 'list':
-        live_stakes = config.miner_agent.get_all_stakes(miner_address=wallet_address)
+        live_stakes = config.miner_agent.get_all_stakes(miner_address=address)
         for index, stake_info in enumerate(live_stakes):
             row = '{} | {}'.format(index, stake_info)
             click.echo(row)
 
-    elif action == 'info':
-        config.miner_agent.get_stake_info(miner_address=wallet_address,
-                                          stake_index=stake_index)
+    elif action == 'init':
+        click.confirm("Stage a new stake?", abort=True)
 
-    elif action == 'start':
-        protocol = UrsulaProcessProtocol()
-        reactor.spawnProcess(protocol, "python", ["run_ursula"])
-        config.simulation_running = True
+        live_stakes = config.miner_agent.get_all_stakes(miner_address=address)
+        if len(live_stakes) > 0:
+            raise RuntimeError("There is an existing stake for {}".format(address))
+
+        # Value
+        balance = config.token_agent.get_balance(address=address)
+        click.echo("Current balance: {}".format(balance))
+        value = click.prompt("Enter stake value", type=int)
+
+        # Duration
+        message = "Minimum duration: {} | Maximum Duration: {}".format(constants.MIN_LOCKED_PERIODS,
+                                                                       constants.MAX_REWARD_PERIODS)
+        click.echo(message)
+        duration = click.prompt("Enter stake duration in days", type=int)
+
+        start_period = config.miner_agent.get_current_period()
+        end_period = start_period + duration
+
+        # Review
+        click.echo("""
+        
+        | Staged Stake |
+        
+        Node: {address}
+        Value: {value}
+        Duration: {duration}
+        Start Period: {start_period}
+        End Period: {end_period}
+        
+        """.format(address=address,
+                   value=value,
+                   duration=duration,
+                   start_period=start_period,
+                   end_period=end_period))
+
+        if not click.confirm("Is this correct?"):
+            # field = click.prompt("Which stake field do you want to edit?")
+            raise NotImplementedError
+
+        # Initialize the staged stake
+        config.miner_agent.deposit_tokens(amount=value, lock_periods=duration, sender_address=address)
+
+        # Spawn staking daemon process
+        staking_protocol = UrsulaStakingProtocol()
+        spawn_params = ['python', 'run_ursula.py', 0]  # only stake index == 0
+        p = reactor.spawnProcess(staking_protocol, spawn_params)
+
+    elif action == 'resume':
+        """Reconnect and resume an existing live stake"""
+
+        if not index:
+            # resume the latest
+            index = config.miner_agent.get_all_stakes(miner_address=address)[-1]
+
+        staking_protocol = UrsulaStakingProtocol()
+        spawn_params = ['python', 'run_ursula.py', index]
+        p = reactor.spawnProcess(staking_protocol, spawn_params)
 
     elif action == 'confirm-activity':
-        config.miner_agent.confirm_activity(node_address=wallet_address)
+        """Manually confirm activity for the active period"""
 
-    elif action == 'divide-stake':
-        config.miner_agent.divide_stake(miner_address=wallet_address,
-                                        stake_index=stake_index,
+        stakes = config.miner_agent.get_all_stakes(miner_address=address)
+        if len(stakes) == 0:
+            raise RuntimeError("There are no active stakes for {}".format(address))
+        config.miner_agent.confirm_activity(node_address=address)
+
+    elif action == 'divide':
+        """Divide an existing stake by specifying the new target value and end period"""
+
+        stakes = config.miner_agent.get_all_stakes(miner_address=address)
+        if len(stakes) == 0:
+            raise RuntimeError("There are no active stakes for {}".format(address))
+
+        if not index:
+            for selection_index, stake_info in enumerate(stakes):
+                click.echo("{} ....... {}".format(selection_index, stake_info))
+            index = click.prompt("Select a stake to divide", type=int)
+
+        target_value = click.prompt("Enter new target value", type=int)
+        extension = click.prompt("Enter number of periods to extend", type=int)
+
+        click.echo("""
+        Current Stake: {}
+        
+        New target value {}
+        New end period: {}
+        
+        """.format(stakes[index],
+                   target_value,
+                   target_value+extension))
+
+        click.confirm("Is this correct?", abort=True)
+        config.miner_agent.divide_stake(miner_address=address,
+                                        stake_index=index,
                                         value=value,
-                                        periods=periods)
+                                        periods=extension)
 
     elif action == 'collect-reward':
-        config.miner_agent.collect_staking_reward(collector_address=wallet_address)
+        """Withdraw staking reward to the specified wallet address"""
+        # click.confirm("Send {} to {}?".format)
+        # config.miner_agent.collect_staking_reward(collector_address=address)
+        raise NotImplementedError
+
+    elif action == 'abort':
+        click.confirm("Are you sure you want to abort the staking process?", abort=True)
+        # os.kill(pid=NotImplemented)
+        raise NotImplementedError
 
 
 @cli.command()
 @click.argument('action')
 @click.option('--nodes', help="The number of nodes to simulate")
-@click.option('--duration', help="The number of periods to run the simulation for")
+# @click.option('--duration', help="The number of periods to run the simulation for")
+# @click.option('--seed-port', help="A port number to use, then increment for each simulated Ursula's REST server.")
 @uses_config
-def simulation(config, action, nodes, duration):
+def simulation(config, action, nodes):
     """
     Simulate the nucypher blockchain network
 
@@ -238,23 +341,61 @@ def simulation(config, action, nodes, duration):
         if config.simulation_running is True:
             raise RuntimeError("Network simulation already running")
 
-        click.echo("Bootstrapping blockchain network")
-        three_agents = bootstrap_fake_network(blockchain=config.blockchain)
+        click.echo("Bootstrapping blockchain network...")
+
+        _three_agents = bootstrap_fake_network(blockchain=config.blockchain)
         config.adhere_agents()
 
-        click.echo("Starting SimulationProtocol")
-        for index in range(int(nodes)):
-            simulationProtocol = SimulatedUrsulaProcessProtocol()
+        # Commit the current state of deployment to a registry file.
+        _sim_registry_name = config.blockchain.interface._registry.commit(filepath=DEFAULT_SIMULATION_REGISTRY_FILEPATH)
 
-            # args = ["run_ursula", "ipc:///tmp/geth.ipc", "https://127.0.0.1:5551"]
-            reactor.spawnProcess(simulationProtocol, "python", ['run_ursula'])
+        # Select a port range to use on localhost for sim servers
+        start_port, stop_port = DEFAULT_SIMULATION_PORT, DEFAULT_SIMULATION_PORT + int(nodes)
+        click.echo("Selected simulation ports {}-{}".format(start_port, stop_port))
 
+        click.echo("Starting SimulationProtocol...")
+
+        for sim_port_number in range(start_port, stop_port):
+
+            rest_uri = "https://127.0.0.1:{}".format(str(sim_port_number))
+            simulationProtocol = SimulatedStakingProtocol()
+
+            p = reactor.spawnProcess(simulationProtocol, "python", ['run_ursula', rest_uri])
+            config.ursula_processes.append(p)
+
+            click.echo("Setup simulated Ursula {}".format(rest_uri))
             config.simulation_running = True
 
+        reactor.run()
+
     elif action == 'stop':
+        # Kill the simulated ursulas
         if config.simulation_running is not True:
             raise RuntimeError("Network simulation is not running")
-        config.simulation_running = False
+
+        for process in config.ursula_processes:
+            process.transport.signalProcess('KILL')
+        else:
+            # TODO: Confirm they are dead
+            config.simulation_running = False
+
+    elif action == 'status':
+
+        if not config.simulation_running:
+            status_message = "Simulation not running."
+        else:
+
+            ursula_processes = len(config.ursula_processes)
+
+            status_message = """
+            
+            | Node Swarm Simulation Status |
+            
+            Simulation processes .............. {}
+            
+            """.format(ursula_processes)
+
+        click.echo(status_message)
 
 
 @cli.command()
