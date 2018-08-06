@@ -30,6 +30,7 @@ coincurve = ">=8.0.2"
 eth-utils="*"
 eth-keys="*"
 web3 = ">=4.4.1"
+appdirs = "*"
 
 [dev-packages]
 ipdb = "*"
@@ -49,11 +50,11 @@ coverage = "*"
 py-solc = "*"
 eth-tester = "==0.1.0b28"
 py-evm = "==0.2.0a18"
+nucypher = {editable = true, path = "."}
 #
 # Active Development Packages
 #
 #nucypher = {editable = true, path = "."}
-#coincurve = {path = "./../coincurve"}
 #umbral = {editable = true, path = "./../pyUmbral"}
 
 [pipenv]
