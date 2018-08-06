@@ -1,6 +1,13 @@
 """NuCypher CLI"""
+import asyncio
 
 from constant_sorrow import constants
+
+from nucypher.characters import Ursula
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_SIMULATION_PORT, \
+    DEFAULT_SIMULATION_REGISTRY_FILEPATH, DEFAULT_INI_FILEPATH
+from nucypher.config.metadata import write_node_metadata, collect_stored_nodes
+from nucypher.config.parsers import parse_nucypher_ini_config
 
 __version__ = '0.1.0-mock'
 
@@ -22,8 +29,8 @@ BANNER = """
 # Set Default Curve #
 #####################
 
-from umbral.config import set_default_curve
-set_default_curve()
+# from umbral.config import set_default_curve
+# set_default_curve()
 
 #####################
 
@@ -32,13 +39,9 @@ import click
 from twisted.internet import reactor
 
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
-from nucypher.utilities.blockchain import bootstrap_fake_network
-from nucypher.config.utils import parse_nucypher_ini_config, validate_nucypher_ini_config
+from nucypher.utilities.blockchain import bootstrap_fake_network, spawn_random_miners
+from nucypher.config.utils import validate_nucypher_ini_config, initialize_configuration
 from nucypher.utilities.simulate import UrsulaStakingProtocol
-
-DEFAULT_CONF_FILEPATH = '.'
-DEFAULT_SIMULATION_PORT = 5555
-DEFAULT_SIMULATION_REGISTRY_FILEPATH = './simulation_registry.json'
 
 
 class NucypherClickConfig:
@@ -53,26 +56,36 @@ class NucypherClickConfig:
         self.simulation_running = False
         self.ursula_processes = list()
 
-        # Connect to blockchain  # FIXME: Detect no .ipc file
-        if not os.path.isfile(self.config_filepath):
-            raise RuntimeError("No such config file {}".format(self.config_filepath))
-
+        click.echo("Parsing {}".format(self.config_filepath))
         self.payload = parse_nucypher_ini_config(filepath=self.config_filepath)
-        self.blockchain = self.payload['blockchain']
-        self.accounts = self.blockchain.interface.w3.eth.accounts
+        self.operating_mode = self.payload['operating_mode']
 
-        if self.payload['tester'] and self.payload['deploy']:
-            self.blockchain.interface.deployer_address = self.accounts[0]
+        if self.operating_mode == 'decentralized':
 
-        # Three agents
-        self.token_agent = None
-        self.miner_agent = None
-        self.policy_agent = None
+            # FIXME: Detect no .ipc file
+            if not os.path.isfile(self.config_filepath):
+                raise RuntimeError("No such config file {}".format(self.config_filepath))
+
+            self.blockchain = self.payload['blockchain']
+            self.accounts = self.blockchain.interface.w3.eth.accounts
+
+            if self.payload['tester'] and self.payload['deploy']:
+                self.blockchain.interface.deployer_address = self.accounts[0]
+
+            # Three agents
+            self.token_agent = None
+            self.miner_agent = None
+            self.policy_agent = None
 
     def adhere_agents(self):
-        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.miner_agent = MinerAgent(token_agent=self.token_agent)
-        self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
+
+        token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        miner_agent = MinerAgent(token_agent=token_agent)
+        policy_agent = PolicyAgent(miner_agent=miner_agent)
+
+        self.token_agent = token_agent
+        self.miner_agent = miner_agent
+        self.policy_agent = policy_agent
 
     @property
     def provider_uri(self):
@@ -115,12 +128,19 @@ def cli(config, verbose, version, config_file):
 @cli.command()
 @click.argument('action')
 @click.option('--config-file', help="Specify a custom .ini configuration filepath")
+@click.option('--data-dir', help="Specify a custom runtime directory")
 @uses_config
-def config(config, action, config_file):
+def config(config, action, config_file, data_dir):
     """Manage the nucypher .ini configuration file"""
 
     if action == "validate":
         validate_nucypher_ini_config(config_file)
+
+    if action == "init":
+        click.confirm("Initialize new nucypher configuration?", abort=True)
+        config_root = data_dir if data_dir else DEFAULT_CONFIG_ROOT
+        initialize_configuration(config_root=config_root)
+        click.echo("Created configuration files at {}".format(config_root))
 
 
 @cli.command()
@@ -139,9 +159,11 @@ def accounts(config, action, address):
             click.echo(row)
 
     elif action == 'unlock':
+        # passphrase = click.prompt("Enter passphrase to unlock {}".format(address))
         raise NotImplementedError
 
     elif action == 'lock':
+        # click.confirm("Lock {}?".format(address))
         raise NotImplementedError
 
 
@@ -245,21 +267,16 @@ def stake(config, action, address, index, value, duration):
         # Initialize the staged stake
         config.miner_agent.deposit_tokens(amount=value, lock_periods=duration, sender_address=address)
 
-        # Spawn staking daemon process
-        staking_protocol = UrsulaStakingProtocol()
-        spawn_params = ['python', 'run_ursula.py', 0]  # only stake index == 0
-        p = reactor.spawnProcess(staking_protocol, spawn_params)
+        processProtocol = UrsulaStakingProtocol()
+        proc_params = ['run_ursula']
+        ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
 
     elif action == 'resume':
         """Reconnect and resume an existing live stake"""
 
-        if not index:
-            # resume the latest
-            index = config.miner_agent.get_all_stakes(miner_address=address)[-1]
-
-        staking_protocol = UrsulaStakingProtocol()
-        spawn_params = ['python', 'run_ursula.py', index]
-        p = reactor.spawnProcess(staking_protocol, spawn_params)
+        processProtocol = UrsulaStakingProtocol()
+        proc_params = ['run_ursula']
+        ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
 
     elif action == 'confirm-activity':
         """Manually confirm activity for the active period"""
@@ -314,9 +331,8 @@ def stake(config, action, address, index, value, duration):
 
 @cli.command()
 @click.argument('action')
-@click.option('--nodes', help="The number of nodes to simulate")
-# @click.option('--duration', help="The number of periods to run the simulation for")
-# @click.option('--seed-port', help="A port number to use, then increment for each simulated Ursula's REST server.")
+@click.option('--nodes', help="The number of nodes to simulate", type=int)
+# @click.option('--periods', help="The number of periods to run the simulation for")
 @uses_config
 def simulation(config, action, nodes):
     """
@@ -338,38 +354,69 @@ def simulation(config, action, nodes):
     """
 
     if action == 'start':
+
         if config.simulation_running is True:
             raise RuntimeError("Network simulation already running")
 
-        click.echo("Bootstrapping blockchain network...")
+        click.echo("Bootstrapping simulated blockchain network")
+        _three_agents = bootstrap_fake_network(blockchain=config.blockchain, airdrop=True)
 
-        _three_agents = bootstrap_fake_network(blockchain=config.blockchain)
+        click.echo("Establishing connection to ethereum contracts")
         config.adhere_agents()
 
         # Commit the current state of deployment to a registry file.
+        click.echo("Saving filesystem registry")
         _sim_registry_name = config.blockchain.interface._registry.commit(filepath=DEFAULT_SIMULATION_REGISTRY_FILEPATH)
+
+        sim_accounts = config.accounts[1:int(nodes)+1]
 
         # Select a port range to use on localhost for sim servers
         start_port, stop_port = DEFAULT_SIMULATION_PORT, DEFAULT_SIMULATION_PORT + int(nodes)
-        click.echo("Selected simulation ports {}-{}".format(start_port, stop_port))
+        click.echo("Selected local ports {}-{}".format(start_port, stop_port))
 
-        click.echo("Starting SimulationProtocol...")
+        seed_miner, *sim_miners = spawn_random_miners(miner_agent=config.miner_agent, addresses=sim_accounts)
 
-        for sim_port_number in range(start_port, stop_port):
+        click.echo("Selecting sim ethereum accounts")
+        for sim_port_number, sim_miner in enumerate(sim_miners, start=start_port):
 
-            rest_uri = "https://127.0.0.1:{}".format(str(sim_port_number))
-            simulationProtocol = SimulatedStakingProtocol()
+            rest_port, dht_port = sim_port_number, sim_port_number + 100
+            db_name = 'sim-{}'.format(rest_port)
 
-            p = reactor.spawnProcess(simulationProtocol, "python", ['run_ursula', rest_uri])
-            config.ursula_processes.append(p)
+            processProtocol = UrsulaStakingProtocol()
 
-            click.echo("Setup simulated Ursula {}".format(rest_uri))
+            raw_proc_params = '''
+            run_ursula --host 127.0.0.1 --rest-port {} --dht-port {} --db-name {} --checksum-address {}
+            '''.format(rest_port, dht_port, db_name, sim_miner.checksum_public_address)
+            proc_params = raw_proc_params.split()
+
+            import ipdb; ipdb.set_trace()
+
+            ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
+
+            config.ursula_processes.append(ursula_proc)
+
+            rest_uri = "https://127.0.0.1:{}".format(str(sim_port_number), sim_miner.checksum_public_address)
+
+            stake_infos = tuple(config.miner_agent.get_all_stakes(miner_address=sim_miner.checksum_public_address))
+
+            sim_data = "Started simulated Ursula at {} | address {} | stake {}"
+
+            click.echo(sim_data.format(rest_uri, sim_miner.checksum_public_address, stake_infos[0]))
             config.simulation_running = True
 
-        reactor.run()
+        click.echo("Starting the reactor")
+        try:
+            reactor.run()
+        finally:
+            click.echo("Stopping simulated Ursula processes")
+            for process in config.ursula_processes:
+                import ipdb; ipdb.set_trace()
+                os.kill(process.pid, 9)
+            config.simulation_running = False
+            click.echo("Simulation stopped")
 
     elif action == 'stop':
-        # Kill the simulated ursulas
+        # Kill the simulated ursulas TODO: read PIDs from storage?
         if config.simulation_running is not True:
             raise RuntimeError("Network simulation is not running")
 
@@ -469,6 +516,77 @@ def status(config, provider, contracts, network, all):
                 payload += subpayload
 
     click.echo(payload)
+
+
+@cli.command()
+@click.option('--federated-only', is_flag=True, default=False)
+@click.option('--seed-node', is_flag=True, default=False)
+@click.option('--rest-port', type=int)
+@click.option('--dht-port', type=int)
+@click.option('--db-name', type=str)
+@click.option('--checksum-address', type=str)
+@click.option('--data-dir', type=click.Path(), default=DEFAULT_CONFIG_ROOT)
+@click.option('--config-file', type=click.Path(), default=DEFAULT_INI_FILEPATH)
+def run_ursula(rest_port, dht_port, db_name,
+               checksum_address, federated_only,
+               seed_node, data_dir, config_file) -> None:
+    """
+    ======================================================================
+
+    ~ WARNING: DO NOT USE THIS COMMAND DIRECTLY ~
+
+    This is not an actual mining script -
+    it is a twisted process handler
+
+    ======================================================================
+
+
+    This process handler is executed in the main thread using the nucypher-cli,
+    implemented with twisted ProcessProtocol and spawnProcess.
+
+    The following procedure is required to "spin-up" an Ursula node.
+
+        1. Collect all known known from storages
+        2. Start the asyncio event loop
+        3. Initialize Ursula object
+        4. Start DHT listener
+        5. Enter the learning loop
+        6. Run TLS deployment
+        7. Start the staking daemon
+
+    Configurable values are first read from the .ini configuration file,
+    but can be overridden (mostly for testing purposes) with inline cli options.
+
+    """
+
+    if not seed_node:
+        known_nodes, other_nodes = collect_stored_nodes()  # 1. Collect known nodes
+    else:
+        known_nodes = tuple()
+
+    asyncio.set_event_loop(asyncio.new_event_loop())   # 2. Init DHT async loop
+
+    overrides = dict(federated_only=federated_only,
+                     known_nodes=known_nodes,
+                     rest_port=rest_port,
+                     dht_port=dht_port,
+                     db_name=db_name,
+                     checksum_address=checksum_address)
+
+    # 3. Initialize Ursula (includes overrides)
+    ursula = Ursula.from_config(filepath=config_file,
+                                federated_only=federated_only,
+                                overrides=overrides)
+
+    ursula.dht_listen()           # 4. Start DHT
+
+    write_node_metadata(node=ursula, node_metadata_dir=data_dir)
+
+    ursula.start_learning_loop()  # 5. Enter learning loop
+    ursula.get_deployer().run()   # 6. Run TLS Deployer
+
+    if not federated_only:
+        ursula.stake()            # 7. start staking daemon
 
 
 if __name__ == "__main__":

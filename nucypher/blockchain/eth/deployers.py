@@ -1,10 +1,8 @@
+from constant_sorrow import constants
 from typing import Tuple, Dict
 
-from web3.contract import Contract
-
 from nucypher.blockchain.eth.agents import EthereumContractAgent, MinerAgent, NucypherTokenAgent, PolicyAgent
-from constant_sorrow import constants
-from nucypher.blockchain.eth.interfaces import ControlCircumflex, DeployerCircumflex
+from nucypher.blockchain.eth.interfaces import DeployerCircumflex
 from .chains import Blockchain
 
 
