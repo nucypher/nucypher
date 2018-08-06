@@ -137,7 +137,7 @@ class MinerAgent(EthereumContractAgent):
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
         """Send tokes to the escrow from the miner's address"""
 
-        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address})
+        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address, 'gas': 2000000})  # TODO: what..?
         self.blockchain.wait_for_receipt(deposit_txhash)
         return deposit_txhash
 
