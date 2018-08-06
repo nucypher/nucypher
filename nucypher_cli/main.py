@@ -1,4 +1,6 @@
 """NuCypher CLI"""
+
+
 import asyncio
 
 from constant_sorrow import constants
@@ -27,14 +29,6 @@ BANNER = """
 
 from tests.utilities.blockchain import bootstrap_fake_network
 
-
-# Set Default Curve #
-#####################
-
-# from umbral.config import set_default_curve
-# set_default_curve()
-
-#####################
 
 import os
 import click
