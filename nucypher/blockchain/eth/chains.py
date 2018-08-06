@@ -4,7 +4,7 @@ from constant_sorrow import constants
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.interfaces import ControlCircumflex, DeployerCircumflex
-from nucypher.config.utils import parse_blockchain_config
+from nucypher.config.parsers import parse_blockchain_config
 
 
 class Blockchain:

@@ -43,12 +43,7 @@ def test_token_deployer_and_agent(testerchain):
 @pytest.mark.slow()
 def test_deploy_ethereum_contracts(testerchain):
     """
-    Launch all ethereum contracts:
-    - NuCypherToken
-    - PolicyManager
-    - MinersEscrow
-    - UserEscrow
-    - Issuer
+    A bare minimum nucypher deployment fixture.
     """
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
 
