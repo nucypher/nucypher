@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, List
 
 import maya
 
@@ -117,9 +117,10 @@ class Miner(NucypherTokenActor):
         return self.miner_agent.get_locked_tokens(node_address=self.checksum_public_address)
 
     @property
-    def stakes(self):
+    def stakes(self) -> Tuple[list]:
+        """Read all live stake data from the blockchain and return it as a tuple"""
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
-        return stakes_reader
+        return tuple(stakes_reader)
 
     @only_me
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
