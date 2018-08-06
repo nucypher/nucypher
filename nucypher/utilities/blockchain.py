@@ -8,12 +8,10 @@ from umbral.keys import UmbralPrivateKey
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent
-from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherTokenDeployer
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer
 from nucypher.characters import Ursula
-
 
 _ALL_URSULAS = {}
 
@@ -102,8 +100,26 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
     return ursulas
 
 
+def generate_accounts(w3: Web3, quantity: int) -> List[str]:
+    """
+    Generate additional unlocked accounts transferring wei_balance to each account on creation.
+    """
+
+    addresses = list()
+    insecure_passphrase = 'this-is-not-a-secure-password'
+    for _ in range(quantity):
+        umbral_priv_key = UmbralPrivateKey.gen_key()
+
+        address = w3.personal.importRawKey(private_key=umbral_priv_key.to_bytes(),
+                                           passphrase=insecure_passphrase)
+
+        w3.personal.unlockAccount(address, passphrase=insecure_passphrase)
+        addresses.append(addresses)
+    return addresses
+
+
 def bootstrap_fake_network(blockchain: TesterBlockchain=None,
-                           eth_airdrop: bool=True
+                           airdrop: bool=True
                            ) -> Tuple[EthereumContractAgent, ...]:
     """
 
@@ -121,95 +137,64 @@ def bootstrap_fake_network(blockchain: TesterBlockchain=None,
     if blockchain is None:
         blockchain = TesterBlockchain.from_config()
 
-    # Enforce Saftey #
+    # TODO: Enforce Saftey - ensure this is "fake" #
     conditions = ()
 
     assert True
 
     # Parse addresses
-    etherbase, alice, bob, *ursulas = blockchain.interface.w3.eth.accounts
-    origin, *everybody_else = blockchain.interface.w3.eth.accounts
+    etherbase, *everybody_else = blockchain.interface.w3.eth.accounts
 
     # Deploy contracts
-    token_deployer = NucypherTokenDeployer(blockchain=blockchain, deployer_address=origin)
+    token_deployer = NucypherTokenDeployer(blockchain=blockchain, deployer_address=etherbase)
     token_deployer.arm()
     token_deployer.deploy()
     token_agent = token_deployer.make_agent()
 
-    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=origin)
+    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=etherbase)
     miner_escrow_deployer.arm()
     miner_escrow_deployer.deploy()
     miner_agent = miner_escrow_deployer.make_agent()
 
-    policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=origin)
+    policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=etherbase)
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
     _policy_agent = policy_manager_deployer.make_agent()
 
     # Airdrop ethereum
-    if eth_airdrop is True:
+    if airdrop is True:
         airdrop_amount = 1000000 * int(constants.M)
         _receipts = token_airdrop(token_agent=token_agent,
                                   origin=etherbase,
-                                  addresses=ursulas,
+                                  addresses=everybody_else,
                                   amount=airdrop_amount)
 
     return token_agent, miner_agent, _policy_agent
 
 
-class MockMinerAgent(MinerAgent):
-    """MinerAgent with faked config subclass"""
-
-    def spawn_random_miners(self, addresses: list) -> list:
-        """
-        Deposit and lock a random amount of tokens in the miner escrow
-        from each address, "spawning" new Miners.
-        """
-        from nucypher.blockchain.eth.actors import Miner
-
-        miners = list()
-        for address in addresses:
-            miner = Miner(miner_agent=self, ether_address=address)
-            miners.append(miner)
-
-            # stake a random amount
-            min_stake, balance = constants.MIN_ALLOWED_LOCKED, miner.token_balance
-            amount = random.randint(min_stake, balance)
-
-            # for a random lock duration
-            min_locktime, max_locktime = constants.MIN_LOCKED_PERIODS, constants.MAX_MINTING_PERIODS
-            periods = random.randint(min_locktime, max_locktime)
-
-            miner.initialize_stake(amount=amount, lock_periods=periods)
-
-        return miners
-
-
-class MockNucypherTokenDeployer(NucypherTokenDeployer):
-    """Mock deployer with mock agency"""
-
-
-class MockMinerEscrowDeployer(MinerEscrowDeployer):
-    """Helper class for MockMinerAgent, using a mock miner config"""
-    agency = MockMinerAgent
-
-
-def generate_accounts(w3: Web3, quantity: int) -> List[str]:
+def spawn_random_miners(miner_agent, addresses: list) -> list:
     """
-    Generate additional unlocked accounts transferring wei_balance to each account on creation.
+    Deposit and lock a random amount of tokens in the miner escrow
+    from each address, "spawning" new Miners.
     """
+    from nucypher.blockchain.eth.actors import Miner
 
-    addresses = list()
-    insecure_passphrase = 'this-is-not-a-secure-password'
-    for _ in range(quantity):
-        umbral_priv_key = UmbralPrivateKey.gen_key()
+    miners = list()
+    for address in addresses:
+        miner = Miner(miner_agent=miner_agent, checksum_address=address)
+        miners.append(miner)
 
-        address = w3.personal.importRawKey(private_key=umbral_priv_key.to_bytes(),
-                                           passphrase=insecure_passphrase)
+        # stake a random amount
+        min_stake, balance = constants.MIN_ALLOWED_LOCKED, miner.token_balance
+        amount = random.randint(min_stake, balance)
 
-        w3.personal.unlockAccount(address, passphrase=insecure_passphrase)
-        addresses.append(addresses)
-    return addresses
+        # for a random lock duration
+        min_locktime, max_locktime = constants.MIN_LOCKED_PERIODS, constants.MAX_MINTING_PERIODS
+        periods = random.randint(min_locktime, max_locktime)
+
+        miner.initialize_stake(amount=amount, lock_periods=periods)
+
+    return miners
 
 
 def token_airdrop(token_agent, amount: int, origin: str, addresses: List[str]):

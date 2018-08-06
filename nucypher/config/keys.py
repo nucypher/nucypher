@@ -13,17 +13,11 @@ from eth_account import Account
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey
-from web3.auto import w3
 
 from nucypher.config import utils
-from nucypher.config.configs import _DEFAULT_CONFIGURATION_DIR, NucypherConfiguration
-from nucypher.config.utils import _parse_keyfile, _save_private_keyfile, validate_passphrase, _save_public_keyfile
+from nucypher.config.constants import DEFAULT_KEYRING_ROOT
+from nucypher.config.utils import validate_passphrase, NucypherConfigurationError
 from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower
-
-w3.eth.enable_unaudited_features()
-
-
-_CONFIG_ROOT = os.path.join(str(Path.home()), '.nucypher')
 
 
 def _parse_keyfile(keypath: str):
@@ -33,7 +27,7 @@ def _parse_keyfile(keypath: str):
         try:
             key_metadata = json.loads(keyfile)
         except json.JSONDecodeError:
-            raise NucypherConfiguration.NucypherConfigurationError("Invalid data in keyfile {}".format(keypath))
+            raise NucypherConfigurationError("Invalid data in keyfile {}".format(keypath))
         else:
             return key_metadata
 
@@ -111,6 +105,7 @@ def _save_public_keyfile(keypath: str, key_data: bytes) -> str:
     # TODO: output_path is an integer, who knows why?
     del keyfile_descriptor
     return output_path
+
 
 def _derive_key_material_from_passphrase(salt: bytes, passphrase: str) -> bytes:
     """
@@ -216,7 +211,7 @@ class NucypherKeyring:
 
     """
 
-    __default_keyring_root = os.path.join(_DEFAULT_CONFIGURATION_DIR, 'keyring')
+    __default_keyring_root = DEFAULT_KEYRING_ROOT
 
     __default_public_key_dir = os.path.join(__default_keyring_root, 'public')
     __default_private_key_dir = os.path.join(__default_keyring_root, 'private')
@@ -335,11 +330,11 @@ class NucypherKeyring:
 
         assert validate_passphrase(passphrase)
 
+        # TODO
         # Ensure the configuration base directory exists
-        utils.generate_confg_dir()
+        # utils.generate_confg_dir()
 
         # Create the key directories with default paths. Raises OSError if dirs exist
-        os.mkdir(cls.__default_keyring_root, mode=0o755)    # keyring
         os.mkdir(cls.__default_public_key_dir, mode=0o744)  # public
         os.mkdir(_private_key_dir, mode=0o700)              # private
 
