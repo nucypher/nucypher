@@ -143,7 +143,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # Attach the CFrag to the Capsule.
     capsule = capsule_side_channel[0].capsule
     capsule.set_correctness_keys(delegating=enacted_federated_policy.public_key,
-                                 receiving=bob.public_key(EncryptingPower),
+                                 receiving=bob.public_material(EncryptingPower),
                                  verifying=alice.stamp.as_umbral_pubkey())
     capsule.attach_cfrag(the_cfrag)
 

@@ -154,8 +154,8 @@ class Policy:
         return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
     def publish_treasure_map(self, network_middleare):
-        self.treasure_map.prepare_for_publication(self.bob.public_key(EncryptingPower),
-                                                  self.bob.public_key(SigningPower),
+        self.treasure_map.prepare_for_publication(self.bob.public_material(EncryptingPower),
+                                                  self.bob.public_material(SigningPower),
                                                   self.alice.stamp,
                                                   self.label
                                                   )

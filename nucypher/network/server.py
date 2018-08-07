@@ -121,7 +121,7 @@ class ProxyRESTServer:
         tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair)
         self._crypto_power.consume_power_up(tls_hosting_power)
 
-    def public_key(self, power_class: ClassVar):
+    def public_material(self, power_class: ClassVar):
         """Implemented on Ursula"""
         raise NotImplementedError
 
