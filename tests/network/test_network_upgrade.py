@@ -7,6 +7,7 @@ from tests.utilities import make_ursulas
 from twisted.internet import threads
 
 from nucypher.characters import Ursula
+from nucypher.utilities.blockchain import make_ursulas
 from nucypher.utilities.sandbox import make_ursulas
 
 
@@ -45,3 +46,6 @@ def test_nodes_connect_via_tls_and_verify():
         yield threads.deferToThread(check_node_with_cert, node, "test-cert")
     finally:
         os.remove("test-cert")
+
+#
+# def test_node_metadata_contains_proper_cert():
