@@ -153,7 +153,7 @@ class Character:
             if network_middleware is not None:
                 raise TypeError(
                     "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
-            self._stamp = StrangerStamp(self.public_key(SigningPower))
+            self._stamp = StrangerStamp(self.public_material(SigningPower))
 
         if not federated_only:
             if not checksum_address:
@@ -508,7 +508,7 @@ class Character:
         """
         signer = self.stamp if sign else constants.DO_NOT_SIGN
 
-        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_key(EncryptingPower),
+        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_material(EncryptingPower),
                                                   plaintext=plaintext,
                                                   signer=signer,
                                                   sign_plaintext=sign_plaintext
@@ -600,16 +600,16 @@ class Character:
     And finally, some miscellaneous but generally-applicable abilities:
     """
 
-    def public_key(self, power_up_class: ClassVar):
+    def public_material(self, power_up_class: ClassVar) -> Union[Tuple, UmbralPublicKey]:
         """
-        Pass a power_up_class, get the public key for this Character which corresponds to that
-        class.
+        Pass a power_up_class, get the public material for this Character which corresponds to that
+        class - whatever type of object that may be.
 
         If the Character doesn't have the power corresponding to that class, raises the
         appropriate PowerUpError (ie, NoSigningPower or NoEncryptingPower).
         """
         power_up = self._crypto_power.power_ups(power_up_class)
-        return power_up.public_key()
+        return power_up.public_material()
 
     @property
     def canonical_public_address(self):
@@ -631,7 +631,7 @@ class Character:
 
     def _set_checksum_address(self):
         if self.federated_only:
-            verifying_key = self.public_key(SigningPower)
+            verifying_key = self.public_material(SigningPower)
             uncompressed_bytes = verifying_key.to_bytes(is_compressed=False)
             without_prefix = uncompressed_bytes[1:]
             verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
@@ -679,7 +679,7 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
 
-        bob_pubkey_enc = bob.public_key(EncryptingPower)
+        bob_pubkey_enc = bob.public_material(EncryptingPower)
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
         return delegating_power.generate_kfrags(bob_pubkey_enc, self.stamp, label, m, n)
 
@@ -963,7 +963,7 @@ class Bob(Character):
 
         message_kit.capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
-            receiving=self.public_key(EncryptingPower),
+            receiving=self.public_material(EncryptingPower),
             verifying=alice_verifying_key)
 
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, data_source.label)
@@ -1183,8 +1183,8 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
         as_bytes = bytes().join((bytes(self._interface_signature),
                                  bytes(identity_evidence),
-                                 bytes(self.public_key(SigningPower)),
-                                 bytes(self.public_key(EncryptingPower)),
+                                 bytes(self.public_material(SigningPower)),
+                                 bytes(self.public_material(EncryptingPower)),
                                  self.canonical_public_address,
                                  interface_info)
                                 )

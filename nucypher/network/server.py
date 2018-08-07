@@ -128,7 +128,7 @@ class ProxyRESTServer:
         # NetworkConfiguration._load()
         instance = cls()
 
-    def public_key(self, power_class: ClassVar):
+    def public_material(self, power_class: ClassVar):
         """Implemented on Ursula"""
         raise NotImplementedError
 
