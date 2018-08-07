@@ -139,12 +139,12 @@ class HostingKeypair(Keypair):
         self.curve = curve or self._DEFAULT_CURVE
 
         if not certificate:
-            self._certificate, private_key = generate_self_signed_certificate(common_name=common_name,
+            self.certificate, private_key = generate_self_signed_certificate(common_name=common_name,
                                                                               private_key=private_key,
                                                                               curve=self.curve,
                                                                               host=host)
         else:
-            self._certificate = certificate
+            self.certificate = certificate
         super().__init__(private_key=private_key)
 
     def generate_self_signed_cert(self, common_name):
@@ -154,7 +154,7 @@ class HostingKeypair(Keypair):
     def get_deployer(self, rest_app, port):
         return HendrixDeployTLS("start",
                                 key=self._privkey,
-                                cert=X509.from_cryptography(self._certificate),
+                                cert=X509.from_cryptography(self.certificate),
                                 context_factory=ExistingKeyTLSContextFactory,
                                 context_factory_kwargs={"curve_name": self.curve.name,
                                                         "sslmethod": TLSv1_2_METHOD},
