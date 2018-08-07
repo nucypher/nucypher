@@ -5,7 +5,7 @@ from collections import deque
 from contextlib import suppress
 from functools import partial
 from logging import getLogger
-from typing import Dict, ClassVar, Set, DefaultDict
+from typing import Dict, ClassVar, Set, DefaultDict, Union, Tuple
 from typing import Union, List
 
 import kademlia
@@ -1104,18 +1104,13 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
         return self.dht_server.listen(self.dht_interface.port,
                                       self.dht_interface.host)
 
-    def interface_info_with_metadata(self):
-        # TODO: Do we ever actually use this without using the rest of the serialized Ursula?  337
-
-        return constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(self)
-
     def publish_dht_information(self):
         # TODO: Simplify or wholesale deprecate this.  337
         if not self.dht_interface:
             raise RuntimeError("Must listen before publishing interface information.")
 
         ursula_id = self.canonical_public_address
-        interface_value = self.interface_info_with_metadata()
+        interface_value = constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(self)
         setter = self.dht_server.set(key=ursula_id, value=interface_value)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
