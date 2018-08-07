@@ -140,9 +140,9 @@ class HostingKeypair(Keypair):
 
         if not certificate:
             self.certificate, private_key = generate_self_signed_certificate(common_name=common_name,
-                                                                             private_key=private_key,
-                                                                             curve=self.curve,
-                                                                             host=host)
+                                                                              private_key=private_key,
+                                                                              curve=self.curve,
+                                                                              host=host)
         else:
             self.certificate = certificate
         super().__init__(private_key=private_key)
