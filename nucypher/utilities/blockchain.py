@@ -48,7 +48,7 @@ def make_ursulas(ether_addresses: list,
 
         if bare:
             ursula = Ursula(is_me=False,            # do not attach dht server
-                            rest_host="127.0.0.1",  # TODO: remove rest interface
+                            rest_host="localhost",  # TODO: remove rest interface
                             rest_port=port + 100,
                             checksum_address=ether_address,
                             always_be_learning=False,
@@ -64,10 +64,10 @@ def make_ursulas(ether_addresses: list,
                 ether_address = None
             ursula = Ursula(is_me=True,
                             checksum_address=ether_address,
-                            dht_host="127.0.0.1",
+                            dht_host="localhost",
                             dht_port=port,
                             db_name="test-{}".format(port),
-                            rest_host="127.0.0.1",
+                            rest_host="localhost",
                             rest_port=port+100,
                             always_be_learning=False,
                             miner_agent=miner_agent,
@@ -109,7 +109,7 @@ def make_ursulas(ether_addresses: list,
 
             event_loop.run_until_complete(
                 ursula.dht_server.bootstrap(
-                    [("127.0.0.1", starting_port + _c) for _c in range(len(ursulas))]))
+                    [("localhost", starting_port + _c) for _c in range(len(ursulas))]))
             ursula.publish_dht_information()
 
     return ursulas

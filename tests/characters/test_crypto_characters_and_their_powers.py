@@ -79,7 +79,6 @@ def test_character_blockchain_power(testerchain):
 
     # TODO: Handle multiple providers
     eth_address = testerchain.interface.w3.eth.accounts[0]
-
     sig_privkey = testerchain.interface.providers[0].ethereum_tester.backend._key_lookup[eth_utils.to_canonical_address(eth_address)]
     sig_pubkey = sig_privkey.public_key
 
@@ -89,7 +88,7 @@ def test_character_blockchain_power(testerchain):
     # Due to testing backend, the account is already unlocked.
     power = signer._crypto_power.power_ups(BlockchainPower)
     power.is_unlocked = True
-    #power.unlock_account('this-is-not-a-secure-password')
+    # power.unlock_account('this-is-not-a-secure-password')
 
     data_to_sign = b'What does Ursula look like?!?'
     sig = power.sign_message(data_to_sign)
@@ -99,7 +98,7 @@ def test_character_blockchain_power(testerchain):
 
     # Test a bad message:
     with pytest.raises(PowerUpError):
-        power.verify_message( eth_address, sig_pubkey.to_bytes(), data_to_sign + b'bad', sig)
+        power.verify_message(eth_address, sig_pubkey.to_bytes(), data_to_sign + b'bad', sig)
 
     # Test a bad address/pubkey pair
     with pytest.raises(ValueError):
@@ -115,7 +114,7 @@ def test_character_blockchain_power(testerchain):
         power.sign_message(b'test')
 
     # Test lockAccount call
-    del(power)
+    del (power)
 
 
 """
@@ -143,7 +142,6 @@ def test_node_deployer(ursulas):
         deployer = ursula.get_deployer()
         assert deployer.options['https_port'] == ursula.rest_interface.port
         assert deployer.application == ursula.rest_app
-
 
 
 """

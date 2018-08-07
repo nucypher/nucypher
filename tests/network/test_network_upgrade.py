@@ -1,12 +1,12 @@
-import pytest_twisted
 import os
-from nucypher.crypto.powers import TLSHostingPower
-from tests.utilities import make_ursulas
+
+import pytest_twisted
 import requests
-from twisted.internet import threads
-from twisted.internet import reactor
 from cryptography.hazmat.primitives import serialization
+from twisted.internet import threads
+
 from nucypher.characters import Ursula
+from nucypher.utilities.blockchain import make_ursulas
 
 
 def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy):
@@ -44,3 +44,6 @@ def test_nodes_connect_via_tls_and_verify():
         yield threads.deferToThread(check_node_with_cert, node, "test-cert")
     finally:
         os.remove("test-cert")
+
+#
+# def test_node_metadata_contains_proper_cert():
