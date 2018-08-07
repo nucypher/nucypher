@@ -3,7 +3,8 @@ import random
 from collections import OrderedDict, defaultdict
 from collections import deque
 from contextlib import suppress
-from logging import getLogger, Logger
+from logging import Logger
+from logging import getLogger
 
 import kademlia
 import maya
@@ -16,6 +17,7 @@ from functools import partial
 from kademlia.utils import digest
 from twisted.internet import task, threads
 from typing import Dict, ClassVar, Set, DefaultDict, Iterable
+from typing import Tuple
 from typing import Union, List
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
@@ -103,10 +105,10 @@ class Character:
         """
 
         known_nodes = known_nodes if known_nodes is not None else tuple()
-        self.federated_only = federated_only                      # type: bool
-        self._abort_on_learning_error = abort_on_learning_error   # type: bool
+        self.federated_only = federated_only  # type: bool
+        self._abort_on_learning_error = abort_on_learning_error  # type: bool
 
-        self.log = getLogger("characters")                        # type: Logger
+        self.log = getLogger("characters")  # type: Logger
 
         #
         # Power-ups and Powers
@@ -114,10 +116,10 @@ class Character:
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
 
-        crypto_power_ups = crypto_power_ups or []                 # type: list
+        crypto_power_ups = crypto_power_ups or []  # type: list
 
         if crypto_power:
-            self._crypto_power = crypto_power                     # type: CryptoPower
+            self._crypto_power = crypto_power  # type: CryptoPower
         elif crypto_power_ups:
             self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
         else:
@@ -127,22 +129,22 @@ class Character:
         # Identity and Network
         #
         if is_me is True:
-            self._known_nodes = {}                                # type: dict
-            self.treasure_maps = {}                               # type: dict
+            self._known_nodes = {}  # type: dict
+            self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
             ##### LEARNING STUFF (Maybe move to a different class?) #####
-            self._learning_listeners = defaultdict(list)          # type: DefaultDict
-            self._node_ids_to_learn_about_immediately = set()     # type: set
+            self._learning_listeners = defaultdict(list)  # type: DefaultDict
+            self._node_ids_to_learn_about_immediately = set()  # type: set
 
             for node in known_nodes:
                 self.remember_node(node)
 
-            self.teacher_nodes = deque()                          # type: deque
-            self._current_teacher_node = None                     # type: Ursula
+            self.teacher_nodes = deque()  # type: deque
+            self._current_teacher_node = None  # type: Ursula
             self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
-            self._learning_round = 0                              # type: int
-            self._rounds_without_new_nodes = 0                    # type: int
+            self._learning_round = 0  # type: int
+            self._rounds_without_new_nodes = 0  # type: int
 
             if always_be_learning:
                 self.start_learning_loop(now=start_learning_on_same_thread)
@@ -150,7 +152,7 @@ class Character:
 
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)  # type: SigningPower
-                self._stamp = signing_power.get_signature_stamp()           # type: SignatureStamp
+                self._stamp = signing_power.get_signature_stamp()  # type: SignatureStamp
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
 
@@ -165,7 +167,7 @@ class Character:
             if not checksum_address:
                 raise ValueError("No checksum_address provided while running in a non-federated mode.")
             else:
-                self._checksum_address = checksum_address                       # type: str
+                self._checksum_address = checksum_address  # type: str
 
         # Federated
         elif federated_only:
@@ -173,7 +175,7 @@ class Character:
 
             if checksum_address:
                 # We'll take a checksum address, as long as it matches their singing key
-                self._set_checksum_address()                                # type: str
+                self._set_checksum_address()  # type: str
                 if not checksum_address == self.checksum_public_address:
                     error = "Federated-only Characters derive their address from their Signing key; got {} instead."
                     raise ValueError(error.format(checksum_address))
@@ -1079,7 +1081,6 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                            **character_kwargs)
 
         if not federated_only:
-
             Miner.__init__(self,
                            is_me=is_me,
                            miner_agent=miner_agent,
@@ -1126,8 +1127,8 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
     @classmethod
     def from_config(cls,
-                    filepath: str=DEFAULT_INI_FILEPATH,
-                    overrides: dict=None) -> 'Ursula':
+                    filepath: str = DEFAULT_INI_FILEPATH,
+                    overrides: dict = None) -> 'Ursula':
         """
         Initialize Ursula from .ini configuration file.
 
@@ -1157,7 +1158,8 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
     def from_bytes(cls, ursula_as_bytes: bytes,
                    federated_only: bool = False) -> 'Ursula':
 
-        signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info = cls._internal_splitter(ursula_as_bytes)
+        signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info = cls._internal_splitter(
+            ursula_as_bytes)
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: verifying_key, EncryptingPower: encrypting_key},
             interface_signature=signature,
@@ -1217,13 +1219,14 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
     #
 
     def attach_dht_server(self,
-                          ksize: int =20,
+                          ksize: int = 20,
                           alpha: int = 3,
                           node_id=None,
                           storage=None,
                           *args, **kwargs) -> None:
 
-        node_id = node_id or bytes(self.canonical_public_address)  # Ursula can still "mine" wallets until she gets a DHT ID she wants.  Does that matter?  #136
+        node_id = node_id or bytes(
+            self.canonical_public_address)  # Ursula can still "mine" wallets until she gets a DHT ID she wants.  Does that matter?  #136
         # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
         super().attach_dht_server(ksize=ksize, id=digest(node_id), alpha=alpha, storage=storage)
         self.attach_rest_server()
@@ -1240,7 +1243,7 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             raise RuntimeError("Must listen before publishing interface information.")
 
         ursula_id = self.canonical_public_address
-        interface_value = self.interface_info_with_metadata()
+        interface_value = constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(self)
         setter = self.dht_server.set(key=ursula_id, value=interface_value)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(setter)
