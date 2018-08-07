@@ -1,6 +1,7 @@
 import asyncio
 
 import pytest
+from constant_sorrow import constants
 from kademlia.utils import digest
 
 from nucypher.characters import Ursula
@@ -38,7 +39,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     assert ursula.dht_server.protocol.illegal_keys_seen == []
 
     # Vladimir does almost everything right....
-    value = vladimir.interface_info_with_metadata()
+    value = constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(vladimir)
 
     # Except he sets an illegal key for his interface.
     illegal_key = b"Not allowed to set arbitrary key for this."

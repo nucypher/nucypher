@@ -449,7 +449,7 @@ def simulate(config, action, nodes, federated_only):
             config.connect_to_blockchain()
             config.connect_to_contracts(simulation=True)
 
-        localhost = '127.0.0.1'
+        localhost = 'localhost'
 
         # Select a port range to use on localhost for sim servers
         start_port, stop_port = DEFAULT_SIMULATION_PORT, DEFAULT_SIMULATION_PORT + int(nodes)
