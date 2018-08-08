@@ -517,8 +517,8 @@ def status(config, provider, contracts, network, all):
 
 
 @cli.command()
-@click.option('--federated-only', is_flag=True, default=False)
-@click.option('--seed-node', is_flag=True, default=False)
+@click.option('--federated-only', is_flag=True)
+@click.option('--seed-node', is_flag=True)
 @click.option('--rest-port', type=int)
 @click.option('--dht-port', type=int)
 @click.option('--db-name', type=str)
@@ -558,18 +558,24 @@ def run_ursula(rest_port, dht_port, db_name,
     """
 
     if not seed_node:
-        known_nodes, other_nodes = collect_stored_nodes()  # 1. Collect known nodes
+        other_nodes = collect_stored_nodes(federated_only=federated_only)  # 1. Collect known nodes
     else:
-        known_nodes = tuple()
-
-    asyncio.set_event_loop(asyncio.new_event_loop())   # 2. Init DHT async loop
+        other_nodes = tuple()
 
     overrides = dict(federated_only=federated_only,
-                     known_nodes=known_nodes,
+                     known_nodes=other_nodes,
                      rest_port=rest_port,
                      dht_port=dht_port,
                      db_name=db_name,
                      checksum_address=checksum_address)
+
+    if seed_node:
+        seed_overrides = dict(always_be_learning=False,
+                              abort_on_learning_error=False)
+
+        overrides.update(seed_overrides)
+
+    asyncio.set_event_loop(asyncio.new_event_loop())  # 2. Init DHT async loop
 
     # 3. Initialize Ursula (includes overrides)
     ursula = Ursula.from_config(filepath=config_file,
@@ -578,9 +584,11 @@ def run_ursula(rest_port, dht_port, db_name,
 
     ursula.dht_listen()           # 4. Start DHT
 
-    write_node_metadata(node=ursula, node_metadata_dir=data_dir)
+    write_node_metadata(seed_node=seed_node, node=ursula, node_metadata_dir=data_dir)
 
-    ursula.start_learning_loop()  # 5. Enter learning loop
+    if not seed_node:
+        ursula.start_learning_loop()  # 5. Enter learning loop
+
     ursula.get_deployer().run()   # 6. Run TLS Deployer
 
     if not federated_only:
