@@ -4,6 +4,7 @@ from constant_sorrow import constants
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.interfaces import ControlCircumflex, DeployerCircumflex
+from nucypher.config.parsers import parse_blockchain_config
 
 
 class Blockchain:
@@ -36,6 +37,10 @@ class Blockchain:
         class_name = self.__class__.__name__
         r = "{}(interface={})"
         return r.format(class_name, self.__interface)
+
+    @classmethod
+    def from_config(cls) -> 'Blockchain':
+        return cls(**parse_blockchain_config())
 
     @classmethod
     def connect(cls):
@@ -81,24 +86,27 @@ class TesterBlockchain(Blockchain):
     __default_num_test_accounts = 10
     _default_network = 'tester'
 
-    def __init__(self, test_accounts=None, poa=False, airdrop=False, *args, **kwargs):
+    def __init__(self, test_accounts=None, poa=True, airdrop=False, *args, **kwargs):
 
         # Depends on circumflex
         super().__init__(*args, **kwargs)
 
-        # For use with Proof Of Authority test-blockchains
+        # For use with Proof-Of-Authority test-blockchains
         if poa is True:
             w3 = self.interface.w3
             w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
         # Generate additional ethereum accounts for testing
-        if len(self.interface.w3.eth.accounts) == 1:
-            from tests.blockchain.eth import utilities
+        enough_accounts = len(self.interface.w3.eth.accounts) > self.__default_num_test_accounts
+        if test_accounts is not None and not enough_accounts:
 
+            accounts_to_make = self.__default_num_test_accounts - len(self.interface.w3.eth.accounts)
             test_accounts = test_accounts if test_accounts is not None else self.__default_num_test_accounts
-            utilities.generate_accounts(w3=self.interface.w3, quantity=test_accounts-1)
 
-        assert test_accounts == len(self.interface.w3.eth.accounts)
+            from nucypher.utilities.blockchain import generate_accounts
+            generate_accounts(w3=self.interface.w3, quantity=accounts_to_make)
+
+            assert test_accounts == len(self.interface.w3.eth.accounts)
 
         if airdrop is True:  # ETH for everyone!
             one_million_ether = 10 ** 6 * 10 ** 18  # wei -> ether

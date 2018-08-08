@@ -1,5 +1,6 @@
-import nacl
+import json
 import os
+import stat
 from base64 import urlsafe_b64encode
 from pathlib import Path
 from typing import ClassVar
@@ -12,17 +13,98 @@ from eth_account import Account
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey
-from web3.auto import w3
 
 from nucypher.config import utils
-from nucypher.config.configs import _DEFAULT_CONFIGURATION_DIR
-from nucypher.config.utils import _parse_keyfile, _save_private_keyfile, validate_passphrase, _save_public_keyfile
+from nucypher.config.constants import DEFAULT_KEYRING_ROOT
+from nucypher.config.utils import validate_passphrase, NucypherConfigurationError
 from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower
 
-w3.eth.enable_unaudited_features()
+
+def _parse_keyfile(keypath: str):
+    """Parses a keyfile and returns key metadata as a dict."""
+
+    with open(keypath, 'r') as keyfile:
+        try:
+            key_metadata = json.loads(keyfile)
+        except json.JSONDecodeError:
+            raise NucypherConfigurationError("Invalid data in keyfile {}".format(keypath))
+        else:
+            return key_metadata
 
 
-_CONFIG_ROOT = os.path.join(str(Path.home()), '.nucypher')
+def _save_private_keyfile(keypath: str, key_data: dict) -> str:
+    """
+    Creates a permissioned keyfile and save it to the local filesystem.
+    The file must be created in this call, and will fail if the path exists.
+    Returns the filepath string used to write the keyfile.
+
+    Note: getting and setting the umask is not thread-safe!
+
+    See linux open docs: http://man7.org/linux/man-pages/man2/open.2.html
+    ---------------------------------------------------------------------
+    O_CREAT - If pathname does not exist, create it as a regular file.
+
+
+    O_EXCL - Ensure that this call creates the file: if this flag is
+             specified in conjunction with O_CREAT, and pathname already
+             exists, then open() fails with the error EEXIST.
+    ---------------------------------------------------------------------
+    """
+
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL    # Write, Create, Non-Existing
+    mode = stat.S_IRUSR | stat.S_IWUSR              # 0o600
+
+    try:
+        keyfile_descriptor = os.open(path=keypath, flags=flags, mode=mode)
+    finally:
+        os.umask(0)  # Set the umask to 0 after opening
+
+    # Write and destroy file descriptor reference
+    with os.fdopen(keyfile_descriptor, 'wb') as keyfile:
+        keyfile.write(json.dumps(key_data))
+        output_path = keyfile.name
+
+    # TODO: output_path is an integer, who knows why?
+    del keyfile_descriptor
+    return output_path
+
+
+def _save_public_keyfile(keypath: str, key_data: bytes) -> str:
+    """
+    Creates a permissioned keyfile and save it to the local filesystem.
+    The file must be created in this call, and will fail if the path exists.
+    Returns the filepath string used to write the keyfile.
+
+    Note: getting and setting the umask is not thread-safe!
+
+    See Linux open docs: http://man7.org/linux/man-pages/man2/open.2.html
+    ---------------------------------------------------------------------
+    O_CREAT - If pathname does not exist, create it as a regular file.
+
+
+    O_EXCL - Ensure that this call creates the file: if this flag is
+             specified in conjunction with O_CREAT, and pathname already
+             exists, then open() fails with the error EEXIST.
+    ---------------------------------------------------------------------
+    """
+
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL    # Write, Create, Non-Existing
+    mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH # 0o644
+
+    try:
+        keyfile_descriptor = os.open(path=keypath, flags=flags, mode=mode)
+    finally:
+        os.umask(0) # Set the umask to 0 after opening
+
+    # Write and destroy the file descriptor reference
+    with os.fdopen(keyfile_descriptor, 'wb') as keyfile:
+        # key data should be urlsafe_base64
+        keyfile.write(key_data)
+        output_path = keyfile.name
+
+    # TODO: output_path is an integer, who knows why?
+    del keyfile_descriptor
+    return output_path
 
 
 def _derive_key_material_from_passphrase(salt: bytes, passphrase: str) -> bytes:
@@ -129,7 +211,7 @@ class NucypherKeyring:
 
     """
 
-    __default_keyring_root = os.path.join(_DEFAULT_CONFIGURATION_DIR, 'keyring')
+    __default_keyring_root = DEFAULT_KEYRING_ROOT
 
     __default_public_key_dir = os.path.join(__default_keyring_root, 'public')
     __default_private_key_dir = os.path.join(__default_keyring_root, 'private')
@@ -248,11 +330,11 @@ class NucypherKeyring:
 
         assert validate_passphrase(passphrase)
 
+        # TODO
         # Ensure the configuration base directory exists
-        utils.generate_confg_dir()
+        # utils.generate_confg_dir()
 
         # Create the key directories with default paths. Raises OSError if dirs exist
-        os.mkdir(cls.__default_keyring_root, mode=0o755)    # keyring
         os.mkdir(cls.__default_public_key_dir, mode=0o744)  # public
         os.mkdir(_private_key_dir, mode=0o700)              # private
 

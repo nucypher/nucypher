@@ -6,6 +6,7 @@ from constant_sorrow import constants
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
 class EthereumContractAgent(ABC):
@@ -17,9 +18,15 @@ class EthereumContractAgent(ABC):
 
     principal_contract_name = NotImplemented
     __contract_address = NotImplemented
+    __instance = None
 
     class ContractNotDeployed(Exception):
         pass
+
+    def __new__(cls, *args, **kwargs):
+        if cls.__instance is None:
+            cls.__instance = super(EthereumContractAgent, cls).__new__(cls)
+        return cls.__instance
 
     def __init__(self, blockchain: Blockchain=None, *args, **kwargs):
 
@@ -27,11 +34,14 @@ class EthereumContractAgent(ABC):
             blockchain = Blockchain.connect()
         self.blockchain = blockchain
 
-        # Fetch the contract by reading address and abi from the registry and blockchain
-        contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
-                                                                  upgradeable=self._upgradeable)
-        self.__contract = contract
+        try:
+            # Fetch the contract by reading address and abi from the registry and blockchain
+            contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
+                                                                      upgradeable=self._upgradeable)
+        except EthereumContractRegistry.UnknownContract:
+            raise self.ContractNotDeployed("There is no registry entry for {}".format(self.principal_contract_name))
 
+        self.__contract = contract
         super().__init__()
 
     def __repr__(self):
@@ -63,6 +73,7 @@ class EthereumContractAgent(ABC):
 class NucypherTokenAgent(EthereumContractAgent):
     principal_contract_name = "NuCypherToken"
     _upgradeable = False
+    __instance = None
 
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
@@ -83,6 +94,7 @@ class MinerAgent(EthereumContractAgent):
 
     principal_contract_name = "MinersEscrow"
     _upgradeable = True
+    __instance = None
 
     class NotEnoughMiners(Exception):
         pass
@@ -125,7 +137,7 @@ class MinerAgent(EthereumContractAgent):
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
         """Send tokes to the escrow from the miner's address"""
 
-        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address})
+        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address, 'gas': 2000000})  # TODO: what..?
         self.blockchain.wait_for_receipt(deposit_txhash)
         return deposit_txhash
 
@@ -218,6 +230,7 @@ class PolicyAgent(EthereumContractAgent):
 
     principal_contract_name = "PolicyManager"
     _upgradeable = True
+    __instance = None
 
     def __init__(self, miner_agent: MinerAgent, *args, **kwargs):
         super().__init__(blockchain=miner_agent.blockchain, *args, **kwargs)

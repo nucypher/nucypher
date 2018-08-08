@@ -1,5 +1,6 @@
 import asyncio
 import random
+import time
 from collections import OrderedDict
 from collections import deque
 from contextlib import suppress
@@ -10,18 +11,19 @@ from typing import Union, List
 
 import kademlia
 import maya
-import time
-from eth_keys import KeyAPI as EthKeyAPI
-from kademlia.network import Server
-from kademlia.utils import digest
-from twisted.internet import task, threads
-
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
+from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
-from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
+from kademlia.utils import digest
+from twisted.internet import task, threads
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
+
+from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
 from nucypher.blockchain.eth.agents import MinerAgent
-from nucypher.config.configs import CharacterConfiguration
+from nucypher.blockchain.eth.constants import datetime_to_period
+from nucypher.config.parsers import parse_nucypher_ini_config, _parse_ursula_config
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -32,8 +34,6 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 
 class Character:
@@ -68,7 +68,6 @@ class Character:
                  crypto_power: CryptoPower = None,
                  crypto_power_ups=None,
                  federated_only=False,
-                 config: CharacterConfiguration = None,
                  checksum_address: bytes = None,
                  always_be_learning=False,
                  start_learning_on_same_thread=False,
@@ -96,8 +95,6 @@ class Character:
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
         """
-        self.config = config  # TODO: Do not mix with injectable params
-
         self.federated_only = federated_only
         self._abort_on_learning_error = abort_on_learning_error
 
@@ -475,7 +472,7 @@ class Character:
             new_nodes = self.learn_about_nodes(node_addr, port)
             self._known_nodes.update(new_nodes)
 
-    def get_nodes_by_ids(self, ids):
+    def get_nodes_by_ids(self, node_ids):
         for node_id in node_ids:
             try:
                 # Scenario 1: We already know about this node.
@@ -1008,7 +1005,8 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
     # TODO: 289
     def __init__(self,
-                 # Ursula things
+
+                 # Ursula
                  rest_host,
                  rest_port,
                  db_name=None,
@@ -1016,19 +1014,25 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                  dht_host=None,
                  dht_port=None,
                  interface_signature=None,
-                 miner_agent=None,
 
-                 # Character things
+                 # Blockchain
+                 miner_agent=None,
+                 stake_index=None,
+                 checksum_address=None,
+
+                 # Character
                  abort_on_learning_error=False,
                  federated_only=False,
-                 checksum_address=None,
                  always_be_learning=None,
                  crypto_power=None,
                  tls_curve=None,
                  tls_private_key=None,  # Obviously config here. 361
-                 known_nodes=(),
+                 known_nodes=None,
                  **character_kwargs
-                 ):
+                 ) -> None:
+
+        if known_nodes is None:
+            known_nodes = tuple()
 
         VerifiableNode.__init__(self, interface_signature=interface_signature)
 
@@ -1048,10 +1052,16 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                            **character_kwargs)
 
         if not federated_only:
-            Miner.__init__(self, miner_agent=miner_agent, is_me=is_me, checksum_address=checksum_address)
+
+            Miner.__init__(self, is_me=is_me,
+                           miner_agent=miner_agent,
+                           checksum_address=checksum_address,
+                           stake_index=stake_index)
+
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
-        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port,
+
+        ProxyRESTServer.__init__(self, rest_host=rest_host, rest_port=rest_port,
                                  db_name=db_name,
                                  tls_private_key=tls_private_key, tls_curve=tls_curve
                                  )
@@ -1062,6 +1072,93 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             self.attach_dht_server()
             if not federated_only:
                 self.substantiate_stamp()
+                self.initialize_stake()
+
+    @classmethod
+    def from_config(cls, filepath: str=None, federated_only=False, overrides: dict=None) -> 'Ursula':
+        """
+        Initialize Ursula from .ini configuration file.
+
+        Keyword arguments passed will take precedence over values
+        in the configuration file.
+        """
+        payload = _parse_ursula_config(filepath=filepath, federated_only=federated_only)
+        if overrides is not None:
+            overrides = {k: v for k, v in overrides.items() if v is not None}
+            payload.update(overrides)
+        return cls(**payload)
+
+    @only_me
+    def stake(self,
+              sample_rate: int = 10,
+              refresh_rate: int = 60,
+              confirm_now=True,
+              resume: bool = False,
+              expiration: maya.MayaDT = None,
+              lock_periods: int = None,
+              *args, **kwargs):
+
+        """High-level staking daemon loop"""
+
+        if lock_periods and expiration:
+            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
+        if expiration:
+            lock_periods = datetime_to_period(expiration)
+
+        if resume is False:
+            _staking_receipts = super().stake(expiration=expiration,
+                                              lock_periods=lock_periods,
+                                              *args, **kwargs)
+
+        # TODO: Check if this period has already been confirmed
+        # TODO: Check if there is an active stake in the current period: Resume staking daemon
+        # TODO: Validation and Sanity checks
+
+        if confirm_now:
+            self.confirm_activity()
+
+        # record start time and periods
+        start_time = maya.now()
+        uptime_period = self.miner_agent.get_current_period()
+        terminal_period = uptime_period + lock_periods
+        current_period = uptime_period
+
+        #
+        # Daemon
+        #
+
+        try:
+            while True:
+
+                # calculate timedeltas
+                now = maya.now()
+                initialization_delta = now - start_time
+
+                # check if iteration re-samples
+                sample_stale = initialization_delta.seconds > (refresh_rate - 1)
+                if sample_stale:
+
+                    period = self.miner_agent.get_current_period()
+                    # check for stale sample data
+                    if current_period != period:
+
+                        # check for stake expiration
+                        stake_expired = current_period >= terminal_period
+                        if stake_expired:
+                            break
+
+                        self.confirm_activity()
+                        current_period = period
+
+                # wait before resampling
+                time.sleep(sample_rate)
+                continue
+
+        finally:
+
+            # Cleanup #
+
+            pass
 
     @property
     def rest_app(self):
@@ -1073,8 +1170,10 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
     @classmethod
     def from_miner(cls, miner, *args, **kwargs):
-        instance = cls(miner_agent=miner.miner_agent, ether_address=miner._ether_address,
-                       ferated_only=False, *args, **kwargs)
+        instance = cls(miner_agent=miner.miner_agent,
+                       ether_address=miner._ether_address,
+                       ferated_only=False,
+                       *args, **kwargs)
 
         instance.attach_dht_server()
         # instance.attach_rest_server()
