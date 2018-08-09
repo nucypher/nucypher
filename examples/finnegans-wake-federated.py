@@ -25,8 +25,8 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 root.addHandler(ch)
 
-teacher_dht_port = 3552
-teacher_rest_port = 3652
+teacher_dht_port = sys.argv[2]
+teacher_rest_port = int(teacher_dht_port) + 100
 with open("examples-runtime-cruft/node-metadata-{}".format(teacher_rest_port), "r") as f:
     f.seek(0)
     teacher_bytes = binascii.unhexlify(f.read())

@@ -14,8 +14,6 @@ from nucypher.characters import Ursula
 
 
 DB_NAME = "examples-runtime-cruft/db"
-STARTING_PORT = 3501
-
 
 import logging, binascii
 import sys

@@ -1,5 +1,6 @@
 import asyncio
 import random
+import time
 from collections import OrderedDict
 from collections import deque
 from contextlib import suppress
@@ -10,15 +11,16 @@ from typing import Union, List
 
 import kademlia
 import maya
-import time
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
+from eth_utils import to_checksum_address, to_canonical_address
 from kademlia.network import Server
 from kademlia.utils import digest
 from twisted.internet import task, threads
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants, default_constant_splitter
-from eth_utils import to_checksum_address, to_canonical_address
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.config.configs import CharacterConfiguration
@@ -32,8 +34,6 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 
 class Character:
@@ -977,16 +977,12 @@ class Bob(Character):
             cfrags = self.get_reencrypted_cfrags(work_order)
             message_kit.capsule.attach_cfrag(cfrags[0])
 
-        verified, delivered_cleartext = self.verify_from(data_source,
-                                                         message_kit,
-                                                         decrypt=True,
-                                                         delegator_signing_key=alice_verifying_key)
+        delivered_cleartext = self.verify_from(data_source,
+                                               message_kit,
+                                               decrypt=True,
+                                               delegator_signing_key=alice_verifying_key)
 
-        if verified:
-            cleartexts.append(delivered_cleartext)
-        else:
-            raise RuntimeError(
-                "Not verified - replace this with real message.")  # TODO: Actually raise an error in verify_from instead of here 358
+        cleartexts.append(delivered_cleartext)
         return cleartexts
 
 
