@@ -4,6 +4,7 @@ from constant_sorrow import constants
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.interfaces import ControlCircumflex, DeployerCircumflex
+from nucypher.config.constants import DEFAULT_INI_FILEPATH
 from nucypher.config.parsers import parse_blockchain_config
 
 
@@ -14,8 +15,7 @@ class Blockchain:
     _default_network = NotImplemented
     __default_interface_class = ControlCircumflex
 
-    test_chains = ('tester', )
-    transient_chains = test_chains + ('testrpc', 'temp')
+    test_chains = ('tester', 'temp')
     public_chains = ('mainnet', 'ropsten')
 
     class ConnectionNotEstablished(RuntimeError):
@@ -39,8 +39,25 @@ class Blockchain:
         return r.format(class_name, self.__interface)
 
     @classmethod
-    def from_config(cls) -> 'Blockchain':
-        return cls(**parse_blockchain_config())
+    def from_config(cls, filepath=None, registry_filepath: str=None) -> 'Blockchain':
+
+        filepath = filepath if filepath is not None else DEFAULT_INI_FILEPATH
+        payload = parse_blockchain_config(filepath=filepath)
+
+        interface = ControlCircumflex.from_config(filepath=filepath)
+
+        if cls._instance is not None:
+            return cls.connect()
+
+        if payload['tester']:
+            blockchain = TesterBlockchain(interface=interface,
+                                          poa=payload['poa'],
+                                          test_accounts=payload['test_accounts'],
+                                          airdrop=False)
+        else:
+            blockchain = Blockchain(interface=interface)
+
+        return blockchain
 
     @classmethod
     def connect(cls):
