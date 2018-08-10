@@ -10,7 +10,11 @@ import sys
 
 import maya
 
+from nucypher.blockchain.eth.agents import PolicyAgent
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.characters import Alice, Bob, Ursula
+from nucypher.config.constants import DEFAULT_SIMULATION_REGISTRY_FILEPATH
+from nucypher.config.metadata import collect_stored_nodes
 from nucypher.data_sources import DataSource
 # This is already running in another process.
 from nucypher.network.middleware import RestMiddleware
@@ -25,23 +29,16 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 root.addHandler(ch)
 
-teacher_dht_port = sys.argv[2]
-teacher_rest_port = int(teacher_dht_port) + 100
-with open("examples-runtime-cruft/node-metadata-{}".format(teacher_rest_port), "r") as f:
-    f.seek(0)
-    teacher_bytes = binascii.unhexlify(f.read())
-URSULA = Ursula.from_bytes(teacher_bytes, federated_only=True)
-print("Will learn from {}".format(URSULA))
-
-# network_middleware = SandboxRestMiddleware([URSULA])
 
 #########
 # Alice #
 #########
+BLOCKCHAIN = Blockchain.connect()
 
 ALICE = Alice(network_middleware=RestMiddleware(),
-              known_nodes=(URSULA,),  # in lieu of seed nodes
-              federated_only=True,
+              policy_agent=PolicyAgent(registry_filepath=DEFAULT_SIMULATION_REGISTRY_FILEPATH),
+              known_nodes=collect_stored_nodes(),
+              checksum_address=BLOCKCHAIN.interface.w3.eth.accounts[1],
               always_be_learning=True)  # TODO: 289
 
 # Here are our Policy details.
@@ -51,7 +48,10 @@ n = 3
 label = b"secret/files/and/stuff"
 
 # Alice grants to Bob.
-BOB = Bob(known_nodes=(URSULA,), federated_only=True, always_be_learning=True)
+BOB = Bob(known_nodes=collect_stored_nodes(),
+          checksum_address=BLOCKCHAIN.interface.w3.eth.accounts[2],
+          always_be_learning=True)
+
 ALICE.start_learning_loop(now=True)
 policy = ALICE.grant(BOB, label, m=m, n=n,
                      expiration=policy_end_datetime)
