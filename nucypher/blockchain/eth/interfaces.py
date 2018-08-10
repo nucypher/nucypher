@@ -239,6 +239,71 @@ class ControlCircumflex:
             interfaces = self.__sol_compiler.compile()
             self.__raw_contract_cache = interfaces
 
+    def connect(self,
+                provider_uri: str = None,
+                providers: list = None):
+
+        if provider_uri is None and not providers:
+            raise self.InterfaceError("No URI supplied.")
+
+        if provider_uri and not providers:
+            uri_breakdown = urlparse(provider_uri)
+        elif providers and not provider_uri:
+            raise NotImplementedError
+        else:
+            raise self.InterfaceError("Pass a provider URI string or a list of providers, not both.")
+
+        # stub
+        if providers is None:
+            providers = list()
+
+        # IPC
+        if uri_breakdown.scheme == 'ipc':
+            provider = IPCProvider(ipc_path=uri_breakdown.path, timeout=self.timeout)
+
+        # Websocket
+        elif uri_breakdown.scheme == 'ws':
+            provider = WebsocketProvider(endpoint_uri=provider_uri)
+            raise NotImplementedError
+
+        # HTTP
+        elif uri_breakdown.scheme in ('http', 'https'):
+            provider = HTTPProvider(endpoint_uri=provider_uri)
+            raise NotImplementedError
+
+        else:
+            raise self.InterfaceError("'{}' is not a blockchain provider protocol".format(uri_breakdown.scheme))
+
+        providers.append(provider)
+
+        # Connect
+        self._providers = providers
+        web3_instance = Web3(providers=self._providers)  # Instantiate Web3 object with provider
+        self.w3 = web3_instance
+
+        # Check connection
+        if not self.is_connected:
+            raise self.InterfaceError('Failed to connect to {}'.format(provider_uri))
+
+        return True
+
+    @classmethod
+    def from_config(cls, filepath=None, registry_filepath: str=None) -> 'ControlCircumflex':
+        filepath = filepath if filepath is None else DEFAULT_INI_FILEPATH
+        payload = parse_blockchain_config(filepath=filepath)
+
+        compiler = SolidityCompiler() if payload['compile'] else None
+
+        registry = EthereumContractRegistry.from_config(filepath=filepath)
+
+        interface_class = ControlCircumflex if not payload['deploy'] else DeployerCircumflex
+        circumflex = interface_class(timeout=payload['timeout'],
+                                     provider_uri=payload['provider_uri'],
+                                     compiler=compiler,
+                                     registry=registry)
+
+        return circumflex
+
     @property
     def network(self) -> str:
         return self.__network
