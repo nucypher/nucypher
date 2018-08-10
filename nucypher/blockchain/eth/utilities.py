@@ -26,7 +26,7 @@ class TemporaryEthereumContractRegistry(EthereumContractRegistry):
 
     def commit(self, filepath) -> str:
         """writes the current state of the registry to a file"""
-        self._registry_filepath = filepath                # I'll allow it
+        self._swap_registry(filepath)                     # I'll allow it
 
         if os.path.exists(filepath):
             self.clear()                                  # clear prior sim runs

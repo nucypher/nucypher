@@ -6,6 +6,7 @@ import maya
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
 from nucypher.blockchain.eth.constants import calculate_period_duration, datetime_to_period, validate_stake_amount
+from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
 def only_me(func):
@@ -25,7 +26,10 @@ class NucypherTokenActor:
     class ActorError(Exception):
         pass
 
-    def __init__(self, checksum_address: str = None, token_agent: NucypherTokenAgent = None):
+    def __init__(self,
+                 checksum_address: str = None,
+                 token_agent: NucypherTokenAgent = None,
+                 registry_filepath: str = None) -> None:
         """
         :param checksum_address:  If not passed, we assume this is an unknown actor
 
@@ -40,6 +44,9 @@ class NucypherTokenActor:
                     raise ValueError("Can't have two different addresses.")
         except AttributeError:
             self.checksum_public_address = checksum_address
+
+        if registry_filepath is not None:
+            EthereumContractRegistry.from_config(registry_filepath=registry_filepath)
 
         self.token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
         self._transaction_cache = list()  # track transactions transmitted
@@ -256,7 +263,7 @@ class Miner(NucypherTokenActor):
 class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
-    def __init__(self, checksum_address, policy_agent: PolicyAgent = None):
+    def __init__(self, checksum_address: str, policy_agent: PolicyAgent = None):
         """
         :param policy_agent: A policy agent with the blockchain attached; If not passed, A default policy
         agent and blockchain connection will be created from default values.

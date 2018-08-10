@@ -23,16 +23,23 @@ class EthereumContractAgent(ABC):
     class ContractNotDeployed(Exception):
         pass
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs) -> 'EthereumContractAgent':
         if cls.__instance is None:
             cls.__instance = super(EthereumContractAgent, cls).__new__(cls)
         return cls.__instance
 
-    def __init__(self, blockchain: Blockchain=None, *args, **kwargs):
+    def __init__(self,
+                 blockchain: Blockchain = None,
+                 registry_filepath: str = None,
+                 *args, **kwargs) -> None:
 
         if blockchain is None:
             blockchain = Blockchain.connect()
         self.blockchain = blockchain
+
+        if registry_filepath is not None:
+            # TODO: Warn on override?
+            self.blockchain.interface._registry._swap_registry(filepath=registry_filepath)
 
         try:
             # Fetch the contract by reading address and abi from the registry and blockchain
@@ -99,9 +106,9 @@ class MinerAgent(EthereumContractAgent):
     class NotEnoughMiners(Exception):
         pass
 
-    def __init__(self, token_agent: NucypherTokenAgent=None, *args, **kwargs):
-        token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
-        super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
+    def __init__(self, token_agent: NucypherTokenAgent=None, registry_filepath=None, *args, **kwargs):
+        token_agent = token_agent if token_agent is not None else NucypherTokenAgent(registry_filepath=registry_filepath)
+        super().__init__(blockchain=token_agent.blockchain, registry_filepath=registry_filepath, *args, **kwargs)
         self.token_agent = token_agent
 
     #
@@ -201,14 +208,14 @@ class MinerAgent(EthereumContractAgent):
 
         miners_population = self.get_miner_population()
         if quantity > miners_population:
-            raise self.NotEnoughMiners('Only {} miners are available'.format(miners_population))
+            raise self.NotEnoughMiners('{} miners are available'.format(miners_population))
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
         n_tokens = self.contract.functions.getAllLockedTokens(duration).call()
 
         if n_tokens == 0:
-            raise self.NotEnoughMiners('There are no locked tokens.')
+            raise self.NotEnoughMiners('There are no locked tokens for duration {}.'.format(duration))
 
         for _ in range(attempts):
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
@@ -232,8 +239,12 @@ class PolicyAgent(EthereumContractAgent):
     _upgradeable = True
     __instance = None
 
-    def __init__(self, miner_agent: MinerAgent, *args, **kwargs):
-        super().__init__(blockchain=miner_agent.blockchain, *args, **kwargs)
+    def __init__(self,
+                 miner_agent: MinerAgent = None,
+                 registry_filepath=None,
+                 *args, **kwargs):
+        miner_agent = miner_agent if miner_agent is not None else MinerAgent(registry_filepath=registry_filepath)
+        super().__init__(blockchain=miner_agent.blockchain, registry_filepath=registry_filepath, *args, **kwargs)
         self.miner_agent = miner_agent
         self.token_agent = miner_agent.token_agent
 

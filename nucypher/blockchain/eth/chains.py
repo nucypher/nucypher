@@ -39,7 +39,7 @@ class Blockchain:
         return r.format(class_name, self.__interface)
 
     @classmethod
-    def from_config(cls, filepath=None, registry_filepath: str=None) -> 'Blockchain':
+    def from_config(cls, filepath=None) -> 'Blockchain':
 
         filepath = filepath if filepath is not None else DEFAULT_INI_FILEPATH
         payload = parse_blockchain_config(filepath=filepath)
@@ -60,9 +60,12 @@ class Blockchain:
         return blockchain
 
     @classmethod
-    def connect(cls):
+    def connect(cls, from_config=True, config_filepath: str=None):
         if cls._instance is None:
-            raise cls.ConnectionNotEstablished('A connection has not yet been established. init the blockchain.')
+            if from_config:
+                return cls.from_config(filepath=config_filepath)
+            else:
+                raise cls.ConnectionNotEstablished('A connection has not yet been established. init the blockchain.')
         return cls._instance
 
     @classmethod
