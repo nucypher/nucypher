@@ -3,6 +3,7 @@ import shutil
 import tempfile
 
 import pkg_resources
+from constant_sorrow import constants
 from eth_tester import PyEVMBackend
 from eth_tester.backends import is_pyevm_available
 from eth_tester.backends.pyevm.main import get_default_genesis_params, get_default_account_keys, generate_genesis_state
@@ -25,12 +26,19 @@ class TemporaryEthereumContractRegistry(EthereumContractRegistry):
 
     def commit(self, filepath) -> str:
         """writes the current state of the registry to a file"""
-        return shutil.copy(self.temp_filepath, filepath)
+        self._registry_filepath = filepath                # I'll allow it
+
+        if os.path.exists(filepath):
+            self.clear()                                  # clear prior sim runs
+
+        _ = shutil.copy(self.temp_filepath, filepath)
+        self.temp_filepath = constants.REGISTRY_COMMITED  # just in case
+        return filepath
 
 
 class OverridablePyEVMBackend(PyEVMBackend):
 
-    def __init__(self, genesis_overrides=None):
+    def __init__(self, genesis_overrides: dict=None) -> None:
         """
         Example overrides
         ---------------------------------
