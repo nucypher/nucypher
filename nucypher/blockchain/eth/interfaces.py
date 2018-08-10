@@ -1,20 +1,17 @@
-import binascii
 import json
 import os
-import warnings
-from pathlib import Path
-from typing import Tuple, List
+from typing import Tuple
 from urllib.parse import urlparse
 
 from constant_sorrow import constants
-from eth_utils import to_canonical_address
 from eth_keys.datatypes import PublicKey, Signature
-from web3.providers.eth_tester.main import EthereumTesterProvider
+from eth_utils import to_canonical_address
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
+from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_INI_FILEPATH, DEFAULT_SIMULATION_REGISTRY_FILEPATH
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_INI_FILEPATH
 from nucypher.config.parsers import parse_blockchain_config
 
 
@@ -38,7 +35,7 @@ class EthereumContractRegistry:
         """Raised when invalid data is encountered in the registry"""
 
     def __init__(self, registry_filepath: str=None):
-        self._registry_filepath = registry_filepath or self.__default_registry_path
+        self.__registry_filepath = registry_filepath or self.__default_registry_path
 
     @classmethod
     def from_config(cls, filepath=None, **overrides) -> 'EthereumContractRegistry':
@@ -47,8 +44,7 @@ class EthereumContractRegistry:
         filepath = filepath if filepath is None else DEFAULT_INI_FILEPATH
         payload = parse_blockchain_config(filepath=filepath)
 
-        if payload['tmp_registry']:
-            # In memory only
+        if payload['tmp_registry']:  # In memory only
             registry = TemporaryEthereumContractRegistry()
         else:
             registry = EthereumContractRegistry(**overrides)
@@ -57,7 +53,11 @@ class EthereumContractRegistry:
 
     @property
     def registry_filepath(self):
-        return self._registry_filepath
+        return self.__registry_filepath
+
+    def _swap_registry(self, filepath: str) -> True:
+        self.__registry_filepath = filepath
+        return True
 
     def __write(self, registry_data: list) -> None:
         """
@@ -65,7 +65,7 @@ class EthereumContractRegistry:
         file exists, it will create it and write the data. If a file does exist
         it will _overwrite_ everything in it.
         """
-        with open(self._registry_filepath, 'w+') as registry_file:
+        with open(self.__registry_filepath, 'w+') as registry_file:
             registry_file.seek(0)
             registry_file.write(json.dumps(registry_data))
             registry_file.truncate()
@@ -80,7 +80,7 @@ class EthereumContractRegistry:
         modify it because _write_registry_file overwrites the file.
         """
         try:
-            with open(self._registry_filepath, 'r') as registry_file:
+            with open(self.__registry_filepath, 'r') as registry_file:
                 registry_file.seek(0)
                 file_data = registry_file.read()
                 if file_data:
@@ -89,7 +89,7 @@ class EthereumContractRegistry:
                     registry_data = list()  # Existing, but empty registry
 
         except FileNotFoundError:
-            raise self.RegistryError("No registy at filepath: {}".format(self._registry_filepath))
+            raise self.RegistryError("No registy at filepath: {}".format(self.__registry_filepath))
 
         return registry_data
 
