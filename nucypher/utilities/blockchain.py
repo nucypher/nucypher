@@ -118,60 +118,6 @@ def generate_accounts(w3: Web3, quantity: int) -> List[str]:
     return addresses
 
 
-def bootstrap_fake_network(blockchain: TesterBlockchain=None,
-                           airdrop: bool=True
-                           ) -> Tuple[EthereumContractAgent, ...]:
-    """
-
-    Deploys all NuCypher ethereum contracts to the TesterBlockchain,
-    then (optionally) airdrops 1 Million ethereum to each test account.
-
-    Note: This utility is intended only for use in conjunction with EthereumTester, Circumflex Web3 Providers,
-    the TesterBlockchain and network simulation command line tools.
-
-    WARNING: This is an unsafe deployment script. Intended for simulation purposes only.
-
-    """
-
-    # Connect to the blockchain
-    if blockchain is None:
-        blockchain = TesterBlockchain.from_config()
-
-    # TODO: Enforce Saftey - ensure this is "fake" #
-    conditions = ()
-
-    assert True
-
-    # Parse addresses
-    etherbase, *everybody_else = blockchain.interface.w3.eth.accounts
-
-    # Deploy contracts
-    token_deployer = NucypherTokenDeployer(blockchain=blockchain, deployer_address=etherbase)
-    token_deployer.arm()
-    token_deployer.deploy()
-    token_agent = token_deployer.make_agent()
-
-    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=etherbase)
-    miner_escrow_deployer.arm()
-    miner_escrow_deployer.deploy()
-    miner_agent = miner_escrow_deployer.make_agent()
-
-    policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=etherbase)
-    policy_manager_deployer.arm()
-    policy_manager_deployer.deploy()
-    _policy_agent = policy_manager_deployer.make_agent()
-
-    # Airdrop ethereum
-    if airdrop is True:
-        airdrop_amount = 1000000 * int(constants.M)
-        _receipts = token_airdrop(token_agent=token_agent,
-                                  origin=etherbase,
-                                  addresses=everybody_else,
-                                  amount=airdrop_amount)
-
-    return token_agent, miner_agent, _policy_agent
-
-
 def spawn_random_miners(miner_agent, addresses: list) -> list:
     """
     Deposit and lock a random amount of tokens in the miner escrow
