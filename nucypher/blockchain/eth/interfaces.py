@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Tuple
+from typing import Tuple, Union
 from urllib.parse import urlparse
 
 from constant_sorrow import constants
@@ -8,6 +8,7 @@ from eth_keys.datatypes import PublicKey, Signature
 from eth_utils import to_canonical_address
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
+from web3.providers import BaseProvider
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -215,15 +216,22 @@ class ControlCircumflex:
         #
         # Providers
         #
+
+        self.w3 = constants.NO_BLOCKCHAIN_CONNECTION
+        self.__providers = providers if providers is not None else constants.NO_BLOCKCHAIN_CONNECTION
+
         if provider_uri and providers:
             raise self.InterfaceError("Pass a provider URI string, or a list of provider instances.")
-        self.provider_uri = provider_uri
-        self._providers = list() if providers is None else providers
-
-        # If custom __providers are not injected...
-        self.w3 = constants.NO_BLOCKCHAIN_CONNECTION
-        if autoconnect is True:
-            self.connect(provider_uri=self.provider_uri)
+        elif provider_uri:
+            self.provider_uri = provider_uri
+            self.add_provider(provider_uri=provider_uri)
+        elif providers:
+            self.provider_uri = constants.MANUAL_PROVIDERS_SET
+            for provider in providers:
+                self.add_provider(provider)
+        else:
+            # TODO: Emit a warning / log: No provider supplied for blockchain interface
+            pass
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
         recompile = True if compiler is not None else False
@@ -231,7 +239,7 @@ class ControlCircumflex:
         self.__sol_compiler = compiler
 
         # Setup the registry and base contract factory cache
-        registry = registry if registry is not None else EthereumContractRegistry()
+        registry = registry if registry is not None else EthereumContractRegistry().from_config()
         self._registry = registry
 
         if self.__recompile is True:
@@ -239,64 +247,38 @@ class ControlCircumflex:
             interfaces = self.__sol_compiler.compile()
             self.__raw_contract_cache = interfaces
 
-    def connect(self,
-                provider_uri: str = None,
-                providers: list = None):
+        # Auto-connect
+        self.autoconnect = autoconnect
+        if self.autoconnect is True:
+            self.connect()
 
-        if provider_uri is None and not providers:
-            raise self.InterfaceError("No URI supplied.")
+    def connect(self):
 
-        if provider_uri and not providers:
-            uri_breakdown = urlparse(provider_uri)
-        elif providers and not provider_uri:
-            raise NotImplementedError
-        else:
-            raise self.InterfaceError("Pass a provider URI string or a list of providers, not both.")
-
-        # stub
-        if providers is None:
-            providers = list()
-
-        # IPC
-        if uri_breakdown.scheme == 'ipc':
-            provider = IPCProvider(ipc_path=uri_breakdown.path, timeout=self.timeout)
-
-        # Websocket
-        elif uri_breakdown.scheme == 'ws':
-            provider = WebsocketProvider(endpoint_uri=provider_uri)
-            raise NotImplementedError
-
-        # HTTP
-        elif uri_breakdown.scheme in ('http', 'https'):
-            provider = HTTPProvider(endpoint_uri=provider_uri)
-            raise NotImplementedError
-
-        else:
-            raise self.InterfaceError("'{}' is not a blockchain provider protocol".format(uri_breakdown.scheme))
-
-        providers.append(provider)
+        if self.__providers is constants.NO_BLOCKCHAIN_CONNECTION:
+            raise self.InterfaceError("There are no configured blockchain providers")
 
         # Connect
-        self._providers = providers
-        web3_instance = Web3(providers=self._providers)  # Instantiate Web3 object with provider
+        web3_instance = Web3(providers=self.__providers)  # Instantiate Web3 object with provider
         self.w3 = web3_instance
 
         # Check connection
         if not self.is_connected:
-            raise self.InterfaceError('Failed to connect to {}'.format(provider_uri))
+            raise self.InterfaceError('Failed to connect to providers: {}'.format(self.__providers))
 
         return True
 
     @classmethod
-    def from_config(cls, filepath=None, registry_filepath: str=None) -> 'ControlCircumflex':
+    def from_config(cls, filepath=None) -> 'ControlCircumflex':
+        # Parse
         filepath = filepath if filepath is None else DEFAULT_INI_FILEPATH
         payload = parse_blockchain_config(filepath=filepath)
 
+        # Init deps
         compiler = SolidityCompiler() if payload['compile'] else None
-
         registry = EthereumContractRegistry.from_config(filepath=filepath)
-
         interface_class = ControlCircumflex if not payload['deploy'] else DeployerCircumflex
+
+        # init class
         circumflex = interface_class(timeout=payload['timeout'],
                                      provider_uri=payload['provider_uri'],
                                      compiler=compiler,
@@ -320,35 +302,36 @@ class ControlCircumflex:
         """Return node version information"""
         return self.w3.version.node           # type of connected node
 
-    def add_provider(self, provider=None, endpoint_uri: str=None,
-                     websocket=False, ipc_path=None, timeout=None) -> None:
+    def add_provider(self,
+                     provider: Union[IPCProvider, WebsocketProvider, HTTPProvider] = None,
+                     provider_uri: str = None,
+                     timeout: int = None) -> None:
 
-        if provider is None:
+        if not provider_uri and not provider:
+            raise self.InterfaceError("No URI or provider instances supplied.")
 
-            # Validate parameters
-            if websocket and not endpoint_uri:
-                if ipc_path is not None:
-                    raise self.InterfaceError("Use either HTTP/Websocket or IPC params, not both.")
-                raise self.InterfaceError('Must pass endpoint_uri when using websocket __providers.')
+        if provider_uri and not provider:
+            uri_breakdown = urlparse(provider_uri)
 
-            if ipc_path is not None:
-                if endpoint_uri or websocket:
-                    raise self.InterfaceError("Use either HTTP/Websocket or IPC params, not both.")
+            # IPC
+            if uri_breakdown.scheme == 'ipc':
+                provider = IPCProvider(ipc_path=uri_breakdown.path, timeout=timeout)
 
-            # HTTP / Websocket Provider
-            if endpoint_uri is not None:
-                if websocket is True:
-                    provider = WebsocketProvider(endpoint_uri)
-                else:
-                    provider = HTTPProvider(endpoint_uri)
+            # Websocket
+            elif uri_breakdown.scheme == 'ws':
+                provider = WebsocketProvider(endpoint_uri=provider_uri)
 
-            # IPC Provider
-            elif ipc_path:
-                provider = IPCProvider(ipc_path=ipc_path, testnet=False, timeout=timeout)
+            # HTTP
+            elif uri_breakdown.scheme in ('http', 'https'):
+                provider = HTTPProvider(endpoint_uri=provider_uri)
+
             else:
-                raise self.InterfaceError("Invalid interface parameters. Pass endpoint_uri or ipc_path")
+                raise self.InterfaceError("'{}' is not a blockchain provider protocol".format(uri_breakdown.scheme))
 
-        self._providers.append(provider)
+            # lazy
+            if self.__providers is constants.NO_BLOCKCHAIN_CONNECTION:
+                self.__providers = list()
+            self.__providers.append(provider)
 
     def get_contract_factory(self, contract_name) -> Contract:
         """Retrieve compiled interface data from the cache and return web3 contract"""
