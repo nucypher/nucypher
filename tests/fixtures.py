@@ -30,7 +30,6 @@ from nucypher.utilities.network import MockRestMiddleware
 # Setup
 #
 
-BASE_DIR = abspath(dirname(dirname(nucypher.__file__)))
 
 test_contract_dir = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 constants.TEST_CONTRACTS_DIR(test_contract_dir)

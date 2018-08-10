@@ -3,9 +3,13 @@
 
 import asyncio
 import random
+import subprocess
+import sys
+from os.path import abspath, dirname
 
 from constant_sorrow import constants
 
+import nucypher
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.chains import Blockchain, TesterBlockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
@@ -14,6 +18,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_SIMULATION_PO
     DEFAULT_SIMULATION_REGISTRY_FILEPATH, DEFAULT_INI_FILEPATH
 from nucypher.config.metadata import write_node_metadata, collect_stored_nodes
 from nucypher.config.parsers import parse_nucypher_ini_config, parse_running_modes
+
 
 __version__ = '0.1.0-mock'
 
@@ -43,6 +48,7 @@ from nucypher.utilities.blockchain import token_airdrop
 from nucypher.config.utils import validate_nucypher_ini_config, initialize_configuration
 from nucypher.utilities.simulate import UrsulaProcessProtocol
 
+BASE_DIR = abspath(dirname(dirname(nucypher.__file__)))
 
 class NucypherClickConfig:
 
@@ -87,6 +93,7 @@ class NucypherClickConfig:
         self.blockchain = Blockchain.from_config(filepath=self.config_filepath)
         self.accounts = self.blockchain.interface.w3.eth.accounts
 
+        #TODO: Exception handling here for key error when using incompadible operating mode
         if self.payload['tester'] and self.payload['deploy']:
             self.blockchain.interface.deployer_address = self.accounts[0]
 
@@ -94,7 +101,7 @@ class NucypherClickConfig:
         """Initialize contract agency and set them on config"""
 
         if simulation is True:
-            self.blockchain.interface._registry._registry_filepath = self.sim_registry_filepath
+            self.blockchain.interface._registry._swap_registry(filepath=self.sim_registry_filepath)
 
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.miner_agent = MinerAgent(token_agent=self.token_agent)
@@ -445,8 +452,9 @@ def simulate(config, action, nodes, federated_only):
 
     elif action == 'swarm':
 
-        config.connect_to_blockchain()
-        config.connect_to_contracts(simulation=True)
+        if not federated_only:
+            config.connect_to_blockchain()
+            config.connect_to_contracts(simulation=True)
 
         localhost = '127.0.0.1'
 
@@ -526,9 +534,6 @@ def simulate(config, action, nodes, federated_only):
 
             click.echo("Stopping simulated Ursula processes")
             for process in config.sim_processes:
-
-                import ipdb; ipdb.set_trace()
-
                 os.kill(process.pid, 9)
                 click.echo("Killed {}".format(process))
             config.simulation_running = False
@@ -562,6 +567,11 @@ def simulate(config, action, nodes, federated_only):
             """.format(ursula_processes)
 
         click.echo(status_message)
+
+    elif action == 'demo':
+        """Run the finnegans wake demo"""
+        demo_exec = os.path.join(BASE_DIR, 'examples', 'finnegans-wake-federated.py')
+        subprocess.run([sys.executable, demo_exec], stdout=subprocess.PIPE)
 
 
 @cli.command()
