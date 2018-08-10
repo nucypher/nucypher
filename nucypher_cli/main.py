@@ -335,10 +335,10 @@ def stake(config, action, address, index, value, duration):
 
 @cli.command()
 @click.argument('action')
+@click.option('--federated-only', is_flag=True)
 @click.option('--nodes', help="The number of nodes to simulate", type=int)
-# @click.option('--periods', help="The number of periods to run the simulation for")
 @uses_config
-def simulation(config, action, nodes):
+def simulate(config, action, nodes, federated_only):
     """
     Simulate the nucypher blockchain network
 
@@ -346,8 +346,8 @@ def simulation(config, action, nodes):
     ==========
 
     action - Which action to perform; The choices are:
-        - start: Start a multi-process nucypher network simulation
-        - stop: Stop a running simulation gracefully
+           - start: Start a multi-process nucypher network simulation
+           - stop: Stop a running simulation gracefully
 
     Options
     ========
@@ -545,7 +545,7 @@ def simulation(config, action, nodes):
 @click.option('--contracts', help="Echo nucypher smart contract info", is_flag=True)
 @click.option('--network', help="Echo the network status", is_flag=True)
 @uses_config
-def status(config, provider, contracts, network, all):
+def status(config, provider, contracts, network):
     """
     Echo a snapshot of live network metadata.
     """
