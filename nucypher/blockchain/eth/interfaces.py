@@ -38,7 +38,7 @@ class EthereumContractRegistry:
         """Raised when invalid data is encountered in the registry"""
 
     def __init__(self, registry_filepath: str=None):
-        self.__registry_filepath = registry_filepath or self.__default_registry_path
+        self._registry_filepath = registry_filepath or self.__default_registry_path
 
     @classmethod
     def from_config(cls, filepath=None, **overrides) -> 'EthereumContractRegistry':
@@ -57,7 +57,7 @@ class EthereumContractRegistry:
 
     @property
     def registry_filepath(self):
-        return self.__registry_filepath
+        return self._registry_filepath
 
     def __write(self, registry_data: list) -> None:
         """
@@ -65,7 +65,7 @@ class EthereumContractRegistry:
         file exists, it will create it and write the data. If a file does exist
         it will _overwrite_ everything in it.
         """
-        with open(self.__registry_filepath, 'w+') as registry_file:
+        with open(self._registry_filepath, 'w+') as registry_file:
             registry_file.seek(0)
             registry_file.write(json.dumps(registry_data))
             registry_file.truncate()
@@ -80,7 +80,7 @@ class EthereumContractRegistry:
         modify it because _write_registry_file overwrites the file.
         """
         try:
-            with open(self.__registry_filepath, 'r') as registry_file:
+            with open(self._registry_filepath, 'r') as registry_file:
                 registry_file.seek(0)
                 file_data = registry_file.read()
                 if file_data:
@@ -89,7 +89,7 @@ class EthereumContractRegistry:
                     registry_data = list()  # Existing, but empty registry
 
         except FileNotFoundError:
-            raise self.RegistryError("No registy at filepath: {}".format(self.__registry_filepath))
+            raise self.RegistryError("No registy at filepath: {}".format(self._registry_filepath))
 
         return registry_data
 
