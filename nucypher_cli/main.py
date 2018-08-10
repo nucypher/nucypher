@@ -47,23 +47,32 @@ from nucypher.utilities.simulate import UrsulaProcessProtocol
 class NucypherClickConfig:
 
     def __init__(self):
-        
+
         self.config_filepath = DEFAULT_INI_FILEPATH  # TODO
         click.echo("Using configuration filepath {}".format(self.config_filepath))
 
         # Set operating and run modes
         operating_modes = parse_running_modes(filepath=self.config_filepath)
         self.simulation_mode = operating_modes.get('simulation', False)
-        self.simulation_running = False if self.simulation_mode else constants.LIVE_MODE
+        if self.simulation_mode is True:
+            simulation_running = False
+            sim_registry_filepath = DEFAULT_SIMULATION_REGISTRY_FILEPATH
+        else:
+            simulation_running = constants.LIVE_MODE_ENABLED
+            sim_registry_filepath = constants.LIVE_MODE_ENABLED
+
+        self.simulation_running = simulation_running
+        self.sim_registry_filepath = sim_registry_filepath
+        self.sim_processes = list()
 
         run_mode = 'simulation' if self.simulation_mode else 'live'
         click.echo("Running in {} mode".format(run_mode))
 
-        self.payload = parse_nucypher_ini_config(filepath=self.config_filepath)
-        click.echo("Successfully parsed configuration file")
-
         self.operating_mode = operating_modes.get('operating_mode', 'decentralized')
         click.echo("Running in {} mode".format(self.operating_mode))
+
+        self.payload = parse_nucypher_ini_config(filepath=self.config_filepath)
+        click.echo("Successfully parsed configuration file")
 
         # Blockchain connection contract agency
         self.blockchain = constants.NO_BLOCKCHAIN_CONNECTION
@@ -81,8 +90,11 @@ class NucypherClickConfig:
         if self.payload['tester'] and self.payload['deploy']:
             self.blockchain.interface.deployer_address = self.accounts[0]
 
-    def connect_to_contracts(self):
+    def connect_to_contracts(self, simulation: bool=False):
         """Initialize contract agency and set them on config"""
+
+        if simulation is True:
+            self.blockchain.interface._registry._registry_filepath = self.sim_registry_filepath
 
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.miner_agent = MinerAgent(token_agent=self.token_agent)
@@ -90,16 +102,14 @@ class NucypherClickConfig:
 
     @property
     def rest_uri(self):
-        payload = self.payload['ursula.network.rest']
-        host, port = payload['host'], payload['port']
-        uri_template = "https://{}:{}"
+        host, port = self.payload['rest_host'], self.payload['rest_port']
+        uri_template = "http://{}:{}"
         return uri_template.format(host, port)
 
     @property
     def dht_uri(self):
-        payload = self.payload['ursula.network.dht']
-        host, port = payload['host'], payload['port']
-        uri_template = "https://{}:{}"
+        host, port = self.payload['dht_host'], self.payload['dht_port']
+        uri_template = "http://{}:{}"
         return uri_template.format(host, port)
 
 
@@ -167,6 +177,9 @@ def accounts(config, action, address):
 
     elif action == 'lock':
         # click.confirm("Lock {}?".format(address))
+        raise NotImplementedError
+
+    elif action == 'balance':
         raise NotImplementedError
 
 
@@ -433,7 +446,7 @@ def simulate(config, action, nodes, federated_only):
     elif action == 'swarm':
 
         config.connect_to_blockchain()
-        config.connect_to_contracts()
+        config.connect_to_contracts(simulation=True)
 
         localhost = '127.0.0.1'
 
@@ -476,17 +489,21 @@ def simulate(config, action, nodes, federated_only):
                 proc_params.extend('--checksum-address {}'.format(sim_address).split())
 
             # Spawn
-            click.echo("Spawning run_ursula with params {}".format(proc_params))
+            click.echo("Spawning node #{}".format(index+1))
             processProtocol = UrsulaProcessProtocol()
             ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
-            config.ursula_processes.append(ursula_proc)
+            config.sim_processes.append(ursula_proc)
 
             #
             # post-spawnProcess
             #
 
             # Start with some basic status data, then build on it
-            sim_data = "Started simulated Ursula | ReST {} | DHT {} "
+
+            rest_uri = "http://{}:{}".format(localhost, rest_port)
+            dht_uri = "http://{}:{}".format(localhost, dht_port)
+
+            sim_data = "Started simulated Ursula | ReST {} | DHT {} ".format(rest_uri, dht_uri)
             rest_uri = "{host}:{port}".format(host=localhost, port=str(sim_port_number))
             dht_uri = '{host}:{port}'.format(host=localhost, port=dht_port)
             sim_data.format(rest_uri, dht_uri)
@@ -502,11 +519,18 @@ def simulate(config, action, nodes, federated_only):
         click.echo("Starting the reactor")
         try:
             reactor.run()
+
         finally:
+            click.echo("Removing simulation registry")
+            os.remove(config.sim_registry_filepath)
+
             click.echo("Stopping simulated Ursula processes")
-            for process in config.ursula_processes:
+            for process in config.sim_processes:
+
                 import ipdb; ipdb.set_trace()
+
                 os.kill(process.pid, 9)
+                click.echo("Killed {}".format(process))
             config.simulation_running = False
             click.echo("Simulation stopped")
 

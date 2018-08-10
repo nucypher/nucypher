@@ -1,16 +1,12 @@
 import asyncio
 import random
+from typing import List
+from typing import Set
 
 from constant_sorrow import constants
-from typing import List
-from typing import Set, Tuple
 from umbral.keys import UmbralPrivateKey
 from web3 import Web3
 
-from nucypher.blockchain.eth.agents import EthereumContractAgent
-from nucypher.blockchain.eth.chains import TesterBlockchain
-from nucypher.blockchain.eth.deployers import MinerEscrowDeployer, NucypherTokenDeployer
-from nucypher.blockchain.eth.deployers import PolicyManagerDeployer
 from nucypher.characters import Ursula
 
 _ALL_URSULAS = {}
