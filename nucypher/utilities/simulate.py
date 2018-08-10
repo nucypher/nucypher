@@ -8,5 +8,5 @@ class UrsulaProcessProtocol(protocol.ProcessProtocol):
     pass
 
 
-class UrsulaStakingProtocol(UrsulaProcessProtocol):
+class UrsulaProcessProtocol(UrsulaProcessProtocol):
     pass
