@@ -73,7 +73,7 @@ def validate_nucypher_ini_config(config=None,
 
         raise NucypherConfigurationError("Empty configuration file")
 
-    required_sections = ("nucypher", "blockchain.provider")
+    required_sections = ("nucypher", "blockchain")
 
     missing_sections = list()
 

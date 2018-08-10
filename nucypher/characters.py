@@ -23,7 +23,7 @@ from umbral.signing import Signature
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import datetime_to_period
-from nucypher.config.parsers import parse_nucypher_ini_config, _parse_ursula_config
+from nucypher.config.parsers import parse_nucypher_ini_config, parse_ursula_config
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -1082,7 +1082,7 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
         Keyword arguments passed will take precedence over values
         in the configuration file.
         """
-        payload = _parse_ursula_config(filepath=filepath, federated_only=federated_only)
+        payload = parse_ursula_config(filepath=filepath, federated_only=federated_only)
         if overrides is not None:
             overrides = {k: v for k, v in overrides.items() if v is not None}
             payload.update(overrides)
