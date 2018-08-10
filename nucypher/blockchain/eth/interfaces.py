@@ -4,6 +4,7 @@ import os
 import warnings
 from pathlib import Path
 from typing import Tuple, List
+from urllib.parse import urlparse
 
 from constant_sorrow import constants
 from eth_utils import to_canonical_address
@@ -13,8 +14,8 @@ from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-
-_DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_INI_FILEPATH, DEFAULT_SIMULATION_REGISTRY_FILEPATH
+from nucypher.config.parsers import parse_blockchain_config
 
 
 class EthereumContractRegistry:
@@ -25,7 +26,7 @@ class EthereumContractRegistry:
     WARNING: Unless you are developing NuCypher, you most likely won't ever need
     to use this.
     """
-    __default_registry_path = os.path.join(_DEFAULT_CONFIGURATION_DIR, 'registry.json')
+    __default_registry_path = os.path.join(DEFAULT_CONFIG_ROOT, 'registry.json')
 
     class RegistryError(Exception):
         pass
@@ -38,6 +39,21 @@ class EthereumContractRegistry:
 
     def __init__(self, registry_filepath: str=None):
         self.__registry_filepath = registry_filepath or self.__default_registry_path
+
+    @classmethod
+    def from_config(cls, filepath=None, **overrides) -> 'EthereumContractRegistry':
+        from nucypher.blockchain.eth.utilities import TemporaryEthereumContractRegistry
+
+        filepath = filepath if filepath is None else DEFAULT_INI_FILEPATH
+        payload = parse_blockchain_config(filepath=filepath)
+
+        if payload['tmp_registry']:
+            # In memory only
+            registry = TemporaryEthereumContractRegistry()
+        else:
+            registry = EthereumContractRegistry(**overrides)
+
+        return registry
 
     @property
     def registry_filepath(self):
@@ -130,9 +146,14 @@ class ControlCircumflex:
     class InterfaceError(Exception):
         pass
 
-    def __init__(self, network_name: str=None, endpoint_uri: str=None,
-                 websocket=False, ipc_path=None, timeout=None, providers: list=None,
-                 registry: EthereumContractRegistry=None, compiler: SolidityCompiler=None):
+    def __init__(self,
+                 network_name: str = None,
+                 provider_uri: str = None,
+                 providers: list = None,
+                 autoconnect: bool = True,
+                 timeout: int = None,
+                 registry: EthereumContractRegistry = None,
+                 compiler: SolidityCompiler=None) -> None:
 
         """
         A blockchain "network inerface"; The circumflex wraps entirely around the bounds of
@@ -194,16 +215,15 @@ class ControlCircumflex:
         #
         # Providers
         #
+        if provider_uri and providers:
+            raise self.InterfaceError("Pass a provider URI string, or a list of provider instances.")
+        self.provider_uri = provider_uri
+        self._providers = list() if providers is None else providers
 
         # If custom __providers are not injected...
-        self._providers = list() if providers is None else providers
-        if providers is None:
-            # Mutates self._providers
-            self.add_provider(endpoint_uri=endpoint_uri, websocket=websocket,
-                              ipc_path=ipc_path, timeout=timeout)
-
-        web3_instance = Web3(providers=self._providers)  # Instantiate Web3 object with provider
-        self.w3 = web3_instance                           # capture web3
+        self.w3 = constants.NO_BLOCKCHAIN_CONNECTION
+        if autoconnect is True:
+            self.connect(provider_uri=self.provider_uri)
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
         recompile = True if compiler is not None else False
