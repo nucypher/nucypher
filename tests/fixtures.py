@@ -1,18 +1,16 @@
 import contextlib
 import os
 import tempfile
-from os.path import abspath, dirname
 
 import datetime
 import maya
 import pytest
 from constant_sorrow import constants
-from eth_tester import EthereumTester
 from eth_utils import to_checksum_address
 from sqlalchemy.engine import create_engine
 from web3 import EthereumTesterProvider
 
-import nucypher
+from eth_tester import EthereumTester
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import DeployerCircumflex
@@ -25,6 +23,7 @@ from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.utilities.blockchain import make_ursulas, token_airdrop
 from nucypher.utilities.network import MockRestMiddleware
+
 
 #
 # Setup
@@ -222,6 +221,7 @@ def non_ursula_miners(three_agents):
                             miners=True,
                             bare=True,
                             ursula_starting_port=starting_point)
+
     try:
         yield _ursulas
     finally:
