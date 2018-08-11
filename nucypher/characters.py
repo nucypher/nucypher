@@ -1,6 +1,5 @@
 import asyncio
 import random
-import time
 from collections import OrderedDict
 from collections import deque
 from contextlib import suppress
@@ -11,11 +10,11 @@ from typing import Union, List
 
 import kademlia
 import maya
+import time
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
-
 from kademlia.utils import digest
 from twisted.internet import task, threads
 from umbral.keys import UmbralPublicKey
@@ -69,7 +68,6 @@ class Character:
                  crypto_power: CryptoPower = None,
                  crypto_power_ups=None,
                  federated_only=False,
-                 config=None,
                  checksum_address: bytes = None,
                  always_be_learning=False,
                  start_learning_on_same_thread=False,
