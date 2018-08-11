@@ -49,7 +49,7 @@ jobs:
             pipenv graph
       - run:
           name: Install Solidity Compiler
-          command: pipenv run install_solc
+          command: pipenv run ./scripts/install_solc.sh
       - save_cache:
           paths:
             - "~/.local/share/virtualenvs/"
