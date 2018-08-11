@@ -1,8 +1,8 @@
 import contextlib
+import datetime
 import os
 import tempfile
 
-import datetime
 import maya
 import pytest
 from constant_sorrow import constants
@@ -11,6 +11,7 @@ from sqlalchemy.engine import create_engine
 from web3 import EthereumTesterProvider
 
 from eth_tester import EthereumTester
+
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import DeployerCircumflex
