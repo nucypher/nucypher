@@ -3,10 +3,7 @@ import random
 from collections import OrderedDict
 from collections import deque
 from contextlib import suppress
-from functools import partial
 from logging import getLogger
-from typing import Dict, ClassVar, Set, DefaultDict
-from typing import Union, List
 
 import kademlia
 import maya
@@ -15,16 +12,17 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
+from functools import partial
 from kademlia.utils import digest
+from nucypher.config.constants import DEFAULT_INI_FILEPATH
+from nucypher.config.parsers import parse_nucypher_ini_config, parse_ursula_config
 from twisted.internet import task, threads
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
+from typing import Dict, ClassVar, Set, DefaultDict
+from typing import Union, List
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import datetime_to_period
-from nucypher.config.constants import DEFAULT_INI_FILEPATH
-from nucypher.config.parsers import parse_nucypher_ini_config, parse_ursula_config
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -35,6 +33,8 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
 
 class Character:
@@ -69,6 +69,10 @@ class Character:
                  crypto_power: CryptoPower = None,
                  crypto_power_ups=None,
                  federated_only=False,
+<<<<<<< HEAD
+=======
+                 config = None,
+>>>>>>> 607ac3c... Keep tests passing along the way.
                  checksum_address: bytes = None,
                  always_be_learning=False,
                  start_learning_on_same_thread=False,
