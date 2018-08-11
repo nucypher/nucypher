@@ -2,12 +2,12 @@ import inspect
 from typing import List, Union
 
 from eth_keys.datatypes import PublicKey, Signature as EthSignature
-
 from eth_utils import keccak
-from nucypher.keystore import keypairs
-from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair, HostingKeypair
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
+
+from nucypher.keystore import keypairs
+from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair, HostingKeypair
 
 
 class PowerUpError(TypeError):

@@ -1,9 +1,8 @@
-from nucypher.blockchain.eth.actors import only_me
-from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from constant_sorrow import constants
-from nucypher.network.protocols import SuspiciousActivity
 from eth_keys.datatypes import Signature as EthSignature
-import maya
+
+from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
+from nucypher.network.protocols import SuspiciousActivity
 
 
 class VerifiableNode:

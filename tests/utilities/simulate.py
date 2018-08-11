@@ -1,6 +1,3 @@
-import random
-
-from constant_sorrow import constants
 from twisted.internet import protocol
 
 

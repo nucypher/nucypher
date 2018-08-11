@@ -8,7 +8,6 @@ from eth_keys.datatypes import PublicKey, Signature
 from eth_utils import to_canonical_address
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
-from web3.providers import BaseProvider
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler

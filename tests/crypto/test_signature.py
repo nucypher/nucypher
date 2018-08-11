@@ -1,5 +1,6 @@
-from nucypher.crypto.api import ecdsa_sign
 from umbral.keys import UmbralPrivateKey
+
+from nucypher.crypto.api import ecdsa_sign
 from nucypher.crypto.signing import Signature
 
 

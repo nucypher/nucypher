@@ -69,10 +69,6 @@ class Character:
                  crypto_power: CryptoPower = None,
                  crypto_power_ups=None,
                  federated_only=False,
-<<<<<<< HEAD
-=======
-                 config = None,
->>>>>>> 607ac3c... Keep tests passing along the way.
                  checksum_address: bytes = None,
                  always_be_learning=False,
                  start_learning_on_same_thread=False,

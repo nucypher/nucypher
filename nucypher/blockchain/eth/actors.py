@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from datetime import datetime
-from typing import Tuple, List
+from typing import Tuple
 
 import maya
 

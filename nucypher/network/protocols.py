@@ -1,12 +1,12 @@
 import asyncio
 
 import kademlia
+from bytestring_splitter import VariableLengthBytestring
+from constant_sorrow import default_constant_splitter, constants
 from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
 
-from bytestring_splitter import VariableLengthBytestring
-from constant_sorrow import default_constant_splitter, constants
 from nucypher.network.routing import NucypherRoutingTable
 
 

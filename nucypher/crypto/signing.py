@@ -1,6 +1,7 @@
 from bytestring_splitter import BytestringSplitter
-from nucypher.crypto.api import keccak_digest
 from umbral.signing import Signature, Signer
+
+from nucypher.crypto.api import keccak_digest
 
 signature_splitter = BytestringSplitter(Signature)
 

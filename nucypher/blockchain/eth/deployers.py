@@ -1,5 +1,6 @@
-from constant_sorrow import constants
 from typing import Tuple, Dict
+
+from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent, MinerAgent, NucypherTokenAgent, PolicyAgent
 from nucypher.blockchain.eth.interfaces import DeployerCircumflex

@@ -2,7 +2,6 @@ import json
 import os
 import stat
 from base64 import urlsafe_b64encode
-from pathlib import Path
 from typing import ClassVar
 
 from cryptography.hazmat.backends import default_backend
@@ -14,7 +13,6 @@ from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey
 
-from nucypher.config import utils
 from nucypher.config.constants import DEFAULT_KEYRING_ROOT
 from nucypher.config.utils import validate_passphrase, NucypherConfigurationError
 from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower

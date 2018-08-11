@@ -1,8 +1,5 @@
 """Set default curve for tests"""
 
-from umbral.config import set_default_curve
-from umbral.curve import SECP256K1
-
 """NOTICE:  Depends on fixture modules; do not delete"""
 from .fixtures import *
 

@@ -1,7 +1,6 @@
-from nucypher.crypto.splitters import key_splitter, capsule_splitter
-
-
 from constant_sorrow import constants
+
+from nucypher.crypto.splitters import key_splitter, capsule_splitter
 
 
 class CryptoKit:

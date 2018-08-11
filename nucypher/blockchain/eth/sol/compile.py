@@ -1,8 +1,8 @@
 import os
+import shutil
 from os.path import abspath, dirname
 
 import itertools
-import shutil
 from solc import install_solc, compile_files
 from solc.exceptions import SolcError
 
