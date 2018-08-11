@@ -3,9 +3,9 @@
 
 import asyncio
 import random
-import subprocess
 import sys
 
+import subprocess
 from constant_sorrow import constants
 
 from nucypher.blockchain.eth.actors import Miner

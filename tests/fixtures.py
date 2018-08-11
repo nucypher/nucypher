@@ -1,8 +1,8 @@
 import contextlib
+import datetime
 import os
 import tempfile
 
-import datetime
 import maya
 import pytest
 from constant_sorrow import constants
@@ -21,7 +21,6 @@ from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.utilities.blockchain import make_ursulas, token_airdrop
 from nucypher.utilities.network import MockRestMiddleware
-
 
 #
 # Setup
@@ -190,8 +189,7 @@ def mining_ursulas(three_agents):
     _ursulas = make_ursulas(ursula_starting_port=starting_point,
                             ether_addresses=ursula_addresses,
                             miner_agent=miner_agent,
-                            miners=True,
-                            ursula_starting_port=starting_point)
+                            miners=True)
     try:
         yield _ursulas
     finally:
