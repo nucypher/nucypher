@@ -7,8 +7,8 @@ from constant_sorrow import constants
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.characters import Ursula
-from tests.blockchain.eth.utilities import token_airdrop
-from tests.utilities.network import _ALL_URSULAS
+from nucypher.utilities.blockchain import token_airdrop
+from nucypher.utilities.network import _ALL_URSULAS
 
 
 def make_ursulas(ether_addresses: list, ursula_starting_port: int,

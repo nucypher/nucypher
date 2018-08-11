@@ -1,6 +1,5 @@
 import pytest
 from eth_keys.datatypes import Signature as EthSignature
-from tests.utilities.network import MockRestMiddleware
 
 from nucypher.characters import Ursula
 from nucypher.crypto.powers import SigningPower, CryptoPower
