@@ -190,7 +190,8 @@ def mining_ursulas(three_agents):
     _ursulas = make_ursulas(ursula_starting_port=starting_point,
                             ether_addresses=ursula_addresses,
                             miner_agent=miner_agent,
-                            miners=True)
+                            miners=True,
+                            ursula_starting_port=starting_point)
     try:
         yield _ursulas
     finally:
@@ -217,6 +218,7 @@ def non_ursula_miners(three_agents):
     _ursulas = make_ursulas(ether_addresses=ursula_addresses,
                             miner_agent=miner_agent,
                             miners=True,
+                            ursula_starting_port=starting_point,
                             bare=True)
 
     try:
