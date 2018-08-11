@@ -3,11 +3,7 @@ import random
 from collections import OrderedDict, defaultdict
 from collections import deque
 from contextlib import suppress
-from logging import getLogger
-from functools import partial
 from logging import getLogger, Logger
-from typing import Dict, ClassVar, Set, DefaultDict, Iterable
-from typing import Union, List
 
 import kademlia
 import maya
@@ -20,6 +16,7 @@ from functools import partial
 from kademlia.utils import digest
 from twisted.internet import task, threads
 from typing import Dict, ClassVar, Set, DefaultDict
+from typing import Iterable
 from typing import Union, List
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
@@ -73,9 +70,9 @@ class Character:
                  is_me: bool = True,
                  network_middleware: RestMiddleware = None,
                  crypto_power: CryptoPower = None,
-
                  crypto_power_ups: List[CryptoPowerUp] = None,
                  federated_only: bool = False,
+
                  checksum_address: bytes = None,
                  always_be_learning: bool = False,
                  start_learning_on_same_thread: bool = False,
