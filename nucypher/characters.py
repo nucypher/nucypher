@@ -23,7 +23,6 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
-from nucypher.config.configs import CharacterConfiguration
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -68,7 +67,7 @@ class Character:
                  crypto_power: CryptoPower = None,
                  crypto_power_ups=None,
                  federated_only=False,
-                 config: CharacterConfiguration = None,
+                 config = None,
                  checksum_address: bytes = None,
                  always_be_learning=False,
                  start_learning_on_same_thread=False,
