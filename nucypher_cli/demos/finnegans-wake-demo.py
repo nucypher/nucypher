@@ -3,16 +3,30 @@
 
 # WIP w/ hendrix@3.0.0
 
+<<<<<<< HEAD:nucypher_cli/demos/finnegans-wake-demo.py
+=======
+import datetime
+import logging
+>>>>>>> 26103ab... Project-wide automated import optimization, followed-up with some hand-tweaking:examples/finnegans-wake-demo.py
 import sys
 
 import datetime
 import maya
+from umbral.keys import UmbralPublicKey
 
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.characters import Alice, Bob
+<<<<<<< HEAD:nucypher_cli/demos/finnegans-wake-demo.py
 from nucypher.characters import Ursula
 from nucypher.data_sources import DataSource
 from umbral.keys import UmbralPublicKey
+=======
+from nucypher.config.constants import DEFAULT_SIMULATION_REGISTRY_FILEPATH
+from nucypher.config.metadata import collect_stored_nodes
+from nucypher.data_sources import DataSource
+# This is already running in another process.
+from nucypher.network.middleware import RestMiddleware
+>>>>>>> 26103ab... Project-wide automated import optimization, followed-up with some hand-tweaking:examples/finnegans-wake-demo.py
 
 # This is already running in another process.
 

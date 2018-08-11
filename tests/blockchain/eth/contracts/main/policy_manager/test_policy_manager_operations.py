@@ -4,7 +4,6 @@ import pytest
 
 from eth_tester.exceptions import TransactionFailed
 
-
 NULL_ADDR = '0x' + '0' * 40
 
 CLIENT_FIELD = 0
