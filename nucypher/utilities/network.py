@@ -11,6 +11,8 @@ from nucypher.characters import Ursula
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
 from nucypher.utilities.blockchain import _TEST_KNOWN_URSULAS_CACHE
+
+
 #
 # Setup
 #

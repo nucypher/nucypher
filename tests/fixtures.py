@@ -9,7 +9,6 @@ from constant_sorrow import constants
 from eth_utils import to_checksum_address
 from sqlalchemy.engine import create_engine
 from web3 import EthereumTesterProvider
-
 from eth_tester import EthereumTester
 
 from nucypher.blockchain.eth.chains import TesterBlockchain
