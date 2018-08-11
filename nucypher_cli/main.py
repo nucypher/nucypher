@@ -19,7 +19,6 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_SIMULATION_PO
 from nucypher.config.metadata import write_node_metadata, collect_stored_nodes
 from nucypher.config.parsers import parse_nucypher_ini_config, parse_running_modes
 
-
 __version__ = '0.1.0-mock'
 
 BANNER = """
@@ -35,9 +34,6 @@ BANNER = """
     version {}
 
 """.format(__version__)
-
-from tests.utilities.blockchain import bootstrap_fake_network
-
 
 import os
 import click

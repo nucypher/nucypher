@@ -1,10 +1,10 @@
 import pytest
 import pytest_twisted
 from twisted.internet import threads
-
-from nucypher.crypto.powers import EncryptingPower
 from umbral import pre
 from umbral.fragments import KFrag, CapsuleFrag
+
+from nucypher.crypto.powers import EncryptingPower
 
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_policy, bob):

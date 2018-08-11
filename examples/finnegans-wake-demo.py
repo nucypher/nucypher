@@ -3,22 +3,21 @@
 
 # WIP w/ hendrix@3.0.0
 
-import binascii
 import datetime
 import logging
 import sys
 
 import maya
+from umbral.keys import UmbralPublicKey
 
 from nucypher.blockchain.eth.agents import PolicyAgent
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.characters import Alice, Bob, Ursula
+from nucypher.characters import Alice, Bob
 from nucypher.config.constants import DEFAULT_SIMULATION_REGISTRY_FILEPATH
 from nucypher.config.metadata import collect_stored_nodes
 from nucypher.data_sources import DataSource
 # This is already running in another process.
 from nucypher.network.middleware import RestMiddleware
-from umbral.keys import UmbralPublicKey
 
 root = logging.getLogger()
 root.setLevel(logging.DEBUG)

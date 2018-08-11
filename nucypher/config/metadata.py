@@ -2,9 +2,8 @@ import binascii
 import os
 from glob import glob
 from os.path import abspath
-from typing import Set
 
-from nucypher.characters import Ursula, Character
+from nucypher.characters import Ursula
 from nucypher.config.constants import DEFAULT_SEED_NODE_DIR, DEFAULT_KNOWN_NODE_DIR, DEFAULT_CONFIG_ROOT
 
 

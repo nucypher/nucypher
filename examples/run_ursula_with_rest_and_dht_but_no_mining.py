@@ -5,13 +5,10 @@
 
 # WIP w/ hendrix@tags/3.3.0rc1
 
-import os, sys
-
 import asyncio
-from contextlib import suppress
+import os
 
 from nucypher.characters import Ursula
-
 
 DB_NAME = "examples-runtime-cruft/db"
 

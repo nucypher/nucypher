@@ -3,18 +3,19 @@ from typing import Union
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
-from cryptography.hazmat.primitives.asymmetric import ec
 from constant_sorrow import constants
+from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
-from nucypher.crypto import api as API
-from nucypher.crypto.api import generate_self_signed_certificate
-from nucypher.crypto.kits import MessageKit
-from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 from umbral import pre
 from umbral.config import default_curve
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
+
+from nucypher.crypto import api as API
+from nucypher.crypto.api import generate_self_signed_certificate
+from nucypher.crypto.kits import MessageKit
+from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 
 
 class Keypair(object):

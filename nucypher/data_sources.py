@@ -1,10 +1,9 @@
-from nucypher.crypto.api import encrypt_and_sign
-from nucypher.crypto.powers import SigningPower
-from nucypher.crypto.signing import SignatureStamp
-from nucypher.keystore.keypairs import SigningKeypair
 from constant_sorrow.constants import NO_SIGNING_POWER
 from umbral.keys import UmbralPublicKey
-from umbral.signing import Signer
+
+from nucypher.crypto.api import encrypt_and_sign
+from nucypher.crypto.powers import SigningPower
+from nucypher.keystore.keypairs import SigningKeypair
 
 
 class DataSource:

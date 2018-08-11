@@ -1,11 +1,11 @@
 import eth_utils
 import pytest
-
 from constant_sorrow import constants
-from nucypher.characters import Alice, Ursula, Character, Bob
+
+from nucypher.characters import Alice, Character, Bob
 from nucypher.crypto import api
-from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower,\
-                                   BlockchainPower, PowerUpError
+from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower, \
+    BlockchainPower, PowerUpError
 
 """
 Chapter 1: SIGNING

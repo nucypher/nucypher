@@ -1,16 +1,15 @@
 import asyncio
+from collections.__init__ import OrderedDict
+from typing import List
 
 import maya
 from apistar import TestClient
-from collections.__init__ import OrderedDict
 from constant_sorrow import constants
-from typing import List
 
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters import Ursula
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
-
 
 #
 # Setup

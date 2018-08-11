@@ -1,6 +1,5 @@
 import pytest
 from eth_tester.exceptions import TransactionFailed
-import os
 from web3.contract import Contract
 
 
