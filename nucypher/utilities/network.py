@@ -10,7 +10,7 @@ from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters import Ursula
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
-
+from nucypher.utilities.blockchain import _TEST_KNOWN_URSULAS_CACHE
 #
 # Setup
 #
@@ -20,8 +20,6 @@ asyncio.set_event_loop(TEST_EVENT_LOOP)
 
 constants.URSULA_PORT_SEED(7468)
 constants.NUMBER_OF_URSULAS_IN_NETWORK(10)
-
-_ALL_URSULAS = {}
 
 
 class MockRestMiddleware(RestMiddleware):
@@ -33,7 +31,7 @@ class MockRestMiddleware(RestMiddleware):
 
     def __get_mock_client_by_port(self, port):  # TODO
         try:
-            ursula = _ALL_URSULAS[port]
+            ursula = _TEST_KNOWN_URSULAS_CACHE[port]
             rest_app = ursula.rest_app
             mock_client = TestClient(rest_app)
         except KeyError:
