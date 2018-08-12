@@ -1,11 +1,10 @@
 import pytest
+from constant_sorrow import constants
 from eth_keys.datatypes import Signature as EthSignature
 
 from nucypher.characters import Ursula
 from nucypher.crypto.powers import SigningPower, CryptoPower
 from nucypher.utilities.blockchain import make_ursulas
-from nucypher.utilities.network import MockRestMiddleware
-from tests.utilities.blockchain import make_ursulas
 
 
 @pytest.mark.skip
@@ -14,9 +13,8 @@ def test_federated_ursula_substantiates_stamp():
 
 
 def test_new_ursula_announces_herself():
-    ursula_here, ursula_there = make_ursulas(2,
-                                             know_each_other=False,
-                                             network_middleware=MockRestMiddleware())
+    ursula_here, ursula_there = make_ursulas(ether_addresses=[2, 42],
+                                             ursula_starting_port=int(constants.URSULA_PORT_SEED))
 
     # Neither Ursula knows about the other.
     assert ursula_here._known_nodes == ursula_there._known_nodes == {}

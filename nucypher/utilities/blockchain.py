@@ -9,7 +9,7 @@ from web3 import Web3
 
 from nucypher.characters import Ursula
 
-_ALL_URSULAS = {}
+_TEST_KNOWN_URSULAS_CACHE = {}
 
 
 def make_ursulas(ether_addresses: list, ursula_starting_port: int,
@@ -91,7 +91,7 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
             ursula.federated_only = True
 
         ursulas.add(ursula)
-        _ALL_URSULAS[ursula.rest_interface.port] = ursula
+        _TEST_KNOWN_URSULAS_CACHE[ursula.rest_interface.port] = ursula
 
     return ursulas
 
