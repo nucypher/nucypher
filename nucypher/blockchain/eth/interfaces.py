@@ -286,6 +286,10 @@ class ControlCircumflex:
         return circumflex
 
     @property
+    def providers(self) -> Tuple[Union[IPCProvider, WebsocketProvider, HTTPProvider]]:
+        return tuple(self.__providers)
+
+    @property
     def network(self) -> str:
         return self.__network
 
@@ -480,7 +484,7 @@ class DeployerCircumflex(ControlCircumflex):
         backend. If the backend is based on eth-tester, then it uses the
         eth-tester signing interface to do so.
         """
-        provider = self._providers[0]
+        provider = self.providers[0]  # TODO: Handle multiple providers
         if isinstance(provider, EthereumTesterProvider):
             address = to_canonical_address(account)
             sig_key = provider.ethereum_tester.backend._key_lookup[address]

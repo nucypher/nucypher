@@ -41,12 +41,9 @@ class EthereumContractAgent(ABC):
             # TODO: Warn on override?
             self.blockchain.interface._registry._swap_registry(filepath=registry_filepath)
 
-        try:
-            # Fetch the contract by reading address and abi from the registry and blockchain
-            contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
-                                                                      upgradeable=self._upgradeable)
-        except EthereumContractRegistry.UnknownContract:
-            raise self.ContractNotDeployed("There is no registry entry for {}".format(self.principal_contract_name))
+        # Fetch the contract by reading address and abi from the registry and blockchain
+        contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
+                                                                  upgradeable=self._upgradeable)
 
         self.__contract = contract
         super().__init__()

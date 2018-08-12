@@ -1070,7 +1070,6 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             self.attach_dht_server()
             if not federated_only:
                 self.substantiate_stamp()
-                self.initialize_stake()
 
     @classmethod
     def from_config(cls, filepath: str=None, federated_only=False, overrides: dict=None) -> 'Ursula':
