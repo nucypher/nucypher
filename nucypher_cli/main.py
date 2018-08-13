@@ -5,21 +5,19 @@ import asyncio
 import random
 import subprocess
 import sys
-from os.path import abspath, dirname
 
 from constant_sorrow import constants
 
-import nucypher
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.chains import Blockchain, TesterBlockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.characters import Ursula
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_SIMULATION_PORT, \
-    DEFAULT_SIMULATION_REGISTRY_FILEPATH, DEFAULT_INI_FILEPATH
+    DEFAULT_SIMULATION_REGISTRY_FILEPATH, DEFAULT_INI_FILEPATH, DEFAULT_REST_PORT, DEFAULT_DHT_PORT, DEFAULT_DB_NAME
 from nucypher.config.metadata import write_node_metadata, collect_stored_nodes
 from nucypher.config.parsers import parse_nucypher_ini_config, parse_running_modes
 
-__version__ = '0.1.0-mock'
+__version__ = '0.1.0-alpha.0'
 
 BANNER = """
                                   _               
@@ -44,7 +42,6 @@ from nucypher.utilities.blockchain import token_airdrop
 from nucypher.config.utils import validate_nucypher_ini_config, initialize_configuration
 from nucypher.utilities.simulate import UrsulaProcessProtocol
 
-BASE_DIR = abspath(dirname(dirname(nucypher.__file__)))
 
 class NucypherClickConfig:
 
@@ -55,7 +52,8 @@ class NucypherClickConfig:
 
         # Set operating and run modes
         operating_modes = parse_running_modes(filepath=self.config_filepath)
-        self.simulation_mode = operating_modes.get('simulation', False)
+        self.simulation_mode = operating_modes.get('mode', 'decentralized')
+        self.operating_mode = operating_modes.get('simulation', False)
         if self.simulation_mode is True:
             simulation_running = False
             sim_registry_filepath = DEFAULT_SIMULATION_REGISTRY_FILEPATH
@@ -67,11 +65,8 @@ class NucypherClickConfig:
         self.sim_registry_filepath = sim_registry_filepath
         self.sim_processes = list()
 
-        run_mode = 'simulation' if self.simulation_mode else 'live'
-        click.echo("Running in {} mode".format(run_mode))
-
-        self.operating_mode = operating_modes.get('operating_mode', 'decentralized')
-        click.echo("Running in {} mode".format(self.operating_mode))
+        sim_mode = 'simulation' if self.simulation_mode else 'live'
+        click.echo("Running in {} {} mode".format(sim_mode, self.operating_mode))
 
         self.payload = parse_nucypher_ini_config(filepath=self.config_filepath)
         click.echo("Successfully parsed configuration file")
@@ -179,6 +174,7 @@ def accounts(config, action, address):
         raise NotImplementedError
 
     elif action == 'lock':
+
         # click.confirm("Lock {}?".format(address))
         raise NotImplementedError
 
