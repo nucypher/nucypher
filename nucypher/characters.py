@@ -25,6 +25,8 @@ from nucypher.config.constants import DEFAULT_INI_FILEPATH
 from nucypher.config.parsers import parse_ursula_config, parse_alice_config, \
     parse_character_config
 
+from nucypher.config.parsers import parse_nucypher_ini_config, parse_ursula_config, parse_alice_config, \
+    parse_character_config
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
