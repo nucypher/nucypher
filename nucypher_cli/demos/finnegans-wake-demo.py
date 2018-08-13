@@ -4,52 +4,38 @@
 # WIP w/ hendrix@3.0.0
 
 import datetime
-import logging
 import sys
 
 import maya
 from umbral.keys import UmbralPublicKey
 
-from nucypher.blockchain.eth.agents import PolicyAgent
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.characters import Alice, Bob
-from nucypher.config.constants import DEFAULT_SIMULATION_REGISTRY_FILEPATH
-from nucypher.config.metadata import collect_stored_nodes
+from nucypher.characters import Alice, Bob, Ursula
 from nucypher.data_sources import DataSource
+
+
+##############################################
 # This is already running in another process.
-from nucypher.network.middleware import RestMiddleware
+##############################################
 
-root = logging.getLogger()
-root.setLevel(logging.DEBUG)
+BLOCKCHAIN = Blockchain.connect()
 
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-root.addHandler(ch)
-
+URSULA = Ursula.from_config()
 
 #########
 # Alice #
 #########
-BLOCKCHAIN = Blockchain.connect()
 
-ALICE = Alice(network_middleware=RestMiddleware(),
-              policy_agent=PolicyAgent(registry_filepath=DEFAULT_SIMULATION_REGISTRY_FILEPATH),
-              known_nodes=collect_stored_nodes(),
-              checksum_address=BLOCKCHAIN.interface.w3.eth.accounts[1],
-              always_be_learning=True)  # TODO: 289
+ALICE = Alice.from_config()
 
 # Here are our Policy details.
-policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+policy_end_datetime = maya.now() + datetime.timedelta(days=201)
 m = 2
 n = 3
 label = b"secret/files/and/stuff"
 
 # Alice grants to Bob.
-BOB = Bob(known_nodes=collect_stored_nodes(),
-          checksum_address=BLOCKCHAIN.interface.w3.eth.accounts[2],
-          always_be_learning=True)
+BOB = Bob.from_config()
 
 ALICE.start_learning_loop(now=True)
 policy = ALICE.grant(BOB, label, m=m, n=n,
@@ -78,7 +64,7 @@ BOB.join_policy(label,  # The label - he needs to know what data he's after.
                 alices_pubkey_bytes_saved_for_posterity,  # To verify the signature, he'll need Alice's public key.
                 # He can also bootstrap himself onto the network more quickly
                 # by providing a list of known nodes at this time.
-                node_list=[("localhost", 3601)]
+                # node_list=[("localhost", 3601)]
                 )
 
 # Now that Bob has joined the Policy, let's show how DataSources
