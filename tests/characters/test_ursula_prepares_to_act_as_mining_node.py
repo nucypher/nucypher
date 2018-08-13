@@ -12,8 +12,9 @@ def test_federated_ursula_substantiates_stamp():
     assert False
 
 
-def test_new_ursula_announces_herself():
-    ursula_here, ursula_there = make_ursulas(ether_addresses=[2, 42],
+def test_new_ursula_announces_herself(testerchain):
+    origin, ursula_one, ursula_two, *some_people = testerchain.interface.w3.eth.accounts
+    ursula_here, ursula_there = make_ursulas(ether_addresses=[ursula_one, ursula_two],
                                              ursula_starting_port=int(constants.URSULA_PORT_SEED))
 
     # Neither Ursula knows about the other.

@@ -282,15 +282,15 @@ def stake(config, action, address, index, value, duration):
         # Initialize the staged stake
         config.miner_agent.deposit_tokens(amount=value, lock_periods=duration, sender_address=address)
 
-        processProtocol = UrsulaProcessProtocol()
         proc_params = ['run_ursula']
+        processProtocol = UrsulaProcessProtocol(command=proc_params)
         ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
 
     elif action == 'resume':
         """Reconnect and resume an existing live stake"""
 
-        processProtocol = UrsulaProcessProtocol()
         proc_params = ['run_ursula']
+        processProtocol = UrsulaProcessProtocol(command=proc_params)
         ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
 
     elif action == 'confirm-activity':
@@ -490,7 +490,7 @@ def simulate(config, action, nodes, federated_only):
 
             # Spawn
             click.echo("Spawning node #{}".format(index+1))
-            processProtocol = UrsulaProcessProtocol()
+            processProtocol = UrsulaProcessProtocol(command=proc_params)
             ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
             config.sim_processes.append(ursula_proc)
 
@@ -521,8 +521,10 @@ def simulate(config, action, nodes, federated_only):
             reactor.run()
 
         finally:
-            click.echo("Removing simulation registry")
-            os.remove(config.sim_registry_filepath)
+
+            if config.operating_mode == 'decentralized':
+                click.echo("Removing simulation registry")
+                os.remove(config.sim_registry_filepath)
 
             click.echo("Stopping simulated Ursula processes")
             for process in config.sim_processes:
@@ -562,7 +564,7 @@ def simulate(config, action, nodes, federated_only):
 
     elif action == 'demo':
         """Run the finnegans wake demo"""
-        demo_exec = os.path.join(BASE_DIR, 'examples', 'finnegans-wake-federated.py')
+        demo_exec = os.path.join(BASE_DIR, 'nucypher_cli', 'demos', 'finnegans-wake-demo.py')
         subprocess.run([sys.executable, demo_exec], stdout=subprocess.PIPE)
 
 
@@ -642,9 +644,9 @@ def status(config, provider, contracts, network):
 @cli.command()
 @click.option('--federated-only', is_flag=True)
 @click.option('--seed-node', is_flag=True)
-@click.option('--rest-port', type=int)
-@click.option('--dht-port', type=int)
-@click.option('--db-name', type=str)
+@click.option('--rest-port', type=int, default=DEFAULT_REST_PORT)
+@click.option('--dht-port', type=int, default=DEFAULT_DHT_PORT)
+@click.option('--db-name', type=str, default=DEFAULT_DB_NAME)
 @click.option('--checksum-address', type=str)
 @click.option('--data-dir', type=click.Path(), default=DEFAULT_CONFIG_ROOT)
 @click.option('--config-file', type=click.Path(), default=DEFAULT_INI_FILEPATH)
@@ -652,18 +654,6 @@ def run_ursula(rest_port, dht_port, db_name,
                checksum_address, federated_only,
                seed_node, data_dir, config_file) -> None:
     """
-    ======================================================================
-
-    ~ WARNING: DO NOT USE THIS COMMAND DIRECTLY ~
-
-    This is not an actual mining script -
-    it is a twisted process handler
-
-    ======================================================================
-
-
-    This process handler is executed in the main thread using the nucypher-cli,
-    implemented with twisted ProcessProtocol and spawnProcess.
 
     The following procedure is required to "spin-up" an Ursula node.
 
@@ -701,21 +691,19 @@ def run_ursula(rest_port, dht_port, db_name,
     asyncio.set_event_loop(asyncio.new_event_loop())  # 2. Init DHT async loop
 
     # 3. Initialize Ursula (includes overrides)
-    ursula = Ursula.from_config(filepath=config_file,
-                                federated_only=federated_only,
-                                overrides=overrides)
+    ursula = Ursula.from_config(filepath=config_file, overrides=overrides)
 
-    ursula.dht_listen()           # 4. Start DHT
+    ursula.dht_listen()                # 4. Start DHT
 
     write_node_metadata(seed_node=seed_node, node=ursula, node_metadata_dir=data_dir)
 
     if not seed_node:
         ursula.start_learning_loop()  # 5. Enter learning loop
 
-    ursula.get_deployer().run()   # 6. Run TLS Deployer
+    ursula.get_deployer().run()       # 6. Run TLS Deployer
 
     if not federated_only:
-        ursula.stake()            # 7. start staking daemon
+        ursula.stake()                # 7. start staking daemon
 
 
 if __name__ == "__main__":
