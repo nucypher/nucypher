@@ -14,7 +14,6 @@ def only_me(func):
         if not actor.is_me:
             raise actor.MinerError("You are not {}".format(actor.__class.__.__name__))
         return func(actor, *args, **kwargs)
-
     return wrapped
 
 

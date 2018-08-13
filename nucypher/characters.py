@@ -14,8 +14,6 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from functools import partial
 from kademlia.utils import digest
-from nucypher.config.constants import DEFAULT_INI_FILEPATH
-from nucypher.config.parsers import parse_nucypher_ini_config, parse_ursula_config
 from twisted.internet import task, threads
 from typing import Dict, ClassVar, Set, DefaultDict
 from typing import Union, List
@@ -23,7 +21,9 @@ from typing import Union, List
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import datetime_to_period
-
+from nucypher.config.constants import DEFAULT_INI_FILEPATH
+from nucypher.config.parsers import parse_ursula_config, parse_alice_config, \
+    parse_character_config
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -667,6 +667,14 @@ class Alice(Character, PolicyAuthor):
         if is_me and not federated_only:  # TODO: 289
             PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address)
 
+    @classmethod
+    def from_config(cls, filepath=DEFAULT_INI_FILEPATH, overrides: dict = None) -> 'Alice':
+        payload = parse_alice_config(filepath=filepath)
+        if overrides is not None:
+            payload.update(overrides)
+        instance = cls(**payload)
+        return instance
+
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
@@ -770,6 +778,14 @@ class Bob(Character):
 
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
+
+    @classmethod
+    def from_config(cls, filepath=DEFAULT_INI_FILEPATH, overrides: dict = None) -> 'Bob':
+        payload = parse_character_config(filepath=filepath)
+        if overrides is not None:
+            payload.update(overrides)
+        instance = cls(**payload)
+        return instance
 
     def peek_at_treasure_map(self, treasure_map=None, map_id=None):
         """
@@ -1073,17 +1089,16 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                 self.substantiate_stamp()
 
     @classmethod
-    def from_config(cls, filepath: str=None, federated_only=False, overrides: dict=None) -> 'Ursula':
+    def from_config(cls, filepath: str=DEFAULT_INI_FILEPATH, overrides: dict=None) -> 'Ursula':
         """
         Initialize Ursula from .ini configuration file.
 
         Keyword arguments passed will take precedence over values
         in the configuration file.
         """
-        filepath = filepath if filepath is not None else DEFAULT_INI_FILEPATH
-        payload = parse_ursula_config(filepath=filepath, federated_only=federated_only)
+        payload = parse_ursula_config(filepath=filepath)
         if overrides is not None:
-            overrides = {k: v for k, v in overrides.items() if v is not None}
+            #     overrides = {k: v for k, v in overrides.items() if v is not None}
             payload.update(overrides)
         return cls(**payload)
 
@@ -1158,18 +1173,6 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             # Cleanup #
 
             pass
-
-    @classmethod
-    def from_config(cls, *args, **kwargs) -> 'Ursula':
-        """
-        Initialize Ursula from .ini configuration file.
-
-        Keyword arguments passed will take precedence over values
-        in the configuration file.
-        """
-        payload = parse_nucypher_ini_config()
-        payload.update(kwargs)
-        return cls(*args, **payload)
 
     @only_me
     def stake(self,
