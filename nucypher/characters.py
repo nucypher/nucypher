@@ -15,8 +15,7 @@ from eth_utils import to_checksum_address, to_canonical_address
 from functools import partial
 from kademlia.utils import digest
 from twisted.internet import task, threads
-from typing import Dict, ClassVar, Set, DefaultDict
-from typing import Iterable
+from typing import Dict, ClassVar, Set, DefaultDict, Iterable
 from typing import Union, List
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
@@ -1129,6 +1128,7 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
     def from_config(cls,
                     filepath: str=DEFAULT_INI_FILEPATH,
                     overrides: dict=None) -> 'Ursula':
+
         """
         Initialize Ursula from .ini configuration file.
 
