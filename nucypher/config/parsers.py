@@ -4,6 +4,8 @@ Parse configuration files into dictionaries and return them for consumption by c
 
 import configparser
 
+from constant_sorrow import constants
+
 from nucypher.config.constants import DEFAULT_INI_FILEPATH
 from nucypher.config.utils import validate_nucypher_ini_config
 
@@ -46,6 +48,10 @@ def parse_blockchain_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> 
 def parse_character_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict:
     """Parse non character-specific configuration data"""
 
+    if config is None:
+        config = configparser.ConfigParser()
+        config.read(filepath)
+
     validate_nucypher_ini_config(filepath=filepath, config=config, raise_on_failure=True)
 
     operating_mode = config["nucypher"]["mode"]
@@ -62,7 +68,7 @@ def parse_character_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> d
     return character_payload
 
 
-def parse_ursula_config(config=None, federated_only=False, filepath: str=DEFAULT_INI_FILEPATH) -> dict:
+def parse_ursula_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict:
     """Parse Ursula-specific configuration data"""
 
     if config is None:
@@ -82,9 +88,24 @@ def parse_ursula_config(config=None, federated_only=False, filepath: str=DEFAULT
 
     character_payload.update(ursula_payload)
 
-    if not federated_only:
-        address = config.get(section='ursula.blockchain', option='wallet_address')
+    if not character_payload['federated_only']:
+        address = config.get(section='ursula.blockchain', option='wallet_address', fallback=constants.NO_ADDRESS_CONFIGURED)
         character_payload.update(dict(checksum_address=address))
+
+    return character_payload
+
+
+def parse_alice_config(config=None, filepath=DEFAULT_INI_FILEPATH) -> dict:
+
+    if config is None:
+        config = configparser.ConfigParser()
+        config.read(filepath)
+
+    character_payload = parse_character_config(config=config)
+
+    alice_payload = dict()  # Alice specific
+
+    character_payload.update(alice_payload)
 
     return character_payload
 
