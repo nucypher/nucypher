@@ -581,14 +581,14 @@ class Character:
                     "Signature for message isn't valid: {}".format(signature_to_use))
         else:
             raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
+
+        #
+        # Next we have decrypt() and sign() - these use the private
+        # keys of their respective powers; any character who has these powers can use these functions.
+        #
+        # If they don't have the correct Power, the appropriate PowerUpError is raised.
+        #
         return cleartext
-
-        """
-        Next we have decrypt() and sign() - these use the private 
-        keys of their respective powers; any character who has these powers can use these functions.
-
-        If they don't have the correct Power, the appropriate PowerUpError is raised.
-        """
 
     def decrypt(self, message_kit, verifying_key: UmbralPublicKey = None):
         return self._crypto_power.power_ups(EncryptingPower).decrypt(message_kit, verifying_key)
@@ -1012,7 +1012,9 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                                             InterfaceInfo)
     _dht_server_class = NucypherDHTServer
     _alice_class = Alice
-    # TODO: Maybe this wants to be a registry, so that, for example, TLSHostingPower still can enjoy default status, but on a different class
+
+    # TODO: Maybe this wants to be a registry, so that, for example,
+    # TLSHostingPower still can enjoy default status, but on a different class
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
     class NotFound(Exception):
@@ -1088,6 +1090,29 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             if not federated_only:
                 self.substantiate_stamp()
 
+    def __bytes__(self):
+
+        import ipdb; ipdb.set_trace()
+        interface_info = VariableLengthBytestring(self.rest_interface)
+
+        if self.dht_interface:
+            interface_info += VariableLengthBytestring(self.dht_interface)
+
+        identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
+
+        as_bytes = bytes().join((bytes(self._interface_signature),
+                                 bytes(identity_evidence),
+                                 bytes(self.public_key(SigningPower)),
+                                 bytes(self.public_key(EncryptingPower)),
+                                 self.canonical_public_address,
+                                 interface_info)
+                                )
+        return as_bytes
+
+    #
+    # Alternate Constructors
+    #
+
     @classmethod
     def from_config(cls, filepath: str=DEFAULT_INI_FILEPATH, overrides: dict=None) -> 'Ursula':
         """
@@ -1102,157 +1127,6 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             payload.update(overrides)
         return cls(**payload)
 
-    @only_me
-    def stake(self,
-              sample_rate: int = 10,
-              refresh_rate: int = 60,
-              confirm_now=True,
-              resume: bool = False,
-              expiration: maya.MayaDT = None,
-              lock_periods: int = None,
-              *args, **kwargs):
-
-        """High-level staking daemon loop"""
-
-        if lock_periods and expiration:
-            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
-        if expiration:
-            lock_periods = datetime_to_period(expiration)
-
-        if resume is False:
-            _staking_receipts = super().stake(expiration=expiration,
-                                              lock_periods=lock_periods,
-                                              *args, **kwargs)
-
-        # TODO: Check if this period has already been confirmed
-        # TODO: Check if there is an active stake in the current period: Resume staking daemon
-        # TODO: Validation and Sanity checks
-
-        if confirm_now:
-            self.confirm_activity()
-
-        # record start time and periods
-        start_time = maya.now()
-        uptime_period = self.miner_agent.get_current_period()
-        terminal_period = uptime_period + lock_periods
-        current_period = uptime_period
-
-        #
-        # Daemon
-        #
-
-        try:
-            while True:
-
-                # calculate timedeltas
-                now = maya.now()
-                initialization_delta = now - start_time
-
-                # check if iteration re-samples
-                sample_stale = initialization_delta.seconds > (refresh_rate - 1)
-                if sample_stale:
-
-                    period = self.miner_agent.get_current_period()
-                    # check for stale sample data
-                    if current_period != period:
-
-                        # check for stake expiration
-                        stake_expired = current_period >= terminal_period
-                        if stake_expired:
-                            break
-
-                        self.confirm_activity()
-                        current_period = period
-
-                # wait before resampling
-                time.sleep(sample_rate)
-                continue
-
-        finally:
-
-            # Cleanup #
-
-            pass
-
-    @only_me
-    def stake(self,
-              sample_rate: int = 10,
-              refresh_rate: int = 60,
-              confirm_now=True,
-              resume: bool = False,
-              expiration: maya.MayaDT = None,
-              lock_periods: int = None,
-              *args, **kwargs):
-
-        """High-level staking daemon loop"""
-
-        if lock_periods and expiration:
-            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
-        if expiration:
-            lock_periods = datetime_to_period(expiration)
-
-        if resume is False:
-            _staking_receipts = super().stake(expiration=expiration,
-                                              lock_periods=lock_periods,
-                                              *args, **kwargs)
-
-        # TODO: Check if this period has already been confirmed
-        # TODO: Check if there is an active stake in the current period: Resume staking daemon
-        # TODO: Validation and Sanity checks
-
-        if confirm_now:
-            self.confirm_activity()
-
-        # record start time and periods
-        start_time = maya.now()
-        uptime_period = self.miner_agent.get_current_period()
-        terminal_period = uptime_period + lock_periods
-        current_period = uptime_period
-
-        #
-        # Daemon
-        #
-
-        try:
-            while True:
-
-                # calculate timedeltas
-                now = maya.now()
-                initialization_delta = now - start_time
-
-                # check if iteration re-samples
-                sample_stale = initialization_delta.seconds > (refresh_rate - 1)
-                if sample_stale:
-
-                    period = self.miner_agent.get_current_period()
-                    # check for stale sample data
-                    if current_period != period:
-
-                        # check for stake expiration
-                        stake_expired = current_period >= terminal_period
-                        if stake_expired:
-                            break
-
-                        self.confirm_activity()
-                        current_period = period
-
-                # wait before resampling
-                time.sleep(sample_rate)
-                continue
-
-        finally:
-
-            # Cleanup #
-
-            pass
-
-    @property
-    def rest_app(self):
-        if not self._rest_app:
-            m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."
-            raise AttributeError(m)
-        else:
-            return self._rest_app
 
     @classmethod
     def from_miner(cls, miner, *args, **kwargs):
@@ -1275,49 +1149,6 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
         stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only)
 
         return stranger_ursula_from_public_keys
-
-    def attach_dht_server(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
-        id = id or bytes(
-            self.canonical_public_address)  # Ursula can still "mine" wallets until she gets a DHT ID she wants.  Does that matter?  #136
-        # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
-        super().attach_dht_server(ksize=ksize, id=digest(id), alpha=alpha, storage=storage)
-        self.attach_rest_server()
-
-    def dht_listen(self):
-        if self.dht_interface is constants.NO_INTERFACE:
-            raise TypeError("This node does not have a DHT interface configured.")
-        return self.dht_server.listen(self.dht_interface.port,
-                                      self.dht_interface.host)
-
-    def interface_info_with_metadata(self):
-        # TODO: Do we ever actually use this without using the rest of the serialized Ursula?  337
-
-        return constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(self)
-
-    def publish_dht_information(self):
-        # TODO: Simplify or wholesale deprecate this.  337
-        if not self.dht_interface:
-            raise RuntimeError("Must listen before publishing interface information.")
-
-        ursula_id = self.canonical_public_address
-        interface_value = self.interface_info_with_metadata()
-        setter = self.dht_server.set(key=ursula_id, value=interface_value)
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(setter)
-        return interface_value
-
-    def work_orders(self, bob=None):
-        """
-        TODO: This is better written as a model method for Ursula's datastore.
-        """
-        if not bob:
-            return self._work_orders
-        else:
-            work_orders_from_bob = []
-            for work_order in self._work_orders:
-                if work_order.bob == bob:
-                    work_orders_from_bob.append(work_order)
-            return work_orders_from_bob
 
     @classmethod
     def from_bytes(cls, ursula_as_bytes, federated_only=False):
@@ -1358,19 +1189,138 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
         return stranger_ursulas
 
-    def __bytes__(self):
-        interface_info = VariableLengthBytestring(self.rest_interface)
+    #
+    # Properties
+    #
 
-        if self.dht_interface:
-            interface_info += VariableLengthBytestring(self.dht_interface)
+    @property
+    def rest_app(self):
+        if not self._rest_app:
+            m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."
+            raise AttributeError(m)
+        else:
+            return self._rest_app
 
-        identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
+    def interface_info_with_metadata(self):
+        # TODO: Do we ever actually use this without using the rest of the serialized Ursula?  337
 
-        as_bytes = bytes().join((bytes(self._interface_signature),
-                                 bytes(identity_evidence),
-                                 bytes(self.public_key(SigningPower)),
-                                 bytes(self.public_key(EncryptingPower)),
-                                 self.canonical_public_address,
-                                 interface_info)
-                                )
-        return as_bytes
+        return constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(self)
+
+    #
+    # Utilities
+    #
+
+    def attach_dht_server(self,
+                          ksize: int =20,
+                          alpha: int = 3,
+                          id=None,
+                          storage=None,
+                          *args, **kwargs) -> None:
+
+        id = id or bytes(self.canonical_public_address)  # Ursula can still "mine" wallets until she gets a DHT ID she wants.  Does that matter?  #136
+        # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
+        super().attach_dht_server(ksize=ksize, id=digest(id), alpha=alpha, storage=storage)
+        self.attach_rest_server()
+
+    def dht_listen(self):
+        if self.dht_interface is constants.NO_INTERFACE:
+            raise TypeError("This node does not have a DHT interface configured.")
+        return self.dht_server.listen(self.dht_interface.port,
+                                      self.dht_interface.host)
+
+    def publish_dht_information(self):
+        # TODO: Simplify or wholesale deprecate this.  337
+        if not self.dht_interface:
+            raise RuntimeError("Must listen before publishing interface information.")
+
+        ursula_id = self.canonical_public_address
+        interface_value = self.interface_info_with_metadata()
+        setter = self.dht_server.set(key=ursula_id, value=interface_value)
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(setter)
+        return interface_value
+
+    def work_orders(self, bob=None):
+        """
+        TODO: This is better written as a model method for Ursula's datastore.
+        """
+        if not bob:
+            return self._work_orders
+        else:
+            work_orders_from_bob = []
+            for work_order in self._work_orders:
+                if work_order.bob == bob:
+                    work_orders_from_bob.append(work_order)
+            return work_orders_from_bob
+
+    @only_me
+    def stake(self,
+              sample_rate: int = 10,
+              refresh_rate: int = 60,
+              confirm_now=True,
+              resume: bool = False,
+              expiration: maya.MayaDT = None,
+              lock_periods: int = None,
+              *args, **kwargs) -> None:
+
+        """High-level staking daemon loop"""
+
+        if lock_periods and expiration:
+            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
+        if expiration:
+            lock_periods = datetime_to_period(expiration)
+
+        if resume is False:
+            _staking_receipts = super().initialize_stake(expiration=expiration,
+                                                         lock_periods=lock_periods,
+                                                         *args, **kwargs)
+
+        # TODO: Check if this period has already been confirmed
+        # TODO: Check if there is an active stake in the current period: Resume staking daemon
+        # TODO: Validation and Sanity checks
+
+        if confirm_now:
+            self.confirm_activity()
+
+        # record start time and periods
+        start_time = maya.now()
+        uptime_period = self.miner_agent.get_current_period()
+        terminal_period = uptime_period + lock_periods
+        current_period = uptime_period
+
+        #
+        # Daemon
+        #
+
+        try:
+            while True:
+
+                # calculate timedeltas
+                now = maya.now()
+                initialization_delta = now - start_time
+
+                # check if iteration re-samples
+                sample_stale = initialization_delta.seconds > (refresh_rate - 1)
+                if sample_stale:
+
+                    period = self.miner_agent.get_current_period()
+                    # check for stale sample data
+                    if current_period != period:
+
+                        # check for stake expiration
+                        stake_expired = current_period >= terminal_period
+                        if stake_expired:
+                            break
+
+                        self.confirm_activity()
+                        current_period = period
+
+                # wait before resampling
+                time.sleep(sample_rate)
+                continue
+
+        finally:
+
+            # TODO: Cleanup #
+
+            pass
