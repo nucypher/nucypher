@@ -71,7 +71,6 @@ class Character:
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
                  federated_only: bool = False,
-
                  checksum_address: bytes = None,
                  always_be_learning: bool = False,
                  start_learning_on_same_thread: bool = False,
