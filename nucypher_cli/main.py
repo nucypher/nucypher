@@ -59,8 +59,8 @@ class NucypherClickConfig:
             simulation_running = False
             sim_registry_filepath = DEFAULT_SIMULATION_REGISTRY_FILEPATH
         else:
-            simulation_running = constants.LIVE_MODE_ENABLED
-            sim_registry_filepath = constants.LIVE_MODE_ENABLED
+            simulation_running = constants.SIMULATION_DISABLED
+            sim_registry_filepath = constants.SIMULATION_DISABLED
 
         self.simulation_running = simulation_running
         self.sim_registry_filepath = sim_registry_filepath
@@ -643,8 +643,8 @@ def status(config, provider, contracts, network):
 
 
 @cli.command()
-@click.option('--federated-only', is_flag=True)
-@click.option('--seed-node', is_flag=True)
+@click.option('--federated-only', is_flag=True, default=False)
+@click.option('--seed-node', is_flag=True, default=False)
 @click.option('--rest-port', type=int, default=DEFAULT_REST_PORT)
 @click.option('--dht-port', type=int, default=DEFAULT_DHT_PORT)
 @click.option('--db-name', type=str, default=DEFAULT_DB_NAME)
