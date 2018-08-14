@@ -23,7 +23,11 @@ def write_node_metadata(node: Ursula,
                         seed_node: bool = False,
                         node_metadata_dir: str = DEFAULT_KNOWN_NODE_DIR) -> str:
 
-    filename = "node-metadata-{}".format(node.rest_interface.port)
+    try:
+        filename = "node-metadata-{}".format(node.rest_interface.port)
+    except AttributeError:
+        raise AttributeError("{} does not have a rest_interface attached".format(node))
+
     node_type = 'known' if not seed_node else 'seed'
     metadata_filepath = os.path.join(node_metadata_dir, '{}_nodes'.format(node_type), filename)
 
