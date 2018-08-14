@@ -19,7 +19,9 @@ def read_node_metadata(filepath: str, federated_only=False) -> Ursula:
         return node
 
 
-def write_node_metadata(seed_node: bool, node: Ursula, node_metadata_dir: str) -> str:
+def write_node_metadata(node: Ursula,
+                        seed_node: bool = False,
+                        node_metadata_dir: str = DEFAULT_KNOWN_NODE_DIR) -> str:
 
     filename = "node-metadata-{}".format(node.rest_interface.port)
     node_type = 'known' if not seed_node else 'seed'
