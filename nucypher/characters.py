@@ -1033,7 +1033,6 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
                  # Blockchain
                  miner_agent=None,
-                 stake_index=None,
                  checksum_address=None,
 
                  # Character
@@ -1091,7 +1090,6 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
     def __bytes__(self):
 
-        import ipdb; ipdb.set_trace()
         interface_info = VariableLengthBytestring(self.rest_interface)
 
         if self.dht_interface:
