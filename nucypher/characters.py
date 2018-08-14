@@ -24,9 +24,6 @@ from nucypher.blockchain.eth.constants import datetime_to_period
 from nucypher.config.constants import DEFAULT_INI_FILEPATH
 from nucypher.config.parsers import parse_ursula_config, parse_alice_config, \
     parse_character_config
-
-from nucypher.config.parsers import parse_nucypher_ini_config, parse_ursula_config, parse_alice_config, \
-    parse_character_config
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
@@ -74,7 +71,6 @@ class Character:
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
                  federated_only: bool = False,
-
                  checksum_address: bytes = None,
                  always_be_learning: bool = False,
                  start_learning_on_same_thread: bool = False,
@@ -1131,7 +1127,6 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
     def from_config(cls,
                     filepath: str=DEFAULT_INI_FILEPATH,
                     overrides: dict=None) -> 'Ursula':
-
         """
         Initialize Ursula from .ini configuration file.
 
