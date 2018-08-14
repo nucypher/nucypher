@@ -13,7 +13,8 @@ from nucypher.blockchain.eth.chains import Blockchain, TesterBlockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.characters import Ursula
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_SIMULATION_PORT, \
-    DEFAULT_SIMULATION_REGISTRY_FILEPATH, DEFAULT_INI_FILEPATH, DEFAULT_REST_PORT, DEFAULT_DHT_PORT, DEFAULT_DB_NAME
+    DEFAULT_SIMULATION_REGISTRY_FILEPATH, DEFAULT_INI_FILEPATH, DEFAULT_REST_PORT, DEFAULT_DHT_PORT, DEFAULT_DB_NAME, \
+    BASE_DIR
 from nucypher.config.metadata import write_node_metadata, collect_stored_nodes
 from nucypher.config.parsers import parse_nucypher_ini_config, parse_running_modes
 
@@ -52,8 +53,8 @@ class NucypherClickConfig:
 
         # Set operating and run modes
         operating_modes = parse_running_modes(filepath=self.config_filepath)
-        self.simulation_mode = operating_modes.get('mode', 'decentralized')
-        self.operating_mode = operating_modes.get('simulation', False)
+        self.operating_mode = operating_modes.get('mode', 'decentralized')
+        self.simulation_mode = operating_modes.get('simulation', False)
         if self.simulation_mode is True:
             simulation_running = False
             sim_registry_filepath = DEFAULT_SIMULATION_REGISTRY_FILEPATH

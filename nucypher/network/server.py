@@ -108,7 +108,8 @@ class ProxyRESTServer:
                  db_name=None,
                  tls_private_key=None,
                  tls_curve=None,
-                 *args, **kwargs):
+                 *args, **kwargs) -> None:
+
         self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
 
         self.db_name = db_name
