@@ -80,7 +80,6 @@ class Miner(NucypherTokenActor):
     def __init__(self,
                  is_me=True,
                  miner_agent: MinerAgent = None,
-                 stake_index: int = None,
                  *args, **kwargs):
 
         miner_agent = miner_agent if miner_agent is not None else MinerAgent()
