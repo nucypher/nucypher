@@ -6,16 +6,14 @@ import tempfile
 import maya
 import pytest
 from constant_sorrow import constants
-from eth_tester import EthereumTester
 from eth_utils import to_checksum_address
 from sqlalchemy.engine import create_engine
-from web3 import EthereumTesterProvider
 
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import DeployerCircumflex
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.blockchain.eth.utilities import OverridablePyEVMBackend, TemporaryEthereumContractRegistry
+from nucypher.blockchain.eth.utilities import TemporaryEthereumContractRegistry
 from nucypher.characters import Alice, Bob
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
@@ -247,19 +245,10 @@ def testerchain(solidity_compiler):
 
     temp_registrar = TemporaryEthereumContractRegistry()
 
-    # Configure a custom provider
-    overrides = {'gas_limit': 4626271}
-    pyevm_backend = OverridablePyEVMBackend(genesis_overrides=overrides)
-
-    eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
-    pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
-
-    test_providers = (pyevm_provider, )
-
     # Use the the custom provider and registrar to init an interface
     circumflex = DeployerCircumflex(compiler=solidity_compiler,    # freshly recompile if not None
                                     registry=temp_registrar,
-                                    providers=test_providers)
+                                    provider_uri='pyevm://tester')
 
     # Create the blockchain
     testerchain = TesterBlockchain(interface=circumflex, test_accounts=10)
