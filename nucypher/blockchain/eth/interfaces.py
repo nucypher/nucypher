@@ -1,21 +1,19 @@
-from typing import Tuple, Union
 from urllib.parse import urlparse
 
 from constant_sorrow import constants
-from eth import constants as pyevm_constants
 from eth_keys.datatypes import PublicKey, Signature
-from eth_tester import EthereumTester
 from eth_utils import to_canonical_address
+from typing import Tuple, Union
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
+from eth_tester import EthereumTester
+from eth_tester import PyEVMBackend
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.constants import DEFAULT_INI_FILEPATH
 from nucypher.config.parsers import parse_blockchain_config
-
-from eth_tester import PyEVMBackend
 
 
 class BlockchainInterface:

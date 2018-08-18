@@ -21,7 +21,6 @@ from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.blockchain.eth.utilities import OverridablePyEVMBackend, TemporaryEthereumContractRegistry
 
 from nucypher.blockchain.eth import sol
 
