@@ -1,5 +1,6 @@
 import configparser
 import os
+from shutil import copyfile
 from typing import Tuple, Union
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_INI_FILEPATH, DEFAULT_KEYRING_ROOT
@@ -25,6 +26,12 @@ def initialize_configuration(config_root: str=None, ) -> None:
     os.mkdir(DEFAULT_KEYRING_ROOT, mode=0o755)                              # keyring
     os.mkdir(os.path.join(DEFAULT_CONFIG_ROOT, 'known_nodes'), mode=0o755)  # known_nodes
     os.mkdir(os.path.join(DEFAULT_CONFIG_ROOT, 'seed_nodes'), mode=0o755)   # seed_nodes
+
+    # Make a blank ini config file at the default path
+    with open(DEFAULT_INI_FILEPATH, 'w+') as ini_file:
+        if ini_file.read() == '':
+            ini_file.seek(0)
+            ini_file.write('[nucypher]')
 
 
 def validate_passphrase(passphrase) -> bool:
@@ -67,9 +74,6 @@ def validate_nucypher_ini_config(config=None,
         config.read(filepath)
 
     if not config.sections():
-
-        import ipdb;
-        ipdb.set_trace()
 
         raise NucypherConfigurationError("Empty configuration file")
 
