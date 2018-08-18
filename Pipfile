@@ -17,7 +17,7 @@ pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "nucypher-de
 #
 cryptography = ">=2.3"
 pysha3="*"
-hendrix = "==3.0.0"
+hendrix = ">=3.0.0"
 requests = "*"
 maya = "*"
 sqlalchemy = "*"
@@ -29,7 +29,7 @@ click = "*"
 coincurve = ">=8.0.2"
 eth-utils="*"
 eth-keys="*"
-web3 = ">=4.4.1"
+web3 = "*"
 appdirs = "*"
 
 [dev-packages]
@@ -48,8 +48,8 @@ coverage = "*"
 # Ethereum
 #
 py-solc = "*"
-eth-tester = "==0.1.0b28"
-py-evm = "==0.2.0a18"
+eth-tester = "*"
+py-evm = ">=0.2.0a31"
 nucypher = {editable = true, path = "."}
 #
 # Active Development Packages
@@ -61,4 +61,4 @@ nucypher = {editable = true, path = "."}
 allow_prereleases = true
 
 [scripts]
-install-solc = "scripts/install_solc.sh"
+install-solc = "./scripts/install_solc.sh"
