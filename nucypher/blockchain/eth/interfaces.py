@@ -4,8 +4,11 @@ from typing import Tuple, Union
 from urllib.parse import urlparse
 
 from constant_sorrow import constants
+from eth import constants as pyevm_constants
 from eth_keys.datatypes import PublicKey, Signature
+from eth_tester import EthereumTester
 from eth_utils import to_canonical_address
+from eth_utils import to_wei
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 from web3.providers.eth_tester.main import EthereumTesterProvider
@@ -316,8 +319,40 @@ class ControlCircumflex:
         if provider_uri and not provider:
             uri_breakdown = urlparse(provider_uri)
 
+            # PyEVM
+            if uri_breakdown.scheme == 'pyevm':
+
+                if uri_breakdown.netloc == 'tester':
+                    from nucypher.blockchain.eth.utilities import OverridablePyEVMBackend
+
+                    NUCYPHER_GAS_LIMIT = 4899698  # 4626271
+
+                    GENESIS_PARAMS = {
+                        'parent_hash': pyevm_constants.GENESIS_PARENT_HASH,
+                        'uncles_hash': pyevm_constants.EMPTY_UNCLE_HASH,
+                        'coinbase': pyevm_constants.ZERO_ADDRESS,
+                        'transaction_root': pyevm_constants.BLANK_ROOT_HASH,
+                        'receipt_root': pyevm_constants.BLANK_ROOT_HASH,
+                        'difficulty': pyevm_constants.GENESIS_DIFFICULTY,
+                        'block_number': pyevm_constants.GENESIS_BLOCK_NUMBER,
+                        'gas_limit': NUCYPHER_GAS_LIMIT,
+                        'extra_data': pyevm_constants.GENESIS_EXTRA_DATA,
+                        'nonce': pyevm_constants.GENESIS_NONCE
+                    }
+
+                    pyevm_backend = OverridablePyEVMBackend(genesis_params=GENESIS_PARAMS)
+
+                    eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
+                    provider = EthereumTesterProvider(ethereum_tester=eth_tester)
+
+                elif uri_breakdown.netloc == 'trinity':
+                    raise NotImplemented
+
+                else:
+                    raise self.InterfaceError("{} is an ambiguous or unsupported blockchain provider URI".format(provider_uri))
+
             # IPC
-            if uri_breakdown.scheme == 'ipc':
+            elif uri_breakdown.scheme == 'ipc':
                 provider = IPCProvider(ipc_path=uri_breakdown.path, timeout=timeout)
 
             # Websocket

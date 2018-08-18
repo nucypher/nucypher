@@ -1092,7 +1092,8 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
 
-        ProxyRESTServer.__init__(self, rest_host=rest_host,
+        ProxyRESTServer.__init__(self,
+                                 rest_host=rest_host,
                                  rest_port=rest_port,
                                  db_name=db_name,
                                  tls_private_key=tls_private_key,
