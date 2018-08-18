@@ -1,19 +1,20 @@
 import contextlib
-import datetime
 import os
 import tempfile
 
+import datetime
 import maya
 import pytest
 from constant_sorrow import constants
 from eth_utils import to_checksum_address
+from nucypher.blockchain.eth.utilities import TemporaryEthereumContractRegistry
 from sqlalchemy.engine import create_engine
 
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters import Alice, Bob
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
@@ -21,6 +22,8 @@ from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.utilities.blockchain import make_ursulas, token_airdrop
 from nucypher.utilities.network import MockRestMiddleware
+
+
 #
 # Setup
 #
@@ -247,6 +250,7 @@ def testerchain(solidity_compiler):
     temp_registrar = TemporaryEthereumContractRegistry()
 
     # Use the the custom provider and registrar to init an interface
+
     circumflex = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
                                              registry=temp_registrar,
                                              provider_uri='pyevm://tester')
