@@ -3,7 +3,7 @@ from typing import List, Union
 from constant_sorrow import constants
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.interfaces import ControlCircumflex, DeployerCircumflex
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.config.constants import DEFAULT_INI_FILEPATH
 from nucypher.config.parsers import parse_blockchain_config
 
@@ -13,7 +13,7 @@ class Blockchain:
 
     _instance = None
     _default_network = NotImplemented
-    __default_interface_class = ControlCircumflex
+    __default_interface_class = BlockchainInterface
 
     test_chains = ('tester', 'temp')
     public_chains = ('mainnet', 'ropsten')
@@ -21,7 +21,7 @@ class Blockchain:
     class ConnectionNotEstablished(RuntimeError):
         pass
 
-    def __init__(self, interface: Union[ControlCircumflex, DeployerCircumflex]=None):
+    def __init__(self, interface: Union[BlockchainInterface, BlockchainDeployerInterface]=None):
 
         if interface is None:
             interface = self.__default_interface_class()
@@ -44,7 +44,7 @@ class Blockchain:
         filepath = filepath if filepath is not None else DEFAULT_INI_FILEPATH
         payload = parse_blockchain_config(filepath=filepath)
 
-        interface = ControlCircumflex.from_config(filepath=filepath)
+        interface = BlockchainInterface.from_config(filepath=filepath)
 
         if cls._instance is not None:
             return cls.connect()
@@ -76,7 +76,7 @@ class Blockchain:
     def interface(self):
         return self.__interface
 
-    def attach_interface(self, interface: Union[ControlCircumflex, DeployerCircumflex]):
+    def attach_interface(self, interface: Union[BlockchainInterface, BlockchainDeployerInterface]):
         if self.__interface is not None:
             raise RuntimeError('There is already an attached blockchain interface')
         self.__interface = interface

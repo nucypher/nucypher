@@ -1,5 +1,3 @@
-import json
-import os
 from typing import Tuple, Union
 from urllib.parse import urlparse
 
@@ -8,132 +6,19 @@ from eth import constants as pyevm_constants
 from eth_keys.datatypes import PublicKey, Signature
 from eth_tester import EthereumTester
 from eth_utils import to_canonical_address
-from eth_utils import to_wei
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_INI_FILEPATH
+from nucypher.config.constants import DEFAULT_INI_FILEPATH
 from nucypher.config.parsers import parse_blockchain_config
 
-
-class EthereumContractRegistry:
-    """
-    Records known contracts on the disk for future access and utility. This
-    lazily writes to the filesystem during contract enrollment.
-
-    WARNING: Unless you are developing NuCypher, you most likely won't ever need
-    to use this.
-    """
-    __default_registry_path = os.path.join(DEFAULT_CONFIG_ROOT, 'registry.json')
-
-    class RegistryError(Exception):
-        pass
-
-    class UnknownContract(RegistryError):
-        pass
-
-    class IllegalRegistrar(RegistryError):
-        """Raised when invalid data is encountered in the registry"""
-
-    def __init__(self, registry_filepath: str=None):
-        self.__registry_filepath = registry_filepath or self.__default_registry_path
-
-    @classmethod
-    def from_config(cls, filepath=None, **overrides) -> 'EthereumContractRegistry':
-        from nucypher.blockchain.eth.utilities import TemporaryEthereumContractRegistry
-
-        filepath = filepath if filepath is None else DEFAULT_INI_FILEPATH
-        payload = parse_blockchain_config(filepath=filepath)
-
-        if payload['tmp_registry']:  # In memory only
-            registry = TemporaryEthereumContractRegistry()
-        else:
-            registry = EthereumContractRegistry(**overrides)
-
-        return registry
-
-    @property
-    def registry_filepath(self):
-        return self.__registry_filepath
-
-    def _swap_registry(self, filepath: str) -> True:
-        self.__registry_filepath = filepath
-        return True
-
-    def __write(self, registry_data: list) -> None:
-        """
-        Writes the registry data list as JSON to the registry file. If no
-        file exists, it will create it and write the data. If a file does exist
-        it will _overwrite_ everything in it.
-        """
-        with open(self.__registry_filepath, 'w+') as registry_file:
-            registry_file.seek(0)
-            registry_file.write(json.dumps(registry_data))
-            registry_file.truncate()
-
-    def read(self) -> list:
-        """
-        Reads the registry file and parses the JSON and returns a list.
-        If the file is empty or the JSON is corrupt, it will return an empty
-        list.
-        If you are modifying or updating the registry file, you _must_ call
-        this function first to get the current state to append to the dict or
-        modify it because _write_registry_file overwrites the file.
-        """
-        try:
-            with open(self.__registry_filepath, 'r') as registry_file:
-                registry_file.seek(0)
-                file_data = registry_file.read()
-                if file_data:
-                    registry_data = json.loads(file_data)
-                else:
-                    registry_data = list()  # Existing, but empty registry
-
-        except FileNotFoundError:
-            raise self.RegistryError("No registy at filepath: {}".format(self.__registry_filepath))
-
-        return registry_data
-
-    def enroll(self, contract_name, contract_address, contract_abi):
-        """
-        Enrolls a contract to the chain registry by writing the name, address,
-        and abi information to the filesystem as JSON.
-
-        Note: Unless you are developing NuCypher, you most likely won't ever
-        need to use this.
-        """
-        contract_data = [contract_name, contract_address, contract_abi]
-        registry_data = self.read()
-        registry_data.append(contract_data)
-        self.__write(registry_data)
-
-    def search(self, contract_name: str=None, contract_address: str=None):
-        """
-        Searches the registry for a contract with the provided name or address
-        and returns the contracts.
-        """
-        if not (bool(contract_name) ^ bool(contract_address)):
-            raise ValueError("Pass contract_name or contract_address, not both.")
-
-        contracts = list()
-        registry_data = self.read()
-
-        for name, addr, abi in registry_data:
-            if contract_name == name or contract_address == addr:
-                contracts.append((name, addr, abi))
-
-        if not contracts:
-            raise self.UnknownContract
-        if contract_address and len(contracts) > 1:
-            m = "Multiple records returned for address {}"
-            raise self.IllegalRegistrar(m.format(contract_address))
-
-        return contracts if contract_name else contracts[0]
+from eth_tester import PyEVMBackend
 
 
-class ControlCircumflex:
+class BlockchainInterface:
     """
     Interacts with a solidity compiler and a registry in order to instantiate compiled
     ethereum contracts with the given web3 provider backend.
@@ -167,7 +52,7 @@ class ControlCircumflex:
                                                |                |                   |
                                                |                |                    -- External EVM (geth, etc.)
                                                                                     |
-                                               *ControlCircumflex* -- IPCProvider --
+                                               *BlockchainInterface* -- IPCProvider --
 
                                                |      |         |
                                                |      |         |
@@ -270,7 +155,7 @@ class ControlCircumflex:
         return True
 
     @classmethod
-    def from_config(cls, filepath=None) -> 'ControlCircumflex':
+    def from_config(cls, filepath=None) -> 'BlockchainInterface':
         # Parse
         filepath = filepath if filepath is None else DEFAULT_INI_FILEPATH
         payload = parse_blockchain_config(filepath=filepath)
@@ -278,7 +163,7 @@ class ControlCircumflex:
         # Init deps
         compiler = SolidityCompiler() if payload['compile'] else None
         registry = EthereumContractRegistry.from_config(filepath=filepath)
-        interface_class = ControlCircumflex if not payload['deploy'] else DeployerCircumflex
+        interface_class = BlockchainInterface if not payload['deploy'] else BlockchainDeployerInterface
 
         # init class
         circumflex = interface_class(timeout=payload['timeout'],
@@ -458,7 +343,7 @@ class ControlCircumflex:
         return unified_contract
 
 
-class DeployerCircumflex(ControlCircumflex):
+class BlockchainDeployerInterface(BlockchainInterface):
 
     def __init__(self, deployer_address: str=None, *args, **kwargs):
 
