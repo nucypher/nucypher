@@ -208,24 +208,10 @@ class BlockchainInterface:
             if uri_breakdown.scheme == 'pyevm':
 
                 if uri_breakdown.netloc == 'tester':
-                    from nucypher.blockchain.eth.utilities import OverridablePyEVMBackend
 
-                    NUCYPHER_GAS_LIMIT = 4899698  # 4626271
-
-                    GENESIS_PARAMS = {
-                        'parent_hash': pyevm_constants.GENESIS_PARENT_HASH,
-                        'uncles_hash': pyevm_constants.EMPTY_UNCLE_HASH,
-                        'coinbase': pyevm_constants.ZERO_ADDRESS,
-                        'transaction_root': pyevm_constants.BLANK_ROOT_HASH,
-                        'receipt_root': pyevm_constants.BLANK_ROOT_HASH,
-                        'difficulty': pyevm_constants.GENESIS_DIFFICULTY,
-                        'block_number': pyevm_constants.GENESIS_BLOCK_NUMBER,
-                        'gas_limit': NUCYPHER_GAS_LIMIT,
-                        'extra_data': pyevm_constants.GENESIS_EXTRA_DATA,
-                        'nonce': pyevm_constants.GENESIS_NONCE
-                    }
-
-                    pyevm_backend = OverridablePyEVMBackend(genesis_params=GENESIS_PARAMS)
+                    NUCYPHER_GAS_LIMIT = 4899698  # 4626271  # TODO: Move ME
+                    genesis_parameter_overrides = {'gas_limit': NUCYPHER_GAS_LIMIT}
+                    pyevm_backend = PyEVMBackend(genesis_parameter_overrides=genesis_parameter_overrides)
 
                     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
