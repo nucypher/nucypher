@@ -11,9 +11,9 @@ from sqlalchemy.engine import create_engine
 
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
-from nucypher.blockchain.eth.interfaces import DeployerCircumflex
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.blockchain.eth.utilities import TemporaryEthereumContractRegistry
+from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.characters import Alice, Bob
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
@@ -248,9 +248,9 @@ def testerchain(solidity_compiler):
     temp_registrar = TemporaryEthereumContractRegistry()
 
     # Use the the custom provider and registrar to init an interface
-    circumflex = DeployerCircumflex(compiler=solidity_compiler,    # freshly recompile if not None
-                                    registry=temp_registrar,
-                                    provider_uri='pyevm://tester')
+    circumflex = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
+                                             registry=temp_registrar,
+                                             provider_uri='pyevm://tester')
 
     # Create the blockchain
     testerchain = TesterBlockchain(interface=circumflex, test_accounts=10)

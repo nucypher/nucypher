@@ -3,14 +3,14 @@ from typing import Tuple, Dict
 from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent, MinerAgent, NucypherTokenAgent, PolicyAgent
-from nucypher.blockchain.eth.interfaces import DeployerCircumflex
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from .chains import Blockchain
 
 
 class ContractDeployer:
 
     agency = NotImplemented
-    _interface_class = DeployerCircumflex
+    _interface_class = BlockchainDeployerInterface
     _contract_name = NotImplemented
     _arming_word = "I UNDERSTAND"
 
