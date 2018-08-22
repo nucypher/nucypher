@@ -138,6 +138,9 @@ def test_reward(testerchain, escrow, policy_manager):
 
 @pytest.mark.slow
 def test_refund(testerchain, escrow, policy_manager):
+    # Travel to the start of the next period to prevent problems with unexpected overflow first period
+    testerchain.time_travel(hours=1)
+
     creator = testerchain.interface.w3.eth.accounts[0]
     client = testerchain.interface.w3.eth.accounts[1]
     node1 = testerchain.interface.w3.eth.accounts[3]

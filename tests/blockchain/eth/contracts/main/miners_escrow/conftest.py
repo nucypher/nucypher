@@ -39,6 +39,8 @@ def escrow_contract(testerchain, token, request):
         tx = contract.functions.setPolicyManager(policy_manager.address).transact()
         testerchain.wait_for_receipt(tx)
         assert policy_manager.address == contract.functions.policyManager().call()
+        # Travel to the start of the next period to prevent problems with unexpected overflow first period
+        testerchain.time_travel(hours=1)
         return contract
 
     return make_escrow

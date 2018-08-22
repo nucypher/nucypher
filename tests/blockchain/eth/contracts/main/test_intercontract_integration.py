@@ -103,6 +103,9 @@ def user_escrow_proxy(testerchain, token, escrow, policy_manager):
 
 @pytest.mark.slow
 def test_all(testerchain, token, escrow, policy_manager, user_escrow_proxy):
+    # Travel to the start of the next period to prevent problems with unexpected overflow first period
+    testerchain.time_travel(hours=1)
+
     escrow, escrow_dispatcher = escrow
     policy_manager, policy_manager_dispatcher = policy_manager
     user_escrow_proxy, user_escrow_linker = user_escrow_proxy
