@@ -265,6 +265,7 @@ class Character:
     def handle_learning_errors(self, *args, **kwargs):
         failure = args[0]
         if self._abort_on_learning_error:
+            self.log.critical("Unhandled error during node learning: {}".format(failure.getTraceback()))
             failure.raiseException()
         else:
             self.log.warning("Unhandled error during node learning: {}".format(failure.getTraceback()))
