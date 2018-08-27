@@ -4,16 +4,22 @@ from typing import List
 from typing import Set
 
 from constant_sorrow import constants
+from eth_utils import to_checksum_address
 from umbral.keys import UmbralPrivateKey
 from web3 import Web3
 
 from nucypher.characters import Ursula
+from nucypher.crypto.api import secure_random
 
 _TEST_KNOWN_URSULAS_CACHE = {}
 
 
-def make_ursulas(ether_addresses: list, ursula_starting_port: int,
-                 miner_agent=None, miners=False, bare=False) -> Set[Ursula]:
+def make_ursulas(ether_addresses: list,
+                 miner_agent=None,
+                 miners=False,
+                 bare=False,
+                 know_each_other=True,
+                 **ursula_kwargs) -> Set[Ursula]:
     """
     :param ether_addresses: Ethereum addresses to create ursulas with.
     :param ursula_starting_port: The port of the first created Ursula; subsequent Ursulas will increment the port number by 1.
@@ -27,10 +33,18 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
     :return: A list of created Ursulas
     """
 
+    if isinstance(ether_addresses, int):
+        ether_addresses = [to_checksum_address(secure_random(20)) for _ in range(ether_addresses)]
+
+
     event_loop = asyncio.get_event_loop()
+    if not _TEST_KNOWN_URSULAS_CACHE:
+        starting_port = constants.URSULA_PORT_SEED
+    else:
+        starting_port = max(_TEST_KNOWN_URSULAS_CACHE.keys()) + 1
 
     ursulas = set()
-    for port, ether_address in enumerate(ether_addresses, start=ursula_starting_port):
+    for port, ether_address in enumerate(ether_addresses, start=starting_port):
 
         if bare:
             ursula = Ursula(is_me=False,            # do not attach dht server
@@ -39,7 +53,8 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
                             checksum_address=ether_address,
                             always_be_learning=False,
                             miner_agent=miner_agent,
-                            abort_on_learning_error=True)
+                            abort_on_learning_error=True,
+                            **ursula_kwargs)
 
             ursula.is_me = True  # Patch to allow execution of transacting methods in tests
 
@@ -56,7 +71,8 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
                             rest_port=port+100,
                             always_be_learning=False,
                             miner_agent=miner_agent,
-                            federated_only=federated_only)
+                            federated_only=federated_only,
+                            **ursula_kwargs)
 
             ursula.attach_rest_server()
 
@@ -67,31 +83,34 @@ def make_ursulas(ether_addresses: list, ursula_starting_port: int,
             ursula.datastore_threadpool = MockDatastoreThreadPool()
             ursula.dht_listen()
 
-            for ursula_to_teach in ursulas:
-                # Add other Ursulas as known nodes.
-                for ursula_to_learn_about in ursulas:
-                    ursula_to_teach.remember_node(ursula_to_learn_about)
-
-                event_loop.run_until_complete(
-                    ursula.dht_server.bootstrap(
-                        [("127.0.0.1", ursula_starting_port + _c) for _c in range(len(ursulas))]))
-                ursula.publish_dht_information()
-
         if miners is True:
+            # TODO: 309
             # stake a random amount
-            min_stake, balance = int(constants.MIN_ALLOWED_LOCKED), ursula.token_balance
+            min_stake, balance = constants.MIN_ALLOWED_LOCKED, ursula.token_balance
             amount = random.randint(min_stake, balance)
 
             # for a random lock duration
-            min_locktime, max_locktime = int(constants.MIN_LOCKED_PERIODS), int(constants.MAX_MINTING_PERIODS)
+            min_locktime, max_locktime = constants.MIN_LOCKED_PERIODS, constants.MAX_MINTING_PERIODS
             periods = random.randint(min_locktime, max_locktime)
 
-            ursula.initialize_stake(amount=amount, lock_periods=periods)
+            ursula.stake(amount=amount, lock_periods=periods)
         else:
             ursula.federated_only = True
 
         ursulas.add(ursula)
         _TEST_KNOWN_URSULAS_CACHE[ursula.rest_interface.port] = ursula
+
+    if know_each_other and not bare:
+
+        for ursula_to_teach in ursulas:
+            # Add other Ursulas as known nodes.
+            for ursula_to_learn_about in ursulas:
+                ursula_to_teach.remember_node(ursula_to_learn_about)
+
+            event_loop.run_until_complete(
+                ursula.dht_server.bootstrap(
+                    [("127.0.0.1", starting_port + _c) for _c in range(len(ursulas))]))
+            ursula.publish_dht_information()
 
     return ursulas
 

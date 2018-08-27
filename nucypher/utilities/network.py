@@ -46,17 +46,17 @@ class MockRestMiddleware(RestMiddleware):
         assert response.status_code == 200
         return response
 
-    def enact_policy(self, ursula, hrac, payload):
+    def enact_policy(self, ursula, id, payload):
         mock_client = self.__get_mock_client_by_port(ursula.rest_interface.port)
-        response = mock_client.post('http://localhost/kFrag/{}'.format(hrac.hex()), payload)
+        response = mock_client.post('http://localhost/kFrag/{}'.format(id.hex()), payload)
         assert response.status_code == 200
         return True, ursula.stamp.as_umbral_pubkey()
 
     def send_work_order_payload_to_ursula(self, work_order):
         mock_client = self.__get_mock_client_by_port(work_order.ursula.rest_interface.port)
         payload = work_order.payload()
-        hrac_as_hex = work_order.kfrag_hrac.hex()
-        return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(hrac_as_hex), payload)
+        id_as_hex = work_order.arrangement_id.hex()
+        return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(id_as_hex), payload)
 
     def get_treasure_map_from_node(self, node, map_id):
         mock_client = self.__get_mock_client_by_port(node.rest_interface.port)
@@ -67,15 +67,22 @@ class MockRestMiddleware(RestMiddleware):
         response = mock_client.get("http://localhost/public_information")
         return response
 
-    def get_nodes_via_rest(self, address, port, node_ids):
+    def get_nodes_via_rest(self, address, port, announce_nodes=None, nodes_i_need=None):
         mock_client = self.__get_mock_client_by_port(port)
-        # TODO: Better passage of node IDs here.
-        # if node_ids:
-        #     node_address_bytestring = bytes().join(bytes(id) for id in node_ids)
-        #     params = {'nodes': node_address_bytestring}
-        # else:
-        #     params = None
-        response = mock_client.get("http://localhost/list_nodes")
+
+        if nodes_i_need:
+            # TODO: This needs to actually do something.
+            # Include node_ids in the request; if the teacher node doesn't know about the
+            # nodes matching these ids, then it will ask other nodes via the DHT or whatever.
+            pass
+
+        if announce_nodes:
+            response = mock_client.post("https://{}:{}/node_metadata".format(address, port),
+                                     verify=False,
+                                     data=bytes().join(bytes(n) for n in announce_nodes))  # TODO: TLS-only.
+        else:
+            response = mock_client.get("https://{}:{}/node_metadata".format(address, port),
+                                    verify=False)  # TODO: TLS-only.
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
