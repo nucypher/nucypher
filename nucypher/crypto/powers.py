@@ -2,12 +2,12 @@ import inspect
 from typing import List, Union
 
 from eth_keys.datatypes import PublicKey, Signature as EthSignature
-
 from eth_utils import keccak
-from nucypher.keystore import keypairs
-from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair, HostingKeypair
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
+
+from nucypher.keystore import keypairs
+from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair, HostingKeypair
 
 
 class PowerUpError(TypeError):
@@ -30,7 +30,7 @@ class CryptoPower(object):
     def __init__(self, power_ups=None):
         self._power_ups = {}
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
-        self.public_keys = {}
+        self.public_material = {}
 
         if power_ups is not None:
             for power_up in power_ups:
@@ -51,8 +51,8 @@ class CryptoPower(object):
                  "of a subclass of CryptoPowerUp."))
         self._power_ups[power_up_class] = power_up_instance
 
-        if power_up.confers_public_key:
-            self.public_keys[power_up_class] = power_up_instance.public_key()
+        if power_up.confers_public_material:
+            self.public_material[power_up_class] = power_up_instance.public_material()
 
     def power_ups(self, power_up_class):
         try:
@@ -65,7 +65,7 @@ class CryptoPowerUp(object):
     """
     Gives you MORE CryptoPower!
     """
-    confers_public_key = False
+    confers_public_material = False
 
 
 class BlockchainPower(CryptoPowerUp):
@@ -101,7 +101,7 @@ class BlockchainPower(CryptoPowerUp):
             raise PowerUpError("Account is not unlocked.")
 
         signature = self.blockchain.interface.call_backend_sign(self.account, message)
-        return signature.to_bytes()
+        return bytes(signature)
 
     def verify_message(self, address: str, pubkey: bytes, message: bytes, signature_bytes: bytes):
         """
@@ -129,7 +129,7 @@ class BlockchainPower(CryptoPowerUp):
 
 
 class KeyPairBasedPower(CryptoPowerUp):
-    confers_public_key = True
+    confers_public_material = True
     _keypair_class = keypairs.Keypair
     _default_private_key_class = UmbralPrivateKey
 
@@ -171,7 +171,7 @@ class KeyPairBasedPower(CryptoPowerUp):
         else:
             raise PowerUpError("This {} doesn't provide {}.".format(self.__class__, item))
 
-    def public_key(self):
+    def public_material(self):
         return self.keypair.pubkey
 
 
@@ -197,6 +197,9 @@ class EncryptingPower(KeyPairBasedPower):
 class TLSHostingPower(KeyPairBasedPower):
     _keypair_class = HostingKeypair
     provides = ("get_deployer",)
+
+    def public_material(self):
+        return self.keypair.certificate, self.keypair.pubkey
 
 
 class DelegatingPower(DerivedKeyBasedPower):

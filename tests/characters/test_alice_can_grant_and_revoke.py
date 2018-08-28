@@ -1,14 +1,10 @@
 import datetime
 
 import maya
-import pytest
-from apistar.test import TestClient
-
-from nucypher.characters import Ursula
-from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower
-from tests.utilities import _ALL_URSULAS
 from umbral.fragments import KFrag
+
+from nucypher.crypto.api import keccak_digest
+from nucypher.utilities.network import _TEST_KNOWN_URSULAS_CACHE
 
 
 class MockPolicyCreation:
@@ -22,7 +18,7 @@ class MockPolicyCreation:
         # TODO: Test that proper arguments are passed here once 316 is closed.
         pass
 
-    def transact(self, payload):
+    def transact(self, alice, payload):
         # TODO: Make a meaningful assertion regarding the value.
         assert payload['from'] == alice._ether_address
         return self.tx_hash
@@ -45,9 +41,7 @@ def test_grant(alice, bob, three_agents):
     policy_agent.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
     policy_agent.contract.functions.createPolicy = MockPolicyCreation
 
-    policy = alice.grant(bob, label, m=2, n=n,
-                         expiration=policy_end_datetime,
-                         )
+    policy = alice.grant(bob, label, m=2, n=n, expiration=policy_end_datetime)
 
     # The number of accepted arrangements at least the number of Ursulas we're using (n)
     assert len(policy._accepted_arrangements) >= n
@@ -58,7 +52,7 @@ def test_grant(alice, bob, three_agents):
     # Let's look at the enacted arrangements.
     for kfrag in policy.kfrags:
         arrangement = policy._enacted_arrangements[kfrag]
-        ursula = _ALL_URSULAS[arrangement.ursula.rest_interface.port]
+        ursula = _TEST_KNOWN_URSULAS_CACHE[arrangement.ursula.rest_interface.port]
 
         # Get the Arrangement from Ursula's datastore, looking up by hrac.
         # This will be changed in 180, when we use the Arrangement ID.

@@ -1,9 +1,8 @@
-import shutil
-import itertools
 import os
-
-import solc
+import shutil
 from os.path import abspath, dirname
+
+import itertools
 from solc import install_solc, compile_files
 from solc.exceptions import SolcError
 

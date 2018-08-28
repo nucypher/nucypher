@@ -1,9 +1,8 @@
-from nucypher.blockchain.eth.actors import only_me
-from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from constant_sorrow import constants
-from nucypher.network.protocols import SuspiciousActivity
 from eth_keys.datatypes import Signature as EthSignature
-import maya
+
+from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
+from nucypher.network.protocols import SuspiciousActivity
 
 
 class VerifiableNode:
@@ -51,7 +50,7 @@ class VerifiableNode:
 
     def interface_is_valid(self):
         message = self._signable_interface_info_message()
-        interface_is_valid = self._interface_signature.verify(message, self.public_key(SigningPower))
+        interface_is_valid = self._interface_signature.verify(message, self.public_material(SigningPower))
         self.verified_interface = interface_is_valid
         if interface_is_valid:
             return True
@@ -94,8 +93,8 @@ class VerifiableNode:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
         signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info = self._internal_splitter(response.content)
 
-        verifying_keys_match = verifying_key == self.public_key(SigningPower)
-        encrypting_keys_match = encrypting_key == self.public_key(EncryptingPower)
+        verifying_keys_match = verifying_key == self.public_material(SigningPower)
+        encrypting_keys_match = encrypting_key == self.public_material(EncryptingPower)
         addresses_match = public_address == self.canonical_public_address
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match)):

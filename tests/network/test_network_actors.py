@@ -1,12 +1,13 @@
 import asyncio
 
 import pytest
+from constant_sorrow import constants
 from kademlia.utils import digest
 
 from nucypher.characters import Ursula
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import CryptoPower, SigningPower
-from tests.utilities import MockRestMiddleware, MockArrangement
+from nucypher.utilities.network import MockRestMiddleware
 
 
 @pytest.mark.usefixtures('testerchain')
@@ -38,7 +39,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     assert ursula.dht_server.protocol.illegal_keys_seen == []
 
     # Vladimir does almost everything right....
-    value = vladimir.interface_info_with_metadata()
+    value = constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(vladimir)
 
     # Except he sets an illegal key for his interface.
     illegal_key = b"Not allowed to set arbitrary key for this."
@@ -159,6 +160,7 @@ def test_treaure_map_is_legit(enacted_federated_policy):
         assert ursula_address in enacted_federated_policy.bob._known_nodes
 
 
+@pytest.mark.skip
 def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_alice, idle_blockchain_policy, mining_ursulas):
     target = list(mining_ursulas)[2]
     # First, let's imagine that Alice has sampled a Vladimir while making this policy.

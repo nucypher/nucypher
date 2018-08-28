@@ -1,36 +1,33 @@
 import contextlib
+import datetime
 import os
 import tempfile
-import logging
-from os.path import abspath, dirname
 
-import datetime
 import maya
 import pytest
 from constant_sorrow import constants
-from eth_tester import EthereumTester
 from eth_utils import to_checksum_address
 from sqlalchemy.engine import create_engine
-from web3 import EthereumTesterProvider
 
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
-from nucypher.blockchain.eth.interfaces import DeployerCircumflex
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.blockchain.eth.utilities import OverridablePyEVMBackend, TemporaryEthereumContractRegistry
+from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.characters import Alice, Bob
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
-from tests.blockchain.eth import contracts
-from tests.blockchain.eth.utilities import token_airdrop
-from tests.utilities import MockRestMiddleware
-from tests.utilities import make_ursulas
-
+from nucypher.utilities.blockchain import make_ursulas, token_airdrop
+from nucypher.utilities.network import MockRestMiddleware
 #
 # Setup
 #
+from nucypher_cli.main import BASE_DIR
+
+test_contract_dir = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
+constants.TEST_CONTRACTS_DIR(test_contract_dir)
 
 constants.NUMBER_OF_TEST_ETH_ACCOUNTS(10)
 
@@ -168,7 +165,7 @@ def ursulas(three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     ether_addresses = [to_checksum_address(os.urandom(20)) for _ in range(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
     _ursulas = make_ursulas(ether_addresses=ether_addresses,
-                            miner_agent=miner_agent
+                            miner_agent=miner_agent,
                             )
     try:
         yield _ursulas
@@ -207,15 +204,18 @@ def non_ursula_miners(three_agents):
 
     ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
 
-    _receipts = token_airdrop(token_agent=token_agent, origin=etherbase,
-                              addresses=all_yall, amount=1000000 * constants.M)
+    _receipts = token_airdrop(token_agent=token_agent,
+                              origin=etherbase,
+                              addresses=all_yall,
+                              amount=1000000*constants.M)
 
     starting_point = constants.URSULA_PORT_SEED + 500
 
     _ursulas = make_ursulas(ether_addresses=ursula_addresses,
                             miner_agent=miner_agent,
                             miners=True,
-                            bare=True)
+                            bare=True,
+                            ursula_starting_port=starting_point)
     try:
         yield _ursulas
     finally:
@@ -232,8 +232,7 @@ def non_ursula_miners(three_agents):
 @pytest.fixture(scope='session')
 def solidity_compiler():
     """Doing this more than once per session will result in slower test run times."""
-    test_contracts_dir = os.path.join(dirname(abspath(contracts.__file__)), 'contracts')
-    compiler = SolidityCompiler(test_contract_dir=test_contracts_dir)
+    compiler = SolidityCompiler(test_contract_dir=str(constants.TEST_CONTRACTS_DIR))
     yield compiler
 
 
@@ -245,17 +244,10 @@ def testerchain(solidity_compiler):
 
     temp_registrar = TemporaryEthereumContractRegistry()
 
-    # Configure a custom provider
-    overrides = {'gas_limit': 4626271}
-    pyevm_backend = OverridablePyEVMBackend(genesis_overrides=overrides)
-
-    eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
-    pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
-
     # Use the the custom provider and registrar to init an interface
-    circumflex = DeployerCircumflex(compiler=solidity_compiler,    # freshly recompile
-                                    registry=temp_registrar,       # use temporary registrar
-                                    providers=(pyevm_provider, ))  # use custom test provider
+    circumflex = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
+                                             registry=temp_registrar,
+                                             provider_uri='pyevm://tester')
 
     # Create the blockchain
     testerchain = TesterBlockchain(interface=circumflex, test_accounts=10)

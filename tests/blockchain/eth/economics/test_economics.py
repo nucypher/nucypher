@@ -1,5 +1,6 @@
-from nucypher.blockchain.economics import Economics
 from math import log
+
+from nucypher.blockchain.economics import Economics
 
 
 def test_economics():

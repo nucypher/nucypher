@@ -6,22 +6,21 @@ from typing import ClassVar
 import kademlia
 from apistar import http, Route, App
 from apistar.http import Response
-from kademlia.crawling import NodeSpiderCrawl
-from kademlia.network import Server
-from kademlia.utils import digest
-
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from hendrix.experience import crosstown_traffic
-from nucypher.config.configs import NetworkConfiguration
+from kademlia.crawling import NodeSpiderCrawl
+from kademlia.network import Server
+from kademlia.utils import digest
+from umbral import pre
+from umbral.fragments import KFrag
+
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, TLSHostingPower
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, InterfaceInfo
 from nucypher.network.storage import SeedOnlyStorage
-from umbral import pre
-from umbral.fragments import KFrag
 
 
 class NucypherDHTServer(Server):
@@ -104,29 +103,25 @@ class NucypherSeedOnlyDHTServer(NucypherDHTServer):
 class ProxyRESTServer:
 
     def __init__(self,
-                 host=None,
-                 port=None,
+                 rest_host=None,
+                 rest_port=None,
                  db_name=None,
                  tls_private_key=None,
                  tls_curve=None,
-                 *args, **kwargs):
-        self.rest_interface = InterfaceInfo(host=host, port=port)
-
+                 certificate=None,
+                 *args, ** kwargs) -> None:
+        self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
         self.db_name = db_name
         self._rest_app = None
         tls_hosting_keypair = HostingKeypair(common_name=self.checksum_public_address,
-                                             private_key=tls_private_key, curve=tls_curve)
+                                             private_key=tls_private_key,
+                                             curve=tls_curve,
+                                             host=rest_host,
+                                             certificate=certificate)
         tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair)
         self._crypto_power.consume_power_up(tls_hosting_power)
 
-    @classmethod
-    def from_config(cls, network_config: NetworkConfiguration = None):
-        """Create a server object from config values, or from a config file."""
-        # if network_config is None:
-        # NetworkConfiguration._load()
-        instance = cls()
-
-    def public_key(self, power_class: ClassVar):
+    def public_material(self, power_class: ClassVar):
         """Implemented on Ursula"""
         raise NotImplementedError
 

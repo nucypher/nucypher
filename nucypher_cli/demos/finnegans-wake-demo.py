@@ -3,55 +3,40 @@
 
 # WIP w/ hendrix@3.0.0
 
-import binascii
 import datetime
-import logging
 import sys
 
 import maya
-
-from nucypher.characters import Alice, Bob, Ursula
-from nucypher.data_sources import DataSource
-# This is already running in another process.
-from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey
 
-root = logging.getLogger()
-root.setLevel(logging.DEBUG)
+from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.characters import Alice, Bob, Ursula
+from nucypher.data_sources import DataSource
 
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-root.addHandler(ch)
 
-teacher_dht_port = sys.argv[2]
-teacher_rest_port = int(teacher_dht_port) + 100
-with open("examples-runtime-cruft/node-metadata-{}".format(teacher_rest_port), "r") as f:
-    f.seek(0)
-    teacher_bytes = binascii.unhexlify(f.read())
-URSULA = Ursula.from_bytes(teacher_bytes, federated_only=True)
-print("Will learn from {}".format(URSULA))
+##############################################
+# This is already running in another process.
+##############################################
 
-# network_middleware = SandboxRestMiddleware([URSULA])
+BLOCKCHAIN = Blockchain.connect()
+
+URSULA = Ursula.from_config()
 
 #########
 # Alice #
 #########
 
-ALICE = Alice(network_middleware=RestMiddleware(),
-              known_nodes=(URSULA,),  # in lieu of seed nodes
-              federated_only=True,
-              always_be_learning=True)  # TODO: 289
+ALICE = Alice.from_config()
 
 # Here are our Policy details.
-policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+policy_end_datetime = maya.now() + datetime.timedelta(days=201)
 m = 2
 n = 3
 label = b"secret/files/and/stuff"
 
 # Alice grants to Bob.
-BOB = Bob(known_nodes=(URSULA,), federated_only=True, always_be_learning=True)
+BOB = Bob.from_config()
+
 ALICE.start_learning_loop(now=True)
 policy = ALICE.grant(BOB, label, m=m, n=n,
                      expiration=policy_end_datetime)
@@ -79,7 +64,7 @@ BOB.join_policy(label,  # The label - he needs to know what data he's after.
                 alices_pubkey_bytes_saved_for_posterity,  # To verify the signature, he'll need Alice's public key.
                 # He can also bootstrap himself onto the network more quickly
                 # by providing a list of known nodes at this time.
-                node_list=[("localhost", 3601)]
+                # node_list=[("localhost", 3601)]
                 )
 
 # Now that Bob has joined the Policy, let's show how DataSources

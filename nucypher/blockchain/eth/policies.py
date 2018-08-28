@@ -1,12 +1,12 @@
-import math
+from collections import deque
 from typing import List
 from typing import Set
 
+import math
 import maya
-from collections import deque
-
 from constant_sorrow import constants
 from eth_utils import to_canonical_address
+
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent
