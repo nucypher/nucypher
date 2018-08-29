@@ -17,9 +17,15 @@ class EthereumContractAgent(ABC):
 
     principal_contract_name = NotImplemented
     __contract_address = NotImplemented
+    __instance = None
 
     class ContractNotDeployed(Exception):
         pass
+
+    def __new__(cls, *args, **kwargs):
+        if cls.__instance is None:
+            cls.__instance = super(EthereumContractAgent, cls).__new__(cls)
+        return cls.__instance
 
     def __init__(self, blockchain: Blockchain=None, *args, **kwargs):
 
@@ -31,7 +37,6 @@ class EthereumContractAgent(ABC):
         contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
                                                                   upgradeable=self._upgradeable)
         self.__contract = contract
-
         super().__init__()
 
     def __repr__(self):
@@ -63,6 +68,7 @@ class EthereumContractAgent(ABC):
 class NucypherTokenAgent(EthereumContractAgent):
     principal_contract_name = "NuCypherToken"
     _upgradeable = False
+    __instance = None
 
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
@@ -83,6 +89,7 @@ class MinerAgent(EthereumContractAgent):
 
     principal_contract_name = "MinersEscrow"
     _upgradeable = True
+    __instance = None
 
     class NotEnoughMiners(Exception):
         pass
@@ -218,6 +225,7 @@ class PolicyAgent(EthereumContractAgent):
 
     principal_contract_name = "PolicyManager"
     _upgradeable = True
+    __instance = None
 
     def __init__(self, miner_agent: MinerAgent, *args, **kwargs):
         super().__init__(blockchain=miner_agent.blockchain, *args, **kwargs)

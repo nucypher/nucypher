@@ -13,7 +13,6 @@ from kademlia.utils import digest
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from hendrix.experience import crosstown_traffic
-from nucypher.config.configs import NetworkConfiguration
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, TLSHostingPower
 from nucypher.keystore.keypairs import HostingKeypair
@@ -120,7 +119,7 @@ class ProxyRESTServer:
         self._crypto_power.consume_power_up(tls_hosting_power)
 
     @classmethod
-    def from_config(cls, network_config: NetworkConfiguration = None):
+    def from_config(cls, network_config = None):
         """Create a server object from config values, or from a config file."""
         # if network_config is None:
         # NetworkConfiguration._load()
