@@ -1,15 +1,9 @@
 from urllib.parse import urlparse
 
 from constant_sorrow import constants
-from eth import constants as pyevm_constants
 from eth_keys.datatypes import PublicKey, Signature
-from eth_tester import EthereumTester
 from eth_utils import to_canonical_address
-<<<<<<< HEAD
 from typing import Tuple, Union
-=======
-from eth_utils import to_wei
->>>>>>> 73225ce... Update pyevm backend subclass, use URI for provider connection
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 from web3.providers.eth_tester.main import EthereumTesterProvider
@@ -212,31 +206,11 @@ class BlockchainInterface:
             if uri_breakdown.scheme == 'pyevm':
 
                 if uri_breakdown.netloc == 'tester':
-<<<<<<< HEAD
 
                     NUCYPHER_GAS_LIMIT = 4899698  # 4626271  # TODO: Move ME
                     genesis_parameter_overrides = {'gas_limit': NUCYPHER_GAS_LIMIT}
-                    pyevm_backend = PyEVMBackend(genesis_parameter_overrides=genesis_parameter_overrides)
-=======
-                    from nucypher.blockchain.eth.utilities import OverridablePyEVMBackend
 
-                    NUCYPHER_GAS_LIMIT = 4899698  # 4626271
-
-                    GENESIS_PARAMS = {
-                        'parent_hash': pyevm_constants.GENESIS_PARENT_HASH,
-                        'uncles_hash': pyevm_constants.EMPTY_UNCLE_HASH,
-                        'coinbase': pyevm_constants.ZERO_ADDRESS,
-                        'transaction_root': pyevm_constants.BLANK_ROOT_HASH,
-                        'receipt_root': pyevm_constants.BLANK_ROOT_HASH,
-                        'difficulty': pyevm_constants.GENESIS_DIFFICULTY,
-                        'block_number': pyevm_constants.GENESIS_BLOCK_NUMBER,
-                        'gas_limit': NUCYPHER_GAS_LIMIT,
-                        'extra_data': pyevm_constants.GENESIS_EXTRA_DATA,
-                        'nonce': pyevm_constants.GENESIS_NONCE
-                    }
-
-                    pyevm_backend = OverridablePyEVMBackend(genesis_params=GENESIS_PARAMS)
->>>>>>> 73225ce... Update pyevm backend subclass, use URI for provider connection
+                    pyevm_backend = PyEVMBackend.from_genesis_overrides(parameter_overrides=genesis_parameter_overrides)
 
                     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)

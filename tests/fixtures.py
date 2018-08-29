@@ -250,14 +250,14 @@ def testerchain(solidity_compiler):
 
     # Use the the custom provider and registrar to init an interface
 
-    circumflex = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
-                                             registry=temp_registrar,
-                                             provider_uri='pyevm://tester')
+    deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
+                                                     registry=temp_registrar,
+                                                     provider_uri='pyevm://tester')
 
     # Create the blockchain
-    testerchain = TesterBlockchain(interface=circumflex, test_accounts=10)
+    testerchain = TesterBlockchain(interface=deployer_interface, test_accounts=10)
     origin, *everyone = testerchain.interface.w3.eth.accounts
-    circumflex.deployer_address = origin  # Set the deployer address from a freshly created test account
+    deployer_interface.deployer_address = origin  # Set the deployer address from a freshly created test account
 
     yield testerchain
 
