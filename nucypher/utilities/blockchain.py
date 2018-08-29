@@ -93,7 +93,7 @@ def make_ursulas(ether_addresses: list,
             min_locktime, max_locktime = constants.MIN_LOCKED_PERIODS, constants.MAX_MINTING_PERIODS
             periods = random.randint(min_locktime, max_locktime)
 
-            ursula.stake(amount=amount, lock_periods=periods)
+            ursula.initialize_stake(amount=amount, lock_periods=periods)
         else:
             ursula.federated_only = True
 

@@ -35,7 +35,6 @@ def test_new_ursula_announces_herself(testerchain):
     assert ursula_in_a_house in ursula_with_a_mouse._known_nodes.values()
 
 
-@pytest.mark.skip
 def test_blockchain_ursula_substantiates_stamp(mining_ursulas):
     first_ursula = list(mining_ursulas)[0]
     signature_as_bytes = first_ursula._evidence_of_decentralized_identity
@@ -48,7 +47,6 @@ def test_blockchain_ursula_substantiates_stamp(mining_ursulas):
     assert first_ursula._stamp_has_valid_wallet_signature
 
 
-@pytest.mark.skip
 def test_blockchain_ursula_verifies_stamp(mining_ursulas):
     first_ursula = list(mining_ursulas)[0]
 
@@ -60,7 +58,6 @@ def test_blockchain_ursula_verifies_stamp(mining_ursulas):
     assert first_ursula.verified_stamp
 
 
-@pytest.mark.skip
 def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(mining_ursulas):
     his_target = list(mining_ursulas)[4]
 
@@ -89,7 +86,6 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(mining_ursula
         vladimir.validate_metadata()
 
 
-@pytest.mark.skip
 def test_vladimir_uses_his_own_signing_key(alice, mining_ursulas):
     """
     Similar to the attack above, but this time Vladimir makes his own interface signature
