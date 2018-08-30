@@ -136,7 +136,7 @@ class KeyPairBasedPower(CryptoPowerUp):
     def __init__(self,
                  pubkey: UmbralPublicKey = None,
                  keypair: keypairs.Keypair = None,
-                 generate_keys_if_needed=True) -> None:
+                 ) -> None:
         if keypair and pubkey:
             raise ValueError(
                 "Pass keypair or pubkey_bytes (or neither), but not both.")
@@ -192,14 +192,6 @@ class EncryptingPower(KeyPairBasedPower):
     _keypair_class = EncryptingKeypair
     not_found_error = NoEncryptingPower
     provides = ("decrypt",)
-
-
-class TLSHostingPower(KeyPairBasedPower):
-    _keypair_class = HostingKeypair
-    provides = ("get_deployer",)
-
-    def public_material(self):
-        return self.keypair.certificate, self.keypair.pubkey
 
 
 class DelegatingPower(DerivedKeyBasedPower):

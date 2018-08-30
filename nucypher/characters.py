@@ -37,7 +37,7 @@ from nucypher.crypto.signing import signature_splitter, StrangerStamp, Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
+from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer
 
 
 class Character:
@@ -1015,7 +1015,7 @@ class Bob(Character):
         return cleartexts
 
 
-class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
+class Ursula(Character, VerifiableNode, Miner):
     _internal_splitter = BytestringSplitter(Signature,
                                             VariableLengthBytestring,
                                             (UmbralPublicKey, PUBLIC_KEY_LENGTH),

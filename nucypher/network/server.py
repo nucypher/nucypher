@@ -16,7 +16,7 @@ from umbral import pre
 from umbral.fragments import KFrag
 
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import SigningPower, TLSHostingPower
+from nucypher.crypto.powers import SigningPower, KeyPairBasedPower
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, InterfaceInfo
@@ -341,3 +341,11 @@ class ProxyRESTServer:
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self._rest_app,
                                                                               port=self.rest_interface.port)
         return deployer
+
+
+class TLSHostingPower(KeyPairBasedPower):
+    _keypair_class = HostingKeypair
+    provides = ("get_deployer",)
+
+    def public_material(self):
+        return self.keypair.certificate, self.keypair.pubkey
