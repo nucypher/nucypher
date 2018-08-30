@@ -96,7 +96,10 @@ def make_ursulas(ether_addresses: list,
             ursula.federated_only = True
 
         ursulas.add(ursula)
-        _TEST_KNOWN_URSULAS_CACHE[ursula.rest_information().port] = ursula
+
+        # Store this Ursula in our global cache.
+        port = ursula.rest_information()[0].port
+        _TEST_KNOWN_URSULAS_CACHE[port] = ursula
 
     if know_each_other and not bare:
 
@@ -108,7 +111,7 @@ def make_ursulas(ether_addresses: list,
             event_loop.run_until_complete(
                 ursula.dht_server.bootstrap(
                     [("localhost", starting_port + _c) for _c in range(len(ursulas))]))
-            ursula.publish_dht_information()
+            # ursula.publish_dht_information()
 
     return ursulas
 

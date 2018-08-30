@@ -87,8 +87,8 @@ class VerifiableNode:
         self.validate_metadata(accept_federated_only)  # This is both the stamp and interface check.
 
         # The node's metadata is valid; let's be sure the interface is in order.
-        response = network_middleware.node_information(host=self.rest_interface.host,
-                                            port=self.rest_interface.port)
+        response = network_middleware.node_information(host=self.rest_information()[0].host,
+                                            port=self.rest_information()[0].port)
         if not response.status_code == 200:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
         signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info = self._internal_splitter(response.content)
@@ -112,7 +112,7 @@ class VerifiableNode:
         self._evidence_of_decentralized_identity = signature
 
     def _signable_interface_info_message(self):
-        message = self.canonical_public_address + self.rest_interface + self.dht_interface
+        message = self.canonical_public_address + self.rest_information()[0] + self.dht_interface
         return message
 
     def _sign_interface_info(self):

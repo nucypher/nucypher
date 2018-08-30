@@ -1092,13 +1092,13 @@ class Ursula(Character, VerifiableNode, Miner):
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
 
+
+
         rest_server = ProxyRESTServer(
             rest_host=rest_host,
             rest_port=rest_port,
             db_name=db_name,
-            tls_private_key=tls_private_key,
-            tls_curve=tls_curve,
-            )
+        )
 
         tls_hosting_keypair = HostingKeypair(
             common_name=self.checksum_public_address,
@@ -1117,9 +1117,18 @@ class Ursula(Character, VerifiableNode, Miner):
             if not federated_only:
                 self.substantiate_stamp()
 
+    def rest_information(self):
+        hosting_power = self._crypto_power.power_ups(TLSHostingPower)
+
+        return (
+            hosting_power.rest_server.rest_interface,
+            hosting_power.keypair.certificate,
+            hosting_power.keypair.pubkey
+        )
+
     def __bytes__(self):
 
-        interface_info = VariableLengthBytestring(self.rest_interface)
+        interface_info = VariableLengthBytestring(self.rest_information()[0])
 
         if self.dht_interface:
             interface_info += VariableLengthBytestring(self.dht_interface)
@@ -1218,11 +1227,13 @@ class Ursula(Character, VerifiableNode, Miner):
 
     @property
     def rest_app(self):
-        if not self._rest_app:
+        rest_app_on_server = self._crypto_power.power_ups(TLSHostingPower).rest_server._rest_app
+
+        if not rest_app_on_server:
             m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."
             raise AttributeError(m)
         else:
-            return self._rest_app
+            return rest_app_on_server
 
     def interface_info_with_metadata(self):
         # TODO: Do we ever actually use this without using the rest of the serialized Ursula?  337

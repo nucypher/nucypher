@@ -1,7 +1,7 @@
 import asyncio
 import binascii
 import random
-from typing import ClassVar
+from logging import getLogger
 
 import kademlia
 from apistar import http, Route, App
@@ -101,33 +101,47 @@ class NucypherSeedOnlyDHTServer(NucypherDHTServer):
 
 
 class ProxyRESTServer:
+    log = getLogger("characters")
 
     def __init__(self,
-                 rest_host=None,
-                 rest_port=None,
-                 db_name=None,
-                 tls_private_key=None,
-                 tls_curve=None,
-                 certificate=None,
-                 common_name=None,
-                 *args, ** kwargs) -> None:
+                 rest_host,
+                 rest_port,
+                 routes,
+                 ) -> None:
         self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
+
+    def start_datastore(self, db_name):
+        if not db_name:
+            raise TypeError("In order to start a datastore, you need to supply a db_name.")
+
+        from nucypher.keystore import keystore
+        from nucypher.keystore.db import Base
+        from sqlalchemy.engine import create_engine
+
+        self.log.info("Starting datastore {}".format(db_name))
+        engine = create_engine('sqlite:///{}'.format(db_name))
+        Base.metadata.create_all(engine)
+        self.datastore = keystore.KeyStore(engine)
+        self.db_engine = engine
+
+    def rest_url(self):
+        return "{}:{}".format(self.rest_information()[0].host, self.rest_information()[0].port)
+
+    #####################################
+    # Actual REST Endpoints and utilities
+    #####################################
+
+    def get_deployer(self):
+        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self._rest_app,
+                                                                              port=self.rest_information()[0].port)
+        return deployer
+
+
+class ProxyRESTRoutes:
+
+    def __init__(self, db_name=None):
+
         self.db_name = db_name
-        self._rest_app = None
-
-    def public_material(self, power_class: ClassVar):
-        """Implemented on Ursula"""
-        raise NotImplementedError
-
-    def canonical_public_address(self):
-        """Implemented on Ursula"""
-        raise NotImplementedError
-
-    def stamp(self, *args, **kwargs):
-        """Implemented on Ursula"""
-        raise NotImplementedError
-
-    def attach_rest_server(self):
 
         routes = [
             Route('/kFrag/{id_as_hex}',
@@ -155,27 +169,6 @@ class ProxyRESTServer:
 
         self._rest_app = App(routes=routes)
         self.start_datastore(self.db_name)
-
-    def start_datastore(self, db_name):
-        if not db_name:
-            raise TypeError("In order to start a datastore, you need to supply a db_name.")
-
-        from nucypher.keystore import keystore
-        from nucypher.keystore.db import Base
-        from sqlalchemy.engine import create_engine
-
-        self.log.info("Starting datastore {}".format(db_name))
-        engine = create_engine('sqlite:///{}'.format(db_name))
-        Base.metadata.create_all(engine)
-        self.datastore = keystore.KeyStore(engine)
-        self.db_engine = engine
-
-    def rest_url(self):
-        return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
-
-    #####################################
-    # Actual REST Endpoints and utilities
-    #####################################
 
     def public_information(self):
         """
@@ -330,11 +323,6 @@ class ProxyRESTServer:
             # TODO: Make this a proper 500 or whatever.
             self.log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
-
-    def get_deployer(self):
-        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self._rest_app,
-                                                                              port=self.rest_interface.port)
-        return deployer
 
 
 class TLSHostingPower(KeyPairBasedPower):
