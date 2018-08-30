@@ -451,10 +451,11 @@ class Character:
 
         self._adjust_learning(new_nodes)
 
-        self.log.info("Learning round {}.  Teacher: {} knew about {} nodes, {} were new.".format(self._learning_round,
-                                                                                                 current_teacher.checksum_public_address,
-                                                                                                 len(node_list),
-                                                                                                 len(new_nodes)),
+        learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
+        self.log.info(learning_round_log_message.format(self._learning_round,
+                                                        current_teacher.checksum_public_address,
+                                                        len(node_list),
+                                                        len(new_nodes)),
                       )
 
     def _adjust_learning(self, node_list):
