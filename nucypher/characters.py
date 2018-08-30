@@ -34,10 +34,11 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower, \
     BlockchainPower, CryptoPowerUp
 from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
+from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer
+from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer, TLSHostingPower
 
 
 class Character:
@@ -1039,6 +1040,7 @@ class Ursula(Character, VerifiableNode, Miner):
                  # Ursula
                  rest_host,
                  rest_port,
+                 certificate=None,
                  db_name=None,
                  is_me=True,
                  dht_host=None,
@@ -1089,12 +1091,23 @@ class Ursula(Character, VerifiableNode, Miner):
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
 
-        ProxyRESTServer.__init__(self,
-                                 rest_host=rest_host,
-                                 rest_port=rest_port,
-                                 db_name=db_name,
-                                 tls_private_key=tls_private_key,
-                                 tls_curve=tls_curve)
+        rest_server = ProxyRESTServer(
+            rest_host=rest_host,
+            rest_port=rest_port,
+            db_name=db_name,
+            tls_private_key=tls_private_key,
+            tls_curve=tls_curve,
+            )
+
+        tls_hosting_keypair = HostingKeypair(
+            common_name=self.checksum_public_address,
+            private_key=tls_private_key,
+            curve=tls_curve,
+            host=rest_host,
+            certificate=certificate)
+        tls_hosting_power = TLSHostingPower(rest_server=rest_server,
+                                            keypair=tls_hosting_keypair)
+        self._crypto_power.consume_power_up(tls_hosting_power)
 
         if is_me is True:
             # TODO: 340

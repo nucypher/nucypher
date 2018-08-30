@@ -109,17 +109,11 @@ class ProxyRESTServer:
                  tls_private_key=None,
                  tls_curve=None,
                  certificate=None,
+                 common_name=None,
                  *args, ** kwargs) -> None:
         self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
         self.db_name = db_name
         self._rest_app = None
-        tls_hosting_keypair = HostingKeypair(common_name=self.checksum_public_address,
-                                             private_key=tls_private_key,
-                                             curve=tls_curve,
-                                             host=rest_host,
-                                             certificate=certificate)
-        tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair)
-        self._crypto_power.consume_power_up(tls_hosting_power)
 
     def public_material(self, power_class: ClassVar):
         """Implemented on Ursula"""
