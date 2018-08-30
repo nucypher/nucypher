@@ -74,8 +74,6 @@ def make_ursulas(ether_addresses: list,
                             federated_only=federated_only,
                             **ursula_kwargs)
 
-            ursula.attach_rest_server()
-
             class MockDatastoreThreadPool(object):
                 def callInThread(self, f, *args, **kwargs):
                     return f(*args, **kwargs)
@@ -98,7 +96,7 @@ def make_ursulas(ether_addresses: list,
             ursula.federated_only = True
 
         ursulas.add(ursula)
-        _TEST_KNOWN_URSULAS_CACHE[ursula.rest_interface.port] = ursula
+        _TEST_KNOWN_URSULAS_CACHE[ursula.rest_information().port] = ursula
 
     if know_each_other and not bare:
 

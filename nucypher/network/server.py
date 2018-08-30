@@ -341,5 +341,9 @@ class TLSHostingPower(KeyPairBasedPower):
     _keypair_class = HostingKeypair
     provides = ("get_deployer",)
 
+    def __init__(self, rest_server, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.rest_server = rest_server
+
     def public_material(self):
         return self.keypair.certificate, self.keypair.pubkey

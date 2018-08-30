@@ -1242,7 +1242,6 @@ class Ursula(Character, VerifiableNode, Miner):
             self.canonical_public_address)  # Ursula can still "mine" wallets until she gets a DHT ID she wants.  Does that matter?  #136
         # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
         super().attach_dht_server(ksize=ksize, id=digest(node_id), alpha=alpha, storage=storage)
-        self.attach_rest_server()
 
     def dht_listen(self):
         if self.dht_interface is constants.NO_INTERFACE:
