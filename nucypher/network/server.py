@@ -139,9 +139,33 @@ class ProxyRESTServer:
 
 class ProxyRESTRoutes:
 
-    def __init__(self, db_name=None):
-
+    def __init__(self,
+                 db_name,
+                 network_middleware,
+                 federated_only,
+                 dht_server,
+                 treasure_map_tracker,
+                 node_tracker,
+                 node_bytes_caster,
+                 work_order_tracker,
+                 node_recorder,
+                 stamp,
+                 verifier,
+                 ) -> None:
         self.db_name = db_name
+
+        self.network_middleware = network_middleware
+        self.federated_only = federated_only
+        self.dht_server = dht_server
+
+        self._treasure_map_tracker = treasure_map_tracker
+        self._work_order_tracker = work_order_tracker
+        self._node_tracker = node_tracker
+        self._node_bytes_caster/ = node_bytes_caster
+        self._node_recorder = node_recorder
+        self._stamp = stamp
+        self._verifier = verifier
+
 
         routes = [
             Route('/kFrag/{id_as_hex}',
@@ -176,25 +200,25 @@ class ProxyRESTRoutes:
         """
         headers = {'Content-Type': 'application/octet-stream'}
         response = Response(
-            content=bytes(self),
+            content=self.ursula_bytes_caster(),
             headers=headers)
 
         return response
 
     def all_known_nodes(self, request: http.Request):
         headers = {'Content-Type': 'application/octet-stream'}
-        ursulas_as_bytes = bytes().join(bytes(n) for n in self._known_nodes.values())
-        ursulas_as_bytes += bytes(self)
+        ursulas_as_bytes = bytes().join(bytes(n) for n in self._known_nodes_tracker.values())
+        ursulas_as_bytes += self.ursula_bytes_caster()
         signature = self.stamp(ursulas_as_bytes)
         return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
 
     def node_metadata_exchange(self, request: http.Request, query_params: http.QueryParams):
 
-        nodes = self.batch_from_bytes(request.body, federated_only=self.federated_only)
+        nodes = CLASS.batch_from_bytes(request.body, federated_only=self.federated_only)
         # TODO: This logic is basically repeated in learn_from_teacher_node.  Let's find a better way.
         for node in nodes:
 
-            if node.checksum_public_address in self._known_nodes:
+            if node.checksum_public_address in self._node_tracker:
                 continue  # TODO: 168 Check version and update if required.
 
             @crosstown_traffic()
@@ -208,7 +232,7 @@ class ProxyRESTRoutes:
                     self.log.warning(message)
 
                 self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-                self.remember_node(node)
+                self._node_recorder(node)
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
         return self.all_known_nodes(request)
@@ -244,7 +268,7 @@ class ProxyRESTRoutes:
         alice = self._alice_class.from_public_keys({SigningPower: policy_message_kit.sender_pubkey_sig})
 
         try:
-            cleartext = self.verify_from(alice, policy_message_kit, decrypt=True)
+            cleartext = self._verifier(alice, policy_message_kit, decrypt=True)
         except self.InvalidSignature:
             # TODO: What do we do if the Policy isn't signed properly?
             pass
@@ -279,7 +303,7 @@ class ProxyRESTRoutes:
             cfrag_byte_stream += VariableLengthBytestring(cfrag)
 
         # TODO: Put this in Ursula's datastore
-        self._work_orders.append(work_order)
+        self._work_order_tracker.append(work_order)
 
         headers = {'Content-Type': 'application/octet-stream'}
 
@@ -289,9 +313,10 @@ class ProxyRESTRoutes:
         headers = {'Content-Type': 'application/octet-stream'}
 
         try:
-            treasure_map = self.treasure_maps[digest(treasure_map_id)]
+            treasure_map = self.treasure_map_tracker[digest(treasure_map_id)]
             response = Response(content=bytes(treasure_map), headers=headers)
-            self.log.info("{} providing TreasureMap {}".format(self, treasure_map_id))
+            self.log.info("{} providing TreasureMap {}".format(self.ursula_bytes_caster(),
+                                                               treasure_map_id))
         except KeyError:
             self.log.info("{} doesn't have requested TreasureMap {}".format(self, treasure_map_id))
             response = Response("No Treasure Map with ID {}".format(treasure_map_id),
@@ -317,7 +342,7 @@ class ProxyRESTRoutes:
                                     constants.BYTESTRING_IS_TREASURE_MAP + bytes(treasure_map))
 
             # TODO 341 - what if we already have this TreasureMap?
-            self.treasure_maps[digest(treasure_map_id)] = treasure_map
+            self.treasure_map_tracker[digest(treasure_map_id)] = treasure_map
             return Response(content=bytes(treasure_map), status_code=202)
         else:
             # TODO: Make this a proper 500 or whatever.

@@ -38,7 +38,8 @@ from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer, TLSHostingPower
+from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer, TLSHostingPower, \
+    ProxyRESTRoutes
 
 
 class Character:
@@ -1092,30 +1093,43 @@ class Ursula(Character, VerifiableNode, Miner):
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
 
-
-
-        rest_server = ProxyRESTServer(
-            rest_host=rest_host,
-            rest_port=rest_port,
-            db_name=db_name,
-        )
-
-        tls_hosting_keypair = HostingKeypair(
-            common_name=self.checksum_public_address,
-            private_key=tls_private_key,
-            curve=tls_curve,
-            host=rest_host,
-            certificate=certificate)
-        tls_hosting_power = TLSHostingPower(rest_server=rest_server,
-                                            keypair=tls_hosting_keypair)
-        self._crypto_power.consume_power_up(tls_hosting_power)
-
         if is_me is True:
             # TODO: 340
             self._stored_treasure_maps = {}
             self.attach_dht_server()
             if not federated_only:
                 self.substantiate_stamp()
+
+            rest_routes = ProxyRESTRoutes(
+                db_name=db_name,
+                network_middleware=self.network_middleware,
+                federated_only=self.federated_only,
+                dht_server=self.dht_server,
+                treasure_map_tracker=self.treasure_maps,
+                node_tracker=self._known_nodes,
+                node_bytes_caster=self.__bytes__,
+                work_order_tracker=self._work_orders,
+                node_recorder=self.remember_node,
+                stamp=self.stamp,
+                verifier=self.verify_from
+            )
+
+            rest_server = ProxyRESTServer(
+                rest_host=rest_host,
+                rest_port=rest_port,
+                routes=rest_routes,
+            )
+
+            tls_hosting_keypair = HostingKeypair(
+                common_name=self.checksum_public_address,
+                private_key=tls_private_key,
+                curve=tls_curve,
+                host=rest_host,
+                certificate=certificate)
+            tls_hosting_power = TLSHostingPower(rest_server=rest_server,
+                                                keypair=tls_hosting_keypair)
+
+        self._crypto_power.consume_power_up(tls_hosting_power)
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)
