@@ -29,6 +29,10 @@ class MockRestMiddleware(RestMiddleware):
     class NotEnoughMockUrsulas(MinerAgent.NotEnoughMiners):
         pass
 
+    def __get_mock_client_by_ursula(self, ursula):
+        port = ursula.rest_information()[0].port
+        return self.__get_mock_client_by_port(port)
+
     def __get_mock_client_by_port(self, port):  # TODO
         try:
             ursula = _TEST_KNOWN_URSULAS_CACHE[port]
@@ -40,13 +44,13 @@ class MockRestMiddleware(RestMiddleware):
         return mock_client
 
     def consider_arrangement(self, arrangement=None):
-        mock_client = self.__get_mock_client_by_port(arrangement.ursula.rest_interface.port)
+        mock_client = self.__get_mock_client_by_ursula(arrangement.ursula)
         response = mock_client.post("http://localhost/consider_arrangement", bytes(arrangement))
         assert response.status_code == 200
         return response
 
     def enact_policy(self, ursula, id, payload):
-        mock_client = self.__get_mock_client_by_port(ursula.rest_interface.port)
+        mock_client = self.__get_mock_client_by_ursula(ursula)
         response = mock_client.post('http://localhost/kFrag/{}'.format(id.hex()), payload)
         assert response.status_code == 200
         return True, ursula.stamp.as_umbral_pubkey()
@@ -58,7 +62,7 @@ class MockRestMiddleware(RestMiddleware):
         return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(id_as_hex), payload)
 
     def get_treasure_map_from_node(self, node, map_id):
-        mock_client = self.__get_mock_client_by_port(node.rest_interface.port)
+        mock_client = self.__get_mock_client_by_ursula(node)
         return mock_client.get("http://localhost/treasure_map/{}".format(map_id))
 
     def node_information(self, host, port):
@@ -85,7 +89,7 @@ class MockRestMiddleware(RestMiddleware):
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
-        mock_client = self.__get_mock_client_by_port(node.rest_interface.port)
+        mock_client = self.__get_mock_client_by_ursula(node)
         response = mock_client.post("http://localhost/treasure_map/{}".format(map_id),
                       data=map_payload, verify=False)
         return response
