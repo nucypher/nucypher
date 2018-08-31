@@ -368,7 +368,8 @@ class UserEscrowDeployer(ContractDeployer):
     Depends on Token, MinerEscrow, and PolicyManager
     """
 
-    _contract_name = 'UserEscrow'
+    agency = UserEscrowAgent
+    _contract_name = agency.principal_contract_name
 
     def __init__(self, miner_escrow_deployer, policy_deployer, *args, **kwargs):
         self.miner_deployer = miner_escrow_deployer

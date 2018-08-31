@@ -299,3 +299,10 @@ class PolicyAgent(EthereumContractAgent):
         txhash = self.contract.functions.refund(policy_id).transact({'from': author_address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
+
+
+class UserEscrowAgent(EthereumContractAgent):
+
+    principal_contract_name = "UserEscrow"
+    _upgradeable = True
+    __instance = None
