@@ -138,7 +138,7 @@ jobs:
       - run:
           name: Ethereum Inter-Contract Integration Test
           command: |
-            pipenv run pytest -v --runslow tests/blockchain/eth/contracts/integration --junitxml=./reports/pytest/results.xml
+            pipenv run pytest -v --runslow tests/blockchain/eth/contracts/main/test_intercontract_integration.py --junitxml=./reports/pytest/results.xml
       - store_test_results:
           path: ./reports/pytest/
 
