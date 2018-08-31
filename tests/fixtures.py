@@ -7,7 +7,6 @@ import maya
 import pytest
 from constant_sorrow import constants
 from eth_utils import to_checksum_address
-from nucypher.blockchain.eth.utilities import TemporaryEthereumContractRegistry
 from sqlalchemy.engine import create_engine
 
 from nucypher.blockchain.eth.chains import TesterBlockchain
