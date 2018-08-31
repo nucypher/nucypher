@@ -69,7 +69,6 @@ class TestMiner:
 
     @pytest.mark.slow()
     @pytest.mark.usefixtures("mining_ursulas")
-    @pytest.mark.skip("Accidentally triggers an actual mining daemon.")
     def test_miner_collects_staking_reward(self, testerchain, miner, three_agents):
         token_agent, miner_agent, policy_agent = three_agents
 
@@ -101,7 +100,7 @@ class TestPolicyAuthor:
         token_agent, miner_agent, policy_agent = three_agents
         token_agent.ether_airdrop(amount=100000 * constants.M)
         _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
-        miner = PolicyAuthor(ether_address=alice, policy_agent=policy_agent)
+        miner = PolicyAuthor(checksum_address=alice, policy_agent=policy_agent)
         return miner
 
     def test_create_policy_author(self, testerchain, three_agents):

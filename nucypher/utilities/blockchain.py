@@ -36,7 +36,6 @@ def make_ursulas(ether_addresses: list,
     if isinstance(ether_addresses, int):
         ether_addresses = [to_checksum_address(secure_random(20)) for _ in range(ether_addresses)]
 
-
     event_loop = asyncio.get_event_loop()
     if not _TEST_KNOWN_URSULAS_CACHE:
         starting_port = constants.URSULA_PORT_SEED
