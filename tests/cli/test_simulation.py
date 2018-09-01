@@ -17,3 +17,17 @@ def test_deploy():
 
     assert result.exit_code == 0
 
+
+def test_swarm():
+    runner = CliRunner()
+    result = runner.invoke(cli, ['simulate', 'swarm'], catch_exceptions=False)
+
+
+def test_status():
+    runner = CliRunner()
+    result = runner.invoke(cli, ['simulate', 'status'], catch_exceptions=False)
+
+
+def test_stop():
+    runner = CliRunner()
+    result = runner.invoke(cli, ['simulate', 'deploy'], catch_exceptions=False)
