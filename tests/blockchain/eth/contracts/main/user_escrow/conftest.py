@@ -2,6 +2,9 @@ import pytest
 from web3.contract import Contract
 
 
+secret = (123456).to_bytes(32, byteorder='big')
+
+
 @pytest.fixture()
 def token(testerchain):
     # Create an ERC20 token
@@ -29,22 +32,17 @@ def policy_manager(testerchain):
 
 
 @pytest.fixture()
-def government(testerchain):
-    contract, _ = testerchain.interface.deploy_contract('GovernmentForUserEscrowMock')
-    return contract
-
-
-@pytest.fixture()
-def proxy(testerchain, token, escrow, policy_manager, government):
+def proxy(testerchain, token, escrow, policy_manager):
     # Creator deploys the user escrow proxy
     contract, _ = testerchain.interface.deploy_contract(
-        'UserEscrowProxy', token.address, escrow.address, policy_manager.address, government.address)
+        'UserEscrowProxy', token.address, escrow.address, policy_manager.address)
     return contract
 
 
 @pytest.fixture()
 def linker(testerchain, proxy):
-    linker, _ = testerchain.interface.deploy_contract('UserEscrowLibraryLinker', proxy.address)
+    secret_hash = testerchain.interface.w3.sha3(secret)
+    linker, _ = testerchain.interface.deploy_contract('UserEscrowLibraryLinker', proxy.address, secret_hash)
     return linker
 
 

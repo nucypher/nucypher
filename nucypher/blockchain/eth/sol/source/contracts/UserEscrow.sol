@@ -13,22 +13,29 @@ import "contracts/NuCypherToken.sol";
 contract UserEscrowLibraryLinker is Ownable {
 
     address public target;
+    bytes32 public secretHash;
 
     /**
     * @param _target Address of the library contract
+    * @param _newSecretHash Secret hash (keccak256)
     **/
-    constructor(address _target) public {
+    constructor(address _target, bytes32 _newSecretHash) public {
         require(_target != 0x0);
         target = _target;
+        secretHash = _newSecretHash;
     }
 
     /**
     * @notice Upgrade library
     * @param _target New contract address
+    * @param _secret Secret for proof of contract owning
+    * @param _newSecretHash New secret hash (keccak256)
     **/
-    function upgrade(address _target) public onlyOwner {
+    function upgrade(address _target, bytes _secret, bytes32 _newSecretHash) public onlyOwner {
         require(_target != 0x0);
+        require(keccak256(_secret) == secretHash && _newSecretHash != secretHash);
         target = _target;
+        secretHash = _newSecretHash;
     }
 
 }
@@ -110,7 +117,7 @@ contract UserEscrow is Ownable {
     **/
     function () public payable onlyOwner {
         address libraryTarget = linker.target();
-        assert(libraryTarget != 0x0);
+        require(libraryTarget != 0x0);
         bool callSuccess = libraryTarget.delegatecall(msg.data);
         if (callSuccess) {
             assembly {

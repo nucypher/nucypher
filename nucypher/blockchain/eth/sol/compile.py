@@ -61,7 +61,6 @@ class SolidityCompiler:
 
         remappings = ("contracts={}".format(self._solidity_source_dir),
                       "zeppelin={}".format(os.path.join(project_root, 'zeppelin')),
-                      "proxy={}".format(os.path.join(project_root, 'proxy')),
                       )
         try:
             compiled_sol = compile_files(source_files=source_paths,

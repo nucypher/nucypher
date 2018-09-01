@@ -82,21 +82,11 @@ contract PolicyManagerForUserEscrowMock {
         minRewardRate = _minRewardRate;
     }
 
-    function () public payable {}
-}
-
-
-/**
-* @notice Contract for testing the user escrow contract
-**/
-contract GovernmentForUserEscrowMock {
-
-    bool public voteFor;
-
-    function vote(bool _voteFor) public {
-        voteFor = _voteFor;
+    function additionalMethod(uint256 _minRewardRate) public {
+        minRewardRate = _minRewardRate;
     }
 
+    function () public payable {}
 }
 
 

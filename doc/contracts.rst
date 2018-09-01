@@ -4,8 +4,7 @@ NuCypher contracts
 * `MinersEscrow` contract holds Ursula's stake, stores information about Ursulas activity and assigns a reward for participating in NuCypher network. The `Issuer` contract is part of the `MinersEscrow` and uses only to split code
 * `PolicyManager` contract holds policies fee and distributes fee by periods
 * `Upgradeable` is base contract for upgrading (<nucypher.blockchain.eth/project/contracts/proxy/README.MD>)
-* `Dispatcher` contract is used as proxy to other contracts. This provides upgrading of the `MinersEscrow`, `PolicyManager` and `Government` contracts
-* `Government` contract holds ownership for dispatchers and provides voting for upgrading of those contracts
+* `Dispatcher` contract is used as proxy to other contracts. This provides upgrading of the `MinersEscrow` and `PolicyManager` contracts
 * `UserEscrow` contract locks tokens for some time. Tokens will be unlocked after specified time and all tokens can be used as a stake in the `MinersEscrow` contract
 
 Deployment
@@ -16,11 +15,10 @@ Deployment
 * Transfer reward tokens to the `MinersEscrow` contract. This tokens is reward for mining. The remaining tokens are initial supply
 * Run the `initialize()` method to initialize the `MinersEscrow` contract
 * Set the address of the `PolicyManager` contract  in the `MinersEscrow` by using the `setPolicyManager(address)`
-* After this deploy `Government` contract with dispatcher 
-* Transfer ownership of the `MinersEscrow`, `PolicyManager` and `Government` dispatchers to the `Government` dispatcher address
 * Pre-deposit tokens to the `MinersEscrow` if necessary:
 	* Approve the transfer tokens for the `MinersEscrow` contract using the `approve(address, uint)` method. The parameters are the address of `MinersEscrow` and the amount of tokens for a miner or group of miner;
 	* Deposit tokens to the `MinersEscrow` contract using the `preDeposit(address[], uint[], uint[])` method. The parameters are the addresses of token miner, the amount of token for each miner and the periods during which tokens will be locked for each miner
+* `UserEscrowLibraryLinker`, `UserEscrowProxy` TBD
 * Pre-deposit tokens to the `UserEscrow` if necessary:
 	* Create new instance of the `UserEscrow` contract 
 	* Transfer ownership of the instance of the `UserEscrow` contract to the user
@@ -66,7 +64,7 @@ The miner can set a minimum reward rate for a policy. For that, the miner should
 Some users will have locked but not staked tokens. 
 In that case, a instance of the `UserEscrow` contract will hold their tokens (method `initialDeposit(uint256, uint256)`).
 All tokens will be unlocked after specified time and the user can get them by method `withdraw(uint256)`.
-When the user wants to become a miner - he uses the `UserEscrow` contract as a proxy for the `MinersEscrow`, `PolicyManager` and `Government` contracts.
+When the user wants to become a miner - he uses the `UserEscrow` contract as a proxy for the `MinersEscrow` and `PolicyManager` contracts.
 
 Alice
 ========================
@@ -85,7 +83,7 @@ In case Alice wants to cancel policy then she calls the `revokePolicy(bytes20)` 
 While executing those methods Alice get all fee for future periods and for periods when the miners were inactive. 
 Also Alice can refund ETH for inactive miners periods without revoking policy by using methods `refund(bytes20)` or `refund(bytes20, address)` of the contract `PolicyManager`.
 
-Government
+Upgrade
 ========================
 Smart contracts in Ethereum are not really changeable. 
 So fixing bugs and upgrading logic is to change the contract (address) and save the previous storage values.
@@ -95,11 +93,3 @@ A target contract should be inherited from the `Upgradeable` contract in additio
 The `Upgradeable` contract include 2 abstract methods that need to be implemented:
 `verifyState(address)` method which checks that new version has correct storage;
 `finishUpgrade(address)` method which should copy initialization data from library storage to the dispatcher storage;
-
-The `Government` contract is used when a new version of one of the contracts `MinersEscrow`, `PolicyManager` and `Government` is ready and deployed.
-Any miner who stacked tokens in `MinersEscrow` can create voting for upgrade one of the contracts by using the `createVoting(VotingType, address)` method.
-There are 6 types of voting: upgrade to the new address or rollback to the previous version for the `MinersEscrow`, `PolicyManager` or `Government` contracts.
-Every miner can vote for or against, the weight of the vote is the amount of locked tokens in the current period. 
-Voting lasts for a predetermined amount of time. 
-After the end of voting any user can run the `commitUpgrade()` method if there were more votes for upgrading than against.
-The upgrade will be canceled in case of errors.

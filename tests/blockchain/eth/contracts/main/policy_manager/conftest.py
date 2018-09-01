@@ -2,6 +2,9 @@ import pytest
 from web3.contract import Contract
 
 
+secret = (123456).to_bytes(32, byteorder='big')
+
+
 @pytest.fixture()
 def escrow(testerchain):
     # Creator deploys the escrow
@@ -17,11 +20,13 @@ def policy_manager(testerchain, escrow, request):
     contract, _ = testerchain.interface.deploy_contract('PolicyManager', escrow.address)
 
     # Give client some ether
-    tx = testerchain.interface.w3.eth.sendTransaction({'from': testerchain.interface.w3.eth.coinbase, 'to': client, 'value': 10000})
+    tx = testerchain.interface.w3.eth.sendTransaction(
+        {'from': testerchain.interface.w3.eth.coinbase, 'to': client, 'value': 10000})
     testerchain.wait_for_receipt(tx)
 
     if request.param:
-        dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address)
+        secret_hash = testerchain.interface.w3.sha3(secret)
+        dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
 
         # Deploy second version of the government contract
         contract = testerchain.interface.w3.eth.contract(

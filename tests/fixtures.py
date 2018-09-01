@@ -279,13 +279,21 @@ def three_agents(testerchain):
 
     token_agent = token_deployer.make_agent()
 
-    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=origin)
+    miners_escrow_secret = os.urandom(constants.DISPATCHER_SECRET_LENGTH)
+    miner_escrow_deployer = MinerEscrowDeployer(
+        token_agent=token_agent,
+        deployer_address=origin,
+        secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
     miner_escrow_deployer.arm()
     miner_escrow_deployer.deploy()
 
     miner_agent = miner_escrow_deployer.make_agent()
 
-    policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=origin)
+    policy_manager_secret = os.urandom(constants.DISPATCHER_SECRET_LENGTH)
+    policy_manager_deployer = PolicyManagerDeployer(
+        miner_agent=miner_agent,
+        deployer_address=origin,
+        secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
 
