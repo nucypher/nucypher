@@ -207,7 +207,7 @@ class BlockchainInterface:
 
                 if uri_breakdown.netloc == 'tester':
 
-                    NUCYPHER_GAS_LIMIT = 4899698  # 4626271  # TODO: Move ME
+                    NUCYPHER_GAS_LIMIT = 5000000 #4899698  # 4626271  # TODO: Move ME
                     genesis_parameter_overrides = {'gas_limit': NUCYPHER_GAS_LIMIT}
 
                     pyevm_backend = PyEVMBackend.from_genesis_overrides(parameter_overrides=genesis_parameter_overrides)
