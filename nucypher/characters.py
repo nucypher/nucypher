@@ -1,38 +1,43 @@
 import asyncio
 import random
-import time
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from collections import deque
 from contextlib import suppress
-from functools import partial
+from logging import Logger
 from logging import getLogger
-from typing import Dict, ClassVar, Set, DefaultDict
-from typing import Union, List
 
 import kademlia
 import maya
+import time
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
-from kademlia.network import Server
+from functools import partial
 from kademlia.utils import digest
 from twisted.internet import task, threads
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
+from typing import Dict, ClassVar, Set, DefaultDict, Iterable
+from typing import Tuple
+from typing import Union, List
 
-from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
+from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
 from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.constants import datetime_to_period
+from nucypher.config.constants import DEFAULT_INI_FILEPATH
+from nucypher.config.parsers import parse_ursula_config, parse_alice_config, \
+    parse_character_config
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower, \
-    BlockchainPower
-from nucypher.crypto.signing import signature_splitter, StrangerStamp
+    BlockchainPower, CryptoPowerUp
+from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
 
 class Character:
@@ -62,26 +67,28 @@ class Character:
         Raised when a signature doesn't pass validation/verification.
         """
 
-    def __init__(self, is_me=True,
-                 network_middleware=None,
+    def __init__(self,
+                 is_me: bool = True,
+                 network_middleware: RestMiddleware = None,
                  crypto_power: CryptoPower = None,
-                 crypto_power_ups=None,
-                 federated_only=False,
-                 config = None,
+                 crypto_power_ups: List[CryptoPowerUp] = None,
+                 federated_only: bool = False,
                  checksum_address: bytes = None,
-                 always_be_learning=False,
-                 start_learning_on_same_thread=False,
-                 known_nodes: tuple = (),
+                 always_be_learning: bool = False,
+                 start_learning_on_same_thread: bool = False,
+                 known_nodes: tuple = None,
                  abort_on_learning_error: bool = False,
-                 ):
+                 ) -> None:
+
         """
-        :param attach_dht_server:  Whether to attach a Server when this Character is
-            born.
-        :param crypto_power: A CryptoPower object; if provided, this will be the
-            character's CryptoPower.
-        :param crypto_power_ups:  If crypto_power is not provided, a new
-            CryptoPower will be made and will consume all of the CryptoPowerUps
-            in this list.
+
+        Base class for Nucypher protocol actors.
+
+
+        PowerUps
+        ========
+        :param crypto_power: A CryptoPower object; if provided, this will be the character's CryptoPower.
+        :param crypto_power_ups: If crypto_power is not provided, a new one will be made to consume all CryptoPowerUps.
 
         If neither crypto_power nor crypto_power_ups are provided, we give this
         Character all CryptoPowerUps listed in their _default_crypto_powerups
@@ -94,13 +101,14 @@ class Character:
             encrypted for them.  Typically this will be True for exactly one
             Character, but there are scenarios in which its imaginable to be
             represented by zero Characters or by more than one Character.
+
         """
-        self.config = config  # TODO: Do not mix with injectable params
 
-        self.federated_only = federated_only
-        self._abort_on_learning_error = abort_on_learning_error
+        known_nodes = known_nodes if known_nodes is not None else tuple()
+        self.federated_only = federated_only  # type: bool
+        self._abort_on_learning_error = abort_on_learning_error  # type: bool
 
-        self.log = getLogger("characters")
+        self.log = getLogger("characters")  # type: Logger
 
         #
         # Power-ups and Powers
@@ -108,10 +116,10 @@ class Character:
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
 
-        crypto_power_ups = crypto_power_ups or []
+        crypto_power_ups = crypto_power_ups or []  # type: list
 
         if crypto_power:
-            self._crypto_power = crypto_power
+            self._crypto_power = crypto_power  # type: CryptoPower
         elif crypto_power_ups:
             self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
         else:
@@ -121,30 +129,30 @@ class Character:
         # Identity and Network
         #
         if is_me is True:
-            self._known_nodes = {}
-            self.treasure_maps = {}
+            self._known_nodes = {}  # type: dict
+            self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
             ##### LEARNING STUFF (Maybe move to a different class?) #####
-            self._learning_listeners = DefaultDict(list)
-            self._node_ids_to_learn_about_immediately = set()
+            self._learning_listeners = defaultdict(list)  # type: DefaultDict
+            self._node_ids_to_learn_about_immediately = set()  # type: set
 
             for node in known_nodes:
                 self.remember_node(node)
 
-            self.teacher_nodes = deque()
-            self._current_teacher_node = None
+            self.teacher_nodes = deque()  # type: deque
+            self._current_teacher_node = None  # type: Ursula
             self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
-            self._learning_round = 0
-            self._rounds_without_new_nodes = 0
+            self._learning_round = 0  # type: int
+            self._rounds_without_new_nodes = 0  # type: int
 
             if always_be_learning:
                 self.start_learning_loop(now=start_learning_on_same_thread)
             #####
 
             try:
-                signing_power = self._crypto_power.power_ups(SigningPower)
-                self._stamp = signing_power.get_signature_stamp()
+                signing_power = self._crypto_power.power_ups(SigningPower)  # type: SigningPower
+                self._stamp = signing_power.get_signature_stamp()  # type: SignatureStamp
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
 
@@ -152,21 +160,25 @@ class Character:
             if network_middleware is not None:
                 raise TypeError(
                     "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
-            self._stamp = StrangerStamp(self.public_key(SigningPower))
+            self._stamp = StrangerStamp(self.public_material(SigningPower))
 
+        # Decentralized
         if not federated_only:
             if not checksum_address:
-                raise ValueError(
-                    "For a Character to have decentralized capabilities, you must supply a checksum_address.")
+                raise ValueError("No checksum_address provided while running in a non-federated mode.")
             else:
-                self._checksum_address = checksum_address
-        elif checksum_address:
-            self._set_checksum_address()
-            if not checksum_address == self.checksum_public_address:
-                raise ValueError(
-                    "Federated-only Characters derive their address from their Signing key; you can't set it to anything else.")
-        else:
-            self._checksum_address = None
+                self._checksum_address = checksum_address  # type: str
+
+        # Federated
+        elif federated_only:
+            self._checksum_address = constants.NO_BLOCKCHAIN_CONNECTION
+
+            if checksum_address:
+                # We'll take a checksum address, as long as it matches their singing key
+                self._set_checksum_address()  # type: str
+                if not checksum_address == self.checksum_public_address:
+                    error = "Federated-only Characters derive their address from their Signing key; got {} instead."
+                    raise ValueError(error.format(checksum_address))
 
     def __eq__(self, other):
         return bytes(self.stamp) == bytes(other.stamp)
@@ -255,6 +267,7 @@ class Character:
     def handle_learning_errors(self, *args, **kwargs):
         failure = args[0]
         if self._abort_on_learning_error:
+            self.log.critical("Unhandled error during node learning: {}".format(failure.getTraceback()))
             failure.raiseException()
         else:
             self.log.warning("Unhandled error during node learning: {}".format(failure.getTraceback()))
@@ -278,8 +291,8 @@ class Character:
         try:
             self._current_teacher_node = self.teacher_nodes.pop()
         except IndexError:
-            raise self.NotEnoughUrsulas(
-                "Don't have enough nodes to select a good teacher.  This is nearly an impossible situation - do you have seed nodes defined?  Is your network connection OK?")
+            error = "Not enough nodes to select a good teacher, Check your network connection then node configuration"
+            raise self.NotEnoughUrsulas(error)
 
     def current_teacher_node(self, cycle=False):
         if not self._current_teacher_node:
@@ -474,7 +487,7 @@ class Character:
             new_nodes = self.learn_about_nodes(node_addr, port)
             self._known_nodes.update(new_nodes)
 
-    def get_nodes_by_ids(self, ids):
+    def get_nodes_by_ids(self, node_ids):
         for node_id in node_ids:
             try:
                 # Scenario 1: We already know about this node.
@@ -507,7 +520,7 @@ class Character:
         """
         signer = self.stamp if sign else constants.DO_NOT_SIGN
 
-        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_key(EncryptingPower),
+        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_material(EncryptingPower),
                                                   plaintext=plaintext,
                                                   signer=signer,
                                                   sign_plaintext=sign_plaintext
@@ -580,14 +593,14 @@ class Character:
                     "Signature for message isn't valid: {}".format(signature_to_use))
         else:
             raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
+
+        #
+        # Next we have decrypt() and sign() - these use the private
+        # keys of their respective powers; any character who has these powers can use these functions.
+        #
+        # If they don't have the correct Power, the appropriate PowerUpError is raised.
+        #
         return cleartext
-
-        """
-        Next we have decrypt() and sign() - these use the private 
-        keys of their respective powers; any character who has these powers can use these functions.
-
-        If they don't have the correct Power, the appropriate PowerUpError is raised.
-        """
 
     def decrypt(self, message_kit, verifying_key: UmbralPublicKey = None):
         return self._crypto_power.power_ups(EncryptingPower).decrypt(message_kit, verifying_key)
@@ -599,16 +612,16 @@ class Character:
     And finally, some miscellaneous but generally-applicable abilities:
     """
 
-    def public_key(self, power_up_class: ClassVar):
+    def public_material(self, power_up_class: ClassVar) -> Union[Tuple, UmbralPublicKey]:
         """
-        Pass a power_up_class, get the public key for this Character which corresponds to that
-        class.
+        Pass a power_up_class, get the public material for this Character which corresponds to that
+        class - whatever type of object that may be.
 
         If the Character doesn't have the power corresponding to that class, raises the
         appropriate PowerUpError (ie, NoSigningPower or NoEncryptingPower).
         """
         power_up = self._crypto_power.power_ups(power_up_class)
-        return power_up.public_key()
+        return power_up.public_material()
 
     @property
     def canonical_public_address(self):
@@ -624,13 +637,14 @@ class Character:
 
     @property
     def checksum_public_address(self):
-        if not self._checksum_address:
+        if self._checksum_address is constants.NO_BLOCKCHAIN_CONNECTION:
             self._set_checksum_address()
         return self._checksum_address
 
     def _set_checksum_address(self):
+
         if self.federated_only:
-            verifying_key = self.public_key(SigningPower)
+            verifying_key = self.public_material(SigningPower)
             uncompressed_bytes = verifying_key.to_bytes(is_compressed=False)
             without_prefix = uncompressed_bytes[1:]
             verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
@@ -649,7 +663,7 @@ class Character:
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{} {}"
-        r = r.format(class_name, self.checksum_public_address[12:])
+        r = r.format(class_name, self.canonical_public_address)
         return r
 
 
@@ -666,6 +680,14 @@ class Alice(Character, PolicyAuthor):
         if is_me and not federated_only:  # TODO: 289
             PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address)
 
+    @classmethod
+    def from_config(cls, filepath=DEFAULT_INI_FILEPATH, overrides: dict = None) -> 'Alice':
+        payload = parse_alice_config(filepath=filepath)
+        if overrides is not None:
+            payload.update(overrides)
+        instance = cls(**payload)
+        return instance
+
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
@@ -678,7 +700,7 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
 
-        bob_pubkey_enc = bob.public_key(EncryptingPower)
+        bob_pubkey_enc = bob.public_material(EncryptingPower)
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
         return delegating_power.generate_kfrags(bob_pubkey_enc, self.stamp, label, m, n)
 
@@ -769,6 +791,14 @@ class Bob(Character):
 
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
+
+    @classmethod
+    def from_config(cls, filepath=DEFAULT_INI_FILEPATH, overrides: dict = None) -> 'Bob':
+        payload = parse_character_config(filepath=filepath)
+        if overrides is not None:
+            payload.update(overrides)
+        instance = cls(**payload)
+        return instance
 
     def peek_at_treasure_map(self, treasure_map=None, map_id=None):
         """
@@ -962,7 +992,7 @@ class Bob(Character):
 
         message_kit.capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
-            receiving=self.public_key(EncryptingPower),
+            receiving=self.public_material(EncryptingPower),
             verifying=alice_verifying_key)
 
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, data_source.label)
@@ -995,7 +1025,9 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                                             InterfaceInfo)
     _dht_server_class = NucypherDHTServer
     _alice_class = Alice
-    # TODO: Maybe this wants to be a registry, so that, for example, TLSHostingPower still can enjoy default status, but on a different class
+
+    # TODO: Maybe this wants to be a registry, so that, for example,
+    # TLSHostingPower still can enjoy default status, but on a different class
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
     class NotFound(Exception):
@@ -1003,7 +1035,8 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
     # TODO: 289
     def __init__(self,
-                 # Ursula things
+
+                 # Ursula
                  rest_host,
                  rest_port,
                  db_name=None,
@@ -1011,19 +1044,24 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                  dht_host=None,
                  dht_port=None,
                  interface_signature=None,
-                 miner_agent=None,
 
-                 # Character things
+                 # Blockchain
+                 miner_agent=None,
+                 checksum_address=None,
+
+                 # Character
                  abort_on_learning_error=False,
                  federated_only=False,
-                 checksum_address=None,
                  always_be_learning=None,
                  crypto_power=None,
                  tls_curve=None,
                  tls_private_key=None,  # Obviously config here. 361
-                 known_nodes=(),
+                 known_nodes=None,
                  **character_kwargs
-                 ):
+                 ) -> None:
+
+        if known_nodes is None:
+            known_nodes = tuple()
 
         VerifiableNode.__init__(self, interface_signature=interface_signature)
 
@@ -1043,13 +1081,20 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
                            **character_kwargs)
 
         if not federated_only:
-            Miner.__init__(self, miner_agent=miner_agent, is_me=is_me, checksum_address=checksum_address)
+            Miner.__init__(self,
+                           is_me=is_me,
+                           miner_agent=miner_agent,
+                           checksum_address=checksum_address)
+
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
-        ProxyRESTServer.__init__(self, host=rest_host, port=rest_port,
+
+        ProxyRESTServer.__init__(self,
+                                 rest_host=rest_host,
+                                 rest_port=rest_port,
                                  db_name=db_name,
-                                 tls_private_key=tls_private_key, tls_curve=tls_curve
-                                 )
+                                 tls_private_key=tls_private_key,
+                                 tls_curve=tls_curve)
 
         if is_me is True:
             # TODO: 340
@@ -1058,79 +1103,61 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
             if not federated_only:
                 self.substantiate_stamp()
 
-    @property
-    def rest_app(self):
-        if not self._rest_app:
-            m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."
-            raise AttributeError(m)
-        else:
-            return self._rest_app
+    def __bytes__(self):
+
+        interface_info = VariableLengthBytestring(self.rest_interface)
+
+        if self.dht_interface:
+            interface_info += VariableLengthBytestring(self.dht_interface)
+
+        identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
+
+        as_bytes = bytes().join((bytes(self._interface_signature),
+                                 bytes(identity_evidence),
+                                 bytes(self.public_material(SigningPower)),
+                                 bytes(self.public_material(EncryptingPower)),
+                                 self.canonical_public_address,
+                                 interface_info)
+                                )
+        return as_bytes
+
+    #
+    # Alternate Constructors
+    #
 
     @classmethod
-    def from_miner(cls, miner, *args, **kwargs):
-        instance = cls(miner_agent=miner.miner_agent, ether_address=miner._ether_address,
-                       ferated_only=False, *args, **kwargs)
+    def from_config(cls,
+                    filepath: str = DEFAULT_INI_FILEPATH,
+                    overrides: dict = None) -> 'Ursula':
+        """
+        Initialize Ursula from .ini configuration file.
 
-        instance.attach_dht_server()
-        # instance.attach_rest_server()
-
-        return instance
+        Keyword arguments passed will take precedence over values
+        in the configuration file.
+        """
+        payload = parse_ursula_config(filepath=filepath)
+        if overrides is not None:
+            payload.update(overrides)
+        return cls(**payload)
 
     @classmethod
-    def from_rest_url(cls, network_middleware, host, port, federated_only=False):
+    def from_rest_url(cls,
+                      network_middleware: RestMiddleware,
+                      host: str,
+                      port: int,
+                      federated_only: bool = False) -> 'Ursula':
+
         response = network_middleware.node_information(host, port)
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 
         stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only)
-
         return stranger_ursula_from_public_keys
 
-    def attach_dht_server(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs):
-        id = id or bytes(
-            self.canonical_public_address)  # Ursula can still "mine" wallets until she gets a DHT ID she wants.  Does that matter?  #136
-        # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
-        super().attach_dht_server(ksize=ksize, id=digest(id), alpha=alpha, storage=storage)
-        self.attach_rest_server()
-
-    def dht_listen(self):
-        if self.dht_interface is constants.NO_INTERFACE:
-            raise TypeError("This node does not have a DHT interface configured.")
-        return self.dht_server.listen(self.dht_interface.port,
-                                      self.dht_interface.host)
-
-    def interface_info_with_metadata(self):
-        # TODO: Do we ever actually use this without using the rest of the serialized Ursula?  337
-
-        return constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(self)
-
-    def publish_dht_information(self):
-        # TODO: Simplify or wholesale deprecate this.  337
-        if not self.dht_interface:
-            raise RuntimeError("Must listen before publishing interface information.")
-
-        ursula_id = self.canonical_public_address
-        interface_value = self.interface_info_with_metadata()
-        setter = self.dht_server.set(key=ursula_id, value=interface_value)
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(setter)
-        return interface_value
-
-    def work_orders(self, bob=None):
-        """
-        TODO: This is better written as a model method for Ursula's datastore.
-        """
-        if not bob:
-            return self._work_orders
-        else:
-            work_orders_from_bob = []
-            for work_order in self._work_orders:
-                if work_order.bob == bob:
-                    work_orders_from_bob.append(work_order)
-            return work_orders_from_bob
-
     @classmethod
-    def from_bytes(cls, ursula_as_bytes, federated_only=False):
+    def from_bytes(cls, ursula_as_bytes: bytes,
+                   federated_only: bool = False) -> 'Ursula':
+
         signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info = cls._internal_splitter(
             ursula_as_bytes)
         stranger_ursula_from_public_keys = cls.from_public_keys(
@@ -1146,7 +1173,10 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
         return stranger_ursula_from_public_keys
 
     @classmethod
-    def batch_from_bytes(cls, ursulas_as_bytes, federated_only=False):
+    def batch_from_bytes(cls,
+                         ursulas_as_bytes: Iterable[bytes],
+                         federated_only: bool = False) -> List['Ursula']:
+
         # TODO: Make a better splitter for this.  This is a workaround until bytestringSplitter #8 is closed.
 
         stranger_ursulas = []
@@ -1168,19 +1198,137 @@ class Ursula(Character, VerifiableNode, ProxyRESTServer, Miner):
 
         return stranger_ursulas
 
-    def __bytes__(self):
-        interface_info = VariableLengthBytestring(self.rest_interface)
+    #
+    # Properties
+    #
 
-        if self.dht_interface:
-            interface_info += VariableLengthBytestring(self.dht_interface)
+    @property
+    def rest_app(self):
+        if not self._rest_app:
+            m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."
+            raise AttributeError(m)
+        else:
+            return self._rest_app
 
-        identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
+    def interface_info_with_metadata(self):
+        # TODO: Do we ever actually use this without using the rest of the serialized Ursula?  337
+        return constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(self)
 
-        as_bytes = bytes().join((bytes(self._interface_signature),
-                                 bytes(identity_evidence),
-                                 bytes(self.public_key(SigningPower)),
-                                 bytes(self.public_key(EncryptingPower)),
-                                 self.canonical_public_address,
-                                 interface_info)
-                                )
-        return as_bytes
+    #
+    # Utilities
+    #
+
+    def attach_dht_server(self,
+                          ksize: int = 20,
+                          alpha: int = 3,
+                          node_id=None,
+                          storage=None,
+                          *args, **kwargs) -> None:
+
+        node_id = node_id or bytes(
+            self.canonical_public_address)  # Ursula can still "mine" wallets until she gets a DHT ID she wants.  Does that matter?  #136
+        # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
+        super().attach_dht_server(ksize=ksize, id=digest(node_id), alpha=alpha, storage=storage)
+        self.attach_rest_server()
+
+    def dht_listen(self):
+        if self.dht_interface is constants.NO_INTERFACE:
+            raise TypeError("This node does not have a DHT interface configured.")
+        return self.dht_server.listen(self.dht_interface.port,
+                                      self.dht_interface.host)
+
+    def publish_dht_information(self):
+        # TODO: Simplify or wholesale deprecate this.  337
+        if not self.dht_interface:
+            raise RuntimeError("Must listen before publishing interface information.")
+
+        ursula_id = self.canonical_public_address
+        interface_value = constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(self)
+        setter = self.dht_server.set(key=ursula_id, value=interface_value)
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(setter)
+        return interface_value
+
+    def work_orders(self, bob=None):
+        """
+        TODO: This is better written as a model method for Ursula's datastore.
+        """
+        if not bob:
+            return self._work_orders
+        else:
+            work_orders_from_bob = []
+            for work_order in self._work_orders:
+                if work_order.bob == bob:
+                    work_orders_from_bob.append(work_order)
+            return work_orders_from_bob
+
+    @only_me
+    def stake(self,
+              sample_rate: int = 10,
+              refresh_rate: int = 60,
+              confirm_now=True,
+              resume: bool = False,
+              expiration: maya.MayaDT = None,
+              lock_periods: int = None,
+              *args, **kwargs) -> None:
+
+        """High-level staking daemon loop"""
+
+        if lock_periods and expiration:
+            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
+        if expiration:
+            lock_periods = datetime_to_period(expiration)
+
+        if resume is False:
+            _staking_receipts = super().initialize_stake(expiration=expiration,
+                                                         lock_periods=lock_periods,
+                                                         *args, **kwargs)
+
+        # TODO: Check if this period has already been confirmed
+        # TODO: Check if there is an active stake in the current period: Resume staking daemon
+        # TODO: Validation and Sanity checks
+
+        if confirm_now:
+            self.confirm_activity()
+
+        # record start time and periods
+        start_time = maya.now()
+        uptime_period = self.miner_agent.get_current_period()
+        terminal_period = uptime_period + lock_periods
+        current_period = uptime_period
+
+        #
+        # Daemon
+        #
+
+        try:
+            while True:
+
+                # calculate timedeltas
+                now = maya.now()
+                initialization_delta = now - start_time
+
+                # check if iteration re-samples
+                sample_stale = initialization_delta.seconds > (refresh_rate - 1)
+                if sample_stale:
+
+                    period = self.miner_agent.get_current_period()
+                    # check for stale sample data
+                    if current_period != period:
+
+                        # check for stake expiration
+                        stake_expired = current_period >= terminal_period
+                        if stake_expired:
+                            break
+
+                        self.confirm_activity()
+                        current_period = period
+                # wait before resampling
+                time.sleep(sample_rate)
+                continue
+
+        finally:
+
+            # TODO: Cleanup #
+
+            pass

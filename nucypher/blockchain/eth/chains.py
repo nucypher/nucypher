@@ -3,7 +3,9 @@ from typing import List, Union
 from constant_sorrow import constants
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.interfaces import ControlCircumflex, DeployerCircumflex
+from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
+from nucypher.config.constants import DEFAULT_INI_FILEPATH
+from nucypher.config.parsers import parse_blockchain_config
 
 
 class Blockchain:
@@ -11,16 +13,15 @@ class Blockchain:
 
     _instance = None
     _default_network = NotImplemented
-    __default_interface_class = ControlCircumflex
+    __default_interface_class = BlockchainInterface
 
-    test_chains = ('tester', )
-    transient_chains = test_chains + ('testrpc', 'temp')
+    test_chains = ('tester', 'temp')
     public_chains = ('mainnet', 'ropsten')
 
     class ConnectionNotEstablished(RuntimeError):
         pass
 
-    def __init__(self, interface: Union[ControlCircumflex, DeployerCircumflex]=None):
+    def __init__(self, interface: Union[BlockchainInterface, BlockchainDeployerInterface]=None):
 
         if interface is None:
             interface = self.__default_interface_class()
@@ -38,9 +39,33 @@ class Blockchain:
         return r.format(class_name, self.__interface)
 
     @classmethod
-    def connect(cls):
+    def from_config(cls, filepath=None) -> 'Blockchain':
+
+        filepath = filepath if filepath is not None else DEFAULT_INI_FILEPATH
+        payload = parse_blockchain_config(filepath=filepath)
+
+        interface = BlockchainInterface.from_config(filepath=filepath)
+
+        if cls._instance is not None:
+            return cls.connect()
+
+        if payload['tester']:
+            blockchain = TesterBlockchain(interface=interface,
+                                          poa=payload['poa'],
+                                          test_accounts=payload['test_accounts'],
+                                          airdrop=False)
+        else:
+            blockchain = Blockchain(interface=interface)
+
+        return blockchain
+
+    @classmethod
+    def connect(cls, from_config=True, config_filepath: str=None):
         if cls._instance is None:
-            raise cls.ConnectionNotEstablished('A connection has not yet been established. init the blockchain.')
+            if from_config:
+                return cls.from_config(filepath=config_filepath)
+            else:
+                raise cls.ConnectionNotEstablished('A connection has not yet been established. init the blockchain.')
         return cls._instance
 
     @classmethod
@@ -51,7 +76,7 @@ class Blockchain:
     def interface(self):
         return self.__interface
 
-    def attach_interface(self, interface: Union[ControlCircumflex, DeployerCircumflex]):
+    def attach_interface(self, interface: Union[BlockchainInterface, BlockchainDeployerInterface]):
         if self.__interface is not None:
             raise RuntimeError('There is already an attached blockchain interface')
         self.__interface = interface
@@ -94,11 +119,12 @@ class TesterBlockchain(Blockchain):
         # Generate additional ethereum accounts for testing
         enough_accounts = len(self.interface.w3.eth.accounts) > self.__default_num_test_accounts
         if test_accounts is not None and not enough_accounts:
-            from tests.blockchain.eth import utilities
 
             accounts_to_make = self.__default_num_test_accounts - len(self.interface.w3.eth.accounts)
             test_accounts = test_accounts if test_accounts is not None else self.__default_num_test_accounts
-            utilities.generate_accounts(w3=self.interface.w3, quantity=accounts_to_make)
+
+            from nucypher.utilities.blockchain import generate_accounts
+            generate_accounts(w3=self.interface.w3, quantity=accounts_to_make)
 
             assert test_accounts == len(self.interface.w3.eth.accounts)
 

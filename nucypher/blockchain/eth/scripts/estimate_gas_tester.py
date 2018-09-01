@@ -19,9 +19,8 @@ from constant_sorrow import constants
 
 from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
-from nucypher.blockchain.eth.interfaces import DeployerCircumflex
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.blockchain.eth.utilities import OverridablePyEVMBackend, TemporaryEthereumContractRegistry
 
 from nucypher.blockchain.eth import sol
 
@@ -42,9 +41,9 @@ def estimate_gas():
     pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
     # Use the the custom provider and registrar to init an interface
-    circumflex = DeployerCircumflex(compiler=solidity_compiler,  # freshly recompile
-                                    registry=temporary_registry,  # use temporary registrar
-                                    providers=(pyevm_provider,))  # use custom test provider
+    circumflex = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile
+                                             registry=temporary_registry,  # use temporary registrar
+                                             providers=(pyevm_provider,))  # use custom test provider
 
     # Create the blockchain
     testerchain = TesterBlockchain(interface=circumflex, test_accounts=10)

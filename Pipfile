@@ -4,37 +4,57 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-
-cryptography = ">=2.3"
-requests = "*"
-maya = "*"
-hendrix = "==3.0.0"
+#
+# NuCypher
+#
 constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "nucypher-depend"}
-bytestringSplitter = {git = "https://github.com/nucypher/byteStringSplitter.git", ref = "nucypher-depend"}
-sqlalchemy = "*"
-apistar = "*"
+bytestringSplitter = "*"
 rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "nucypher-depend"}
 kademlia = {git = "https://github.com/nucypher/kademlia", ref = "nucypher-depend"}
-pynacl = "*"
-pysha3 = "*"
-py_ecc = "*"
 pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "nucypher-depend"}
-web3 = "==4.4.1"
+#
+# Third-Party
+#
+cryptography = ">=2.3"
+pysha3="*"
+hendrix = ">=3.1.0"
+requests = "*"
+maya = "*"
+sqlalchemy = "*"
+apistar = "*"
+click = "*"
+tzlocal = "==2.0.0b1"
+#
+# Third-Party Ethereum
+#
+coincurve = ">=8.0.2"
+eth-utils="*"
+eth-keys="*"
+web3 = "*"
+appdirs = "*"
 
 [dev-packages]
+ipdb = "*"
+#
+# Pytest
+#
 pytest = "*"
-mypy = "*"
 pytest-mypy = "*"
 pytest-twisted = "*"
+pytest-cov = "*"
+mypy = "*"
 codecov = "*"
 coverage = "*"
-pytest-cov = "*"
+#
+# Ethereum
+#
 py-solc = "*"
-py-evm = "==0.2.0a18"
-eth-tester = "==0.1.0b28"
+#eth-tester = "*"
+eth-tester = {git = "https://github.com/KPrasch/eth-tester.git", ref = "ef4bb2fa793af8aa964b83536b20f525aa74d4e4"}
+py-evm = ">=0.2.0a31"
 
 [pipenv]
 allow_prereleases = true
 
 [scripts]
-install_solc = "scripts/install_solc.sh"
+install-solc = "./scripts/install_solc.sh"

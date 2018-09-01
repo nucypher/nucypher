@@ -1,17 +1,17 @@
 from typing import Tuple, Dict
 
-from web3.contract import Contract
-
-from nucypher.blockchain.eth.agents import EthereumContractAgent, MinerAgent, NucypherTokenAgent, PolicyAgent
 from constant_sorrow import constants
-from nucypher.blockchain.eth.interfaces import ControlCircumflex, DeployerCircumflex
+
+from nucypher.blockchain.eth.agents import EthereumContractAgent, MinerAgent, NucypherTokenAgent, PolicyAgent, \
+    UserEscrowAgent
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from .chains import Blockchain
 
 
 class ContractDeployer:
 
     agency = NotImplemented
-    _interface_class = DeployerCircumflex
+    _interface_class = BlockchainDeployerInterface
     _contract_name = NotImplemented
     _arming_word = "I UNDERSTAND"
 
@@ -76,6 +76,8 @@ class ContractDeployer:
         rules = (
             (self.is_armed is True, 'Contract not armed'),
             (self.is_deployed is not True, 'Contract already deployed'),
+            (self.deployer_address is not constants.NO_DEPLOYER_CONFIGURED, 'No deployer origin address set.'),
+
             )
 
         disqualifications = list()
@@ -172,6 +174,7 @@ class NucypherTokenDeployer(ContractDeployer):
         The contract must be armed before it can be deployed.
         Deployment can only ever be executed exactly once!
         """
+
         is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
         assert is_ready
 
@@ -365,7 +368,8 @@ class UserEscrowDeployer(ContractDeployer):
     Depends on Token, MinerEscrow, and PolicyManager
     """
 
-    _contract_name = 'UserEscrow'
+    agency = UserEscrowAgent
+    _contract_name = agency.principal_contract_name
 
     def __init__(self, miner_escrow_deployer, policy_deployer, *args, **kwargs):
         self.miner_deployer = miner_escrow_deployer

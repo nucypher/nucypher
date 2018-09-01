@@ -1,12 +1,12 @@
 import asyncio
 
 import kademlia
+from bytestring_splitter import VariableLengthBytestring
+from constant_sorrow import default_constant_splitter, constants
 from kademlia.node import Node
 from kademlia.protocol import KademliaProtocol
 from kademlia.utils import digest
 
-from bytestring_splitter import VariableLengthBytestring
-from constant_sorrow import default_constant_splitter, constants
 from nucypher.network.routing import NucypherRoutingTable
 
 
@@ -65,7 +65,7 @@ class NucypherHashProtocol(KademliaProtocol):
                                                 federated_only=self.sourceNode.federated_only)  # TODO: Is federated_only the right thing here?
 
             if stranger_ursula.interface_is_valid() and key == digest(stranger_ursula.canonical_public_address):
-                self.sourceNode._node_storage[key] = stranger_ursula  # TODO: 340
+                self.sourceNode._node_storage[stranger_ursula.checksum_public_address] = stranger_ursula  # TODO: 340
                 return True
             else:
                 self.log.warning("Got request to store invalid node: {} / {}".format(key, value))

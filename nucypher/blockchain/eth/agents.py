@@ -6,6 +6,7 @@ from constant_sorrow import constants
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
 class EthereumContractAgent(ABC):
@@ -22,20 +23,28 @@ class EthereumContractAgent(ABC):
     class ContractNotDeployed(Exception):
         pass
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs) -> 'EthereumContractAgent':
         if cls.__instance is None:
             cls.__instance = super(EthereumContractAgent, cls).__new__(cls)
         return cls.__instance
 
-    def __init__(self, blockchain: Blockchain=None, *args, **kwargs):
+    def __init__(self,
+                 blockchain: Blockchain = None,
+                 registry_filepath: str = None,
+                 *args, **kwargs) -> None:
 
         if blockchain is None:
             blockchain = Blockchain.connect()
         self.blockchain = blockchain
 
+        if registry_filepath is not None:
+            # TODO: Warn on override?
+            self.blockchain.interface._registry._swap_registry(filepath=registry_filepath)
+
         # Fetch the contract by reading address and abi from the registry and blockchain
         contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
                                                                   upgradeable=self._upgradeable)
+
         self.__contract = contract
         super().__init__()
 
@@ -94,9 +103,9 @@ class MinerAgent(EthereumContractAgent):
     class NotEnoughMiners(Exception):
         pass
 
-    def __init__(self, token_agent: NucypherTokenAgent=None, *args, **kwargs):
-        token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
-        super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
+    def __init__(self, token_agent: NucypherTokenAgent=None, registry_filepath=None, *args, **kwargs):
+        token_agent = token_agent if token_agent is not None else NucypherTokenAgent(registry_filepath=registry_filepath)
+        super().__init__(blockchain=token_agent.blockchain, registry_filepath=registry_filepath, *args, **kwargs)
         self.token_agent = token_agent
 
     #
@@ -132,7 +141,7 @@ class MinerAgent(EthereumContractAgent):
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
         """Send tokes to the escrow from the miner's address"""
 
-        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address})
+        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address, 'gas': 2000000})  # TODO: what..?
         self.blockchain.wait_for_receipt(deposit_txhash)
         return deposit_txhash
 
@@ -196,14 +205,14 @@ class MinerAgent(EthereumContractAgent):
 
         miners_population = self.get_miner_population()
         if quantity > miners_population:
-            raise self.NotEnoughMiners('Only {} miners are available'.format(miners_population))
+            raise self.NotEnoughMiners('{} miners are available'.format(miners_population))
 
         system_random = random.SystemRandom()
         n_select = round(quantity*additional_ursulas)            # Select more Ursulas
         n_tokens = self.contract.functions.getAllLockedTokens(duration).call()
 
         if n_tokens == 0:
-            raise self.NotEnoughMiners('There are no locked tokens.')
+            raise self.NotEnoughMiners('There are no locked tokens for duration {}.'.format(duration))
 
         for _ in range(attempts):
             points = [0] + sorted(system_random.randrange(n_tokens) for _ in range(n_select))
@@ -227,8 +236,12 @@ class PolicyAgent(EthereumContractAgent):
     _upgradeable = True
     __instance = None
 
-    def __init__(self, miner_agent: MinerAgent, *args, **kwargs):
-        super().__init__(blockchain=miner_agent.blockchain, *args, **kwargs)
+    def __init__(self,
+                 miner_agent: MinerAgent = None,
+                 registry_filepath=None,
+                 *args, **kwargs):
+        miner_agent = miner_agent if miner_agent is not None else MinerAgent(registry_filepath=registry_filepath)
+        super().__init__(blockchain=miner_agent.blockchain, registry_filepath=registry_filepath, *args, **kwargs)
         self.miner_agent = miner_agent
         self.token_agent = miner_agent.token_agent
 
@@ -286,3 +299,10 @@ class PolicyAgent(EthereumContractAgent):
         txhash = self.contract.functions.refund(policy_id).transact({'from': author_address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
+
+
+class UserEscrowAgent(EthereumContractAgent):
+
+    principal_contract_name = "UserEscrow"
+    _upgradeable = True
+    __instance = None

@@ -1,4 +1,5 @@
 from typing import Any
+
 from nucypher.crypto.api import keccak_digest
 
 

@@ -20,7 +20,9 @@ chains
 *logs*
 *.ipynb*
 .ethash
-examples/examples-runtime-cruft/*
-examples/finnegans-wake.txt
+nucypher_cli/examples/examples-runtime-cruft/*
+nucypher_cli/examples/finnegans-wake.txt
 mypy_reports/
 reports/
+test-*
+*.sqlite3

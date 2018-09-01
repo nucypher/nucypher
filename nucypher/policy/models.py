@@ -6,10 +6,12 @@ from typing import Generator, List, Set
 
 import maya
 import msgpack
-
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
 from eth_utils import to_canonical_address, to_checksum_address
+from umbral.config import default_params
+from umbral.pre import Capsule
+
 from nucypher.characters import Alice
 from nucypher.characters import Bob, Ursula, Character
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
@@ -18,8 +20,6 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, EncryptingPower
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
-from umbral.config import default_params
-from umbral.pre import Capsule
 
 
 class Arrangement:
@@ -154,8 +154,8 @@ class Policy:
         return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
     def publish_treasure_map(self, network_middleare):
-        self.treasure_map.prepare_for_publication(self.bob.public_key(EncryptingPower),
-                                                  self.bob.public_key(SigningPower),
+        self.treasure_map.prepare_for_publication(self.bob.public_material(EncryptingPower),
+                                                  self.bob.public_material(SigningPower),
                                                   self.alice.stamp,
                                                   self.label
                                                   )

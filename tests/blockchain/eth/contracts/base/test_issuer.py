@@ -1,6 +1,6 @@
 import pytest
-from web3.contract import Contract
 from eth_tester.exceptions import TransactionFailed
+from web3.contract import Contract
 
 
 @pytest.fixture()

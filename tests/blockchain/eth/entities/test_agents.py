@@ -1,8 +1,6 @@
 import pytest
 
 from nucypher.blockchain.eth.agents import MinerAgent
-from constant_sorrow import constants
-
 
 M = 10 ** 6  # FIXME: Make this the same value as mining coeff?
 

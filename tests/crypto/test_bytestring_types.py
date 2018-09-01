@@ -1,7 +1,8 @@
 import pytest
+from bytestring_splitter import BytestringSplitter
+
 from nucypher.crypto.api import secure_random
 from nucypher.crypto.signing import Signature
-from bytestring_splitter import BytestringSplitter
 
 
 def test_split_two_signatures():

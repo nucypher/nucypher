@@ -2,11 +2,10 @@ from setuptools import setup, find_packages
 
 VERSION = '0.1'
 
-INSTALL_REQUIRES = [
-]
 
-TESTS_REQUIRE = [
-]
+# NOTE: Use Pipfile & Pipfile.lock to manage dependencies\
+INSTALL_REQUIRES = []
+TESTS_REQUIRE = []
 
 setup(name='nucypher',
       version=VERSION,
@@ -20,4 +19,10 @@ setup(name='nucypher',
           'blockchain/eth/sol_source/contracts/zepellin/math/*',
           'blockchain/eth/sol_source/contracts/zepellin/ownership/*',
           'blockchain/eth/sol_source/contracts/zepellin/token/*']},
-      include_package_data=True)
+      include_package_data=True,
+      entry_points='''
+                   [console_scripts]
+                   nucypher-cli=nucypher_cli.main:cli
+                   run-ursula=nucypher_cli.run_ursula:run_ursula
+                   '''
+      )

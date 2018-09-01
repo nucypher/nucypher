@@ -4,7 +4,6 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
-
 NULL_ADDR = '0x' + '0' * 40
 
 VALUE_FIELD = 0
