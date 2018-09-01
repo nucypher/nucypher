@@ -24,7 +24,7 @@ class KeyStore(object):
     """
     kfrag_splitter = BytestringSplitter(Signature, (KFrag, KFrag.expected_bytes_length()))
 
-    def __init__(self, sqlalchemy_engine=None):
+    def __init__(self, sqlalchemy_engine=None) -> None:
         """
         Initalizes a KeyStore object.
 

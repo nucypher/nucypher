@@ -18,7 +18,7 @@ class ContractDeployer:
     class ContractDeploymentError(Exception):
         pass
 
-    def __init__(self, blockchain: Blockchain, deployer_address: str):
+    def __init__(self, blockchain: Blockchain, deployer_address: str) -> None:
         self.__armed = False
         self._contract = None
         self.deployment_receipt = None
@@ -158,7 +158,7 @@ class NucypherTokenDeployer(ContractDeployer):
     agency = NucypherTokenAgent
     _contract_name = agency.principal_contract_name  # TODO
 
-    def __init__(self, blockchain, deployer_address):
+    def __init__(self, blockchain, deployer_address) -> None:
         if not type(blockchain.interface) is self._interface_class:
             raise ValueError("{} must be used to create a {}".format(self._interface_class.__name__,
                                                                      self.__class__.__name__))
@@ -377,7 +377,7 @@ class UserEscrowDeployer(ContractDeployer):
     agency = UserEscrowAgent
     _contract_name = agency.principal_contract_name
 
-    def __init__(self, miner_escrow_deployer, policy_deployer, *args, **kwargs):
+    def __init__(self, miner_escrow_deployer, policy_deployer, *args, **kwargs) -> None:
         self.miner_deployer = miner_escrow_deployer
         self.policy_deployer = policy_deployer
         self.token_deployer = miner_escrow_deployer.token_deployer

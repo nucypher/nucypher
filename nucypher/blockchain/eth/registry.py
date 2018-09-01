@@ -28,7 +28,7 @@ class EthereumContractRegistry:
     class IllegalRegistrar(RegistryError):
         """Raised when invalid data is encountered in the registry"""
 
-    def __init__(self, registry_filepath: str=None):
+    def __init__(self, registry_filepath: str=None) -> None:
         self.__registry_filepath = registry_filepath or self.__default_registry_path
 
     @classmethod
@@ -120,7 +120,7 @@ class EthereumContractRegistry:
 
 class TemporaryEthereumContractRegistry(EthereumContractRegistry):
 
-    def __init__(self):
+    def __init__(self) -> None:
         _, self.temp_filepath = tempfile.mkstemp()
         super().__init__(registry_filepath=self.temp_filepath)
 

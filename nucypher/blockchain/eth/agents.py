@@ -103,7 +103,7 @@ class MinerAgent(EthereumContractAgent):
     class NotEnoughMiners(Exception):
         pass
 
-    def __init__(self, token_agent: NucypherTokenAgent=None, registry_filepath=None, *args, **kwargs):
+    def __init__(self, token_agent: NucypherTokenAgent=None, registry_filepath=None, *args, **kwargs) -> None:
         token_agent = token_agent if token_agent is not None else NucypherTokenAgent(registry_filepath=registry_filepath)
         super().__init__(blockchain=token_agent.blockchain, registry_filepath=registry_filepath, *args, **kwargs)
         self.token_agent = token_agent
@@ -239,7 +239,7 @@ class PolicyAgent(EthereumContractAgent):
     def __init__(self,
                  miner_agent: MinerAgent = None,
                  registry_filepath=None,
-                 *args, **kwargs):
+                 *args, **kwargs) -> None:
         miner_agent = miner_agent if miner_agent is not None else MinerAgent(registry_filepath=registry_filepath)
         super().__init__(blockchain=miner_agent.blockchain, registry_filepath=registry_filepath, *args, **kwargs)
         self.miner_agent = miner_agent

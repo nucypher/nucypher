@@ -29,7 +29,7 @@ class Keypair(object):
     def __init__(self,
                  private_key=None,
                  public_key=None,
-                 generate_keys_if_needed=True):
+                 generate_keys_if_needed=True) -> None:
         """
         Initalizes a Keypair object with an Umbral key object.
         :param generate_keys_if_needed: Generate keys or not?
@@ -75,7 +75,7 @@ class EncryptingKeypair(Keypair):
     A keypair for Umbral
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     def decrypt(self, message_kit: MessageKit, verifying_key: UmbralPublicKey = None) -> bytes:
@@ -97,7 +97,7 @@ class SigningKeypair(Keypair):
     A SigningKeypair that uses ECDSA.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     def sign(self, message: bytes) -> bytes:
@@ -135,8 +135,8 @@ class HostingKeypair(Keypair):
                  certificate=None,
                  curve=None,
                  generate_keys_if_needed=True,
-                 save_cert_to_disk=False,
-                 ):
+                 save_cert_to_disk=False
+                 ) -> None:
 
         self.curve = curve or self._DEFAULT_CURVE
 

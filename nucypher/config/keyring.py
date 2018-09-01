@@ -232,7 +232,7 @@ class NucypherKeyring:
                  pub_root_key_path: str=None,
                  signing_key_path: str=None,
                  pub_signing_key_path: str=None,
-                 transacting_key_path: str=None):
+                 transacting_key_path: str=None) -> None:
         """
         Generates a NuCypherKeyring instance with the provided key paths,
         falling back to default keyring paths.

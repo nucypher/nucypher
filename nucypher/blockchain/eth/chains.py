@@ -20,7 +20,7 @@ class Blockchain:
     class ConnectionNotEstablished(RuntimeError):
         pass
 
-    def __init__(self, interface: Union[BlockchainInterface, BlockchainDeployerInterface]=None):
+    def __init__(self, interface: Union[BlockchainInterface, BlockchainDeployerInterface]=None) -> None:
 
         if interface is None:
             interface = self.__default_interface_class()
@@ -108,7 +108,7 @@ class TesterBlockchain(Blockchain):
     __default_num_test_accounts = 10
     _default_network = 'tester'
 
-    def __init__(self, test_accounts=None, poa=True, airdrop=False, *args, **kwargs):
+    def __init__(self, test_accounts=None, poa=True, airdrop=False, *args, **kwargs) -> None:
 
         # Depends on circumflex
         super().__init__(*args, **kwargs)
