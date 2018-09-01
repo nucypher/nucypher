@@ -33,7 +33,7 @@ class Arrangement:
                                                  (bytes, 27))
 
     def __init__(self, alice, expiration, ursula=None, id=None,
-                 kfrag=constants.UNKNOWN_KFRAG, value=None, alices_signature=None):
+                 kfrag=constants.UNKNOWN_KFRAG, value=None, alices_signature=None) -> None:
         """
         :param deposit: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
@@ -105,7 +105,7 @@ class Policy:
     """
 
     def __init__(self, alice, label, bob=None, kfrags=(constants.UNKNOWN_KFRAG,),
-                 public_key=None, m=None, alices_signature=constants.NOT_SIGNED):
+                 public_key=None, m=None, alices_signature=constants.NOT_SIGNED) -> None:
 
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.
@@ -274,7 +274,7 @@ class Policy:
 class FederatedPolicy(Policy):
     _arrangement_class = Arrangement
 
-    def __init__(self, ursulas: Set[Ursula], *args, **kwargs):
+    def __init__(self, ursulas: Set[Ursula], *args, **kwargs) -> None:
         self.ursulas = ursulas
         super().__init__(*args, **kwargs)
 
@@ -321,7 +321,7 @@ class TreasureMap:
                  destinations=None,
                  message_kit=None,
                  public_signature=None,
-                 hrac=None):
+                 hrac=None) -> None:
 
         if m is not None:
             if m > 255:
@@ -447,7 +447,7 @@ class TreasureMap:
 
 class WorkOrder(object):
     def __init__(self, bob, arrangement_id, capsules, receipt_bytes,
-                 receipt_signature, ursula=None):
+                 receipt_signature, ursula=None) -> None:
         self.bob = bob
         self.arrangement_id = arrangement_id
         self.capsules = capsules
@@ -501,7 +501,7 @@ class WorkOrder(object):
 
 class WorkOrderHistory:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.by_ursula = {}
 
     def __contains__(self, item):

@@ -27,7 +27,7 @@ class BlockchainArrangement(Arrangement):
                  value: int,
                  lock_periods: int,
                  expiration: maya.MayaDT,
-                 *args, **kwargs):
+                 *args, **kwargs) -> None:
         super().__init__(alice=author, ursula=miner, *args, **kwargs)
 
         delta = expiration - maya.now()
@@ -91,7 +91,7 @@ class BlockchainPolicy(Policy):
     class NotEnoughBlockchainUrsulas(Exception):
         pass
 
-    def __init__(self, author: PolicyAuthor, *args, **kwargs):
+    def __init__(self, author: PolicyAuthor, *args, **kwargs) -> None:
         self.author = author
         super().__init__(alice=author, *args, **kwargs)
 

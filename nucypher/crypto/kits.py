@@ -22,7 +22,7 @@ class CryptoKit:
 
 class MessageKit(CryptoKit):
 
-    def __init__(self, capsule, sender_pubkey_sig=None, ciphertext=None, signature=constants.NOT_SIGNED):
+    def __init__(self, capsule, sender_pubkey_sig=None, ciphertext=None, signature=constants.NOT_SIGNED) -> None:
         self.ciphertext = ciphertext
         self.capsule = capsule
         self.sender_pubkey_sig = sender_pubkey_sig
@@ -52,7 +52,7 @@ class UmbralMessageKit(MessageKit):
     return_remainder_when_splitting = True
     splitter = capsule_splitter + key_splitter
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.policy_pubkey = None
 

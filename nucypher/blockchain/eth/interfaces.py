@@ -330,7 +330,7 @@ class BlockchainInterface:
 
 class BlockchainDeployerInterface(BlockchainInterface):
 
-    def __init__(self, deployer_address: str=None, *args, **kwargs):
+    def __init__(self, deployer_address: str=None, *args, **kwargs) -> None:
 
         # Depends on web3 instance
         super().__init__(*args, **kwargs)

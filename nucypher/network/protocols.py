@@ -15,7 +15,7 @@ class SuspiciousActivity(RuntimeError):
 
 
 class NucypherHashProtocol(KademliaProtocol):
-    def __init__(self, sourceNode, storage, ksize, *args, **kwargs):
+    def __init__(self, sourceNode, storage, ksize, *args, **kwargs) -> None:
         super().__init__(sourceNode, storage, ksize, *args, **kwargs)
 
         self.router = NucypherRoutingTable(self, ksize, sourceNode)
@@ -119,7 +119,7 @@ class NucypherHashProtocol(KademliaProtocol):
 
 
 class NucypherSeedOnlyProtocol(NucypherHashProtocol):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     def rpc_store(self, sender, nodeid, key, value):
@@ -134,7 +134,7 @@ class NucypherSeedOnlyProtocol(NucypherHashProtocol):
 class InterfaceInfo:
     expected_bytes_length = lambda: VariableLengthBytestring
 
-    def __init__(self, host, port):
+    def __init__(self, host, port) -> None:
         self.host = host
         self.port = int(port)
 
