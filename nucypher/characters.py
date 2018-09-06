@@ -1301,7 +1301,7 @@ class Ursula(Character, VerifiableNode, Miner):
 
     @property
     def rest_app(self):
-        rest_app_on_server = self._crypto_power.power_ups(TLSHostingPower).rest_server._rest_app
+        rest_app_on_server = self._crypto_power.power_ups(TLSHostingPower).rest_server.rest_app
 
         if not rest_app_on_server:
             m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."

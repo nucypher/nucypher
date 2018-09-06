@@ -50,7 +50,7 @@ class VerifiableNode:
 
     def interface_is_valid(self):
         message = self._signable_interface_info_message()
-        interface_is_valid = self._interface_signature.verify(message, self.public_material(SigningPower))
+        interface_is_valid = self._interface_signature.verify(message, self.public_keys(SigningPower))
         self.verified_interface = interface_is_valid
         if interface_is_valid:
             return True
