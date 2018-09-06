@@ -1185,7 +1185,7 @@ class Ursula(Character, VerifiableNode, Miner):
 
         identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
 
-        certificate = self.public_keys(TLSHostingPower)[0]
+        certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
 
         as_bytes = bytes().join((bytes(self._interface_signature),
