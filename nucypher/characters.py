@@ -1185,11 +1185,15 @@ class Ursula(Character, VerifiableNode, Miner):
 
         identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
 
+        certificate = self.public_keys(TLSHostingPower)[0]
+        cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
+
         as_bytes = bytes().join((bytes(self._interface_signature),
                                  bytes(identity_evidence),
-                                 bytes(self.public_material(SigningPower)),
-                                 bytes(self.public_material(EncryptingPower)),
+                                 bytes(self.public_keys(SigningPower)),
+                                 bytes(self.public_keys(EncryptingPower)),
                                  self.canonical_public_address,
+                                 bytes(cert_vbytes),
                                  interface_info)
                                 )
         return as_bytes
@@ -1231,14 +1235,23 @@ class Ursula(Character, VerifiableNode, Miner):
     def from_bytes(cls, ursula_as_bytes: bytes,
                    federated_only: bool = False) -> 'Ursula':
 
-        signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info = cls._internal_splitter(
-            ursula_as_bytes)
+        (signature,
+         identity_evidence,
+         verifying_key,
+         encrypting_key,
+         public_address,
+         certificate_vbytes,
+         rest_info,
+         dht_info) = cls._internal_splitter(ursula_as_bytes)
+        certificate = load_pem_x509_certificate(certificate_vbytes.message_as_bytes,
+                                                default_backend())
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: verifying_key, EncryptingPower: encrypting_key},
             interface_signature=signature,
             checksum_address=to_checksum_address(public_address),
             rest_host=rest_info.host,
             rest_port=rest_info.port,
+            certificate=certificate,
             dht_host=dht_info.host,
             dht_port=dht_info.port,
             federated_only=federated_only  # TODO: 289
@@ -1255,12 +1268,23 @@ class Ursula(Character, VerifiableNode, Miner):
         stranger_ursulas = []
 
         ursulas_attrs = cls._internal_splitter.repeat(ursulas_as_bytes)
-        for (signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info,
+        for (signature,
+             identity_evidence,
+             verifying_key,
+             encrypting_key,
+             public_address,
+             certificate_vbytes,
+             rest_info,
              dht_info) in ursulas_attrs:
+            certificate = load_pem_x509_certificate(certificate_vbytes.message_as_bytes,
+                                                    default_backend())
             stranger_ursula_from_public_keys = cls.from_public_keys(
-                {SigningPower: verifying_key, EncryptingPower: encrypting_key},
+                {SigningPower: verifying_key,
+                 EncryptingPower: encrypting_key,
+                 },
                 interface_signature=signature,
                 checksum_address=to_checksum_address(public_address),
+                certificate=certificate,
                 rest_host=rest_info.host,
                 rest_port=rest_info.port,
                 dht_host=dht_info.host,
