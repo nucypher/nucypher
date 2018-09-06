@@ -1037,6 +1037,7 @@ class Ursula(Character, VerifiableNode, Miner):
                                             (UmbralPublicKey, PUBLIC_KEY_LENGTH),
                                             (UmbralPublicKey, PUBLIC_KEY_LENGTH),
                                             int(PUBLIC_ADDRESS_LENGTH),
+                                            VariableLengthBytestring,  # Certificate
                                             InterfaceInfo,
                                             InterfaceInfo)
     _dht_server_class = NucypherDHTServer
@@ -1113,36 +1114,50 @@ class Ursula(Character, VerifiableNode, Miner):
             if not federated_only:
                 self.substantiate_stamp()
 
-            rest_routes = ProxyRESTRoutes(
-                db_name=db_name,
-                network_middleware=self.network_middleware,
-                federated_only=self.federated_only,
-                dht_server=self.dht_server,
-                treasure_map_tracker=self.treasure_maps,
-                node_tracker=self._known_nodes,
-                node_bytes_caster=self.__bytes__,
-                work_order_tracker=self._work_orders,
-                node_recorder=self.remember_node,
-                stamp=self.stamp,
-                verifier=self.verify_from
-            )
+        if not crypto_power or TLSHostingPower not in crypto_power._power_ups:  # TODO: Maybe we want _power_ups to be public after all?
+            # We'll hook all the TLS stuff up unless the crypto_power was already passed.
+            if is_me:
 
-            rest_server = ProxyRESTServer(
-                rest_host=rest_host,
-                rest_port=rest_port,
-                routes=rest_routes,
-            )
+                rest_routes = ProxyRESTRoutes(
+                    db_name=db_name,
+                    network_middleware=self.network_middleware,
+                    federated_only=self.federated_only,
+                    dht_server=self.dht_server,
+                    treasure_map_tracker=self.treasure_maps,
+                    node_tracker=self._known_nodes,
+                    node_bytes_caster=self.__bytes__,
+                    work_order_tracker=self._work_orders,
+                    node_recorder=self.remember_node,
+                    stamp=self.stamp,
+                    verifier=self.verify_from
+                )
 
-            tls_hosting_keypair = HostingKeypair(
-                common_name=self.checksum_public_address,
-                private_key=tls_private_key,
-                curve=tls_curve,
-                host=rest_host,
-                certificate=certificate)
-            tls_hosting_power = TLSHostingPower(rest_server=rest_server,
-                                                keypair=tls_hosting_keypair)
+                rest_server = ProxyRESTServer(
+                    rest_host=rest_host,
+                    rest_port=rest_port,
+                    routes=rest_routes,
+                )
+                self.rest_url = rest_server.rest_url
+                self.datastore = rest_routes.datastore  # TODO: Maybe organize this better?
 
-        self._crypto_power.consume_power_up(tls_hosting_power)
+                tls_hosting_keypair = HostingKeypair(
+                    common_name=self.checksum_public_address,
+                    private_key=tls_private_key,
+                    curve=tls_curve,
+                    host=rest_host,
+                    certificate=certificate)
+                tls_hosting_power = TLSHostingPower(rest_server=rest_server,
+                                                    keypair=tls_hosting_keypair)
+            else:
+                # Unless the caller passed a crypto power, we'll make our own TLSHostingPower for this stranger.
+                rest_server = ProxyRESTServer(
+                    rest_host=rest_host,
+                    rest_port=rest_port,
+                )
+                tls_hosting_power = TLSHostingPower(rest_server=rest_server, certificate=certificate)
+            self._crypto_power.consume_power_up(tls_hosting_power)  # Make this work for not me for certificate to work
+        else:
+            self.log.info("Not adhering rest_server; we'll use the one on crypto_power..")
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)
@@ -1152,6 +1167,14 @@ class Ursula(Character, VerifiableNode, Miner):
             hosting_power.keypair.certificate,
             hosting_power.keypair.pubkey
         )
+
+    def get_deployer(self):
+        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app,
+                                                                              port=self.rest_information()[0].port)
+        return deployer
+
+    def rest_server_certificate(self):
+        return self.get_deployer().cert.to_cryptography()
 
     def __bytes__(self):
 
