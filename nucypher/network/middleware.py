@@ -55,17 +55,17 @@ class RestMiddleware:
     def node_information(self, host, port):
         return requests.get("https://{}:{}/public_information".format(host, port), verify=False)  # TODO: TLS-only.
 
-    def get_nodes_via_rest(self, address, port, announce_nodes=None, nodes_i_need=None):
+    def get_nodes_via_rest(self, url, announce_nodes=None, nodes_i_need=None):
         if nodes_i_need:
             # TODO: This needs to actually do something.
             # Include node_ids in the request; if the teacher node doesn't know about the
             # nodes matching these ids, then it will ask other nodes via the DHT or whatever.
             pass
         if announce_nodes:
-            response = requests.post("https://{}:{}/node_metadata".format(address, port),
+            response = requests.post("https://{}/node_metadata".format(address),
                                      verify=False,
                                      data=bytes().join(bytes(n) for n in announce_nodes))  # TODO: TLS-only.
         else:
-            response = requests.get("https://{}:{}/node_metadata".format(address, port),
+            response = requests.get("https://{}node_metadata".format(address),
                                     verify=False)  # TODO: TLS-only.
         return response
