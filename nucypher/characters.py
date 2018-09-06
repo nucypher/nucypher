@@ -15,9 +15,13 @@ import kademlia
 import maya
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.x509 import load_pem_x509_certificate
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from kademlia.utils import digest
+from twisted.internet import reactor
 from twisted.internet import task, threads
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
@@ -51,6 +55,7 @@ class Character:
 
     _default_crypto_powerups = None
     _stamp = None
+    _crashed = False
 
     _SHORT_LEARNING_DELAY = 5
     _LONG_LEARNING_DELAY = 90
@@ -269,10 +274,18 @@ class Character:
     def handle_learning_errors(self, *args, **kwargs):
         failure = args[0]
         if self._abort_on_learning_error:
-            self.log.critical("Unhandled error during node learning: {}".format(failure.getTraceback()))
-            failure.raiseException()
+            self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
+            reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
             self.log.warning("Unhandled error during node learning: {}".format(failure.getTraceback()))
+
+    def _crash_gracefully(self, failure=None):
+        """
+        A facility for crashing more gracefully in the event that an exception
+        is unhandled in a different thread, especially inside a loop like the learning loop.
+        """
+        self._crashed = failure
+        failure.raiseException()
 
     def shuffled_known_nodes(self):
         nodes_we_know_about = list(self._known_nodes.values())
@@ -367,6 +380,8 @@ class Character:
         starting_round = self._learning_round
 
         while True:
+            if self._crashed:
+                return self._crashed
             rounds_undertaken = self._learning_round - starting_round
             if canonical_addresses.issubset(self._known_nodes):
                 if rounds_undertaken:
