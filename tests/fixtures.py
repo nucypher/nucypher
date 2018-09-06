@@ -19,8 +19,8 @@ from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
-from nucypher.utilities.blockchain import make_ursulas, token_airdrop
-from nucypher.utilities.network import MockRestMiddleware
+from nucypher.utilities.blockchain import token_airdrop
+from nucypher.utilities.sandbox import make_ursulas, MockRestMiddleware
 
 
 #

@@ -123,7 +123,7 @@ class TesterBlockchain(Blockchain):
             accounts_to_make = self.__default_num_test_accounts - len(self.interface.w3.eth.accounts)
             test_accounts = test_accounts if test_accounts is not None else self.__default_num_test_accounts
 
-            from nucypher.utilities.blockchain import generate_accounts
+            from nucypher.utilities.sandbox import generate_accounts
             generate_accounts(w3=self.interface.w3, quantity=accounts_to_make)
 
             assert test_accounts == len(self.interface.w3.eth.accounts)
