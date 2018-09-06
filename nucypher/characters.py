@@ -167,7 +167,7 @@ class Character:
             if network_middleware is not None:
                 raise TypeError(
                     "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
-            self._stamp = StrangerStamp(self.public_material(SigningPower))
+            self._stamp = StrangerStamp(self.public_keys(SigningPower))
 
         # Decentralized
         if not federated_only:
@@ -198,21 +198,21 @@ class Character:
         return self.__class__.__name__
 
     @classmethod
-    def from_public_keys(cls, powers_and_keys: Dict, federated_only=True, *args, **kwargs) -> 'Character':
+    def from_public_keys(cls, powers_and_material: Dict, federated_only=True, *args, **kwargs) -> 'Character':
         # TODO: Need to be federated only until we figure out the best way to get the checksum_address in here.
         """
-        Sometimes we discover a Character and, at the same moment, learn one or
-        more of their public keys. Here, we take a Dict
+        Sometimes we discover a Character and, at the same moment,
+        learn the public parts of more of their powers. Here, we take a Dict
         (powers_and_key_bytes) in the following format:
-        {CryptoPowerUp class: public_key_bytes}
+        {CryptoPowerUp class: public_material_bytes}
 
         Each item in the collection will have the CryptoPowerUp instantiated
-        with the public_key_bytes, and the resulting CryptoPowerUp instance
+        with the public_material_bytes, and the resulting CryptoPowerUp instance
         consumed by the Character.
         """
         crypto_power = CryptoPower()
 
-        for power_up, public_key in powers_and_keys.items():
+        for power_up, public_key in powers_and_material.items():
             try:
                 umbral_key = UmbralPublicKey(public_key)
             except TypeError:
@@ -421,8 +421,7 @@ class Character:
             self.log.warning("Can't learn right now: {}".format(e.args[0]))
             return
 
-        rest_address = current_teacher.rest_interface.host
-        port = current_teacher.rest_interface.port
+        rest_url = current_teacher.rest_url()
 
         # TODO: Do we really want to try to learn about all these nodes instantly?  Hearing this traffic might give insight to an attacker.
         if VerifiableNode in self.__class__.__bases__:
@@ -430,8 +429,7 @@ class Character:
         else:
             announce_nodes = None
 
-        response = self.network_middleware.get_nodes_via_rest(rest_address,
-                                                              port,
+        response = self.network_middleware.get_nodes_via_rest(rest_url,
                                                               nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                               announce_nodes=announce_nodes)
         if response.status_code != 200:
@@ -538,7 +536,7 @@ class Character:
         """
         signer = self.stamp if sign else constants.DO_NOT_SIGN
 
-        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_material(EncryptingPower),
+        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_keys(EncryptingPower),
                                                   plaintext=plaintext,
                                                   signer=signer,
                                                   sign_plaintext=sign_plaintext
@@ -630,7 +628,7 @@ class Character:
     And finally, some miscellaneous but generally-applicable abilities:
     """
 
-    def public_material(self, power_up_class: ClassVar) -> Union[Tuple, UmbralPublicKey]:
+    def public_keys(self, power_up_class: ClassVar) -> Union[Tuple, UmbralPublicKey]:
         """
         Pass a power_up_class, get the public material for this Character which corresponds to that
         class - whatever type of object that may be.
@@ -639,7 +637,7 @@ class Character:
         appropriate PowerUpError (ie, NoSigningPower or NoEncryptingPower).
         """
         power_up = self._crypto_power.power_ups(power_up_class)
-        return power_up.public_material()
+        return power_up.public_key()
 
     @property
     def canonical_public_address(self):
@@ -662,7 +660,7 @@ class Character:
     def _set_checksum_address(self):
 
         if self.federated_only:
-            verifying_key = self.public_material(SigningPower)
+            verifying_key = self.public_keys(SigningPower)
             uncompressed_bytes = verifying_key.to_bytes(is_compressed=False)
             without_prefix = uncompressed_bytes[1:]
             verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
@@ -718,7 +716,7 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
 
-        bob_pubkey_enc = bob.public_material(EncryptingPower)
+        bob_pubkey_enc = bob.public_keys(EncryptingPower)
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
         return delegating_power.generate_kfrags(bob_pubkey_enc, self.stamp, label, m, n)
 
@@ -1010,7 +1008,7 @@ class Bob(Character):
 
         message_kit.capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
-            receiving=self.public_material(EncryptingPower),
+            receiving=self.public_keys(EncryptingPower),
             verifying=alice_verifying_key)
 
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, data_source.label)
