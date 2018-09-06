@@ -14,9 +14,10 @@ from kademlia.network import Server
 from kademlia.utils import digest
 from umbral import pre
 from umbral.fragments import KFrag
+from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import SigningPower, KeyPairBasedPower
+from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, InterfaceInfo
@@ -106,38 +107,20 @@ class ProxyRESTServer:
     def __init__(self,
                  rest_host,
                  rest_port,
-                 routes,
+                 routes=None,
                  ) -> None:
         self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
-
-    def start_datastore(self, db_name):
-        if not db_name:
-            raise TypeError("In order to start a datastore, you need to supply a db_name.")
-
-        from nucypher.keystore import keystore
-        from nucypher.keystore.db import Base
-        from sqlalchemy.engine import create_engine
-
-        self.log.info("Starting datastore {}".format(db_name))
-        engine = create_engine('sqlite:///{}'.format(db_name))
-        Base.metadata.create_all(engine)
-        self.datastore = keystore.KeyStore(engine)
-        self.db_engine = engine
+        if routes:
+            self.rest_app = routes.rest_app
+        else:
+            self.rest_app = constants.PUBLIC_ONLY
 
     def rest_url(self):
-        return "{}:{}".format(self.rest_information()[0].host, self.rest_information()[0].port)
-
-    #####################################
-    # Actual REST Endpoints and utilities
-    #####################################
-
-    def get_deployer(self):
-        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self._rest_app,
-                                                                              port=self.rest_information()[0].port)
-        return deployer
+        return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
 
 
 class ProxyRESTRoutes:
+    log = getLogger("characters")
 
     def __init__(self,
                  db_name,
@@ -152,7 +135,6 @@ class ProxyRESTRoutes:
                  stamp,
                  verifier,
                  ) -> None:
-        self.db_name = db_name
 
         self.network_middleware = network_middleware
         self.federated_only = federated_only
@@ -161,11 +143,11 @@ class ProxyRESTRoutes:
         self._treasure_map_tracker = treasure_map_tracker
         self._work_order_tracker = work_order_tracker
         self._node_tracker = node_tracker
-        self._node_bytes_caster/ = node_bytes_caster
+        self._node_bytes_caster = node_bytes_caster
         self._node_recorder = node_recorder
         self._stamp = stamp
         self._verifier = verifier
-
+        self.datastore = None
 
         routes = [
             Route('/kFrag/{id_as_hex}',
@@ -191,8 +173,24 @@ class ProxyRESTRoutes:
                   self.receive_treasure_map),
         ]
 
-        self._rest_app = App(routes=routes)
-        self.start_datastore(self.db_name)
+        self.rest_app = App(routes=routes)
+
+        if not db_name:
+            raise TypeError("In order to start a datastore, you need to supply a db_name.")
+
+        from nucypher.keystore import keystore
+        from nucypher.keystore.db import Base
+        from sqlalchemy.engine import create_engine
+
+        self.log.info("Starting datastore {}".format(db_name))
+        engine = create_engine('sqlite:///{}'.format(db_name))
+        Base.metadata.create_all(engine)
+        self.datastore = keystore.KeyStore(engine)
+        self.db_engine = engine
+
+        from nucypher.characters import Alice, Ursula
+        self._alice_class = Alice
+        self._node_class = Ursula
 
     def public_information(self):
         """
@@ -200,21 +198,20 @@ class ProxyRESTRoutes:
         """
         headers = {'Content-Type': 'application/octet-stream'}
         response = Response(
-            content=self.ursula_bytes_caster(),
+            content=self._node_bytes_caster(),
             headers=headers)
 
         return response
 
     def all_known_nodes(self, request: http.Request):
         headers = {'Content-Type': 'application/octet-stream'}
-        ursulas_as_bytes = bytes().join(bytes(n) for n in self._known_nodes_tracker.values())
-        ursulas_as_bytes += self.ursula_bytes_caster()
-        signature = self.stamp(ursulas_as_bytes)
+        ursulas_as_bytes = bytes().join(bytes(n) for n in self._node_tracker.values())
+        ursulas_as_bytes += self._node_bytes_caster()
+        signature = self._stamp(ursulas_as_bytes)
         return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
 
     def node_metadata_exchange(self, request: http.Request, query_params: http.QueryParams):
-
-        nodes = CLASS.batch_from_bytes(request.body, federated_only=self.federated_only)
+        nodes = self._node_class.batch_from_bytes(request.body, federated_only=self.federated_only)
         # TODO: This logic is basically repeated in learn_from_teacher_node.  Let's find a better way.
         for node in nodes:
 
@@ -313,9 +310,9 @@ class ProxyRESTRoutes:
         headers = {'Content-Type': 'application/octet-stream'}
 
         try:
-            treasure_map = self.treasure_map_tracker[digest(treasure_map_id)]
+            treasure_map = self._treasure_map_tracker[digest(treasure_map_id)]
             response = Response(content=bytes(treasure_map), headers=headers)
-            self.log.info("{} providing TreasureMap {}".format(self.ursula_bytes_caster(),
+            self.log.info("{} providing TreasureMap {}".format(self._node_bytes_caster(),
                                                                treasure_map_id))
         except KeyError:
             self.log.info("{} doesn't have requested TreasureMap {}".format(self, treasure_map_id))
@@ -342,7 +339,7 @@ class ProxyRESTRoutes:
                                     constants.BYTESTRING_IS_TREASURE_MAP + bytes(treasure_map))
 
             # TODO 341 - what if we already have this TreasureMap?
-            self.treasure_map_tracker[digest(treasure_map_id)] = treasure_map
+            self._treasure_map_tracker[digest(treasure_map_id)] = treasure_map
             return Response(content=bytes(treasure_map), status_code=202)
         else:
             # TODO: Make this a proper 500 or whatever.
@@ -354,9 +351,14 @@ class TLSHostingPower(KeyPairBasedPower):
     _keypair_class = HostingKeypair
     provides = ("get_deployer",)
 
-    def __init__(self, rest_server, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.rest_server = rest_server
+    class NoHostingPower(PowerUpError):
+        pass
 
-    def public_material(self):
-        return self.keypair.certificate, self.keypair.pubkey
+    not_found_error = NoHostingPower
+
+    def __init__(self, rest_server, certificate=None, *args, **kwargs):
+        if certificate:
+            kwargs['keypair'] = HostingKeypair(certificate=certificate)
+        self.rest_server = rest_server
+        super().__init__(*args, **kwargs)
+
