@@ -12,7 +12,6 @@ from nucypher.characters import Ursula
 from nucypher.crypto.api import secure_random
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
-from nucypher.utilities.blockchain import _TEST_KNOWN_URSULAS_CACHE
 from umbral.keys import UmbralPrivateKey
 from web3 import Web3
 
