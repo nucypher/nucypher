@@ -164,9 +164,10 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     target = list(mining_ursulas)[2]
     # First, let's imagine that Alice has sampled a Vladimir while making this policy.
     vladimir = Ursula(crypto_power=CryptoPower(power_ups=Ursula._default_crypto_powerups),
-                      rest_host=target.rest_interface.host,
-                      rest_port=target.rest_interface.port,
+                      rest_host=target.rest_information()[0].host,
+                      rest_port=target.rest_information()[0].port,
                       checksum_address='0xE57bFE9F44b819898F47BF37E5AF72a0783e1141',  # Fradulent address
+                      certificate=target.rest_server_certificate(),
                       is_me=False)
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)

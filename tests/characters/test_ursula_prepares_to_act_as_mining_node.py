@@ -67,8 +67,8 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(mining_ursula
 
     # Vladimir imitates Ursula - copying her public keys and interface info, but inserting his ether address.
     vladimir = Ursula(crypto_power=his_target._crypto_power,
-                      rest_host=his_target.rest_interface.host,
-                      rest_port=his_target.rest_interface.port,
+                      rest_host=his_target.rest_information()[0].host,
+                      rest_port=his_target.rest_information()[0].port,
                       checksum_address=vladimir_ether_address,
                       interface_signature=his_target._interface_signature,
                       is_me=False)
@@ -97,9 +97,10 @@ def test_vladimir_uses_his_own_signing_key(alice, mining_ursulas):
     fraduluent_keys = CryptoPower(power_ups=Ursula._default_crypto_powerups)
 
     vladimir = Ursula(crypto_power=fraduluent_keys,
-                      rest_host=his_target.rest_interface.host,
-                      rest_port=his_target.rest_interface.port,
+                      rest_host=his_target.rest_information()[0].host,
+                      rest_port=his_target.rest_information()[0].port,
                       checksum_address=vladimir_ether_address,
+                      certificate=his_target.rest_server_certificate(),
                       is_me=False)
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)

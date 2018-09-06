@@ -3,7 +3,7 @@ import pytest_twisted
 from twisted.internet import threads
 from umbral import pre
 from umbral.fragments import KFrag, CapsuleFrag
-
+from constant_sorrow import constants
 from nucypher.crypto.powers import EncryptingPower
 
 
@@ -87,10 +87,10 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     bob.start_learning_loop()
 
     # ...and block until the unknown_nodes have all been found.
-    yield threads.deferToThread(bob.block_until_specific_nodes_are_known, unknown_nodes)
+    d = threads.deferToThread(bob.block_until_specific_nodes_are_known, unknown_nodes)
+    yield d
 
     # ...and he now has no more unknown_nodes.
-    print(len(bob._known_nodes))
     assert len(bob._known_nodes) == len(treasure_map)
 
 
@@ -143,7 +143,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # Attach the CFrag to the Capsule.
     capsule = capsule_side_channel[0].capsule
     capsule.set_correctness_keys(delegating=enacted_federated_policy.public_key,
-                                 receiving=bob.public_material(EncryptingPower),
+                                 receiving=bob.public_keys(EncryptingPower),
                                  verifying=alice.stamp.as_umbral_pubkey())
     capsule.attach_cfrag(the_cfrag)
 
@@ -153,7 +153,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
     # the correct cFrag (ie, that Ursula performed reencryption properly).
     for u in ursulas:
-        if u.rest_interface.port == work_order.ursula.rest_interface.port:
+        if u.rest_information()[0].port == work_order.ursula.rest_information()[0].port:
             ursula = u
             break
     else:

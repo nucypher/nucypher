@@ -52,12 +52,11 @@ def test_grant(alice, bob, three_agents):
     # Let's look at the enacted arrangements.
     for kfrag in policy.kfrags:
         arrangement = policy._enacted_arrangements[kfrag]
-        ursula = _TEST_KNOWN_URSULAS_CACHE[arrangement.ursula.rest_interface.port]
 
         # Get the Arrangement from Ursula's datastore, looking up by hrac.
         # This will be changed in 180, when we use the Arrangement ID.
         proper_hrac = keccak_digest(bytes(alice.stamp) + bytes(bob.stamp) + label)
-        retrieved_policy = ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
+        retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
         retrieved_kfrag = KFrag.from_bytes(retrieved_policy.k_frag)
 
         assert kfrag == retrieved_kfrag
