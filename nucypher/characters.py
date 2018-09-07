@@ -1196,7 +1196,7 @@ class Ursula(Character, VerifiableNode, Miner):
                                  bytes(self.public_keys(EncryptingPower)),
                                  self.canonical_public_address,
                                  bytes(cert_vbytes),
-                                 interface_info)
+                                 interface_info.message_as_bytes)
                                 )
         return as_bytes
 
