@@ -135,7 +135,7 @@ def make_ursulas(ether_addresses: list,
             event_loop.run_until_complete(
                 ursula.dht_server.bootstrap(
                     [("localhost", starting_port + _c) for _c in range(len(ursulas))]))
-            ursula.publish_dht_information()
+            # ursula.publish_dht_information()
 
     return ursulas
 
