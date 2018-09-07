@@ -19,19 +19,21 @@ from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
-from nucypher.utilities.blockchain import token_airdrop
-from nucypher.utilities.sandbox import make_ursulas, MockRestMiddleware
-
 
 #
 # Setup
 #
-from nucypher_cli.main import BASE_DIR
+
+
+from cli.main import BASE_DIR
+from nucypher.utilities.blockchain import token_airdrop
+from nucypher.utilities.sandbox import MockRestMiddleware, make_ursulas
 
 test_contract_dir = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 constants.TEST_CONTRACTS_DIR(test_contract_dir)
 
 constants.NUMBER_OF_TEST_ETH_ACCOUNTS(10)
+constants.NUMBER_OF_URSULAS_IN_NETWORK(int(constants.NUMBER_OF_TEST_ETH_ACCOUNTS))
 
 
 @pytest.fixture(scope="function")
@@ -73,7 +75,7 @@ def idle_federated_policy(alice, bob):
 @pytest.fixture(scope="module")
 def enacted_federated_policy(idle_federated_policy, ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
-    deposit = constants.NON_PAYMENT(b"0000000")
+    deposit = constants.NON_PAYMENT
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()
 
@@ -165,7 +167,7 @@ def capsule_side_channel(enacted_federated_policy):
 @pytest.fixture(scope="module")
 def ursulas(three_agents):
     token_agent, miner_agent, policy_agent = three_agents
-    ether_addresses = [to_checksum_address(os.urandom(20)) for _ in range(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
+    ether_addresses = [to_checksum_address(os.urandom(20)) for _ in range(int(constants.NUMBER_OF_URSULAS_IN_NETWORK))]
     _ursulas = make_ursulas(ether_addresses=ether_addresses,
                             miner_agent=miner_agent,
                             )

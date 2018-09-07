@@ -1,27 +1,26 @@
 import asyncio
-import maya
 import random
+from collections.__init__ import OrderedDict
 from typing import List, Set
 
+import maya
 from apistar import TestClient
-from collections.__init__ import OrderedDict
 from constant_sorrow import constants
 from eth_utils import to_checksum_address
+from umbral.keys import UmbralPrivateKey
+from web3 import Web3
+
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters import Ursula
 from nucypher.crypto.api import secure_random
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
-from umbral.keys import UmbralPrivateKey
-from web3 import Web3
-
 
 #
 # Test Utility Constants
 #
 
 _TEST_KNOWN_URSULAS_CACHE = {}
-
 
 #
 # Event Loop Setup
@@ -70,7 +69,7 @@ def make_ursulas(ether_addresses: list,
     for port, ether_address in enumerate(ether_addresses, start=starting_port):
 
         if bare:
-            ursula = Ursula(is_me=False,            # do not attach dht server
+            ursula = Ursula(is_me=False,  # do not attach dht server
                             rest_host="localhost",  # TODO: remove rest interface
                             rest_port=port + 100,
                             checksum_address=ether_address,
@@ -91,7 +90,7 @@ def make_ursulas(ether_addresses: list,
                             dht_port=port,
                             db_name="test-{}".format(port),
                             rest_host="localhost",
-                            rest_port=port+100,
+                            rest_port=port + 100,
                             always_be_learning=False,
                             miner_agent=miner_agent,
                             federated_only=federated_only,
@@ -119,7 +118,9 @@ def make_ursulas(ether_addresses: list,
             ursula.federated_only = True
 
         ursulas.add(ursula)
-        _TEST_KNOWN_URSULAS_CACHE[ursula.rest_information()[0].port] = ursula
+        # Store this Ursula in our global cache.
+        port = ursula.rest_information()[0].port
+        _TEST_KNOWN_URSULAS_CACHE[port] = ursula
 
     if know_each_other and not bare:
 
@@ -184,7 +185,6 @@ def spawn_random_miners(miner_agent, addresses: list) -> list:
 #
 
 class MockRestMiddleware(RestMiddleware):
-
     _ursulas = None
 
     class NotEnoughMockUrsulas(MinerAgent.NotEnoughMiners):
@@ -246,17 +246,17 @@ class MockRestMiddleware(RestMiddleware):
 
         if announce_nodes:
             response = mock_client.post("https://{}/node_metadata".format(url),
-                                     verify=False,
-                                     data=bytes().join(bytes(n) for n in announce_nodes))  # TODO: TLS-only.
+                                        verify=False,
+                                        data=bytes().join(bytes(n) for n in announce_nodes))  # TODO: TLS-only.
         else:
             response = mock_client.get("https://{}/node_metadata".format(url),
-                                    verify=False)  # TODO: TLS-only.
+                                       verify=False)  # TODO: TLS-only.
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
         mock_client = self.__get_mock_client_by_ursula(node)
         response = mock_client.post("http://localhost/treasure_map/{}".format(map_id),
-                      data=map_payload, verify=False)
+                                    data=map_payload, verify=False)
         return response
 
 
@@ -274,8 +274,7 @@ class MockPolicy(Policy):
     def make_arrangements(self, network_middleware,
                           deposit: int,
                           expiration: maya.MayaDT,
-                          ursulas: List[Ursula]=None) -> None:
-
+                          ursulas: List[Ursula] = None) -> None:
         """
         Create and consider n Arangement objects from all known nodes.
         """
@@ -286,3 +285,35 @@ class MockPolicy(Policy):
                                           expiration=expiration)
 
             self.consider_arrangement(network_middleware=network_middleware, arrangement=arrangement)
+
+
+from twisted.internet import protocol
+
+
+class UrsulaProcessProtocol(protocol.ProcessProtocol):
+
+    def __init__(self, command):
+        self.command = command
+
+    def connectionMade(self):
+        print("connectionMade!")
+        self.transport.closeStdin()  # tell them we're done
+
+    def outReceived(self, data):
+        print(data)
+
+    def errReceived(self, data):
+        print(data)
+
+    def inConnectionLost(self):
+        print("inConnectionLost! stdin is closed! (we probably did it)")
+
+    def outConnectionLost(self):
+        print("outConnectionLost! The child closed their stdout!")
+
+    def errConnectionLost(self):
+        print("errConnectionLost! The child closed their stderr.")
+
+    def processEnded(self, status_object):
+        print("processEnded, status %d" % status_object.value.exitCode)
+        print("quitting")
