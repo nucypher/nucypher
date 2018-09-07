@@ -1,7 +1,7 @@
-"""NuCypher CLI"""
-
+#!/usr/bin/env python3
 
 import asyncio
+import logging
 import random
 import sys
 
@@ -41,7 +41,16 @@ from twisted.internet import reactor
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
 from nucypher.utilities.blockchain import token_airdrop
 from nucypher.config.utils import validate_nucypher_ini_config, initialize_configuration
-from nucypher.utilities.simulate import UrsulaProcessProtocol
+
+
+root = logging.getLogger()
+root.setLevel(logging.DEBUG)
+
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+root.addHandler(ch)
 
 
 class NucypherClickConfig:
@@ -465,9 +474,12 @@ def simulate(config, action, nodes, federated_only):
             rest_port, dht_port = sim_port_number, sim_port_number + 100
             db_name = 'sim-{}'.format(rest_port)
 
+            cli_exec = os.path.join(BASE_DIR, 'cli', 'main.py')
+            python_exec = 'python'
+
             proc_params = '''
-            run_ursula --host {} --rest-port {} --dht-port {} --db-name {}
-            '''.format(localhost, rest_port, dht_port, db_name).split()
+            python3 {} run_ursula --host {} --rest-port {} --dht-port {} --db-name {}
+            '''.format(python_exec, cli_exec, localhost, rest_port, dht_port, db_name).split()
 
             if federated_only:
                 click.echo("Setting federated operating mode")
@@ -492,7 +504,8 @@ def simulate(config, action, nodes, federated_only):
             # Spawn
             click.echo("Spawning node #{}".format(index+1))
             processProtocol = UrsulaProcessProtocol(command=proc_params)
-            ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
+            cli_exec = os.path.join(BASE_DIR, 'cli', 'main.py')
+            ursula_proc = reactor.spawnProcess(processProtocol, cli_exec, proc_params)
             config.sim_processes.append(ursula_proc)
 
             #
@@ -565,8 +578,13 @@ def simulate(config, action, nodes, federated_only):
 
     elif action == 'demo':
         """Run the finnegans wake demo"""
-        demo_exec = os.path.join(BASE_DIR, 'nucypher_cli', 'demos', 'finnegans-wake-demo.py')
-        subprocess.run([sys.executable, demo_exec], stdout=subprocess.PIPE)
+        demo_exec = os.path.join(BASE_DIR, 'cli', 'demos', 'finnegans-wake-demo.py')
+        process_args = [sys.executable, demo_exec]
+
+        if federated_only:
+            process_args.append('--federated-only')
+
+        subprocess.run(process_args, stdout=subprocess.PIPE)
 
 
 @cli.command()
@@ -682,12 +700,6 @@ def run_ursula(rest_port, dht_port, db_name,
                      dht_port=dht_port,
                      db_name=db_name,
                      checksum_address=checksum_address)
-
-    if seed_node:
-        seed_overrides = dict(always_be_learning=False,
-                              abort_on_learning_error=False)
-
-        overrides.update(seed_overrides)
 
     asyncio.set_event_loop(asyncio.new_event_loop())  # 2. Init DHT async loop
 

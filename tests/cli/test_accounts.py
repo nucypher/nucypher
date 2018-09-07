@@ -1,6 +1,6 @@
 from click.testing import CliRunner
 
-from nucypher_cli.main import cli
+from cli.main import cli
 
 
 def test_list():
