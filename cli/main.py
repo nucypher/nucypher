@@ -58,15 +58,18 @@ root.addHandler(ch)
 
 class NucypherClickConfig:
 
-    def __init__(self):
+    def __init__(self, operating_mode='federated', simulation_mode=False, use_config=False):
 
         self.config_filepath = DEFAULT_INI_FILEPATH  # TODO
-        click.echo("Using configuration filepath {}".format(self.config_filepath))
+        # click.echo("Using configuration filepath {}".format(self.config_filepath))
+
+        self.operating_mode = operating_mode
+        self.simulation_mode = simulation_mode
 
         # Set operating and run modes
-        operating_modes = parse_running_modes(filepath=self.config_filepath)
-        self.operating_mode = operating_modes.get('mode', 'decentralized')
-        self.simulation_mode = operating_modes.get('simulation', False)
+        if use_config is True:
+            operating_modes = parse_running_modes(filepath=self.config_filepath)
+
         if self.simulation_mode is True:
             simulation_running = False
             sim_registry_filepath = DEFAULT_SIMULATION_REGISTRY_FILEPATH
@@ -81,8 +84,9 @@ class NucypherClickConfig:
         sim_mode = 'simulation' if self.simulation_mode else 'live'
         click.echo("Running in {} {} mode".format(sim_mode, self.operating_mode))
 
-        self.payload = parse_nucypher_ini_config(filepath=self.config_filepath)
-        click.echo("Successfully parsed configuration file")
+        if use_config is True:
+            self.payload = parse_nucypher_ini_config(filepath=self.config_filepath)
+            click.echo("Successfully parsed configuration file")
 
         # Blockchain connection contract agency
         self.blockchain = constants.NO_BLOCKCHAIN_CONNECTION
@@ -135,7 +139,7 @@ uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 def cli(config, verbose, version, config_file):
     """Configure and manage a nucypher nodes"""
 
-    validate_nucypher_ini_config(filepath=config_file)
+    # validate_nucypher_ini_config(filepath=config_file)
 
     click.echo(BANNER)
 
@@ -667,13 +671,17 @@ def status(config, provider, contracts, network):
 @click.option('--federated-only', is_flag=True, default=False)
 @click.option('--teacher-uri', type=str)
 @click.option('--seed-node', is_flag=True, default=False)
+@click.option('--rest-host', type=str, default='localhost')
 @click.option('--rest-port', type=int, default=DEFAULT_REST_PORT)
 @click.option('--dht-port', type=int, default=DEFAULT_DHT_PORT)
 @click.option('--db-name', type=str, default=DEFAULT_DB_NAME)
 @click.option('--checksum-address', type=str)
 @click.option('--data-dir', type=click.Path(), default=DEFAULT_CONFIG_ROOT)
 @click.option('--config-file', type=click.Path(), default=DEFAULT_INI_FILEPATH)
-def run_ursula(rest_port, dht_port, db_name,
+def run_ursula(rest_port,
+               rest_host,
+               dht_port,
+               db_name,
                teacher_uri,
                checksum_address,
                federated_only,
@@ -702,12 +710,13 @@ def run_ursula(rest_port, dht_port, db_name,
     else:
         other_nodes = tuple()
 
-    overrides = dict(federated_only=federated_only,
-                     known_nodes=other_nodes,
-                     rest_port=rest_port,
-                     dht_port=dht_port,
-                     db_name=db_name,
-                     checksum_address=checksum_address)
+    ursula_params = dict(federated_only=federated_only,
+                         known_nodes=other_nodes,
+                         rest_host=rest_host,
+                         rest_port=rest_port,
+                         dht_port=dht_port,
+                         db_name=db_name,
+                         checksum_address=checksum_address)
 
     asyncio.set_event_loop(asyncio.new_event_loop())  # 2. Init DHT async loop
 
@@ -718,13 +727,12 @@ def run_ursula(rest_port, dht_port, db_name,
                          db_name='ursula-{}.db'.format(rest_port),
                          federated_only=federated_only)
 
-        overrides['known_nodes'] = (teacher, )
+        ursula_params['known_nodes'] = (teacher, )
 
     # 3. Initialize Ursula (includes overrides)
-    ursula = Ursula.from_config(filepath=config_file,
-                                overrides=overrides)
+    ursula = Ursula(**ursula_params)
 
-    ursula.dht_listen()                # 4. Start DHT
+    # ursula.dht_listen()                # 4. Start DHT
 
     # write_node_metadata(seed_node=seed_node, node=ursula, node_metadata_dir=data_dir)
 
