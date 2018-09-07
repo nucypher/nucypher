@@ -113,10 +113,10 @@ def parse_alice_config(config=None, filepath=DEFAULT_INI_FILEPATH) -> dict:
 def parse_running_modes(filepath: str=DEFAULT_INI_FILEPATH) -> dict:
     """Parse high-level operating and control modes"""
 
-    validate_nucypher_ini_config(filepath=filepath, raise_on_failure=True)
+    # validate_nucypher_ini_config(filepath=filepath, raise_on_failure=True)
 
     config = configparser.ConfigParser()
-    config.read(filepath)
+    # config.read(filepath)
 
     operating_mode = config.get(section='nucypher', option='mode')
     simulation_mode = config.getboolean(section='nucypher', option='simulation', fallback=False)
