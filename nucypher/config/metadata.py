@@ -24,7 +24,7 @@ def write_node_metadata(node: Ursula,
                         node_metadata_dir: str = DEFAULT_KNOWN_NODE_DIR) -> str:
 
     try:
-        filename = "node-metadata-{}".format(node.rest_interface.port)
+        filename = "node-metadata-{}".format(node.rest_information()[0])
     except AttributeError:
         raise AttributeError("{} does not have a rest_interface attached".format(node))
 

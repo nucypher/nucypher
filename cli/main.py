@@ -734,7 +734,7 @@ def run_ursula(rest_port,
 
     # ursula.dht_listen()                # 4. Start DHT
 
-    # write_node_metadata(seed_node=seed_node, node=ursula, node_metadata_dir=data_dir)
+    write_node_metadata(seed_node=seed_node, node=ursula, node_metadata_dir=data_dir)
 
     ursula.start_learning_loop()      # 5. Enter learning loop
     ursula.get_deployer().run()       # 6. Run TLS Deployer
