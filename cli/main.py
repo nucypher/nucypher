@@ -705,10 +705,7 @@ def run_ursula(rest_port,
 
     """
 
-    if not seed_node:
-        other_nodes = collect_stored_nodes(federated_only=federated_only)  # 1. Collect known nodes
-    else:
-        other_nodes = tuple()
+    other_nodes = collect_stored_nodes(federated_only=federated_only)  # 1. Collect known nodes
 
     ursula_params = dict(federated_only=federated_only,
                          known_nodes=other_nodes,
