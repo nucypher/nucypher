@@ -6,6 +6,8 @@ import random
 import sys
 
 import subprocess
+from urllib.parse import urlparse
+
 from constant_sorrow import constants
 
 from nucypher.blockchain.eth.actors import Miner
@@ -17,6 +19,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_SIMULATION_PO
     BASE_DIR
 from nucypher.config.metadata import write_node_metadata, collect_stored_nodes
 from nucypher.config.parsers import parse_nucypher_ini_config, parse_running_modes
+from nucypher.utilities.sandbox import UrsulaProcessProtocol
 
 __version__ = '0.1.0-alpha.0'
 
@@ -662,6 +665,7 @@ def status(config, provider, contracts, network):
 
 @cli.command()
 @click.option('--federated-only', is_flag=True, default=False)
+@click.option('--teacher-uri', type=str)
 @click.option('--seed-node', is_flag=True, default=False)
 @click.option('--rest-port', type=int, default=DEFAULT_REST_PORT)
 @click.option('--dht-port', type=int, default=DEFAULT_DHT_PORT)
@@ -670,8 +674,12 @@ def status(config, provider, contracts, network):
 @click.option('--data-dir', type=click.Path(), default=DEFAULT_CONFIG_ROOT)
 @click.option('--config-file', type=click.Path(), default=DEFAULT_INI_FILEPATH)
 def run_ursula(rest_port, dht_port, db_name,
-               checksum_address, federated_only,
-               seed_node, data_dir, config_file) -> None:
+               teacher_uri,
+               checksum_address,
+               federated_only,
+               seed_node,
+               data_dir,
+               config_file) -> None:
     """
 
     The following procedure is required to "spin-up" an Ursula node.
@@ -703,16 +711,24 @@ def run_ursula(rest_port, dht_port, db_name,
 
     asyncio.set_event_loop(asyncio.new_event_loop())  # 2. Init DHT async loop
 
+    if teacher_uri:
+        host, port = teacher_uri.split(':')
+        teacher = Ursula(rest_host=host,
+                         rest_port=port,
+                         db_name='ursula-{}.db'.format(rest_port),
+                         federated_only=federated_only)
+
+        overrides['known_nodes'] = (teacher, )
+
     # 3. Initialize Ursula (includes overrides)
-    ursula = Ursula.from_config(filepath=config_file, overrides=overrides)
+    ursula = Ursula.from_config(filepath=config_file,
+                                overrides=overrides)
 
     ursula.dht_listen()                # 4. Start DHT
 
-    write_node_metadata(seed_node=seed_node, node=ursula, node_metadata_dir=data_dir)
+    # write_node_metadata(seed_node=seed_node, node=ursula, node_metadata_dir=data_dir)
 
-    if not seed_node:
-        ursula.start_learning_loop()  # 5. Enter learning loop
-
+    ursula.start_learning_loop()      # 5. Enter learning loop
     ursula.get_deployer().run()       # 6. Run TLS Deployer
 
     if not federated_only:
