@@ -3,11 +3,9 @@ import os
 import pytest_twisted
 import requests
 from cryptography.hazmat.primitives import serialization
-from tests.utilities import make_ursulas
 from twisted.internet import threads
 
 from nucypher.characters import Ursula
-from nucypher.utilities.blockchain import make_ursulas
 from nucypher.utilities.sandbox import make_ursulas
 
 
