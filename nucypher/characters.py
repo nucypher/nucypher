@@ -1125,8 +1125,10 @@ class Ursula(Character, VerifiableNode, Miner):
             if not federated_only:
                 self.substantiate_stamp()
 
-        if not crypto_power or TLSHostingPower not in crypto_power._power_ups:  # TODO: Maybe we want _power_ups to be public after all?
+        if not crypto_power or (TLSHostingPower not in crypto_power._power_ups):
+            # TODO: Maybe we want _power_ups to be public after all?
             # We'll hook all the TLS stuff up unless the crypto_power was already passed.
+
             if is_me:
 
                 rest_routes = ProxyRESTRoutes(
