@@ -3,7 +3,8 @@ import os
 from shutil import copyfile
 from typing import Tuple, Union
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_INI_FILEPATH, DEFAULT_KEYRING_ROOT
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_INI_FILEPATH, DEFAULT_KEYRING_ROOT, \
+    DEFAULT_CERTIFICATE_DIR, DEFAULT_KNOWN_NODE_DIR, DEFAULT_SEED_NODE_DIR
 
 
 class NucypherConfigurationError(RuntimeError):
@@ -22,16 +23,17 @@ def initialize_configuration(config_root: str=None, ) -> None:
     #
     # Make configuration directories
     #
-    os.mkdir(root, mode=0o755)                                              # config root
-    os.mkdir(DEFAULT_KEYRING_ROOT, mode=0o755)                              # keyring
-    os.mkdir(os.path.join(DEFAULT_CONFIG_ROOT, 'known_nodes'), mode=0o755)  # known_nodes
-    os.mkdir(os.path.join(DEFAULT_CONFIG_ROOT, 'seed_nodes'), mode=0o755)   # seed_nodes
+    os.mkdir(root, mode=0o755)                     # config root
+    os.mkdir(DEFAULT_KEYRING_ROOT, mode=0o755)     # keyring
+    os.mkdir(DEFAULT_CERTIFICATE_DIR, mode=0o755)  # certificates
+    os.mkdir(DEFAULT_KNOWN_NODE_DIR, mode=0o755)   # known_nodes
+    os.mkdir(DEFAULT_SEED_NODE_DIR, mode=0o755)    # seed_nodes
 
     # Make a blank ini config file at the default path
     with open(DEFAULT_INI_FILEPATH, 'w+') as ini_file:
         if ini_file.read() == '':
             ini_file.seek(0)
-            ini_file.write('[nucypher]')
+            ini_file.write('[nucypher]')  # TODO Copy Default Sections, Perhaps interactively
 
 
 def validate_passphrase(passphrase) -> bool:

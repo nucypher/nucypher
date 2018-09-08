@@ -16,8 +16,9 @@ PROJECT_ROOT = abspath(dirname(nucypher.__file__))
 DEFAULT_CONFIG_ROOT = APP_DIRS.user_data_dir
 DEFAULT_INI_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, 'nucypher.ini')
 DEFAULT_KEYRING_ROOT = os.path.join(DEFAULT_CONFIG_ROOT, 'keyring')
+DEFAULT_CERTIFICATE_DIR = os.path.join(DEFAULT_CONFIG_ROOT, 'certificates')
 
-DEFAULT_REST_PORT = 5876
+DEFAULT_REST_PORT = 9151
 DEFAULT_DHT_PORT = DEFAULT_REST_PORT + 100
 DEFAULT_DB_NAME = "ursula.{port}.db".format(port=DEFAULT_REST_PORT)
 
