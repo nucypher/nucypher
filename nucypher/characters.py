@@ -198,6 +198,10 @@ class Character:
     def name(self):
         return self.__class__.__name__
 
+    @property
+    def rest_interface(self):
+        return self._crypto_power.power_ups(TLSHostingPower).rest_server.rest_url()
+
     @classmethod
     def from_public_keys(cls, powers_and_material: Dict, federated_only=True, *args, **kwargs) -> 'Character':
         # TODO: Need to be federated only until we figure out the best way to get the checksum_address in here.
@@ -422,7 +426,7 @@ class Character:
             self.log.warning("Can't learn right now: {}".format(e.args[0]))
             return
 
-        rest_url = current_teacher._crypto_power.power_ups(TLSHostingPower).rest_server.rest_url()
+        rest_url = current_teacher.rest_interface  # TODO: Name this..?
 
         # TODO: Do we really want to try to learn about all these nodes instantly?  Hearing this traffic might give insight to an attacker.
         if VerifiableNode in self.__class__.__bases__:
