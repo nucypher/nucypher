@@ -8,4 +8,4 @@ def test_help():
     result = runner.invoke(cli, ['--help'], catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert 'Usage: nucypher-cli [OPTIONS] COMMAND [ARGS]...' in result.output
+    assert 'Usage: cli [OPTIONS] COMMAND [ARGS]' in result.output

@@ -13,7 +13,7 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
 
 from nucypher.crypto import api as API
-from nucypher.crypto.api import generate_self_signed_certificate
+from nucypher.crypto.api import generate_self_signed_certificate, _save_tls_certificate
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 
@@ -141,16 +141,24 @@ class HostingKeypair(Keypair):
 
         if private_key:
             super().__init__(private_key=private_key)
+
         elif certificate:
+            self.certificate_filepath = _save_tls_certificate(certificate,
+                                                              common_name=common_name,
+                                                              is_me=False,
+                                                              force=False)
             self.certificate = certificate
             super().__init__(public_key=certificate.public_key())
+
         elif generate_keys_if_needed:
             if not all((common_name, host)):
-                raise TypeError("If you don't supply the certificate, one will be generated for you.  But for that, you need to pass both host and common_name..")
-            self.certificate, private_key = generate_self_signed_certificate(common_name=common_name,
-                                                                              private_key=private_key,
-                                                                              curve=self.curve,
-                                                                              host=host)
+                message = "If you don't supply the certificate, one will be generated for you." \
+                          "But for that, you need to pass both host and common_name.."
+                raise TypeError(message)
+            self.certificate, private_key, self.tls_certificate_filepath = generate_self_signed_certificate(common_name=common_name,
+                                                                                                            private_key=private_key,
+                                                                                                            curve=self.curve,
+                                                                                                            host=host)
             super().__init__(private_key=private_key)
         else:
             raise TypeError("You didn't provide a cert, but also told us not to generate keys.  Not sure what to do.")

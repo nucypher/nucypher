@@ -100,6 +100,7 @@ def test_vladimir_uses_his_own_signing_key(alice, mining_ursulas):
                       checksum_address=vladimir_ether_address,
                       certificate=his_target.rest_server_certificate(),
                       is_me=False)
+
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
     vladimir._interface_signature_object = signature

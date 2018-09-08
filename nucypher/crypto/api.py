@@ -4,6 +4,7 @@ import datetime
 from random import SystemRandom
 
 from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.x509 import Certificate
 from typing import Union
 
 import sha3
@@ -15,7 +16,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 
-from nucypher.config.constants import DEFAULT_CERTIFICATE_DIR
+from nucypher.config.constants import DEFAULT_TLS_CERTIFICATE_FILEPATH, DEFAULT_KNOWN_CERTIFICATES_DIR
+from nucypher.config.utils import NucypherConfigurationError
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
@@ -114,17 +116,35 @@ def ecdsa_verify(
     return True
 
 
-def save_tls_certificate(certificate, common_name, filepath=None):
-    if filepath is None:
-        filepath = DEFAULT_CERTIFICATE_DIR
+def _save_tls_certificate(certificate: Certificate,
+                          common_name: str = None,
+                          is_me: bool = False,
+                          force: bool = True,
+                          certificate_dir: str = DEFAULT_KNOWN_CERTIFICATES_DIR) -> str:
 
-    # TODO: Do not override by default
-    cert_filepath = os.path.join(filepath, '{}.ursula.pem'.format(common_name[:6]))
-    with open(cert_filepath, 'wb') as certificate_file:
+    if is_me is False and not common_name:
+        raise NucypherConfigurationError('A common name must be passed to save another node\'s certificate.')
+
+    if is_me is True:
+        certificate_filepath = DEFAULT_TLS_CERTIFICATE_FILEPATH
+    else:
+        certificate_filepath = os.path.join(certificate_dir, '{}.pem'.format(common_name[:6]))
+
+    if force is False and os.path.isfile(certificate_filepath):
+        raise NucypherConfigurationError('A TLS certificate already exists at {}.'.format(certificate_filepath))
+
+    with open(certificate_filepath, 'wb') as certificate_file:
         public_pem_bytes = certificate.public_bytes(Encoding.PEM)
         certificate_file.write(public_pem_bytes)
 
-    return cert_filepath
+    return certificate_filepath
+
+
+def load_tls_certificate(filepath):
+    with open(filepath, 'r') as certificate_file:
+        cert = x509.load_pem_x509_certificate(certificate_file.read(),
+                                              backend=default_backend())
+        return cert
 
 
 def generate_self_signed_certificate(common_name,
@@ -132,8 +152,7 @@ def generate_self_signed_certificate(common_name,
                                      host,
                                      private_key=None,
                                      days_valid=365,
-                                     save_to_disk=True,
-                                     filepath=None):
+                                     save_to_disk=True):
 
     if not private_key:
         private_key = ec.generate_private_key(curve, default_backend())
@@ -155,9 +174,11 @@ def generate_self_signed_certificate(common_name,
     cert = cert.sign(private_key, hashes.SHA512(), default_backend())
 
     if save_to_disk is True:
-        save_tls_certificate(cert, common_name, filepath=filepath)
+        tls_certificate_filepath = _save_tls_certificate(cert, common_name)
+    else:
+        tls_certificate_filepath = constants.CERTIFICATE_NOT_SAVED
 
-    return cert, private_key
+    return cert, private_key, tls_certificate_filepath
 
 
 def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
