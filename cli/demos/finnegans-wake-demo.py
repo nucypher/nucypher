@@ -18,10 +18,9 @@ from umbral.keys import UmbralPublicKey
 
 @click.command()
 @click.option('--rest-port', type=int, default=7270)
-@click.option('--dht-port', type=int, default=7370)
 @click.option('--lonely', is_flag=True)
 @click.option('--federated-only', is_flag=True)
-def run_demo(rest_port, dht_port, lonely, federated_only):
+def run_demo(rest_port, lonely, federated_only):
     
     ##############################################
     # This is already running in another process.
@@ -33,7 +32,8 @@ def run_demo(rest_port, dht_port, lonely, federated_only):
     URSULA = Ursula(network_middleware=RestMiddleware(),
                     rest_host='127.0.0.1',
                     rest_port=rest_port,
-                    federated_only=federated_only())
+                    db_name='ursula-{}.db'.format(rest_port),
+                    federated_only=federated_only)
 
     #########
     # Alice #

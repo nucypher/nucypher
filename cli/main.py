@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import random
+import shutil
 import sys
 
 import subprocess
@@ -43,8 +44,7 @@ from twisted.internet import reactor
 
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
 from nucypher.utilities.blockchain import token_airdrop
-from nucypher.config.utils import validate_nucypher_ini_config, initialize_configuration
-
+from nucypher.config.utils import validate_nucypher_ini_config, initialize_configuration, NucypherConfigurationError
 
 root = logging.getLogger()
 root.setLevel(logging.DEBUG)
@@ -156,19 +156,34 @@ def cli(config, verbose, version, config_file):
 @cli.command()
 @click.argument('action')
 @click.option('--config-file', help="Specify a custom .ini configuration filepath")
-@click.option('--data-dir', help="Specify a custom runtime directory")
-@uses_config
-def config(config, action, config_file, data_dir):
+def config(action, config_file):
     """Manage the nucypher .ini configuration file"""
+
+    def destroy():
+        click.confirm("Permanently destroy all nucypher configurations, known nodes, certificates and keys?", abort=True)
+        shutil.rmtree(DEFAULT_CONFIG_ROOT, ignore_errors=True)
+        click.echo("Deleted configuration files at {}".format(DEFAULT_CONFIG_ROOT))
+
+    def initialize():
+        click.confirm("Initialize new nucypher configuration?", abort=True)
+        try:
+            initialize_configuration(config_root=DEFAULT_CONFIG_ROOT)
+        except FileExistsError:
+            raise NucypherConfigurationError("There is an existing configuration.")
+        click.echo("Created configuration files at {}".format(DEFAULT_CONFIG_ROOT))
 
     if action == "validate":
         validate_nucypher_ini_config(config_file)
 
-    if action == "init":
-        click.confirm("Initialize new nucypher configuration?", abort=True)
-        config_root = data_dir if data_dir else DEFAULT_CONFIG_ROOT
-        initialize_configuration(config_root=config_root)
-        click.echo("Created configuration files at {}".format(config_root))
+    elif action == "init":
+        initialize()
+
+    elif action == "destroy":
+        destroy()
+
+    elif action == "reset":
+        destroy()
+        initialize()
 
 
 @cli.command()
