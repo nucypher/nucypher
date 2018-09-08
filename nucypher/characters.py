@@ -299,7 +299,7 @@ class Character:
     def select_teacher_nodes(self):
         nodes_we_know_about = self.shuffled_known_nodes()
 
-        if nodes_we_know_about is None:
+        if not nodes_we_know_about:
             raise self.NotEnoughUrsulas("Need some nodes to start learning from.")
 
         self.teacher_nodes.extend(nodes_we_know_about)
@@ -425,7 +425,7 @@ class Character:
             self.log.warning("Can't learn right now: {}".format(e.args[0]))
             return
 
-        rest_url = current_teacher.rest_url()
+        rest_url = current_teacher._crypto_power.power_ups(TLSHostingPower).rest_server.rest_url()
 
         # TODO: Do we really want to try to learn about all these nodes instantly?  Hearing this traffic might give insight to an attacker.
         if VerifiableNode in self.__class__.__bases__:
@@ -433,12 +433,21 @@ class Character:
         else:
             announce_nodes = None
 
-        response = self.network_middleware.get_nodes_via_rest(rest_url,
-                                                              nodes_i_need=self._node_ids_to_learn_about_immediately,
-                                                              announce_nodes=announce_nodes)
+        unresponsive_nodes = set()
+        try:
+            response = self.network_middleware.get_nodes_via_rest(rest_url,
+                                                                  nodes_i_need=self._node_ids_to_learn_about_immediately,
+                                                                  announce_nodes=announce_nodes)
+        except requests.exceptions.ConnectionError:
+            unresponsive_nodes.add(current_teacher)
+            teacher_rest_info = current_teacher.rest_information()[0]
+            self.log.info("No Response from teacher: {}:{}.".format(teacher_rest_info.host, teacher_rest_info.port))
+            self.cycle_teacher_node()
+            return
+
         if response.status_code != 200:
-            raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content
-                                                                           ))
+            raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content))
+
         signature, nodes = signature_splitter(response.content, return_remainder=True)
         node_list = Ursula.batch_from_bytes(nodes,
                                             federated_only=self.federated_only)  # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
