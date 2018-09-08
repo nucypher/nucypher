@@ -111,10 +111,10 @@ class Character:
         """
 
         known_nodes = known_nodes if known_nodes is not None else tuple()
-        self.federated_only = federated_only  # type: bool
+        self.federated_only = federated_only                     # type: bool
         self._abort_on_learning_error = abort_on_learning_error  # type: bool
 
-        self.log = getLogger("characters")  # type: Logger
+        self.log = getLogger("characters")                       # type: Logger
 
         #
         # Power-ups and Powers
@@ -125,7 +125,7 @@ class Character:
         crypto_power_ups = crypto_power_ups or []  # type: list
 
         if crypto_power:
-            self._crypto_power = crypto_power  # type: CryptoPower
+            self._crypto_power = crypto_power      # type: CryptoPower
         elif crypto_power_ups:
             self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
         else:
@@ -141,7 +141,7 @@ class Character:
 
             ##### LEARNING STUFF (Maybe move to a different class?) #####
 
-            self._learning_listeners = defaultdict(list)  # type: DefaultDict
+            self._learning_listeners = defaultdict(list)       # type: DefaultDict
             self._node_ids_to_learn_about_immediately = set()  # type: set
 
             for node in known_nodes:
@@ -188,7 +188,7 @@ class Character:
                     error = "Federated-only Characters derive their address from their Signing key; got {} instead."
                     raise ValueError(error.format(checksum_address))
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return bytes(self.stamp) == bytes(other.stamp)
 
     def __hash__(self):
