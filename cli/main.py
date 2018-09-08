@@ -695,7 +695,6 @@ def run_ursula(rest_port,
         1. Collect all known known from storages
         2. Start the asyncio event loop
         3. Initialize Ursula object
-        4. Start DHT listener
         5. Enter the learning loop
         6. Run TLS deployment
         7. Start the staking daemon
@@ -728,8 +727,6 @@ def run_ursula(rest_port,
 
     # 3. Initialize Ursula (includes overrides)
     ursula = Ursula(**ursula_params)
-
-    # ursula.dht_listen()                # 4. Start DHT
 
     write_node_metadata(seed_node=seed_node, node=ursula, node_metadata_dir=data_dir)
 

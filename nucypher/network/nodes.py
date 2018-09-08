@@ -88,10 +88,10 @@ class VerifiableNode:
 
         # The node's metadata is valid; let's be sure the interface is in order.
         response = network_middleware.node_information(host=self.rest_information()[0].host,
-                                            port=self.rest_information()[0].port)
+                                                       port=self.rest_information()[0].port)
         if not response.status_code == 200:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
-        signature, identity_evidence, verifying_key, encrypting_key, public_address, certificate_vbytes, rest_info, dht_info = self._internal_splitter(response.content)
+        signature, identity_evidence, verifying_key, encrypting_key, public_address, certificate_vbytes, rest_info = self._internal_splitter(response.content)
 
         verifying_keys_match = verifying_key == self.public_keys(SigningPower)
         encrypting_keys_match = encrypting_key == self.public_keys(EncryptingPower)
@@ -113,7 +113,7 @@ class VerifiableNode:
         self._evidence_of_decentralized_identity = signature
 
     def _signable_interface_info_message(self):
-        message = self.canonical_public_address + self.rest_information()[0] + self.dht_interface
+        message = self.canonical_public_address + self.rest_information()[0]
         return message
 
     def _sign_interface_info(self):
