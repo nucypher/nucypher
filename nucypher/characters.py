@@ -1,20 +1,15 @@
 import asyncio
 import random
-
-import requests
-import time
 from collections import OrderedDict, defaultdict
 from collections import deque
 from contextlib import suppress
-from functools import partial
 from logging import Logger
 from logging import getLogger
-from typing import Dict, ClassVar, Set, DefaultDict, Iterable
-from typing import Tuple
-from typing import Union, List
 
 import kademlia
 import maya
+import requests
+import time
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, default_constant_splitter
 from cryptography.hazmat.backends import default_backend
@@ -22,11 +17,13 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
+from functools import partial
 from kademlia.utils import digest
 from twisted.internet import reactor
 from twisted.internet import task, threads
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
+from typing import Dict, ClassVar, Set, DefaultDict, Iterable
+from typing import Tuple
+from typing import Union, List
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
 from nucypher.blockchain.eth.agents import MinerAgent
@@ -46,14 +43,14 @@ from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer, TLSHostingPower, \
     ProxyRESTRoutes
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
 
 class Character:
     """
     A base-class for any character in our cryptography protocol narrative.
     """
-    _dht_server = None
-    _dht_server_class = kademlia.network.Server
 
     _default_crypto_powerups = None
     _stamp = None
