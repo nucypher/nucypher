@@ -1,5 +1,7 @@
 import asyncio
 import random
+
+import requests
 import time
 from collections import OrderedDict, defaultdict
 from collections import deque
@@ -456,8 +458,7 @@ class Character:
             except node.SuspiciousActivity:
                 # TODO: Account for possibility that stamp, rather than interface, was bad.
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
-                          "Propagated by: {}:{}".format(current_teacher.checksum_public_address,
-                                                        rest_address, port)
+                          "Propagated by: {}".format(current_teacher.checksum_public_address, rest_url)
                 self.log.warning(message)
             self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
 
@@ -1040,7 +1041,6 @@ class Ursula(Character, VerifiableNode, Miner):
                                             (UmbralPublicKey, PUBLIC_KEY_LENGTH),
                                             int(PUBLIC_ADDRESS_LENGTH),
                                             VariableLengthBytestring,  # Certificate
-                                            InterfaceInfo,
                                             InterfaceInfo)
     _dht_server_class = NucypherDHTServer
     _alice_class = Alice
@@ -1180,10 +1180,7 @@ class Ursula(Character, VerifiableNode, Miner):
 
     def __bytes__(self):
 
-        interface_info = VariableLengthBytestring(self.rest_information()[0])
-
-        if self.dht_interface:
-            interface_info += VariableLengthBytestring(self.dht_interface)
+        interface_info = VariableLengthBytestring(bytes(self.rest_information()[0]))
 
         identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
 
@@ -1196,7 +1193,7 @@ class Ursula(Character, VerifiableNode, Miner):
                                  bytes(self.public_keys(EncryptingPower)),
                                  self.canonical_public_address,
                                  bytes(cert_vbytes),
-                                 interface_info.message_as_bytes)
+                                 bytes(interface_info))
                                 )
         return as_bytes
 
@@ -1243,8 +1240,7 @@ class Ursula(Character, VerifiableNode, Miner):
          encrypting_key,
          public_address,
          certificate_vbytes,
-         rest_info,
-         dht_info) = cls._internal_splitter(ursula_as_bytes)
+         rest_info) = cls._internal_splitter(ursula_as_bytes)
         certificate = load_pem_x509_certificate(certificate_vbytes.message_as_bytes,
                                                 default_backend())
         stranger_ursula_from_public_keys = cls.from_public_keys(
@@ -1254,8 +1250,6 @@ class Ursula(Character, VerifiableNode, Miner):
             rest_host=rest_info.host,
             rest_port=rest_info.port,
             certificate=certificate,
-            dht_host=dht_info.host,
-            dht_port=dht_info.port,
             federated_only=federated_only  # TODO: 289
         )
         return stranger_ursula_from_public_keys
@@ -1276,8 +1270,7 @@ class Ursula(Character, VerifiableNode, Miner):
              encrypting_key,
              public_address,
              certificate_vbytes,
-             rest_info,
-             dht_info) in ursulas_attrs:
+             rest_info) in ursulas_attrs:
             certificate = load_pem_x509_certificate(certificate_vbytes.message_as_bytes,
                                                     default_backend())
             stranger_ursula_from_public_keys = cls.from_public_keys(
@@ -1289,8 +1282,6 @@ class Ursula(Character, VerifiableNode, Miner):
                 certificate=certificate,
                 rest_host=rest_info.host,
                 rest_port=rest_info.port,
-                dht_host=dht_info.host,
-                dht_port=dht_info.port,
                 federated_only=federated_only  # TODO: 289
             )
             stranger_ursulas.append(stranger_ursula_from_public_keys)
