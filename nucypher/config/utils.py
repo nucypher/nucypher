@@ -3,15 +3,20 @@ import os
 from shutil import copyfile
 from typing import Tuple, Union
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_INI_FILEPATH, DEFAULT_KEYRING_ROOT, \
-    DEFAULT_CERTIFICATE_DIR, DEFAULT_KNOWN_NODE_DIR, DEFAULT_SEED_NODE_DIR
+from nucypher.config.constants import (DEFAULT_CONFIG_ROOT,
+                                       DEFAULT_INI_FILEPATH,
+                                       DEFAULT_KEYRING_ROOT,
+                                       DEFAULT_KNOWN_NODE_DIR,
+                                       DEFAULT_SEED_NODE_DIR,
+                                       DEFAULT_KNOWN_CERTIFICATES_DIR, DEFAULT_SEED_CERTIFICATES_DIR,
+                                       DEFAULT_SEED_METADATA_DIR, DEFAULT_KNOWN_METADATA_DIR)
 
 
 class NucypherConfigurationError(RuntimeError):
     pass
 
 
-def initialize_configuration(config_root: str=None, ) -> None:
+def initialize_configuration(config_root: str=None) -> None:
     """
     Create the configuration directory tree.
     If the directory already exists, FileExistsError is raised.
@@ -23,11 +28,17 @@ def initialize_configuration(config_root: str=None, ) -> None:
     #
     # Make configuration directories
     #
-    os.mkdir(root, mode=0o755)                     # config root
-    os.mkdir(DEFAULT_KEYRING_ROOT, mode=0o755)     # keyring
-    os.mkdir(DEFAULT_CERTIFICATE_DIR, mode=0o755)  # certificates
-    os.mkdir(DEFAULT_KNOWN_NODE_DIR, mode=0o755)   # known_nodes
-    os.mkdir(DEFAULT_SEED_NODE_DIR, mode=0o755)    # seed_nodes
+
+    os.mkdir(root, mode=0o755)                                   # config root
+    os.mkdir(DEFAULT_KEYRING_ROOT, mode=0o700)                   # keyring
+
+    os.mkdir(DEFAULT_KNOWN_NODE_DIR, mode=0o755)                 # known_nodes
+    os.mkdir(DEFAULT_KNOWN_CERTIFICATES_DIR, mode=0o755)         # known_certs
+    os.mkdir(DEFAULT_KNOWN_METADATA_DIR, mode=0o755)             # known_metadata
+
+    os.mkdir(DEFAULT_SEED_NODE_DIR, mode=0o755)                  # seed_nodes
+    os.mkdir(DEFAULT_SEED_CERTIFICATES_DIR, mode=0o755)          # seed_certs
+    os.mkdir(DEFAULT_SEED_METADATA_DIR, mode=0o755)              # seed_metadata
 
     # Make a blank ini config file at the default path
     with open(DEFAULT_INI_FILEPATH, 'w+') as ini_file:

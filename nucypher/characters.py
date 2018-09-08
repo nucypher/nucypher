@@ -405,8 +405,7 @@ class Character:
                 if len(still_unknown) <= allow_missing:
                     return False
                 elif not self._learning_task.running:
-                    raise self.NotEnoughUrsulas(
-                        "We didn't discover any nodes because the learning loop isn't running.  Start it with start_learning().")
+                    raise self.NotEnoughUrsulas("The learning loop is not running.  Start it with start_learning().")
                 else:
                     raise self.NotEnoughUrsulas("After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
                         timeout, rounds_undertaken, len(still_unknown), still_unknown))
@@ -428,7 +427,8 @@ class Character:
 
         rest_url = current_teacher.rest_interface  # TODO: Name this..?
 
-        # TODO: Do we really want to try to learn about all these nodes instantly?  Hearing this traffic might give insight to an attacker.
+        # TODO: Do we really want to try to learn about all these nodes instantly?
+        # Hearing this traffic might give insight to an attacker.
         if VerifiableNode in self.__class__.__bases__:
             announce_nodes = [self]
         else:
@@ -444,17 +444,17 @@ class Character:
             teacher_rest_info = current_teacher.rest_information()[0]
             self.log.info("No Response from teacher: {}:{}.".format(teacher_rest_info.host, teacher_rest_info.port))
             self.cycle_teacher_node()
+            self.learn_from_teacher_node()
             return
 
         if response.status_code != 200:
             raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content))
 
         signature, nodes = signature_splitter(response.content, return_remainder=True)
-        node_list = Ursula.batch_from_bytes(nodes,
-                                            federated_only=self.federated_only)  # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
+        # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
+        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)
 
         new_nodes = []
-
         for node in node_list:
 
             if node.checksum_public_address in self._known_nodes or node.checksum_public_address == self.checksum_public_address:
@@ -998,7 +998,7 @@ class Bob(Character):
         return generated_work_orders
 
     def get_reencrypted_cfrags(self, work_order):
-        cfrags = self.network_middleware.reencrypt(work_order)
+        cfrags = self.network_middleware.reencrypt(work_order, certificate_path=work_order.certificate_filepath)
         if not len(work_order) == len(cfrags):
             raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
         for counter, capsule in enumerate(work_order.capsules):
