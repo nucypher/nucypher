@@ -1,5 +1,9 @@
+import os
+
 import datetime
 from random import SystemRandom
+
+from cryptography.hazmat.primitives.serialization import Encoding
 from typing import Union
 
 import sha3
@@ -10,6 +14,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
+
+from nucypher.config.constants import DEFAULT_CERTIFICATE_DIR
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
@@ -108,7 +114,26 @@ def ecdsa_verify(
     return True
 
 
-def generate_self_signed_certificate(common_name, curve, host, private_key=None, days_valid=365):
+def save_tls_certificate(certificate, common_name, filepath=None):
+    if filepath is None:
+        filepath = DEFAULT_CERTIFICATE_DIR
+
+    # TODO: Do not override by default
+    cert_filepath = os.path.join(filepath, '{}.ursula.pem'.format(common_name[:6]))
+    with open(cert_filepath, 'wb') as certificate_file:
+        public_pem_bytes = certificate.public_bytes(Encoding.PEM)
+        certificate_file.write(public_pem_bytes)
+
+    return cert_filepath
+
+
+def generate_self_signed_certificate(common_name,
+                                     curve,
+                                     host,
+                                     private_key=None,
+                                     days_valid=365,
+                                     save_to_disk=True,
+                                     filepath=None):
 
     if not private_key:
         private_key = ec.generate_private_key(curve, default_backend())
@@ -128,6 +153,10 @@ def generate_self_signed_certificate(common_name, curve, host, private_key=None,
     # TODO: What are we going to do about domain name here? 179
     cert = cert.add_extension(x509.SubjectAlternativeName([x509.DNSName(host)]), critical=False)
     cert = cert.sign(private_key, hashes.SHA512(), default_backend())
+
+    if save_to_disk is True:
+        save_tls_certificate(cert, common_name, filepath=filepath)
+
     return cert, private_key
 
 
