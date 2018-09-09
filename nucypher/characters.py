@@ -1,4 +1,5 @@
 import asyncio
+import os
 import random
 from collections import OrderedDict, defaultdict
 from collections import deque
@@ -6,7 +7,7 @@ from contextlib import suppress
 from logging import Logger
 from logging import getLogger
 
-import kademlia
+import binascii
 import maya
 import requests
 import time
@@ -28,7 +29,7 @@ from typing import Union, List
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import datetime_to_period
-from nucypher.config.constants import DEFAULT_INI_FILEPATH
+from nucypher.config.constants import DEFAULT_INI_FILEPATH, DEFAULT_KNOWN_NODE_DIR
 from nucypher.config.parsers import parse_ursula_config, parse_alice_config, \
     parse_character_config
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
@@ -41,7 +42,7 @@ from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.network.server import NucypherDHTServer, NucypherSeedOnlyDHTServer, ProxyRESTServer, TLSHostingPower, \
+from nucypher.network.server import NucypherDHTServer, ProxyRESTServer, TLSHostingPower, \
     ProxyRESTRoutes
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
@@ -795,7 +796,6 @@ class Alice(Character, PolicyAuthor):
 
 
 class Bob(Character):
-    _dht_server_class = NucypherSeedOnlyDHTServer
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
     def __init__(self, *args, **kwargs):
@@ -1311,35 +1311,18 @@ class Ursula(Character, VerifiableNode, Miner):
     # Utilities
     #
 
-    def attach_dht_server(self,
-                          ksize: int = 20,
-                          alpha: int = 3,
-                          node_id=None,
-                          storage=None,
-                          *args, **kwargs) -> None:
+    def write_node_metadata(self, node_metadata_dir: str = DEFAULT_KNOWN_NODE_DIR) -> str:
 
-        node_id = node_id or bytes(
-            self.canonical_public_address)  # Ursula can still "mine" wallets until she gets a DHT ID she wants.  Does that matter?  #136
-        # TODO What do we actually want the node ID to be?  Do we want to verify it somehow?  136
-        super().attach_dht_server(ksize=ksize, id=digest(node_id), alpha=alpha, storage=storage)
+        try:
+            filename = "node-metadata-{}".format(self.rest_information()[0].port)
+        except AttributeError:
+            raise AttributeError("{} does not have a rest_interface attached".format(self))
 
-    def dht_listen(self):
-        if self.dht_interface is constants.NO_INTERFACE:
-            raise TypeError("This node does not have a DHT interface configured.")
-        return self.dht_server.listen(self.dht_interface.port,
-                                      self.dht_interface.host)
+        metadata_filepath = os.path.join(node_metadata_dir, filename)
+        with open(metadata_filepath, "w") as f:
+            f.write(bytes(self).hex())
 
-    def publish_dht_information(self):
-        # TODO: Simplify or wholesale deprecate this.  337
-        if not self.dht_interface:
-            raise RuntimeError("Must listen before publishing interface information.")
-
-        ursula_id = self.canonical_public_address
-        interface_value = constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(self)
-        setter = self.dht_server.set(key=ursula_id, value=interface_value)
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(setter)
-        return interface_value
+        return metadata_filepath
 
     def work_orders(self, bob=None):
         """

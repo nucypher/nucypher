@@ -21,7 +21,6 @@ from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, InterfaceInfo
-from nucypher.network.storage import SeedOnlyStorage
 
 
 class NucypherDHTServer(Server):
@@ -91,14 +90,6 @@ class NucypherDHTServer(Server):
         self.log.debug("setting '%s' = '%s' on network" % (key, value))
         key = digest(bytes(key))
         return await self.set_digest(key, value)
-
-
-class NucypherSeedOnlyDHTServer(NucypherDHTServer):
-    protocol_class = NucypherSeedOnlyProtocol
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.storage = SeedOnlyStorage()
 
 
 class ProxyRESTServer:

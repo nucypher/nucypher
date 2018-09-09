@@ -121,12 +121,6 @@ class NucypherClickConfig:
         uri_template = "http://{}:{}"
         return uri_template.format(host, port)
 
-    @property
-    def dht_uri(self):
-        host, port = self.payload['dht_host'], self.payload['dht_port']
-        uri_template = "http://{}:{}"
-        return uri_template.format(host, port)
-
 
 uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 
@@ -376,7 +370,6 @@ def stake(config, action, address, index, value, duration):
         raise NotImplementedError
 
 
-
 @cli.command()
 @click.argument('action')
 @click.option('--federated-only', is_flag=True)
@@ -493,15 +486,15 @@ def simulate(config, action, nodes, federated_only):
             # Parse ursula parameters
             #
 
-            rest_port, dht_port = sim_port_number, sim_port_number + 100
+            rest_port = sim_port_number
             db_name = 'sim-{}'.format(rest_port)
 
             cli_exec = os.path.join(BASE_DIR, 'cli', 'main.py')
             python_exec = 'python'
 
             proc_params = '''
-            python3 {} run_ursula --host {} --rest-port {} --dht-port {} --db-name {}
-            '''.format(python_exec, cli_exec, localhost, rest_port, dht_port, db_name).split()
+            python3 {} run_ursula --host {} --rest-port {} --db-name {}
+            '''.format(python_exec, cli_exec, localhost, rest_port, db_name).split()
 
             if federated_only:
                 click.echo("Setting federated operating mode")
@@ -537,12 +530,10 @@ def simulate(config, action, nodes, federated_only):
             # Start with some basic status data, then build on it
 
             rest_uri = "http://{}:{}".format(localhost, rest_port)
-            dht_uri = "http://{}:{}".format(localhost, dht_port)
 
-            sim_data = "Started simulated Ursula | ReST {} | DHT {} ".format(rest_uri, dht_uri)
+            sim_data = "Started simulated Ursula | ReST {}".format(rest_uri)
             rest_uri = "{host}:{port}".format(host=localhost, port=str(sim_port_number))
-            dht_uri = '{host}:{port}'.format(host=localhost, port=dht_port)
-            sim_data.format(rest_uri, dht_uri)
+            sim_data.format(rest_uri)
 
             if not federated_only:
                 stake_infos = tuple(config.miner_agent.get_all_stakes(miner_address=sim_address))
@@ -684,24 +675,23 @@ def status(config, provider, contracts, network):
 
 @cli.command()
 @click.option('--federated-only', is_flag=True, default=False)
-@click.option('--teacher-uri', type=str)
-@click.option('--seed-node', is_flag=True, default=False)
+@click.option('--dev', is_flag=True, default=False)
 @click.option('--rest-host', type=str, default='localhost')
 @click.option('--rest-port', type=int, default=DEFAULT_REST_PORT)
 @click.option('--db-name', type=str, default=DEFAULT_DB_NAME)
 @click.option('--checksum-address', type=str)
-@click.option('--data-dir', type=click.Path(), default=DEFAULT_CONFIG_ROOT)
+@click.option('--teacher-uri', type=str)
+@click.option('--node-dir', type=click.Path(), default=DEFAULT_CONFIG_ROOT)
 @click.option('--config-file', type=click.Path(), default=DEFAULT_INI_FILEPATH)
 def run_ursula(rest_port,
                rest_host,
-               dht_port,
                db_name,
                teacher_uri,
                checksum_address,
                federated_only,
-               seed_node,
-               data_dir,
-               config_file) -> None:
+               node_dir,
+               config_file,
+               dev) -> None:
     """
 
     The following procedure is required to "spin-up" an Ursula node.
@@ -717,18 +707,17 @@ def run_ursula(rest_port,
     but can be overridden (mostly for testing purposes) with inline cli options.
 
     """
+    if dev is True:
+        pass
 
-    other_nodes = collect_stored_nodes(federated_only=federated_only)  # 1. Collect known nodes
+    other_nodes = collect_stored_nodes()              # 1. Collect known nodes
 
     ursula_params = dict(federated_only=federated_only,
                          known_nodes=other_nodes,
                          rest_host=rest_host,
                          rest_port=rest_port,
-                         dht_port=dht_port,
                          db_name=db_name,
                          checksum_address=checksum_address)
-
-    asyncio.set_event_loop(asyncio.new_event_loop())  # 2. Init DHT async loop
 
     if teacher_uri:
         host, port = teacher_uri.split(':')
