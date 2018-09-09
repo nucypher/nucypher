@@ -227,16 +227,6 @@ class Character:
 
         return cls(is_me=False, federated_only=federated_only, crypto_power=crypto_power, *args, **kwargs)
 
-    def attach_dht_server(self, ksize=20, alpha=3, id=None, storage=None, *args, **kwargs) -> None:
-        if self._dht_server:
-            raise RuntimeError("Attaching the server twice is almost certainly a bad idea.")
-
-        self._dht_server = self._dht_server_class(node_storage=self._known_nodes,  # TODO: 340
-                                                  treasure_map_storage=self._stored_treasure_maps,  # TODO: 340
-                                                  federated_only=self.federated_only,
-                                                  ksize=ksize, alpha=alpha, id=id,
-                                                  storage=storage, *args, **kwargs)
-
     @property
     def stamp(self):
         if self._stamp is constants.NO_SIGNING_POWER:
@@ -245,13 +235,6 @@ class Character:
             raise AttributeError("SignatureStamp has not been set up yet.")
         else:
             return self._stamp
-
-    @property
-    def dht_server(self) -> kademlia.network.Server:
-        if self._dht_server:
-            return self._dht_server
-        else:
-            raise RuntimeError("Server hasn't been attached.")
 
     ######
     # Knowing and learning about nodes
@@ -1122,7 +1105,6 @@ class Ursula(Character, VerifiableNode, Miner):
         if is_me is True:
             # TODO: 340
             self._stored_treasure_maps = {}
-            self.attach_dht_server()
             if not federated_only:
                 self.substantiate_stamp()
 
@@ -1136,7 +1118,6 @@ class Ursula(Character, VerifiableNode, Miner):
                     db_name=db_name,
                     network_middleware=self.network_middleware,
                     federated_only=self.federated_only,
-                    dht_server=self.dht_server,
                     treasure_map_tracker=self.treasure_maps,
                     node_tracker=self._known_nodes,
                     node_bytes_caster=self.__bytes__,

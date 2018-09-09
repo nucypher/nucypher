@@ -16,7 +16,7 @@ from nucypher.blockchain.eth.chains import Blockchain, TesterBlockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.characters import Ursula
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_SIMULATION_PORT, \
-    DEFAULT_SIMULATION_REGISTRY_FILEPATH, DEFAULT_INI_FILEPATH, DEFAULT_REST_PORT, DEFAULT_DHT_PORT, DEFAULT_DB_NAME, \
+    DEFAULT_SIMULATION_REGISTRY_FILEPATH, DEFAULT_INI_FILEPATH, DEFAULT_REST_PORT, DEFAULT_DB_NAME, \
     BASE_DIR
 from nucypher.config.metadata import write_node_metadata, collect_stored_nodes
 from nucypher.config.parsers import parse_nucypher_ini_config, parse_running_modes
@@ -688,7 +688,6 @@ def status(config, provider, contracts, network):
 @click.option('--seed-node', is_flag=True, default=False)
 @click.option('--rest-host', type=str, default='localhost')
 @click.option('--rest-port', type=int, default=DEFAULT_REST_PORT)
-@click.option('--dht-port', type=int, default=DEFAULT_DHT_PORT)
 @click.option('--db-name', type=str, default=DEFAULT_DB_NAME)
 @click.option('--checksum-address', type=str)
 @click.option('--data-dir', type=click.Path(), default=DEFAULT_CONFIG_ROOT)

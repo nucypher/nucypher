@@ -126,7 +126,6 @@ class ProxyRESTRoutes:
                  db_name,
                  network_middleware,
                  federated_only,
-                 dht_server,
                  treasure_map_tracker,
                  node_tracker,
                  node_bytes_caster,
@@ -138,7 +137,6 @@ class ProxyRESTRoutes:
 
         self.network_middleware = network_middleware
         self.federated_only = federated_only
-        self.dht_server = dht_server
 
         self._treasure_map_tracker = treasure_map_tracker
         self._work_order_tracker = work_order_tracker
