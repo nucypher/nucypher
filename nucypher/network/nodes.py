@@ -4,6 +4,31 @@ from eth_keys.datatypes import Signature as EthSignature
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from nucypher.network.protocols import SuspiciousActivity
 
+import os
+from glob import glob
+from os.path import abspath
+
+from nucypher.config.constants import DEFAULT_KNOWN_METADATA_DIR
+
+
+def collect_stored_nodes(additional_node_dirs=None) -> set:
+    all_node_dirs = [DEFAULT_KNOWN_METADATA_DIR]
+
+    if additional_node_dirs:
+        all_node_dirs.append(additional_node_dirs)
+
+    nodes = set()
+
+    for metadata_dir in all_node_dirs:
+        glob_pattern = os.path.join(metadata_dir, 'node-metadata-*')
+        metadata_paths = sorted(glob(glob_pattern), key=os.path.getctime)
+
+        for metadata_path in metadata_paths:
+            node = Ursula.from_metadata_file(filepath=abspath(metadata_path))
+            nodes.add(node)
+
+    return nodes
+
 
 class VerifiableNode:
 

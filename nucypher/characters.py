@@ -1289,6 +1289,14 @@ class Ursula(Character, VerifiableNode, Miner):
 
         return stranger_ursulas
 
+    @classmethod
+    def from_metadata_file(cls, filepath: str) -> 'Ursula':
+        with open(filepath, "r") as seed_file:
+            seed_file.seek(0)
+            node_bytes = binascii.unhexlify(seed_file.read())
+            node = Ursula.from_bytes(node_bytes)
+            return node
+
     #
     # Properties
     #

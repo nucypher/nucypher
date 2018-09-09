@@ -1,6 +1,7 @@
 import configparser
+import contextlib
 import os
-from shutil import copyfile
+from itertools import islice
 from typing import Tuple, Union
 
 from nucypher.config.constants import (DEFAULT_CONFIG_ROOT,
@@ -9,21 +10,31 @@ from nucypher.config.constants import (DEFAULT_CONFIG_ROOT,
                                        DEFAULT_KNOWN_NODE_DIR,
                                        DEFAULT_SEED_NODE_DIR,
                                        DEFAULT_KNOWN_CERTIFICATES_DIR, DEFAULT_SEED_CERTIFICATES_DIR,
-                                       DEFAULT_SEED_METADATA_DIR, DEFAULT_KNOWN_METADATA_DIR)
+                                       DEFAULT_SEED_METADATA_DIR, DEFAULT_KNOWN_METADATA_DIR, TEMPLATE_INI_FILEPATH)
 
 
 class NucypherConfigurationError(RuntimeError):
     pass
 
 
-def initialize_configuration(config_root: str=None) -> None:
+def write_default_ini_config(filepath: str=DEFAULT_INI_FILEPATH):
+    with contextlib.ExitStack() as stack:
+        template_file = stack.enter_context(open(TEMPLATE_INI_FILEPATH, 'r'))
+        new_file = stack.enter_context(open(filepath, 'w+'))
+        if new_file.read() != '':
+            raise NucypherConfigurationError("{} is not a blank file.  Do you have an existing configuration?")
+        for line in islice(template_file, 12, None):
+            new_file.writelines(line.lstrip(';'))  # TODO Copy Default Sections, Perhaps interactively
+
+
+def initialize_configuration(config_root: str=None) -> str:
     """
     Create the configuration directory tree.
     If the directory already exists, FileExistsError is raised.
     """
     root = config_root if config_root else DEFAULT_CONFIG_ROOT
-
-    # TODO: Check for existing config?
+    if os.path.isdir(root):
+        raise NucypherConfigurationError("There are existing nucypher configuration files at {}".format(config_root))
 
     #
     # Make configuration directories
@@ -41,10 +52,9 @@ def initialize_configuration(config_root: str=None) -> None:
     os.mkdir(DEFAULT_SEED_METADATA_DIR, mode=0o755)              # seed_metadata
 
     # Make a blank ini config file at the default path
-    with open(DEFAULT_INI_FILEPATH, 'w+') as ini_file:
-        if ini_file.read() == '':
-            ini_file.seek(0)
-            ini_file.write('[nucypher]')  # TODO Copy Default Sections, Perhaps interactively
+    write_default_ini_config()
+
+    return config_root
 
 
 def validate_passphrase(passphrase) -> bool:

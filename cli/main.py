@@ -3,6 +3,8 @@
 import asyncio
 import logging
 import random
+from tempfile import NamedTemporaryFile
+
 import shutil
 import sys
 
@@ -18,8 +20,8 @@ from nucypher.characters import Ursula
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_SIMULATION_PORT, \
     DEFAULT_SIMULATION_REGISTRY_FILEPATH, DEFAULT_INI_FILEPATH, DEFAULT_REST_PORT, DEFAULT_DB_NAME, \
     BASE_DIR
-from nucypher.config.metadata import write_node_metadata, collect_stored_nodes
 from nucypher.config.parsers import parse_nucypher_ini_config, parse_running_modes
+from nucypher.network.nodes import collect_stored_nodes
 from nucypher.utilities.sandbox import UrsulaProcessProtocol
 
 __version__ = '0.1.0-alpha.0'
@@ -149,35 +151,39 @@ def cli(config, verbose, version, config_file):
 
 @cli.command()
 @click.argument('action')
-@click.option('--config-file', help="Specify a custom .ini configuration filepath")
-def config(action, config_file):
+@click.option('--config-file', help="Specify a custom .ini configuration filepath", default=DEFAULT_INI_FILEPATH)
+@click.option('--config-root', help="Specify a custom installation location", default=DEFAULT_CONFIG_ROOT)
+def config(action, config_file, config_root):
     """Manage the nucypher .ini configuration file"""
 
-    def destroy():
+    def __destroy():
         click.confirm("Permanently destroy all nucypher configurations, known nodes, certificates and keys?", abort=True)
-        shutil.rmtree(DEFAULT_CONFIG_ROOT, ignore_errors=True)
-        click.echo("Deleted configuration files at {}".format(DEFAULT_CONFIG_ROOT))
+        shutil.rmtree(config_root, ignore_errors=True)
+        click.echo("Deleted configuration files at {}".format(config_root))
 
-    def initialize():
+    def __initialize():
         click.confirm("Initialize new nucypher configuration?", abort=True)
         try:
-            initialize_configuration(config_root=DEFAULT_CONFIG_ROOT)
+            initialize_configuration(config_root=config_root)
         except FileExistsError:
             raise NucypherConfigurationError("There is an existing configuration.")
-        click.echo("Created configuration files at {}".format(DEFAULT_CONFIG_ROOT))
+        click.echo("Created configuration files at {}".format(config_root))
 
     if action == "validate":
-        validate_nucypher_ini_config(config_file)
+        if validate_nucypher_ini_config(config_file):
+            click.echo('{} is Valid.'.format(config_file))
+        else:
+            click.echo('{} is Invalid.'.format(config_file))
 
     elif action == "init":
-        initialize()
+        __initialize()
 
     elif action == "destroy":
-        destroy()
+        __destroy()
 
     elif action == "reset":
-        destroy()
-        initialize()
+        __destroy()
+        __initialize()
 
 
 @cli.command()
@@ -728,10 +734,9 @@ def run_ursula(rest_port,
 
         ursula_params['known_nodes'] = (teacher, )
 
-    # 3. Initialize Ursula (includes overrides)
-    ursula = Ursula(**ursula_params)
+    ursula = Ursula(**ursula_params)  # 3. Initialize Ursula (includes overrides)
 
-    write_node_metadata(seed_node=seed_node, node=ursula, node_metadata_dir=data_dir)
+    ursula.write_node_metadata(node_metadata_dir=node_dir)
 
     ursula.start_learning_loop()      # 5. Enter learning loop
     ursula.get_deployer().run()       # 6. Run TLS Deployer
