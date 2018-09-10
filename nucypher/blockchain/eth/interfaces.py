@@ -12,7 +12,7 @@ from eth_tester import EthereumTester
 from eth_tester import PyEVMBackend
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.config.config import NodeConfiguration
+from nucypher.config.node import NodeConfiguration
 from nucypher.config.parsers import parse_blockchain_config
 
 

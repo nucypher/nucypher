@@ -4,7 +4,6 @@ from tempfile import NamedTemporaryFile
 from click.testing import CliRunner
 
 from cli.main import cli
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_INI_FILEPATH, APP_DIRS, PROJECT_ROOT
 
 
 def test_config():

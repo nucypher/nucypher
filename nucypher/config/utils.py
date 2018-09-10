@@ -4,7 +4,7 @@ from glob import glob
 from os.path import abspath
 from typing import Union, Tuple
 
-from nucypher.config.config import NodeConfiguration
+from nucypher.config.node import NodeConfiguration
 
 
 def collect_stored_nodes(known_metadata_dir=None) -> set:

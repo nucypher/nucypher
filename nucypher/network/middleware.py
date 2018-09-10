@@ -2,7 +2,6 @@ import requests
 
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 
-from nucypher.config.constants import DEFAULT_TLS_CERTIFICATE_FILEPATH
 from nucypher.crypto.api import load_tls_certificate
 from umbral.fragments import CapsuleFrag
 

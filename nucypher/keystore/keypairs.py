@@ -135,6 +135,7 @@ class HostingKeypair(Keypair):
                  certificate=None,
                  curve=None,
                  generate_keys_if_needed=True,
+                 save_cert_to_disk=False,
                  ):
 
         self.curve = curve or self._DEFAULT_CURVE
@@ -143,10 +144,11 @@ class HostingKeypair(Keypair):
             super().__init__(private_key=private_key)
 
         elif certificate:
-            self.certificate_filepath = _save_tls_certificate(certificate,
-                                                              common_name=common_name,
-                                                              is_me=False,
-                                                              force=False)
+            if save_cert_to_disk:
+                self.certificate_filepath = _save_tls_certificate(certificate,
+                                                                  common_name=common_name,
+                                                                  is_me=False,
+                                                                  force=False)
             self.certificate = certificate
             super().__init__(public_key=certificate.public_key())
 
@@ -158,7 +160,8 @@ class HostingKeypair(Keypair):
             self.certificate, private_key, self.tls_certificate_filepath = generate_self_signed_certificate(common_name=common_name,
                                                                                                             private_key=private_key,
                                                                                                             curve=self.curve,
-                                                                                                            host=host)
+                                                                                                            host=host,
+                                                                                                            save_to_disk=save_cert_to_disk)
             super().__init__(private_key=private_key)
         else:
             raise TypeError("You didn't provide a cert, but also told us not to generate keys.  Not sure what to do.")

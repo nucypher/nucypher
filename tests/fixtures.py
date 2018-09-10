@@ -15,6 +15,8 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters import Alice, Bob
+from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.node import NodeConfiguration, BASE_DIR
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
@@ -24,8 +26,6 @@ from nucypher.keystore.keypairs import SigningKeypair
 # Setup
 #
 
-
-from cli.main import BASE_DIR
 from nucypher.utilities.blockchain import token_airdrop
 from nucypher.utilities.sandbox import MockRestMiddleware, make_ursulas
 

@@ -16,8 +16,6 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 
-from nucypher.config.constants import DEFAULT_TLS_CERTIFICATE_FILEPATH, DEFAULT_KNOWN_CERTIFICATES_DIR
-from nucypher.config.utils import NucypherConfigurationError
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
@@ -117,10 +115,11 @@ def ecdsa_verify(
 
 
 def _save_tls_certificate(certificate: Certificate,
+                          certificate_dir: str,
                           common_name: str = None,
                           is_me: bool = False,
                           force: bool = True,
-                          certificate_dir: str = DEFAULT_KNOWN_CERTIFICATES_DIR) -> str:
+                          ) -> str:
 
     if is_me is False and not common_name:
         raise NucypherConfigurationError('A common name must be passed to save another node\'s certificate.')
@@ -174,7 +173,7 @@ def generate_self_signed_certificate(common_name,
     cert = cert.sign(private_key, hashes.SHA512(), default_backend())
 
     if save_to_disk is True:
-        tls_certificate_filepath = _save_tls_certificate(cert, common_name)
+        tls_certificate_filepath = _save_tls_certificate(cert, common_name=common_name)
     else:
         tls_certificate_filepath = constants.CERTIFICATE_NOT_SAVED
 

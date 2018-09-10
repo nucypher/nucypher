@@ -12,11 +12,10 @@ from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.chains import Blockchain, TesterBlockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.characters import Ursula
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_SIMULATION_PORT, \
-    DEFAULT_SIMULATION_REGISTRY_FILEPATH, DEFAULT_INI_FILEPATH, DEFAULT_REST_PORT, DEFAULT_DB_NAME, \
-    BASE_DIR
+from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION, DEFAULT_CONFIG_ROOT, DEFAULT_REST_PORT
+from nucypher.config.node import DEFAULT_CONFIG_ROOT
 from nucypher.config.parsers import parse_nucypher_ini_config, parse_running_modes
-from nucypher.network.nodes import collect_stored_nodes
 from nucypher.utilities.sandbox import UrsulaProcessProtocol
 
 __version__ = '0.1.0-alpha.0'
@@ -41,7 +40,7 @@ from twisted.internet import reactor
 
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
 from nucypher.utilities.blockchain import token_airdrop
-from nucypher.config.utils import validate_nucypher_ini_config, initialize_configuration
+from nucypher.config.utils import validate_nucypher_ini_config
 
 root = logging.getLogger()
 root.setLevel(logging.DEBUG)
@@ -125,7 +124,7 @@ uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 @click.group()
 @click.option('--version', help="Prints the installed version.", is_flag=True)
 @click.option('--verbose', help="Enable verbose mode.", is_flag=True)
-@click.option('--config-file', help="Specify a custom config filepath.", type=click.Path(), default=DEFAULT_INI_FILEPATH)
+@click.option('--config-file', help="Specify a custom config filepath.", type=click.Path(), default="cool winnebago")
 @uses_config
 def cli(config, verbose, version, config_file):
     """Configure and manage a nucypher nodes"""
@@ -147,7 +146,7 @@ def cli(config, verbose, version, config_file):
 @cli.command()
 @click.argument('action')
 @click.option('--dev', is_flag=True)
-@click.option('--config-file', help="Specify a custom .ini configuration filepath", default=DEFAULT_INI_FILEPATH)
+@click.option('--config-file', help="Specify a custom .ini configuration filepath", default=DEFAULT_CONFIG_FILE_LOCATION)
 @click.option('--config-root', help="Specify a custom installation location", default=DEFAULT_CONFIG_ROOT)
 def config(action, config_file, config_root, dev):
     """Manage the nucypher .ini configuration file"""
@@ -443,7 +442,7 @@ def simulate(config, action, nodes, federated_only):
             policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=etherbase)
             policy_manager_deployer.arm()
             policy_manager_deployer.deploy()
-            policy_agent = policy_manager_deployer.make_agent()             
+            policy_agent = policy_manager_deployer.make_agent()
             click.echo("Deployed {}:{}".format(policy_agent.contract_name, policy_agent.contract_address))
 
             airdrop_amount = 1000000 * int(constants.M)
@@ -676,12 +675,12 @@ def status(config, provider, contracts, network):
 @click.option('--federated-only', is_flag=True, default=False)
 @click.option('--dev', is_flag=True, default=False)
 @click.option('--rest-host', type=str, default='localhost')
-@click.option('--rest-port', type=int, default=DEFAULT_REST_PORT)
-@click.option('--db-name', type=str, default=DEFAULT_DB_NAME)
+@click.option('--rest-port', type=int, default=UrsulaConfiguration.DEFAULT_REST_PORT)
+@click.option('--db-name', type=str, default=UrsulaConfiguration.DEFAULT_DB_NAME)
 @click.option('--checksum-address', type=str)
 @click.option('--teacher-uri', type=str)
 @click.option('--node-dir', type=click.Path(), default=DEFAULT_CONFIG_ROOT)
-@click.option('--config-file', type=click.Path(), default=DEFAULT_INI_FILEPATH)
+@click.option('--config-file', type=click.Path(), default=DEFAULT_CONFIG_FILE_LOCATION)
 def run_ursula(rest_port,
                rest_host,
                db_name,

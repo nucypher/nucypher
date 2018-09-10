@@ -5,8 +5,8 @@ import tempfile
 
 from constant_sorrow import constants
 
-from nucypher.config.config import DEFAULT_CONFIG_ROOT, NodeConfiguration
-from nucypher.config.parsers import parse_blockchain_config
+# from nucypher.config.config import DEFAULT_CONFIG_ROOT, NodeConfiguration
+# from nucypher.config.parsers import parse_blockchain_config
 
 
 class EthereumContractRegistry:
@@ -17,7 +17,7 @@ class EthereumContractRegistry:
     WARNING: Unless you are developing NuCypher, you most likely won't ever need
     to use this.
     """
-    __default_registry_path = os.path.join(DEFAULT_CONFIG_ROOT, 'registry.json')
+    # __default_registry_path = os.path.join(DEFAULT_CONFIG_ROOT, 'registry.json')
 
     class RegistryError(Exception):
         pass
@@ -32,7 +32,7 @@ class EthereumContractRegistry:
         self.__registry_filepath = registry_filepath or self.__default_registry_path
 
     @classmethod
-    def from_config(cls, config: NodeConfiguration) -> 'EthereumContractRegistry':
+    def from_config(cls, config) -> 'EthereumContractRegistry':
         if config.temp_registry is True:  # In memory only
             registry = TemporaryEthereumContractRegistry()
         else:

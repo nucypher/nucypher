@@ -324,8 +324,8 @@ class ProxyRESTRoutes:
 
         if do_store:
             self.log.info("{} storing TreasureMap {}".format(self, treasure_map_id))
-            self.dht_server.set_now(binascii.unhexlify(treasure_map_id),
-                                    constants.BYTESTRING_IS_TREASURE_MAP + bytes(treasure_map))
+            # self.dht_server.set_now(binascii.unhexlify(treasure_map_id),  # TODO: Now that the DHT is retired, let's do this another way.
+            #                         constants.BYTESTRING_IS_TREASURE_MAP + bytes(treasure_map))
 
             # TODO 341 - what if we already have this TreasureMap?
             self._treasure_map_tracker[digest(treasure_map_id)] = treasure_map

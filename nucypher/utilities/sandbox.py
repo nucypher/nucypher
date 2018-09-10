@@ -86,8 +86,6 @@ def make_ursulas(ether_addresses: list,
                 ether_address = None
             ursula = Ursula(is_me=True,
                             checksum_address=ether_address,
-                            dht_host="localhost",
-                            dht_port=port,
                             db_name="test-{}".format(port),
                             rest_host="localhost",
                             rest_port=port + 100,
@@ -101,7 +99,6 @@ def make_ursulas(ether_addresses: list,
                     return f(*args, **kwargs)
 
             ursula.datastore_threadpool = MockDatastoreThreadPool()
-            ursula.dht_listen()
 
         if miners is True:
             # TODO: 309
@@ -128,11 +125,6 @@ def make_ursulas(ether_addresses: list,
             # Add other Ursulas as known nodes.
             for ursula_to_learn_about in ursulas:
                 ursula_to_teach.remember_node(ursula_to_learn_about)
-
-            event_loop.run_until_complete(
-                ursula.dht_server.bootstrap(
-                    [("localhost", starting_port + _c) for _c in range(len(ursulas))]))
-            # ursula.publish_dht_information()
 
     return ursulas
 
