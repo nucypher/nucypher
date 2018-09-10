@@ -6,8 +6,10 @@ import configparser
 
 from constant_sorrow import constants
 
-from nucypher.config.constants import DEFAULT_INI_FILEPATH
+from nucypher.config.node import NodeConfiguration
 from nucypher.config.utils import validate_nucypher_ini_config
+
+DEFAULT_INI_FILEPATH = NodeConfiguration.DEFAULT_INI_FILEPATH
 
 
 def parse_blockchain_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict:
@@ -116,7 +118,7 @@ def parse_running_modes(filepath: str=DEFAULT_INI_FILEPATH) -> dict:
     # validate_nucypher_ini_config(filepath=filepath, raise_on_failure=True)
 
     config = configparser.ConfigParser()
-    # config.read(filepath)
+    config.read(filepath)
 
     operating_mode = config.get(section='nucypher', option='mode')
     simulation_mode = config.getboolean(section='nucypher', option='simulation', fallback=False)

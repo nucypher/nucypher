@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
 
-import asyncio
 import logging
 import random
-from tempfile import NamedTemporaryFile
-
 import shutil
-import sys
-
 import subprocess
-from urllib.parse import urlparse
+import sys
 
 from constant_sorrow import constants
 
@@ -46,7 +41,7 @@ from twisted.internet import reactor
 
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
 from nucypher.utilities.blockchain import token_airdrop
-from nucypher.config.utils import validate_nucypher_ini_config, initialize_configuration, NucypherConfigurationError
+from nucypher.config.utils import validate_nucypher_ini_config, initialize_configuration
 
 root = logging.getLogger()
 root.setLevel(logging.DEBUG)
@@ -151,9 +146,10 @@ def cli(config, verbose, version, config_file):
 
 @cli.command()
 @click.argument('action')
+@click.option('--dev', is_flag=True)
 @click.option('--config-file', help="Specify a custom .ini configuration filepath", default=DEFAULT_INI_FILEPATH)
 @click.option('--config-root', help="Specify a custom installation location", default=DEFAULT_CONFIG_ROOT)
-def config(action, config_file, config_root):
+def config(action, config_file, config_root, dev):
     """Manage the nucypher .ini configuration file"""
 
     def __destroy():
@@ -163,10 +159,7 @@ def config(action, config_file, config_root):
 
     def __initialize():
         click.confirm("Initialize new nucypher configuration?", abort=True)
-        try:
-            initialize_configuration(config_root=config_root)
-        except FileExistsError:
-            raise NucypherConfigurationError("There is an existing configuration.")
+        initialize_configuration(config_root=config_root)
         click.echo("Created configuration files at {}".format(config_root))
 
     if action == "validate":
@@ -450,7 +443,7 @@ def simulate(config, action, nodes, federated_only):
             policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=etherbase)
             policy_manager_deployer.arm()
             policy_manager_deployer.deploy()
-            policy_agent = policy_manager_deployer.make_agent()
+            policy_agent = policy_manager_deployer.make_agent()             
             click.echo("Deployed {}:{}".format(policy_agent.contract_name, policy_agent.contract_address))
 
             airdrop_amount = 1000000 * int(constants.M)

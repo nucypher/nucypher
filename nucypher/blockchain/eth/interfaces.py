@@ -12,7 +12,7 @@ from eth_tester import EthereumTester
 from eth_tester import PyEVMBackend
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.config.constants import DEFAULT_INI_FILEPATH
+from nucypher.config.config import NodeConfiguration
 from nucypher.config.parsers import parse_blockchain_config
 
 
@@ -153,14 +153,13 @@ class BlockchainInterface:
         return True
 
     @classmethod
-    def from_config(cls, filepath=None) -> 'BlockchainInterface':
+    def from_config(cls, config: NodeConfiguration) -> 'BlockchainInterface':
         # Parse
-        filepath = filepath if filepath is None else DEFAULT_INI_FILEPATH
-        payload = parse_blockchain_config(filepath=filepath)
+        payload = parse_blockchain_config(filepath=config.ini_filepath)
 
         # Init deps
         compiler = SolidityCompiler() if payload['compile'] else None
-        registry = EthereumContractRegistry.from_config(filepath=filepath)
+        registry = EthereumContractRegistry.from_config(config=config)
         interface_class = BlockchainInterface if not payload['deploy'] else BlockchainDeployerInterface
 
         # init class

@@ -4,7 +4,6 @@ from constant_sorrow import constants
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
-from nucypher.config.constants import DEFAULT_INI_FILEPATH
 from nucypher.config.parsers import parse_blockchain_config
 
 
@@ -39,12 +38,11 @@ class Blockchain:
         return r.format(class_name, self.__interface)
 
     @classmethod
-    def from_config(cls, filepath=None) -> 'Blockchain':
+    def from_config(cls, config) -> 'Blockchain':
 
-        filepath = filepath if filepath is not None else DEFAULT_INI_FILEPATH
-        payload = parse_blockchain_config(filepath=filepath)
+        payload = parse_blockchain_config(filepath=config.ini_filepath)
 
-        interface = BlockchainInterface.from_config(filepath=filepath)
+        interface = BlockchainInterface.from_config(config=config)
 
         if cls._instance is not None:
             return cls.connect()
@@ -58,6 +56,10 @@ class Blockchain:
             blockchain = Blockchain(interface=interface)
 
         return blockchain
+
+    @classmethod
+    def from_ini_config(cls):
+        pass
 
     @classmethod
     def connect(cls, from_config=True, config_filepath: str=None):

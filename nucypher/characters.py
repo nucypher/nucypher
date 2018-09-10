@@ -1,11 +1,15 @@
-import asyncio
+import os
 import os
 import random
 from collections import OrderedDict, defaultdict
 from collections import deque
 from contextlib import suppress
+from functools import partial
 from logging import Logger
 from logging import getLogger
+from typing import Dict, ClassVar, Set, DefaultDict, Iterable
+from typing import Tuple
+from typing import Union, List
 
 import binascii
 import maya
@@ -18,32 +22,25 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
-from functools import partial
-from kademlia.utils import digest
 from twisted.internet import reactor
 from twisted.internet import task, threads
-from typing import Dict, ClassVar, Set, DefaultDict, Iterable
-from typing import Tuple
-from typing import Union, List
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import datetime_to_period
-from nucypher.config.constants import DEFAULT_INI_FILEPATH, DEFAULT_KNOWN_NODE_DIR
-from nucypher.config.parsers import parse_ursula_config, parse_alice_config, \
-    parse_character_config
+
+from nucypher.config.config import NodeConfiguration, UrsulaConfiguration
+from nucypher.config.parsers import parse_alice_config, parse_character_config
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower, \
-    BlockchainPower, CryptoPowerUp
+from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower, BlockchainPower, CryptoPowerUp
 from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.network.server import NucypherDHTServer, ProxyRESTServer, TLSHostingPower, \
-    ProxyRESTRoutes
+from nucypher.network.server import NucypherDHTServer, ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -136,6 +133,7 @@ class Character:
         # Identity and Network
         #
         if is_me is True:
+
             self._known_nodes = {}   # type: dict
             self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
@@ -693,14 +691,6 @@ class Alice(Character, PolicyAuthor):
         if is_me and not federated_only:  # TODO: 289
             PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address)
 
-    @classmethod
-    def from_config(cls, filepath=DEFAULT_INI_FILEPATH, overrides: dict = None) -> 'Alice':
-        payload = parse_alice_config(filepath=filepath)
-        if overrides is not None:
-            payload.update(overrides)
-        instance = cls(**payload)
-        return instance
-
     def generate_kfrags(self, bob, label, m, n) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
@@ -1054,8 +1044,6 @@ class Ursula(Character, VerifiableNode, Miner):
                  certificate=None,
                  db_name=None,
                  is_me=True,
-                 dht_host=None,
-                 dht_port=None,
                  interface_signature=None,
 
                  # Blockchain
@@ -1077,12 +1065,6 @@ class Ursula(Character, VerifiableNode, Miner):
             known_nodes = tuple()
 
         VerifiableNode.__init__(self, interface_signature=interface_signature)
-
-        if dht_host:
-            self.dht_interface = InterfaceInfo(host=dht_host, port=dht_port)
-        else:
-            self.dht_interface = constants.NO_INTERFACE.bool_value(False)
-        self._work_orders = []
 
         Character.__init__(self, is_me=is_me,
                            checksum_address=checksum_address,
@@ -1176,7 +1158,7 @@ class Ursula(Character, VerifiableNode, Miner):
                                                                               port=self.rest_information()[0].port)
         return deployer
 
-    def rest_server_certificate(self):
+    def rest_server_certificate(self):  # TODO: relocate and use reference on TLS hosting power
         return self.get_deployer().cert.to_cryptography()
 
     def __bytes__(self):
@@ -1203,19 +1185,9 @@ class Ursula(Character, VerifiableNode, Miner):
     #
 
     @classmethod
-    def from_config(cls,
-                    filepath: str = DEFAULT_INI_FILEPATH,
-                    overrides: dict = None) -> 'Ursula':
-        """
-        Initialize Ursula from .ini configuration file.
-
-        Keyword arguments passed will take precedence over values
-        in the configuration file.
-        """
-        payload = parse_ursula_config(filepath=filepath)
-        if overrides is not None:
-            payload.update(overrides)
-        return cls(**payload)
+    def from_config(cls, config: UrsulaConfiguration) -> 'Ursula':  # TODO
+        instance = cls()
+        return instance
 
     @classmethod
     def from_rest_url(cls,
