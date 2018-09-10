@@ -1154,7 +1154,15 @@ class Ursula(Character, VerifiableNode, Miner):
                     rest_host=rest_host,
                     rest_port=rest_port,
                 )
-                tls_hosting_power = TLSHostingPower(rest_server=rest_server, certificate=certificate)
+                if certificate:
+                    tls_hosting_power = TLSHostingPower(rest_server=rest_server, certificate=certificate)
+                else:
+                    tls_hosting_keypair = HostingKeypair(
+                        common_name=self.checksum_public_address,
+                        curve=tls_curve,
+                        host=rest_host)
+                    tls_hosting_power = TLSHostingPower(rest_server=rest_server,
+                                                        keypair=tls_hosting_keypair)
             self._crypto_power.consume_power_up(tls_hosting_power)  # Make this work for not me for certificate to work
         else:
             self.log.info("Not adhering rest_server; we'll use the one on crypto_power..")
