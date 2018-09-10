@@ -30,7 +30,7 @@ class CryptoPower(object):
     def __init__(self, power_ups=None):
         self._power_ups = {}
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
-        self.public_material = {}
+        self.public_keys = {}
 
         if power_ups is not None:
             for power_up in power_ups:
@@ -51,8 +51,8 @@ class CryptoPower(object):
                  "of a subclass of CryptoPowerUp."))
         self._power_ups[power_up_class] = power_up_instance
 
-        if power_up.confers_public_material:
-            self.public_material[power_up_class] = power_up_instance.public_material()
+        if power_up.confers_public_key:
+            self.public_keys[power_up_class] = power_up_instance.public_key()
 
     def power_ups(self, power_up_class):
         try:
@@ -65,7 +65,7 @@ class CryptoPowerUp(object):
     """
     Gives you MORE CryptoPower!
     """
-    confers_public_material = False
+    confers_public_key = False
 
 
 class BlockchainPower(CryptoPowerUp):
@@ -129,14 +129,14 @@ class BlockchainPower(CryptoPowerUp):
 
 
 class KeyPairBasedPower(CryptoPowerUp):
-    confers_public_material = True
+    confers_public_key = True
     _keypair_class = keypairs.Keypair
     _default_private_key_class = UmbralPrivateKey
 
     def __init__(self,
                  pubkey: UmbralPublicKey = None,
                  keypair: keypairs.Keypair = None,
-                 generate_keys_if_needed=True) -> None:
+                 ) -> None:
         if keypair and pubkey:
             raise ValueError(
                 "Pass keypair or pubkey_bytes (or neither), but not both.")
@@ -171,7 +171,7 @@ class KeyPairBasedPower(CryptoPowerUp):
         else:
             raise PowerUpError("This {} doesn't provide {}.".format(self.__class__, item))
 
-    def public_material(self):
+    def public_key(self):
         return self.keypair.pubkey
 
 
@@ -192,14 +192,6 @@ class EncryptingPower(KeyPairBasedPower):
     _keypair_class = EncryptingKeypair
     not_found_error = NoEncryptingPower
     provides = ("decrypt",)
-
-
-class TLSHostingPower(KeyPairBasedPower):
-    _keypair_class = HostingKeypair
-    provides = ("get_deployer",)
-
-    def public_material(self):
-        return self.keypair.certificate, self.keypair.pubkey
 
 
 class DelegatingPower(DerivedKeyBasedPower):

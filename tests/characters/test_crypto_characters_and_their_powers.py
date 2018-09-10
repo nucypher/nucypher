@@ -140,7 +140,7 @@ def test_anybody_can_encrypt():
 def test_node_deployer(ursulas):
     for ursula in ursulas:
         deployer = ursula.get_deployer()
-        assert deployer.options['https_port'] == ursula.rest_interface.port
+        assert deployer.options['https_port'] == ursula.rest_information()[0].port
         assert deployer.application == ursula.rest_app
 
 

@@ -50,7 +50,7 @@ class VerifiableNode:
 
     def interface_is_valid(self):
         message = self._signable_interface_info_message()
-        interface_is_valid = self._interface_signature.verify(message, self.public_material(SigningPower))
+        interface_is_valid = self._interface_signature.verify(message, self.public_keys(SigningPower))
         self.verified_interface = interface_is_valid
         if interface_is_valid:
             return True
@@ -87,17 +87,18 @@ class VerifiableNode:
         self.validate_metadata(accept_federated_only)  # This is both the stamp and interface check.
 
         # The node's metadata is valid; let's be sure the interface is in order.
-        response = network_middleware.node_information(host=self.rest_interface.host,
-                                            port=self.rest_interface.port)
+        response = network_middleware.node_information(host=self.rest_information()[0].host,
+                                            port=self.rest_information()[0].port)
         if not response.status_code == 200:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
-        signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info = self._internal_splitter(response.content)
+        signature, identity_evidence, verifying_key, encrypting_key, public_address, certificate_vbytes, rest_info, dht_info = self._internal_splitter(response.content)
 
-        verifying_keys_match = verifying_key == self.public_material(SigningPower)
-        encrypting_keys_match = encrypting_key == self.public_material(EncryptingPower)
+        verifying_keys_match = verifying_key == self.public_keys(SigningPower)
+        encrypting_keys_match = encrypting_key == self.public_keys(EncryptingPower)
         addresses_match = public_address == self.canonical_public_address
+        evidence_matches = identity_evidence == self._evidence_of_decentralized_identity
 
-        if not all((encrypting_keys_match, verifying_keys_match, addresses_match)):
+        if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # TODO: Optional reporting.  355
             if not addresses_match:
                 self.log.warning("Wallet address swapped out.  It appears that someone is trying to defraud this node.")
@@ -112,7 +113,7 @@ class VerifiableNode:
         self._evidence_of_decentralized_identity = signature
 
     def _signable_interface_info_message(self):
-        message = self.canonical_public_address + self.rest_interface + self.dht_interface
+        message = self.canonical_public_address + self.rest_information()[0] + self.dht_interface
         return message
 
     def _sign_interface_info(self):

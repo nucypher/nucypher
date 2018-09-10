@@ -1,26 +1,27 @@
 import asyncio
 import binascii
 import random
+from logging import getLogger
 
 import kademlia
 from apistar import http, Route, App
 from apistar.http import Response
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
+from hendrix.experience import crosstown_traffic
 from kademlia.crawling import NodeSpiderCrawl
 from kademlia.network import Server
 from kademlia.utils import digest
-from typing import ClassVar
+from umbral import pre
+from umbral.fragments import KFrag
+from umbral.keys import UmbralPublicKey
 
-from hendrix.experience import crosstown_traffic
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import SigningPower, TLSHostingPower
+from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, InterfaceInfo
 from nucypher.network.storage import SeedOnlyStorage
-from umbral import pre
-from umbral.fragments import KFrag
 
 
 class NucypherDHTServer(Server):
@@ -101,39 +102,52 @@ class NucypherSeedOnlyDHTServer(NucypherDHTServer):
 
 
 class ProxyRESTServer:
+    log = getLogger("characters")
 
     def __init__(self,
-                 rest_host=None,
-                 rest_port=None,
-                 db_name=None,
-                 tls_private_key=None,
-                 tls_curve=None,
-                 certificate=None,
-                 *args, ** kwargs) -> None:
+                 rest_host,
+                 rest_port,
+                 routes=None,
+                 ) -> None:
         self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
-        self.db_name = db_name
-        self._rest_app = None
-        tls_hosting_keypair = HostingKeypair(common_name=self.checksum_public_address,
-                                             private_key=tls_private_key,
-                                             curve=tls_curve,
-                                             host=rest_host,
-                                             certificate=certificate)
-        tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair)
-        self._crypto_power.consume_power_up(tls_hosting_power)
+        if routes:
+            self.rest_app = routes.rest_app
+        else:
+            self.rest_app = constants.PUBLIC_ONLY
 
-    def public_material(self, power_class: ClassVar):
-        """Implemented on Ursula"""
-        raise NotImplementedError
+    def rest_url(self):
+        return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
 
-    def canonical_public_address(self):
-        """Implemented on Ursula"""
-        raise NotImplementedError
 
-    def stamp(self, *args, **kwargs):
-        """Implemented on Ursula"""
-        raise NotImplementedError
+class ProxyRESTRoutes:
+    log = getLogger("characters")
 
-    def attach_rest_server(self):
+    def __init__(self,
+                 db_name,
+                 network_middleware,
+                 federated_only,
+                 dht_server,
+                 treasure_map_tracker,
+                 node_tracker,
+                 node_bytes_caster,
+                 work_order_tracker,
+                 node_recorder,
+                 stamp,
+                 verifier,
+                 ) -> None:
+
+        self.network_middleware = network_middleware
+        self.federated_only = federated_only
+        self.dht_server = dht_server
+
+        self._treasure_map_tracker = treasure_map_tracker
+        self._work_order_tracker = work_order_tracker
+        self._node_tracker = node_tracker
+        self._node_bytes_caster = node_bytes_caster
+        self._node_recorder = node_recorder
+        self._stamp = stamp
+        self._verifier = verifier
+        self.datastore = None
 
         routes = [
             Route('/kFrag/{id_as_hex}',
@@ -159,10 +173,8 @@ class ProxyRESTServer:
                   self.receive_treasure_map),
         ]
 
-        self._rest_app = App(routes=routes)
-        self.start_datastore(self.db_name)
+        self.rest_app = App(routes=routes)
 
-    def start_datastore(self, db_name):
         if not db_name:
             raise TypeError("In order to start a datastore, you need to supply a db_name.")
 
@@ -176,12 +188,9 @@ class ProxyRESTServer:
         self.datastore = keystore.KeyStore(engine)
         self.db_engine = engine
 
-    def rest_url(self):
-        return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
-
-    #####################################
-    # Actual REST Endpoints and utilities
-    #####################################
+        from nucypher.characters import Alice, Ursula
+        self._alice_class = Alice
+        self._node_class = Ursula
 
     def public_information(self):
         """
@@ -189,25 +198,24 @@ class ProxyRESTServer:
         """
         headers = {'Content-Type': 'application/octet-stream'}
         response = Response(
-            content=bytes(self),
+            content=self._node_bytes_caster(),
             headers=headers)
 
         return response
 
     def all_known_nodes(self, request: http.Request):
         headers = {'Content-Type': 'application/octet-stream'}
-        ursulas_as_bytes = bytes().join(bytes(n) for n in self._known_nodes.values())
-        ursulas_as_bytes += bytes(self)
-        signature = self.stamp(ursulas_as_bytes)
+        ursulas_as_bytes = bytes().join(bytes(n) for n in self._node_tracker.values())
+        ursulas_as_bytes += self._node_bytes_caster()
+        signature = self._stamp(ursulas_as_bytes)
         return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
 
     def node_metadata_exchange(self, request: http.Request, query_params: http.QueryParams):
-
-        nodes = self.batch_from_bytes(request.body, federated_only=self.federated_only)
+        nodes = self._node_class.batch_from_bytes(request.body, federated_only=self.federated_only)
         # TODO: This logic is basically repeated in learn_from_teacher_node.  Let's find a better way.
         for node in nodes:
 
-            if node.checksum_public_address in self._known_nodes:
+            if node.checksum_public_address in self._node_tracker:
                 continue  # TODO: 168 Check version and update if required.
 
             @crosstown_traffic()
@@ -221,7 +229,7 @@ class ProxyRESTServer:
                     self.log.warning(message)
 
                 self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-                self.remember_node(node)
+                self._node_recorder(node)
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
         return self.all_known_nodes(request)
@@ -257,7 +265,7 @@ class ProxyRESTServer:
         alice = self._alice_class.from_public_keys({SigningPower: policy_message_kit.sender_pubkey_sig})
 
         try:
-            cleartext = self.verify_from(alice, policy_message_kit, decrypt=True)
+            cleartext = self._verifier(alice, policy_message_kit, decrypt=True)
         except self.InvalidSignature:
             # TODO: What do we do if the Policy isn't signed properly?
             pass
@@ -292,7 +300,7 @@ class ProxyRESTServer:
             cfrag_byte_stream += VariableLengthBytestring(cfrag)
 
         # TODO: Put this in Ursula's datastore
-        self._work_orders.append(work_order)
+        self._work_order_tracker.append(work_order)
 
         headers = {'Content-Type': 'application/octet-stream'}
 
@@ -302,9 +310,10 @@ class ProxyRESTServer:
         headers = {'Content-Type': 'application/octet-stream'}
 
         try:
-            treasure_map = self.treasure_maps[digest(treasure_map_id)]
+            treasure_map = self._treasure_map_tracker[digest(treasure_map_id)]
             response = Response(content=bytes(treasure_map), headers=headers)
-            self.log.info("{} providing TreasureMap {}".format(self, treasure_map_id))
+            self.log.info("{} providing TreasureMap {}".format(self._node_bytes_caster(),
+                                                               treasure_map_id))
         except KeyError:
             self.log.info("{} doesn't have requested TreasureMap {}".format(self, treasure_map_id))
             response = Response("No Treasure Map with ID {}".format(treasure_map_id),
@@ -330,14 +339,26 @@ class ProxyRESTServer:
                                     constants.BYTESTRING_IS_TREASURE_MAP + bytes(treasure_map))
 
             # TODO 341 - what if we already have this TreasureMap?
-            self.treasure_maps[digest(treasure_map_id)] = treasure_map
+            self._treasure_map_tracker[digest(treasure_map_id)] = treasure_map
             return Response(content=bytes(treasure_map), status_code=202)
         else:
             # TODO: Make this a proper 500 or whatever.
             self.log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
 
-    def get_deployer(self):
-        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self._rest_app,
-                                                                              port=self.rest_interface.port)
-        return deployer
+
+class TLSHostingPower(KeyPairBasedPower):
+    _keypair_class = HostingKeypair
+    provides = ("get_deployer",)
+
+    class NoHostingPower(PowerUpError):
+        pass
+
+    not_found_error = NoHostingPower
+
+    def __init__(self, rest_server, certificate=None, *args, **kwargs):
+        if certificate:
+            kwargs['keypair'] = HostingKeypair(certificate=certificate)
+        self.rest_server = rest_server
+        super().__init__(*args, **kwargs)
+
