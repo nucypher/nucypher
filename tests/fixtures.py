@@ -13,9 +13,10 @@ from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
+
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.lawful import Alice, Bob
-from nucypher.config.node import BASE_DIR
+from nucypher.config.constants import TEST_CONTRACTS_DIR
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
@@ -23,15 +24,6 @@ from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.utilities.blockchain import token_airdrop
 from nucypher.utilities.sandbox import MockRestMiddleware, make_ursulas
 
-#
-# Setup
-#
-
-test_contract_dir = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
-constants.TEST_CONTRACTS_DIR(test_contract_dir)
-
-constants.NUMBER_OF_TEST_ETH_ACCOUNTS(10)
-constants.NUMBER_OF_URSULAS_IN_NETWORK(int(constants.NUMBER_OF_TEST_ETH_ACCOUNTS))
 
 
 @pytest.fixture(scope="function")
@@ -234,7 +226,7 @@ def non_ursula_miners(three_agents):
 @pytest.fixture(scope='session')
 def solidity_compiler():
     """Doing this more than once per session will result in slower test run times."""
-    compiler = SolidityCompiler(test_contract_dir=str(constants.TEST_CONTRACTS_DIR))
+    compiler = SolidityCompiler(test_contract_dir=TEST_CONTRACTS_DIR)
     yield compiler
 
 

@@ -4,6 +4,7 @@ from constant_sorrow import constants
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
+from nucypher.config.blockchain import BlockchainConfiguration
 from nucypher.config.parsers import parse_blockchain_config
 
 
@@ -38,34 +39,32 @@ class Blockchain:
         return r.format(class_name, self.__interface)
 
     @classmethod
-    def from_config(cls, config) -> 'Blockchain':
+    def from_config(cls, config: BlockchainConfiguration) -> 'Blockchain':
+        pass
 
-        payload = parse_blockchain_config(filepath=config.ini_filepath)
-
+    @classmethod
+    def from_config_file(cls, filepath: str):
+        config = BlockchainConfiguration.from_config_file(filepath=filepath)
         interface = BlockchainInterface.from_config(config=config)
 
         if cls._instance is not None:
             return cls.connect()
 
-        if payload['tester']:
+        if config.tester is True:
             blockchain = TesterBlockchain(interface=interface,
-                                          poa=payload['poa'],
-                                          test_accounts=payload['test_accounts'],
-                                          airdrop=False)
+                                          poa=config.poa,
+                                          test_accounts=config.test_accounts,
+                                          airdrop=config.airdrop)
         else:
             blockchain = Blockchain(interface=interface)
 
         return blockchain
 
     @classmethod
-    def from_ini_config(cls):
-        pass
-
-    @classmethod
     def connect(cls, from_config=True, config_filepath: str=None):
         if cls._instance is None:
             if from_config:
-                return cls.from_config(filepath=config_filepath)
+                return cls.from_config_file(filepath=config_filepath)
             else:
                 raise cls.ConnectionNotEstablished('A connection has not yet been established. init the blockchain.')
         return cls._instance

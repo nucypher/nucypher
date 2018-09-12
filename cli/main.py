@@ -13,10 +13,11 @@ from nucypher.blockchain.eth.chains import Blockchain, TesterBlockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION, DEFAULT_CONFIG_ROOT, DEFAULT_REST_PORT
-from nucypher.config.node import DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION, BASE_DIR
+from nucypher.config.node import DEFAULT_CONFIG_ROOT, NodeConfiguration
 from nucypher.config.parsers import parse_nucypher_ini_config, parse_running_modes
 from nucypher.utilities.sandbox import UrsulaProcessProtocol
+
 
 __version__ = '0.1.0-alpha.0'
 
@@ -40,7 +41,7 @@ from twisted.internet import reactor
 
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
 from nucypher.utilities.blockchain import token_airdrop
-from nucypher.config.utils import validate_nucypher_ini_config
+from nucypher.config.utils import validate_nucypher_ini_config, collect_stored_nodes
 
 root = logging.getLogger()
 root.setLevel(logging.DEBUG)
@@ -54,39 +55,16 @@ root.addHandler(ch)
 
 class NucypherClickConfig:
 
-    def __init__(self, operating_mode='federated', simulation_mode=False, use_config=False):
+    def __init__(self):
 
-        self.config_filepath = DEFAULT_INI_FILEPATH  # TODO
-        # click.echo("Using configuration filepath {}".format(self.config_filepath))
+        # NodeConfiguration.from_config_file(filepath=DEFAULT_CONFIG_FILE_LOCATION)
 
-        self.operating_mode = operating_mode
-        self.simulation_mode = simulation_mode
-
-        # Set operating and run modes
-        if use_config is True:
-            operating_modes = parse_running_modes(filepath=self.config_filepath)
-
-        if self.simulation_mode is True:
-            simulation_running = False
-            sim_registry_filepath = DEFAULT_SIMULATION_REGISTRY_FILEPATH
-        else:
-            simulation_running = constants.SIMULATION_DISABLED
-            sim_registry_filepath = constants.SIMULATION_DISABLED
-
-        self.simulation_running = simulation_running
-        self.sim_registry_filepath = sim_registry_filepath
-        self.sim_processes = list()
-
-        sim_mode = 'simulation' if self.simulation_mode else 'live'
-        click.echo("Running in {} {} mode".format(sim_mode, self.operating_mode))
-
-        if use_config is True:
-            self.payload = parse_nucypher_ini_config(filepath=self.config_filepath)
-            click.echo("Successfully parsed configuration file")
+        self.node_config = constants.NO_NODE_CONFIGURATION
 
         # Blockchain connection contract agency
-        self.blockchain = constants.NO_BLOCKCHAIN_CONNECTION
         self.accounts = constants.NO_BLOCKCHAIN_CONNECTION
+        self.blockchain = constants.NO_BLOCKCHAIN_CONNECTION
+
         self.token_agent = constants.NO_BLOCKCHAIN_CONNECTION
         self.miner_agent = constants.NO_BLOCKCHAIN_CONNECTION
         self.policy_agent = constants.NO_BLOCKCHAIN_CONNECTION
@@ -94,11 +72,10 @@ class NucypherClickConfig:
     def connect_to_blockchain(self):
         """Initialize all blockchain entities from parsed config values"""
 
-        self.blockchain = Blockchain.from_config(filepath=self.config_filepath)
+        self.blockchain = Blockchain.from_config_file(filepath=self.config_filepath)
         self.accounts = self.blockchain.interface.w3.eth.accounts
 
-        #TODO: Exception handling here for key error when using incompadible operating mode
-        if self.payload['tester'] and self.payload['deploy']:
+        if self.node_config.deploy:
             self.blockchain.interface.deployer_address = self.accounts[0]
 
     def connect_to_contracts(self, simulation: bool=False):
@@ -110,12 +87,6 @@ class NucypherClickConfig:
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.miner_agent = MinerAgent(token_agent=self.token_agent)
         self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
-
-    @property
-    def rest_uri(self):
-        host, port = self.payload['rest_host'], self.payload['rest_port']
-        uri_template = "http://{}:{}"
-        return uri_template.format(host, port)
 
 
 uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
@@ -145,11 +116,14 @@ def cli(config, verbose, version, config_file):
 
 @cli.command()
 @click.argument('action')
-@click.option('--dev', is_flag=True)
+@click.option('--temp', is_flag=True, default=False)
 @click.option('--config-file', help="Specify a custom .ini configuration filepath", default=DEFAULT_CONFIG_FILE_LOCATION)
 @click.option('--config-root', help="Specify a custom installation location", default=DEFAULT_CONFIG_ROOT)
-def config(action, config_file, config_root, dev):
+@uses_config
+def configure(config, action, config_file, config_root, temp):
     """Manage the nucypher .ini configuration file"""
+
+    node_configuration = UrsulaConfiguration(temp=temp)
 
     def __destroy():
         click.confirm("Permanently destroy all nucypher configurations, known nodes, certificates and keys?", abort=True)
@@ -158,7 +132,7 @@ def config(action, config_file, config_root, dev):
 
     def __initialize():
         click.confirm("Initialize new nucypher configuration?", abort=True)
-        initialize_configuration(config_root=config_root)
+        node_configuration.initialize_configuration()
         click.echo("Created configuration files at {}".format(config_root))
 
     if action == "validate":
@@ -186,12 +160,15 @@ def accounts(config, action, address):
     """Manage ethereum node accounts"""
 
     if action == 'list':
-        for index, address in enumerate(config.accounts):
-            if index == 0:
-                row = 'etherbase | {}'.format(address)
-            else:
-                row = '{} ....... | {}'.format(index, address)
-            click.echo(row)
+        if config.accounts is constants.NO_BLOCKCHAIN_CONNECTION:
+            click.echo('There are no accounts configured')
+        else:
+            for index, address in enumerate(config.accounts):
+                if index == 0:
+                    row = 'etherbase | {}'.format(address)
+                else:
+                    row = '{} ....... | {}'.format(index, address)
+                click.echo(row)
 
     elif action == 'unlock':
         # passphrase = click.prompt("Enter passphrase to unlock {}".format(address))
@@ -708,7 +685,9 @@ def run_ursula(rest_port,
     if dev is True:
         pass
 
-    other_nodes = collect_stored_nodes()              # 1. Collect known nodes
+    ursula_config = UrsulaConfiguration()
+
+    other_nodes = collect_stored_nodes(known_metadata_dir=ursula_config.known_metadata_dir)              # 1. Collect known nodes
 
     ursula_params = dict(federated_only=federated_only,
                          known_nodes=other_nodes,
