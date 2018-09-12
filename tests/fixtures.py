@@ -1,8 +1,8 @@
 import contextlib
+import datetime
 import os
 import tempfile
 
-import datetime
 import maya
 import pytest
 from constant_sorrow import constants
@@ -14,20 +14,18 @@ from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTok
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.characters import Alice, Bob
-from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.node import NodeConfiguration, BASE_DIR
+from nucypher.characters.lawful import Alice, Bob
+from nucypher.config.node import BASE_DIR
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
+from nucypher.utilities.blockchain import token_airdrop
+from nucypher.utilities.sandbox import MockRestMiddleware, make_ursulas
 
 #
 # Setup
 #
-
-from nucypher.utilities.blockchain import token_airdrop
-from nucypher.utilities.sandbox import MockRestMiddleware, make_ursulas
 
 test_contract_dir = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 constants.TEST_CONTRACTS_DIR(test_contract_dir)
@@ -53,7 +51,6 @@ def test_keystore():
     Base.metadata.create_all(engine)
     test_keystore = keystore.KeyStore(engine)
     yield test_keystore
-
 
 
 #
@@ -170,6 +167,7 @@ def ursulas(three_agents):
     ether_addresses = [to_checksum_address(os.urandom(20)) for _ in range(int(constants.NUMBER_OF_URSULAS_IN_NETWORK))]
     _ursulas = make_ursulas(ether_addresses=ether_addresses,
                             miner_agent=miner_agent,
+                            network_middleware=MockRestMiddleware,
                             )
     try:
         yield _ursulas
@@ -211,7 +209,7 @@ def non_ursula_miners(three_agents):
     _receipts = token_airdrop(token_agent=token_agent,
                               origin=etherbase,
                               addresses=all_yall,
-                              amount=1000000*constants.M)
+                              amount=1000000 * constants.M)
 
     starting_point = constants.URSULA_PORT_SEED + 500
 

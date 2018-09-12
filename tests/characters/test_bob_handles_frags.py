@@ -101,7 +101,8 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     saves it and responds by re-encrypting and giving Bob a cFrag.
 
     This is a multipart test; it shows proper relations between the Characters Ursula and Bob and also proper
-    interchange between a KFrag, Capsule, and CFrag object in the context of REST-driven proxy re-encryption.
+    interchange between a KFrag, Capsule, and CFrag object in the cont
+    ext of REST-driven proxy re-encryption.
     """
 
     # We pick up our story with Bob already having followed the treasure map above, ie:

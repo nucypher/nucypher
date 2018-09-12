@@ -1,12 +1,11 @@
-import asyncio
-
 import pytest
-from constant_sorrow import constants
+from hendrix.experience import crosstown_traffic
+from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
 from kademlia.utils import digest
 
-from nucypher.characters import Ursula
+from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.powers import CryptoPower, SigningPower
+from nucypher.crypto.powers import SigningPower
 from nucypher.utilities.sandbox import MockRestMiddleware
 
 
