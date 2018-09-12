@@ -124,6 +124,7 @@ class ProxyRESTRoutes:
                  node_recorder,
                  stamp,
                  verifier,
+                 suspicious_activity_tracker,
                  ) -> None:
 
         self.network_middleware = network_middleware
@@ -136,6 +137,7 @@ class ProxyRESTRoutes:
         self._node_recorder = node_recorder
         self._stamp = stamp
         self._verifier = verifier
+        self._suspicious_activity_tracker = suspicious_activity_tracker
         self.datastore = None
 
         routes = [
@@ -216,9 +218,10 @@ class ProxyRESTRoutes:
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                               " Announced via REST."  # TODO: Include data about caller?
                     self.log.warning(message)
-
-                self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-                self._node_recorder(node)
+                    self._suspicious_activity_tracker['vladimirs'].append(node)  # TODO: Maybe also record the bytes representation separately to disk?
+                else:
+                    self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
+                    self._node_recorder(node)
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
         return self.all_known_nodes(request)
