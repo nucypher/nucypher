@@ -246,11 +246,25 @@ class MockRestMiddleware(RestMiddleware):
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
-        mock_client = self.__get_mock_client_by_ursula(node)
+        mock_client = self._get_mock_client_by_ursula(node)
         response = mock_client.post("http://localhost/treasure_map/{}".format(map_id),
                                     data=map_payload, verify=False)
         return response
 
+
+class EvilMiddleWare(MockRestMiddleware):
+    """
+    Middleware for assholes.
+    """
+    def propagate_shitty_interface_id(self, ursula, shitty_interface_id):
+        """
+        Try to get Ursula to propagate a malicious (or otherwise shitty) interface ID.
+        """
+        mock_client = self._get_mock_client_by_ursula(ursula)
+        response = mock_client.post("http://localhost/node_metadata".format(mock_client),
+                                    verify=False,
+                                    data=bytes(shitty_interface_id))
+        return response
 
 class MockArrangement(Arrangement):
     _arrangements = OrderedDict()
