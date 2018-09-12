@@ -12,8 +12,8 @@ from eth_utils import to_canonical_address, to_checksum_address
 from umbral.config import default_params
 from umbral.pre import Capsule
 
-from nucypher.characters import Alice
-from nucypher.characters import Bob, Ursula, Character
+from nucypher.characters.lawful import Alice
+from nucypher.characters.lawful import Bob, Ursula, Character
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit

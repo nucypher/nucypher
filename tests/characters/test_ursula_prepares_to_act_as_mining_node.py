@@ -1,7 +1,7 @@
 import pytest
 from eth_keys.datatypes import Signature as EthSignature
 
-from nucypher.characters import Ursula
+from nucypher.characters.lawful import Ursula
 from nucypher.crypto.powers import SigningPower, CryptoPower
 from nucypher.utilities.sandbox import MockRestMiddleware, make_ursulas
 

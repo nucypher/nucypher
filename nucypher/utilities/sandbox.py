@@ -11,7 +11,7 @@ from umbral.keys import UmbralPrivateKey
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import MinerAgent
-from nucypher.characters import Ursula
+from nucypher.characters.lawful import Ursula
 from nucypher.crypto.api import secure_random
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy

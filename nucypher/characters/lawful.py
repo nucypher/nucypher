@@ -184,7 +184,7 @@ class Character:
                 self._set_checksum_address()  # type: str
                 if not checksum_address == self.checksum_public_address:
                     error = "Federated-only Characters derive their address from their Signing key; got {} instead."
-                    raise ValueError(error.format(checksum_address))
+                    raise self.SuspiciousActivity(error.format(checksum_address))
 
     def __eq__(self, other) -> bool:
         return bytes(self.stamp) == bytes(other.stamp)
@@ -1096,6 +1096,7 @@ class Ursula(Character, VerifiableNode, Miner):
             # We'll hook all the TLS stuff up unless the crypto_power was already passed.
 
             if is_me:
+                self.suspicious_activities_witnessed = {'vladimirs': [], 'bad_treasure_maps': []}
 
                 rest_routes = ProxyRESTRoutes(
                     db_name=db_name,
@@ -1107,7 +1108,8 @@ class Ursula(Character, VerifiableNode, Miner):
                     work_order_tracker=self._work_orders,
                     node_recorder=self.remember_node,
                     stamp=self.stamp,
-                    verifier=self.verify_from
+                    verifier=self.verify_from,
+                    suspicious_activity_tracker=self.suspicious_activities_witnessed,
                 )
 
                 rest_server = ProxyRESTServer(

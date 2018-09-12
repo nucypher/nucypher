@@ -177,7 +177,7 @@ class ProxyRESTRoutes:
         self.datastore = keystore.KeyStore(engine)
         self.db_engine = engine
 
-        from nucypher.characters import Alice, Ursula
+        from nucypher.characters.lawful import Alice, Ursula
         self._alice_class = Alice
         self._node_class = Ursula
 

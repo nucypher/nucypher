@@ -60,7 +60,7 @@ class NucypherHashProtocol(KademliaProtocol):
         header, payload = default_constant_splitter(value, return_remainder=True)
 
         if header == constants.BYTESTRING_IS_URSULA_IFACE_INFO:
-            from nucypher.characters import Ursula
+            from nucypher.characters.lawful import Ursula
             stranger_ursula = Ursula.from_bytes(payload,
                                                 federated_only=self.sourceNode.federated_only)  # TODO: Is federated_only the right thing here?
 

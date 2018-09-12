@@ -5,7 +5,7 @@ import requests
 from cryptography.hazmat.primitives import serialization
 from twisted.internet import threads
 
-from nucypher.characters import Ursula
+from nucypher.characters.lawful import Ursula
 from nucypher.utilities.sandbox import make_ursulas
 
 

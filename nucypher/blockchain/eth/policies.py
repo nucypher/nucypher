@@ -11,7 +11,7 @@ from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import calculate_period_duration
-from nucypher.characters import Ursula
+from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
 

@@ -11,7 +11,7 @@ from constant_sorrow import constants
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.chains import Blockchain, TesterBlockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
-from nucypher.characters import Ursula
+from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION, DEFAULT_CONFIG_ROOT, DEFAULT_REST_PORT
 from nucypher.config.node import DEFAULT_CONFIG_ROOT

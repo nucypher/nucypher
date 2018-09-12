@@ -9,8 +9,8 @@ import datetime
 import maya
 
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.characters import Alice, Bob
-from nucypher.characters import Ursula
+from nucypher.characters.lawful import Alice, Bob
+from nucypher.characters.lawful import Ursula
 from nucypher.data_sources import DataSource
 from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey

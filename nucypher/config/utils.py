@@ -14,7 +14,7 @@ def collect_stored_nodes(known_metadata_dir=None) -> set:
     metadata_paths = sorted(glob(glob_pattern), key=os.path.getctime)
 
     for metadata_path in metadata_paths:
-        from nucypher.characters import Ursula
+        from nucypher.characters.lawful import Ursula
         node = Ursula.from_metadata_file(filepath=abspath(metadata_path))
         nodes.add(node)
 
