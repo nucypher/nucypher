@@ -26,30 +26,6 @@ def test_all_ursulas_know_about_all_other_ursulas(ursulas, three_agents):
         pytest.fail(str(["{} didn't know about {}".format(counter, acounter) for counter, acounter in ignorance]))
 
 
-def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
-    """
-    Although Ursulas propagate each other's interface information, as demonstrated above, they do not propagate
-    interface information for Vladimir, an Evil Ursula.
-    """
-    ursulas = list(ursulas)
-    vladimir, ursula = ursulas[0], ursulas[1]
-
-    # Ursula hasn't seen any illegal keys.
-    assert ursula.dht_server.protocol.illegal_keys_seen == []
-
-    # Vladimir does almost everything right....
-    value = constants.BYTESTRING_IS_URSULA_IFACE_INFO + bytes(vladimir)
-
-    # Except he sets an illegal key for his interface.
-    illegal_key = b"Not allowed to set arbitrary key for this."
-    setter = vladimir.dht_server.set(key=illegal_key, value=value)
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(setter)
-
-    # Now Ursula has seen an illegal key.
-    assert digest(illegal_key) in ursula.dht_server.protocol.illegal_keys_seen
-
-
 @pytest.mark.skip("What do we want this test to do now?")
 def test_alice_finds_ursula_via_rest(alice, ursulas):
     # Imagine alice knows of nobody.
@@ -86,30 +62,6 @@ def test_alice_sets_treasure_map(enacted_federated_policy, ursulas):
     treasure_map_as_set_on_network = list(ursulas)[0].treasure_maps[
         digest(enacted_federated_policy.treasure_map.public_id())]
     assert treasure_map_as_set_on_network == enacted_federated_policy.treasure_map
-
-
-@pytest.mark.skip("Needs cleanup.")
-def test_treasure_map_with_bad_id_does_not_propagate(idle_federated_policy, ursulas):
-    """
-    In order to prevent spam attacks, Ursula refuses to propagate a TreasureMap whose PolicyGroup ID does not comport to convention.
-    """
-    illegal_policygroup_id = b"This is not a conventional policygroup id"
-    alice = idle_federated_policy.alice
-    bob = idle_federated_policy.bob
-    treasure_map = idle_federated_policy.treasure_map
-
-    message_kit, signature = alice.encrypt_for(bob, treasure_map.packed_payload())
-
-    alice.network_middleware.put_treasure_map_on_node(node=ursulas[1],
-                                                      map_id=illegal_policygroup_id,
-                                                      map_payload=message_kit.to_bytes())
-
-    # setter = alice.server.set(illegal_policygroup_id, message_kit.to_bytes())
-    # _set_event = TEST_EVENT_LOOP.run_until_complete(setter)
-
-    # with pytest.raises(KeyError):
-    #     _ = ursulas_on_network[0].server.storage[digest(illegal_policygroup_id)]
-    assert False
 
 
 def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, ursulas, enacted_federated_policy):
@@ -159,15 +111,79 @@ def test_treaure_map_is_legit(enacted_federated_policy):
         assert ursula_address in enacted_federated_policy.bob._known_nodes
 
 
-def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_alice, idle_blockchain_policy, mining_ursulas):
+def test_vladimir_illegal_interface_key_does_not_propagate(mining_ursulas):
+    """
+    Although Ursulas propagate each other's interface information, as demonstrated above, they do not propagate
+    interface information for Vladimir, an Evil Ursula.
+    """
+    ursulas = list(mining_ursulas)
+    ursula_whom_vladimir_will_imitate, other_ursula = ursulas[0], ursulas[1]
+
+    # This Ursula is totally legit...
+    ursula_whom_vladimir_will_imitate.verify_node(MockRestMiddleware(),
+                                                  accept_federated_only=True)
+
+    # ...until Vladimir sees her on the network and tries to use her public information.
+    vladimir = Vladimir.from_target_ursula(ursula_whom_vladimir_will_imitate)
+
+    learning_callers = []
+    crosstown_traffic.decorator = crosstownTaskListDecoratorFactory(learning_callers)
+
+    vladimir.network_middleware.propagate_shitty_interface_id(other_ursula, bytes(vladimir))
+
+    # So far, Ursula hasn't noticed any Vladimirs.
+    assert other_ursula.suspicious_activities_witnessed['vladimirs'] == []
+
+    # ...but now, Ursula will now try to learn about Vladimir on a different thread.
+    # We only passed one node (Vladimir)...
+    learn_about_vladimir = learning_callers.pop()
+    #  ...so there was only one learning caller in the queue (now none since we popped it just now).
+    assert len(learning_callers) == 0
+
+    # OK, so cool, let's see what happens when Ursula tries to learn about Vlad.
+    learn_about_vladimir()
+
+    # And indeed, Ursula noticed the situation.
+    # She didn't record Vladimir's address.
+    assert vladimir.checksum_public_address not in other_ursula._known_nodes
+
+    # But she *did* record the actual Ursula's address.
+    assert ursula_whom_vladimir_will_imitate.checksum_public_address in other_ursula._known_nodes
+
+    # Furthermore, she properly marked Vladimir as suspicious.
+    vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
+
+
+@pytest.mark.skip("Needs cleanup.")
+def test_treasure_map_with_bad_id_does_not_propagate(idle_federated_policy, ursulas):
+    """
+    In order to prevent spam attacks,
+    Ursula refuses to propagate a TreasureMap with an invalid ID.
+    """
+    illegal_policygroup_id = b"This is not a conventional policygroup id"
+    alice = idle_federated_policy.alice
+    bob = idle_federated_policy.bob
+    treasure_map = idle_federated_policy.treasure_map
+
+    message_kit, signature = alice.encrypt_for(bob, treasure_map.packed_payload())
+
+    alice.network_middleware.put_treasure_map_on_node(node=ursulas[1],
+                                                      map_id=illegal_policygroup_id,
+                                                      map_payload=message_kit.to_bytes())
+
+    # setter = alice.server.set(illegal_policygroup_id, message_kit.to_bytes())
+    # _set_event = TEST_EVENT_LOOP.run_until_complete(setter)
+
+    # with pytest.raises(KeyError):
+    #     _ = ursulas_on_network[0].server.storage[digest(illegal_policygroup_id)]
+    assert False
+
+
+def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_alice, idle_blockchain_policy,
+                                                                  mining_ursulas):
     target = list(mining_ursulas)[2]
     # First, let's imagine that Alice has sampled a Vladimir while making this policy.
-    vladimir = Ursula(crypto_power=CryptoPower(power_ups=Ursula._default_crypto_powerups),
-                      rest_host=target.rest_information()[0].host,
-                      rest_port=target.rest_information()[0].port,
-                      checksum_address='0xE57bFE9F44b819898F47BF37E5AF72a0783e1141',  # Fradulent address
-                      certificate=target.rest_server_certificate(),
-                      is_me=False)
+    vladimir = Vladimir.from_target_ursula(target)
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
     vladimir.substantiate_stamp()
