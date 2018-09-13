@@ -32,6 +32,7 @@ def make_federated_ursulas(ursula_config,
         federated_ursulas.add(ursula)
 
         # Store this Ursula in our global testing cache.
+
         port = ursula.rest_information()[0].port
         TEST_KNOWN_URSULAS_CACHE[port] = ursula
 
@@ -66,6 +67,7 @@ def make_decentralized_ursulas(ursula_config,
                                        db_name="test-{}".format(port),
                                        rest_port=port + 100,
                                        **ursula_overrides)
+
 
         if stake is True:
 
