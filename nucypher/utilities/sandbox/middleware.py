@@ -61,12 +61,14 @@ class MockRestMiddleware(RestMiddleware):
         return response
 
     def get_nodes_via_rest(self, url, certificate_path, announce_nodes=None, nodes_i_need=None):
+
         mock_client = self._get_mock_client_by_url(url)
 
         if nodes_i_need:
             # TODO: This needs to actually do something.
             # Include node_ids in the request; if the teacher node doesn't know about the
             # nodes matching these ids, then it will ask other nodes.
+
             pass
 
         if announce_nodes:
