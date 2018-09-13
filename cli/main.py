@@ -78,7 +78,10 @@ class NucypherClickConfig:
     def connect_to_blockchain(self):
         """Initialize all blockchain entities from parsed config values"""
 
-        self.blockchain = Blockchain.from_config_file(filepath=self.config_filepath)
+        if self.node_config is constants.NO_NODE_CONFIGURATION:
+            raise RuntimeError("No node configuration is availible")
+
+        self.blockchain = Blockchain.from_config(config=self.node_config)
         self.accounts = self.blockchain.interface.w3.eth.accounts
 
         if self.node_config.deploy:
@@ -185,8 +188,15 @@ def accounts(config, action, address):
                 click.echo(row)
 
     elif action == 'balance':
-        config.token_agent.token_balance(address=address)
-        raise NotImplementedError
+        if config.accounts is constants.NO_BLOCKCHAIN_CONNECTION:
+            click.echo('No blockchain connection is available')
+        else:
+            if not address:
+                address = config.blockchain.interface.w3.eth.accounts[0]
+                click.echo('No address supplied, Using the default {}'.format(address))
+
+            balance = config.token_agent.token_balance(address=address)
+            click.echo("Balance of {} is {}".format(address, balance))
 
 
 @cli.command()
