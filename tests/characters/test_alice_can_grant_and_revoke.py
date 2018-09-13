@@ -4,31 +4,10 @@ import maya
 from umbral.fragments import KFrag
 
 from nucypher.crypto.api import keccak_digest
+from nucypher.utilities.sandbox.policy import MockPolicyCreation
 
 
-class MockPolicyCreation:
-    """
-    Simple mock logic to avoid repeated hammering of blockchain policies.
-    """
-    waited_for_receipt = False
-    tx_hash = "THIS HAS BEEN A TRANSACTION!"
-
-    def __init__(self, *args, **kwargs):
-        # TODO: Test that proper arguments are passed here once 316 is closed.
-        pass
-
-    def transact(self, alice, payload):
-        # TODO: Make a meaningful assertion regarding the value.
-        assert payload['from'] == alice._ether_address
-        return self.tx_hash
-
-    @classmethod
-    def wait_for_receipt(cls, tx_hash):
-        assert tx_hash == cls.tx_hash
-        cls.waited_for_receipt = True
-
-
-def test_grant(alice, bob, three_agents):
+def test_mocked_decentralized_grant(alice, bob, three_agents):
     # Monkey patch KFrag repr for better debugging.
     KFrag.__repr__ = lambda kfrag: "KFrag: {}".format(bytes(kfrag)[:10].hex())
 
@@ -37,6 +16,7 @@ def test_grant(alice, bob, three_agents):
     label = b"this_is_the_path_to_which_access_is_being_granted"
     _token_agent, _miner_agent, policy_agent = three_agents
 
+    # Monkey patch Policy Creation
     policy_agent.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
     policy_agent.contract.functions.createPolicy = MockPolicyCreation
 
