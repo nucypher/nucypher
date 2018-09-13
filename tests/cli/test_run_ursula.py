@@ -3,16 +3,11 @@ from click.testing import CliRunner
 from cli.main import cli
 
 
-def test_run_federated_ursulas():
+def test_run_lone_federated_ursula():
     runner = CliRunner()
-
-    # result = runner.invoke(cli,
-    #                        ['run_ursula', '--federated-only', '--rest-port', '5431'],
-    #                        catch_exceptions=False)
-
-    result_with_teacher = runner.invoke(cli,
-                                        ['run_ursula', '--federated-only',
-                                         '--teacher-uri', 'localhost:5556'],
-                                          catch_exceptions=False)
-
-
+    args = ['run_ursula',
+            '--temp',
+            '--federated-only',
+            '--teacher-uri', 'localhost:5556']
+    result_with_teacher = runner.invoke(cli, args, catch_exceptions=False)
+    pass
