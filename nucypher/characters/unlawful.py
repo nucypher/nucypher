@@ -9,6 +9,8 @@ class Vladimir(Ursula):
     """
 
     network_middleware = EvilMiddleWare()
+    fraud_address = '0xbad022A87Df21E4c787C7B1effD5077014b8CC45'
+    frad_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
 
     @classmethod
     def from_target_ursula(cls, target_ursula):
@@ -19,10 +21,10 @@ class Vladimir(Ursula):
         a *specific* target Ursula.
         """
         vladimir = cls(crypto_power=CryptoPower(power_ups=Ursula._default_crypto_powerups),
-                          rest_host=target_ursula.rest_information()[0].host,
-                          rest_port=target_ursula.rest_information()[0].port,
-                          checksum_address='0x0000badbadbadbad0000bad00bad00bad0000000',  # Fradulent address
-                          certificate=target_ursula.rest_server_certificate(),
-                          is_me=False)
+                       rest_host=target_ursula.rest_information()[0].host,
+                       rest_port=target_ursula.rest_information()[0].port,
+                       checksum_address=cls.fraud_address,
+                       certificate=target_ursula.rest_server_certificate(),
+                       is_me=False)
         vladimir._interface_signature_object = target_ursula._interface_signature_object  # Asshole.
         return vladimir
