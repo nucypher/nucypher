@@ -3,7 +3,8 @@ from eth_keys.datatypes import Signature as EthSignature
 
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.powers import SigningPower, CryptoPower
-from nucypher.utilities.sandbox import MockRestMiddleware, make_ursulas
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 
 
 @pytest.mark.skip("To be implemented...?")

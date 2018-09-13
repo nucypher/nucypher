@@ -3,6 +3,7 @@ from eth_keys.datatypes import Signature as EthSignature
 
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from nucypher.network.protocols import SuspiciousActivity
+from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
 
 class VerifiableNode:
@@ -113,7 +114,7 @@ class VerifiableNode:
 
     def substantiate_stamp(self):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
-        blockchain_power.unlock_account('this-is-not-a-secure-password')  # TODO: 349
+        blockchain_power.unlock_account(password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)  # TODO: 349
         signature = blockchain_power.sign_message(bytes(self.stamp))
         self._evidence_of_decentralized_identity = signature
 

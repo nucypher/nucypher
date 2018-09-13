@@ -58,16 +58,3 @@ class AliceConfiguration(NodeConfiguration):
         payload = parse_alice_config(filepath=filepath)
         instance = cls(**payload)
         return instance
-
-
-# TODO:
-# class BobConfiguration(NodeConfiguration):
-#
-#     @classmethod
-#     def from_config_file(cls, filepath=None) -> 'BobConfiguration':
-#         from nucypher.config.parsers import parse_bob_config
-#
-#         filepath = filepath if filepath is None else cls.DEFAULT_INI_FILEPATH
-#         payload = parse_bob_config(filepath=filepath)
-#         instance = cls(**payload)
-#         return instance

@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
 
 import logging
+import os
 import random
 import shutil
 import subprocess
 import sys
 
+import click
 from constant_sorrow import constants
+from twisted.internet import reactor
 
 from nucypher.blockchain.eth.actors import Miner
-from nucypher.blockchain.eth.chains import Blockchain, TesterBlockchain
+from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION, BASE_DIR
 from nucypher.config.node import DEFAULT_CONFIG_ROOT, NodeConfiguration
-from nucypher.config.parsers import parse_nucypher_ini_config, parse_running_modes
-from nucypher.utilities.sandbox import UrsulaProcessProtocol
-
+from nucypher.config.utils import validate_nucypher_ini_config, collect_stored_nodes
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
 
 __version__ = '0.1.0-alpha.0'
 
@@ -35,13 +39,10 @@ BANNER = """
 
 """.format(__version__)
 
-import os
-import click
-from twisted.internet import reactor
 
-from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
-from nucypher.utilities.blockchain import token_airdrop
-from nucypher.config.utils import validate_nucypher_ini_config, collect_stored_nodes
+#
+# Setup Logging
+#
 
 root = logging.getLogger()
 root.setLevel(logging.DEBUG)
@@ -51,6 +52,11 @@ ch.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
 root.addHandler(ch)
+
+
+#
+# CLI Configuration
+#
 
 
 class NucypherClickConfig:

@@ -9,21 +9,25 @@ from constant_sorrow import constants
 from eth_utils import to_checksum_address
 from sqlalchemy.engine import create_engine
 
-from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.lawful import Alice, Bob
+from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import TEST_CONTRACTS_DIR
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
-from nucypher.utilities.blockchain import token_airdrop
-from nucypher.utilities.sandbox import MockRestMiddleware, make_ursulas
 
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
+from nucypher.utilities.sandbox.constants import (TEST_URSULA_STARTING_PORT,
+                                                  DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
 
 
 @pytest.fixture(scope="function")
@@ -245,12 +249,14 @@ def testerchain(solidity_compiler):
                                                      provider_uri='pyevm://tester')
 
     # Create the blockchain
-    testerchain = TesterBlockchain(interface=deployer_interface, test_accounts=10)
+    testerchain = TesterBlockchain(interface=deployer_interface,
+                                   test_accounts=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                   airdrop=False)
+
     origin, *everyone = testerchain.interface.w3.eth.accounts
     deployer_interface.deployer_address = origin  # Set the deployer address from a freshly created test account
 
     yield testerchain
-
     testerchain.sever_connection()
 
 

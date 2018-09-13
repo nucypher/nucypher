@@ -28,6 +28,7 @@ from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import datetime_to_period
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 from nucypher.config.parsers import parse_alice_config, parse_character_config
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
@@ -72,6 +73,7 @@ class Character:
 
     def __init__(self,
                  is_me: bool = True,
+                 config_root=DEFAULT_CONFIG_ROOT,
                  network_middleware: RestMiddleware = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,

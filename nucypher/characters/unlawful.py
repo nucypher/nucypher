@@ -1,6 +1,6 @@
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.powers import CryptoPower
-from nucypher.utilities.sandbox import EvilMiddleWare
+from nucypher.utilities.sandbox.middleware import EvilMiddleWare
 
 
 class Vladimir(Ursula):

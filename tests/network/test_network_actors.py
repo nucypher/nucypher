@@ -6,7 +6,7 @@ from kademlia.utils import digest
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
-from nucypher.utilities.sandbox import MockRestMiddleware
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 @pytest.mark.usefixtures('testerchain')
