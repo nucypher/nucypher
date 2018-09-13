@@ -159,13 +159,13 @@ class Policy:
                                                   self.alice.stamp,
                                                   self.label
                                                   )
-        if not self.alice._known_nodes:
+        if not self.alice.known_nodes:
             # TODO: Optionally block.
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
 
         responses = {}
 
-        for node in self.alice._known_nodes.values():
+        for node in self.alice.known_nodes.values():
             # TODO: It's way overkill to push this to every node we know about.  Come up with a system.  342
             response = network_middleare.put_treasure_map_on_node(node,
                                                                   self.treasure_map.public_id(),

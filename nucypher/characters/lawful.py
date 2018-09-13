@@ -23,7 +23,7 @@ from nucypher.blockchain.eth.constants import datetime_to_period
 from nucypher.characters.base import Character
 from nucypher.config.parsers import parse_character_config
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
@@ -114,7 +114,7 @@ class Alice(Character, PolicyAuthor):
         # TODO: 289
 
         # If we're federated only, we need to block to make sure we have enough nodes.
-        if self.federated_only and len(self._known_nodes) < n:
+        if self.federated_only and len(self.known_nodes) < n:
             good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=True)
             if not good_to_go:
                 raise ValueError(
@@ -125,7 +125,7 @@ class Alice(Character, PolicyAuthor):
 
             if len(handpicked_ursulas) < n:
                 number_of_ursulas_needed = n - len(handpicked_ursulas)
-                new_ursulas = random.sample(list(self._known_nodes.values()), number_of_ursulas_needed)
+                new_ursulas = random.sample(list(self.known_nodes.values()), number_of_ursulas_needed)
                 handpicked_ursulas.update(new_ursulas)
 
         policy.make_arrangements(network_middleware=self.network_middleware,
@@ -176,10 +176,10 @@ class Bob(Character):
                 raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
 
         # The intersection of the map and our known nodes will be the known Ursulas...
-        known_treasure_ursulas = treasure_map.destinations.keys() & self._known_nodes.keys()
+        known_treasure_ursulas = treasure_map.destinations.keys() & self.known_nodes.keys()
 
         # while the difference will be the unknown Ursulas.
-        unknown_treasure_ursulas = treasure_map.destinations.keys() - self._known_nodes.keys()
+        unknown_treasure_ursulas = treasure_map.destinations.keys() - self.known_nodes.keys()
 
         return unknown_treasure_ursulas, known_treasure_ursulas
 
@@ -237,7 +237,7 @@ class Bob(Character):
     def get_treasure_map(self, alice_verifying_key, label):
         _hrac, map_id = self.construct_hrac_and_map_id(verifying_key=alice_verifying_key, label=label)
 
-        if not self._known_nodes and not self._learning_task.running:
+        if not self.known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
             # plans to learn about any more, than this function will surely fail.
             raise self.NotEnoughUrsulas
@@ -273,7 +273,7 @@ class Bob(Character):
         Return the first one who has it.
         TODO: What if a node gives a bunk TreasureMap?
         """
-        for node in self._known_nodes.values():
+        for node in self.known_nodes.values():
             response = networky_stuff.get_treasure_map_from_node(node, map_id)
 
             if response.status_code == 200 and response.content:
@@ -305,7 +305,7 @@ class Bob(Character):
                     capsules))
 
         for node_id, arrangement_id in treasure_map_to_use:
-            ursula = self._known_nodes[node_id]
+            ursula = self.known_nodes[node_id]
 
             capsules_to_include = []
             for capsule in capsules:
@@ -376,7 +376,7 @@ class Ursula(Character, VerifiableNode, Miner):
                                             VariableLengthBytestring,
                                             (UmbralPublicKey, PUBLIC_KEY_LENGTH),
                                             (UmbralPublicKey, PUBLIC_KEY_LENGTH),
-                                            int(PUBLIC_ADDRESS_LENGTH),
+                                            PUBLIC_ADDRESS_LENGTH,
                                             VariableLengthBytestring,  # Certificate
                                             InterfaceInfo)
     _dht_server_class = NucypherDHTServer
@@ -458,7 +458,7 @@ class Ursula(Character, VerifiableNode, Miner):
                     network_middleware=self.network_middleware,
                     federated_only=self.federated_only,
                     treasure_map_tracker=self.treasure_maps,
-                    node_tracker=self._known_nodes,
+                    node_tracker=self.known_nodes,
                     node_bytes_caster=self.__bytes__,
                     work_order_tracker=self._work_orders,
                     node_recorder=self.remember_node,

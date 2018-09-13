@@ -16,13 +16,13 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
     token_agent, miner_agent, policy_agent = three_agents
     for address in miner_agent.swarm():
         for propagating_ursula in blockchain_ursulas:
-            assert address in propagating_ursula._known_nodes, "{} did not know about {}".format(propagating_ursula, address)
+            assert address in propagating_ursula.known_nodes, "{} did not know about {}".format(propagating_ursula, address)
 
 
 @pytest.mark.skip("What do we want this test to do now?")
 def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_ursulas):
     # Imagine alice knows of nobody.
-    blockchain_alice._known_nodes = {}
+    blockchain_alice.known_nodes = {}
 
     some_ursula_interface = blockchain_ursulas.pop().rest_interface
 
@@ -102,7 +102,7 @@ def test_treaure_map_is_legit(enacted_federated_policy):
     Sure, the TreasureMap can get to Bob, but we also need to know that each Ursula in the TreasureMap is on the network.
     """
     for ursula_address, _node_id in enacted_federated_policy.treasure_map:
-        assert ursula_address in enacted_federated_policy.bob._known_nodes
+        assert ursula_address in enacted_federated_policy.bob.known_nodes
 
 
 def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
@@ -139,13 +139,13 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
 
     # And indeed, Ursula noticed the situation.
     # She didn't record Vladimir's address.
-    assert vladimir.checksum_public_address not in other_ursula._known_nodes
+    assert vladimir.checksum_public_address not in other_ursula.known_nodes
 
     # But she *did* record the actual Ursula's address.
-    assert ursula_whom_vladimir_will_imitate.checksum_public_address in other_ursula._known_nodes
+    assert ursula_whom_vladimir_will_imitate.checksum_public_address in other_ursula.known_nodes
 
     # Furthermore, she properly marked Vladimir as suspicious.
-    vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
+    assert vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
 
 
 def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_alice,

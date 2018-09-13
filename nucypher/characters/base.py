@@ -1,4 +1,5 @@
 import random
+from abc import abstractmethod, ABC
 from collections import defaultdict
 from collections import deque
 from contextlib import suppress
@@ -32,208 +33,54 @@ from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 
-class Character:
-    """
-    A base-class for any character in our cryptography protocol narrative.
-    """
-
-    _default_crypto_powerups = None
-    _stamp = None
-    _crashed = False
+class Teacher(ABC):
+    """Knowing and learning about nodes"""
 
     _SHORT_LEARNING_DELAY = 5
     _LONG_LEARNING_DELAY = 90
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 10
 
-    from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
-
-    class NotEnoughUrsulas(MinerAgent.NotEnoughMiners):
-        """
-        All Characters depend on knowing about enough Ursulas to perform their role.
-        This exception is raised when a piece of logic can't proceed without more Ursulas.
-        """
-
-    class InvalidSignature(Exception):
-        """
-        Raised when a signature doesn't pass validation/verification.
-        """
+    class NotEnoughTeachers(RuntimeError):
+        pass
 
     def __init__(self,
-                 is_me: bool = True,
-                 config_root=DEFAULT_CONFIG_ROOT,
-                 network_middleware: RestMiddleware = None,
-                 crypto_power: CryptoPower = None,
-                 crypto_power_ups: List[CryptoPowerUp] = None,
-                 federated_only: bool = False,
-                 checksum_address: bytes = None,
                  always_be_learning: bool = False,
                  start_learning_on_same_thread: bool = False,
                  known_nodes: tuple = None,
-                 abort_on_learning_error: bool = False,
-                 ) -> None:
-
-        """
-
-        Base class for Nucypher protocol actors.
-
-
-        PowerUps
-        ========
-        :param crypto_power: A CryptoPower object; if provided, this will be the character's CryptoPower.
-        :param crypto_power_ups: If crypto_power is not provided, a new one will be made to consume all CryptoPowerUps.
-
-        If neither crypto_power nor crypto_power_ups are provided, we give this
-        Character all CryptoPowerUps listed in their _default_crypto_powerups
-        attribute.
-
-        :param is_me: Set this to True when you want this Character to represent
-            the owner of the configuration under which the program is being run.
-            A Character who is_me can do things that other Characters can't,
-            like run servers, sign messages, and decrypt messages which are
-            encrypted for them.  Typically this will be True for exactly one
-            Character, but there are scenarios in which its imaginable to be
-            represented by zero Characters or by more than one Character.
-
-        """
-
-        self.config_root = config_root
-        known_nodes = known_nodes if known_nodes is not None else tuple()
-        self.federated_only = federated_only                     # type: bool
-        self._abort_on_learning_error = abort_on_learning_error  # type: bool
+                 abort_on_learning_error: bool = False) -> None:
 
         self.log = getLogger("characters")                       # type: Logger
 
-        #
-        # Power-ups and Powers
-        #
-        if crypto_power and crypto_power_ups:
-            raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
+        self.always_be_learning = always_be_learning
+        self.start_learning_on_same_thread = start_learning_on_same_thread
+        self._abort_on_learning_error = abort_on_learning_error
+        self._learning_listeners = defaultdict(list)
+        self._node_ids_to_learn_about_immediately = set()
 
-        crypto_power_ups = crypto_power_ups or []  # type: list
+        known_nodes = known_nodes if known_nodes is not None else tuple()
+        self.__known_nodes = dict()
+        for node in known_nodes:
+            self.remember_node(node)
 
-        if crypto_power:
-            self._crypto_power = crypto_power      # type: CryptoPower
-        elif crypto_power_ups:
-            self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
-        else:
-            self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
+        self.teacher_nodes = deque()
+        self._current_teacher_node = None   # type: Teacher
+        self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
+        self._learning_round = 0            # type: int
+        self._rounds_without_new_nodes = 0  # type: int
 
-        #
-        # Identity and Network
-        #
-        if is_me is True:
-
-            self._known_nodes = {}   # type: dict
-            self.treasure_maps = {}  # type: dict
-            self.network_middleware = network_middleware or RestMiddleware()
-
-            ##### LEARNING STUFF (Maybe move to a different class?) #####
-
-            self._learning_listeners = defaultdict(list)       # type: DefaultDict
-            self._node_ids_to_learn_about_immediately = set()  # type: set
-
-            for node in known_nodes:
-                self.remember_node(node)
-
-            self.teacher_nodes = deque()        # type: deque
-            self._current_teacher_node = None   # type: Ursula
-            self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
-            self._learning_round = 0            # type: int
-            self._rounds_without_new_nodes = 0  # type: int
-
-            if always_be_learning:
-                self.start_learning_loop(now=start_learning_on_same_thread)
-
-            #####
-
-            try:
-                signing_power = self._crypto_power.power_ups(SigningPower)  # type: SigningPower
-                self._stamp = signing_power.get_signature_stamp()           # type: SignatureStamp
-            except NoSigningPower:
-                self._stamp = constants.NO_SIGNING_POWER
-
-        else:  # Feel like a stranger
-            if network_middleware is not None:
-                raise TypeError(
-                    "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
-            self._stamp = StrangerStamp(self.public_keys(SigningPower))
-
-        # Decentralized
-        if not federated_only:
-            if not checksum_address:
-                raise ValueError("No checksum_address provided while running in a non-federated mode.")
-            else:
-                self._checksum_address = checksum_address  # type: str
-
-        # Federated
-        elif federated_only:
-            self._checksum_address = constants.NO_BLOCKCHAIN_CONNECTION
-
-            if checksum_address:
-                # We'll take a checksum address, as long as it matches their singing key
-                self._set_checksum_address()  # type: str
-                if not checksum_address == self.checksum_public_address:
-                    error = "Federated-only Characters derive their address from their Signing key; got {} instead."
-                    raise self.SuspiciousActivity(error.format(checksum_address))
-
-    def __eq__(self, other) -> bool:
-        return bytes(self.stamp) == bytes(other.stamp)
-
-    def __hash__(self):
-        return int.from_bytes(self.stamp, byteorder="big")
+        if self.always_be_learning:
+            self.start_learning_loop(now=self.start_learning_on_same_thread)
 
     @property
-    def name(self):
-        return self.__class__.__name__
-
-    @property
-    def rest_interface(self):
-        return self._crypto_power.power_ups(TLSHostingPower).rest_server.rest_url()
-
-    @classmethod
-    def from_public_keys(cls, powers_and_material: Dict, federated_only=True, *args, **kwargs) -> 'Character':
-        # TODO: Need to be federated only until we figure out the best way to get the checksum_address in here.
-        """
-        Sometimes we discover a Character and, at the same moment,
-        learn the public parts of more of their powers. Here, we take a Dict
-        (powers_and_key_bytes) in the following format:
-        {CryptoPowerUp class: public_material_bytes}
-
-        Each item in the collection will have the CryptoPowerUp instantiated
-        with the public_material_bytes, and the resulting CryptoPowerUp instance
-        consumed by the Character.
-        """
-        crypto_power = CryptoPower()
-
-        for power_up, public_key in powers_and_material.items():
-            try:
-                umbral_key = UmbralPublicKey(public_key)
-            except TypeError:
-                umbral_key = public_key
-
-            crypto_power.consume_power_up(power_up(pubkey=umbral_key))
-
-        return cls(is_me=False, federated_only=federated_only, crypto_power=crypto_power, *args, **kwargs)
-
-    @property
-    def stamp(self):
-        if self._stamp is constants.NO_SIGNING_POWER:
-            raise NoSigningPower
-        elif not self._stamp:
-            raise AttributeError("SignatureStamp has not been set up yet.")
-        else:
-            return self._stamp
-
-    ######
-    # Knowing and learning about nodes
-    ##
+    def known_nodes(self):
+        return self.__known_nodes
 
     def remember_node(self, node):
         # TODO: 334
         listeners = self._learning_listeners.pop(node.checksum_public_address, ())
         address = node.checksum_public_address
 
-        self._known_nodes[address] = node
+        self.__known_nodes[address] = node
         self.log.info("Remembering {}, popping {} listeners.".format(node.checksum_public_address, len(listeners)))
         for listener in listeners:
             listener.add(address)
@@ -264,7 +111,7 @@ class Character:
         failure.raiseException()
 
     def shuffled_known_nodes(self):
-        nodes_we_know_about = list(self._known_nodes.values())
+        nodes_we_know_about = list(self.__known_nodes.values())
         random.shuffle(nodes_we_know_about)
         return nodes_we_know_about
 
@@ -272,7 +119,7 @@ class Character:
         nodes_we_know_about = self.shuffled_known_nodes()
 
         if not nodes_we_know_about:
-            raise self.NotEnoughUrsulas("Need some nodes to start learning from.")
+            raise self.NotEnoughTeachers("Need some nodes to start learning from.")
 
         self.teacher_nodes.extend(nodes_we_know_about)
 
@@ -283,7 +130,7 @@ class Character:
             self._current_teacher_node = self.teacher_nodes.pop()
         except IndexError:
             error = "Not enough nodes to select a good teacher, Check your network connection then node configuration"
-            raise self.NotEnoughUrsulas(error)
+            raise self.NotEnoughTeachers(error)
 
     def current_teacher_node(self, cycle=False):
         if not self._current_teacher_node:
@@ -319,15 +166,16 @@ class Character:
 
     # TODO: Dehydrate these next two methods.
 
-    def block_until_number_of_known_nodes_is(self, number_of_nodes_to_know: int,
-                                             timeout=10,
-                                             learn_on_this_thread=False):
+    def block_until_number_of_known_nodes_is(self,
+                                             number_of_nodes_to_know: int,
+                                             timeout: int = 10,
+                                             learn_on_this_thread: bool = False):
         start = maya.now()
         starting_round = self._learning_round
 
         while True:
             rounds_undertaken = self._learning_round - starting_round
-            if len(self._known_nodes) >= number_of_nodes_to_know:
+            if len(self.__known_nodes) >= number_of_nodes_to_know:
                 if rounds_undertaken:
                     self.log.info("Learned about enough nodes after {} rounds.".format(rounds_undertaken))
                 return True
@@ -339,10 +187,10 @@ class Character:
 
             if (maya.now() - start).seconds > timeout:
                 if not self._learning_task.running:
-                    raise self.NotEnoughUrsulas(
+                    raise self.NotEnoughTeachers(
                         "We didn't discover any nodes because the learning loop isn't running.  Start it with start_learning().")
                 else:
-                    raise self.NotEnoughUrsulas("After {} seconds and {} rounds, didn't find {} nodes".format(
+                    raise self.NotEnoughTeachers("After {} seconds and {} rounds, didn't find {} nodes".format(
                         timeout, rounds_undertaken, number_of_nodes_to_know))
             else:
                 time.sleep(.1)
@@ -359,7 +207,7 @@ class Character:
             if self._crashed:
                 return self._crashed
             rounds_undertaken = self._learning_round - starting_round
-            if canonical_addresses.issubset(self._known_nodes):
+            if canonical_addresses.issubset(self.__known_nodes):
                 if rounds_undertaken:
                     self.log.info("Learned about all nodes after {} rounds.".format(rounds_undertaken))
                 return True
@@ -371,90 +219,18 @@ class Character:
 
             if (maya.now() - start).seconds > timeout:
 
-                still_unknown = canonical_addresses.difference(self._known_nodes)
+                still_unknown = canonical_addresses.difference(self.__known_nodes)
 
                 if len(still_unknown) <= allow_missing:
                     return False
                 elif not self._learning_task.running:
-                    raise self.NotEnoughUrsulas("The learning loop is not running.  Start it with start_learning().")
+                    raise self.NotEnoughTeachers("The learning loop is not running.  Start it with start_learning().")
                 else:
-                    raise self.NotEnoughUrsulas("After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
+                    raise self.NotEnoughTeachers("After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
                         timeout, rounds_undertaken, len(still_unknown), still_unknown))
 
             else:
                 time.sleep(.1)
-
-    def learn_from_teacher_node(self, eager=True):
-        """
-        Sends a request to node_url to find out about known nodes.
-        """
-        self._learning_round += 1
-
-        try:
-            current_teacher = self.current_teacher_node()
-        except self.NotEnoughUrsulas as e:
-            self.log.warning("Can't learn right now: {}".format(e.args[0]))
-            return
-
-        rest_url = current_teacher.rest_interface  # TODO: Name this..?
-
-        # TODO: Do we really want to try to learn about all these nodes instantly?
-        # Hearing this traffic might give insight to an attacker.
-        if VerifiableNode in self.__class__.__bases__:
-            announce_nodes = [self]
-        else:
-            announce_nodes = None
-
-        unresponsive_nodes = set()
-        try:
-            response = self.network_middleware.get_nodes_via_rest(rest_url,
-                                                                  nodes_i_need=self._node_ids_to_learn_about_immediately,
-                                                                  announce_nodes=announce_nodes)
-        except requests.exceptions.ConnectionError:
-            unresponsive_nodes.add(current_teacher)
-            teacher_rest_info = current_teacher.rest_information()[0]
-            self.log.info("No Response from teacher: {}:{}.".format(teacher_rest_info.host, teacher_rest_info.port))
-            self.cycle_teacher_node()
-            self.learn_from_teacher_node()
-            return
-
-        if response.status_code != 200:
-            raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content))
-
-        signature, nodes = signature_splitter(response.content, return_remainder=True)
-        # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
-        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)
-
-        new_nodes = []
-        for node in node_list:
-
-            if node.checksum_public_address in self._known_nodes or node.checksum_public_address == self.checksum_public_address:
-                continue  # TODO: 168 Check version and update if required.
-
-            try:
-                if eager:
-                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)
-                else:
-                    node.validate_metadata(accept_federated_only=self.federated_only)
-            except node.SuspiciousActivity:
-                # TODO: Account for possibility that stamp, rather than interface, was bad.
-                message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
-                          "Propagated by: {}".format(current_teacher.checksum_public_address, rest_url)
-                self.log.warning(message)
-            self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-
-            self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-            self.remember_node(node)
-            new_nodes.append(node)
-
-        self._adjust_learning(new_nodes)
-
-        learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
-        self.log.info(learning_round_log_message.format(self._learning_round,
-                                                        current_teacher.checksum_public_address,
-                                                        len(node_list),
-                                                        len(new_nodes)),
-                      )
 
     def _adjust_learning(self, node_list):
         """
@@ -485,19 +261,281 @@ class Character:
     def network_bootstrap(self, node_list: list) -> None:
         for node_addr, port in node_list:
             new_nodes = self.learn_about_nodes(node_addr, port)
-            self._known_nodes.update(new_nodes)
+            self.__known_nodes.update(new_nodes)
 
     def get_nodes_by_ids(self, node_ids):
         for node_id in node_ids:
             try:
                 # Scenario 1: We already know about this node.
-                return self._known_nodes[node_id]
+                return self.__known_nodes[node_id]
             except KeyError:
                 raise NotImplementedError
         # Scenario 2: We don't know about this node, but a nearby node does.
         # TODO: Build a concurrent pool of lookups here.
 
         # Scenario 3: We don't know about this node, and neither does our friend.
+
+    @abstractmethod
+    def learn_from_teacher_node(self):
+        raise NotImplementedError
+
+
+class Character(Teacher):
+    """
+    A base-class for any character in our cryptography protocol narrative.
+    """
+
+    _default_crypto_powerups = None
+    _stamp = None
+    _crashed = False
+
+    from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
+
+    class NotEnoughUrsulas(MinerAgent.NotEnoughMiners):
+        """
+        All Characters depend on knowing about enough Ursulas to perform their role.
+        This exception is raised when a piece of logic can't proceed without more Ursulas.
+        """
+
+    class InvalidSignature(Exception):
+        """
+        Raised when a signature doesn't pass validation/verification.
+        """
+
+    def __init__(self,
+                 is_me: bool = True,
+                 config_root=DEFAULT_CONFIG_ROOT,
+                 network_middleware: RestMiddleware = None,
+                 crypto_power: CryptoPower = None,
+                 crypto_power_ups: List[CryptoPowerUp] = None,
+                 federated_only: bool = False,
+                 checksum_address: bytes = None,
+                 *args, **kwargs
+                 ) -> None:
+
+        """
+
+        Base class for Nucypher protocol actors.
+
+
+        PowerUps
+        ========
+        :param crypto_power: A CryptoPower object; if provided, this will be the character's CryptoPower.
+        :param crypto_power_ups: If crypto_power is not provided, a new one will be made to consume all CryptoPowerUps.
+
+        If neither crypto_power nor crypto_power_ups are provided, we give this
+        Character all CryptoPowerUps listed in their _default_crypto_powerups
+        attribute.
+
+        :param is_me: Set this to True when you want this Character to represent
+            the owner of the configuration under which the program is being run.
+            A Character who is_me can do things that other Characters can't,
+            like run servers, sign messages, and decrypt messages which are
+            encrypted for them.  Typically this will be True for exactly one
+            Character, but there are scenarios in which its imaginable to be
+            represented by zero Characters or by more than one Character.
+
+        """
+        super().__init__(*args, **kwargs)
+        self.config_root = config_root
+        self.federated_only = federated_only                     # type: bool
+
+        #
+        # Power-ups and Powers
+        #
+        if crypto_power and crypto_power_ups:
+            raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
+
+        crypto_power_ups = crypto_power_ups or []  # type: list
+
+        if crypto_power:
+            self._crypto_power = crypto_power      # type: CryptoPower
+        elif crypto_power_ups:
+            self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
+        else:
+            self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
+
+        #
+        # Identity and Network
+        #
+        if is_me is True:
+
+            self.treasure_maps = {}  # type: dict
+            self.network_middleware = network_middleware or RestMiddleware()
+
+            try:
+                signing_power = self._crypto_power.power_ups(SigningPower)  # type: SigningPower
+                self._stamp = signing_power.get_signature_stamp()           # type: SignatureStamp
+            except NoSigningPower:
+                self._stamp = constants.NO_SIGNING_POWER
+
+        else:  # Feel like a stranger
+            if network_middleware is not None:
+                raise TypeError(
+                    "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
+            self._stamp = StrangerStamp(self.public_keys(SigningPower))
+
+        # Decentralized
+        if not federated_only:
+            if not checksum_address:
+                raise ValueError("No checksum_address provided while running in a non-federated mode.")
+            else:
+                self._checksum_address = checksum_address  # type: str
+
+        # Federated
+        elif federated_only:
+            self._checksum_address = constants.NO_BLOCKCHAIN_CONNECTION
+
+            if checksum_address:
+                # We'll take a checksum address, as long as it matches their singing key
+                self._set_checksum_address()  # type: str
+                if not checksum_address == self.checksum_public_address:
+                    error = "Federated-only Characters derive their address from their Signing key; got {} instead."
+                    raise self.SuspiciousActivity(error.format(checksum_address))
+
+    def __eq__(self, other) -> bool:
+        return bytes(self.stamp) == bytes(other.stamp)
+
+    def __hash__(self):
+        return int.from_bytes(bytes(self.stamp), byteorder="big")
+
+    def __repr__(self):
+        class_name = self.__class__.__name__
+        r = "{} {}"
+        r = r.format(class_name, self.canonical_public_address)
+        return r
+
+    @property
+    def name(self):
+        return self.__class__.__name__
+
+    @property
+    def rest_interface(self):
+        return self._crypto_power.power_ups(TLSHostingPower).rest_server.rest_url()
+
+    @property
+    def stamp(self):
+        if self._stamp is constants.NO_SIGNING_POWER:
+            raise NoSigningPower
+        elif not self._stamp:
+            raise AttributeError("SignatureStamp has not been set up yet.")
+        else:
+            return self._stamp
+    @property
+    def canonical_public_address(self):
+        return to_canonical_address(self.checksum_public_address)
+
+    @canonical_public_address.setter
+    def canonical_public_address(self, address_bytes):
+        self._checksum_address = to_checksum_address(address_bytes)
+
+    @property
+    def ether_address(self):
+        raise NotImplementedError
+
+    @property
+    def checksum_public_address(self):
+        if self._checksum_address is constants.NO_BLOCKCHAIN_CONNECTION:
+            self._set_checksum_address()
+        return self._checksum_address
+
+    @classmethod
+    def from_public_keys(cls, powers_and_material: Dict, federated_only=True, *args, **kwargs) -> 'Character':
+        # TODO: Need to be federated only until we figure out the best way to get the checksum_address in here.
+        """
+        Sometimes we discover a Character and, at the same moment,
+        learn the public parts of more of their powers. Here, we take a Dict
+        (powers_and_key_bytes) in the following format:
+        {CryptoPowerUp class: public_material_bytes}
+
+        Each item in the collection will have the CryptoPowerUp instantiated
+        with the public_material_bytes, and the resulting CryptoPowerUp instance
+        consumed by the Character.
+        """
+        crypto_power = CryptoPower()
+
+        for power_up, public_key in powers_and_material.items():
+            try:
+                umbral_key = UmbralPublicKey(public_key)
+            except TypeError:
+                umbral_key = public_key
+
+            crypto_power.consume_power_up(power_up(pubkey=umbral_key))
+
+        return cls(is_me=False, federated_only=federated_only, crypto_power=crypto_power, *args, **kwargs)
+
+    def learn_from_teacher_node(self, eager=True):
+        """
+        Sends a request to node_url to find out about known nodes.
+        """
+        self._learning_round += 1
+
+        try:
+            current_teacher = self.current_teacher_node()
+        except self.NotEnoughTeachers as e:
+            self.log.warning("Can't learn right now: {}".format(e.args[0]))
+            return
+
+        rest_url = current_teacher.rest_interface  # TODO: Name this..?
+
+        # TODO: Do we really want to try to learn about all these nodes instantly?
+        # Hearing this traffic might give insight to an attacker.
+        if VerifiableNode in self.__class__.__bases__:
+            announce_nodes = [self]
+        else:
+            announce_nodes = None
+
+        unresponsive_nodes = set()
+        try:
+            response = self.network_middleware.get_nodes_via_rest(rest_url,
+                                                                  nodes_i_need=self._node_ids_to_learn_about_immediately,
+                                                                  announce_nodes=announce_nodes)
+        except requests.exceptions.ConnectionError:
+            unresponsive_nodes.add(current_teacher)
+            teacher_rest_info = current_teacher.rest_information()[0]
+            self.log.info("No Response from teacher: {}:{}.".format(teacher_rest_info.host, teacher_rest_info.port))
+            self.cycle_teacher_node()
+            self.learn_from_teacher_node()
+            return
+
+        if response.status_code != 200:
+            raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content))
+
+        signature, nodes = signature_splitter(response.content, return_remainder=True)
+
+        # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
+        from nucypher.characters.lawful import Ursula
+        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)
+
+        new_nodes = []
+        for node in node_list:
+
+            if node.checksum_public_address in self.known_nodes or node.checksum_public_address == self.checksum_public_address:
+                continue  # TODO: 168 Check version and update if required.
+
+            try:
+                if eager:
+                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)
+                else:
+                    node.validate_metadata(accept_federated_only=self.federated_only)
+            except node.SuspiciousActivity:
+                # TODO: Account for possibility that stamp, rather than interface, was bad.
+                message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
+                          "Propagated by: {}".format(current_teacher.checksum_public_address, rest_url)
+                self.log.warning(message)
+            self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
+
+            self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
+            self.remember_node(node)
+            new_nodes.append(node)
+
+        self._adjust_learning(new_nodes)
+
+        learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
+        self.log.info(learning_round_log_message.format(self._learning_round,
+                                                        current_teacher.checksum_public_address,
+                                                        len(node_list),
+                                                        len(new_nodes)), )
 
     def encrypt_for(self,
                     recipient: 'Character',
@@ -528,7 +566,7 @@ class Character:
         return message_kit, signature
 
     def verify_from(self,
-                    mystery_stranger: 'Character',
+                    stranger: 'Character',
                     message_kit: Union[UmbralMessageKit, bytes],
                     signature: Signature = None,
                     decrypt=False,
@@ -551,12 +589,12 @@ class Character:
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
         """
-        sender_pubkey_sig = mystery_stranger.stamp.as_umbral_pubkey()
+        sender_pubkey_sig = stranger.stamp.as_umbral_pubkey()
         with suppress(AttributeError):
             if message_kit.sender_pubkey_sig:
                 if not message_kit.sender_pubkey_sig == sender_pubkey_sig:
                     raise ValueError(
-                        "This MessageKit doesn't appear to have come from {}".format(mystery_stranger))
+                        "This MessageKit doesn't appear to have come from {}".format(stranger))
 
         signature_from_kit = None
 
@@ -589,7 +627,7 @@ class Character:
         if signature_to_use:
             is_valid = signature_to_use.verify(message, sender_pubkey_sig)
             if not is_valid:
-                raise mystery_stranger.InvalidSignature(
+                raise stranger.InvalidSignature(
                     "Signature for message isn't valid: {}".format(signature_to_use))
         else:
             raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
@@ -608,10 +646,6 @@ class Character:
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
 
-    """
-    And finally, some miscellaneous but generally-applicable abilities:
-    """
-
     def public_keys(self, power_up_class: ClassVar) -> Union[Tuple, UmbralPublicKey]:
         """
         Pass a power_up_class, get the public material for this Character which corresponds to that
@@ -622,24 +656,6 @@ class Character:
         """
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
-
-    @property
-    def canonical_public_address(self):
-        return to_canonical_address(self.checksum_public_address)
-
-    @canonical_public_address.setter
-    def canonical_public_address(self, address_bytes):
-        self._checksum_address = to_checksum_address(address_bytes)
-
-    @property
-    def ether_address(self):
-        raise NotImplementedError
-
-    @property
-    def checksum_public_address(self):
-        if self._checksum_address is constants.NO_BLOCKCHAIN_CONNECTION:
-            self._set_checksum_address()
-        return self._checksum_address
 
     def _set_checksum_address(self):
 
@@ -659,9 +675,3 @@ class Character:
                     "You can't use a plain Character in federated mode - you need to implement ether_address.")
 
         self._checksum_address = public_address
-
-    def __repr__(self):
-        class_name = self.__class__.__name__
-        r = "{} {}"
-        r = r.format(class_name, self.canonical_public_address)
-        return r
