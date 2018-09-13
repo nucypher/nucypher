@@ -129,17 +129,25 @@ def cli(config, verbose, version, config_file):
 def configure(config, action, config_file, config_root, temp):
     """Manage the nucypher .ini configuration file"""
 
-    node_configuration = UrsulaConfiguration(temp=temp)
+    if temp:
+        node_configuration = UrsulaConfiguration(temp=temp)
+    elif config_root:
+        node_configuration = UrsulaConfiguration(config_root=config_root)
+    elif config_file:
+        node_configuration = NodeConfiguration.from_config_file(filepath=config_file)
+        click.echo("Using configuration file at: {}".format(config_file))
+
+    click.echo("Using configuration root directory: {}".format(node_configuration.config_root))
 
     def __destroy():
         click.confirm("Permanently destroy all nucypher configurations, known nodes, certificates and keys?", abort=True)
         shutil.rmtree(config_root, ignore_errors=True)
-        click.echo("Deleted configuration files at {}".format(config_root))
+        click.echo("Deleted configuration files at {}".format(node_configuration.config_root))
 
     def __initialize():
         click.confirm("Initialize new nucypher configuration?", abort=True)
         node_configuration.initialize_configuration()
-        click.echo("Created configuration files at {}".format(config_root))
+        click.echo("Created configuration files at {}".format(node_configuration.config_root))
 
     if action == "validate":
         if validate_nucypher_ini_config(config_file):
@@ -176,16 +184,8 @@ def accounts(config, action, address):
                     row = '{} ....... | {}'.format(index, address)
                 click.echo(row)
 
-    elif action == 'unlock':
-        # passphrase = click.prompt("Enter passphrase to unlock {}".format(address))
-        raise NotImplementedError
-
-    elif action == 'lock':
-
-        # click.confirm("Lock {}?".format(address))
-        raise NotImplementedError
-
     elif action == 'balance':
+        config.token_agent.token_balance(address=address)
         raise NotImplementedError
 
 

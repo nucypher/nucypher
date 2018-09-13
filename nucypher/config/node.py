@@ -34,10 +34,10 @@ class NodeConfiguration:
             self.config_root = config_root
 
         self.operating_mode = 'federated'
-        self.keyring_root = os.path.join(config_root, 'keyring')
-        self.known_node_dir = os.path.join(config_root, 'known_nodes')
-        self.known_certificates_dir = os.path.join(config_root, 'certificates')
-        self.known_metadata_dir = os.path.join(config_root, 'metadata')
+        self.keyring_dir = os.path.join(self.config_root, 'keyring')
+        self.known_node_dir = os.path.join(self.config_root, 'known_nodes')
+        self.known_certificates_dir = os.path.join(self.config_root, 'certificates')
+        self.known_metadata_dir = os.path.join(self.config_root, 'metadata')
 
         self.config_file_location = config_file_location
         self.operating_mode = operating_mode
@@ -90,7 +90,8 @@ class NodeConfiguration:
         os.mkdir(self.known_metadata_dir, mode=0o755)        # known_metadata
 
         # Write a blank config file at the default path
-        self._write_default_configuration_file()
+        if self.temp is False:
+            self._write_default_configuration_file()
         self._check_config_tree(configuration_dir=self.config_root)
 
         return self.config_root
