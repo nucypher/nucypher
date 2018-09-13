@@ -21,8 +21,8 @@ def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy
 
 
 @pytest_twisted.inlineCallbacks
-def test_nodes_connect_via_tls_and_verify():
-    node = make_ursulas(1).pop()
+def test_federated_nodes_connect_via_tls_and_verify():
+    node = make_federated_ursulas(quantity=1).pop()
     node_deployer = node.get_deployer()
 
     node_deployer.addServices()

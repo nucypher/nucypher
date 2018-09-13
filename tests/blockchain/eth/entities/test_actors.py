@@ -69,7 +69,7 @@ class TestMiner:
         assert expected_yet_another_stake == stakes[stake_index + 2], 'Third stake values are invalid'
 
     @pytest.mark.slow()
-    @pytest.mark.usefixtures("mining_ursulas")
+    @pytest.mark.usefixtures("blockchain_ursulas")
     def test_miner_collects_staking_reward(self, testerchain, miner, three_agents):
         token_agent, miner_agent, policy_agent = three_agents
 

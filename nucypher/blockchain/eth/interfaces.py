@@ -395,7 +395,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
             signed_message = sig_key.sign_msg(message)
             return signed_message
         else:
-            return self.w3.eth.sign(account, data=message) # Technically deprecated...
+            return self.w3.eth.sign(account, data=message)  # Technically deprecated...
 
     def call_backend_verify(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes):
         """

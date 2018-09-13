@@ -26,12 +26,12 @@ def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_polic
     assert len(known) == 0
 
 
-def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, ursulas, bob, alice):
+def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, federated_ursulas, bob, alice):
     # Bob knows of no Ursulas.
     assert len(bob._known_nodes) == 0
 
     # Now we'll inform Bob of some Ursulas.
-    for ursula in ursulas:
+    for ursula in federated_ursulas:
         bob.remember_node(ursula)
 
     # Now, Bob can get the TreasureMap all by himself, and doesn't need a side channel.
@@ -48,7 +48,7 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, u
 @pytest_twisted.inlineCallbacks
 def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_federated_policy,
                                                                        bob,
-                                                                       ursulas):
+                                                                       federated_ursulas):
     """
     Similar to above, but this time, we'll show that if Bob can connect to a single node, he can
     learn enough to follow the TreasureMap.
@@ -64,7 +64,7 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     # Now, let's create a scenario in which Bob knows of only one node.
     bob._known_nodes = {}
     assert len(bob._known_nodes) == 0
-    first_ursula = list(ursulas).pop(0)
+    first_ursula = list(federated_ursulas).pop(0)
     bob.remember_node(first_ursula)
     assert len(bob._known_nodes) == 1
 
@@ -95,7 +95,7 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
 
 
 def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_policy, bob,
-                                                         alice, ursulas, capsule_side_channel):
+                                                         alice, federated_ursulas, capsule_side_channel):
     """
     Now that Bob has his list of Ursulas, he can issue a WorkOrder to one.  Upon receiving the WorkOrder, Ursula
     saves it and responds by re-encrypting and giving Bob a cFrag.
@@ -113,7 +113,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     bob.follow_treasure_map(map_id=map_id, block=True, timeout=1000)
 
-    assert len(bob._known_nodes) == len(ursulas)
+    assert len(bob._known_nodes) == len(federated_ursulas)
 
     the_hrac = enacted_federated_policy.hrac()
 
@@ -153,7 +153,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     # OK, so cool - Bob has his cFrag!  Let's make sure everything went properly.  First, we'll show that it is in fact
     # the correct cFrag (ie, that Ursula performed reencryption properly).
-    for u in ursulas:
+    for u in federated_ursulas:
         if u.rest_information()[0].port == work_order.ursula.rest_information()[0].port:
             ursula = u
             break
@@ -178,7 +178,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
 
 def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_federated_policy, bob,
-                                                                   ursulas, capsule_side_channel):
+                                                                   federated_ursulas, capsule_side_channel):
     # In our last episode, Bob made a WorkOrder for the capsule...
     assert len(bob._saved_work_orders.by_capsule(capsule_side_channel[0].capsule)) == 1
     # ...and he used it to obtain a CFrag from Ursula.

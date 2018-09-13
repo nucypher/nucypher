@@ -6,7 +6,6 @@ import tempfile
 import maya
 import pytest
 from constant_sorrow import constants
-from eth_utils import to_checksum_address
 from sqlalchemy.engine import create_engine
 
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
@@ -50,6 +49,16 @@ def test_keystore():
 
 
 #
+# Configuration
+#
+
+@pytest.fixture(scope="session")
+def temporary_ursula_config():
+    ursula_config = UrsulaConfiguration(temp=True)
+    yield ursula_config
+
+
+#
 # Policies
 #
 
@@ -59,14 +68,14 @@ def idle_federated_policy(alice, bob):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique uri (soon to be "label" - see #183)
     """
-    n = int(constants.NUMBER_OF_URSULAS_IN_NETWORK)
+    n = DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
     random_label = b'label://' + os.urandom(32)
     policy = alice.create_policy(bob, label=random_label, m=3, n=n, federated=True)
     return policy
 
 
 @pytest.fixture(scope="module")
-def enacted_federated_policy(idle_federated_policy, ursulas):
+def enacted_federated_policy(idle_federated_policy, federated_ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = constants.NON_PAYMENT
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -75,7 +84,7 @@ def enacted_federated_policy(idle_federated_policy, ursulas):
     idle_federated_policy.make_arrangements(network_middleware,
                                             deposit=deposit,
                                             expiration=contract_end_datetime,
-                                            handpicked_ursulas=ursulas)
+                                            handpicked_ursulas=federated_ursulas)
     idle_federated_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
 
     return idle_federated_policy
@@ -92,14 +101,14 @@ def idle_blockchain_policy(blockchain_alice, bob):
 
 
 @pytest.fixture(scope="module")
-def enacted_blockchain_policy(idle_blockchain_policy, ursulas):
+def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = constants.NON_PAYMENT(b"0000000")
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()
 
     idle_blockchain_policy.make_arrangements(network_middleware, deposit=deposit, expiration=contract_end_datetime,
-                                             ursulas=list(ursulas))
+                                             ursulas=list(blockchain_ursulas))
     idle_blockchain_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
 
     return idle_blockchain_policy
@@ -110,24 +119,22 @@ def enacted_blockchain_policy(idle_blockchain_policy, ursulas):
 #
 
 @pytest.fixture(scope="module")
-def alice(ursulas):
+def alice(federated_ursulas):
     alice = Alice(network_middleware=MockRestMiddleware(),
-                  known_nodes=ursulas,
+                  known_nodes=federated_ursulas,
                   federated_only=True,
                   abort_on_learning_error=True)
-    alice.recruit = lambda *args, **kwargs: [u._ether_address for u in ursulas]
-
     return alice
 
 
 @pytest.fixture(scope="module")
-def blockchain_alice(mining_ursulas, three_agents):
+def blockchain_alice(blockchain_ursulas, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
 
     alice = Alice(network_middleware=MockRestMiddleware(),
                   policy_agent=policy_agent,
-                  known_nodes=mining_ursulas,
+                  known_nodes=blockchain_ursulas,
                   abort_on_learning_error=True,
                   checksum_address=alice_address)
     # alice.recruit = lambda *args, **kwargs: [u._ether_address for u in ursulas]
@@ -158,68 +165,41 @@ def capsule_side_channel(enacted_federated_policy):
 #
 
 @pytest.fixture(scope="module")
-def ursulas(three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
-    ether_addresses = [to_checksum_address(os.urandom(20)) for _ in range(int(constants.NUMBER_OF_URSULAS_IN_NETWORK))]
-    _ursulas = make_ursulas(ether_addresses=ether_addresses,
-                            miner_agent=miner_agent,
-                            network_middleware=MockRestMiddleware,
-                            )
+def federated_ursulas():
+    _ursulas = make_federated_ursulas(quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
+
     try:
         yield _ursulas
     finally:
         # Remove the DBs that have been sprayed hither and yon.
         with contextlib.suppress(FileNotFoundError):
-            for port, ursula in enumerate(_ursulas, start=int(constants.URSULA_PORT_SEED)):
+            for port, ursula in enumerate(_ursulas, start=TEST_URSULA_STARTING_PORT):
                 os.remove("test-{}".format(port))
 
 
 @pytest.fixture(scope="module")
-def mining_ursulas(three_agents):
-    starting_point = constants.URSULA_PORT_SEED + 500
-    token_agent, miner_agent, policy_agent = three_agents
-    etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
-    _receipts = token_airdrop(token_agent=token_agent, origin=etherbase, addresses=all_yall,
-                              amount=1000000 * constants.M)
-    ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
+def blockchain_ursulas(three_agents):
 
-    _ursulas = make_ursulas(ether_addresses=ursula_addresses,
-                            miner_agent=miner_agent,
-                            miners=True)
-    try:
-        yield _ursulas
-    finally:
-        # Remove the DBs that have been sprayed hither and yon.
-        with contextlib.suppress(FileNotFoundError):
-            for port, ursula in enumerate(_ursulas, start=int(starting_point)):
-                os.remove("test-{}".format(port))
-
-
-@pytest.fixture(scope="module")
-def non_ursula_miners(three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
 
-    ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
+    ursula_addresses = all_yall[:DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK]
 
-    _receipts = token_airdrop(token_agent=token_agent,
-                              origin=etherbase,
-                              addresses=all_yall,
-                              amount=1000000 * constants.M)
+    token_airdrop(origin=etherbase,
+                  addresses=ursula_addresses,
+                  token_agent=token_agent,
+                  amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
-    starting_point = constants.URSULA_PORT_SEED + 500
-
-    _ursulas = make_ursulas(ether_addresses=ursula_addresses,
-                            miner_agent=miner_agent,
-                            miners=True,
-                            bare=True)
+    _ursulas = make_decentralized_ursulas(ether_addresses=ursula_addresses,
+                                          miner_agent=miner_agent,
+                                          stake=True)
 
     try:
         yield _ursulas
     finally:
         # Remove the DBs that have been sprayed hither and yon.
         with contextlib.suppress(FileNotFoundError):
-            for port, ursula in enumerate(_ursulas, start=int(starting_point)):
+            for port, ursula in enumerate(_ursulas, start=TEST_URSULA_STARTING_PORT):
                 os.remove("test-{}".format(port))
 
 
