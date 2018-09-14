@@ -62,10 +62,10 @@ class RestMiddleware:
             # nodes matching these ids, then it will ask other nodes via the DHT or whatever.
             pass
         if announce_nodes:
-            response = requests.post("https://{}/node_metadata".format(url),
+            response = requests.post("https://{}/node_metadata".format(address),
                                      verify=False,
                                      data=bytes().join(bytes(n) for n in announce_nodes))  # TODO: TLS-only.
         else:
-            response = requests.get("https://{}node_metadata".format(url),
+            response = requests.get("https://{}node_metadata".format(address),
                                     verify=False)  # TODO: TLS-only.
         return response

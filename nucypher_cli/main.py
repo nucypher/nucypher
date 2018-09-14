@@ -1,13 +1,11 @@
-#!/usr/bin/env python3
+"""NuCypher CLI"""
+
 
 import asyncio
-import logging
 import random
 import sys
 
 import subprocess
-from urllib.parse import urlparse
-
 from constant_sorrow import constants
 
 from nucypher.blockchain.eth.actors import Miner
@@ -19,7 +17,6 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_SIMULATION_PO
     BASE_DIR
 from nucypher.config.metadata import write_node_metadata, collect_stored_nodes
 from nucypher.config.parsers import parse_nucypher_ini_config, parse_running_modes
-from nucypher.utilities.sandbox import UrsulaProcessProtocol
 
 __version__ = '0.1.0-alpha.0'
 
@@ -44,32 +41,20 @@ from twisted.internet import reactor
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
 from nucypher.utilities.blockchain import token_airdrop
 from nucypher.config.utils import validate_nucypher_ini_config, initialize_configuration
-
-
-root = logging.getLogger()
-root.setLevel(logging.DEBUG)
-
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-root.addHandler(ch)
+from nucypher.utilities.simulate import UrsulaProcessProtocol
 
 
 class NucypherClickConfig:
 
-    def __init__(self, operating_mode='federated', simulation_mode=False, use_config=False):
+    def __init__(self):
 
         self.config_filepath = DEFAULT_INI_FILEPATH  # TODO
-        # click.echo("Using configuration filepath {}".format(self.config_filepath))
-
-        self.operating_mode = operating_mode
-        self.simulation_mode = simulation_mode
+        click.echo("Using configuration filepath {}".format(self.config_filepath))
 
         # Set operating and run modes
-        if use_config is True:
-            operating_modes = parse_running_modes(filepath=self.config_filepath)
-
+        operating_modes = parse_running_modes(filepath=self.config_filepath)
+        self.operating_mode = operating_modes.get('mode', 'decentralized')
+        self.simulation_mode = operating_modes.get('simulation', False)
         if self.simulation_mode is True:
             simulation_running = False
             sim_registry_filepath = DEFAULT_SIMULATION_REGISTRY_FILEPATH
@@ -84,9 +69,8 @@ class NucypherClickConfig:
         sim_mode = 'simulation' if self.simulation_mode else 'live'
         click.echo("Running in {} {} mode".format(sim_mode, self.operating_mode))
 
-        if use_config is True:
-            self.payload = parse_nucypher_ini_config(filepath=self.config_filepath)
-            click.echo("Successfully parsed configuration file")
+        self.payload = parse_nucypher_ini_config(filepath=self.config_filepath)
+        click.echo("Successfully parsed configuration file")
 
         # Blockchain connection contract agency
         self.blockchain = constants.NO_BLOCKCHAIN_CONNECTION
@@ -139,7 +123,7 @@ uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 def cli(config, verbose, version, config_file):
     """Configure and manage a nucypher nodes"""
 
-    # validate_nucypher_ini_config(filepath=config_file)
+    validate_nucypher_ini_config(filepath=config_file)
 
     click.echo(BANNER)
 
@@ -481,12 +465,9 @@ def simulate(config, action, nodes, federated_only):
             rest_port, dht_port = sim_port_number, sim_port_number + 100
             db_name = 'sim-{}'.format(rest_port)
 
-            cli_exec = os.path.join(BASE_DIR, 'cli', 'main.py')
-            python_exec = 'python'
-
             proc_params = '''
-            python3 {} run_ursula --host {} --rest-port {} --dht-port {} --db-name {}
-            '''.format(python_exec, cli_exec, localhost, rest_port, dht_port, db_name).split()
+            run_ursula --host {} --rest-port {} --dht-port {} --db-name {}
+            '''.format(localhost, rest_port, dht_port, db_name).split()
 
             if federated_only:
                 click.echo("Setting federated operating mode")
@@ -511,8 +492,7 @@ def simulate(config, action, nodes, federated_only):
             # Spawn
             click.echo("Spawning node #{}".format(index+1))
             processProtocol = UrsulaProcessProtocol(command=proc_params)
-            cli_exec = os.path.join(BASE_DIR, 'cli', 'main.py')
-            ursula_proc = reactor.spawnProcess(processProtocol, cli_exec, proc_params)
+            ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
             config.sim_processes.append(ursula_proc)
 
             #
@@ -585,13 +565,8 @@ def simulate(config, action, nodes, federated_only):
 
     elif action == 'demo':
         """Run the finnegans wake demo"""
-        demo_exec = os.path.join(BASE_DIR, 'cli', 'demos', 'finnegans-wake-demo.py')
-        process_args = [sys.executable, demo_exec]
-
-        if federated_only:
-            process_args.append('--federated-only')
-
-        subprocess.run(process_args, stdout=subprocess.PIPE)
+        demo_exec = os.path.join(BASE_DIR, 'nucypher_cli', 'demos', 'finnegans-wake-demo.py')
+        subprocess.run([sys.executable, demo_exec], stdout=subprocess.PIPE)
 
 
 @cli.command()
@@ -669,25 +644,16 @@ def status(config, provider, contracts, network):
 
 @cli.command()
 @click.option('--federated-only', is_flag=True, default=False)
-@click.option('--teacher-uri', type=str)
 @click.option('--seed-node', is_flag=True, default=False)
-@click.option('--rest-host', type=str, default='localhost')
 @click.option('--rest-port', type=int, default=DEFAULT_REST_PORT)
 @click.option('--dht-port', type=int, default=DEFAULT_DHT_PORT)
 @click.option('--db-name', type=str, default=DEFAULT_DB_NAME)
 @click.option('--checksum-address', type=str)
 @click.option('--data-dir', type=click.Path(), default=DEFAULT_CONFIG_ROOT)
 @click.option('--config-file', type=click.Path(), default=DEFAULT_INI_FILEPATH)
-def run_ursula(rest_port,
-               rest_host,
-               dht_port,
-               db_name,
-               teacher_uri,
-               checksum_address,
-               federated_only,
-               seed_node,
-               data_dir,
-               config_file) -> None:
+def run_ursula(rest_port, dht_port, db_name,
+               checksum_address, federated_only,
+               seed_node, data_dir, config_file) -> None:
     """
 
     The following procedure is required to "spin-up" an Ursula node.
@@ -705,35 +671,36 @@ def run_ursula(rest_port,
 
     """
 
-    other_nodes = collect_stored_nodes(federated_only=federated_only)  # 1. Collect known nodes
+    if not seed_node:
+        other_nodes = collect_stored_nodes(federated_only=federated_only)  # 1. Collect known nodes
+    else:
+        other_nodes = tuple()
 
-    ursula_params = dict(federated_only=federated_only,
-                         known_nodes=other_nodes,
-                         rest_host=rest_host,
-                         rest_port=rest_port,
-                         dht_port=dht_port,
-                         db_name=db_name,
-                         checksum_address=checksum_address)
+    overrides = dict(federated_only=federated_only,
+                     known_nodes=other_nodes,
+                     rest_port=rest_port,
+                     dht_port=dht_port,
+                     db_name=db_name,
+                     checksum_address=checksum_address)
+
+    if seed_node:
+        seed_overrides = dict(always_be_learning=False,
+                              abort_on_learning_error=False)
+
+        overrides.update(seed_overrides)
 
     asyncio.set_event_loop(asyncio.new_event_loop())  # 2. Init DHT async loop
 
-    if teacher_uri:
-        host, port = teacher_uri.split(':')
-        teacher = Ursula(rest_host=host,
-                         rest_port=port,
-                         db_name='ursula-{}.db'.format(rest_port),
-                         federated_only=federated_only)
-
-        ursula_params['known_nodes'] = (teacher, )
-
     # 3. Initialize Ursula (includes overrides)
-    ursula = Ursula(**ursula_params)
+    ursula = Ursula.from_config(filepath=config_file, overrides=overrides)
 
-    # ursula.dht_listen()                # 4. Start DHT
+    ursula.dht_listen()                # 4. Start DHT
 
     write_node_metadata(seed_node=seed_node, node=ursula, node_metadata_dir=data_dir)
 
-    ursula.start_learning_loop()      # 5. Enter learning loop
+    if not seed_node:
+        ursula.start_learning_loop()  # 5. Enter learning loop
+
     ursula.get_deployer().run()       # 6. Run TLS Deployer
 
     if not federated_only:
