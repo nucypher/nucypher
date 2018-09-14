@@ -68,7 +68,6 @@ class MockRestMiddleware(RestMiddleware):
             # TODO: This needs to actually do something.
             # Include node_ids in the request; if the teacher node doesn't know about the
             # nodes matching these ids, then it will ask other nodes.
-
             pass
 
         if announce_nodes:
