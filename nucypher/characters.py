@@ -136,30 +136,32 @@ class Character:
         # Identity and Network
         #
         if is_me is True:
-            self._known_nodes = {}  # type: dict
+            self._known_nodes = {}   # type: dict
             self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
             ##### LEARNING STUFF (Maybe move to a different class?) #####
+
             self._learning_listeners = defaultdict(list)  # type: DefaultDict
             self._node_ids_to_learn_about_immediately = set()  # type: set
 
             for node in known_nodes:
                 self.remember_node(node)
 
-            self.teacher_nodes = deque()  # type: deque
-            self._current_teacher_node = None  # type: Ursula
+            self.teacher_nodes = deque()        # type: deque
+            self._current_teacher_node = None   # type: Ursula
             self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
-            self._learning_round = 0  # type: int
+            self._learning_round = 0            # type: int
             self._rounds_without_new_nodes = 0  # type: int
 
             if always_be_learning:
                 self.start_learning_loop(now=start_learning_on_same_thread)
+
             #####
 
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)  # type: SigningPower
-                self._stamp = signing_power.get_signature_stamp()  # type: SignatureStamp
+                self._stamp = signing_power.get_signature_stamp()           # type: SignatureStamp
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
 
@@ -1202,7 +1204,7 @@ class Ursula(Character, VerifiableNode, Miner):
                                  bytes(self.public_keys(EncryptingPower)),
                                  self.canonical_public_address,
                                  bytes(cert_vbytes),
-                                 interface_info)
+                                 interface_info.message_as_bytes)
                                 )
         return as_bytes
 
