@@ -2,6 +2,7 @@ import pytest
 from eth_keys.datatypes import Signature as EthSignature
 
 from nucypher.characters.lawful import Ursula
+from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.powers import SigningPower, CryptoPower
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
@@ -61,13 +62,12 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
 
     # Vladimir has his own ether address; he hopes to publish it along with Ursula's details
     # so that Alice (or whomever) pays him instead of Ursula, even though Ursula is providing the service.
-    vladimir_ether_address = '0xE57bFE9F44b819898F47BF37E5AF72a0783e1141'
 
     # Vladimir imitates Ursula - copying her public keys and interface info, but inserting his ether address.
     vladimir = Ursula(crypto_power=his_target._crypto_power,
                       rest_host=his_target.rest_information()[0].host,
                       rest_port=his_target.rest_information()[0].port,
-                      checksum_address=vladimir_ether_address,
+                      checksum_address=Vladimir.ether_address,
                       interface_signature=his_target._interface_signature,
                       is_me=False)
 

@@ -47,7 +47,7 @@ def test_alice_creates_policy_with_correct_hrac(idle_federated_policy):
 
 def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     """
-    Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
+    Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and ...... TODO
     """
 
     enacted_federated_policy.publish_treasure_map(network_middleare=MockRestMiddleware())

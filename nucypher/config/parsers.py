@@ -82,10 +82,7 @@ def parse_ursula_config(config=None, filepath: str=DEFAULT_CONFIG_FILE_LOCATION)
                           rest_host=config.get(section='ursula.network.rest', option='host'),
                           rest_port=config.getint(section='ursula.network.rest', option='port'),
                           db_name=config.get(section='ursula.network.rest', option='db_name'),
-
-                            # DHT
-                          dht_host=config.get(section='ursula.network.dht', option='host'),
-                          dht_port=config.getint(section='ursula.network.dht', option='port'))
+                          )
 
     character_payload.update(ursula_payload)
 

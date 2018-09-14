@@ -29,7 +29,7 @@ from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.network.server import NucypherDHTServer, ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
+from nucypher.network.server import ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
 
 
 class Alice(Character, PolicyAuthor):
@@ -379,7 +379,6 @@ class Ursula(Character, VerifiableNode, Miner):
                                             PUBLIC_ADDRESS_LENGTH,
                                             VariableLengthBytestring,  # Certificate
                                             InterfaceInfo)
-    _dht_server_class = NucypherDHTServer
     _alice_class = Alice
 
     # TODO: Maybe this wants to be a registry, so that, for example,

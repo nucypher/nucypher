@@ -72,7 +72,7 @@ class RestMiddleware:
         if nodes_i_need:
             # TODO: This needs to actually do something.
             # Include node_ids in the request; if the teacher node doesn't know about the
-            # nodes matching these ids, then it will ask other nodes via the DHT or whatever.
+            # nodes matching these ids, then it will ask other nodes.
             pass
 
 

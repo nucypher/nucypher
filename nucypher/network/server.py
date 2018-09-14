@@ -1,103 +1,20 @@
-import asyncio
 import binascii
-import random
 from logging import getLogger
 
-import kademlia
 from apistar import http, Route, App
 from apistar.http import Response
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from hendrix.experience import crosstown_traffic
-from kademlia.crawling import NodeSpiderCrawl
-from kademlia.network import Server
 from kademlia.utils import digest
 from umbral import pre
 from umbral.fragments import KFrag
-from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
-from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, InterfaceInfo
-
-
-class NucypherDHTServer(Server):
-    protocol_class = NucypherHashProtocol
-    capabilities = ()
-    digests_set = 0
-
-    def __init__(self, node_storage, treasure_map_storage, federated_only=False, id=None, *args, **kwargs) -> None:
-        super().__init__(ksize=20, alpha=3, id=None, storage=None)
-        self.node = kademlia.node.Node(id=id or digest(
-            random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
-
-        # What an awful monkey patch.  Part of the journey of deprecating the DHT.  # TODO: 340
-        self.node._node_storage = node_storage
-        self.node._treasure_maps = treasure_map_storage
-
-        self.node.federated_only = federated_only
-
-    async def set_digest(self, dkey, value):
-        """
-        Set the given SHA1 digest key (bytes) to the given value in the network.
-
-        Returns True if a digest was in fact set.
-        """
-        node = self.node_class(dkey)
-
-        nearest = self.protocol.router.findNeighbors(node)
-        if len(nearest) == 0:
-            self.log.warning("There are no known neighbors to set key %s" % dkey.hex())
-            return False
-
-        spider = NodeSpiderCrawl(self.protocol, node, nearest, self.ksize, self.alpha)
-        nodes = await spider.find()
-
-        self.log.info("setting '%s' on %s" % (dkey.hex(), list(map(str, nodes))))
-
-        # if this node is close too, then store here as well
-        if self.node.distanceTo(node) < max([n.distanceTo(node) for n in nodes]):
-            self.storage[dkey] = value
-        ds = []
-        for n in nodes:
-            _disposition, value_was_set = await self.protocol.callStore(n, dkey, value)
-            if value_was_set:
-                self.digests_set += 1
-            ds.append(value_was_set)
-        # return true only if at least one store call succeeded
-        return any(ds)
-
-    def get_now(self, key):
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.get(bytes(key)))
-
-    def set_now(self, key, value):
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            # Terrible.  We cant' get off the DHT soon enough.
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        return loop.run_until_complete(self.set(key, value))
-
-    async def set(self, key, value):
-        """
-        Set the given string key to the given value in the network.
-        """
-        self.log.debug("setting '%s' = '%s' on network" % (key, value))
-        key = digest(bytes(key))
-        return await self.set_digest(key, value)
-
-
-class NucypherSeedOnlyDHTServer(NucypherDHTServer):
-    protocol_class = NucypherSeedOnlyProtocol
-
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.storage = SeedOnlyStorage()
+from nucypher.network.protocols import InterfaceInfo
 
 
 class ProxyRESTServer:
@@ -335,8 +252,12 @@ class ProxyRESTRoutes:
 
         if do_store:
             self.log.info("{} storing TreasureMap {}".format(self, treasure_map_id))
-            # self.dht_server.set_now(binascii.unhexlify(treasure_map_id),  # TODO: Now that the DHT is retired, let's do this another way.
+
+            # # # #
+            # TODO: Now that the DHT is retired, let's do this another way.
+            # self.dht_server.set_now(binascii.unhexlify(treasure_map_id),
             #                         constants.BYTESTRING_IS_TREASURE_MAP + bytes(treasure_map))
+            # # # #
 
             # TODO 341 - what if we already have this TreasureMap?
             self._treasure_map_tracker[digest(treasure_map_id)] = treasure_map
