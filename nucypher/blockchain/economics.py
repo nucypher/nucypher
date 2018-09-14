@@ -8,7 +8,7 @@ class Economics:
             initial_inflation=1.0,
             T_half=2.0,
             T_sat=1.0,
-            small_staker_multiplier=0.5):
+            small_staker_multiplier=0.5) -> None:
         """
         Calculate parameters to use in token issuer from high-level
         human-understandable parameters

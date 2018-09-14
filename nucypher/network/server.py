@@ -29,7 +29,7 @@ class NucypherDHTServer(Server):
     capabilities = ()
     digests_set = 0
 
-    def __init__(self, node_storage, treasure_map_storage, federated_only=False, id=None, *args, **kwargs):
+    def __init__(self, node_storage, treasure_map_storage, federated_only=False, id=None, *args, **kwargs) -> None:
         super().__init__(ksize=20, alpha=3, id=None, storage=None)
         self.node = kademlia.node.Node(id=id or digest(
             random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
@@ -96,7 +96,7 @@ class NucypherDHTServer(Server):
 class NucypherSeedOnlyDHTServer(NucypherDHTServer):
     protocol_class = NucypherSeedOnlyProtocol
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.storage = SeedOnlyStorage()
 

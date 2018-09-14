@@ -20,7 +20,7 @@ class SolidityCompiler:
     __default_chain_name = 'tester'
 
     def __init__(self, solc_binary_path=None, configuration_path=None,
-                 chain_name=None, contract_dir=None, test_contract_dir=None):
+                 chain_name=None, contract_dir=None, test_contract_dir=None) -> None:
 
         # Compiler binary and root solidity source code directory
         self.__sol_binary_path = solc_binary_path if solc_binary_path is not None else self.__default_sol_binary_path
