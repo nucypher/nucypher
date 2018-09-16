@@ -1,30 +1,40 @@
 import binascii
 import os
 import random
-from collections import OrderedDict
+import time
+from collections import OrderedDict, defaultdict
+from collections import deque
+from contextlib import suppress
 from functools import partial
-from typing import Iterable
+from logging import getLogger
+from typing import Iterable, Dict, Set, Union, ClassVar, Tuple
 from typing import List
 
 import maya
-import time
+import requests
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants
+from constant_sorrow import constants, default_constant_splitter
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate
-from eth_utils import to_checksum_address
-from twisted.internet import threads
+from eth_keys import KeyAPI as EthKeyAPI
+from eth_utils import to_checksum_address, to_canonical_address
+from twisted.internet import reactor
+from twisted.internet import task, threads
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
+from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import datetime_to_period
 from nucypher.characters.base import Character
 from nucypher.config.parsers import parse_character_config
-from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
-from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower
+from nucypher.crypto.api import keccak_digest, encrypt_and_sign
+from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
+from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower, \
+    BlockchainPower, CryptoPowerUp
+from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
@@ -325,7 +335,7 @@ class Bob(Character):
         return generated_work_orders
 
     def get_reencrypted_cfrags(self, work_order):
-        cfrags = self.network_middleware.reencrypt(work_order, certificate_path=work_order.certificate_filepath)
+        cfrags = self.network_middleware.reencrypt(work_order)
         if not len(work_order) == len(cfrags):
             raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
         for counter, capsule in enumerate(work_order.capsules):
@@ -392,16 +402,17 @@ class Ursula(Character, VerifiableNode, Miner):
     def __init__(self,
 
                  # Ursula
-                 rest_host: str,
-                 rest_port: int,
-                 certificate: bytes = None,
-                 db_name: str = None,
-                 is_me: bool = True,
+                 rest_host,
+                 rest_port,
+                 certificate=None,
+                 certificate_dir=None,
+                 db_name=None,
+                 is_me=True,
                  interface_signature=None,
 
                  # Blockchain
                  miner_agent=None,
-                 checksum_address: str=None,
+                 checksum_address: str = None,
 
                  # Character
                  abort_on_learning_error: bool = False,
@@ -416,8 +427,6 @@ class Ursula(Character, VerifiableNode, Miner):
 
         if known_nodes is None:
             known_nodes = tuple()
-
-        VerifiableNode.__init__(self, interface_signature=interface_signature)
 
         self._work_orders = []
 
@@ -479,7 +488,8 @@ class Ursula(Character, VerifiableNode, Miner):
                     private_key=tls_private_key,
                     curve=tls_curve,
                     host=rest_host,
-                    certificate=certificate)
+                    certificate=certificate,
+                    certificate_dir=certificate_dir)
                 tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                     keypair=tls_hosting_keypair)
             else:
@@ -494,12 +504,17 @@ class Ursula(Character, VerifiableNode, Miner):
                     tls_hosting_keypair = HostingKeypair(
                         common_name=self.checksum_public_address,
                         curve=tls_curve,
-                        host=rest_host)
+                        host=rest_host,
+                        certificate_dir=certificate_dir)
                     tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                         keypair=tls_hosting_keypair)
             self._crypto_power.consume_power_up(tls_hosting_power)  # Make this work for not me for certificate to work
         else:
             self.log.info("Not adhering rest_server; we'll use the one on crypto_power..")
+
+        VerifiableNode.__init__(self,
+                                interface_signature=interface_signature,
+                                certificate_filepath=self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath)
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)
