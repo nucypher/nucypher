@@ -135,20 +135,15 @@ class HostingKeypair(Keypair):
                  certificate=None,
                  curve=None,
                  generate_keys_if_needed=True,
-                 save_cert_to_disk=False
+                 certificate_dir=None,
                  ) -> None:
-
         self.curve = curve or self._DEFAULT_CURVE
+        self.certificate_filepath = None
 
         if private_key:
             super().__init__(private_key=private_key)
 
         elif certificate:
-            if save_cert_to_disk:
-                self.certificate_filepath = _save_tls_certificate(certificate,
-                                                                  common_name=common_name,
-                                                                  is_me=False,
-                                                                  force=False)
             self.certificate = certificate
             super().__init__(public_key=certificate.public_key())
 
@@ -157,14 +152,22 @@ class HostingKeypair(Keypair):
                 message = "If you don't supply the certificate, one will be generated for you." \
                           "But for that, you need to pass both host and common_name.."
                 raise TypeError(message)
-            self.certificate, private_key, self.tls_certificate_filepath = generate_self_signed_certificate(common_name=common_name,
+            self.certificate, private_key, self.certificate_filepath = generate_self_signed_certificate(common_name=common_name,
                                                                                                             private_key=private_key,
                                                                                                             curve=self.curve,
                                                                                                             host=host,
-                                                                                                            save_to_disk=save_cert_to_disk)
+                                                                                                            )
             super().__init__(private_key=private_key)
         else:
             raise TypeError("You didn't provide a cert, but also told us not to generate keys.  Not sure what to do.")
+
+        if certificate_dir:
+            self.certificate_filepath = _save_tls_certificate(self.certificate,
+                                                              directory=certificate_dir,
+                                                              common_name=common_name,
+                                                              is_me=False,
+                                                              force=False,
+                                                              )
 
     def generate_self_signed_cert(self, common_name):
         cryptography_key = self._privkey.to_cryptography_privkey()
