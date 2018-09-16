@@ -144,8 +144,7 @@ def generate_self_signed_certificate(common_name,
                                      host,
                                      certificate_dir,
                                      private_key=None,
-                                     days_valid=365,
-                                     ):
+                                     days_valid=365):
 
     if not private_key:
         private_key = ec.generate_private_key(curve, default_backend())
