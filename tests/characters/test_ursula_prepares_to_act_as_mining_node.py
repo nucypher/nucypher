@@ -64,12 +64,13 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
     # so that Alice (or whomever) pays him instead of Ursula, even though Ursula is providing the service.
 
     # Vladimir imitates Ursula - copying her public keys and interface info, but inserting his ether address.
-    vladimir = Ursula(crypto_power=his_target._crypto_power,
-                      rest_host=his_target.rest_information()[0].host,
-                      rest_port=his_target.rest_information()[0].port,
-                      checksum_address=Vladimir.ether_address,
-                      interface_signature=his_target._interface_signature,
-                      is_me=False)
+    vladimir = Vladimir.from_target_ursula(his_target)
+        # Ursula(crypto_power=his_target._crypto_power,
+        #               rest_host=his_target.rest_information()[0].host,
+        #               rest_port=his_target.rest_information()[0].port,
+        #               checksum_address=Vladimir.ether_address,
+        #               interface_signature=his_target._interface_signature,
+        #               is_me=False)
 
     # Vladimir can substantiate the stamp using his own ether address...
     vladimir.substantiate_stamp()

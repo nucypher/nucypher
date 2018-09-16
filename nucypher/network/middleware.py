@@ -27,8 +27,8 @@ class RestMiddleware:
             raise RuntimeError("Bad response: {}".format(response.content))
         return True, ursula.stamp.as_umbral_pubkey()
 
-    def reencrypt(self, work_order, certificate_path):
-        ursula_rest_response = self.send_work_order_payload_to_ursula(work_order, certificate_path=certificate_path)
+    def reencrypt(self, work_order):
+        ursula_rest_response = self.send_work_order_payload_to_ursula(work_order)
         cfrags = BytestringSplitter((CapsuleFrag, VariableLengthBytestring)).repeat(ursula_rest_response.content)
         work_order.complete(cfrags)  # TODO: We'll do verification of Ursula's signature here.  #141
         return cfrags
@@ -52,8 +52,8 @@ class RestMiddleware:
         response = requests.post(endpoint, data=map_payload, verify=certificate)
         return response
 
-    def send_work_order_payload_to_ursula(self, work_order, certificate_path):
-        certificate = load_tls_certificate(filepath=certificate_path)
+    def send_work_order_payload_to_ursula(self, work_order):
+        certificate = load_tls_certificate(filepath=work_order.ursula.certificate_path)
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
         endpoint = 'https://{}/kFrag/{}/reencrypt'.format(work_order.ursula.rest_url(), id_as_hex)

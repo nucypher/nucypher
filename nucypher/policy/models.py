@@ -182,7 +182,7 @@ class Policy:
 
     def publish(self, network_middleware) -> None:
         """Spread word of this Policy far and wide."""
-        self.publish_treasure_map(network_middleare=network_middleware)
+        return self.publish_treasure_map(network_middleare=network_middleware)
 
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 
@@ -224,7 +224,7 @@ class Policy:
 
         else:  # ...After *all* the policies are enacted
             if publish is True:
-                self.publish(network_middleware)
+                return self.publish(network_middleware)
 
     def consider_arrangement(self, network_middleware, ursula, arrangement):
 

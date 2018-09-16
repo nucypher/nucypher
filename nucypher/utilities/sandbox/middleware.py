@@ -1,6 +1,9 @@
+import os
+
 from apistar import TestClient
 
 from nucypher.characters.lawful import Ursula
+from nucypher.crypto.api import load_tls_certificate
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.sandbox.constants import TEST_KNOWN_URSULAS_CACHE
 
@@ -45,6 +48,9 @@ class MockRestMiddleware(RestMiddleware):
         mock_client = self._get_mock_client_by_ursula(work_order.ursula)
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
+
+        assert os.path.exists(work_order.ursula.certificate_filepath)
+
         return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(id_as_hex), payload)
 
     def get_treasure_map_from_node(self, node, map_id):

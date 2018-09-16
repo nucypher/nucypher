@@ -18,7 +18,7 @@ class VerifiableNode:
                  certificate_filepath: str = None,
                  ) -> None:
 
-        self.certificate = certificate_filepath
+        self.certificate_filepath = certificate_filepath
         self._interface_signature_object = interface_signature
 
     class InvalidNode(SuspiciousActivity):

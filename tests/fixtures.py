@@ -1,6 +1,8 @@
 import contextlib
 import datetime
 import os
+import pathlib
+import shutil
 import tempfile
 
 import maya
@@ -15,7 +17,7 @@ from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import TEST_CONTRACTS_DIR
+from nucypher.config.constants import TEST_CONTRACTS_DIR, BASE_DIR
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
@@ -27,6 +29,8 @@ from nucypher.utilities.sandbox.constants import (TEST_URSULA_STARTING_PORT,
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
+
+CERT_DIR_FOR_TEST_FIXTURES="{}/test-certs-delete-me".format(BASE_DIR)
 
 
 @pytest.fixture(scope="function")
@@ -85,7 +89,7 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
                                             deposit=deposit,
                                             expiration=contract_end_datetime,
                                             handpicked_ursulas=federated_ursulas)
-    idle_federated_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
+    responses = idle_federated_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
 
     return idle_federated_policy
 

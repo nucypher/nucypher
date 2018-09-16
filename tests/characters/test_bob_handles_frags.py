@@ -115,7 +115,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     bob.treasure_maps[map_id] = treasure_map
     d = bob.start_learning_loop()
 
-    bob.follow_treasure_map(map_id=map_id, block=True, timeout=1000)
+    bob.follow_treasure_map(map_id=map_id, block=True, timeout=1)
 
     assert len(bob.known_nodes) == len(federated_ursulas)
 
