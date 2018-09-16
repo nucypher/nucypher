@@ -170,15 +170,17 @@ def capsule_side_channel(enacted_federated_policy):
 
 @pytest.fixture(scope="module")
 def federated_ursulas():
-    _ursulas = make_federated_ursulas(quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
-
     try:
+        pathlib.Path(CERT_DIR_FOR_TEST_FIXTURES).mkdir(parents=True, exist_ok=True)
+        _ursulas = make_federated_ursulas(quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                          certificate_dir=CERT_DIR_FOR_TEST_FIXTURES)
         yield _ursulas
     finally:
         # Remove the DBs that have been sprayed hither and yon.
         with contextlib.suppress(FileNotFoundError):
             for port, ursula in enumerate(_ursulas, start=TEST_URSULA_STARTING_PORT):
                 os.remove("test-{}".format(port))
+        shutil.rmtree(CERT_DIR_FOR_TEST_FIXTURES)
 
 
 @pytest.fixture(scope="module")
