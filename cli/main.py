@@ -19,7 +19,6 @@ from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION, BASE_DIR
 from nucypher.config.node import DEFAULT_CONFIG_ROOT, NodeConfiguration
-from nucypher.config.utils import validate_nucypher_ini_config, collect_stored_nodes
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
 

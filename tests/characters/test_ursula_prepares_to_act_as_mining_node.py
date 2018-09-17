@@ -65,12 +65,6 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
 
     # Vladimir imitates Ursula - copying her public keys and interface info, but inserting his ether address.
     vladimir = Vladimir.from_target_ursula(his_target)
-        # Ursula(crypto_power=his_target._crypto_power,
-        #               rest_host=his_target.rest_information()[0].host,
-        #               rest_port=his_target.rest_information()[0].port,
-        #               checksum_address=Vladimir.ether_address,
-        #               interface_signature=his_target._interface_signature,
-        #               is_me=False)
 
     # Vladimir can substantiate the stamp using his own ether address...
     vladimir.substantiate_stamp()
@@ -91,16 +85,10 @@ def test_vladimir_uses_his_own_signing_key(alice, blockchain_ursulas):
     using his own signing key, which he claims is Ursula's.
     """
     his_target = list(blockchain_ursulas)[4]
-    vladimir_ether_address = '0xE57bFE9F44b819898F47BF37E5AF72a0783e1141'
 
     fraduluent_keys = CryptoPower(power_ups=Ursula._default_crypto_powerups)
 
-    vladimir = Ursula(crypto_power=fraduluent_keys,
-                      rest_host=his_target.rest_information()[0].host,
-                      rest_port=his_target.rest_information()[0].port,
-                      checksum_address=vladimir_ether_address,
-                      certificate=his_target.rest_server_certificate(),
-                      is_me=False)
+    vladimir = Vladimir.from_target_ursula(target_ursula=his_target)
 
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
