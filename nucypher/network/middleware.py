@@ -9,20 +9,18 @@ from umbral.fragments import CapsuleFrag
 class RestMiddleware:
 
     def consider_arrangement(self, arrangement, certificate_path):
-        certificate = load_tls_certificate(filepath=certificate_path)
         node = arrangement.ursula
         port = node.rest_interface.port
         address = node.rest_interface.host
-        response = requests.post("https://{}:{}/consider_arrangement".format(address, port), bytes(arrangement), verify=certificate)
+        response = requests.post("https://{}:{}/consider_arrangement".format(address, port), bytes(arrangement), verify=certificate_path)
         if not response.status_code == 200:
             raise RuntimeError("Bad response: {}".format(response.content))
         return response
 
     def enact_policy(self, ursula, id, payload, certificate_path):
-        certificate = load_tls_certificate(filepath=certificate_path)
         port = ursula.rest_interface.port
         address = ursula.rest_interface.host
-        response = requests.post('https://{}:{}/kFrag/{}'.format(address, port, id.hex()), payload, verify=certificate)
+        response = requests.post('https://{}:{}/kFrag/{}'.format(address, port, id.hex()), payload, verify=certificate_path)
         if not response.status_code == 200:
             raise RuntimeError("Bad response: {}".format(response.content))
         return True, ursula.stamp.as_umbral_pubkey()

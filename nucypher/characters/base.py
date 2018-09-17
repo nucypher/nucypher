@@ -304,8 +304,9 @@ class Character(Teacher):
 
     def __init__(self,
                  is_me: bool = True,
-                 config_root=DEFAULT_CONFIG_ROOT,
                  network_middleware: RestMiddleware = None,
+                 known_certificates_dir: str = None,
+                 known_metadata_dir: str = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
                  federated_only: bool = False,
@@ -337,8 +338,9 @@ class Character(Teacher):
 
         """
         super().__init__(*args, **kwargs)
-        self.config_root = config_root
         self.federated_only = federated_only                     # type: bool
+        self.known_certificates_dir = known_certificates_dir
+        self.known_metadata_dir = known_metadata_dir
 
         #
         # Power-ups and Powers
@@ -487,9 +489,12 @@ class Character(Teacher):
 
         unresponsive_nodes = set()
         try:
+
+            # FIXME
             response = self.network_middleware.get_nodes_via_rest(rest_url,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
-                                                                  announce_nodes=announce_nodes)
+                                                                  announce_nodes=announce_nodes,
+                                                                  certificate_path=current_teacher.certificate_filepath)
         except requests.exceptions.ConnectionError:
             unresponsive_nodes.add(current_teacher)
             teacher_rest_info = current_teacher.rest_information()[0]

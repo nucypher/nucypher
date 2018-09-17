@@ -117,17 +117,13 @@ def ecdsa_verify(
 def _save_tls_certificate(certificate: Certificate,
                           directory: str,
                           common_name: str = None,
-                          is_me: bool = False,
                           force: bool = True,
                           ) -> str:
 
-    if is_me is False and not common_name:
-        raise NucypherConfigurationError('A common name must be passed to save another node\'s certificate.')
-
-    certificate_filepath = os.path.join(directory, '{}.pem'.format(common_name[:6]))
+    certificate_filepath = os.path.join(directory, '{}.pem'.format(common_name[2:8]))
 
     if force is False and os.path.isfile(certificate_filepath):
-        raise NucypherConfigurationError('A TLS certificate already exists at {}.'.format(certificate_filepath))
+        raise FileExistsError('A TLS certificate already exists at {}.'.format(certificate_filepath))
 
     with open(certificate_filepath, 'wb') as certificate_file:
         public_pem_bytes = certificate.public_bytes(Encoding.PEM)
@@ -146,9 +142,10 @@ def load_tls_certificate(filepath):
 def generate_self_signed_certificate(common_name,
                                      curve,
                                      host,
+                                     certificate_dir,
                                      private_key=None,
                                      days_valid=365,
-                                     certificate_dir=None):
+                                     ):
 
     if not private_key:
         private_key = ec.generate_private_key(curve, default_backend())
@@ -169,10 +166,10 @@ def generate_self_signed_certificate(common_name,
     cert = cert.add_extension(x509.SubjectAlternativeName([x509.DNSName(host)]), critical=False)
     cert = cert.sign(private_key, hashes.SHA512(), default_backend())
 
-    if certificate_dir:
-        tls_certificate_filepath = _save_tls_certificate(cert, directory=certificate_dir, common_name=common_name)
-    else:
-        tls_certificate_filepath = constants.CERTIFICATE_NOT_SAVED
+    # if certificate_dir:
+    tls_certificate_filepath = _save_tls_certificate(cert, directory=certificate_dir, common_name=common_name)
+    # else:
+    #     tls_certificate_filepath = constants.CERTIFICATE_NOT_SAVED
 
     return cert, private_key, tls_certificate_filepath
 

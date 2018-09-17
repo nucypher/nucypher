@@ -405,7 +405,7 @@ class Ursula(Character, VerifiableNode, Miner):
                  rest_host,
                  rest_port,
                  certificate=None,
-                 certificate_dir=None,
+                 certificate_filepath: str = None,
                  db_name=None,
                  is_me=True,
                  interface_signature=None,
@@ -413,6 +413,7 @@ class Ursula(Character, VerifiableNode, Miner):
                  # Blockchain
                  miner_agent=None,
                  checksum_address: str = None,
+                 registry_filepath: str = None,
 
                  # Character
                  abort_on_learning_error: bool = False,
@@ -443,7 +444,8 @@ class Ursula(Character, VerifiableNode, Miner):
             Miner.__init__(self,
                            is_me=is_me,
                            miner_agent=miner_agent,
-                           checksum_address=checksum_address)
+                           checksum_address=checksum_address,
+                           registry_filepath=registry_filepath)
 
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
@@ -489,26 +491,34 @@ class Ursula(Character, VerifiableNode, Miner):
                     curve=tls_curve,
                     host=rest_host,
                     certificate=certificate,
-                    certificate_dir=certificate_dir)
+                    certificate_dir=self.known_certificates_dir)
+
                 tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                     keypair=tls_hosting_keypair)
+
             else:
                 # Unless the caller passed a crypto power, we'll make our own TLSHostingPower for this stranger.
                 rest_server = ProxyRESTServer(
                     rest_host=rest_host,
                     rest_port=rest_port,
                 )
-                if certificate:
-                    tls_hosting_power = TLSHostingPower(rest_server=rest_server, certificate=certificate)
+                if certificate or certificate_filepath:
+                    tls_hosting_power = TLSHostingPower(rest_server=rest_server,
+                                                        certificate_filepath=certificate_filepath,
+                                                        certificate=certificate)
                 else:
                     tls_hosting_keypair = HostingKeypair(
                         common_name=self.checksum_public_address,
                         curve=tls_curve,
                         host=rest_host,
-                        certificate_dir=certificate_dir)
+                        certificate_filepath=certificate_filepath,
+                        certificate_dir=self.known_certificates_dir)
+
                     tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                         keypair=tls_hosting_keypair)
+
             self._crypto_power.consume_power_up(tls_hosting_power)  # Make this work for not me for certificate to work
+
         else:
             self.log.info("Not adhering rest_server; we'll use the one on crypto_power..")
 

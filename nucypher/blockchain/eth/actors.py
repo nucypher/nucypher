@@ -45,7 +45,7 @@ class NucypherTokenActor:
             self.checksum_public_address = checksum_address
 
         if registry_filepath is not None:
-            EthereumContractRegistry.from_config(registry_filepath=registry_filepath)
+            EthereumContractRegistry(registry_filepath=registry_filepath)
 
         self.token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
         self._transaction_cache = list()  # track transactions transmitted
