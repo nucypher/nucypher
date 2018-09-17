@@ -7,8 +7,7 @@ import configparser
 from constant_sorrow import constants
 
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
-from nucypher.config.node import NodeConfiguration
-from nucypher.config.utils import validate_nucypher_ini_config
+from nucypher.config.utils import validate_configuration_file
 
 
 def parse_blockchain_config(config=None, filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
@@ -53,7 +52,7 @@ def parse_character_config(config=None, filepath: str=DEFAULT_CONFIG_FILE_LOCATI
         config = configparser.ConfigParser()
         config.read(filepath)
 
-    validate_nucypher_ini_config(filepath=filepath, config=config, raise_on_failure=True)
+    validate_configuration_file(filepath=filepath, config=config, raise_on_failure=True)
 
     operating_mode = config["nucypher"]["mode"]
     if operating_mode == "federated":
@@ -123,10 +122,10 @@ def parse_running_modes(filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
     return mode_payload
 
 
-def parse_nucypher_ini_config(filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
+def parse_configuration_file(filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
     """Top-level parser with sub-parser routing"""
 
-    validate_nucypher_ini_config(filepath=filepath, raise_on_failure=True)
+    validate_configuration_file(filepath=filepath, raise_on_failure=True)
 
     config = configparser.ConfigParser()
     config.read(filepath)

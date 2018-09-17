@@ -16,8 +16,7 @@ DEFAULT_CONFIG_ROOT = APP_DIR.user_data_dir
 DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, 'nucypher.ini')
 
 # Test Constants
-test_contract_dir = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
-TEST_CONTRACTS_DIR = test_contract_dir
+TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 
 NUMBER_OF_TEST_ETH_ACCOUNTS = 10
 NUMBER_OF_URSULAS_IN_FAKE_NETWORK = NUMBER_OF_TEST_ETH_ACCOUNTS
