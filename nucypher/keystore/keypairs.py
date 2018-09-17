@@ -13,7 +13,7 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
 
 from nucypher.crypto import api as API
-from nucypher.crypto.api import generate_self_signed_certificate, _save_tls_certificate, load_tls_certificate
+from nucypher.crypto.api import generate_self_signed_certificate, load_tls_certificate
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 
@@ -136,17 +136,15 @@ class HostingKeypair(Keypair):
                  certificate=None,
                  certificate_filepath: str = None,
                  certificate_dir=None,
-                 generate_keys_if_needed=True,
-                 ):
+                 generate_certificate=True,
+                 ) -> None:
 
         self.curve = curve or self._DEFAULT_CURVE
-        self.certificate_filepath = None
 
         if private_key:
             super().__init__(private_key=private_key)
 
         elif certificate:
-            self.certificate = certificate
             super().__init__(public_key=certificate.public_key())
 
         elif certificate_filepath:
