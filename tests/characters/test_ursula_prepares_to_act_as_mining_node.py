@@ -13,8 +13,9 @@ def test_federated_ursula_substantiates_stamp():
     assert False
 
 
-def test_new_federated_ursula_announces_herself():
-    ursula_in_a_house, ursula_with_a_mouse = make_federated_ursulas(quantity=2,
+def test_new_federated_ursula_announces_herself(ursula_federated_test_config):
+    ursula_in_a_house, ursula_with_a_mouse = make_federated_ursulas(ursula_config=ursula_federated_test_config,
+                                                                    quantity=2,
                                                                     know_each_other=False,
                                                                     network_middleware=MockRestMiddleware())
 

@@ -3,7 +3,7 @@ import pytest_twisted
 from twisted.internet import threads
 from umbral import pre
 from umbral.fragments import KFrag, CapsuleFrag
-from constant_sorrow import constants
+
 from nucypher.crypto.powers import EncryptingPower
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
