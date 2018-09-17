@@ -1,40 +1,30 @@
 import binascii
 import os
 import random
-import time
-from collections import OrderedDict, defaultdict
-from collections import deque
-from contextlib import suppress
+from collections import OrderedDict
 from functools import partial
-from logging import getLogger
-from typing import Iterable, Dict, Set, Union, ClassVar, Tuple
+from typing import Iterable
 from typing import List
 
 import maya
-import requests
+import time
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants, default_constant_splitter
+from constant_sorrow import constants
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate
-from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_checksum_address, to_canonical_address
-from twisted.internet import reactor
-from twisted.internet import task, threads
+from eth_utils import to_checksum_address
+from twisted.internet import threads
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
-from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import datetime_to_period
 from nucypher.characters.base import Character
 from nucypher.config.parsers import parse_character_config
-from nucypher.crypto.api import keccak_digest, encrypt_and_sign
+from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
-from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, DelegatingPower, NoSigningPower, \
-    BlockchainPower, CryptoPowerUp
-from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
+from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode

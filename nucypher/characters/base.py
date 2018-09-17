@@ -5,7 +5,7 @@ from collections import deque
 from contextlib import suppress
 from logging import Logger
 from logging import getLogger
-from typing import Dict, ClassVar, Set, DefaultDict
+from typing import Dict, ClassVar, Set
 from typing import Tuple
 from typing import Union, List
 
@@ -13,15 +13,14 @@ import maya
 import requests
 import time
 from constant_sorrow import constants, default_constant_splitter
-from cryptography.hazmat.backends import default_backend
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from twisted.internet import reactor
 from twisted.internet import task
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import MinerAgent
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, NoSigningPower, CryptoPowerUp
@@ -29,8 +28,6 @@ from nucypher.crypto.signing import signature_splitter, StrangerStamp, Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.server import TLSHostingPower
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 
 class Teacher(ABC):
