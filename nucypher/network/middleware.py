@@ -35,36 +35,32 @@ class RestMiddleware:
         return NotImplemented
 
     def get_treasure_map_from_node(self, node, map_id, certificate_path):
-        certificate = load_tls_certificate(filepath=certificate_path)
         port = node.rest_interface.port
         address = node.rest_interface.host
         endpoint = "https://{}:{}/treasure_map/{}".format(address, port, map_id)
-        response = requests.get(endpoint, verify=certificate)
+        response = requests.get(endpoint, verify=certificate_path)
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload, certificate_path):
-        certificate = load_tls_certificate(filepath=certificate_path)
         port = node.rest_interface.port
         address = node.rest_interface.host
         endpoint = "https://{}:{}/treasure_map/{}".format(address, port, map_id)
-        response = requests.post(endpoint, data=map_payload, verify=certificate)
+        response = requests.post(endpoint, data=map_payload, verify=certificate_path)
         return response
 
     def send_work_order_payload_to_ursula(self, work_order):
-        certificate = load_tls_certificate(filepath=work_order.ursula.certificate_path)
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
         endpoint = 'https://{}/kFrag/{}/reencrypt'.format(work_order.ursula.rest_url(), id_as_hex)
-        return requests.post(endpoint, payload, verify=certificate)
+        return requests.post(endpoint, payload, verify=work_order.ursula.certificate_path)
 
     def node_information(self, host, port, certificate_path):
-        certificate = load_tls_certificate(filepath=certificate_path)
         endpoint = "https://{}:{}/public_information".format(host, port)
-        return requests.get(endpoint, verify=certificate)
+        return requests.get(endpoint, verify=certificate_path)
 
     def get_nodes_via_rest(self,
                            url,
-                           certificate_path=None,
+                           certificate_path,
                            announce_nodes=None,
                            nodes_i_need=None):
         if nodes_i_need:
@@ -73,15 +69,12 @@ class RestMiddleware:
             # nodes matching these ids, then it will ask other nodes.
             pass
 
-
-        certificate = load_tls_certificate(filepath=certificate_path)
-
         if announce_nodes:
             payload = bytes().join(bytes(n) for n in announce_nodes)
             response = requests.post("https://{}/node_metadata".format(url),
-                                     verify=certificate,
+                                     verify=certificate_path,
                                      data=payload)
         else:
             response = requests.get("https://{}node_metadata".format(url),
-                                    verify=certificate)
+                                    verify=certificate_path)
         return response
