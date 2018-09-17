@@ -6,38 +6,32 @@ from eth_utils import to_checksum_address
 from twisted.internet import protocol
 
 from nucypher.characters.lawful import Ursula
-from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.api import secure_random
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEST_URSULA_STARTING_PORT,
                                                   TEST_KNOWN_URSULAS_CACHE)
 
 
-def make_federated_ursulas(config_root: str,
+def make_federated_ursulas(ursula_config,
                            quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                            know_each_other=True,
-                           **ursula_kwargs) -> Set[Ursula]:
+                           **ursula_overrides) -> Set[Ursula]:
 
     if not TEST_KNOWN_URSULAS_CACHE:
         starting_port = TEST_URSULA_STARTING_PORT
     else:
         starting_port = max(TEST_KNOWN_URSULAS_CACHE.keys()) + 1
 
-    temp_ursula_config = UrsulaConfiguration(temp=True,
-                                             config_root=config_root,
-                                             rest_host="localhost",
-                                             always_be_learning=False,
-                                             federated_only=True,
-                                             **ursula_kwargs)
-
     federated_ursulas = set()
     for port in range(starting_port, starting_port+quantity):
 
-        ursula = temp_ursula_config.produce(rest_port=port + 100,
-                                            db_name="test-{}".format(port),)
+        ursula = ursula_config.produce(rest_port=port + 100,
+                                       db_name="test-{}".format(port),
+                                       **ursula_overrides)
 
         federated_ursulas.add(ursula)
-        # Store this Ursula in our global cache.
+
+        # Store this Ursula in our global testing cache.
         port = ursula.rest_information()[0].port
         TEST_KNOWN_URSULAS_CACHE[port] = ursula
 
@@ -51,12 +45,11 @@ def make_federated_ursulas(config_root: str,
     return federated_ursulas
 
 
-def make_decentralized_ursulas(config_root: str,
+def make_decentralized_ursulas(ursula_config,
                                ether_addresses: list,
-                               miner_agent=None,
                                stake=False,
                                know_each_other=True,
-                               **ursula_kwargs) -> Set[Ursula]:
+                               **ursula_overrides) -> Set[Ursula]:
 
     if isinstance(ether_addresses, int):
         ether_addresses = [to_checksum_address(secure_random(20)) for _ in range(ether_addresses)]
@@ -66,22 +59,13 @@ def make_decentralized_ursulas(config_root: str,
     else:
         starting_port = max(TEST_KNOWN_URSULAS_CACHE.keys()) + 1
 
-    ursula_config = UrsulaConfiguration(temp=True,
-                                        config_root=config_root,
-                                        is_me=True,
-                                        rest_host="localhost",
-                                        always_be_learning=False,
-                                        miner_agent=miner_agent,
-                                        federated_only=False,
-                                        **ursula_kwargs)
-
     ursulas = set()
     for port, checksum_address in enumerate(ether_addresses, start=starting_port):
 
-        ursula = ursula_config.produce(is_me=True,
-                                       checksum_address=checksum_address,
+        ursula = ursula_config.produce(checksum_address=checksum_address,
                                        db_name="test-{}".format(port),
-                                       rest_port=port + 100)
+                                       rest_port=port + 100,
+                                       **ursula_overrides)
 
         if stake is True:
 
