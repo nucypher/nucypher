@@ -49,7 +49,7 @@ class MockRestMiddleware(RestMiddleware):
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
 
-        assert os.path.exists(work_order.ursula.certificate_filepath)
+        assert os.path.exists(work_order.ursula.certificate_filepath), 'TLS Certificate does not exist on the filesystem'
 
         return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(id_as_hex), payload)
 

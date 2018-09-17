@@ -1,4 +1,5 @@
 import random
+from tempfile import TemporaryDirectory
 from typing import Set
 
 from constant_sorrow import constants
@@ -6,13 +7,15 @@ from eth_utils import to_checksum_address
 from twisted.internet import protocol
 
 from nucypher.characters.lawful import Ursula
+from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.api import secure_random
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEST_URSULA_STARTING_PORT,
                                                   TEST_KNOWN_URSULAS_CACHE)
 
 
-def make_federated_ursulas(quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+def make_federated_ursulas(config_root: str,
+                           quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                            know_each_other=True,
                            **ursula_kwargs) -> Set[Ursula]:
 
@@ -21,22 +24,18 @@ def make_federated_ursulas(quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NET
     else:
         starting_port = max(TEST_KNOWN_URSULAS_CACHE.keys()) + 1
 
+    temp_ursula_config = UrsulaConfiguration(temp=True,
+                                             config_root=config_root,
+                                             rest_host="localhost",
+                                             always_be_learning=False,
+                                             federated_only=True,
+                                             **ursula_kwargs)
+
     federated_ursulas = set()
     for port in range(starting_port, starting_port+quantity):
 
-        ursula = Ursula(is_me=True,
-                        db_name="test-{}".format(port),
-                        rest_host="localhost",
-                        rest_port=port + 100,
-                        always_be_learning=False,
-                        federated_only=True,
-                        **ursula_kwargs)
-
-        class MockDatastoreThreadPool(object):
-            def callInThread(self, f, *args, **kwargs):
-                return f(*args, **kwargs)
-
-        ursula.datastore_threadpool = MockDatastoreThreadPool()
+        ursula = temp_ursula_config.produce(rest_port=port + 100,
+                                            db_name="test-{}".format(port),)
 
         federated_ursulas.add(ursula)
         # Store this Ursula in our global cache.
@@ -53,7 +52,8 @@ def make_federated_ursulas(quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NET
     return federated_ursulas
 
 
-def make_decentralized_ursulas(ether_addresses: list,
+def make_decentralized_ursulas(config_root: str,
+                               ether_addresses: list,
                                miner_agent=None,
                                stake=False,
                                know_each_other=True,
@@ -67,24 +67,22 @@ def make_decentralized_ursulas(ether_addresses: list,
     else:
         starting_port = max(TEST_KNOWN_URSULAS_CACHE.keys()) + 1
 
+    ursula_config = UrsulaConfiguration(temp=True,
+                                        config_root=config_root,
+                                        is_me=True,
+                                        rest_host="localhost",
+                                        always_be_learning=False,
+                                        miner_agent=miner_agent,
+                                        federated_only=False,
+                                        **ursula_kwargs)
+
     ursulas = set()
     for port, checksum_address in enumerate(ether_addresses, start=starting_port):
 
-        ursula = Ursula(is_me=True,
-                        checksum_address=checksum_address,
-                        db_name="test-{}".format(port),
-                        rest_host="localhost",
-                        rest_port=port + 100,
-                        always_be_learning=False,
-                        miner_agent=miner_agent,
-                        federated_only=False,
-                        **ursula_kwargs)
-
-        class MockDatastoreThreadPool(object):
-            def callInThread(self, f, *args, **kwargs):
-                return f(*args, **kwargs)
-
-        ursula.datastore_threadpool = MockDatastoreThreadPool()
+        ursula = ursula_config.produce(is_me=True,
+                                       checksum_address=checksum_address,
+                                       db_name="test-{}".format(port),
+                                       rest_port=port + 100)
 
         if stake is True:
 
