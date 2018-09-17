@@ -140,13 +140,11 @@ class HostingKeypair(Keypair):
                  ) -> None:
 
         self.curve = curve or self._DEFAULT_CURVE
-        self.certificate_filepath = None
 
         if private_key:
             super().__init__(private_key=private_key)
 
         elif certificate:
-            self.certificate = certificate
             super().__init__(public_key=certificate.public_key())
 
         elif certificate_filepath:
