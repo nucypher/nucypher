@@ -152,7 +152,7 @@ def configure(config, action, config_file, config_root, temp):
         click.echo("Created configuration files at {}".format(node_configuration.config_root))
 
     if action == "validate":
-        if validate_nucypher_ini_config(config_file):
+        if validate_configuration_file(config_file):
             click.echo('{} is Valid.'.format(config_file))
         else:
             click.echo('{} is Invalid.'.format(config_file))
@@ -722,7 +722,7 @@ def run_ursula(rest_port,
 
     ursula = Ursula(**ursula_params)  # 3. Initialize Ursula (includes overrides)
 
-    ursula.write_node_metadata(node_metadata_dir=node_dir)
+    ursula._save_node_metadata(node_metadata_dir=node_dir)
 
     ursula.start_learning_loop()      # 5. Enter learning loop
     ursula.get_deployer().run()       # 6. Run TLS Deployer
