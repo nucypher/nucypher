@@ -277,9 +277,15 @@ class TLSHostingPower(KeyPairBasedPower):
 
     not_found_error = NoHostingPower
 
-    def __init__(self, rest_server, certificate=None, *args, **kwargs):
+    def __init__(self,
+                 rest_server,
+                 certificate_filepath=None,
+                 certificate=None,
+                 *args, **kwargs) -> None:
+
         if certificate:
             kwargs['keypair'] = HostingKeypair(certificate=certificate)
+        elif certificate_filepath:
+            kwargs['keypair'] = HostingKeypair(certificate_filepath=certificate_filepath)
         self.rest_server = rest_server
         super().__init__(*args, **kwargs)
-

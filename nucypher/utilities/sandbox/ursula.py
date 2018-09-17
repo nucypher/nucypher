@@ -1,5 +1,4 @@
 import random
-from tempfile import TemporaryDirectory
 from typing import Set
 
 from constant_sorrow import constants

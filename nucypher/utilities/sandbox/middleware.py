@@ -62,7 +62,7 @@ class MockRestMiddleware(RestMiddleware):
         response = mock_client.get("http://localhost/public_information")
         return response
 
-    def get_nodes_via_rest(self, url, announce_nodes=None, nodes_i_need=None):
+    def get_nodes_via_rest(self, url, certificate_path, announce_nodes=None, nodes_i_need=None):
         mock_client = self._get_mock_client_by_url(url)
 
         if nodes_i_need:
