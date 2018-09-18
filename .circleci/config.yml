@@ -167,6 +167,10 @@ jobs:
       - attach_workspace:
           at: ~/.local/share/virtualenvs/
       - run:
+          name: Install lxml
+          command: |
+              pipenv run pip install lxml
+      - run:
           name: Run Mypy Static Type Checks
           command: |
               mkdir ./mypy_reports ./mypy_results
