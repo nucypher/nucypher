@@ -8,7 +8,7 @@ from nucypher.keystore.keypairs import SigningKeypair
 
 class DataSource:
 
-    def __init__(self, policy_pubkey_enc, signing_keypair=NO_SIGNING_POWER, label=None):
+    def __init__(self, policy_pubkey_enc, signing_keypair=NO_SIGNING_POWER, label=None) -> None:
         self.policy_pubkey = policy_pubkey_enc
         if signing_keypair is NO_SIGNING_POWER:
             signing_keypair = SigningKeypair()  # TODO: Generate signing key properly.  #241

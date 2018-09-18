@@ -27,7 +27,7 @@ class NoBlockchainPower(PowerUpError):
 
 
 class CryptoPower(object):
-    def __init__(self, power_ups=None):
+    def __init__(self, power_ups=None) -> None:
         self._power_ups = {}
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
         self.public_keys = {}
@@ -74,7 +74,7 @@ class BlockchainPower(CryptoPowerUp):
     """
     not_found_error = NoBlockchainPower
 
-    def __init__(self, blockchain: 'Blockchain', account: str):
+    def __init__(self, blockchain: 'Blockchain', account: str) -> None:
         """
         Instantiates a BlockchainPower for the given account id.
         """
@@ -196,7 +196,7 @@ class EncryptingPower(KeyPairBasedPower):
 
 class DelegatingPower(DerivedKeyBasedPower):
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.umbral_keying_material = UmbralKeyingMaterial()
 
     def generate_kfrags(self, bob_pubkey_enc, signer, label, m, n) -> Union[UmbralPublicKey, List]:

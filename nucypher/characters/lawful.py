@@ -680,7 +680,7 @@ class Character:
 class Alice(Character, PolicyAuthor):
     _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
 
-    def __init__(self, is_me=True, federated_only=False, network_middleware=None, *args, **kwargs):
+    def __init__(self, is_me=True, federated_only=False, network_middleware=None, *args, **kwargs) -> None:
 
         policy_agent = kwargs.pop("policy_agent", None)
         checksum_address = kwargs.pop("checksum_address", None)
@@ -787,7 +787,7 @@ class Alice(Character, PolicyAuthor):
 class Bob(Character):
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.

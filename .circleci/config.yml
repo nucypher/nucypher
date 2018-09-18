@@ -167,11 +167,15 @@ jobs:
       - attach_workspace:
           at: ~/.local/share/virtualenvs/
       - run:
+          name: Install lxml
+          command: |
+              pipenv run pip install lxml
+      - run:
           name: Run Mypy Static Type Checks
           command: |
               mkdir ./mypy_reports ./mypy_results
               export MYPYPATH=./nucypher
-              pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount --junit-xml ./mypy_results/results.xml || true
+              pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount --junit-xml ./mypy_results/results.xml
       - store_artifacts:
           path: ./mypy_reports
       - store_test_results:
