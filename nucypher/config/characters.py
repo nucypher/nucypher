@@ -14,7 +14,6 @@ class UrsulaConfiguration(NodeConfiguration):
     DEFAULT_TLS_CURVE = ec.SECP384R1
     DEFAULT_REST_HOST = 'localhost'
     DEFAULT_REST_PORT = 9151
-    DEFAULT_DB_NAME = "ursula.{port}.db".format(port=DEFAULT_REST_PORT)
 
     def __init__(self,
                  rest_host: str = DEFAULT_REST_HOST,
@@ -27,7 +26,7 @@ class UrsulaConfiguration(NodeConfiguration):
                  certificate_filepath: str = None,
 
                  # Ursula
-                 db_name: str = DEFAULT_DB_NAME,
+                 db_name: str = None,
                  interface_signature=None,
                  crypto_power=None,
 
@@ -57,7 +56,10 @@ class UrsulaConfiguration(NodeConfiguration):
         self.certificate_filepath = certificate_filepath
 
         # Ursula
+        if db_name is None:
+            db_name = "ursula.{port}.db".format(port=self.rest_port)
         self.db_name = db_name
+
         self.interface_signature = interface_signature
         self.crypto_power = crypto_power
 
@@ -124,6 +126,8 @@ class UrsulaConfiguration(NodeConfiguration):
 
     def load_known_nodes(self, known_metadata_dir=None) -> None:
 
+        if known_metadata_dir is None:
+            known_metadata_dir = self.known_metadata_dir
         glob_pattern = os.path.join(known_metadata_dir, 'node-*.data')
         metadata_paths = sorted(glob(glob_pattern), key=os.path.getctime)
 

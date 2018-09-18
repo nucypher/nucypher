@@ -663,16 +663,19 @@ class Ursula(Character, VerifiableNode, Miner):
     # Utilities
     #
 
-    def write_node_metadata(self, node_metadata_dir: str) -> str:
+    def write_node_metadata(self, node=None) -> str:
+
+        if node is None:
+            node = self
 
         try:
             filename = "node-metadata-{}".format(self.rest_information()[0].port)
         except AttributeError:
             raise AttributeError("{} does not have a rest_interface attached".format(self))
 
-        metadata_filepath = os.path.join(node_metadata_dir, filename)
+        metadata_filepath = os.path.join(self.known_metadata_dir, filename)
         with open(metadata_filepath, "w") as f:
-            f.write(bytes(self).hex())
+            f.write(bytes(node).hex())
 
         return metadata_filepath
 

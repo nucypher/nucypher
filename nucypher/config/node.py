@@ -1,6 +1,7 @@
 import contextlib
 import os
 from abc import abstractmethod
+from tempfile import TemporaryDirectory
 from typing import Iterable
 
 from itertools import islice
@@ -16,7 +17,7 @@ class NodeConfiguration:
     def __init__(self,
 
                  temp: bool = True,
-                 config_root: str = DEFAULT_CONFIG_ROOT,
+                 config_root: str = None,
                  config_file_location: str = DEFAULT_CONFIG_FILE_LOCATION,
 
                  checksum_address: str = None,
@@ -25,6 +26,7 @@ class NodeConfiguration:
                  network_middleware=None,
 
                  # Informant
+                 known_metadata_dir: str = None,
                  start_learning_on_same_thread: bool = True,
                  abort_on_learning_error: bool = False,
                  always_be_learning: bool = True,
@@ -34,6 +36,12 @@ class NodeConfiguration:
                  ) -> None:
 
         self.temp = temp
+        if self.temp and not config_root:
+            self.temp_dir = TemporaryDirectory(prefix='nucypher-tmp-config-')
+            config_root = self.temp_dir.name
+        elif not config_root:
+            config_root = DEFAULT_CONFIG_ROOT
+
         self.config_root = config_root
         self.config_file_location = config_file_location
 
@@ -41,7 +49,10 @@ class NodeConfiguration:
         self.keyring_dir = os.path.join(self.config_root, 'keyring')
         self.known_nodes_dir = os.path.join(self.config_root, 'known_nodes')
         self.known_certificates_dir = os.path.join(self.config_root, 'certificates')
-        self.known_metadata_dir = os.path.join(self.config_root, 'metadata')
+
+        if known_metadata_dir is None:
+            known_metadata_dir = os.path.join(self.config_root, 'metadata')
+        self.known_metadata_dir = known_metadata_dir
 
         self.checksum_address = checksum_address
         self.is_me = is_me

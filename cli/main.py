@@ -19,6 +19,7 @@ from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION, BASE_DIR
 from nucypher.config.node import DEFAULT_CONFIG_ROOT, NodeConfiguration
+from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
 
@@ -69,6 +70,7 @@ class NucypherClickConfig:
         # Blockchain connection contract agency
         self.accounts = constants.NO_BLOCKCHAIN_CONNECTION
         self.blockchain = constants.NO_BLOCKCHAIN_CONNECTION
+        self.registry_filepath = constants.NO_BLOCKCHAIN_CONNECTION
 
         self.token_agent = constants.NO_BLOCKCHAIN_CONNECTION
         self.miner_agent = constants.NO_BLOCKCHAIN_CONNECTION
@@ -78,7 +80,7 @@ class NucypherClickConfig:
         """Initialize all blockchain entities from parsed config values"""
 
         if self.node_config is constants.NO_NODE_CONFIGURATION:
-            raise RuntimeError("No node configuration is availible")
+            raise RuntimeError("No node configuration is available")
 
         self.blockchain = Blockchain.from_config(config=self.node_config)
         self.accounts = self.blockchain.interface.w3.eth.accounts
@@ -664,22 +666,22 @@ def status(config, provider, contracts, network):
 
 
 @cli.command()
+@click.option('--config-file', type=click.Path(), default=DEFAULT_CONFIG_FILE_LOCATION)
 @click.option('--federated-only', is_flag=True, default=False)
 @click.option('--dev', is_flag=True, default=False)
 @click.option('--rest-host', type=str, default='localhost')
 @click.option('--rest-port', type=int, default=UrsulaConfiguration.DEFAULT_REST_PORT)
-@click.option('--db-name', type=str, default=UrsulaConfiguration.DEFAULT_DB_NAME)
+@click.option('--db-name', type=str)
 @click.option('--checksum-address', type=str)
 @click.option('--teacher-uri', type=str)
-@click.option('--node-dir', type=click.Path(), default=DEFAULT_CONFIG_ROOT)
-@click.option('--config-file', type=click.Path(), default=DEFAULT_CONFIG_FILE_LOCATION)
+@click.option('--metadata-dir', type=click.Path())
 def run_ursula(rest_port,
                rest_host,
                db_name,
                teacher_uri,
                checksum_address,
                federated_only,
-               node_dir,
+               metadata_dir,
                config_file,
                dev) -> None:
     """
@@ -698,31 +700,28 @@ def run_ursula(rest_port,
 
     """
     if dev is True:
-        pass
+        temp = True
 
-    ursula_config = UrsulaConfiguration()
+    ursula_config = UrsulaConfiguration(temp=True,
+                                        federated_only=federated_only,
+                                        rest_host=rest_host,
+                                        rest_port=rest_port,
+                                        db_name=db_name,
+                                        checksum_address=checksum_address,
+                                        save_metadata=True,
+                                        known_metadata_dir=metadata_dir
+                                        )
 
-    other_nodes = collect_stored_nodes(known_metadata_dir=ursula_config.known_metadata_dir)              # 1. Collect known nodes
-
-    ursula_params = dict(federated_only=federated_only,
-                         known_nodes=other_nodes,
-                         rest_host=rest_host,
-                         rest_port=rest_port,
-                         db_name=db_name,
-                         checksum_address=checksum_address)
+    ursula_config.initialize_configuration()
+    ursula_config.load_known_nodes()
+    ursula = ursula_config.produce()
 
     if teacher_uri:
         host, port = teacher_uri.split(':')
-        teacher = Ursula(rest_host=host,
-                         rest_port=port,
-                         db_name='ursula-{}.db'.format(rest_port),
-                         federated_only=federated_only)
+        teacher = Ursula.from_rest_url(host=host, port=port, network_middleware=RestMiddleware())
+        ursula.remember_node(teacher)
 
-        ursula_params['known_nodes'] = (teacher, )
-
-    ursula = Ursula(**ursula_params)  # 3. Initialize Ursula (includes overrides)
-
-    ursula._save_node_metadata(node_metadata_dir=node_dir)
+    ursula.write_node_metadata()
 
     ursula.start_learning_loop()      # 5. Enter learning loop
     ursula.get_deployer().run()       # 6. Run TLS Deployer

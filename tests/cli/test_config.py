@@ -11,11 +11,11 @@ def test_temp_config():
     runner = CliRunner()
 
     result = runner.invoke(cli, ['configure', 'init', '--temp'], input='Y', catch_exceptions=False)
-    assert '/tmp/' in result.output
+    assert '/tmp/nucypher-tmp-config-' in result.output
     assert result.exit_code == 0
 
-    result = runner.invoke(cli, ['configure', 'destroy'], input='Y', catch_exceptions=False)
-    assert '/tmp/' in result.output
+    result = runner.invoke(cli, ['configure', 'destroy', '--temp'], input='Y', catch_exceptions=False)
+    assert '/tmp/nucypher-tmp-config-' in result.output
     assert result.exit_code == 0
 
 
