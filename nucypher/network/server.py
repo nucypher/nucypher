@@ -28,8 +28,12 @@ class ProxyRESTServer:
         self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
         if routes:
             self.rest_app = routes.rest_app
+            db_filepath = routes.db_filepath
         else:
             self.rest_app = constants.PUBLIC_ONLY
+            db_filepath = constants.NO_DATABASE_CONNECTION
+
+        self.db_filepath = db_filepath
 
     def rest_url(self):
         return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
@@ -40,7 +44,7 @@ class ProxyRESTRoutes:
 
     def __init__(self,
                  db_name,
-                 db_path,
+                 db_filepath,
                  network_middleware,
                  federated_only,
                  treasure_map_tracker,
@@ -92,14 +96,14 @@ class ProxyRESTRoutes:
 
         self.rest_app = App(routes=routes)
         self.db_name = db_name
-        self.db_path = db_path
+        self.db_filepath = db_filepath
 
         from nucypher.keystore import keystore
         from nucypher.keystore.db import Base
         from sqlalchemy.engine import create_engine
 
-        self.log.info("Starting datastore {}".format(self.db_path))
-        engine = create_engine('sqlite:///{}'.format(self.db_path))
+        self.log.info("Starting datastore {}".format(self.db_filepath))
+        engine = create_engine('sqlite:///{}'.format(self.db_filepath))
         Base.metadata.create_all(engine)
         self.datastore = keystore.KeyStore(engine)
         self.db_engine = engine
