@@ -231,8 +231,8 @@ def federated_ursulas(ursula_federated_test_config):
         if _ursulas:
             # Remove the DBs that have been sprayed hither and yon.
             with contextlib.suppress(FileNotFoundError):
-                for port, ursula in enumerate(_ursulas, start=TEST_URSULA_STARTING_PORT):
-                    os.remove("test-{}".format(port))
+                for ursula in _ursulas:
+                    os.remove(ursula.datastore.engine.engine.url.database)
 
 
 @pytest.fixture(scope="module")
@@ -258,8 +258,8 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
         if _ursulas:
             # Remove the DBs that have been sprayed hither and yon.
             with contextlib.suppress(FileNotFoundError):
-                for port, ursula in enumerate(_ursulas, start=TEST_URSULA_STARTING_PORT):
-                    os.remove("test-{}".format(port))
+                for ursula in _ursulas:
+                    os.remove(ursula.datastore.engine.engine.url.database)
 
 
 #
