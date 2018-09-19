@@ -16,12 +16,10 @@ from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
-from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION, BASE_DIR
-from nucypher.config.node import DEFAULT_CONFIG_ROOT, NodeConfiguration
+from nucypher.config.constants import BASE_DIR
+from nucypher.config.node import NodeConfiguration
 from nucypher.config.utils import validate_configuration_file
-from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
 
@@ -94,7 +92,7 @@ class NucypherClickConfig:
         """Initialize contract agency and set them on config"""
 
         if simulation is True:
-            self.blockchain.interface._registry._swap_registry(filepath=self.sim_registry_filepath)
+            self.blockchain.interface._registry._swap_registry(filepath=self.sim_registry_filepath)  # TODO: Public API for mirroring existing registry
 
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.miner_agent = MinerAgent(token_agent=self.token_agent)
@@ -129,8 +127,8 @@ def cli(config, verbose, version, config_file):
 @cli.command()
 @click.argument('action')
 @click.option('--temp', is_flag=True, default=False)
-@click.option('--config-file', help="Specify a custom .ini configuration filepath", default=DEFAULT_CONFIG_FILE_LOCATION)
-@click.option('--config-root', help="Specify a custom installation location", default=DEFAULT_CONFIG_ROOT)
+@click.option('--config-file', help="Specify a custom .ini configuration filepath")
+@click.option('--config-root', help="Specify a custom installation location")
 @uses_config
 def configure(config, action, config_file, config_root, temp):
     """Manage the nucypher .ini configuration file"""
@@ -156,10 +154,8 @@ def configure(config, action, config_file, config_root, temp):
         click.echo("Created configuration files at {}".format(node_configuration.config_root))
 
     if action == "validate":
-        if validate_configuration_file(config_file):
-            result = 'Valid'
-        else:
-            result = 'Invalid'
+        is_valid = validate_configuration_file(config_file)
+        result = 'Valid' if is_valid else 'Invalid'
         click.echo('{} is {}'.format(config_file, result))
 
     elif action == "init":
@@ -207,7 +203,7 @@ def accounts(config, action, address):
 @click.argument('action', default='list', required=False)
 @click.option('--address', help="Send rewarded tokens to a specific address, instead of the default.")
 @click.option('--value', help="Stake value in the smallest denomination")
-@click.option('--duration', help="Stake duration in periods")
+@click.option('--duration', help="Stake duration in periods")  # TODO: lock/unlock durations
 @click.option('--index', help="A specific stake index to resume")
 @uses_config
 def stake(config, action, address, index, value, duration):
@@ -430,7 +426,7 @@ def simulate(config, action, nodes, federated_only):
             token_agent = token_deployer.make_agent()
             click.echo("Deployed {}:{}".format(token_agent.contract_name, token_agent.contract_address))
 
-            miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=etherbase)
+            miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=etherbase)  # TODO: Deployer secrets
             miner_escrow_deployer.arm()
             miner_escrow_deployer.deploy()
             miner_agent = miner_escrow_deployer.make_agent()
@@ -454,7 +450,7 @@ def simulate(config, action, nodes, federated_only):
 
             # Commit the current state of deployment to a registry file.
             click.echo("Writing filesystem registry")
-            _sim_registry_name = config.blockchain.interface._registry.commit(filepath=DEFAULT_SIMULATION_REGISTRY_FILEPATH)
+            _sim_registry_name = config.blockchain.interface._registry.commit(filepath=DEFAULT_SIMULATION_REGISTRY_FILEPATH)  # TODO: Simulation config
 
             # Fin
             click.echo("Ready to simulate decentralized swarm.")
@@ -471,7 +467,7 @@ def simulate(config, action, nodes, federated_only):
         localhost = 'localhost'
 
         # Select a port range to use on localhost for sim servers
-        start_port, stop_port = DEFAULT_SIMULATION_PORT, DEFAULT_SIMULATION_PORT + int(nodes)
+        start_port, stop_port = DEFAULT_SIMULATION_PORT, DEFAULT_SIMULATION_PORT + int(nodes) # TODO: Simulation config
         port_range = range(start_port, stop_port)
         click.echo("Selected local ports {}-{}".format(start_port, stop_port))
 
@@ -738,8 +734,6 @@ def run_ursula(rest_port,
 
         # Know each other
         # ursula.remember_node(teacher)
-
-    # ursula.write_node_metadata()
 
     ursula.start_learning_loop()      # Enter learning loop
     ursula.get_deployer().run()       # Run TLS Deployer
