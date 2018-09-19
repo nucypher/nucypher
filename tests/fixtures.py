@@ -50,8 +50,9 @@ def temp_config_root():
     User is responsible for closing the file given at the path.
     """
     temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-tmp-config-')
-    default_node_config = NodeConfiguration(temp=True, config_root=temp_dir.name)
-    default_node_config.initialize_configuration()
+    default_node_config = NodeConfiguration(temp=True,
+                                            auto_initialize=True,
+                                            config_root=temp_dir.name)
     yield default_node_config.config_root
     temp_dir.cleanup()
 

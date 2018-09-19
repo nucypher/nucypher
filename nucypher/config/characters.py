@@ -68,18 +68,19 @@ class UrsulaConfiguration(NodeConfiguration):
         #
         self.miner_agent = miner_agent
         self.checksum_address = checksum_address
-
-        if registry_filepath is None:
-            registry_filepath = os.path.join(self.config_root, 'simulation_registry.json')
         self.registry_filepath = registry_filepath
 
     @classmethod
-    def from_config_file(cls, filepath=None, **overrides) -> 'UrsulaConfiguration':
+    def from_configuration_file(cls, filepath=None, **overrides) -> 'UrsulaConfiguration':
         from nucypher.config.parsers import parse_ursula_config
         filepath = filepath if filepath is None else DEFAULT_CONFIG_FILE_LOCATION
         payload = parse_ursula_config(filepath=filepath)
         instance = cls(**{**payload, **overrides})
         return instance
+
+    def generate_runtime_filepaths(self):
+        super().generate_runtime_filepaths()
+        self.registry_filepath = os.path.join(self.config_root, 'contract_registry.json')
 
     @property
     def payload(self) -> dict:
@@ -164,7 +165,7 @@ class AliceConfiguration(NodeConfiguration):
         return alice
 
     @classmethod
-    def from_config_file(cls, filepath=None) -> 'AliceConfiguration':
+    def from_configuration_file(cls, filepath=None) -> 'AliceConfiguration':
         from nucypher.config.parsers import parse_alice_config
         filepath = filepath if filepath is None else DEFAULT_CONFIG_FILE_LOCATION
         payload = parse_alice_config(filepath=filepath)
