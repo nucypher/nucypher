@@ -136,14 +136,14 @@ def configure(config, action, config_file, config_root, temp):
     """Manage the nucypher .ini configuration file"""
 
     if temp:
-        node_configuration = UrsulaConfiguration(temp=temp)
+        node_configuration = NodeConfiguration(temp=temp, auto_initialize=True)
     elif config_root:
-        node_configuration = UrsulaConfiguration(config_root=config_root)
-    elif config_file:
-        node_configuration = NodeConfiguration.from_config_file(filepath=config_file)
+        node_configuration = NodeConfiguration(config_root=config_root)
+    else:
         click.echo("Using configuration file at: {}".format(config_file))
+        node_configuration = NodeConfiguration.from_configuration_file(filepath=config_file)
 
-    click.echo("Using configuration root directory: {}".format(node_configuration.config_root))
+    click.echo("Using configuration directory: {}".format(node_configuration.config_root))
 
     def __destroy():
         click.confirm("Permanently destroy all nucypher configurations, known nodes, certificates and keys?", abort=True)
@@ -157,9 +157,10 @@ def configure(config, action, config_file, config_root, temp):
 
     if action == "validate":
         if validate_configuration_file(config_file):
-            click.echo('{} is Valid.'.format(config_file))
+            result = 'Valid'
         else:
-            click.echo('{} is Invalid.'.format(config_file))
+            result = 'Invalid'
+        click.echo('{} is {}'.format(config_file, result))
 
     elif action == "init":
         __initialize()
@@ -413,7 +414,7 @@ def simulate(config, action, nodes, federated_only):
             click.confirm("Deploy all nucypher contracts to blockchain?", abort=True)
             click.echo("Bootstrapping simulated blockchain network")
 
-            blockchain = TesterBlockchain.from_config()
+            blockchain = TesterBlockchain()
 
             # TODO: Enforce Saftey - ensure this is "fake" #
             conditions = ()
@@ -703,26 +704,23 @@ def run_ursula(rest_port,
     temp = True if dev else False
 
     if config_file:
-        ursula_config = UrsulaConfiguration.from_config_file(filepath=config_file)
+        ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file)
     else:
         ursula_config = UrsulaConfiguration(temp=temp,
+                                            auto_initialize=temp,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
                                             db_name=db_name,
                                             is_me=True,
                                             federated_only=federated_only,
                                             checksum_address=checksum_address,
-                                            network_middleware=RestMiddleware(),
                                             save_metadata=True,
                                             known_metadata_dir=metadata_dir)
 
     if dev:
-        ursula_config.initialize_configuration()
-        ursula_config.load_known_nodes()
+        ursula_config.load_known_nodes(known_metadata_dir=metadata_dir)
 
-    ursula_config.check_config_tree()
     ursula = ursula_config.produce()
-
     if teacher_uri:
 
         if 'http' not in teacher_uri:
@@ -730,11 +728,13 @@ def run_ursula(rest_port,
         url = urlparse(url=teacher_uri)
         host, port = url.hostname, url.port
 
-        teacher = Ursula(rest_host=host,
-                         rest_port=port,
-                         is_me=False,
-                         federated_only=federated_only,
-                         known_nodes=(ursula, ))
+        teacher_config = UrsulaConfiguration(temp=True,
+                                             rest_host=host,
+                                             rest_port=port,
+                                             is_me=False,
+                                             federated_only=federated_only,
+                                             known_nodes=(ursula, ))
+        teacher = teacher_config.produce()
 
         # Know each other
         # ursula.remember_node(teacher)
