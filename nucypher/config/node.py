@@ -45,7 +45,7 @@ class NodeConfiguration:
         self.config_root = config_root
         self.config_file_location = config_file_location
 
-        # Dynamically generate paths baed on configuration root directory
+        # Dynamically generate paths based on configuration root directory
         self.keyring_dir = os.path.join(self.config_root, 'keyring')
         self.known_nodes_dir = os.path.join(self.config_root, 'known_nodes')
         self.known_certificates_dir = os.path.join(self.config_root, 'certificates')
@@ -73,8 +73,8 @@ class NodeConfiguration:
             for line in islice(template_file, 12, None):
                 new_file.writelines(line.lstrip(';'))  # TODO Copy Default Sections, Perhaps interactively
 
-    def _check_config_tree(self, configuration_dir: str = None) -> bool:
-        path = configuration_dir if configuration_dir else DEFAULT_CONFIG_ROOT
+    def check_config_tree(self, configuration_dir: str = None) -> bool:
+        path = configuration_dir if configuration_dir else self.config_root
         if not os.path.exists(path):
             raise self.ConfigurationError(
                 'No Nucypher configuration directory found at {}.'.format(configuration_dir))
@@ -110,17 +110,16 @@ class NodeConfiguration:
         # Create Config Root
         #
 
-        if not self.temp:
-            if os.path.isdir(self.config_root):
-                message = "There are existing configuration files at {}".format(self.config_root)
-                raise self.ConfigurationError(message)
+        if os.path.isdir(self.config_root):
+            message = "There are existing configuration files at {}".format(self.config_root)
+            raise self.ConfigurationError(message)
 
-            try:
-                os.mkdir(self.config_root, mode=0o755)
-            except FileExistsError:
-                raise
-            except FileNotFoundError:
-                raise
+        try:
+            os.mkdir(self.config_root, mode=0o755)
+        except FileExistsError:
+            raise
+        except FileNotFoundError:
+            raise
 
         #
         # Create Config Subdirectories
@@ -131,7 +130,7 @@ class NodeConfiguration:
         os.mkdir(self.known_certificates_dir, mode=0o755)    # known_certs
         os.mkdir(self.known_metadata_dir, mode=0o755)        # known_metadata
 
-        self._check_config_tree(configuration_dir=self.config_root)
+        self.check_config_tree(configuration_dir=self.config_root)
 
         return self.config_root
 

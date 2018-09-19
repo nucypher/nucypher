@@ -6,6 +6,7 @@ import random
 import shutil
 import subprocess
 import sys
+from urllib.parse import urlparse
 
 import click
 from constant_sorrow import constants
@@ -19,8 +20,9 @@ from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION, BASE_DIR
 from nucypher.config.node import DEFAULT_CONFIG_ROOT, NodeConfiguration
+from nucypher.config.utils import validate_configuration_file
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
 
 __version__ = '0.1.0-alpha.0'
@@ -666,7 +668,7 @@ def status(config, provider, contracts, network):
 
 
 @cli.command()
-@click.option('--config-file', type=click.Path(), default=DEFAULT_CONFIG_FILE_LOCATION)
+@click.option('--config-file', type=click.Path())
 @click.option('--federated-only', is_flag=True, default=False)
 @click.option('--dev', is_flag=True, default=False)
 @click.option('--rest-host', type=str, default='localhost')
@@ -689,45 +691,61 @@ def run_ursula(rest_port,
     The following procedure is required to "spin-up" an Ursula node.
 
         1. Collect all known known from storages
-        2. Start the asyncio event loop
-        3. Initialize Ursula object
-        5. Enter the learning loop
-        6. Run TLS deployment
-        7. Start the staking daemon
+        2. Initialize Ursula object
+        3. Enter the learning loop
+        4. Run TLS deployment
+        5. Start the staking daemon
 
-    Configurable values are first read from the .ini configuration file,
+    Configurable values are first read from the configuration file,
     but can be overridden (mostly for testing purposes) with inline cli options.
 
     """
-    if dev is True:
-        temp = True
+    temp = True if dev else False
 
-    ursula_config = UrsulaConfiguration(temp=True,
-                                        federated_only=federated_only,
-                                        rest_host=rest_host,
-                                        rest_port=rest_port,
-                                        db_name=db_name,
-                                        checksum_address=checksum_address,
-                                        save_metadata=True,
-                                        known_metadata_dir=metadata_dir
-                                        )
+    if config_file:
+        ursula_config = UrsulaConfiguration.from_config_file(filepath=config_file)
+    else:
+        ursula_config = UrsulaConfiguration(temp=temp,
+                                            rest_host=rest_host,
+                                            rest_port=rest_port,
+                                            db_name=db_name,
+                                            is_me=True,
+                                            federated_only=federated_only,
+                                            checksum_address=checksum_address,
+                                            network_middleware=RestMiddleware(),
+                                            save_metadata=True,
+                                            known_metadata_dir=metadata_dir)
 
-    ursula_config.initialize_configuration()
-    ursula_config.load_known_nodes()
+    if dev:
+        ursula_config.initialize_configuration()
+        ursula_config.load_known_nodes()
+
+    ursula_config.check_config_tree()
     ursula = ursula_config.produce()
 
     if teacher_uri:
-        host, port = teacher_uri.split(':')
-        teacher = Ursula.from_rest_url(host=host, port=port, network_middleware=RestMiddleware())
-        ursula.remember_node(teacher)
 
-    ursula.write_node_metadata()
+        if 'http' not in teacher_uri:
+            teacher_uri = 'https://'+teacher_uri
+        url = urlparse(url=teacher_uri)
+        host, port = url.hostname, url.port
 
-    ursula.start_learning_loop()      # 5. Enter learning loop
-    ursula.get_deployer().run()       # 6. Run TLS Deployer
+        teacher = Ursula(rest_host=host,
+                         rest_port=port,
+                         is_me=False,
+                         federated_only=federated_only,
+                         known_nodes=(ursula, ))
+
+        # Know each other
+        # ursula.remember_node(teacher)
+
+    # ursula.write_node_metadata()
+
+    ursula.start_learning_loop()      # Enter learning loop
+    ursula.get_deployer().run()       # Run TLS Deployer
 
     if not federated_only:
-        ursula.stake()                # 7. start staking daemon
+        ursula.stake()                # Start staking daemon
 
 
 if __name__ == "__main__":

@@ -74,11 +74,11 @@ class UrsulaConfiguration(NodeConfiguration):
         self.registry_filepath = registry_filepath
 
     @classmethod
-    def from_config_file(cls, filepath=None) -> 'UrsulaConfiguration':
+    def from_config_file(cls, filepath=None, **overrides) -> 'UrsulaConfiguration':
         from nucypher.config.parsers import parse_ursula_config
         filepath = filepath if filepath is None else DEFAULT_CONFIG_FILE_LOCATION
         payload = parse_ursula_config(filepath=filepath)
-        instance = cls(**payload)
+        instance = cls(**{**payload, **overrides})
         return instance
 
     @property
