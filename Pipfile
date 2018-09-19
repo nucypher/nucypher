@@ -52,6 +52,7 @@ py-solc = "*"
 #eth-tester = "*"
 eth-tester = {git = "https://github.com/KPrasch/eth-tester.git", ref = "ef4bb2fa793af8aa964b83536b20f525aa74d4e4"}
 py-evm = ">=0.2.0a31"
+nucypher = {editable = true, path = "."}
 
 [pipenv]
 allow_prereleases = true

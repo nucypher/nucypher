@@ -14,20 +14,22 @@ def test_init():
 def test_deploy():
     runner = CliRunner()
     result = runner.invoke(cli, ['simulate', 'deploy'], catch_exceptions=False)
-
     assert result.exit_code == 0
 
 
 def test_swarm():
     runner = CliRunner()
     result = runner.invoke(cli, ['simulate', 'swarm'], catch_exceptions=False)
+    assert result.exit_code == 0
 
 
 def test_status():
     runner = CliRunner()
     result = runner.invoke(cli, ['simulate', 'status'], catch_exceptions=False)
+    assert result.exit_code == 0
 
 
 def test_stop():
     runner = CliRunner()
-    result = runner.invoke(cli, ['simulate', 'deploy'], catch_exceptions=False)
+    result = runner.invoke(cli, ['simulate', 'stop'], catch_exceptions=False)
+    assert result.exit_code == 0

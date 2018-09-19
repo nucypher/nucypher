@@ -3,7 +3,8 @@ from eth_keys.datatypes import Signature as EthSignature
 
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.powers import SigningPower, CryptoPower
-from nucypher.utilities.sandbox import MockRestMiddleware, make_ursulas
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 
 
 @pytest.mark.skip("To be implemented...?")
@@ -11,11 +12,10 @@ def test_federated_ursula_substantiates_stamp():
     assert False
 
 
-def test_new_ursula_announces_herself(testerchain):
-    origin, ursula_here, ursula_there, *some_people = testerchain.interface.w3.eth.accounts
-    ursula_in_a_house, ursula_with_a_mouse = make_ursulas(ether_addresses=[ursula_here, ursula_there],
-                                                          know_each_other=False,
-                                                          network_middleware=MockRestMiddleware())
+def test_new_federated_ursula_announces_herself():
+    ursula_in_a_house, ursula_with_a_mouse = make_federated_ursulas(quantity=2,
+                                                                    know_each_other=False,
+                                                                    network_middleware=MockRestMiddleware())
 
     # Neither Ursula knows about the other.
     assert ursula_in_a_house._known_nodes == ursula_with_a_mouse._known_nodes == {}
@@ -33,8 +33,8 @@ def test_new_ursula_announces_herself(testerchain):
     assert ursula_in_a_house in ursula_with_a_mouse._known_nodes.values()
 
 
-def test_blockchain_ursula_substantiates_stamp(mining_ursulas):
-    first_ursula = list(mining_ursulas)[0]
+def test_blockchain_ursula_substantiates_stamp(blockchain_ursulas):
+    first_ursula = list(blockchain_ursulas)[0]
     signature_as_bytes = first_ursula._evidence_of_decentralized_identity
     signature = EthSignature(signature_bytes=signature_as_bytes)
     proper_public_key_for_first_ursula = signature.recover_public_key_from_msg(bytes(first_ursula.stamp))
@@ -45,8 +45,8 @@ def test_blockchain_ursula_substantiates_stamp(mining_ursulas):
     assert first_ursula._stamp_has_valid_wallet_signature
 
 
-def test_blockchain_ursula_verifies_stamp(mining_ursulas):
-    first_ursula = list(mining_ursulas)[0]
+def test_blockchain_ursula_verifies_stamp(blockchain_ursulas):
+    first_ursula = list(blockchain_ursulas)[0]
 
     # This Ursula does not yet have a verified stamp
     assert not first_ursula.verified_stamp
@@ -56,8 +56,8 @@ def test_blockchain_ursula_verifies_stamp(mining_ursulas):
     assert first_ursula.verified_stamp
 
 
-def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(mining_ursulas):
-    his_target = list(mining_ursulas)[4]
+def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ursulas):
+    his_target = list(blockchain_ursulas)[4]
 
     # Vladimir has his own ether address; he hopes to publish it along with Ursula's details
     # so that Alice (or whomever) pays him instead of Ursula, even though Ursula is providing the service.
@@ -84,12 +84,12 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(mining_ursula
         vladimir.validate_metadata()
 
 
-def test_vladimir_uses_his_own_signing_key(alice, mining_ursulas):
+def test_vladimir_uses_his_own_signing_key(alice, blockchain_ursulas):
     """
     Similar to the attack above, but this time Vladimir makes his own interface signature
     using his own signing key, which he claims is Ursula's.
     """
-    his_target = list(mining_ursulas)[4]
+    his_target = list(blockchain_ursulas)[4]
     vladimir_ether_address = '0xE57bFE9F44b819898F47BF37E5AF72a0783e1141'
 
     fraduluent_keys = CryptoPower(power_ups=Ursula._default_crypto_powerups)

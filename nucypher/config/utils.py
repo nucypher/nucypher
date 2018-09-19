@@ -4,6 +4,7 @@ from glob import glob
 from os.path import abspath
 from typing import Union, Tuple
 
+from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.node import NodeConfiguration
 
 
@@ -46,7 +47,7 @@ def check_config_permissions() -> bool:
 
 
 def validate_nucypher_ini_config(config=None,
-                                 filepath: str = NodeConfiguration.DEFAULT_INI_FILEPATH,
+                                 filepath: str = DEFAULT_CONFIG_FILE_LOCATION,
                                  raise_on_failure: bool=False) -> Union[bool, Tuple[bool, tuple]]:
 
     if config is None:

@@ -28,6 +28,7 @@ from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import datetime_to_period
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 from nucypher.config.parsers import parse_alice_config, parse_character_config
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign
@@ -72,6 +73,7 @@ class Character:
 
     def __init__(self,
                  is_me: bool = True,
+                 config_root=DEFAULT_CONFIG_ROOT,
                  network_middleware: RestMiddleware = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
@@ -107,6 +109,7 @@ class Character:
 
         """
 
+        self.config_root = config_root
         known_nodes = known_nodes if known_nodes is not None else tuple()
         self.federated_only = federated_only                     # type: bool
         self._abort_on_learning_error = abort_on_learning_error  # type: bool
@@ -1038,25 +1041,25 @@ class Ursula(Character, VerifiableNode, Miner):
     def __init__(self,
 
                  # Ursula
-                 rest_host,
-                 rest_port,
-                 certificate=None,
-                 db_name=None,
-                 is_me=True,
+                 rest_host: str,
+                 rest_port: int,
+                 certificate: bytes = None,
+                 db_name: str = None,
+                 is_me: bool = True,
                  interface_signature=None,
 
                  # Blockchain
                  miner_agent=None,
-                 checksum_address=None,
+                 checksum_address: str=None,
 
                  # Character
-                 abort_on_learning_error=False,
-                 federated_only=False,
-                 always_be_learning=None,
+                 abort_on_learning_error: bool = False,
+                 federated_only: bool = False,
+                 always_be_learning: bool = None,
                  crypto_power=None,
                  tls_curve=None,
                  tls_private_key=None,  # Obviously config here. 361
-                 known_nodes=None,
+                 known_nodes: Iterable = None,
                  **character_kwargs
                  ) -> None:
 

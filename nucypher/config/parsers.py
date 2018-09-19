@@ -6,13 +6,12 @@ import configparser
 
 from constant_sorrow import constants
 
+from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.node import NodeConfiguration
 from nucypher.config.utils import validate_nucypher_ini_config
 
-DEFAULT_INI_FILEPATH = NodeConfiguration.DEFAULT_INI_FILEPATH
 
-
-def parse_blockchain_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict:
+def parse_blockchain_config(config=None, filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
     """Parse blockchain configuration data"""
 
     if config is None:
@@ -47,7 +46,7 @@ def parse_blockchain_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> 
     return blockchain_payload
 
 
-def parse_character_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict:
+def parse_character_config(config=None, filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
     """Parse non character-specific configuration data"""
 
     if config is None:
@@ -70,7 +69,7 @@ def parse_character_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> d
     return character_payload
 
 
-def parse_ursula_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict:
+def parse_ursula_config(config=None, filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
     """Parse Ursula-specific configuration data"""
 
     if config is None:
@@ -97,7 +96,7 @@ def parse_ursula_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict
     return character_payload
 
 
-def parse_alice_config(config=None, filepath=DEFAULT_INI_FILEPATH) -> dict:
+def parse_alice_config(config=None, filepath=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
 
     if config is None:
         config = configparser.ConfigParser()
@@ -112,7 +111,7 @@ def parse_alice_config(config=None, filepath=DEFAULT_INI_FILEPATH) -> dict:
     return character_payload
 
 
-def parse_running_modes(filepath: str=DEFAULT_INI_FILEPATH) -> dict:
+def parse_running_modes(filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
     """Parse high-level operating and control modes"""
 
     # validate_nucypher_ini_config(filepath=filepath, raise_on_failure=True)
@@ -127,7 +126,7 @@ def parse_running_modes(filepath: str=DEFAULT_INI_FILEPATH) -> dict:
     return mode_payload
 
 
-def parse_nucypher_ini_config(filepath: str=DEFAULT_INI_FILEPATH) -> dict:
+def parse_nucypher_ini_config(filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
     """Top-level parser with sub-parser routing"""
 
     validate_nucypher_ini_config(filepath=filepath, raise_on_failure=True)

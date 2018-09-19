@@ -6,6 +6,7 @@ from eth_utils import keccak
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair, HostingKeypair
 
@@ -87,11 +88,10 @@ class BlockchainPower(CryptoPowerUp):
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-        self.is_unlocked = self.blockchain.unlock_account(
-                self.account, password, duration=duration)
+        self.is_unlocked = self.blockchain.unlock_account(self.account, password, duration=duration)
 
         if not self.is_unlocked:
-            raise PowerUpError("Account failed to unlock for {}".format(self.account))
+            raise PowerUpError("Failed to unlock account {}".format(self.account))
 
     def sign_message(self, message: bytes):
         """

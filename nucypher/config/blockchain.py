@@ -1,3 +1,5 @@
+from nucypher.config.parsers import parse_blockchain_config
+
 
 class BlockchainConfiguration:
 
@@ -5,5 +7,5 @@ class BlockchainConfiguration:
         pass
 
     @classmethod
-    def from_ini_config(cls, filepath: str):
-        pass
+    def from_config_file(cls, filepath: str):
+        parse_blockchain_config(filepath=filepath)

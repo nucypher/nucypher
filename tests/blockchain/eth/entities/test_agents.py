@@ -2,16 +2,14 @@ import pytest
 
 from nucypher.blockchain.eth.agents import MinerAgent
 
-M = 10 ** 6  # FIXME: Make this the same value as mining coeff?
-
 
 @pytest.mark.slow()
-def test_get_swarm(three_agents, non_ursula_miners):
+def test_get_swarm(three_agents, blockchain_ursulas):
     token_agent, miner_agent, policy_agent = three_agents
 
     swarm = miner_agent.swarm()
     swarm_addresses = list(swarm)
-    assert len(swarm_addresses) == len(non_ursula_miners)
+    assert len(swarm_addresses) == len(blockchain_ursulas)
 
     # Grab a miner address from the swarm
     miner_addr = swarm_addresses[0]
@@ -25,7 +23,7 @@ def test_get_swarm(three_agents, non_ursula_miners):
 
 
 @pytest.mark.slow()
-@pytest.mark.usefixtures("non_ursula_miners")
+@pytest.mark.usefixtures("blockchain_ursulas")
 def test_sample_miners(testerchain, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     miners_population = miner_agent.get_miner_population()

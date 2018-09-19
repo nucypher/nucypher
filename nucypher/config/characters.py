@@ -1,16 +1,7 @@
 import os
-from os.path import abspath, dirname
 
-from appdirs import AppDirs
-
-import nucypher
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.node import NodeConfiguration
-
-APP_DIRS = AppDirs("nucypher", "NuCypher")
-DEFAULT_CONFIG_ROOT = APP_DIRS.user_data_dir
-
-BASE_DIR = abspath(dirname(dirname(nucypher.__file__)))
-PROJECT_ROOT = abspath(dirname(nucypher.__file__))
 
 
 class UrsulaConfiguration(NodeConfiguration):
@@ -51,7 +42,7 @@ class UrsulaConfiguration(NodeConfiguration):
     def from_config_file(cls, filepath=None) -> 'UrsulaConfiguration':
         from nucypher.config.parsers import parse_ursula_config
 
-        filepath = filepath if filepath is None else cls.DEFAULT_INI_FILEPATH
+        filepath = filepath if filepath is None else cls.DEFAULT_CONFIG_FILE_LOCATION
         payload = parse_ursula_config(filepath=filepath)
         instance = cls(**payload)
         return instance
@@ -63,20 +54,7 @@ class AliceConfiguration(NodeConfiguration):
     def from_config_file(cls, filepath=None) -> 'AliceConfiguration':
         from nucypher.config.parsers import parse_alice_config
 
-        filepath = filepath if filepath is None else cls.DEFAULT_INI_FILEPATH
+        filepath = filepath if filepath is None else cls.DEFAULT_CONFIG_FILE_LOCATION
         payload = parse_alice_config(filepath=filepath)
         instance = cls(**payload)
         return instance
-
-
-# TODO:
-# class BobConfiguration(NodeConfiguration):
-#
-#     @classmethod
-#     def from_config_file(cls, filepath=None) -> 'BobConfiguration':
-#         from nucypher.config.parsers import parse_bob_config
-#
-#         filepath = filepath if filepath is None else cls.DEFAULT_INI_FILEPATH
-#         payload = parse_bob_config(filepath=filepath)
-#         instance = cls(**payload)
-#         return instance

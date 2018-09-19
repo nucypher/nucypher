@@ -183,7 +183,7 @@ class MinerAgent(EthereumContractAgent):
     #
     # Contract Utilities
     #
-    def swarm(self) -> Union[Generator[str, None, None], Generator[Tuple[str, bytes], None, None]]:
+    def swarm(self) -> Union[Generator[str, None, None], Generator[str, None, None]]:
         """
         Returns an iterator of all miner addresses via cumulative sum, on-network.
 

@@ -75,6 +75,7 @@ class RestMiddleware:
             # nodes matching these ids, then it will ask other nodes via the DHT or whatever.
             pass
 
+
         certificate = load_tls_certificate(filepath=certificate_path)
 
         if announce_nodes:

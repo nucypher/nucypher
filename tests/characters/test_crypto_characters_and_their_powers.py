@@ -137,8 +137,8 @@ def test_anybody_can_encrypt():
     assert ciphertext is not None
 
 
-def test_node_deployer(ursulas):
-    for ursula in ursulas:
+def test_node_deployer(federated_ursulas):
+    for ursula in federated_ursulas:
         deployer = ursula.get_deployer()
         assert deployer.options['https_port'] == ursula.rest_information()[0].port
         assert deployer.application == ursula.rest_app
