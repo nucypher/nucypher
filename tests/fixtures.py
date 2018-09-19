@@ -73,6 +73,7 @@ def test_keystore():
 def ursula_federated_test_config(temp_config_root):
 
     ursula_config = UrsulaConfiguration(temp=True,
+                                        auto_initialize=True,
                                         is_me=True,
                                         config_root=temp_config_root,
                                         rest_host="localhost",
@@ -86,6 +87,7 @@ def ursula_decentralized_test_config(temp_config_root, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
 
     ursula_config = UrsulaConfiguration(temp=True,
+                                        auto_initialize=True,
                                         config_root=temp_config_root,
                                         is_me=True,
                                         rest_host="localhost",
@@ -100,6 +102,7 @@ def ursula_decentralized_test_config(temp_config_root, three_agents):
 def alice_federated_test_config(federated_ursulas, temp_config_root):
     config = AliceConfiguration(temp=True,
                                 is_me=True,
+                                auto_initialize=True,
                                 config_root=temp_config_root,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=federated_ursulas,
@@ -115,6 +118,7 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents, temp_config_r
 
     config = AliceConfiguration(temp=True,
                                 is_me=True,
+                                auto_initialize=True,
                                 config_root=temp_config_root,
                                 network_middleware=MockRestMiddleware(),
                                 policy_agent=policy_agent,
