@@ -32,29 +32,25 @@ from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decen
 # Temporary
 #
 
-
-@pytest.fixture(scope="function")
-def tempfile_path():
+@pytest.fixture(scope="session")
+def temp_dir_path():
     """
     User is responsible for closing the file given at the path.
     """
-    fd, path = tempfile.mkstemp()
-    yield path
-    os.close(fd)
-    os.remove(path)
+    temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-test-config-')
+    yield temp_dir.name
+    temp_dir.cleanup()
 
 
-@pytest.fixture(scope="module")
-def temp_config_root():
+@pytest.fixture(scope="session")
+def temp_config_root(temp_dir_path):
     """
     User is responsible for closing the file given at the path.
     """
-    temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-tmp-config-')
     default_node_config = NodeConfiguration(temp=True,
                                             auto_initialize=True,
-                                            config_root=temp_dir.name)
+                                            config_root=temp_dir_path)
     yield default_node_config.config_root
-    temp_dir.cleanup()
 
 
 @pytest.fixture(scope="module")

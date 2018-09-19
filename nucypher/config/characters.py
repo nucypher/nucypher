@@ -6,7 +6,7 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 
-from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.node import NodeConfiguration
 
@@ -34,7 +34,7 @@ class UrsulaConfiguration(NodeConfiguration):
                  crypto_power=None,
 
                  # Blockchain
-                 miner_agent: MinerAgent = None,
+                 miner_agent: EthereumContractAgent = None,
                  checksum_address: str = None,
                  registry_filepath: str = None,
 

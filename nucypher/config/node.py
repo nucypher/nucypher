@@ -126,10 +126,8 @@ class NodeConfiguration:
         if self.temp:
             self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
-            self.generate_runtime_filepaths()
 
         else:
-            self.generate_runtime_filepaths()
             try:
                 os.mkdir(self.config_root, mode=0o755)
             except FileExistsError:
@@ -143,6 +141,7 @@ class NodeConfiguration:
         # Create Config Subdirectories
         #
 
+        self.generate_runtime_filepaths()
         try:
             os.mkdir(self.keyring_dir, mode=0o700)               # keyring
             os.mkdir(self.known_nodes_dir, mode=0o755)           # known_nodes
