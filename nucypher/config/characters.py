@@ -2,9 +2,11 @@ import os
 from glob import glob
 from os.path import abspath
 
+from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 
+from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.node import NodeConfiguration
 
@@ -27,22 +29,23 @@ class UrsulaConfiguration(NodeConfiguration):
 
                  # Ursula
                  db_name: str = None,
+                 db_filepath: str = None,
                  interface_signature=None,
                  crypto_power=None,
 
                  # Blockchain
-                 miner_agent=None,
+                 miner_agent: MinerAgent = None,
                  checksum_address: str = None,
                  registry_filepath: str = None,
 
                  *args, **kwargs
                  ) -> None:
 
-        super().__init__(*args, **kwargs)
-
         # REST
         self.rest_host = rest_host
         self.rest_port = rest_port
+        self.db_name = db_name or "ursula.{port}.db".format(port=self.rest_port)
+        self.db_filepath = db_filepath or constants.UNINITIALIZED_CONFIGURATION
 
         #
         # TLS
@@ -52,14 +55,10 @@ class UrsulaConfiguration(NodeConfiguration):
         self.certificate: bytes = certificate
 
         # if certificate_filepath is None:
-        #     certificate_filepath = os.path.join(self.known_certificates_dir, 'ursula.pem')
+        #     certificate_filepath = certificate_filepath or os.path.join(self.known_certificates_dir, 'ursula.pem')
         self.certificate_filepath = certificate_filepath
 
         # Ursula
-        if db_name is None:
-            db_name = "ursula.{port}.db".format(port=self.rest_port)
-        self.db_name = db_name
-
         self.interface_signature = interface_signature
         self.crypto_power = crypto_power
 
@@ -68,7 +67,9 @@ class UrsulaConfiguration(NodeConfiguration):
         #
         self.miner_agent = miner_agent
         self.checksum_address = checksum_address
-        self.registry_filepath = registry_filepath
+        self.registry_filepath = registry_filepath or constants.UNINITIALIZED_CONFIGURATION
+
+        super().__init__(*args, **kwargs)
 
     @classmethod
     def from_configuration_file(cls, filepath=None, **overrides) -> 'UrsulaConfiguration':
@@ -80,6 +81,7 @@ class UrsulaConfiguration(NodeConfiguration):
 
     def generate_runtime_filepaths(self):
         super().generate_runtime_filepaths()
+        self.db_filepath = os.path.join(self.config_root, self.db_name)
         self.registry_filepath = os.path.join(self.config_root, 'contract_registry.json')
 
     @property
@@ -90,6 +92,8 @@ class UrsulaConfiguration(NodeConfiguration):
                  # REST
                  rest_host=self.rest_host,
                  rest_port=self.rest_port,
+                 db_name=self.db_name,
+                 db_filepath=self.db_filepath,
 
                  # TLS
                  tls_curve=self.tls_curve,
@@ -98,7 +102,6 @@ class UrsulaConfiguration(NodeConfiguration):
                  # certificate_filepath=self.certificate_filepath,  # TODO
 
                  # Ursula
-                 db_name=self.db_name,
                  interface_signature=self.interface_signature,
                  crypto_power=self.crypto_power,
 

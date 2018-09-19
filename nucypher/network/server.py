@@ -40,6 +40,7 @@ class ProxyRESTRoutes:
 
     def __init__(self,
                  db_name,
+                 db_path,
                  network_middleware,
                  federated_only,
                  treasure_map_tracker,
@@ -90,16 +91,15 @@ class ProxyRESTRoutes:
         ]
 
         self.rest_app = App(routes=routes)
-
-        if not db_name:
-            raise TypeError("In order to start a datastore, you need to supply a db_name.")
+        self.db_name = db_name
+        self.db_path = db_path
 
         from nucypher.keystore import keystore
         from nucypher.keystore.db import Base
         from sqlalchemy.engine import create_engine
 
-        self.log.info("Starting datastore {}".format(db_name))
-        engine = create_engine('sqlite:///{}'.format(db_name))
+        self.log.info("Starting datastore {}".format(self.db_path))
+        engine = create_engine('sqlite:///{}'.format(self.db_path))
         Base.metadata.create_all(engine)
         self.datastore = keystore.KeyStore(engine)
         self.db_engine = engine

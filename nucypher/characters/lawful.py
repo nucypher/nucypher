@@ -397,6 +397,7 @@ class Ursula(Character, VerifiableNode, Miner):
                  certificate=None,
                  certificate_filepath: str = None,
                  db_name=None,
+                 db_filepath: str = None,
                  is_me=True,
                  interface_signature=None,
 
@@ -455,6 +456,7 @@ class Ursula(Character, VerifiableNode, Miner):
 
                 rest_routes = ProxyRESTRoutes(
                     db_name=db_name,
+                    db_path=db_filepath,
                     network_middleware=self.network_middleware,
                     federated_only=self.federated_only,
                     treasure_map_tracker=self.treasure_maps,

@@ -12,6 +12,8 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_CONFIG_FILE_L
 
 class NodeConfiguration:
 
+    TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-config-"
+
     class ConfigurationError(RuntimeError):
         pass
 
@@ -20,6 +22,7 @@ class NodeConfiguration:
                  temp: bool = True,
                  auto_initialize: bool = False,
                  config_root: str = None,
+
                  config_file_location: str = DEFAULT_CONFIG_FILE_LOCATION,
                  keyring_dir: str = None,
 
@@ -121,7 +124,7 @@ class NodeConfiguration:
         #
 
         if self.temp:
-            self.__temp_dir = TemporaryDirectory("nucypher-tmp-config-")
+            self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
             self.generate_runtime_filepaths()
 
