@@ -559,9 +559,9 @@ class Ursula(Character, VerifiableNode, Miner):
     #
 
     @classmethod
-    def from_config(cls, config) -> 'Ursula':  # TODO
-        instance = cls()  # Holy shit, that's a cool winnebago.  My uncle used to have one just like it.
-        return instance
+    def from_config(cls, ursula_configuration, **overrides) -> 'Ursula':
+        ursula = ursula_configuration.produce(**overrides)
+        return ursula
 
     @classmethod
     def from_rest_url(cls,
