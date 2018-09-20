@@ -30,8 +30,13 @@ from nucypher.network.nodes import VerifiableNode
 from nucypher.network.server import TLSHostingPower
 
 
-class Teacher(ABC):
-    """Knowing and learning about nodes"""
+class Learner(ABC):
+    """
+    Any participant in the "learning loop" - a class inheriting from
+    this one has the ability, synchronously or asynchronously,
+    to learn about nodes in the network, verify some essential
+    details about them, and store information about them for later use.
+    """
 
     _SHORT_LEARNING_DELAY = 5
     _LONG_LEARNING_DELAY = 90
@@ -277,7 +282,7 @@ class Teacher(ABC):
         raise NotImplementedError
 
 
-class Character(Teacher):
+class Character(Learner):
     """
     A base-class for any character in our cryptography protocol narrative.
     """
