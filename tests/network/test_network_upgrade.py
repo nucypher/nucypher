@@ -1,6 +1,6 @@
 import os
-import shutil
 
+import pytest
 import pytest_twisted
 import requests
 from cryptography.hazmat.primitives import serialization
@@ -45,5 +45,8 @@ def test_federated_nodes_connect_via_tls_and_verify(ursula_federated_test_config
         yield threads.deferToThread(check_node_with_cert, node, "test-cert")
     finally:
         os.remove("test-cert")
-#
-# def test_node_metadata_contains_proper_cert():
+
+
+@pytest.mark.skip(reason="To be implemented")
+def test_node_metadata_contains_proper_cert():
+    pass
