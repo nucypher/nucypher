@@ -5,10 +5,12 @@ from os.path import abspath
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
+from cryptography.x509 import Certificate
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.node import NodeConfiguration
+from nucypher.crypto.powers import CryptoPower
 
 
 class UrsulaConfiguration(NodeConfiguration):
