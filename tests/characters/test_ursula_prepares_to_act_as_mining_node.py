@@ -64,18 +64,25 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
     # Vladimir has his own ether address; he hopes to publish it along with Ursula's details
     # so that Alice (or whomever) pays him instead of Ursula, even though Ursula is providing the service.
 
-    # Vladimir imitates Ursula - copying her public keys and interface info, but inserting his ether address.
-    vladimir = Vladimir.from_target_ursula(his_target)
+    # He finds a target and verifies that its interface is valid.
+    assert his_target.interface_is_valid()
+
+    # Now Vladimir imitates Ursula - copying her public keys and interface info, but inserting his ether address.
+    vladimir = Vladimir.from_target_ursula(his_target, claim_signing_key=True)
 
     # Vladimir can substantiate the stamp using his own ether address...
     vladimir.substantiate_stamp()
     vladimir.stamp_is_valid()
 
-    # ...however, the signature for the interface info isn't valid.
+    # Now, even though his public signing key matches Ursulas...
+    assert vladimir.stamp == his_target.stamp
+
+    # ...he is unable to pretend that his interface is valid
+    # because the interface validity check contains the canonical public address as part of its message.
     with pytest.raises(vladimir.InvalidNode):
         vladimir.interface_is_valid()
 
-    # Consequently, the metadata isn't valid.
+    # Consequently, the metadata as a whole is also invalid.
     with pytest.raises(vladimir.InvalidNode):
         vladimir.validate_metadata()
 

@@ -55,7 +55,10 @@ class VerifiableNode:
             raise self.InvalidNode
 
     def interface_is_valid(self):
-        message = self._signable_interface_info_message()
+        """
+        Checks that the interface info is valid for this node's canonical address.
+        """
+        message = self._signable_interface_info_message()  # Contains canonical address.
         interface_is_valid = self._interface_signature.verify(message, self.public_keys(SigningPower))
         self.verified_interface = interface_is_valid
         if interface_is_valid:
