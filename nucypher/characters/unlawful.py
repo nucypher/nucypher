@@ -1,7 +1,7 @@
 from eth_tester.exceptions import ValidationError
 
 from nucypher.characters.lawful import Ursula
-from nucypher.crypto.powers import CryptoPower
+from nucypher.crypto.powers import CryptoPower, SigningPower
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import EvilMiddleWare
 
@@ -16,12 +16,18 @@ class Vladimir(Ursula):
     fraud_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
 
     @classmethod
-    def from_target_ursula(cls, target_ursula):
+    def from_target_ursula(cls, target_ursula, claim_signing_key=False):
         """
         Sometimes Vladimir seeks to attack or imitate a *specific* target Ursula.
-        """
 
-        vladimir = cls(crypto_power=CryptoPower(power_ups=Ursula._default_crypto_powerups),
+        TODO: This is probably a more instructive method if it takes a bytes representation instead of the entire Ursula.
+        """
+        crypto_power = CryptoPower(power_ups=Ursula._default_crypto_powerups)
+
+        if claim_signing_key:
+            crypto_power.consume_power_up(SigningPower(pubkey=target_ursula.stamp.as_umbral_pubkey()))
+
+        vladimir = cls(crypto_power=crypto_power,
                        rest_host=target_ursula.rest_information()[0].host,
                        rest_port=target_ursula.rest_information()[0].port,
                        checksum_address=cls.fraud_address,
