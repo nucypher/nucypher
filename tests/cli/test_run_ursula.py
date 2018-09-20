@@ -7,7 +7,7 @@ from twisted.internet import threads
 from twisted.internet.error import CannotListenError
 
 from cli.main import cli
-from nucypher.characters.base import Teacher
+from nucypher.characters.base import Learner
 from nucypher.config.characters import UrsulaConfiguration
 
 
@@ -24,7 +24,7 @@ def test_run_lone_federated_default_ursula():
     result = yield threads.deferToThread(runner.invoke(cli, args, catch_exceptions=False))
     # result = runner.invoke(cli, args, catch_exceptions=False)      # TODO: Handle second call to reactor.run
     alone = "WARNING - Can't learn right now: Need some nodes to start learning from."
-    time.sleep(Teacher._SHORT_LEARNING_DELAY)
+    time.sleep(Learner._SHORT_LEARNING_DELAY)
     assert alone in result.output
     assert result.exit_code == 0
 
