@@ -368,7 +368,8 @@ class Bob(Character):
 
 
 class Ursula(Character, VerifiableNode, Miner):
-    _internal_splitter = BytestringSplitter(Signature,
+    _internal_splitter = BytestringSplitter((int, 4, {'byteorder': 'big'}),
+                                            Signature,
                                             VariableLengthBytestring,
                                             (UmbralPublicKey, PUBLIC_KEY_LENGTH),
                                             (UmbralPublicKey, PUBLIC_KEY_LENGTH),
