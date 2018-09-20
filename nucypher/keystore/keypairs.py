@@ -13,7 +13,7 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
 
 from nucypher.crypto import api as API
-from nucypher.crypto.api import generate_self_signed_certificate, _save_tls_certificate
+from nucypher.crypto.api import generate_self_signed_certificate, load_tls_certificate
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 
@@ -132,10 +132,11 @@ class HostingKeypair(Keypair):
                  common_name=None,
                  host=None,
                  private_key: Union[UmbralPrivateKey, UmbralPublicKey] = None,
-                 certificate=None,
                  curve=None,
-                 generate_keys_if_needed=True,
-                 save_cert_to_disk=False
+                 certificate=None,
+                 certificate_filepath: str = None,
+                 certificate_dir=None,
+                 generate_certificate=True,
                  ) -> None:
 
         self.curve = curve or self._DEFAULT_CURVE
@@ -144,31 +145,36 @@ class HostingKeypair(Keypair):
             super().__init__(private_key=private_key)
 
         elif certificate:
-            if save_cert_to_disk:
-                self.certificate_filepath = _save_tls_certificate(certificate,
-                                                                  common_name=common_name,
-                                                                  is_me=False,
-                                                                  force=False)
-            self.certificate = certificate
             super().__init__(public_key=certificate.public_key())
 
-        elif generate_keys_if_needed:
+        elif certificate_filepath:
+            certificate = load_tls_certificate(filepath=certificate_filepath)
+
+        elif generate_certificate:
+
             if not all((common_name, host)):
                 message = "If you don't supply the certificate, one will be generated for you." \
                           "But for that, you need to pass both host and common_name.."
                 raise TypeError(message)
-            self.certificate, private_key, self.tls_certificate_filepath = generate_self_signed_certificate(common_name=common_name,
-                                                                                                            private_key=private_key,
-                                                                                                            curve=self.curve,
-                                                                                                            host=host,
-                                                                                                            save_to_disk=save_cert_to_disk)
+
+            certificate, private_key, certificate_filepath = generate_self_signed_certificate(common_name=common_name,
+                                                                                              private_key=private_key,
+                                                                                              curve=self.curve,
+                                                                                              host=host,
+                                                                                              certificate_dir=certificate_dir)
+
             super().__init__(private_key=private_key)
         else:
             raise TypeError("You didn't provide a cert, but also told us not to generate keys.  Not sure what to do.")
 
+        self.certificate = certificate
+        self.certificate_filepath = certificate_filepath
+        self.certificate_dir = certificate_dir
+
     def generate_self_signed_cert(self, common_name):
         cryptography_key = self._privkey.to_cryptography_privkey()
-        return generate_self_signed_certificate(common_name, default_curve(), cryptography_key)
+        return generate_self_signed_certificate(common_name, default_curve(),
+                                                cryptography_key, certificate_dir=self.certificate_dir)
 
     def get_deployer(self, rest_app, port):
         return HendrixDeployTLS("start",

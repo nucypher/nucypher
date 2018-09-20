@@ -1,10 +1,9 @@
-import os
-
 from click.testing import CliRunner
+
 from cli.main import cli
 
 
-def test_help():
+def test_help_message():
     runner = CliRunner()
     result = runner.invoke(cli, ['--help'], catch_exceptions=False)
 

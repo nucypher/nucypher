@@ -1,3 +1,5 @@
+import os
+
 from apistar import TestClient
 
 from nucypher.characters.lawful import Ursula
@@ -45,6 +47,8 @@ class MockRestMiddleware(RestMiddleware):
         mock_client = self._get_mock_client_by_ursula(work_order.ursula)
         payload = work_order.payload()
         id_as_hex = work_order.arrangement_id.hex()
+
+        assert os.path.exists(work_order.ursula.certificate_filepath), 'TLS Certificate does not exist on the filesystem'
         return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(id_as_hex), payload)
 
     def get_treasure_map_from_node(self, node, map_id):
@@ -56,13 +60,14 @@ class MockRestMiddleware(RestMiddleware):
         response = mock_client.get("http://localhost/public_information")
         return response
 
-    def get_nodes_via_rest(self, url, announce_nodes=None, nodes_i_need=None):
+    def get_nodes_via_rest(self, url, certificate_path, announce_nodes=None, nodes_i_need=None):
+
         mock_client = self._get_mock_client_by_url(url)
 
         if nodes_i_need:
             # TODO: This needs to actually do something.
             # Include node_ids in the request; if the teacher node doesn't know about the
-            # nodes matching these ids, then it will ask other nodes via the DHT or whatever.
+            # nodes matching these ids, then it will ask other nodes.
             pass
 
         if announce_nodes:

@@ -127,7 +127,7 @@ class BlockchainPolicy(Policy):
 
             try:
                 # Check if this is a known node.
-                selected_ursula = self.alice._known_nodes[ether_address]
+                selected_ursula = self.alice.known_nodes[ether_address]
 
             except KeyError:
                 # Unknown Node

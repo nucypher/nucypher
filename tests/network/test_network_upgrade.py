@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import pytest_twisted
 import requests
@@ -21,8 +22,8 @@ def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy
 
 
 @pytest_twisted.inlineCallbacks
-def test_federated_nodes_connect_via_tls_and_verify():
-    node = make_federated_ursulas(quantity=1).pop()
+def test_federated_nodes_connect_via_tls_and_verify(ursula_federated_test_config):
+    node = make_federated_ursulas(ursula_config=ursula_federated_test_config, quantity=1).pop()
     node_deployer = node.get_deployer()
 
     node_deployer.addServices()
@@ -44,6 +45,5 @@ def test_federated_nodes_connect_via_tls_and_verify():
         yield threads.deferToThread(check_node_with_cert, node, "test-cert")
     finally:
         os.remove("test-cert")
-
 #
 # def test_node_metadata_contains_proper_cert():

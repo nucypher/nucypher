@@ -40,7 +40,7 @@ class Blockchain:
 
     @classmethod
     def from_config(cls, config: BlockchainConfiguration) -> 'Blockchain':
-        pass
+        pass  # TODO: BlockchainConfiguration?
 
     @classmethod
     def from_config_file(cls, filepath: str):

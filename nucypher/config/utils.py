@@ -1,25 +1,9 @@
 import configparser
 import os
-from glob import glob
-from os.path import abspath
 from typing import Union, Tuple
 
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.node import NodeConfiguration
-
-
-def collect_stored_nodes(known_metadata_dir=None) -> set:
-
-    nodes = set()
-    glob_pattern = os.path.join(known_metadata_dir, 'node-metadata-*')
-    metadata_paths = sorted(glob(glob_pattern), key=os.path.getctime)
-
-    for metadata_path in metadata_paths:
-        from nucypher.characters.lawful import Ursula
-        node = Ursula.from_metadata_file(filepath=abspath(metadata_path))
-        nodes.add(node)
-
-    return nodes
 
 
 def validate_passphrase(passphrase) -> bool:
@@ -31,7 +15,7 @@ def validate_passphrase(passphrase) -> bool:
 
     for rule, failure_message in rules:
         if not rule:
-            raise NodeConfiguration.NucypherConfigurationError(failure_message)
+            raise NodeConfiguration.ConfigurationError(failure_message)
     return True
 
 
@@ -46,9 +30,9 @@ def check_config_permissions() -> bool:
     return True
 
 
-def validate_nucypher_ini_config(config=None,
-                                 filepath: str = DEFAULT_CONFIG_FILE_LOCATION,
-                                 raise_on_failure: bool=False) -> Union[bool, Tuple[bool, tuple]]:
+def validate_configuration_file(config=None,
+                                filepath: str = DEFAULT_CONFIG_FILE_LOCATION,
+                                raise_on_failure: bool=False) -> Union[bool, Tuple[bool, tuple]]:
 
     if config is None:
         config = configparser.ConfigParser()
@@ -56,7 +40,7 @@ def validate_nucypher_ini_config(config=None,
 
     if not config.sections():
 
-        raise NodeConfiguration.NucypherConfigurationError("Empty configuration file")
+        raise NodeConfiguration.ConfigurationError("Empty configuration file")
 
     required_sections = ("nucypher", "blockchain")
 
@@ -65,19 +49,19 @@ def validate_nucypher_ini_config(config=None,
     try:
         operating_mode = config["nucypher"]["mode"]
     except KeyError:
-        raise NodeConfiguration.NucypherConfigurationError("No operating mode configured")
+        raise NodeConfiguration.ConfigurationError("No operating mode configured")
     else:
         modes = ('federated', 'testing', 'decentralized', 'centralized')
         if operating_mode not in modes:
             missing_sections.append("mode")
             if raise_on_failure is True:
-                raise NodeConfiguration.NucypherConfigurationError("Invalid nucypher operating mode '{}'. Specify {}".format(operating_mode, modes))
+                raise NodeConfiguration.ConfigurationError("Invalid nucypher operating mode '{}'. Specify {}".format(operating_mode, modes))
 
     for section in required_sections:
         if section not in config.sections():
             missing_sections.append(section)
             if raise_on_failure is True:
-                raise NodeConfiguration.NucypherConfigurationError("Invalid config file: missing section '{}'".format(section))
+                raise NodeConfiguration.ConfigurationError("Invalid config file: missing section '{}'".format(section))
 
     if len(missing_sections) > 0:
         result = False, tuple(missing_sections)

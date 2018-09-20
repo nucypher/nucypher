@@ -3,8 +3,9 @@ import pytest_twisted
 from twisted.internet import threads
 from umbral import pre
 from umbral.fragments import KFrag, CapsuleFrag
-from constant_sorrow import constants
+
 from nucypher.crypto.powers import EncryptingPower
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_policy, bob):
@@ -14,7 +15,7 @@ def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_polic
     bob.treasure_maps[treasure_map.public_id()] = treasure_map
 
     # Bob knows of no Ursulas.
-    assert len(bob._known_nodes) == 0
+    assert len(bob.known_nodes) == 0
 
     # He can't successfully follow the TreasureMap until he learns of a node to ask.
     unknown, known = bob.peek_at_treasure_map(map_id=treasure_map.public_id())
@@ -28,7 +29,7 @@ def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_polic
 
 def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, federated_ursulas, bob, alice):
     # Bob knows of no Ursulas.
-    assert len(bob._known_nodes) == 0
+    assert len(bob.known_nodes) == 0
 
     # Now we'll inform Bob of some Ursulas.
     for ursula in federated_ursulas:
@@ -47,7 +48,6 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, f
 
 @pytest_twisted.inlineCallbacks
 def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_federated_policy,
-                                                                       bob,
                                                                        federated_ursulas):
     """
     Similar to above, but this time, we'll show that if Bob can connect to a single node, he can
@@ -55,6 +55,11 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
 
     Also, we'll get the TreasureMap from the hrac alone (ie, not via a side channel).
     """
+    from nucypher.characters.lawful import Bob
+    bob = Bob(network_middleware=MockRestMiddleware(),
+              always_be_learning=False,
+              abort_on_learning_error=True,
+              federated_only=True)
 
     # Again, let's assume that he received the TreasureMap via a side channel.
     hrac, treasure_map = enacted_federated_policy.hrac(), enacted_federated_policy.treasure_map
@@ -62,11 +67,10 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     bob.treasure_maps[map_id] = treasure_map
 
     # Now, let's create a scenario in which Bob knows of only one node.
-    bob._known_nodes = {}
-    assert len(bob._known_nodes) == 0
+    assert len(bob.known_nodes) == 0
     first_ursula = list(federated_ursulas).pop(0)
     bob.remember_node(first_ursula)
-    assert len(bob._known_nodes) == 1
+    assert len(bob.known_nodes) == 1
 
     # This time, when he follows the TreasureMap...
     unknown_nodes, known_nodes = bob.peek_at_treasure_map(map_id=map_id)
@@ -81,7 +85,7 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     assert not bob._learning_task.running
 
     # ...so he hasn't learned anything (ie, Bob still knows of just one node).
-    assert len(bob._known_nodes) == 1
+    assert len(bob.known_nodes) == 1
 
     # Now, we'll start his learning loop.
     bob.start_learning_loop()
@@ -91,7 +95,7 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     yield d
 
     # ...and he now has no more unknown_nodes.
-    assert len(bob._known_nodes) == len(treasure_map)
+    assert len(bob.known_nodes) == len(treasure_map)
 
 
 def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_policy, bob,
@@ -111,9 +115,9 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     bob.treasure_maps[map_id] = treasure_map
     d = bob.start_learning_loop()
 
-    bob.follow_treasure_map(map_id=map_id, block=True, timeout=1000)
+    bob.follow_treasure_map(map_id=map_id, block=True, timeout=1)
 
-    assert len(bob._known_nodes) == len(federated_ursulas)
+    assert len(bob.known_nodes) == len(federated_ursulas)
 
     the_hrac = enacted_federated_policy.hrac()
 

@@ -11,33 +11,50 @@ from sqlalchemy.engine import create_engine
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
-
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.characters.lawful import Alice, Bob
-from nucypher.config.characters import UrsulaConfiguration
+from nucypher.characters.lawful import Bob
+from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration
 from nucypher.config.constants import TEST_CONTRACTS_DIR
+from nucypher.config.node import NodeConfiguration
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
-
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
-from nucypher.utilities.sandbox.constants import (TEST_URSULA_STARTING_PORT,
-                                                  DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
 
 
+#
+# Temporary
+#
+
 @pytest.fixture(scope="function")
 def tempfile_path():
-    """
-    User is responsible for closing the file given at the path.
-    """
     fd, path = tempfile.mkstemp()
     yield path
     os.close(fd)
     os.remove(path)
+
+
+@pytest.fixture(scope="session")
+def temp_dir_path():
+    temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-test-')
+    yield temp_dir.name
+    temp_dir.cleanup()
+
+
+@pytest.fixture(scope="session")
+def temp_config_root(temp_dir_path):
+    """
+    User is responsible for closing the file given at the path.
+    """
+    default_node_config = NodeConfiguration(temp=True,
+                                            auto_initialize=True,
+                                            config_root=temp_dir_path)
+    yield default_node_config.config_root
 
 
 @pytest.fixture(scope="module")
@@ -52,10 +69,64 @@ def test_keystore():
 # Configuration
 #
 
-@pytest.fixture(scope="session")
-def temporary_ursula_config():
-    ursula_config = UrsulaConfiguration(temp=True)
+@pytest.fixture(scope="module")
+def ursula_federated_test_config(temp_config_root):
+
+    ursula_config = UrsulaConfiguration(temp=True,
+                                        auto_initialize=True,
+                                        is_me=True,
+                                        config_root=temp_config_root,
+                                        rest_host="localhost",
+                                        always_be_learning=False,
+                                        federated_only=True)
     yield ursula_config
+
+
+@pytest.fixture(scope="module")
+def ursula_decentralized_test_config(temp_config_root, three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+
+    ursula_config = UrsulaConfiguration(temp=True,
+                                        auto_initialize=True,
+                                        config_root=temp_config_root,
+                                        is_me=True,
+                                        rest_host="localhost",
+                                        always_be_learning=False,
+                                        miner_agent=miner_agent,
+                                        federated_only=False)
+
+    yield ursula_config
+
+
+@pytest.fixture(scope="module")
+def alice_federated_test_config(federated_ursulas, temp_config_root):
+    config = AliceConfiguration(temp=True,
+                                is_me=True,
+                                auto_initialize=True,
+                                config_root=temp_config_root,
+                                network_middleware=MockRestMiddleware(),
+                                known_nodes=federated_ursulas,
+                                federated_only=True,
+                                abort_on_learning_error=True)
+    yield config
+
+
+@pytest.fixture(scope="module")
+def alice_blockchain_test_config(blockchain_ursulas, three_agents, temp_config_root):
+    token_agent, miner_agent, policy_agent = three_agents
+    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
+
+    config = AliceConfiguration(temp=True,
+                                is_me=True,
+                                auto_initialize=True,
+                                config_root=temp_config_root,
+                                network_middleware=MockRestMiddleware(),
+                                policy_agent=policy_agent,
+                                known_nodes=blockchain_ursulas,
+                                abort_on_learning_error=True,
+                                checksum_address=alice_address)
+
+    yield config
 
 
 #
@@ -85,7 +156,8 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
                                             deposit=deposit,
                                             expiration=contract_end_datetime,
                                             handpicked_ursulas=federated_ursulas)
-    idle_federated_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
+
+    responses = idle_federated_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
 
     return idle_federated_policy
 
@@ -119,26 +191,14 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
 #
 
 @pytest.fixture(scope="module")
-def alice(federated_ursulas):
-    alice = Alice(network_middleware=MockRestMiddleware(),
-                  known_nodes=federated_ursulas,
-                  federated_only=True,
-                  abort_on_learning_error=True)
+def alice(alice_federated_test_config):
+    alice = alice_federated_test_config.produce()
     return alice
 
 
 @pytest.fixture(scope="module")
-def blockchain_alice(blockchain_ursulas, three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
-    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
-
-    alice = Alice(network_middleware=MockRestMiddleware(),
-                  policy_agent=policy_agent,
-                  known_nodes=blockchain_ursulas,
-                  abort_on_learning_error=True,
-                  checksum_address=alice_address)
-    # alice.recruit = lambda *args, **kwargs: [u._ether_address for u in ursulas]
-
+def blockchain_alice(alice_blockchain_test_config):
+    alice = alice_blockchain_test_config.produce()
     return alice
 
 
@@ -165,20 +225,22 @@ def capsule_side_channel(enacted_federated_policy):
 #
 
 @pytest.fixture(scope="module")
-def federated_ursulas():
-    _ursulas = make_federated_ursulas(quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
-
+def federated_ursulas(ursula_federated_test_config):
+    _ursulas = None
     try:
+        _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
+                                          quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
         yield _ursulas
     finally:
-        # Remove the DBs that have been sprayed hither and yon.
-        with contextlib.suppress(FileNotFoundError):
-            for port, ursula in enumerate(_ursulas, start=TEST_URSULA_STARTING_PORT):
-                os.remove("test-{}".format(port))
+        if _ursulas:
+            # Remove the DBs that have been sprayed hither and yon.
+            with contextlib.suppress(FileNotFoundError):
+                for ursula in _ursulas:
+                    os.remove(ursula.datastore.engine.engine.url.database)
 
 
 @pytest.fixture(scope="module")
-def blockchain_ursulas(three_agents):
+def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
 
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
@@ -190,17 +252,18 @@ def blockchain_ursulas(three_agents):
                   token_agent=token_agent,
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
-    _ursulas = make_decentralized_ursulas(ether_addresses=ursula_addresses,
-                                          miner_agent=miner_agent,
-                                          stake=True)
-
+    _ursulas = None
     try:
+        _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
+                                              ether_addresses=ursula_addresses,
+                                              stake=True)
         yield _ursulas
     finally:
-        # Remove the DBs that have been sprayed hither and yon.
-        with contextlib.suppress(FileNotFoundError):
-            for port, ursula in enumerate(_ursulas, start=TEST_URSULA_STARTING_PORT):
-                os.remove("test-{}".format(port))
+        if _ursulas:
+            # Remove the DBs that have been sprayed hither and yon.
+            with contextlib.suppress(FileNotFoundError):
+                for ursula in _ursulas:
+                    os.remove(ursula.datastore.engine.engine.url.database)
 
 
 #

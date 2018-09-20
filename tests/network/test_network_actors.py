@@ -16,13 +16,13 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
     token_agent, miner_agent, policy_agent = three_agents
     for address in miner_agent.swarm():
         for propagating_ursula in blockchain_ursulas:
-            assert address in propagating_ursula._known_nodes, "{} did not know about {}".format(propagating_ursula, address)
+            assert address in propagating_ursula.known_nodes, "{} did not know about {}".format(propagating_ursula, address)
 
 
 @pytest.mark.skip("What do we want this test to do now?")
 def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_ursulas):
     # Imagine alice knows of nobody.
-    blockchain_alice._known_nodes = {}
+    blockchain_alice.known_nodes = {}
 
     some_ursula_interface = blockchain_ursulas.pop().rest_interface
 
@@ -47,7 +47,7 @@ def test_alice_creates_policy_with_correct_hrac(idle_federated_policy):
 
 def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     """
-    Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and sends it to Ursula via the DHT.
+    Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and ...... TODO
     """
 
     enacted_federated_policy.publish_treasure_map(network_middleare=MockRestMiddleware())
@@ -71,7 +71,7 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, fe
     assert map_id_by_bob == treasure_map_as_set_on_network.public_id()
 
 
-def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_policy, blockchain_ursulas):
+def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_policy, federated_ursulas):
     """
     Above, we showed that the TreasureMap saved on the network is the correct one for Bob.  Here, we show
     that Bob can retrieve it with only the information about which he is privy pursuant to the PolicyGroup.
@@ -86,11 +86,13 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_poli
         treasure_map_from_wire = bob.get_treasure_map(enacted_federated_policy.alice.stamp,
                                                       enacted_federated_policy.label)
 
-    # Let's imagine he has learned about some - say, from the blockchain.
-    for node in blockchain_ursulas:
-        bob.remember_node(node)
+    # Bob finds out about one Ursula (in the real world, a seed node)
+    bob.remember_node(list(federated_ursulas)[0])
 
-    # Now try.
+    # ...and then learns about the rest of the network.
+    bob.learn_from_teacher_node(eager=True)
+
+    # Now he'll have better success finding that map.
     treasure_map_from_wire = bob.get_treasure_map(enacted_federated_policy.alice.stamp,
                                                   enacted_federated_policy.label)
 
@@ -102,13 +104,18 @@ def test_treaure_map_is_legit(enacted_federated_policy):
     Sure, the TreasureMap can get to Bob, but we also need to know that each Ursula in the TreasureMap is on the network.
     """
     for ursula_address, _node_id in enacted_federated_policy.treasure_map:
-        assert ursula_address in enacted_federated_policy.bob._known_nodes
+        assert ursula_address in enacted_federated_policy.bob.known_nodes
 
 
 def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     """
-    Although Ursulas propagate each other's interface information, as demonstrated above, they do not propagate
-    interface information for Vladimir, an Evil Ursula.
+    Although Ursulas propagate each other's interface information, as demonstrated above,
+    they do not propagate interface information for Vladimir.
+
+    Specifically, if Vladimir tries to perform the most obvious imitation attack -
+    propagating his own wallet address along with Ursula's information - the validity
+    check will catch it and Ursula will refuse to propagate it and also record Vladimir's
+    details.
     """
     ursulas = list(blockchain_ursulas)
     ursula_whom_vladimir_will_imitate, other_ursula = ursulas[0], ursulas[1]
@@ -139,13 +146,13 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
 
     # And indeed, Ursula noticed the situation.
     # She didn't record Vladimir's address.
-    assert vladimir.checksum_public_address not in other_ursula._known_nodes
+    assert vladimir.checksum_public_address not in other_ursula.known_nodes
 
     # But she *did* record the actual Ursula's address.
-    assert ursula_whom_vladimir_will_imitate.checksum_public_address in other_ursula._known_nodes
+    assert ursula_whom_vladimir_will_imitate.checksum_public_address in other_ursula.known_nodes
 
     # Furthermore, she properly marked Vladimir as suspicious.
-    vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
+    assert vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
 
 
 def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_alice,
