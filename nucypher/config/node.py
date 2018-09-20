@@ -12,7 +12,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_CONFIG_FILE_L
 
 class NodeConfiguration:
 
-    TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-config-"
+    TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-cli-"
 
     class ConfigurationError(RuntimeError):
         pass
