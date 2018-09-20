@@ -12,7 +12,7 @@ def pytest_addoption(parser):
     parser.addoption("--runslow",
                      action="store_true",
                      default=False,
-                     help="run test even if they are marked as slow")
+                     help="run tests even if they are marked as slow")
 
 
 def pytest_collection_modifyitems(config, items):
