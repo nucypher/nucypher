@@ -21,8 +21,7 @@ from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
-from nucypher.utilities.sandbox.constants import (TEST_URSULA_STARTING_PORT,
-                                                  DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
@@ -32,12 +31,17 @@ from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decen
 # Temporary
 #
 
+@pytest.fixture(scope="function")
+def tempfile_path():
+    fd, path = tempfile.mkstemp()
+    yield path
+    os.close(fd)
+    os.remove(path)
+
+
 @pytest.fixture(scope="session")
 def temp_dir_path():
-    """
-    User is responsible for closing the file given at the path.
-    """
-    temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-test-config-')
+    temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-test-')
     yield temp_dir.name
     temp_dir.cleanup()
 
