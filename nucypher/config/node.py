@@ -12,6 +12,7 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_CONFIG_FILE_L
 
 class NodeConfiguration:
 
+    DEFAULT_OPERATING_MODE = 'decentralized'
     TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-cli-"
 
     class ConfigurationError(RuntimeError):
@@ -28,12 +29,12 @@ class NodeConfiguration:
 
                  checksum_address: str = None,
                  is_me: bool = True,
-                 federated_only: bool = False,
+                 federated_only: bool = None,
                  network_middleware=None,
 
                  # Informant
                  known_metadata_dir: str = None,
-                 start_learning_on_same_thread: bool = True,
+                 start_learning_on_same_thread: bool = False,
                  abort_on_learning_error: bool = False,
                  always_be_learning: bool = True,
                  known_nodes: Iterable = None,
@@ -41,30 +42,47 @@ class NodeConfiguration:
 
                  ) -> None:
 
-        self.__temp_dir = constants.NO_TEMPORARY_CONFIGURATION
+        #
+        # Configuration root
+        #
+        self.temp = temp
+        self.__temp_dir = constants.LIVE_CONFIGURATION
         if temp and not config_root:
-            self.__temp_dir = constants.UNINITIALIZED_TEMPORARY_CONFIGURATION
-            config_root = constants.UNINITIALIZED_TEMPORARY_CONFIGURATION
+            # Create a temp dir and set it as the config root if no config root was specified
+            self.__temp_dir = constants.UNINITIALIZED_CONFIGURATION
+            config_root = constants.UNINITIALIZED_CONFIGURATION
         elif not config_root:
             config_root = DEFAULT_CONFIG_ROOT
-
-        self.temp = temp
         self.config_root = config_root
-        self.config_file_location = config_file_location
 
+        #
+        # Node Filepaths (Configuration root files and subdirectories)
+        #
+        self.config_file_location = config_file_location
         self.keyring_dir = keyring_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_nodes_dir = constants.UNINITIALIZED_CONFIGURATION
         self.known_certificates_dir = known_metadata_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_metadata_dir = known_metadata_dir or constants.UNINITIALIZED_CONFIGURATION
 
         if auto_initialize:
-            self.initialize_configuration()
+            self.initialize_configuration()  # <<< Write runtime files and dirs
 
-        self.checksum_address = checksum_address
-        self.is_me = is_me
+        #
+        # Node
+        #
+        if not federated_only:  # TODO: get_config function?
+            federated_only = True if self.DEFAULT_OPERATING_MODE is 'federated' else False
         self.federated_only = federated_only
+        self.network_middleware = network_middleware
+
+        #
+        # Identity
+        #
+        self.is_me = is_me
+        self.checksum_address = checksum_address
+
+        # Learning
         self.known_nodes = known_nodes
-        self.network_middleare = network_middleware
         self.start_learning_on_same_thread = start_learning_on_same_thread
         self.abort_on_learning_error = abort_on_learning_error
         self.always_be_learning = always_be_learning
@@ -75,23 +93,21 @@ class NodeConfiguration:
             template_file = stack.enter_context(open(TEMPLATE_CONFIG_FILE_LOCATION, 'r'))
             new_file = stack.enter_context(open(filepath, 'w+'))
             if new_file.read() != '':
-                raise self.ConfigurationError("{} is not a blank file.  Do you have an existing configuration?")
-            for line in islice(template_file, 12, None):
+                raise self.ConfigurationError("{} is not a blank file.  Do you have an existing configuration file?")
+
+            for line in islice(template_file, 12, None):  # chop the warning header
                 new_file.writelines(line.lstrip(';'))  # TODO Copy Default Sections, Perhaps interactively
 
-    def check_config_tree(self, configuration_dir: str = None) -> bool:
+    def check_config_tree(self, configuration_dir: str = None) -> bool:  # TODO: more filesystem validation
         path = configuration_dir if configuration_dir else self.config_root
         if not os.path.exists(path):
             raise self.ConfigurationError(
-                'No Nucypher configuration directory found at {}.'.format(configuration_dir))
+                'No configuration directory found at {}.'.format(configuration_dir))
         return True
 
-    def generate_runtime_filepaths(self) -> None:
-        """Dynamically generate paths based on configuration root directory"""
-        self.keyring_dir = os.path.join(self.config_root, 'keyring')
-        self.known_nodes_dir = os.path.join(self.config_root, 'known_nodes')
-        self.known_certificates_dir = os.path.join(self.config_root, 'certificates')
-        self.known_metadata_dir = os.path.join(self.config_root, 'metadata')
+    @property
+    def runtime_filepaths(self):
+        return self._generate_runtime_filepaths(commit=False)
 
     @property
     def payload(self):
@@ -107,7 +123,7 @@ class NodeConfiguration:
                             start_learning_on_same_thread=self.start_learning_on_same_thread,
                             abort_on_learning_error=self.abort_on_learning_error,
                             always_be_learning=self.always_be_learning,
-                            network_middleware=self.network_middleare,
+                            network_middleware=self.network_middleware,
 
                             # Knowledge
                             known_nodes=self.known_nodes,
@@ -116,6 +132,21 @@ class NodeConfiguration:
                             )
         return base_payload
 
+    def _generate_runtime_filepaths(self, commit=True) -> dict:
+        """Dynamically generate paths based on configuration root directory"""
+        filepaths = dict(keyring_dir=os.path.join(self.config_root, 'keyring'),
+                         known_nodes_dir=os.path.join(self.config_root, 'known_nodes'),
+                         known_certificates_dir=os.path.join(self.config_root, 'certificates'),
+                         known_metadata_dir=os.path.join(self.config_root, 'metadata'))
+        if commit:
+            for field, filepath in filepaths.items():
+                setattr(self, field, filepath)
+        return filepaths
+
+    def cleanup(self):
+        if self.temp:
+            self.__temp_dir.cleanup()
+
     def initialize_configuration(self) -> str:
         """Create the configuration and runtime directory tree starting with thr config root directory."""
 
@@ -123,11 +154,11 @@ class NodeConfiguration:
         # Create Config Root
         #
 
-        if self.temp:
+        if self.temp and self.config_root is constants.UNINITIALIZED_CONFIGURATION:
             self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
 
-        else:
+        elif not self.temp:
             try:
                 os.mkdir(self.config_root, mode=0o755)
             except FileExistsError:
@@ -141,7 +172,7 @@ class NodeConfiguration:
         # Create Config Subdirectories
         #
 
-        self.generate_runtime_filepaths()
+        self._generate_runtime_filepaths()
         try:
             os.mkdir(self.keyring_dir, mode=0o700)               # keyring
             os.mkdir(self.known_nodes_dir, mode=0o755)           # known_nodes

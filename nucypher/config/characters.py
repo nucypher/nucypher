@@ -18,46 +18,46 @@ class UrsulaConfiguration(NodeConfiguration):
     DEFAULT_TLS_CURVE = ec.SECP384R1
     DEFAULT_REST_HOST = 'localhost'
     DEFAULT_REST_PORT = 9151
+    DEFAULT_DB_TEMPLATE = "ursula.{port}.db"
+    __REGISTRY_NAME = 'contract_registry.json'
 
     def __init__(self,
-                 rest_host: str = DEFAULT_REST_HOST,
-                 rest_port: int = DEFAULT_REST_PORT,
+                 rest_host: str = None,
+                 rest_port: int = None,
 
                  # TLS
-                 tls_curve: EllipticCurve = DEFAULT_TLS_CURVE,
-                 tls_private_key=None,
-                 certificate: bytes = None,
+                 tls_curve: EllipticCurve = None,
+                 tls_private_key: bytes = None,
+                 certificate: Certificate = None,
                  certificate_filepath: str = None,
 
                  # Ursula
                  db_name: str = None,
                  db_filepath: str = None,
                  interface_signature=None,
-                 crypto_power=None,
+                 crypto_power: CryptoPower = None,
 
                  # Blockchain
                  miner_agent: EthereumContractAgent = None,
                  checksum_address: str = None,
                  registry_filepath: str = None,
 
+                 auto_initialize: bool = False,
                  *args, **kwargs
                  ) -> None:
 
         # REST
-        self.rest_host = rest_host
-        self.rest_port = rest_port
-        self.db_name = db_name or "ursula.{port}.db".format(port=self.rest_port)
+        self.rest_host = rest_host or self.DEFAULT_REST_HOST
+        self.rest_port = rest_port or self. DEFAULT_REST_PORT
+        self.db_name = db_name or self.DEFAULT_DB_TEMPLATE.format(port=self.rest_port)
         self.db_filepath = db_filepath or constants.UNINITIALIZED_CONFIGURATION
 
         #
         # TLS
         #
-        self.tls_curve = tls_curve
+        self.tls_curve = tls_curve or self.DEFAULT_TLS_CURVE
         self.tls_private_key = tls_private_key
-        self.certificate: bytes = certificate
-
-        # if certificate_filepath is None:
-        #     certificate_filepath = certificate_filepath or os.path.join(self.known_certificates_dir, 'ursula.pem')
+        self.certificate = certificate
         self.certificate_filepath = certificate_filepath
 
         # Ursula
@@ -71,7 +71,7 @@ class UrsulaConfiguration(NodeConfiguration):
         self.checksum_address = checksum_address
         self.registry_filepath = registry_filepath or constants.UNINITIALIZED_CONFIGURATION
 
-        super().__init__(*args, **kwargs)
+        super().__init__(auto_initialize=auto_initialize, *args, **kwargs)
 
     @classmethod
     def from_configuration_file(cls, filepath=None, **overrides) -> 'UrsulaConfiguration':
@@ -81,10 +81,18 @@ class UrsulaConfiguration(NodeConfiguration):
         instance = cls(**{**payload, **overrides})
         return instance
 
-    def generate_runtime_filepaths(self):
-        super().generate_runtime_filepaths()
-        self.db_filepath = os.path.join(self.config_root, self.db_name)
-        self.registry_filepath = os.path.join(self.config_root, 'contract_registry.json')
+    def _generate_runtime_filepaths(self, commit=True) -> dict:
+        base_filepaths = super()._generate_runtime_filepaths(commit=commit)
+        # TODO: Handle pre-existing certificates, injecting the path
+        # if not self.certificate_filepath:
+        #     certificate_filepath = certificate_filepath or os.path.join(self.known_certificates_dir, 'ursula.pem')
+        filepaths = dict(db_filepath=os.path.join(self.config_root, self.db_name),
+                         registry_filepath=os.path.join(self.config_root, self.__REGISTRY_NAME))
+        if commit:
+            for field, filepath in filepaths.items():
+                setattr(self, field, filepath)
+        base_filepaths.update(filepaths)
+        return filepaths
 
     @property
     def payload(self) -> dict:
@@ -101,7 +109,7 @@ class UrsulaConfiguration(NodeConfiguration):
                  tls_curve=self.tls_curve,
                  tls_private_key=self.tls_private_key,
                  certificate=self.certificate,
-                 # certificate_filepath=self.certificate_filepath,  # TODO
+                 # certificate_filepath=self.certificate_filepath,  # TODO: Handle existing certificates, injecting the path
 
                  # Ursula
                  interface_signature=self.interface_signature,
@@ -123,7 +131,7 @@ class UrsulaConfiguration(NodeConfiguration):
         ursula = Ursula(**merged_parameters)
 
         if self.temp:
-            class MockDatastoreThreadPool(object):
+            class MockDatastoreThreadPool(object):  # TODO: Does this belong here..?
                 def callInThread(self, f, *args, **kwargs):
                     return f(*args, **kwargs)
             ursula.datastore_threadpool = MockDatastoreThreadPool()
@@ -146,7 +154,7 @@ class UrsulaConfiguration(NodeConfiguration):
 class AliceConfiguration(NodeConfiguration):
 
     def __init__(self,
-                 policy_agent=None,
+                 policy_agent: EthereumContractAgent = None,
                  *args, **kwargs
                  ) -> None:
         super().__init__(*args, **kwargs)
