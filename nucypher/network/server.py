@@ -21,19 +21,16 @@ class ProxyRESTServer:
     log = getLogger("characters")
 
     def __init__(self,
-                 rest_host,
-                 rest_port,
-                 routes=None,
+                 rest_host: str,
+                 rest_port: int,
+                 routes: 'ProxyRESTRoutes' = None,
                  ) -> None:
         self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
-        if routes:
+        if routes:  # if is me
             self.rest_app = routes.rest_app
-            db_filepath = routes.db_filepath
+            self.db_filepath = routes.db_filepath
         else:
             self.rest_app = constants.PUBLIC_ONLY
-            db_filepath = constants.NO_DATABASE_CONNECTION
-
-        self.db_filepath = db_filepath
 
     def rest_url(self):
         return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
