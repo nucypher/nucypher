@@ -15,11 +15,16 @@ class SuspiciousActivity(RuntimeError):
 
 
 class NucypherHashProtocol(KademliaProtocol):
-    def __init__(self, sourceNode, storage, ksize, *args, **kwargs) -> None:
+    def __init__(self,
+                 sourceNode,
+                 storage,
+                 ksize,
+                 *args, **kwargs) -> None:
+
         super().__init__(sourceNode, storage, ksize, *args, **kwargs)
 
         self.router = NucypherRoutingTable(self, ksize, sourceNode)
-        self.illegal_keys_seen = []  # TODO: 340
+        self.illegal_keys_seen = []  # type: list # TODO: 340
 
     @property
     def ursulas(self):

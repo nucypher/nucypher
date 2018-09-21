@@ -10,6 +10,7 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
 from eth_utils import to_canonical_address, to_checksum_address
 from umbral.config import default_params
+from umbral.fragments import KFrag
 from umbral.pre import Capsule
 
 from nucypher.characters.lawful import Alice
@@ -20,6 +21,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, EncryptingPower
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
+from nucypher.network.middleware import RestMiddleware
 
 
 class Arrangement:
@@ -104,26 +106,32 @@ class Policy:
     and generates a TreasureMap for the Policy, recording which Ursulas got a KFrag.
     """
 
-    def __init__(self, alice, label, bob=None, kfrags=(constants.UNKNOWN_KFRAG,),
-                 public_key=None, m=None, alices_signature=constants.NOT_SIGNED) -> None:
+    def __init__(self,
+                 alice,
+                 label,
+                 bob=None,
+                 kfrags=(constants.UNKNOWN_KFRAG,),
+                 public_key=None,
+                 m: int = None,
+                 alices_signature=constants.NOT_SIGNED) -> None:
 
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.
         :param label: The identity of the resource to which Bob is granted access.
         """
-        self.alice = alice
-        self.label = label
-        self.bob = bob
-        self.kfrags = kfrags
+        self.alice = alice                     # type: Alice
+        self.label = label                     # type: bytes
+        self.bob = bob                         # type: Bob
+        self.kfrags = kfrags                   # type: List[KFrag]
         self.public_key = public_key
         self.treasure_map = TreasureMap(m=m)
 
         # Keep track of this stuff
-        self._accepted_arrangements = set()
-        self._rejected_arrangements = set()
+        self._accepted_arrangements = set()    # type: set
+        self._rejected_arrangements = set()    # type: set
 
-        self._enacted_arrangements = OrderedDict()
-        self._published_arrangements = OrderedDict()
+        self._enacted_arrangements = OrderedDict()    # type: OrderedDict
+        self._published_arrangements = OrderedDict()  # type: OrderedDict
 
         self.alices_signature = alices_signature
 
@@ -134,10 +142,10 @@ class Policy:
         """
 
     @property
-    def n(self):
+    def n(self) -> int:
         return len(self.kfrags)
 
-    def hrac(self):
+    def hrac(self) -> bytes:
         """
         This function is hanging on for dear life.  After 180 is closed, it can be completely deprecated.
 
@@ -153,7 +161,7 @@ class Policy:
         """
         return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
-    def publish_treasure_map(self, network_middleare):
+    def publish_treasure_map(self, network_middleware: RestMiddleware) -> dict:
         self.treasure_map.prepare_for_publication(self.bob.public_keys(EncryptingPower),
                                                   self.bob.public_keys(SigningPower),
                                                   self.alice.stamp,
@@ -163,14 +171,13 @@ class Policy:
             # TODO: Optionally block.
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
 
-        responses = {}
-
+        responses = dict()
         for node in self.alice.known_nodes.values():
             # TODO: It's way overkill to push this to every node we know about.  Come up with a system.  342
-            response = network_middleare.put_treasure_map_on_node(node,
-                                                                  self.treasure_map.public_id(),
-                                                                  bytes(self.treasure_map)
-                                                                  )
+            response = network_middleware.put_treasure_map_on_node(node,
+                                                                   self.treasure_map.public_id(),
+                                                                   bytes(self.treasure_map)
+                                                                   )  # TODO: Certificate filepath needs to be looked up and passed here
             if response.status_code == 202:
                 responses[node] = response
                 # TODO: Handle response wherein node already had a copy of this TreasureMap.  341
@@ -180,9 +187,9 @@ class Policy:
 
         return responses
 
-    def publish(self, network_middleware) -> None:
+    def publish(self, network_middleware: RestMiddleware) -> dict:
         """Spread word of this Policy far and wide."""
-        return self.publish_treasure_map(network_middleare=network_middleware)
+        return self.publish_treasure_map(network_middleware=network_middleware)
 
     def __assign_kfrags(self) -> Generator[Arrangement, None, None]:
 
@@ -203,8 +210,9 @@ class Policy:
                 # This is ideally an impossible situation, because we don't typically
                 # enter this method unless we've already had n or more Arrangements accepted.
                 raise self.MoreKFragsThanArrangements("Not enough accepted arrangements to assign all KFrags.")
+        return
 
-    def enact(self, network_middleware, publish=True) -> None:
+    def enact(self, network_middleware, publish=True) -> dict:
         """
         Assign kfrags to ursulas_on_network, and distribute them via REST,
         populating enacted_arrangements
@@ -247,7 +255,8 @@ class Policy:
         return negotiation_result
 
     @abstractmethod
-    def make_arrangements(self, network_middleware,
+    def make_arrangements(self,
+                          network_middleware: RestMiddleware,
                           deposit: int,
                           expiration: maya.MayaDT,
                           ursulas: List[Ursula] = None) -> None:
@@ -256,8 +265,11 @@ class Policy:
         """
         raise NotImplementedError
 
-    def _consider_arrangements(self, network_middleware, candidate_ursulas: Set[Ursula],
-                               deposit: int, expiration: maya.MayaDT) -> tuple:
+    def _consider_arrangements(self,
+                               network_middleware: RestMiddleware,
+                               candidate_ursulas: Set[Ursula],
+                               deposit: int,
+                               expiration: maya.MayaDT) -> tuple:
 
         for selected_ursula in candidate_ursulas:
             arrangement = self._arrangement_class(alice=self.alice,
@@ -278,22 +290,24 @@ class FederatedPolicy(Policy):
         self.ursulas = ursulas
         super().__init__(*args, **kwargs)
 
-    def make_arrangements(self, network_middleware,
+    def make_arrangements(self,
+                          network_middleware: RestMiddleware,
                           deposit: int,
                           expiration: maya.MayaDT,
                           handpicked_ursulas: Set[Ursula] = None) -> None:
+
         if handpicked_ursulas is None:
-            ursulas = set()
+            ursulas = set()  # type: set
         else:
             ursulas = handpicked_ursulas
         ursulas.update(self.ursulas)
 
         if len(ursulas) < self.n:
             raise ValueError(
-                "To make a Policy in federated mode, you need to designate *all*\
-                 the Ursulas you need (in this case, {}); there's no other way to\
-                  know which nodes to use.  Either pass them here or when you make\
-                   the Policy.".format(self.n))
+                "To make a Policy in federated mode, you need to designate *all* '  \
+                 the Ursulas you need (in this case, {}); there's no other way to ' \
+                 know which nodes to use.  Either pass them here or when you make ' \
+                 the Policy.".format(self.n))
 
         # TODO: One of these layers needs to add concurrency.
 
@@ -317,17 +331,17 @@ class TreasureMap:
         """Raised when the public signature (typically intended for Ursula) is not valid."""
 
     def __init__(self,
-                 m=None,
+                 m: int = None,
                  destinations=None,
-                 message_kit=None,
-                 public_signature=None,
+                 message_kit: UmbralMessageKit= None,
+                 public_signature: Signature = None,
                  hrac=None) -> None:
 
         if m is not None:
             if m > 255:
-                raise ValueError(
-                    "Largest allowed value for m is 255.  Why the heck are you trying to make it larger than that anyway?  That's too big.")
+                raise ValueError("Largest allowed value for m is 255.")
             self.m = m
+
             self.destinations = destinations or {}
         else:
             self.m = constants.NO_DECRYPTION_PERFORMED
@@ -339,7 +353,12 @@ class TreasureMap:
         self._hrac = hrac
         self._payload = None
 
-    def prepare_for_publication(self, bob_encrypting_key, bob_verifying_key, alice_stamp, label):
+    def prepare_for_publication(self,
+                                bob_encrypting_key,
+                                bob_verifying_key,
+                                alice_stamp,
+                                label):
+
         plaintext = self.m.to_bytes(1, "big") + self.nodes_as_bytes()
 
         self.message_kit, _signature_for_bob = encrypt_and_sign(bob_encrypting_key,
@@ -502,7 +521,7 @@ class WorkOrder(object):
 class WorkOrderHistory:
 
     def __init__(self) -> None:
-        self.by_ursula = {}
+        self.by_ursula = {}  # type: dict
 
     def __contains__(self, item):
         assert False
@@ -521,7 +540,7 @@ class WorkOrderHistory:
         return self.by_ursula.keys()
 
     def by_capsule(self, capsule):
-        ursulas_by_capsules = {}
+        ursulas_by_capsules = {}  # type: dict
         for ursula, capsules in self.by_ursula.items():
             for saved_capsule, work_order in capsules.items():
                 if saved_capsule == capsule:

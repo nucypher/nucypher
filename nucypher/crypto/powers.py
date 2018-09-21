@@ -28,10 +28,10 @@ class NoBlockchainPower(PowerUpError):
 
 
 class CryptoPower(object):
-    def __init__(self, power_ups=None) -> None:
-        self._power_ups = {}
+    def __init__(self, power_ups: dict = None) -> None:
+        self._power_ups = {}   # type: dict
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
-        self.public_keys = {}
+        self.public_keys = {}  # type: dict
 
         if power_ups is not None:
             for power_up in power_ups:
