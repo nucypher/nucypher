@@ -140,3 +140,22 @@ class VerifiableNode:
             except NoSigningPower:
                 raise NoSigningPower("This Ursula is a Stranger; you didn't init with an interface signature, so you can't verify.")
         return self._interface_signature_object
+
+    def certificate(self):
+        return self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
+
+    def save_certificate_to_disk(self, directory):
+        x509 = OpenSSL.crypto.X509.from_cryptography(self.certificate())
+        subject_components = x509.get_subject().get_components()
+        common_name_as_bytes = subject_components[0][1]
+        common_name_from_cert = common_name_as_bytes.decode()
+        if not self.checksum_public_address == common_name_from_cert:
+            # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
+            raise ValueError(
+                "You passed a common_name that is not the same one as the cert.  Why?  FWIW, You don't even need to pass a common name here; the cert will be saved according to the name on the cert itself.")
+
+        certificate_filepath = "{}/{}".format(directory,
+                                              common_name_from_cert)  # TODO: Do this with proper path tooling.
+        _save_tls_certificate(self.certificate(), full_filepath=certificate_filepath)
+
+        self.certificate_filepath = certificate_filepath
