@@ -114,7 +114,7 @@ class BlockchainPolicy(Policy):
 
     def __find_ursulas(self, ether_addresses: List[str], target_quantity: int, timeout: int = 120):
         start_time = maya.now()  # Marker for timeout calculation
-        found_ursulas, unknown_addresses = set(), deque()  # type: Tuple[set, deque]
+        found_ursulas, unknown_addresses = set(), deque()  # type: set, deque
         while len(found_ursulas) < target_quantity:
 
             # Check for a timeout

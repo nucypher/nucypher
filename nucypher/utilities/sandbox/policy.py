@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import List
+from typing import List, Set
 
 import maya
 
@@ -34,7 +34,9 @@ class MockPolicy(Policy):
                                           hrac=self.hrac(),
                                           expiration=expiration)
 
-            self.consider_arrangement(network_middleware=network_middleware, arrangement=arrangement)
+            self.consider_arrangement(network_middleware=network_middleware,
+                                      ursula=ursula,
+                                      arrangement=arrangement)
 
 
 class MockPolicyCreation:
