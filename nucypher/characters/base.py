@@ -544,6 +544,11 @@ class Character(Learner):
                                                         current_teacher.checksum_public_address,
                                                         len(node_list),
                                                         len(new_nodes)), )
+        if new_nodes and self.known_certificates_dir:
+            for node in new_nodes:
+                node.save_certificate_to_disk(self.known_certificates_dir)
+
+        return new_nodes
 
     def encrypt_for(self,
                     recipient: 'Character',
