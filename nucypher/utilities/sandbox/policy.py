@@ -4,6 +4,7 @@ from typing import List
 import maya
 
 from nucypher.characters.lawful import Ursula
+from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
 
 
@@ -18,15 +19,17 @@ class MockArrangement(Arrangement):
 
 
 class MockPolicy(Policy):
-    def make_arrangements(self, network_middleware,
+    def make_arrangements(self,
+                          network_middleware: RestMiddleware,
                           deposit: int,
                           expiration: maya.MayaDT,
-                          ursulas: List[Ursula] = None) -> None:
+                          ursulas: Set[Ursula] = None
+                          ) -> None:
         """
         Create and consider n Arangement objects from all known nodes.
         """
 
-        for ursula in self.alice._known_nodes:
+        for ursula in self.alice.known_nodes:
             arrangement = MockArrangement(alice=self.alice, ursula=ursula,
                                           hrac=self.hrac(),
                                           expiration=expiration)

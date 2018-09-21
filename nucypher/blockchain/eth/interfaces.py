@@ -171,7 +171,7 @@ class BlockchainInterface:
         return circumflex
 
     @property
-    def providers(self) -> Tuple[Union[IPCProvider, WebsocketProvider, HTTPProvider]]:
+    def providers(self) -> Tuple[Union[IPCProvider, WebsocketProvider, HTTPProvider], ...]:
         return tuple(self.__providers)
 
     @property

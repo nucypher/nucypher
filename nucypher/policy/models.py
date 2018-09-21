@@ -2,7 +2,7 @@ import binascii
 import uuid
 from abc import abstractmethod
 from collections import OrderedDict
-from typing import Generator, List, Set
+from typing import Generator, List, Set, Iterable
 
 import maya
 import msgpack
@@ -259,7 +259,7 @@ class Policy:
                           network_middleware: RestMiddleware,
                           deposit: int,
                           expiration: maya.MayaDT,
-                          ursulas: List[Ursula] = None) -> None:
+                          ursulas: Set[Ursula] = None) -> None:
         """
         Create and consider n Arangement objects.
         """

@@ -98,7 +98,7 @@ class MinerAgent(EthereumContractAgent):
 
     principal_contract_name = "MinersEscrow"
     _upgradeable = True
-    __instance = None
+    __instance = None  # TODO: constants.NO_CONTRACT_AVAILABLE
 
     class NotEnoughMiners(Exception):
         pass
@@ -110,7 +110,11 @@ class MinerAgent(EthereumContractAgent):
                  ) -> None:
 
         token_agent = token_agent if token_agent is not None else NucypherTokenAgent(registry_filepath=registry_filepath)
-        super().__init__(blockchain=token_agent.blockchain, registry_filepath=registry_filepath, *args, **kwargs)
+
+        super().__init__(blockchain=token_agent.blockchain,
+                         registry_filepath=registry_filepath,
+                         *args, **kwargs)
+
         self.token_agent = token_agent
 
     #

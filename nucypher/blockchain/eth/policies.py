@@ -1,5 +1,5 @@
 from collections import deque
-from typing import List, Tuple
+from typing import List, Tuple, Iterable
 from typing import Set
 
 import math
@@ -9,7 +9,7 @@ from eth_utils import to_canonical_address
 
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
-from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent
 from nucypher.blockchain.eth.constants import calculate_period_duration
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
@@ -36,22 +36,22 @@ class BlockchainArrangement(Arrangement):
         periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))  # type: int
 
         # The relationship exists between two addresses
-        self.author = author
-        self.policy_agent = author.policy_agent
+        self.author = author                     # type: PolicyAuthor
+        self.policy_agent = author.policy_agent  # type: PolicyAgent
 
-        self.miner = miner
+        self.miner = miner                # type: Miner
 
         # Arrangement value, rate, and duration
-        rate = value // lock_periods
-        self._rate = rate
+        rate = value // lock_periods      # type: int
+        self._rate = rate                 # type: int
 
-        self.value = value
-        self.lock_periods = lock_periods  # TODO: <datetime> -> lock_periods
+        self.value = value                # type: int
+        self.lock_periods = lock_periods  # type: int # TODO: <datetime> -> lock_periods
 
-        self.is_published = False
+        self.is_published = False         # type: bool
         self.publish_transaction = None
 
-        self.is_revoked = False
+        self.is_revoked = False           # type: bool
         self.revoke_transaction = None
 
     def __repr__(self):
@@ -61,9 +61,11 @@ class BlockchainArrangement(Arrangement):
         return r
 
     def publish(self) -> str:
-        payload = {'from': self.author._ether_address, 'value': self.value}
+        payload = {'from': self.author.checksum_public_address,
+                   'value': self.value}
 
-        txhash = self.policy_agent.contract.functions.createPolicy(self.id, self.miner._ether_address,
+        txhash = self.policy_agent.contract.functions.createPolicy(self.id,
+                                                                   self.miner.checksum_public_address,
                                                                    self.lock_periods).transact(payload)
         self.policy_agent.blockchain.wait_for_receipt(txhash)
 
