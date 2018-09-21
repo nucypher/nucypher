@@ -8,12 +8,14 @@ from constant_sorrow import constants
 from itertools import islice
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_CONFIG_FILE_LOCATION, TEMPLATE_CONFIG_FILE_LOCATION
+from nucypher.network.middleware import RestMiddleware
 
 
 class NodeConfiguration:
 
     DEFAULT_OPERATING_MODE = 'decentralized'
     TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-cli-"
+    DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
 
     class ConfigurationError(RuntimeError):
         pass
@@ -30,7 +32,7 @@ class NodeConfiguration:
                  checksum_address: str = None,
                  is_me: bool = True,
                  federated_only: bool = None,
-                 network_middleware=None,
+                 network_middleware: RestMiddleware = None,
 
                  # Informant
                  known_metadata_dir: str = None,
@@ -73,6 +75,9 @@ class NodeConfiguration:
         if not federated_only:  # TODO: get_config function?
             federated_only = True if self.DEFAULT_OPERATING_MODE is 'federated' else False
         self.federated_only = federated_only
+
+        if is_me:
+            network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE_CLASS()
         self.network_middleware = network_middleware
 
         #
@@ -134,7 +139,10 @@ class NodeConfiguration:
 
     def _generate_runtime_filepaths(self, commit=True) -> dict:
         """Dynamically generate paths based on configuration root directory"""
-        filepaths = dict(keyring_dir=os.path.join(self.config_root, 'keyring'),
+        if self.temp and commit and self.config_root is constants.UNINITIALIZED_CONFIGURATION:
+            raise self.ConfigurationError("Cannot pre-generate filepaths for temporary node configurations.")
+        filepaths = dict(config_root=self.config_root,
+                         keyring_dir=os.path.join(self.config_root, 'keyring'),
                          known_nodes_dir=os.path.join(self.config_root, 'known_nodes'),
                          known_certificates_dir=os.path.join(self.config_root, 'certificates'),
                          known_metadata_dir=os.path.join(self.config_root, 'metadata'))
@@ -158,7 +166,7 @@ class NodeConfiguration:
             self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
 
-        elif not self.temp:
+        if not self.temp and self.config_root is not constants.UNINITIALIZED_CONFIGURATION:
             try:
                 os.mkdir(self.config_root, mode=0o755)
             except FileExistsError:
@@ -172,14 +180,18 @@ class NodeConfiguration:
         # Create Config Subdirectories
         #
 
-        self._generate_runtime_filepaths()
+        self._generate_runtime_filepaths(commit=True)
         try:
             os.mkdir(self.keyring_dir, mode=0o700)               # keyring
             os.mkdir(self.known_nodes_dir, mode=0o755)           # known_nodes
             os.mkdir(self.known_certificates_dir, mode=0o755)    # known_certs
             os.mkdir(self.known_metadata_dir, mode=0o755)        # known_metadata
         except FileExistsError:
-            raise  # TODO
+            # TODO: beef up the error message
+            # existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
+            # NodeConfiguration.ConfigurationError("There are existing files at {}".format())
+            message = "There are pre-existing nucypher installation files at {}".format(self.config_root)
+            raise NodeConfiguration.ConfigurationError(message)
 
         self.check_config_tree(configuration_dir=self.config_root)
         return self.config_root

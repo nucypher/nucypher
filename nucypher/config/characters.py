@@ -42,7 +42,6 @@ class UrsulaConfiguration(NodeConfiguration):
                  checksum_address: str = None,
                  registry_filepath: str = None,
 
-                 auto_initialize: bool = False,
                  *args, **kwargs
                  ) -> None:
 
@@ -71,7 +70,7 @@ class UrsulaConfiguration(NodeConfiguration):
         self.checksum_address = checksum_address
         self.registry_filepath = registry_filepath or constants.UNINITIALIZED_CONFIGURATION
 
-        super().__init__(auto_initialize=auto_initialize, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     @classmethod
     def from_configuration_file(cls, filepath=None, **overrides) -> 'UrsulaConfiguration':

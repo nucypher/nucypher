@@ -135,17 +135,14 @@ def configure(config, action, config_file, config_root, temp):
     """Manage the nucypher .ini configuration file"""
 
     if config_root:
-        node_configuration = NodeConfiguration(config_root=config_root)
+        node_configuration = NodeConfiguration(config_root=config_root, auto_initialize=False)
     elif temp:
-        node_configuration = NodeConfiguration(temp=temp, auto_initialize=True)
+        node_configuration = NodeConfiguration(temp=temp, auto_initialize=False)
     elif config_file:
         click.echo("Using configuration file at: {}".format(config_file))
         node_configuration = NodeConfiguration.from_configuration_file(filepath=config_file)
     else:
-        node_configuration = NodeConfiguration()
-
-    filepaths = node_configuration._generate_runtime_filepaths(commit=False)
-    click.echo("Running in directory: {}".format(config_root or filepaths['config_root']))
+        node_configuration = NodeConfiguration()  # Fully Default
 
     def __destroy():
         click.confirm("Permanently destroy all nucypher configurations, known nodes, certificates and keys?", abort=True)
@@ -153,24 +150,23 @@ def configure(config, action, config_file, config_root, temp):
         click.echo("Deleted configuration files at {}".format(node_configuration.config_root))
 
     def __initialize():
+        # TODO: temp config message?
         click.confirm("Initialize new nucypher configuration?", abort=True)
         node_configuration.initialize_configuration()
         click.echo("Created configuration files at {}".format(node_configuration.config_root))
 
-    if action == "validate":
-        is_valid = validate_configuration_file(config_file)
-        result = 'Valid' if is_valid else 'Invalid'
-        click.echo('{} is {}'.format(config_file, result))
-
-    elif action == "init":
+    if action == "init":
         __initialize()
-
     elif action == "destroy":
         __destroy()
-
     elif action == "reset":
         __destroy()
         __initialize()
+
+    elif action == "validate":
+        is_valid = validate_configuration_file(config_file)
+        result = 'Valid' if is_valid else 'Invalid'
+        click.echo('{} is {}'.format(config_file, result))
 
 
 @cli.command()
@@ -669,7 +665,7 @@ def status(config, provider, contracts, network):
 
 
 @cli.command()
-@click.option('--dev', is_flag=True, default=False)
+@click.option('--dev', is_flag=True, default=True)
 @click.option('--federated-only', is_flag=True)
 @click.option('--rest-host', type=str)
 @click.option('--rest-port', type=int)
@@ -701,6 +697,9 @@ def run_ursula(rest_port,
     but can be overridden (mostly for testing purposes) with inline cli options.
 
     """
+    if not dev:
+        click.echo("WARNING: Development mode is disabled")
+
     temp = True if dev else False
 
     if config_file:
