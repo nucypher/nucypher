@@ -497,12 +497,13 @@ class Character(Learner):
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
                                                                   certificate_path=current_teacher.certificate_filepath)
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.ConnectionError as e:
             unresponsive_nodes.add(current_teacher)
             teacher_rest_info = current_teacher.rest_information()[0]
+
+            # TODO: This error isn't necessarily "no repsonse" - let's maybe pass on the text of the exception here.
             self.log.info("No Response from teacher: {}:{}.".format(teacher_rest_info.host, teacher_rest_info.port))
             self.cycle_teacher_node()
-            self.learn_from_teacher_node()
             return
 
         if response.status_code != 200:
