@@ -11,6 +11,7 @@ from nucypher.characters.base import Learner
 from nucypher.config.characters import UrsulaConfiguration
 
 
+@pytest.mark.skip(reason="Handle second call to reactor.run, or multiproc")
 @pytest_twisted.inlineCallbacks
 def test_run_lone_federated_default_ursula():
 
