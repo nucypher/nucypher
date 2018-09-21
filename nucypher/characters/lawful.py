@@ -468,6 +468,7 @@ class Ursula(Character, VerifiableNode, Miner):
                     stamp=self.stamp,
                     verifier=self.verify_from,
                     suspicious_activity_tracker=self.suspicious_activities_witnessed,
+                    certificate_dir=self.known_certificates_dir,
                 )
 
                 rest_server = ProxyRESTServer(
@@ -498,7 +499,9 @@ class Ursula(Character, VerifiableNode, Miner):
                 if certificate or certificate_filepath:
                     tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                         certificate_filepath=certificate_filepath,
-                                                        certificate=certificate)
+                                                        certificate=certificate,
+                                                        certificate_dir=self.known_certificates_dir,
+                                                        common_name=self.checksum_public_address,)
                 else:
                     tls_hosting_keypair = HostingKeypair(
                         common_name=self.checksum_public_address,
@@ -580,7 +583,8 @@ class Ursula(Character, VerifiableNode, Miner):
 
     @classmethod
     def from_bytes(cls, ursula_as_bytes: bytes,
-                   federated_only: bool = False) -> 'Ursula':
+                   federated_only: bool = False,
+                   ) -> 'Ursula':
 
         (signature,
          identity_evidence,
@@ -598,14 +602,15 @@ class Ursula(Character, VerifiableNode, Miner):
             rest_host=rest_info.host,
             rest_port=rest_info.port,
             certificate=certificate,
-            federated_only=federated_only  # TODO: 289
+            federated_only=federated_only,  # TODO: 289
         )
         return stranger_ursula_from_public_keys
 
     @classmethod
     def batch_from_bytes(cls,
                          ursulas_as_bytes: Iterable[bytes],
-                         federated_only: bool = False) -> List['Ursula']:
+                         federated_only: bool = False,
+                         ) -> List['Ursula']:
 
         # TODO: Make a better splitter for this.  This is a workaround until bytestringSplitter #8 is closed.
 

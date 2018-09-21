@@ -52,6 +52,7 @@ class ProxyRESTRoutes:
                  stamp,
                  verifier,
                  suspicious_activity_tracker,
+                 certificate_dir,
                  ) -> None:
 
         self.network_middleware = network_middleware
@@ -65,6 +66,7 @@ class ProxyRESTRoutes:
         self._stamp = stamp
         self._verifier = verifier
         self._suspicious_activity_tracker = suspicious_activity_tracker
+        self._certificate_dir = certificate_dir
         self.datastore = None
 
         routes = [
@@ -128,7 +130,9 @@ class ProxyRESTRoutes:
         return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
 
     def node_metadata_exchange(self, request: http.Request, query_params: http.QueryParams):
-        nodes = self._node_class.batch_from_bytes(request.body, federated_only=self.federated_only)
+        nodes = self._node_class.batch_from_bytes(request.body,
+                                                  federated_only=self.federated_only,
+                                                  )
         # TODO: This logic is basically repeated in learn_from_teacher_node.  Let's find a better way.
         for node in nodes:
 
@@ -147,6 +151,8 @@ class ProxyRESTRoutes:
                     self._suspicious_activity_tracker['vladimirs'].append(node)  # TODO: Maybe also record the bytes representation separately to disk?
                 else:
                     self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
+                    if self._certificate_dir:
+                        node.save_certificate_to_disk(self._certificate_dir)
                     self._node_recorder(node)
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?

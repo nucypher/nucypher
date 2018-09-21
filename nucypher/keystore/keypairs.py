@@ -167,6 +167,9 @@ class HostingKeypair(Keypair):
         else:
             raise TypeError("You didn't provide a cert, but also told us not to generate keys.  Not sure what to do.")
 
+        if not certificate_filepath:
+            certificate_filepath = constants.CERTIFICATE_NOT_SAVED
+
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
         self.certificate_dir = certificate_dir
