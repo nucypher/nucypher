@@ -1,12 +1,10 @@
-import math
-import os
-
 import maya
 import pytest
+from constant_sorrow import constants
 
 from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
-from constant_sorrow import constants
-from tests.blockchain.eth.utilities import token_airdrop
+from nucypher.utilities.sandbox.blockchain import token_airdrop
+from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
 
 
 class TestMiner:
@@ -15,7 +13,7 @@ class TestMiner:
     def miner(self, testerchain, three_agents):
         token_agent, miner_agent, policy_agent = three_agents
         origin, *everybody_else = testerchain.interface.w3.eth.accounts
-        token_airdrop(token_agent, origin=origin, addresses=everybody_else, amount=1000000*constants.M)
+        token_airdrop(token_agent, origin=origin, addresses=everybody_else, amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
         miner = Miner(miner_agent=miner_agent, checksum_address=everybody_else[0])
         return miner
 
@@ -25,8 +23,8 @@ class TestMiner:
         assert constants.MIN_ALLOWED_LOCKED < miner.token_balance, "Insufficient miner balance"
 
         expiration = maya.now().add(days=constants.MIN_LOCKED_PERIODS)
-        miner.stake(amount=int(constants.MIN_ALLOWED_LOCKED),         # Lock the minimum amount of tokens
-                    expiration=expiration)
+        miner.initialize_stake(amount=int(constants.MIN_ALLOWED_LOCKED),  # Lock the minimum amount of tokens
+                               expiration=expiration)
 
         # Verify that the escrow is "approved" to receive tokens
         allowance = miner_agent.token_agent.contract.functions.allowance(
@@ -47,7 +45,7 @@ class TestMiner:
         new_stake_value = int(constants.MIN_ALLOWED_LOCKED) * 2
 
         stake_index = len(list(miner.stakes))
-        miner.stake(amount=stake_value, lock_periods=int(constants.MIN_LOCKED_PERIODS))
+        miner.initialize_stake(amount=stake_value, lock_periods=int(constants.MIN_LOCKED_PERIODS))
         miner.divide_stake(target_value=new_stake_value, stake_index=stake_index, additional_periods=2)
 
         stakes = list(miner.stakes)
@@ -71,7 +69,7 @@ class TestMiner:
         assert expected_yet_another_stake == stakes[stake_index + 2], 'Third stake values are invalid'
 
     @pytest.mark.slow()
-    @pytest.mark.usefixtures("mining_ursulas")
+    @pytest.mark.usefixtures("blockchain_ursulas")
     def test_miner_collects_staking_reward(self, testerchain, miner, three_agents):
         token_agent, miner_agent, policy_agent = three_agents
 
@@ -79,8 +77,8 @@ class TestMiner:
         initial_balance = miner.token_balance
         assert token_agent.get_balance(miner.checksum_public_address) == initial_balance
 
-        miner.stake(amount=int(constants.MIN_ALLOWED_LOCKED),         # Lock the minimum amount of tokens
-                    lock_periods=int(constants.MIN_LOCKED_PERIODS))   # ... for the fewest number of periods
+        miner.initialize_stake(amount=int(constants.MIN_ALLOWED_LOCKED),  # Lock the minimum amount of tokens
+                               lock_periods=int(constants.MIN_LOCKED_PERIODS))   # ... for the fewest number of periods
 
         # ...wait out the lock period...
         for _ in range(28):
@@ -103,7 +101,7 @@ class TestPolicyAuthor:
         token_agent, miner_agent, policy_agent = three_agents
         token_agent.ether_airdrop(amount=100000 * constants.M)
         _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
-        miner = PolicyAuthor(ether_address=alice, policy_agent=policy_agent)
+        miner = PolicyAuthor(checksum_address=alice, policy_agent=policy_agent)
         return miner
 
     def test_create_policy_author(self, testerchain, three_agents):

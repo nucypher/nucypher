@@ -1,49 +1,61 @@
 import contextlib
+import datetime
 import os
 import tempfile
-import logging
-from os.path import abspath, dirname
 
-import datetime
 import maya
 import pytest
 from constant_sorrow import constants
-from eth_tester import EthereumTester
-from eth_utils import to_checksum_address
 from sqlalchemy.engine import create_engine
-from web3 import EthereumTesterProvider
 
-from nucypher.blockchain.eth.chains import TesterBlockchain
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
-from nucypher.blockchain.eth.interfaces import DeployerCircumflex
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.blockchain.eth.utilities import OverridablePyEVMBackend, TemporaryEthereumContractRegistry
-from nucypher.characters import Alice, Bob
+from nucypher.characters.lawful import Bob
+from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration
+from nucypher.config.constants import TEST_CONTRACTS_DIR
+from nucypher.config.node import NodeConfiguration
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
-from tests.blockchain.eth import contracts
-from tests.blockchain.eth.utilities import token_airdrop
-from tests.utilities import MockRestMiddleware
-from tests.utilities import make_ursulas
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
+from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
+
 
 #
-# Setup
+# Temporary
 #
-
-constants.NUMBER_OF_TEST_ETH_ACCOUNTS(10)
-
 
 @pytest.fixture(scope="function")
 def tempfile_path():
-    """
-    User is responsible for closing the file given at the path.
-    """
     fd, path = tempfile.mkstemp()
     yield path
     os.close(fd)
     os.remove(path)
+
+
+@pytest.fixture(scope="module")
+def temp_dir_path():
+    temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-test-')
+    yield temp_dir.name
+    temp_dir.cleanup()
+
+
+@pytest.fixture(scope="module")
+def temp_config_root(temp_dir_path):
+    """
+    User is responsible for closing the file given at the path.
+    """
+    default_node_config = NodeConfiguration(temp=True,
+                                            auto_initialize=False,
+                                            config_root=temp_dir_path)
+    yield default_node_config.config_root
+    default_node_config.cleanup()
 
 
 @pytest.fixture(scope="module")
@@ -53,6 +65,63 @@ def test_keystore():
     test_keystore = keystore.KeyStore(engine)
     yield test_keystore
 
+
+#
+# Configuration
+#
+
+@pytest.fixture(scope="module")
+def ursula_federated_test_config():
+
+    ursula_config = UrsulaConfiguration(temp=True,
+                                        auto_initialize=True,
+                                        is_me=True,
+                                        always_be_learning=False,
+                                        abort_on_learning_error=True,
+                                        federated_only=True)
+    yield ursula_config
+
+
+@pytest.fixture(scope="module")
+def ursula_decentralized_test_config(three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+
+    ursula_config = UrsulaConfiguration(temp=True,
+                                        auto_initialize=True,
+                                        is_me=True,
+                                        always_be_learning=False,
+                                        abort_on_learning_error=True,
+                                        miner_agent=miner_agent,
+                                        federated_only=False)
+    yield ursula_config
+
+
+@pytest.fixture(scope="module")
+def alice_federated_test_config(federated_ursulas):
+    config = AliceConfiguration(temp=True,
+                                auto_initialize=True,
+                                is_me=True,
+                                network_middleware=MockRestMiddleware(),
+                                known_nodes=federated_ursulas,
+                                federated_only=True,
+                                abort_on_learning_error=True)
+    yield config
+
+
+@pytest.fixture(scope="module")
+def alice_blockchain_test_config(blockchain_ursulas, three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
+
+    config = AliceConfiguration(temp=True,
+                                is_me=True,
+                                auto_initialize=True,
+                                network_middleware=MockRestMiddleware(),
+                                policy_agent=policy_agent,
+                                known_nodes=blockchain_ursulas,
+                                abort_on_learning_error=True,
+                                checksum_address=alice_address)
+    yield config
 
 
 #
@@ -65,24 +134,25 @@ def idle_federated_policy(alice, bob):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique uri (soon to be "label" - see #183)
     """
-    n = int(constants.NUMBER_OF_URSULAS_IN_NETWORK)
+    n = DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
     random_label = b'label://' + os.urandom(32)
     policy = alice.create_policy(bob, label=random_label, m=3, n=n, federated=True)
     return policy
 
 
 @pytest.fixture(scope="module")
-def enacted_federated_policy(idle_federated_policy, ursulas):
+def enacted_federated_policy(idle_federated_policy, federated_ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
-    deposit = constants.NON_PAYMENT(b"0000000")
+    deposit = constants.NON_PAYMENT
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()
 
     idle_federated_policy.make_arrangements(network_middleware,
                                             deposit=deposit,
                                             expiration=contract_end_datetime,
-                                            handpicked_ursulas=ursulas)
-    idle_federated_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
+                                            handpicked_ursulas=federated_ursulas)
+
+    responses = idle_federated_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
 
     return idle_federated_policy
 
@@ -98,14 +168,14 @@ def idle_blockchain_policy(blockchain_alice, bob):
 
 
 @pytest.fixture(scope="module")
-def enacted_blockchain_policy(idle_blockchain_policy, ursulas):
+def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
     deposit = constants.NON_PAYMENT(b"0000000")
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()
 
     idle_blockchain_policy.make_arrangements(network_middleware, deposit=deposit, expiration=contract_end_datetime,
-                                             ursulas=list(ursulas))
+                                             ursulas=list(blockchain_ursulas))
     idle_blockchain_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
 
     return idle_blockchain_policy
@@ -116,28 +186,14 @@ def enacted_blockchain_policy(idle_blockchain_policy, ursulas):
 #
 
 @pytest.fixture(scope="module")
-def alice(ursulas):
-    alice = Alice(network_middleware=MockRestMiddleware(),
-                  known_nodes=ursulas,
-                  federated_only=True,
-                  abort_on_learning_error=True)
-    alice.recruit = lambda *args, **kwargs: [u._ether_address for u in ursulas]
-
+def alice(alice_federated_test_config):
+    alice = alice_federated_test_config.produce()
     return alice
 
 
 @pytest.fixture(scope="module")
-def blockchain_alice(mining_ursulas, three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
-    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
-
-    alice = Alice(network_middleware=MockRestMiddleware(),
-                  policy_agent=policy_agent,
-                  known_nodes=mining_ursulas,
-                  abort_on_learning_error=True,
-                  checksum_address=alice_address)
-    # alice.recruit = lambda *args, **kwargs: [u._ether_address for u in ursulas]
-
+def blockchain_alice(alice_blockchain_test_config):
+    alice = alice_blockchain_test_config.produce()
     return alice
 
 
@@ -164,65 +220,45 @@ def capsule_side_channel(enacted_federated_policy):
 #
 
 @pytest.fixture(scope="module")
-def ursulas(three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
-    ether_addresses = [to_checksum_address(os.urandom(20)) for _ in range(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
-    _ursulas = make_ursulas(ether_addresses=ether_addresses,
-                            miner_agent=miner_agent
-                            )
+def federated_ursulas(ursula_federated_test_config):
+    _ursulas = None
     try:
+        _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
+                                          quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
         yield _ursulas
     finally:
-        # Remove the DBs that have been sprayed hither and yon.
-        with contextlib.suppress(FileNotFoundError):
-            for port, ursula in enumerate(_ursulas, start=int(constants.URSULA_PORT_SEED)):
-                os.remove("test-{}".format(port))
+        if _ursulas:
+            # Remove the DBs that have been sprayed hither and yon.
+            with contextlib.suppress(FileNotFoundError):
+                for ursula in _ursulas:
+                    os.remove(ursula.datastore.engine.engine.url.database)
 
 
 @pytest.fixture(scope="module")
-def mining_ursulas(three_agents):
-    starting_point = constants.URSULA_PORT_SEED + 500
-    token_agent, miner_agent, policy_agent = three_agents
-    etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
-    _receipts = token_airdrop(token_agent=token_agent, origin=etherbase, addresses=all_yall,
-                              amount=1000000 * constants.M)
-    ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
+def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
 
-    _ursulas = make_ursulas(ether_addresses=ursula_addresses,
-                            miner_agent=miner_agent,
-                            miners=True)
-    try:
-        yield _ursulas
-    finally:
-        # Remove the DBs that have been sprayed hither and yon.
-        with contextlib.suppress(FileNotFoundError):
-            for port, ursula in enumerate(_ursulas, start=int(starting_point)):
-                os.remove("test-{}".format(port))
-
-
-@pytest.fixture(scope="module")
-def non_ursula_miners(three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
 
-    ursula_addresses = all_yall[:int(constants.NUMBER_OF_URSULAS_IN_NETWORK)]
+    ursula_addresses = all_yall[:DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK]
 
-    _receipts = token_airdrop(token_agent=token_agent, origin=etherbase,
-                              addresses=all_yall, amount=1000000 * constants.M)
+    token_airdrop(origin=etherbase,
+                  addresses=ursula_addresses,
+                  token_agent=token_agent,
+                  amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
-    starting_point = constants.URSULA_PORT_SEED + 500
-
-    _ursulas = make_ursulas(ether_addresses=ursula_addresses,
-                            miner_agent=miner_agent,
-                            miners=True,
-                            bare=True)
+    _ursulas = None
     try:
+        _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
+                                              ether_addresses=ursula_addresses,
+                                              stake=True)
         yield _ursulas
     finally:
-        # Remove the DBs that have been sprayed hither and yon.
-        with contextlib.suppress(FileNotFoundError):
-            for port, ursula in enumerate(_ursulas, start=int(starting_point)):
-                os.remove("test-{}".format(port))
+        if _ursulas:
+            # Remove the DBs that have been sprayed hither and yon.
+            with contextlib.suppress(FileNotFoundError):
+                for ursula in _ursulas:
+                    os.remove(ursula.datastore.engine.engine.url.database)
 
 
 #
@@ -232,8 +268,7 @@ def non_ursula_miners(three_agents):
 @pytest.fixture(scope='session')
 def solidity_compiler():
     """Doing this more than once per session will result in slower test run times."""
-    test_contracts_dir = os.path.join(dirname(abspath(contracts.__file__)), 'contracts')
-    compiler = SolidityCompiler(test_contract_dir=test_contracts_dir)
+    compiler = SolidityCompiler(test_contract_dir=TEST_CONTRACTS_DIR)
     yield compiler
 
 
@@ -245,25 +280,21 @@ def testerchain(solidity_compiler):
 
     temp_registrar = TemporaryEthereumContractRegistry()
 
-    # Configure a custom provider
-    overrides = {'gas_limit': 4626271}
-    pyevm_backend = OverridablePyEVMBackend(genesis_overrides=overrides)
-
-    eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
-    pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
-
     # Use the the custom provider and registrar to init an interface
-    circumflex = DeployerCircumflex(compiler=solidity_compiler,    # freshly recompile
-                                    registry=temp_registrar,       # use temporary registrar
-                                    providers=(pyevm_provider, ))  # use custom test provider
+
+    deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
+                                                     registry=temp_registrar,
+                                                     provider_uri='pyevm://tester')
 
     # Create the blockchain
-    testerchain = TesterBlockchain(interface=circumflex, test_accounts=10)
+    testerchain = TesterBlockchain(interface=deployer_interface,
+                                   test_accounts=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                   airdrop=False)
+
     origin, *everyone = testerchain.interface.w3.eth.accounts
-    circumflex.deployer_address = origin  # Set the deployer address from a freshly created test account
+    deployer_interface.deployer_address = origin  # Set the deployer address from a freshly created test account
 
     yield testerchain
-
     testerchain.sever_connection()
 
 
@@ -284,13 +315,21 @@ def three_agents(testerchain):
 
     token_agent = token_deployer.make_agent()
 
-    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=origin)
+    miners_escrow_secret = os.urandom(constants.DISPATCHER_SECRET_LENGTH)
+    miner_escrow_deployer = MinerEscrowDeployer(
+        token_agent=token_agent,
+        deployer_address=origin,
+        secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
     miner_escrow_deployer.arm()
     miner_escrow_deployer.deploy()
 
     miner_agent = miner_escrow_deployer.make_agent()
 
-    policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=origin)
+    policy_manager_secret = os.urandom(constants.DISPATCHER_SECRET_LENGTH)
+    policy_manager_deployer = PolicyManagerDeployer(
+        miner_agent=miner_agent,
+        deployer_address=origin,
+        secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
 

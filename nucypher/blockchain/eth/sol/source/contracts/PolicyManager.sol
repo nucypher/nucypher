@@ -7,7 +7,7 @@ import "zeppelin/math/Math.sol";
 import "./lib/AdditionalMath.sol";
 import "contracts/MinersEscrow.sol";
 import "contracts/NuCypherToken.sol";
-import "proxy/Upgradeable.sol";
+import "contracts/proxy/Upgradeable.sol";
 
 
 /**
@@ -176,7 +176,7 @@ contract PolicyManager is Upgradeable {
             nodeInfo.rewardDelta[policy.startPeriod] = nodeInfo.rewardDelta[policy.startPeriod]
                 .add(startReward);
             nodeInfo.rewardDelta[endPeriod] = nodeInfo.rewardDelta[endPeriod].sub(policy.rewardRate);
-            policy.arrangements.push(ArrangementInfo(node, escrow.getDowntimeLength(node), 0));
+            policy.arrangements.push(ArrangementInfo(node, escrow.getPastDowntimeLength(node), 0));
         }
 
         emit PolicyCreated(_policyId, msg.sender);
@@ -231,13 +231,13 @@ contract PolicyManager is Upgradeable {
         uint16 maxPeriod = AdditionalMath.min16(getCurrentPeriod(), _policy.lastPeriod);
         uint16 minPeriod = AdditionalMath.max16(_policy.startPeriod, _arrangement.lastRefundedPeriod);
         uint16 downtimePeriods = 0;
-        uint256 length = escrow.getDowntimeLength(_arrangement.node);
+        uint256 length = escrow.getPastDowntimeLength(_arrangement.node);
         for (indexOfDowntimePeriods = _arrangement.indexOfDowntimePeriods;
                 indexOfDowntimePeriods < length;
                 indexOfDowntimePeriods++)
         {
             (uint16 startPeriod, uint16 endPeriod) =
-                escrow.getDowntime(_arrangement.node, indexOfDowntimePeriods);
+                escrow.getPastDowntime(_arrangement.node, indexOfDowntimePeriods);
             if (startPeriod > maxPeriod) {
                 break;
             } else if (endPeriod < minPeriod) {
@@ -264,7 +264,8 @@ contract PolicyManager is Upgradeable {
             if (lastActivePeriod < _policy.startPeriod - 1) {
                 refundValue = _policy.firstPartialReward;
             } else if (_arrangement.indexOfDowntimePeriods < length) {
-                (startPeriod, endPeriod) = escrow.getDowntime(_arrangement.node, _arrangement.indexOfDowntimePeriods);
+                (startPeriod, endPeriod) = escrow.getPastDowntime(
+                    _arrangement.node, _arrangement.indexOfDowntimePeriods);
                 if (_policy.startPeriod > startPeriod && _policy.startPeriod - 1 <= endPeriod) {
                     refundValue = _policy.firstPartialReward;
                 }

@@ -1,120 +1,22 @@
-import binascii
-import json
-import os
-import warnings
-from pathlib import Path
-from typing import Tuple, List
+from urllib.parse import urlparse
 
 from constant_sorrow import constants
-from eth_utils import to_canonical_address
 from eth_keys.datatypes import PublicKey, Signature
-from web3.providers.eth_tester.main import EthereumTesterProvider
+from eth_utils import to_canonical_address
+from typing import Tuple, Union
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
+from web3.providers.eth_tester.main import EthereumTesterProvider
 
+from eth_tester import EthereumTester
+from eth_tester import PyEVMBackend
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-
-_DEFAULT_CONFIGURATION_DIR = os.path.join(str(Path.home()), '.nucypher')
-
-
-class EthereumContractRegistry:
-    """
-    Records known contracts on the disk for future access and utility. This
-    lazily writes to the filesystem during contract enrollment.
-
-    WARNING: Unless you are developing NuCypher, you most likely won't ever need
-    to use this.
-    """
-    __default_registry_path = os.path.join(_DEFAULT_CONFIGURATION_DIR, 'registry.json')
-
-    class RegistryError(Exception):
-        pass
-
-    class UnknownContract(RegistryError):
-        pass
-
-    class IllegalRegistrar(RegistryError):
-        """Raised when invalid data is encountered in the registry"""
-
-    def __init__(self, registry_filepath: str=None):
-        self.__registry_filepath = registry_filepath or self.__default_registry_path
-
-    @property
-    def registry_filepath(self):
-        return self.__registry_filepath
-
-    def __write(self, registry_data: list) -> None:
-        """
-        Writes the registry data list as JSON to the registry file. If no
-        file exists, it will create it and write the data. If a file does exist
-        it will _overwrite_ everything in it.
-        """
-        with open(self.__registry_filepath, 'w+') as registry_file:
-            registry_file.seek(0)
-            registry_file.write(json.dumps(registry_data))
-            registry_file.truncate()
-
-    def read(self) -> list:
-        """
-        Reads the registry file and parses the JSON and returns a list.
-        If the file is empty or the JSON is corrupt, it will return an empty
-        list.
-        If you are modifying or updating the registry file, you _must_ call
-        this function first to get the current state to append to the dict or
-        modify it because _write_registry_file overwrites the file.
-        """
-        try:
-            with open(self.__registry_filepath, 'r') as registry_file:
-                registry_file.seek(0)
-                file_data = registry_file.read()
-                if file_data:
-                    registry_data = json.loads(file_data)
-                else:
-                    registry_data = list()  # Existing, but empty registry
-
-        except FileNotFoundError:
-            raise self.RegistryError("No registy at filepath: {}".format(self.__registry_filepath))
-
-        return registry_data
-
-    def enroll(self, contract_name, contract_address, contract_abi):
-        """
-        Enrolls a contract to the chain registry by writing the name, address,
-        and abi information to the filesystem as JSON.
-
-        Note: Unless you are developing NuCypher, you most likely won't ever
-        need to use this.
-        """
-        contract_data = [contract_name, contract_address, contract_abi]
-        registry_data = self.read()
-        registry_data.append(contract_data)
-        self.__write(registry_data)
-
-    def search(self, contract_name: str=None, contract_address: str=None):
-        """
-        Searches the registry for a contract with the provided name or address
-        and returns the contracts.
-        """
-        if not (bool(contract_name) ^ bool(contract_address)):
-            raise ValueError("Pass contract_name or contract_address, not both.")
-
-        contracts = list()
-        registry_data = self.read()
-
-        for name, addr, abi in registry_data:
-            if contract_name == name or contract_address == addr:
-                contracts.append((name, addr, abi))
-
-        if not contracts:
-            raise self.UnknownContract
-        if contract_address and len(contracts) > 1:
-            m = "Multiple records returned for address {}"
-            raise self.IllegalRegistrar(m.format(contract_address))
-
-        return contracts if contract_name else contracts[0]
+from nucypher.config.node import NodeConfiguration
+from nucypher.config.parsers import parse_blockchain_config
 
 
-class ControlCircumflex:
+class BlockchainInterface:
     """
     Interacts with a solidity compiler and a registry in order to instantiate compiled
     ethereum contracts with the given web3 provider backend.
@@ -130,9 +32,14 @@ class ControlCircumflex:
     class InterfaceError(Exception):
         pass
 
-    def __init__(self, network_name: str=None, endpoint_uri: str=None,
-                 websocket=False, ipc_path=None, timeout=None, providers: list=None,
-                 registry: EthereumContractRegistry=None, compiler: SolidityCompiler=None):
+    def __init__(self,
+                 network_name: str = None,
+                 provider_uri: str = None,
+                 providers: list = None,
+                 autoconnect: bool = True,
+                 timeout: int = None,
+                 registry: EthereumContractRegistry = None,
+                 compiler: SolidityCompiler=None) -> None:
 
         """
         A blockchain "network inerface"; The circumflex wraps entirely around the bounds of
@@ -143,7 +50,7 @@ class ControlCircumflex:
                                                |                |                   |
                                                |                |                    -- External EVM (geth, etc.)
                                                                                     |
-                                               *ControlCircumflex* -- IPCProvider --
+                                               *BlockchainInterface* -- IPCProvider --
 
                                                |      |         |
                                                |      |         |
@@ -195,15 +102,21 @@ class ControlCircumflex:
         # Providers
         #
 
-        # If custom __providers are not injected...
-        self._providers = list() if providers is None else providers
-        if providers is None:
-            # Mutates self._providers
-            self.add_provider(endpoint_uri=endpoint_uri, websocket=websocket,
-                              ipc_path=ipc_path, timeout=timeout)
+        self.w3 = constants.NO_BLOCKCHAIN_CONNECTION
+        self.__providers = providers if providers is not None else constants.NO_BLOCKCHAIN_CONNECTION
 
-        web3_instance = Web3(providers=self._providers)  # Instantiate Web3 object with provider
-        self.w3 = web3_instance                           # capture web3
+        if provider_uri and providers:
+            raise self.InterfaceError("Pass a provider URI string, or a list of provider instances.")
+        elif provider_uri:
+            self.provider_uri = provider_uri
+            self.add_provider(provider_uri=provider_uri)
+        elif providers:
+            self.provider_uri = constants.MANUAL_PROVIDERS_SET
+            for provider in providers:
+                self.add_provider(provider)
+        else:
+            # TODO: Emit a warning / log: No provider supplied for blockchain interface
+            pass
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
         recompile = True if compiler is not None else False
@@ -211,13 +124,55 @@ class ControlCircumflex:
         self.__sol_compiler = compiler
 
         # Setup the registry and base contract factory cache
-        registry = registry if registry is not None else EthereumContractRegistry()
+        registry = registry if registry is not None else EthereumContractRegistry().from_config()
         self._registry = registry
 
         if self.__recompile is True:
             # Execute the compilation if we're recompiling, otherwise read compiled contract data from the registry
             interfaces = self.__sol_compiler.compile()
             self.__raw_contract_cache = interfaces
+
+        # Auto-connect
+        self.autoconnect = autoconnect
+        if self.autoconnect is True:
+            self.connect()
+
+    def connect(self):
+
+        if self.__providers is constants.NO_BLOCKCHAIN_CONNECTION:
+            raise self.InterfaceError("There are no configured blockchain providers")
+
+        # Connect
+        web3_instance = Web3(providers=self.__providers)  # Instantiate Web3 object with provider
+        self.w3 = web3_instance
+
+        # Check connection
+        if not self.is_connected:
+            raise self.InterfaceError('Failed to connect to providers: {}'.format(self.__providers))
+
+        return True
+
+    @classmethod
+    def from_config(cls, config: NodeConfiguration) -> 'BlockchainInterface':
+        # Parse
+        payload = parse_blockchain_config(filepath=config.config_file_location)
+
+        # Init deps
+        compiler = SolidityCompiler() if payload['compile'] else None
+        registry = EthereumContractRegistry.from_config(config=config)
+        interface_class = BlockchainInterface if not payload['deploy'] else BlockchainDeployerInterface
+
+        # init class
+        circumflex = interface_class(timeout=payload['timeout'],
+                                     provider_uri=payload['provider_uri'],
+                                     compiler=compiler,
+                                     registry=registry)
+
+        return circumflex
+
+    @property
+    def providers(self) -> Tuple[Union[IPCProvider, WebsocketProvider, HTTPProvider], ...]:
+        return tuple(self.__providers)
 
     @property
     def network(self) -> str:
@@ -235,35 +190,55 @@ class ControlCircumflex:
         """Return node version information"""
         return self.w3.version.node           # type of connected node
 
-    def add_provider(self, provider=None, endpoint_uri: str=None,
-                     websocket=False, ipc_path=None, timeout=None) -> None:
+    def add_provider(self,
+                     provider: Union[IPCProvider, WebsocketProvider, HTTPProvider] = None,
+                     provider_uri: str = None,
+                     timeout: int = None) -> None:
 
-        if provider is None:
+        if not provider_uri and not provider:
+            raise self.InterfaceError("No URI or provider instances supplied.")
 
-            # Validate parameters
-            if websocket and not endpoint_uri:
-                if ipc_path is not None:
-                    raise self.InterfaceError("Use either HTTP/Websocket or IPC params, not both.")
-                raise self.InterfaceError('Must pass endpoint_uri when using websocket __providers.')
+        if provider_uri and not provider:
+            uri_breakdown = urlparse(provider_uri)
 
-            if ipc_path is not None:
-                if endpoint_uri or websocket:
-                    raise self.InterfaceError("Use either HTTP/Websocket or IPC params, not both.")
+            # PyEVM
+            if uri_breakdown.scheme == 'pyevm':
 
-            # HTTP / Websocket Provider
-            if endpoint_uri is not None:
-                if websocket is True:
-                    provider = WebsocketProvider(endpoint_uri)
+                if uri_breakdown.netloc == 'tester':
+
+                    NUCYPHER_GAS_LIMIT = 5000000 #4899698  # 4626271  # TODO: Move ME
+                    genesis_parameter_overrides = {'gas_limit': NUCYPHER_GAS_LIMIT}
+
+                    pyevm_backend = PyEVMBackend.from_genesis_overrides(parameter_overrides=genesis_parameter_overrides)
+
+                    eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
+                    provider = EthereumTesterProvider(ethereum_tester=eth_tester)
+
+                elif uri_breakdown.netloc == 'trinity':
+                    raise NotImplemented
+
                 else:
-                    provider = HTTPProvider(endpoint_uri)
+                    raise self.InterfaceError("{} is an ambiguous or unsupported blockchain provider URI".format(provider_uri))
 
-            # IPC Provider
-            elif ipc_path:
-                provider = IPCProvider(ipc_path=ipc_path, testnet=False, timeout=timeout)
+            # IPC
+            elif uri_breakdown.scheme == 'ipc':
+                provider = IPCProvider(ipc_path=uri_breakdown.path, timeout=timeout)
+
+            # Websocket
+            elif uri_breakdown.scheme == 'ws':
+                provider = WebsocketProvider(endpoint_uri=provider_uri)
+
+            # HTTP
+            elif uri_breakdown.scheme in ('http', 'https'):
+                provider = HTTPProvider(endpoint_uri=provider_uri)
+
             else:
-                raise self.InterfaceError("Invalid interface parameters. Pass endpoint_uri or ipc_path")
+                raise self.InterfaceError("'{}' is not a blockchain provider protocol".format(uri_breakdown.scheme))
 
-        self._providers.append(provider)
+            # lazy
+            if self.__providers is constants.NO_BLOCKCHAIN_CONNECTION:
+                self.__providers = list()
+            self.__providers.append(provider)
 
     def get_contract_factory(self, contract_name) -> Contract:
         """Retrieve compiled interface data from the cache and return web3 contract"""
@@ -352,9 +327,9 @@ class ControlCircumflex:
         return unified_contract
 
 
-class DeployerCircumflex(ControlCircumflex):
+class BlockchainDeployerInterface(BlockchainInterface):
 
-    def __init__(self, deployer_address: str=None, *args, **kwargs):
+    def __init__(self, deployer_address: str=None, *args, **kwargs) -> None:
 
         # Depends on web3 instance
         super().__init__(*args, **kwargs)
@@ -413,14 +388,14 @@ class DeployerCircumflex(ControlCircumflex):
         backend. If the backend is based on eth-tester, then it uses the
         eth-tester signing interface to do so.
         """
-        provider = self._providers[0]
+        provider = self.providers[0]  # TODO: Handle multiple providers
         if isinstance(provider, EthereumTesterProvider):
             address = to_canonical_address(account)
             sig_key = provider.ethereum_tester.backend._key_lookup[address]
             signed_message = sig_key.sign_msg(message)
             return signed_message
         else:
-            return self.w3.eth.sign(account, data=message) # Technically deprecated...
+            return self.w3.eth.sign(account, data=message)  # Technically deprecated...
 
     def call_backend_verify(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes):
         """

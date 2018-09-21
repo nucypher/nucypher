@@ -1,27 +1,34 @@
-import shutil
-import itertools
 import os
-
-import solc
+import shutil
 from os.path import abspath, dirname
+
+import itertools
 from solc import install_solc, compile_files
 from solc.exceptions import SolcError
 
 
 class SolidityCompiler:
+
+    # TODO: Integrate with config classes
+
     __default_version = 'v0.4.24'
     __default_configuration_path = os.path.join(dirname(abspath(__file__)), './compiler.json')
 
     __default_sol_binary_path = shutil.which('solc')
     if __default_sol_binary_path is None:
-        __bin_path = os.path.dirname(shutil.which('python'))
-        __default_sol_binary_path = os.path.join(__bin_path, 'solc')
+        __bin_path = os.path.dirname(shutil.which('python'))          # type: str
+        __default_sol_binary_path = os.path.join(__bin_path, 'solc')  # type: str
 
     __default_contract_dir = os.path.join(dirname(abspath(__file__)), 'source', 'contracts')
     __default_chain_name = 'tester'
 
-    def __init__(self, solc_binary_path=None, configuration_path=None,
-                 chain_name=None, contract_dir=None, test_contract_dir=None):
+    def __init__(self,
+                 solc_binary_path: str = None,
+                 configuration_path: str = None,
+                 chain_name: str = None,
+                 contract_dir: str = None,
+                 test_contract_dir: str= None
+                 ) -> None:
 
         # Compiler binary and root solidity source code directory
         self.__sol_binary_path = solc_binary_path if solc_binary_path is not None else self.__default_sol_binary_path
@@ -35,7 +42,7 @@ class SolidityCompiler:
         # Set the local env's solidity compiler binary
         os.environ['SOLC_BINARY'] = self.__sol_binary_path
 
-    def install_compiler(self, version=None):
+    def install_compiler(self, version: str=None):
         """
         Installs the specified solidity compiler version.
         https://github.com/ethereum/py-solc#installing-the-solc-binary
@@ -62,7 +69,6 @@ class SolidityCompiler:
 
         remappings = ("contracts={}".format(self._solidity_source_dir),
                       "zeppelin={}".format(os.path.join(project_root, 'zeppelin')),
-                      "proxy={}".format(os.path.join(project_root, 'proxy')),
                       )
         try:
             compiled_sol = compile_files(source_files=source_paths,

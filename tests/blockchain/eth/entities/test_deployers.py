@@ -1,8 +1,10 @@
+import os
 import pytest
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
+from constant_sorrow import constants
 
 
 def test_token_deployer_and_agent(testerchain):
@@ -43,12 +45,7 @@ def test_token_deployer_and_agent(testerchain):
 @pytest.mark.slow()
 def test_deploy_ethereum_contracts(testerchain):
     """
-    Launch all ethereum contracts:
-    - NuCypherToken
-    - PolicyManager
-    - MinersEscrow
-    - UserEscrow
-    - Issuer
+    A bare minimum nucypher deployment fixture.
     """
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
 
@@ -58,13 +55,21 @@ def test_deploy_ethereum_contracts(testerchain):
 
     token_agent = NucypherTokenAgent(blockchain=testerchain)
 
-    miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=origin)
+    miners_escrow_secret = os.urandom(constants.DISPATCHER_SECRET_LENGTH)
+    miner_escrow_deployer = MinerEscrowDeployer(
+        token_agent=token_agent,
+        deployer_address=origin,
+        secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
     miner_escrow_deployer.arm()
     miner_escrow_deployer.deploy()
 
     miner_agent = MinerAgent(token_agent=token_agent)
 
-    policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=origin)
+    policy_manager_secret = os.urandom(constants.DISPATCHER_SECRET_LENGTH)
+    policy_manager_deployer = PolicyManagerDeployer(
+        miner_agent=miner_agent,
+        deployer_address=origin,
+        secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
 

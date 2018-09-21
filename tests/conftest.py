@@ -1,17 +1,18 @@
-from cryptography.hazmat.primitives.asymmetric import ec
-from umbral.config import set_default_curve
-from umbral.curve import SECP256K1
-
-set_default_curve(SECP256K1)
+"""Set default curve for tests"""
 
 """NOTICE:  Depends on fixture modules; do not delete"""
 from .fixtures import *
+
+
+"""Pytest configuration"""
 import pytest
 
 
 def pytest_addoption(parser):
-    parser.addoption("--runslow", action="store_true",
-                     default=False, help="run slow tests")
+    parser.addoption("--runslow",
+                     action="store_true",
+                     default=False,
+                     help="run tests even if they are marked as slow")
 
 
 def pytest_collection_modifyitems(config, items):

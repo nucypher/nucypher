@@ -3,7 +3,7 @@ pragma solidity ^0.4.24;
 
 import "contracts/Issuer.sol";
 import "contracts/NuCypherToken.sol";
-import "proxy/Upgradeable.sol";
+import "contracts/proxy/Upgradeable.sol";
 
 
 /**

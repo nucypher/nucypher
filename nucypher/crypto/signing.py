@@ -1,6 +1,7 @@
 from bytestring_splitter import BytestringSplitter
-from nucypher.crypto.api import keccak_digest
 from umbral.signing import Signature, Signer
+
+from nucypher.crypto.api import keccak_digest
 
 signature_splitter = BytestringSplitter(Signature)
 
@@ -11,7 +12,7 @@ class SignatureStamp(object):
     key as bytes.
     """
 
-    def __init__(self, verifying_key, signer: Signer = None):
+    def __init__(self, verifying_key, signer: Signer = None) -> None:
         self.__signer = signer
         self._as_bytes = bytes(verifying_key)
         self._as_umbral_pubkey = verifying_key

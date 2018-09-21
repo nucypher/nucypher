@@ -2,12 +2,13 @@ import inspect
 from typing import List, Union
 
 from eth_keys.datatypes import PublicKey, Signature as EthSignature
-
 from eth_utils import keccak
-from nucypher.keystore import keypairs
-from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair, HostingKeypair
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
+
+from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.keystore import keypairs
+from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair, HostingKeypair
 
 
 class PowerUpError(TypeError):
@@ -27,10 +28,10 @@ class NoBlockchainPower(PowerUpError):
 
 
 class CryptoPower(object):
-    def __init__(self, power_ups=None):
-        self._power_ups = {}
+    def __init__(self, power_ups: dict = None) -> None:
+        self._power_ups = {}   # type: dict
         # TODO: The keys here will actually be IDs for looking up in a KeyStore.
-        self.public_keys = {}
+        self.public_keys = {}  # type: dict
 
         if power_ups is not None:
             for power_up in power_ups:
@@ -74,7 +75,7 @@ class BlockchainPower(CryptoPowerUp):
     """
     not_found_error = NoBlockchainPower
 
-    def __init__(self, blockchain: 'Blockchain', account: str):
+    def __init__(self, blockchain: 'Blockchain', account: str) -> None:
         """
         Instantiates a BlockchainPower for the given account id.
         """
@@ -87,11 +88,10 @@ class BlockchainPower(CryptoPowerUp):
         Unlocks the account for the specified duration. If no duration is
         provided, it will remain unlocked indefinitely.
         """
-        self.is_unlocked = self.blockchain.unlock_account(
-                self.account, password, duration=duration)
+        self.is_unlocked = self.blockchain.unlock_account(self.account, password, duration=duration)
 
         if not self.is_unlocked:
-            raise PowerUpError("Account failed to unlock for {}".format(self.account))
+            raise PowerUpError("Failed to unlock account {}".format(self.account))
 
     def sign_message(self, message: bytes):
         """
@@ -101,7 +101,7 @@ class BlockchainPower(CryptoPowerUp):
             raise PowerUpError("Account is not unlocked.")
 
         signature = self.blockchain.interface.call_backend_sign(self.account, message)
-        return signature.to_bytes()
+        return bytes(signature)
 
     def verify_message(self, address: str, pubkey: bytes, message: bytes, signature_bytes: bytes):
         """
@@ -136,7 +136,7 @@ class KeyPairBasedPower(CryptoPowerUp):
     def __init__(self,
                  pubkey: UmbralPublicKey = None,
                  keypair: keypairs.Keypair = None,
-                 generate_keys_if_needed=True) -> None:
+                 ) -> None:
         if keypair and pubkey:
             raise ValueError(
                 "Pass keypair or pubkey_bytes (or neither), but not both.")
@@ -194,14 +194,9 @@ class EncryptingPower(KeyPairBasedPower):
     provides = ("decrypt",)
 
 
-class TLSHostingPower(KeyPairBasedPower):
-    _keypair_class = HostingKeypair
-    provides = ("get_deployer",)
-
-
 class DelegatingPower(DerivedKeyBasedPower):
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.umbral_keying_material = UmbralKeyingMaterial()
 
     def generate_kfrags(self, bob_pubkey_enc, signer, label, m, n) -> Union[UmbralPublicKey, List]:

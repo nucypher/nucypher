@@ -5,9 +5,9 @@ workflows:
   test:
     jobs:
       - bundle_dependencies-36
-#      - mypy_type_check:
-#          requires:
-#            - bundle_dependencies-36
+      - mypy_type_check:
+          requires:
+            - bundle_dependencies-36
       - eth_contract_unit:
           requires:
             - bundle_dependencies-36
@@ -31,6 +31,11 @@ workflows:
       - intercontract_integration:
           requires:
             - eth_contract_unit
+      - nucypher_cli_tests:
+          requires:
+              - crypto_unit
+              - network_unit
+              - keystore_unit
 
 python_36_base: &python_36_base
     working_directory: ~/nucypher-depends
@@ -49,18 +54,18 @@ jobs:
             pipenv graph
       - run:
           name: Install Solidity Compiler
-          command: pipenv run install_solc
-      - save_cache:
+          command: pipenv run ./scripts/install_solc.sh
+      - persist_to_workspace:
+          root: ~/.local/share/virtualenvs/
           paths:
-            - "~/.local/share/virtualenvs/"
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+            - nucypher-*
 
   blockchain_interface_unit:
     <<: *python_36_base
     steps:
       - checkout
-      - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
       - run:
           name: Blockchain Interface Tests
           command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/interfaces tests/blockchain/eth/entities --junitxml=./reports/pytest/results.xml
@@ -72,8 +77,8 @@ jobs:
     parallelism: 4
     steps:
       - checkout
-      - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
       - run:
           name: Ethereum Contract Unit Tests
           command: |
@@ -85,8 +90,8 @@ jobs:
     <<: *python_36_base
     steps:
       - checkout
-      - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
       - run:
           name: Crypto Character Tests
           command: pipenv run pytest --cov=nucypher/crypto -v --runslow tests/crypto --junitxml=./reports/pytest/results.xml
@@ -97,8 +102,8 @@ jobs:
     <<: *python_36_base
     steps:
       - checkout
-      - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
       - run:
           name: Network Tests
           command: pipenv run pytest --cov=nucypher/network -v --runslow tests/network --junitxml=./reports/pytest/results.xml
@@ -109,8 +114,8 @@ jobs:
     <<: *python_36_base
     steps:
       - checkout
-      - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
       - run:
           name: Keystore Tests
           command: pipenv run pytest --cov=nucypher/keystore -v --runslow tests/keystore --junitxml=./reports/pytest/results.xml
@@ -121,8 +126,8 @@ jobs:
     <<: *python_36_base
     steps:
       - checkout
-      - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
       - run:
           name: Character Tests
           command: pipenv run pytest --cov=nucypher -v --runslow tests/characters --junitxml=./reports/pytest/results.xml
@@ -133,28 +138,45 @@ jobs:
     <<: *python_36_base
     steps:
       - checkout
-      - restore_cache:
-          key: v4-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
       - run:
           name: Ethereum Inter-Contract Integration Test
           command: |
-            pipenv run pytest -v --runslow tests/blockchain/eth/contracts/integration --junitxml=./reports/pytest/results.xml
+            pipenv run pytest -v --runslow tests/blockchain/eth/contracts/main/test_intercontract_integration.py --junitxml=./reports/pytest/results.xml
       - store_test_results:
           path: ./reports/pytest/
-#
-#  mypy_type_check:
-#    <<: *python_36_base
-#    steps:
-#      - checkout
-#      - restore_cache:
-#          key: v3-deps-{{ .Environment.CIRCLE_WORKFLOW_ID }}-{{ checksum "Pipfile" }}
-#      - run:
-#          name: Run Mypy Static Type Checks
-#          command: |
-#              mkdir ./mypy_reports ./mypy_results
-#              export MYPYPATH=./nucypher
-#              pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount --junit-xml ./mypy_results/results.xml
-#      - store_artifacts:
-#          path: ./mypy_reports
-#      - store_test_results:
-#          path: ./mypy_results
+
+  nucypher_cli_tests:
+    <<: *python_36_base
+    steps:
+    - checkout
+    - attach_workspace:
+        at: ~/.local/share/virtualenvs/
+    - run:
+        name: Nucypher CLI Tests
+        command: |
+          pipenv run pytest -v --runslow tests/cli --junitxml=./reports/pytest/results.xml
+    - store_test_results:
+        path: ./reports/pytest/
+
+  mypy_type_check:
+    <<: *python_36_base
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
+      - run:
+          name: Install lxml
+          command: |
+              pipenv run pip install lxml
+      - run:
+          name: Run Mypy Static Type Checks
+          command: |
+              mkdir ./mypy_reports ./mypy_results
+              export MYPYPATH=./nucypher
+              pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount --junit-xml ./mypy_results/results.xml
+      - store_artifacts:
+          path: ./mypy_reports
+      - store_test_results:
+          path: ./mypy_results

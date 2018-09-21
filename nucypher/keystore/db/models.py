@@ -1,14 +1,12 @@
-import sha3
-
 from datetime import datetime
-
-from nucypher.crypto.utils import fingerprint_from_key
-from nucypher.keystore.db import Base
-from sqlalchemy.orm import relationship
 
 from sqlalchemy import (
     Column, Integer, LargeBinary, ForeignKey, Boolean, DateTime
 )
+from sqlalchemy.orm import relationship
+
+from nucypher.crypto.utils import fingerprint_from_key
+from nucypher.keystore.db import Base
 
 
 class Key(Base):
@@ -20,7 +18,7 @@ class Key(Base):
     is_signing = Column(Boolean, unique=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    def __init__(self, fingerprint, key_data, is_signing):
+    def __init__(self, fingerprint, key_data, is_signing) -> None:
         self.fingerprint = fingerprint
         self.key_data = key_data
         self.is_signing = is_signing
@@ -49,7 +47,7 @@ class PolicyArrangement(Base):
     def __init__(self, expiration, id,
                  k_frag=None, alice_pubkey_sig=None,
                  # alice_pubkey_enc_id, bob_pubkey_sig_id,
-                 alice_signature=None):
+                 alice_signature=None) -> None:
         self.expiration = expiration
         self.id = id
         self.k_frag = k_frag
@@ -68,7 +66,7 @@ class Workorder(Base):
     arrangement_id = Column(LargeBinary, unique=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    def __init__(self, bob_pubkey_sig_id, bob_signature, arrangement_id):
+    def __init__(self, bob_pubkey_sig_id, bob_signature, arrangement_id) -> None:
         self.bob_pubkey_sig_id = bob_pubkey_sig_id
         self.bob_signature = bob_signature
         self.arrangement_id = arrangement_id

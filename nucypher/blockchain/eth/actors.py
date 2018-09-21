@@ -1,11 +1,12 @@
 from collections import OrderedDict
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, List
 
 import maya
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
 from nucypher.blockchain.eth.constants import calculate_period_duration, datetime_to_period, validate_stake_amount
+from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
 def only_me(func):
@@ -13,7 +14,6 @@ def only_me(func):
         if not actor.is_me:
             raise actor.MinerError("You are not {}".format(actor.__class.__.__name__))
         return func(actor, *args, **kwargs)
-
     return wrapped
 
 
@@ -25,7 +25,10 @@ class NucypherTokenActor:
     class ActorError(Exception):
         pass
 
-    def __init__(self, checksum_address: str = None, token_agent: NucypherTokenAgent = None):
+    def __init__(self,
+                 checksum_address: str = None,
+                 token_agent: NucypherTokenAgent = None,
+                 registry_filepath: str = None) -> None:
         """
         :param checksum_address:  If not passed, we assume this is an unknown actor
 
@@ -34,26 +37,24 @@ class NucypherTokenActor:
 
         """
         try:
-            parent_address = self.checksum_public_address
+            parent_address = self.checksum_public_address  # type: str
             if checksum_address is not None:
                 if parent_address != checksum_address:
                     raise ValueError("Can't have two different addresses.")
         except AttributeError:
-            self.checksum_public_address = checksum_address
+            self.checksum_public_address = checksum_address  # type: str
+
+        if registry_filepath is not None:
+            EthereumContractRegistry(registry_filepath=registry_filepath)
 
         self.token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
-        self._transaction_cache = list()  # track transactions transmitted
+        self._transaction_cache = list()  # type: list # track transactions transmitted
 
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(address='{}')"
         r = r.format(class_name, self.checksum_public_address)
         return r
-
-    @classmethod
-    def from_config(cls, config):
-        """Read actor data from a configuration file, and create an actor instance."""
-        raise NotImplementedError
 
     @property
     def eth_balance(self):
@@ -76,7 +77,11 @@ class Miner(NucypherTokenActor):
     class MinerError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self, is_me=True, miner_agent: MinerAgent = None, *args, **kwargs):
+    def __init__(self,
+                 is_me=True,
+                 miner_agent: MinerAgent = None,
+                 *args, **kwargs) -> None:
+
         miner_agent = miner_agent if miner_agent is not None else MinerAgent()
         super().__init__(token_agent=miner_agent.token_agent, *args, **kwargs)
 
@@ -87,17 +92,6 @@ class Miner(NucypherTokenActor):
 
         # Establish initial state
         self.is_me = is_me
-
-    @classmethod
-    def from_config(cls, blockchain_config) -> 'Miner':
-        """Read miner data from a configuration file, and create an miner instance."""
-
-        # Use BlockchainConfig to default to the first wallet address
-        wallet_address = blockchain_config.wallet_addresses[0]
-
-        instance = cls(checksum_address=wallet_address)
-        return instance
-
     #
     # Staking
     #
@@ -112,9 +106,10 @@ class Miner(NucypherTokenActor):
         return self.miner_agent.get_locked_tokens(node_address=self.checksum_public_address)
 
     @property
-    def stakes(self):
+    def stakes(self) -> Tuple[list]:
+        """Read all live stake data from the blockchain and return it as a tuple"""
         stakes_reader = self.miner_agent.get_all_stakes(miner_address=self.checksum_public_address)
-        return stakes_reader
+        return tuple(stakes_reader)
 
     @only_me
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
@@ -186,8 +181,11 @@ class Miner(NucypherTokenActor):
             return True
 
     @only_me
-    def stake(self, amount: int, lock_periods: int = None, expiration: maya.MayaDT = None,
-              entire_balance: bool = False) -> dict:
+    def initialize_stake(self,
+                         amount: int,
+                         lock_periods: int = None,
+                         expiration: maya.MayaDT = None,
+                         entire_balance: bool = False) -> dict:
         """
         High level staking method for Miners.
 
@@ -208,7 +206,7 @@ class Miner(NucypherTokenActor):
         if entire_balance is True:
             amount = self.token_balance
 
-        staking_transactions = OrderedDict()  # Time series of txhases
+        staking_transactions = OrderedDict()  # type: OrderedDict # Time series of txhases
 
         # Validate
         assert self.__validate_stake(amount=amount, lock_periods=lock_periods)
@@ -263,7 +261,7 @@ class Miner(NucypherTokenActor):
 class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
-    def __init__(self, checksum_address, policy_agent: PolicyAgent = None):
+    def __init__(self, checksum_address: str, policy_agent: PolicyAgent = None) -> None:
         """
         :param policy_agent: A policy agent with the blockchain attached; If not passed, A default policy
         agent and blockchain connection will be created from default values.
@@ -283,7 +281,7 @@ class PolicyAuthor(NucypherTokenActor):
                          checksum_address=checksum_address,
                          )
 
-    def recruit(self, quantity: int, **options) -> None:
+    def recruit(self, quantity: int, **options) -> List[str]:
         """
         Uses sampling logic to gather miners from the blockchain and
         caches the resulting node ethereum addresses.
