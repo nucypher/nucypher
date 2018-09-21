@@ -8,6 +8,9 @@ from solc.exceptions import SolcError
 
 
 class SolidityCompiler:
+
+    # TODO: Integrate with config classes
+
     __default_version = 'v0.4.24'
     __default_configuration_path = os.path.join(dirname(abspath(__file__)), './compiler.json')
 

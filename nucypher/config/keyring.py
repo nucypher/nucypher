@@ -13,8 +13,9 @@ from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey
 
-from nucypher.config.constants import DEFAULT_KEYRING_ROOT
-from nucypher.config.utils import validate_passphrase, NucypherConfigurationError
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.node import NodeConfiguration
+from nucypher.config.utils import validate_passphrase
 from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower
 
 
@@ -25,7 +26,7 @@ def _parse_keyfile(keypath: str):
         try:
             key_metadata = json.loads(keyfile)
         except json.JSONDecodeError:
-            raise NucypherConfigurationError("Invalid data in keyfile {}".format(keypath))
+            raise NodeConfiguration.ConfigurationError("Invalid data in keyfile {}".format(keypath))
         else:
             return key_metadata
 
@@ -53,7 +54,7 @@ def _save_private_keyfile(keypath: str, key_data: dict) -> str:
     mode = stat.S_IRUSR | stat.S_IWUSR              # 0o600
 
     try:
-        keyfile_descriptor = os.open(path=keypath, flags=flags, mode=mode)
+        keyfile_descriptor = os.open(file=keypath, flags=flags, mode=mode)
     finally:
         os.umask(0)  # Set the umask to 0 after opening
 
@@ -87,10 +88,10 @@ def _save_public_keyfile(keypath: str, key_data: bytes) -> str:
     """
 
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL    # Write, Create, Non-Existing
-    mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH # 0o644
+    mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH  # 0o644
 
     try:
-        keyfile_descriptor = os.open(path=keypath, flags=flags, mode=mode)
+        keyfile_descriptor = os.open(file=keypath, flags=flags, mode=mode)
     finally:
         os.umask(0) # Set the umask to 0 after opening
 
@@ -154,7 +155,10 @@ def _encrypt_umbral_key(wrapping_key: bytes, umbral_key: UmbralPrivateKey) -> di
     return crypto_data
 
 
-def _decrypt_umbral_key(wrapping_key: bytes, nonce: bytes, enc_key_material: bytes) -> UmbralPrivateKey:
+def _decrypt_umbral_key(wrapping_key: bytes,
+                        nonce: bytes,
+                        enc_key_material: bytes
+                        ) -> UmbralPrivateKey:
     """
     Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
     Returns a decrypted key as an UmbralPrivateKey.
@@ -209,7 +213,8 @@ class NucypherKeyring:
 
     """
 
-    __default_keyring_root = DEFAULT_KEYRING_ROOT
+    # TODO: Make lazy for better integration with config classes
+    __default_keyring_root = os.path.join(DEFAULT_CONFIG_ROOT, "keyring")
 
     __default_public_key_dir = os.path.join(__default_keyring_root, 'public')
     __default_private_key_dir = os.path.join(__default_keyring_root, 'private')
@@ -228,7 +233,8 @@ class NucypherKeyring:
     class KeyringLocked(KeyringError):
         pass
 
-    def __init__(self, root_key_path: str=None,
+    def __init__(self,
+                 root_key_path: str=None,
                  pub_root_key_path: str=None,
                  signing_key_path: str=None,
                  pub_signing_key_path: str=None,
@@ -313,7 +319,12 @@ class NucypherKeyring:
         return new_cryptopower
 
     @classmethod
-    def generate(cls, passphrase: str, encryption: bool=True, transacting: bool=True, output_path: str=None) -> 'NucypherKeyring':
+    def generate(cls,
+                 passphrase: str,
+                 encryption: bool = True,
+                 transacting: bool = True,
+                 output_path: str = None
+                 ) -> 'NucypherKeyring':
         """
         Generates new encryption, signing, and transacting keys encrypted with the passphrase,
         respectively saving keyfiles on the local filesystem from *default* paths,
@@ -337,10 +348,10 @@ class NucypherKeyring:
         os.mkdir(_private_key_dir, mode=0o700)              # private
 
         # Generate keys
-        keyring_args = dict()
+        keyring_args = dict()  # type: dict
         if encryption is True:
             enc_privkey, enc_pubkey = _generate_encryption_keys()
-            sig_privkey, enc_pubkey = _generate_signing_keys()
+            sig_privkey, sig_pubkey = _generate_signing_keys()
 
             passphrase_salt = os.urandom(32)
             enc_salt = os.urandom(32)
@@ -350,21 +361,21 @@ class NucypherKeyring:
             enc_wrap_key = _derive_wrapping_key_from_key_material(enc_salt, der_key_material)
             sig_wrap_key = _derive_wrapping_key_from_key_material(sig_salt, der_key_material)
 
-            enc_json = _encrypt_umbral_key(der_wrap_key, enc_key)
-            sig_json = _encrypt_umbral_key(der_wrap_key, sig_key)
+            enc_json = _encrypt_umbral_key(der_key_material, enc_wrap_key)
+            sig_json = _encrypt_umbral_key(der_key_material, sig_wrap_key)
 
-            enc_json['master_salt'] = urlsafe_b64encode(salt).decode()
-            sig_json['master_salt'] = urlsafe_b64encode(salt).decode()
+            enc_json['master_salt'] = urlsafe_b64encode(enc_salt).decode()
+            sig_json['master_salt'] = urlsafe_b64encode(sig_salt).decode()
 
-            enc_json['wrap_salt'] = urlsafe_b64encode(salt).decode()
-            sig_json['wrap_salt'] = urlsafe_b64encode(salt).decode()
+            enc_json['wrap_salt'] = urlsafe_b64encode(enc_salt).decode()
+            sig_json['wrap_salt'] = urlsafe_b64encode(sig_salt).decode()
             
             # Write private keys to files
             rootkey_path = _save_private_keyfile(cls.__default_key_filepaths['root'], enc_json)
             sigkey_path = _save_private_keyfile(cls.__default_key_filepaths['signing'], sig_json)
 
-            bytes_enc_pubkey = enc_pubkey.to_bytes(encoder=urlsafe_b64encoder)
-            bytes_sig_pubkey = sig_pubkey.to_bytes(encoder=urlsafe_b64encoder)
+            bytes_enc_pubkey = enc_pubkey.to_bytes(encoder=urlsafe_b64encode)
+            bytes_sig_pubkey = sig_pubkey.to_bytes(encoder=urlsafe_b64encode)
 
             # Write public keys to files
             rootkey_pub_path = _save_public_keyfile(
