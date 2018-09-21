@@ -17,7 +17,7 @@ def test_run_lone_federated_default_ursula():
     args = ['run_ursula',
             '--dev',
             '--federated-only',
-            '--rest-port', '9999',  # TODO: use different port to avoid premature ConnectionError?
+            '--rest-port', '9999',  # TODO: use different port to avoid premature ConnectionError with many test runs?
             ]
 
     runner = CliRunner()

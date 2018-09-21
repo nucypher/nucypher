@@ -39,22 +39,23 @@ def tempfile_path():
     os.remove(path)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def temp_dir_path():
     temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-test-')
     yield temp_dir.name
     temp_dir.cleanup()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def temp_config_root(temp_dir_path):
     """
     User is responsible for closing the file given at the path.
     """
     default_node_config = NodeConfiguration(temp=True,
-                                            auto_initialize=True,
+                                            auto_initialize=False,
                                             config_root=temp_dir_path)
     yield default_node_config.config_root
+    default_node_config.cleanup()
 
 
 @pytest.fixture(scope="module")
