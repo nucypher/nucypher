@@ -286,6 +286,7 @@ class NucypherKeyring:
         if self.__derived_key_material is not None:
             raise Exception('Keyring already unlocked')
 
+        # TODO: missing salt parameter below
         derived_key = _derive_key_material_from_passphrase(passphrase=passphrase)
         self.__derived_key_material = derived_key
 

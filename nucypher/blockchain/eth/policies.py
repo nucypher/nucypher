@@ -94,7 +94,11 @@ class BlockchainPolicy(Policy):
     class NotEnoughBlockchainUrsulas(Exception):
         pass
 
-    def __init__(self, author: PolicyAuthor, *args, **kwargs) -> None:
+    def __init__(self,
+                 author: PolicyAuthor,
+                 *args, **kwargs
+                 ) -> None:
+
         self.author = author
         super().__init__(alice=author, *args, **kwargs)
 
@@ -107,7 +111,11 @@ class BlockchainPolicy(Policy):
         duration = end_block - start_block
 
         miner = Miner(address=miner_address, miner_agent=self.author.policy_agent.miner_agent)
-        arrangement = BlockchainArrangement(author=self.author, miner=miner, lock_periods=duration)
+        arrangement = BlockchainArrangement(author=self.author,
+                                            miner=miner,
+                                            value=rate*duration,   # TODO Check the math/types here
+                                            lock_periods=duration,
+                                            expiration=end_block)  # TODO: fix missing argument here
 
         arrangement.is_published = True
         return arrangement
