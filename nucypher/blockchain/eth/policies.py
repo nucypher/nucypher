@@ -1,5 +1,5 @@
 from collections import deque
-from typing import List
+from typing import List, Tuple
 from typing import Set
 
 import math
@@ -28,11 +28,12 @@ class BlockchainArrangement(Arrangement):
                  lock_periods: int,
                  expiration: maya.MayaDT,
                  *args, **kwargs) -> None:
+
         super().__init__(alice=author, ursula=miner, *args, **kwargs)
 
         delta = expiration - maya.now()
-        hours = (delta.total_seconds() / 60) / 60
-        periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
+        hours = (delta.total_seconds() / 60) / 60                          # type: int
+        periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))  # type: int
 
         # The relationship exists between two addresses
         self.author = author
@@ -111,7 +112,7 @@ class BlockchainPolicy(Policy):
 
     def __find_ursulas(self, ether_addresses: List[str], target_quantity: int, timeout: int = 120):
         start_time = maya.now()  # Marker for timeout calculation
-        found_ursulas, unknown_addresses = set(), deque()
+        found_ursulas, unknown_addresses = set(), deque()  # type: Tuple[set, deque]
         while len(found_ursulas) < target_quantity:
 
             # Check for a timeout
@@ -146,24 +147,27 @@ class BlockchainPolicy(Policy):
 
         return found_ursulas
 
-    def make_arrangements(self, network_middleware: RestMiddleware,
-                          deposit: int, expiration: maya.MayaDT,
-                          handpicked_ursulas: Set[Ursula] = set()) -> None:
+    def make_arrangements(self,
+                          network_middleware: RestMiddleware,
+                          deposit: int,
+                          expiration: maya.MayaDT,
+                          handpicked_ursulas: Set[Ursula] = None
+                          ) -> None:
         """
         Create and consider n Arrangements from sampled miners, a list of Ursulas, or a combination of both.
         """
 
-        ADDITIONAL_URSULAS = 1.5  # TODO: Make constant
+        ADDITIONAL_URSULAS = 1.5        # TODO: Make constant
 
+        handpicked_ursulas = handpicked_ursulas or set()           # type: set
         target_sample_quantity = self.n - len(handpicked_ursulas)
 
-        selected_addresses = set()
-        try:  # Sample by reading from the Blockchain
+        selected_addresses = set()      # type: set
+        try:                            # Sample by reading from the Blockchain
             actual_sample_quantity = math.ceil(target_sample_quantity * ADDITIONAL_URSULAS)
             duration = int(calculate_period_duration(expiration))
             sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity,
-                                                   duration=duration,
-                                                   )
+                                                   duration=duration)
         except MinerAgent.NotEnoughMiners:
             error = "Cannot create policy with {} arrangements."
             raise self.NotEnoughBlockchainUrsulas(error.format(self.n))

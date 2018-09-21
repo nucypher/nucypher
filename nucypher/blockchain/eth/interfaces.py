@@ -155,7 +155,7 @@ class BlockchainInterface:
     @classmethod
     def from_config(cls, config: NodeConfiguration) -> 'BlockchainInterface':
         # Parse
-        payload = parse_blockchain_config(filepath=config.ini_filepath)
+        payload = parse_blockchain_config(filepath=config.config_file_location)
 
         # Init deps
         compiler = SolidityCompiler() if payload['compile'] else None

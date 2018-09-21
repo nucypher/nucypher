@@ -1,12 +1,13 @@
 import json
 import os
+from typing import Union
+
 import shutil
 import tempfile
 
 from constant_sorrow import constants
 
-# from nucypher.config.config import DEFAULT_CONFIG_ROOT, NodeConfiguration
-# from nucypher.config.parsers import parse_blockchain_config
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
 class EthereumContractRegistry:
@@ -17,7 +18,8 @@ class EthereumContractRegistry:
     WARNING: Unless you are developing NuCypher, you most likely won't ever need
     to use this.
     """
-    # __default_registry_path = os.path.join(DEFAULT_CONFIG_ROOT, 'registry.json')
+    # TODO: Integrate with config classes
+    __default_registry_path = os.path.join(DEFAULT_CONFIG_ROOT, 'contract_registry.json')
 
     class RegistryError(Exception):
         pass
@@ -32,18 +34,17 @@ class EthereumContractRegistry:
         self.__registry_filepath = registry_filepath or self.__default_registry_path
 
     @classmethod
-    def from_config(cls, config) -> 'EthereumContractRegistry':
-        if config.temp_registry is True:  # In memory only
-            registry = TemporaryEthereumContractRegistry()
+    def from_config(cls, config) -> Union['EthereumContractRegistry', 'TemporaryEthereumContractRegistry']:
+        if config.temp_registry is True:                # In memory only
+            return TemporaryEthereumContractRegistry()
         else:
-            registry = EthereumContractRegistry()
-        return registry
+            return EthereumContractRegistry()
 
     @property
     def registry_filepath(self):
         return self.__registry_filepath
 
-    def _swap_registry(self, filepath: str) -> True:
+    def _swap_registry(self, filepath: str) -> bool:
         self.__registry_filepath = filepath
         return True
 
