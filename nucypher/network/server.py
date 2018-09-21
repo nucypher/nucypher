@@ -288,10 +288,18 @@ class TLSHostingPower(KeyPairBasedPower):
                  rest_server,
                  certificate_filepath=None,
                  certificate=None,
+                 certificate_dir=None,
+                 common_name=None,  # TODO: Is this actually optional?
                  *args, **kwargs) -> None:
 
+        if certificate and certificate_filepath:
+            # TODO: Design decision here: if they do pass both, and they're identical, do we let that slide?
+            raise ValueError("Pass either a certificate or a certificate_filepath - what do you even expect from passing both?")
+
         if certificate:
-            kwargs['keypair'] = HostingKeypair(certificate=certificate)
+            kwargs['keypair'] = HostingKeypair(certificate=certificate,
+                                               certificate_dir=certificate_dir,
+                                               common_name=common_name)
         elif certificate_filepath:
             kwargs['keypair'] = HostingKeypair(certificate_filepath=certificate_filepath)
         self.rest_server = rest_server

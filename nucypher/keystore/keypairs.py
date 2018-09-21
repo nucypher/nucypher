@@ -13,7 +13,7 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
 
 from nucypher.crypto import api as API
-from nucypher.crypto.api import generate_self_signed_certificate, load_tls_certificate
+from nucypher.crypto.api import generate_self_signed_certificate, load_tls_certificate, _save_tls_certificate
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 
@@ -157,7 +157,7 @@ class HostingKeypair(Keypair):
                           "But for that, you need to pass both host and common_name.."
                 raise TypeError(message)
 
-            certificate, private_key, certificate_filepath = generate_self_signed_certificate(common_name=common_name,
+            certificate, private_key = generate_self_signed_certificate(common_name=common_name,
                                                                                               private_key=private_key,
                                                                                               curve=self.curve,
                                                                                               host=host,

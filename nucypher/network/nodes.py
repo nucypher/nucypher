@@ -1,8 +1,11 @@
+import OpenSSL
 from constant_sorrow import constants
 from eth_keys.datatypes import Signature as EthSignature
 
+from nucypher.crypto.api import _save_tls_certificate
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from nucypher.network.protocols import SuspiciousActivity
+from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
 
@@ -18,7 +21,7 @@ class VerifiableNode:
                  certificate_filepath: str = None,
                  ) -> None:
 
-        self.certificate_filepath = certificate_filepath
+        self.certificate_filepath = certificate_filepath  # TODO: This gets messy when it is None (although it being None is actually reasonable in some cases, at least for testing).  Let's make this a method instead that inspects the TLSHostingPower (similar to get_deployer()).
         self._interface_signature_object = interface_signature
 
     class InvalidNode(SuspiciousActivity):
