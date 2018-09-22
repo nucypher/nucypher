@@ -19,7 +19,7 @@ def test_actor_without_signing_power_cannot_sign():
     """
     cannot_sign = CryptoPower(power_ups=[])
     non_signer = Character(crypto_power=cannot_sign,
-                           always_be_learning=False,
+                           start_learning_now=False,
                            federated_only=True)
 
     # The non-signer's stamp doesn't work for signing...
@@ -40,7 +40,7 @@ def test_actor_with_signing_power_can_sign():
     message = b"Llamas."
 
     signer = Character(crypto_power_ups=[SigningPower], is_me=True,
-                       always_be_learning=False, federated_only=True)
+                       start_learning_now=False, federated_only=True)
     stamp_of_the_signer = signer.stamp
 
     # We can use the signer's stamp to sign a message (since the signer is_me)...
@@ -61,10 +61,10 @@ def test_anybody_can_verify():
     Here, we show that anybody can do it without needing to directly access Crypto.
     """
     # Alice can sign by default, by dint of her _default_crypto_powerups.
-    alice = Alice(federated_only=True, always_be_learning=False)
+    alice = Alice(federated_only=True, start_learning_now=False)
 
     # So, our story is fairly simple: an everyman meets Alice.
-    somebody = Character(always_be_learning=False, federated_only=True)
+    somebody = Character(start_learning_now=False, federated_only=True)
 
     # Alice signs a message.
     message = b"A message for all my friends who can only verify and not sign."
@@ -126,7 +126,7 @@ def test_anybody_can_encrypt():
     """
     Similar to anybody_can_verify() above; we show that anybody can encrypt.
     """
-    someone = Character(always_be_learning=False, federated_only=True)
+    someone = Character(start_learning_now=False, federated_only=True)
     bob = Bob(is_me=False, federated_only=True)
 
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"

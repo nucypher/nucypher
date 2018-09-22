@@ -1,6 +1,4 @@
 import os
-from glob import glob
-from os.path import abspath
 
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -15,11 +13,12 @@ from nucypher.crypto.powers import CryptoPower
 
 class UrsulaConfiguration(NodeConfiguration):
 
-    DEFAULT_TLS_CURVE = ec.SECP384R1
     DEFAULT_REST_HOST = 'localhost'
     DEFAULT_REST_PORT = 9151
-    DEFAULT_DB_TEMPLATE = "ursula.{port}.db"
-    __REGISTRY_NAME = 'contract_registry.json'
+    __DB_TEMPLATE = "ursula.{port}.db"
+    DEFAULT_DB_NAME = __DB_TEMPLATE.format(port=DEFAULT_REST_PORT)
+
+    __DEFAULT_TLS_CURVE = ec.SECP384R1
 
     def __init__(self,
                  rest_host: str = None,
@@ -29,7 +28,6 @@ class UrsulaConfiguration(NodeConfiguration):
                  tls_curve: EllipticCurve = None,
                  tls_private_key: bytes = None,
                  certificate: Certificate = None,
-                 certificate_filepath: str = None,
 
                  # Ursula
                  db_name: str = None,
@@ -40,7 +38,6 @@ class UrsulaConfiguration(NodeConfiguration):
                  # Blockchain
                  miner_agent: EthereumContractAgent = None,
                  checksum_address: str = None,
-                 registry_filepath: str = None,
 
                  *args, **kwargs
                  ) -> None:
@@ -48,16 +45,15 @@ class UrsulaConfiguration(NodeConfiguration):
         # REST
         self.rest_host = rest_host or self.DEFAULT_REST_HOST
         self.rest_port = rest_port or self. DEFAULT_REST_PORT
-        self.db_name = db_name or self.DEFAULT_DB_TEMPLATE.format(port=self.rest_port)
+        self.db_name = db_name or self.__DB_TEMPLATE.format(port=self.rest_port)
         self.db_filepath = db_filepath or constants.UNINITIALIZED_CONFIGURATION
 
         #
         # TLS
         #
-        self.tls_curve = tls_curve or self.DEFAULT_TLS_CURVE
+        self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.tls_private_key = tls_private_key
         self.certificate = certificate
-        self.certificate_filepath = certificate_filepath
 
         # Ursula
         self.interface_signature = interface_signature
@@ -68,7 +64,6 @@ class UrsulaConfiguration(NodeConfiguration):
         #
         self.miner_agent = miner_agent
         self.checksum_address = checksum_address
-        self.registry_filepath = registry_filepath or constants.UNINITIALIZED_CONFIGURATION
 
         super().__init__(*args, **kwargs)
 
@@ -80,18 +75,12 @@ class UrsulaConfiguration(NodeConfiguration):
         instance = cls(**{**payload, **overrides})
         return instance
 
-    def _generate_runtime_filepaths(self, commit=True) -> dict:
-        base_filepaths = super()._generate_runtime_filepaths(commit=commit)
-        # TODO: Handle pre-existing certificates, injecting the path
-        # if not self.certificate_filepath:
-        #     certificate_filepath = certificate_filepath or os.path.join(self.known_certificates_dir, 'ursula.pem')
-        filepaths = dict(db_filepath=os.path.join(self.config_root, self.db_name),
-                         registry_filepath=os.path.join(self.config_root, self.__REGISTRY_NAME))
-        if commit:
-            for field, filepath in filepaths.items():
-                setattr(self, field, filepath)
+    def generate_runtime_filepaths(self, config_root: str) -> dict:
+        base_filepaths = NodeConfiguration.generate_runtime_filepaths(config_root=config_root)
+        filepaths = dict(db_filepath=os.path.join(config_root, self.db_name),
+                         )
         base_filepaths.update(filepaths)
-        return filepaths
+        return base_filepaths
 
     @property
     def payload(self) -> dict:
@@ -129,6 +118,10 @@ class UrsulaConfiguration(NodeConfiguration):
         from nucypher.characters.lawful import Ursula
         ursula = Ursula(**merged_parameters)
 
+        # if self.save_metadata:                     # TODO: Does this belong here..?
+        ursula.write_node_metadata(node=ursula)
+        ursula.save_certificate_to_disk(directory=ursula.known_certificates_dir)  # TODO: Move this
+
         if self.temp:
             class MockDatastoreThreadPool(object):  # TODO: Does this belong here..?
                 def callInThread(self, f, *args, **kwargs):
@@ -136,18 +129,6 @@ class UrsulaConfiguration(NodeConfiguration):
             ursula.datastore_threadpool = MockDatastoreThreadPool()
 
         return ursula
-
-    def load_known_nodes(self, known_metadata_dir=None) -> None:
-
-        if known_metadata_dir is None:
-            known_metadata_dir = self.known_metadata_dir
-        glob_pattern = os.path.join(known_metadata_dir, 'node-*.data')
-        metadata_paths = sorted(glob(glob_pattern), key=os.path.getctime)
-
-        for metadata_path in metadata_paths:
-            from nucypher.characters.lawful import Ursula
-            node = Ursula.from_metadata_file(filepath=abspath(metadata_path))
-            self.known_nodes.add(node)
 
 
 class AliceConfiguration(NodeConfiguration):

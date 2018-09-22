@@ -61,9 +61,9 @@ def parse_character_config(config=None, filepath: str=DEFAULT_CONFIG_FILE_LOCATI
         federated_only = False
 
     character_payload = dict(federated_only=federated_only,
-                             start_learning_on_same_thread=config.getboolean(section='character', option='start_learning_on_same_thread'),
+                             start_learning_on_same_thread=config.getboolean(section='character', option='learn_on_same_thread'),
                              abort_on_learning_error=config.getboolean(section='character', option='abort_on_learning_error'),
-                             always_be_learning=config.getboolean(section='character', option='always_be_learning'))
+                             always_be_learning=config.getboolean(section='character', option='start_learning_now'))
 
     return character_payload
 

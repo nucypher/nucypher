@@ -12,6 +12,7 @@ import os
 import maya
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
+from nucypher.config.characters import AliceConfiguration
 from nucypher.data_sources import DataSource
 # This is already running in another process.
 from nucypher.network.middleware import RestMiddleware
@@ -51,12 +52,12 @@ URSULA.save_certificate_to_disk(CERTIFICATE_DIR)
 #########
 
 
-ALICE = Alice(network_middleware=RestMiddleware(),
-              known_nodes=(URSULA,),
-              federated_only=True,
-              always_be_learning=True,
-              known_certificates_dir=CERTIFICATE_DIR,
-              )  # TODO: 289
+ALICE = AliceConfiguration(network_middleware=RestMiddleware(),
+                           known_nodes=(URSULA,),
+                           federated_only=True,
+                           always_be_learning=True,
+                           known_certificates_dir=CERTIFICATE_DIR,
+                           )  # TODO: 289
 
 # Here are our Policy details.
 policy_end_datetime = maya.now() + datetime.timedelta(days=5)
