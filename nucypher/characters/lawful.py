@@ -394,9 +394,9 @@ class Ursula(Character, VerifiableNode, Miner):
                  # Ursula
                  rest_host,
                  rest_port,
-                 certificate=None,
+                 certificate=None,  # TODO: from_certificate classmethod instead, use only filepath..?
                  certificate_filepath: str = None,
-                 db_name=None,
+                 db_name=None,  # TODO: deprecate db_name, use only filepath.?
                  db_filepath: str = None,
                  is_me=True,
                  interface_signature=None,
@@ -422,7 +422,8 @@ class Ursula(Character, VerifiableNode, Miner):
 
         self._work_orders = []
 
-        Character.__init__(self, is_me=is_me,
+        Character.__init__(self,
+                           is_me=is_me,
                            checksum_address=checksum_address,
                            always_be_learning=always_be_learning,
                            federated_only=federated_only,
@@ -492,7 +493,7 @@ class Ursula(Character, VerifiableNode, Miner):
                 # Unless the caller passed a crypto power, we'll make our own TLSHostingPower for this stranger.
                 rest_server = ProxyRESTServer(
                     rest_host=rest_host,
-                    rest_port=rest_port,
+                    rest_port=rest_port
                 )
                 if certificate or certificate_filepath:
                     tls_hosting_power = TLSHostingPower(rest_server=rest_server,

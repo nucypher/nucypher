@@ -39,22 +39,23 @@ def tempfile_path():
     os.remove(path)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def temp_dir_path():
     temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-test-')
     yield temp_dir.name
     temp_dir.cleanup()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def temp_config_root(temp_dir_path):
     """
     User is responsible for closing the file given at the path.
     """
     default_node_config = NodeConfiguration(temp=True,
-                                            auto_initialize=True,
+                                            auto_initialize=False,
                                             config_root=temp_dir_path)
     yield default_node_config.config_root
+    default_node_config.cleanup()
 
 
 @pytest.fixture(scope="module")
@@ -70,40 +71,36 @@ def test_keystore():
 #
 
 @pytest.fixture(scope="module")
-def ursula_federated_test_config(temp_config_root):
+def ursula_federated_test_config():
 
     ursula_config = UrsulaConfiguration(temp=True,
                                         auto_initialize=True,
                                         is_me=True,
-                                        config_root=temp_config_root,
-                                        rest_host="localhost",
                                         always_be_learning=False,
+                                        abort_on_learning_error=True,
                                         federated_only=True)
     yield ursula_config
 
 
 @pytest.fixture(scope="module")
-def ursula_decentralized_test_config(temp_config_root, three_agents):
+def ursula_decentralized_test_config(three_agents):
     token_agent, miner_agent, policy_agent = three_agents
 
     ursula_config = UrsulaConfiguration(temp=True,
                                         auto_initialize=True,
-                                        config_root=temp_config_root,
                                         is_me=True,
-                                        rest_host="localhost",
                                         always_be_learning=False,
+                                        abort_on_learning_error=True,
                                         miner_agent=miner_agent,
                                         federated_only=False)
-
     yield ursula_config
 
 
 @pytest.fixture(scope="module")
-def alice_federated_test_config(federated_ursulas, temp_config_root):
+def alice_federated_test_config(federated_ursulas):
     config = AliceConfiguration(temp=True,
-                                is_me=True,
                                 auto_initialize=True,
-                                config_root=temp_config_root,
+                                is_me=True,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=federated_ursulas,
                                 federated_only=True,
@@ -112,20 +109,18 @@ def alice_federated_test_config(federated_ursulas, temp_config_root):
 
 
 @pytest.fixture(scope="module")
-def alice_blockchain_test_config(blockchain_ursulas, three_agents, temp_config_root):
+def alice_blockchain_test_config(blockchain_ursulas, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
 
     config = AliceConfiguration(temp=True,
                                 is_me=True,
                                 auto_initialize=True,
-                                config_root=temp_config_root,
                                 network_middleware=MockRestMiddleware(),
                                 policy_agent=policy_agent,
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
                                 checksum_address=alice_address)
-
     yield config
 
 

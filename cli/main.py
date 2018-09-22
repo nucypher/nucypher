@@ -92,7 +92,8 @@ class NucypherClickConfig:
         """Initialize contract agency and set them on config"""
 
         if simulation is True:
-            self.blockchain.interface._registry._swap_registry(filepath=self.sim_registry_filepath)  # TODO: Public API for mirroring existing registry
+            # TODO: Public API for mirroring existing registry
+            self.blockchain.interface._registry._swap_registry(filepath=self.sim_registry_filepath)
 
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.miner_agent = MinerAgent(token_agent=self.token_agent)
@@ -133,15 +134,15 @@ def cli(config, verbose, version, config_file):
 def configure(config, action, config_file, config_root, temp):
     """Manage the nucypher .ini configuration file"""
 
-    if temp:
-        node_configuration = NodeConfiguration(temp=temp, auto_initialize=True)
-    elif config_root:
-        node_configuration = NodeConfiguration(config_root=config_root)
-    else:
+    if config_root:
+        node_configuration = NodeConfiguration(config_root=config_root, auto_initialize=False)
+    elif temp:
+        node_configuration = NodeConfiguration(temp=temp, auto_initialize=False)
+    elif config_file:
         click.echo("Using configuration file at: {}".format(config_file))
         node_configuration = NodeConfiguration.from_configuration_file(filepath=config_file)
-
-    click.echo("Using configuration directory: {}".format(node_configuration.config_root))
+    else:
+        node_configuration = NodeConfiguration()  # Fully Default
 
     def __destroy():
         click.confirm("Permanently destroy all nucypher configurations, known nodes, certificates and keys?", abort=True)
@@ -149,24 +150,23 @@ def configure(config, action, config_file, config_root, temp):
         click.echo("Deleted configuration files at {}".format(node_configuration.config_root))
 
     def __initialize():
+        # TODO: temp config message?
         click.confirm("Initialize new nucypher configuration?", abort=True)
         node_configuration.initialize_configuration()
         click.echo("Created configuration files at {}".format(node_configuration.config_root))
 
-    if action == "validate":
-        is_valid = validate_configuration_file(config_file)
-        result = 'Valid' if is_valid else 'Invalid'
-        click.echo('{} is {}'.format(config_file, result))
-
-    elif action == "init":
+    if action == "init":
         __initialize()
-
     elif action == "destroy":
         __destroy()
-
     elif action == "reset":
         __destroy()
         __initialize()
+
+    elif action == "validate":
+        is_valid = validate_configuration_file(config_file)
+        result = 'Valid' if is_valid else 'Invalid'
+        click.echo('{} is {}'.format(config_file, result))
 
 
 @cli.command()
@@ -665,15 +665,15 @@ def status(config, provider, contracts, network):
 
 
 @cli.command()
-@click.option('--config-file', type=click.Path())
-@click.option('--federated-only', is_flag=True, default=False)
-@click.option('--dev', is_flag=True, default=False)
-@click.option('--rest-host', type=str, default='localhost')
-@click.option('--rest-port', type=int, default=UrsulaConfiguration.DEFAULT_REST_PORT)
+@click.option('--dev', is_flag=True, default=True)
+@click.option('--federated-only', is_flag=True)
+@click.option('--rest-host', type=str)
+@click.option('--rest-port', type=int)
 @click.option('--db-name', type=str)
 @click.option('--checksum-address', type=str)
 @click.option('--teacher-uri', type=str)
 @click.option('--metadata-dir', type=click.Path())
+@click.option('--config-file', type=click.Path())
 def run_ursula(rest_port,
                rest_host,
                db_name,
@@ -697,13 +697,16 @@ def run_ursula(rest_port,
     but can be overridden (mostly for testing purposes) with inline cli options.
 
     """
+    if not dev:
+        click.echo("WARNING: Development mode is disabled")
+
     temp = True if dev else False
 
     if config_file:
         ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file)
     else:
         ursula_config = UrsulaConfiguration(temp=temp,
-                                            auto_initialize=temp,
+                                            auto_initialize=dev,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
                                             db_name=db_name,
@@ -719,27 +722,33 @@ def run_ursula(rest_port,
     ursula = ursula_config.produce()
     if teacher_uri:
 
+        # TODO: Validate and handle teacher URI paring here
         if 'http' not in teacher_uri:
             teacher_uri = 'https://'+teacher_uri
         url = urlparse(url=teacher_uri)
         host, port = url.hostname, url.port
 
         teacher_config = UrsulaConfiguration(temp=True,
+                                             auto_initialize=True,
                                              rest_host=host,
                                              rest_port=port,
                                              is_me=False,
                                              federated_only=federated_only,
                                              known_nodes=(ursula, ))
-        teacher = teacher_config.produce()
 
-        # Know each other
-        # ursula.remember_node(teacher)
+        teacher_ursula = teacher_config.produce()
 
-    ursula.start_learning_loop()      # Enter learning loop
-    ursula.get_deployer().run()       # Run TLS Deployer
-
-    if not federated_only:
-        ursula.stake()                # Start staking daemon
+    try:
+        ursula.start_learning_loop()      # Enter learning loop
+        ursula.get_deployer().run()       # Run TLS Deployer (Reactor)
+        if not federated_only:            # TODO: Resume / Init
+            ursula.stake()                # Start staking daemon
+    finally:
+        # Cleanup
+        if ursula_config.temp:
+            click.echo("Cleaning up temporary runtime files and directories")
+            ursula_config.cleanup()
+            click.echo("Exited gracefully")  # TODO: Integrate with other graceful shutdown functionality
 
 
 if __name__ == "__main__":
