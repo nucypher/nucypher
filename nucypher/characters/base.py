@@ -1,3 +1,4 @@
+import os
 import random
 from abc import abstractmethod, ABC
 from collections import defaultdict
@@ -5,9 +6,6 @@ from collections import deque
 from contextlib import suppress
 from logging import Logger
 from logging import getLogger
-from typing import Dict, ClassVar, Set
-from typing import Tuple
-from typing import Union, List
 
 import maya
 import requests
@@ -17,6 +15,9 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from twisted.internet import reactor
 from twisted.internet import task
+from typing import Dict, ClassVar, Set
+from typing import Tuple
+from typing import Union, List
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -46,21 +47,31 @@ class Learner(ABC):
         pass
 
     def __init__(self,
-                 always_be_learning: bool = False,
-                 start_learning_on_same_thread: bool = False,
+                 start_learning_now: bool = False,
+                 learn_on_same_thread: bool = False,
                  known_nodes: tuple = None,
+                 known_metadata_dir: str = None,
+                 save_metadata: bool = False,
                  abort_on_learning_error: bool = False) -> None:
 
         self.log = getLogger("characters")                       # type: Logger
 
-        self.always_be_learning = always_be_learning
-        self.start_learning_on_same_thread = start_learning_on_same_thread
+        self.save_metadata = save_metadata
+        self.start_learning_now = start_learning_now
+        self.learn_on_same_thread = learn_on_same_thread
+
         self._abort_on_learning_error = abort_on_learning_error
         self._learning_listeners = defaultdict(list)
         self._node_ids_to_learn_about_immediately = set()
 
-        known_nodes = known_nodes if known_nodes is not None else tuple()
         self.__known_nodes = dict()
+
+        # Read
+        self.known_metadata_dir = known_metadata_dir
+        if save_metadata and known_metadata_dir is None:
+            raise ValueError("Cannot save nodes without a known_metadata_dir")
+
+        known_nodes = known_nodes or tuple()
         for node in known_nodes:
             self.remember_node(node)
 
@@ -70,8 +81,8 @@ class Learner(ABC):
         self._learning_round = 0            # type: int
         self._rounds_without_new_nodes = 0  # type: int
 
-        if self.always_be_learning:
-            self.start_learning_loop(now=self.start_learning_on_same_thread)
+        if self.start_learning_now:
+            self.start_learning_loop(now=self.learn_on_same_thread)
 
     @property
     def known_nodes(self):
@@ -83,6 +94,10 @@ class Learner(ABC):
         address = node.checksum_public_address
 
         self.__known_nodes[address] = node
+
+        if self.save_metadata:
+            node.write_node_metadata(node=node)
+
         self.log.info("Remembering {}, popping {} listeners.".format(node.checksum_public_address, len(listeners)))
         for listener in listeners:
             listener.add(address)
@@ -262,7 +277,7 @@ class Learner(ABC):
 
     def network_bootstrap(self, node_list: list) -> None:
         for node_addr, port in node_list:
-            new_nodes = self.learn_about_nodes(node_addr, port)
+            new_nodes = self.learn_about_nodes_now(node_addr, port)
             self.__known_nodes.update(new_nodes)
 
     def get_nodes_by_ids(self, node_ids):
@@ -277,8 +292,21 @@ class Learner(ABC):
 
         # Scenario 3: We don't know about this node, and neither does our friend.
 
+    def write_node_metadata(self, node, serializer=bytes) -> str:
+
+        try:
+            filename = "{}.node".format(node.checksum_public_address)  # TODO: Use common name
+        except AttributeError:
+            raise AttributeError("{} does not have a rest_interface attached".format(self))
+
+        metadata_filepath = os.path.join(self.known_metadata_dir, filename)
+
+        with open(metadata_filepath, "w") as f:
+            f.write(serializer(node).hex())
+        return metadata_filepath
+
     @abstractmethod
-    def learn_from_teacher_node(self):
+    def learn_from_teacher_node(self, eager: bool = True):
         raise NotImplementedError
 
 
@@ -308,7 +336,6 @@ class Character(Learner):
                  is_me: bool = True,
                  network_middleware: RestMiddleware = None,
                  known_certificates_dir: str = None,
-                 known_metadata_dir: str = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
                  federated_only: bool = False,
@@ -340,9 +367,9 @@ class Character(Learner):
 
         """
         super().__init__(*args, **kwargs)
+
         self.federated_only = federated_only                     # type: bool
         self.known_certificates_dir = known_certificates_dir
-        self.known_metadata_dir = known_metadata_dir
 
         #
         # Power-ups and Powers
@@ -362,6 +389,7 @@ class Character(Learner):
         #
         # Identity and Network
         #
+
         if is_me is True:
 
             self.treasure_maps = {}  # type: dict
@@ -425,6 +453,7 @@ class Character(Learner):
             raise AttributeError("SignatureStamp has not been set up yet.")
         else:
             return self._stamp
+
     @property
     def canonical_public_address(self):
         return to_canonical_address(self.checksum_public_address)
@@ -492,11 +521,12 @@ class Character(Learner):
         unresponsive_nodes = set()
         try:
 
-            # FIXME
-            response = self.network_middleware.get_nodes_via_rest(rest_url,
+            # TODO: Streamline path generation
+            certificate_path = os.path.join(self.known_certificates_dir, current_teacher.certificate_filename)
+            response = self.network_middleware.get_nodes_via_rest(url=rest_url,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
-                                                                  certificate_path=current_teacher.certificate_filepath)
+                                                                  certificate_path=certificate_path)
         except requests.exceptions.ConnectionError as e:
             unresponsive_nodes.add(current_teacher)
             teacher_rest_info = current_teacher.rest_information()[0]
