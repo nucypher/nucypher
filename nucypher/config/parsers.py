@@ -100,7 +100,7 @@ def parse_alice_config(config=None, filepath=DEFAULT_CONFIG_FILE_LOCATION) -> di
 
     character_payload = parse_character_config(config=config)
 
-    alice_payload = dict()  # Alice specific
+    alice_payload = dict()  # type: dict # Alice specific
 
     character_payload.update(alice_payload)
 

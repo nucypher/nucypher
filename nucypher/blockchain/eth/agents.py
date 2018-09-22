@@ -1,12 +1,12 @@
 import random
 from abc import ABC
-from typing import Generator, List, Tuple, Union
 
 from constant_sorrow import constants
+from typing import Generator, List, Tuple, Union
+from web3.contract import Contract
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
 class EthereumContractAgent(ABC):
@@ -31,20 +31,21 @@ class EthereumContractAgent(ABC):
     def __init__(self,
                  blockchain: Blockchain = None,
                  registry_filepath: str = None,
-                 *args, **kwargs) -> None:
+                 contract: Contract = None
+                 ) -> None:
 
         if blockchain is None:
             blockchain = Blockchain.connect()
         self.blockchain = blockchain
 
         if registry_filepath is not None:
-            # TODO: Warn on override?
+            # TODO: Warn on override/ do this elsewhere?
             self.blockchain.interface._registry._swap_registry(filepath=registry_filepath)
 
-        # Fetch the contract by reading address and abi from the registry and blockchain
-        contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
-                                                                  upgradeable=self._upgradeable)
-
+        if contract is None:
+            # Fetch the contract by reading address and abi from the registry and blockchain
+            contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
+                                                                      upgradeable=self._upgradeable)
         self.__contract = contract
         super().__init__()
 
@@ -98,14 +99,23 @@ class MinerAgent(EthereumContractAgent):
 
     principal_contract_name = "MinersEscrow"
     _upgradeable = True
-    __instance = None
+    __instance = None  # TODO: constants.NO_CONTRACT_AVAILABLE
 
     class NotEnoughMiners(Exception):
         pass
 
-    def __init__(self, token_agent: NucypherTokenAgent=None, registry_filepath=None, *args, **kwargs) -> None:
+    def __init__(self,
+                 token_agent: NucypherTokenAgent = None,
+                 registry_filepath: str = None,
+                 *args, **kwargs
+                 ) -> None:
+
         token_agent = token_agent if token_agent is not None else NucypherTokenAgent(registry_filepath=registry_filepath)
-        super().__init__(blockchain=token_agent.blockchain, registry_filepath=registry_filepath, *args, **kwargs)
+
+        super().__init__(blockchain=token_agent.blockchain,
+                         registry_filepath=registry_filepath,
+                         *args, **kwargs)
+
         self.token_agent = token_agent
 
     #

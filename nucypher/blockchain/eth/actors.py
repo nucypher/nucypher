@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, List
 
 import maya
 
@@ -37,18 +37,18 @@ class NucypherTokenActor:
 
         """
         try:
-            parent_address = self.checksum_public_address
+            parent_address = self.checksum_public_address  # type: str
             if checksum_address is not None:
                 if parent_address != checksum_address:
                     raise ValueError("Can't have two different addresses.")
         except AttributeError:
-            self.checksum_public_address = checksum_address
+            self.checksum_public_address = checksum_address  # type: str
 
         if registry_filepath is not None:
             EthereumContractRegistry(registry_filepath=registry_filepath)
 
         self.token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
-        self._transaction_cache = list()  # track transactions transmitted
+        self._transaction_cache = list()  # type: list # track transactions transmitted
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -206,7 +206,7 @@ class Miner(NucypherTokenActor):
         if entire_balance is True:
             amount = self.token_balance
 
-        staking_transactions = OrderedDict()  # Time series of txhases
+        staking_transactions = OrderedDict()  # type: OrderedDict # Time series of txhases
 
         # Validate
         assert self.__validate_stake(amount=amount, lock_periods=lock_periods)
@@ -281,7 +281,7 @@ class PolicyAuthor(NucypherTokenActor):
                          checksum_address=checksum_address,
                          )
 
-    def recruit(self, quantity: int, **options) -> None:
+    def recruit(self, quantity: int, **options) -> List[str]:
         """
         Uses sampling logic to gather miners from the blockchain and
         caches the resulting node ethereum addresses.

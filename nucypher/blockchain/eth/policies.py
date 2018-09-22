@@ -1,5 +1,5 @@
 from collections import deque
-from typing import List
+from typing import List, Tuple, Iterable
 from typing import Set
 
 import math
@@ -9,7 +9,7 @@ from eth_utils import to_canonical_address
 
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
-from nucypher.blockchain.eth.agents import MinerAgent
+from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent
 from nucypher.blockchain.eth.constants import calculate_period_duration
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
@@ -28,29 +28,30 @@ class BlockchainArrangement(Arrangement):
                  lock_periods: int,
                  expiration: maya.MayaDT,
                  *args, **kwargs) -> None:
+
         super().__init__(alice=author, ursula=miner, *args, **kwargs)
 
         delta = expiration - maya.now()
-        hours = (delta.total_seconds() / 60) / 60
-        periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))
+        hours = (delta.total_seconds() / 60) / 60                          # type: int
+        periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))  # type: int
 
         # The relationship exists between two addresses
-        self.author = author
-        self.policy_agent = author.policy_agent
+        self.author = author                     # type: PolicyAuthor
+        self.policy_agent = author.policy_agent  # type: PolicyAgent
 
-        self.miner = miner
+        self.miner = miner                # type: Miner
 
         # Arrangement value, rate, and duration
-        rate = value // lock_periods
-        self._rate = rate
+        rate = value // lock_periods      # type: int
+        self._rate = rate                 # type: int
 
-        self.value = value
-        self.lock_periods = lock_periods  # TODO: <datetime> -> lock_periods
+        self.value = value                # type: int
+        self.lock_periods = lock_periods  # type: int # TODO: <datetime> -> lock_periods
 
-        self.is_published = False
+        self.is_published = False         # type: bool
         self.publish_transaction = None
 
-        self.is_revoked = False
+        self.is_revoked = False           # type: bool
         self.revoke_transaction = None
 
     def __repr__(self):
@@ -60,9 +61,11 @@ class BlockchainArrangement(Arrangement):
         return r
 
     def publish(self) -> str:
-        payload = {'from': self.author._ether_address, 'value': self.value}
+        payload = {'from': self.author.checksum_public_address,
+                   'value': self.value}
 
-        txhash = self.policy_agent.contract.functions.createPolicy(self.id, self.miner._ether_address,
+        txhash = self.policy_agent.contract.functions.createPolicy(self.id,
+                                                                   self.miner.checksum_public_address,
                                                                    self.lock_periods).transact(payload)
         self.policy_agent.blockchain.wait_for_receipt(txhash)
 
@@ -91,7 +94,11 @@ class BlockchainPolicy(Policy):
     class NotEnoughBlockchainUrsulas(Exception):
         pass
 
-    def __init__(self, author: PolicyAuthor, *args, **kwargs) -> None:
+    def __init__(self,
+                 author: PolicyAuthor,
+                 *args, **kwargs
+                 ) -> None:
+
         self.author = author
         super().__init__(alice=author, *args, **kwargs)
 
@@ -104,14 +111,18 @@ class BlockchainPolicy(Policy):
         duration = end_block - start_block
 
         miner = Miner(address=miner_address, miner_agent=self.author.policy_agent.miner_agent)
-        arrangement = BlockchainArrangement(author=self.author, miner=miner, lock_periods=duration)
+        arrangement = BlockchainArrangement(author=self.author,
+                                            miner=miner,
+                                            value=rate*duration,   # TODO Check the math/types here
+                                            lock_periods=duration,
+                                            expiration=end_block)  # TODO: fix missing argument here
 
         arrangement.is_published = True
         return arrangement
 
     def __find_ursulas(self, ether_addresses: List[str], target_quantity: int, timeout: int = 120):
         start_time = maya.now()  # Marker for timeout calculation
-        found_ursulas, unknown_addresses = set(), deque()
+        found_ursulas, unknown_addresses = set(), deque()  # type: set, deque
         while len(found_ursulas) < target_quantity:
 
             # Check for a timeout
@@ -146,24 +157,27 @@ class BlockchainPolicy(Policy):
 
         return found_ursulas
 
-    def make_arrangements(self, network_middleware: RestMiddleware,
-                          deposit: int, expiration: maya.MayaDT,
-                          handpicked_ursulas: Set[Ursula] = set()) -> None:
+    def make_arrangements(self,
+                          network_middleware: RestMiddleware,
+                          deposit: int,
+                          expiration: maya.MayaDT,
+                          handpicked_ursulas: Set[Ursula] = None
+                          ) -> None:
         """
         Create and consider n Arrangements from sampled miners, a list of Ursulas, or a combination of both.
         """
 
-        ADDITIONAL_URSULAS = 1.5  # TODO: Make constant
+        ADDITIONAL_URSULAS = 1.5        # TODO: Make constant
 
+        handpicked_ursulas = handpicked_ursulas or set()           # type: set
         target_sample_quantity = self.n - len(handpicked_ursulas)
 
-        selected_addresses = set()
-        try:  # Sample by reading from the Blockchain
+        selected_addresses = set()      # type: set
+        try:                            # Sample by reading from the Blockchain
             actual_sample_quantity = math.ceil(target_sample_quantity * ADDITIONAL_URSULAS)
             duration = int(calculate_period_duration(expiration))
             sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity,
-                                                   duration=duration,
-                                                   )
+                                                   duration=duration)
         except MinerAgent.NotEnoughMiners:
             error = "Cannot create policy with {} arrangements."
             raise self.NotEnoughBlockchainUrsulas(error.format(self.n))

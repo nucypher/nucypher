@@ -50,7 +50,7 @@ def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     Having enacted all the policies of a PolicyGroup, Alice creates a TreasureMap and ...... TODO
     """
 
-    enacted_federated_policy.publish_treasure_map(network_middleare=MockRestMiddleware())
+    enacted_federated_policy.publish_treasure_map(network_middleware=MockRestMiddleware())
 
     treasure_map_as_set_on_network = list(federated_ursulas)[0].treasure_maps[
         digest(enacted_federated_policy.treasure_map.public_id())]
