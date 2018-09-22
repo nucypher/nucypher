@@ -1,4 +1,6 @@
 import binascii
+import os
+
 import uuid
 from abc import abstractmethod
 from collections import OrderedDict
@@ -244,7 +246,9 @@ class Policy:
             #  and we learned about a previous one.
             raise
 
-        negotiation_response = network_middleware.consider_arrangement(arrangement=arrangement)
+        certificate_filepath = os.path.join(self.alice.known_metadata_dir, ursula.certificate_filename)
+        negotiation_response = network_middleware.consider_arrangement(arrangement=arrangement,
+                                                                       certificate_filepath=certificate_filepath)
 
         # TODO: check out the response: need to assess the result and see if we're actually good to go.
         negotiation_result = negotiation_response.status_code == 200

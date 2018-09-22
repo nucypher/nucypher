@@ -18,10 +18,9 @@ from umbral.keys import UmbralPublicKey
 
 
 @click.command()
-@click.option('--rest-port', type=int, default=7270)
-@click.option('--lonely', is_flag=True)
+@click.option('--metadata-dir', type=click.Path())
 @click.option('--federated-only', is_flag=True)
-def run_demo(rest_port, lonely, federated_only):
+def run_demo(metadata_dir, federated_only):
     
     ##############################################
     # This is already running in another process.
@@ -30,23 +29,15 @@ def run_demo(rest_port, lonely, federated_only):
     if federated_only is False:
         BLOCKCHAIN = Blockchain.connect()
 
-    URSULA = UrsulaConfiguration(temp=True,
-                                 auto_initialize=True,
-                                 rest_host='localhost',
-                                 rest_port=rest_port,
-                                 db_name='ursula-{}.db'.format(rest_port),
-                                 federated_only=federated_only).produce()
-
     #########
     # Alice #
     #########
 
-    ALICE = AliceConfiguration(temp=True,
-                               auto_initialize=True,
+    ALICE = AliceConfiguration(federated_only=federated_only,
                                network_middleware=RestMiddleware(),
-                               known_nodes=(URSULA,),    # in lieu of seed nodes
-                               federated_only=federated_only,
-                               always_be_learning=True).produce()  # TODO: 289
+                               start_learning_now=True,
+                               load_metadata=True,
+                               learn_on_same_thread=False).produce()  # TODO: 289
 
     # Here are our Policy details.
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -55,10 +46,15 @@ def run_demo(rest_port, lonely, federated_only):
     label = b"secret/files/and/stuff"
 
     # Alice grants to Bob.
-    BOB = Bob(known_nodes=(URSULA,), federated_only=federated_only, always_be_learning=True)
+    BOB = Bob(federated_only=federated_only,
+              learn_on_same_thread=False,
+              start_learning_now=True)
 
     ALICE.start_learning_loop(now=True)
-    policy = ALICE.grant(BOB, label, m=m, n=n,
+    policy = ALICE.grant(BOB,
+                         label,
+                         m=m,
+                         n=n,
                          expiration=policy_end_datetime)
 
     # Alice puts her public key somewhere for Bob to find later...

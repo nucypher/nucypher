@@ -7,10 +7,10 @@ from umbral.fragments import CapsuleFrag
 
 class RestMiddleware:
 
-    def consider_arrangement(self, arrangement):
+    def consider_arrangement(self, arrangement, certificate_filepath):
         node = arrangement.ursula
         response = requests.post("https://{}/consider_arrangement".format(node.rest_interface), bytes(arrangement),
-                                 verify=arrangement.ursula.certificate_filepath)
+                                 verify=certificate_filepath)
         if not response.status_code == 200:
             raise RuntimeError("Bad response: {}".format(response.content))
         return response

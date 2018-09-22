@@ -149,7 +149,7 @@ class AliceConfiguration(NodeConfiguration):
 
         base_payload = super().payload
         alice_payload.update(base_payload)
-        return alice_payload
+        return base_payload
 
     def produce(self, **overrides):
         merged_parameters = {**self.payload, **overrides}
