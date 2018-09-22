@@ -76,7 +76,7 @@ def ursula_federated_test_config():
     ursula_config = UrsulaConfiguration(temp=True,
                                         auto_initialize=True,
                                         is_me=True,
-                                        always_be_learning=False,
+                                        start_learning_now=False,
                                         abort_on_learning_error=True,
                                         federated_only=True)
     yield ursula_config
@@ -89,7 +89,7 @@ def ursula_decentralized_test_config(three_agents):
     ursula_config = UrsulaConfiguration(temp=True,
                                         auto_initialize=True,
                                         is_me=True,
-                                        always_be_learning=False,
+                                        start_learning_now=False,
                                         abort_on_learning_error=True,
                                         miner_agent=miner_agent,
                                         federated_only=False)
@@ -200,7 +200,7 @@ def blockchain_alice(alice_blockchain_test_config):
 @pytest.fixture(scope="module")
 def bob():
     _bob = Bob(network_middleware=MockRestMiddleware(),
-               always_be_learning=False,
+               start_learning_now=False,
                abort_on_learning_error=True,
                federated_only=True)
     return _bob
