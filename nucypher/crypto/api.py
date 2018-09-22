@@ -115,8 +115,8 @@ def ecdsa_verify(message: bytes,
 
 
 def _save_tls_certificate(certificate: Certificate,
-                          full_filepath,
-                          force: bool = True,
+                          full_filepath: str,
+                          force: bool = True,  # TODO
                           ) -> str:
     if force is False and os.path.isfile(full_filepath):
         raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath))
@@ -124,6 +124,8 @@ def _save_tls_certificate(certificate: Certificate,
     with open(full_filepath, 'wb') as certificate_file:
         public_pem_bytes = certificate.public_bytes(Encoding.PEM)
         certificate_file.write(public_pem_bytes)
+
+    return full_filepath
 
 
 def load_tls_certificate(filepath: str) -> Certificate:
@@ -140,10 +142,9 @@ def load_tls_certificate(filepath: str) -> Certificate:
 def generate_self_signed_certificate(common_name: str,
                                      curve: EllipticCurve,
                                      host: str,
-                                     certificate_dir: str,
                                      private_key: _EllipticCurvePrivateKey = None,
                                      days_valid: int = 365
-                                     ) -> Tuple[Certificate, _EllipticCurvePrivateKey, str]:
+                                     ) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
 
     if not private_key:
         private_key = ec.generate_private_key(curve, default_backend())
