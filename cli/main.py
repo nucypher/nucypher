@@ -3,12 +3,11 @@
 import logging
 import os
 import random
-import shutil
-import subprocess
 import sys
-from urllib.parse import urlparse
 
 import click
+import shutil
+import subprocess
 from constant_sorrow import constants
 from twisted.internet import reactor
 
@@ -128,45 +127,62 @@ def cli(config, verbose, version, config_file):
 @cli.command()
 @click.argument('action')
 @click.option('--temp', is_flag=True, default=False)
+@click.option('--filesystem', is_flag=True, default=False)
 @click.option('--config-file', help="Specify a custom .ini configuration filepath")
 @click.option('--config-root', help="Specify a custom installation location")
 @uses_config
-def configure(config, action, config_file, config_root, temp):
+def configure(config, action, config_file, config_root, temp, filesystem):
     """Manage the nucypher .ini configuration file"""
 
+    def __destroy(configuration):
+        if temp:
+            raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
+        click.confirm("Permanently destroy all nucypher files, configurations, known nodes, certificates and keys?", abort=True)
+        shutil.rmtree(configuration.config_root, ignore_errors=True)
+        click.echo("Deleted configuration files at {}".format(node_configuration.config_root))
+
+    def __initialize(configuration):
+        if temp:
+            click.echo("Using temporary storage area")
+        click.confirm("Initialize new nucypher configuration?", abort=True)
+        configuration.write_defaults()
+        click.echo("Created configuration files at {}".format(node_configuration.config_root))
+
     if config_root:
-        node_configuration = NodeConfiguration(config_root=config_root, auto_initialize=False)
+        node_configuration = NodeConfiguration(temp=False,
+                                               config_root=config_root,
+                                               auto_initialize=False)
     elif temp:
         node_configuration = NodeConfiguration(temp=temp, auto_initialize=False)
     elif config_file:
         click.echo("Using configuration file at: {}".format(config_file))
         node_configuration = NodeConfiguration.from_configuration_file(filepath=config_file)
     else:
-        node_configuration = NodeConfiguration()  # Fully Default
+        node_configuration = NodeConfiguration(auto_initialize=False)  # Fully Default
 
-    def __destroy():
-        click.confirm("Permanently destroy all nucypher configurations, known nodes, certificates and keys?", abort=True)
-        shutil.rmtree(config_root, ignore_errors=True)
-        click.echo("Deleted configuration files at {}".format(node_configuration.config_root))
 
-    def __initialize():
-        # TODO: temp config message?
-        click.confirm("Initialize new nucypher configuration?", abort=True)
-        node_configuration.initialize_configuration()
-        click.echo("Created configuration files at {}".format(node_configuration.config_root))
-
+    #
+    # Action switch
+    #
     if action == "init":
-        __initialize()
+        __initialize(node_configuration)
     elif action == "destroy":
-        __destroy()
+        __destroy(node_configuration)
     elif action == "reset":
-        __destroy()
-        __initialize()
-
+        __destroy(node_configuration)
+        __initialize(node_configuration)
     elif action == "validate":
-        is_valid = validate_configuration_file(config_file)
-        result = 'Valid' if is_valid else 'Invalid'
-        click.echo('{} is {}'.format(config_file, result))
+        is_valid = True  # Until there is a reason to believe otherwise
+        try:
+            if filesystem:   # Check runtime directory
+                is_valid = NodeConfiguration.check_config_tree_exists(config_root=node_configuration.config_root)
+            if config_file:
+                is_valid = validate_configuration_file(filepath=node_configuration.config_file_location)
+        except NodeConfiguration.InvalidConfiguration:
+            is_valid = False
+        finally:
+            result = 'Valid' if is_valid else 'Invalid'
+            click.echo('{} is {}'.format(node_configuration.config_root, result))
 
 
 @cli.command()
@@ -665,33 +681,31 @@ def status(config, provider, contracts, network):
 
 
 @cli.command()
-@click.option('--dev', is_flag=True, default=True)
+@click.option('--dev', is_flag=True, default=False)
 @click.option('--federated-only', is_flag=True)
 @click.option('--rest-host', type=str)
 @click.option('--rest-port', type=int)
 @click.option('--db-name', type=str)
 @click.option('--checksum-address', type=str)
-@click.option('--teacher-uri', type=str)
 @click.option('--metadata-dir', type=click.Path())
 @click.option('--config-file', type=click.Path())
 def run_ursula(rest_port,
                rest_host,
                db_name,
-               teacher_uri,
                checksum_address,
                federated_only,
                metadata_dir,
                config_file,
-               dev) -> None:
+               dev
+               ) -> None:
     """
 
     The following procedure is required to "spin-up" an Ursula node.
 
-        1. Collect all known known from storages
-        2. Initialize Ursula object
-        3. Enter the learning loop
-        4. Run TLS deployment
-        5. Start the staking daemon
+        1. Initialize UrsulaConfiguration
+        2. Initialize Ursula
+        3. Run TLS deployment
+        4. Start the staking daemon
 
     Configurable values are first read from the configuration file,
     but can be overridden (mostly for testing purposes) with inline cli options.
@@ -699,56 +713,36 @@ def run_ursula(rest_port,
     """
     if not dev:
         click.echo("WARNING: Development mode is disabled")
-
-    temp = True if dev else False
+        temp = False
+    else:
+        click.echo("Running in development mode")
+        temp = True
 
     if config_file:
         ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file)
     else:
         ursula_config = UrsulaConfiguration(temp=temp,
-                                            auto_initialize=dev,
+                                            auto_initialize=temp,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
                                             db_name=db_name,
                                             is_me=True,
                                             federated_only=federated_only,
                                             checksum_address=checksum_address,
-                                            save_metadata=True,
-                                            known_metadata_dir=metadata_dir)
-
-    if dev:
-        ursula_config.load_known_nodes(known_metadata_dir=metadata_dir)
-
-    ursula = ursula_config.produce()
-    if teacher_uri:
-
-        # TODO: Validate and handle teacher URI paring here
-        if 'http' not in teacher_uri:
-            teacher_uri = 'https://'+teacher_uri
-        url = urlparse(url=teacher_uri)
-        host, port = url.hostname, url.port
-
-        teacher_config = UrsulaConfiguration(temp=True,
-                                             auto_initialize=True,
-                                             rest_host=host,
-                                             rest_port=port,
-                                             is_me=False,
-                                             federated_only=federated_only,
-                                             known_nodes=(ursula, ))
-
-        teacher_ursula = teacher_config.produce()
-
+                                            # save_metadata=False,  # TODO
+                                            load_metadata=True,
+                                            known_metadata_dir=metadata_dir,
+                                            start_learning_now=True,
+                                            abort_on_learning_error=temp)
     try:
-        ursula.start_learning_loop()      # Enter learning loop
-        ursula.get_deployer().run()       # Run TLS Deployer (Reactor)
-        if not federated_only:            # TODO: Resume / Init
-            ursula.stake()                # Start staking daemon
+        URSULA = ursula_config.produce()
+        URSULA.get_deployer().run()       # Run TLS Deploy (Reactor)
+        if not URSULA.federated_only:     # TODO: Resume / Init
+            URSULA.stake()                # Start Staking Daemon
     finally:
-        # Cleanup
-        if ursula_config.temp:
-            click.echo("Cleaning up temporary runtime files and directories")
-            ursula_config.cleanup()
-            click.echo("Exited gracefully")  # TODO: Integrate with other graceful shutdown functionality
+        click.echo("Cleaning up temporary runtime files and directories")
+        ursula_config.cleanup()  # TODO: Integrate with other "graceful" shutdown functionality
+        click.echo("Exited gracefully")
 
 
 if __name__ == "__main__":

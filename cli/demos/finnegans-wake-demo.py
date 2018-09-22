@@ -11,6 +11,7 @@ import maya
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.characters.lawful import Ursula
+from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration
 from nucypher.data_sources import DataSource
 from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey
@@ -29,20 +30,23 @@ def run_demo(rest_port, lonely, federated_only):
     if federated_only is False:
         BLOCKCHAIN = Blockchain.connect()
 
-    URSULA = Ursula(network_middleware=RestMiddleware(),
-                    rest_host='127.0.0.1',
-                    rest_port=rest_port,
-                    db_name='ursula-{}.db'.format(rest_port),
-                    federated_only=federated_only)
+    URSULA = UrsulaConfiguration(temp=True,
+                                 auto_initialize=True,
+                                 rest_host='localhost',
+                                 rest_port=rest_port,
+                                 db_name='ursula-{}.db'.format(rest_port),
+                                 federated_only=federated_only).produce()
 
     #########
     # Alice #
     #########
 
-    ALICE = Alice(network_middleware=RestMiddleware(),
-                  known_nodes=(URSULA,),    # in lieu of seed nodes
-                  federated_only=federated_only,
-                  always_be_learning=True)  # TODO: 289
+    ALICE = AliceConfiguration(temp=True,
+                               auto_initialize=True,
+                               network_middleware=RestMiddleware(),
+                               known_nodes=(URSULA,),    # in lieu of seed nodes
+                               federated_only=federated_only,
+                               always_be_learning=True).produce()  # TODO: 289
 
     # Here are our Policy details.
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
