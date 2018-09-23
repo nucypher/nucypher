@@ -3,6 +3,7 @@ from hendrix.experience import crosstown_traffic
 from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
 from kademlia.utils import digest
 
+from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
@@ -82,7 +83,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_poli
     # through a side-channel with Alice.
 
     # If Bob doesn't know about any Ursulas, he can't find the TreasureMap via the REST swarm:
-    with pytest.raises(bob.NotEnoughUrsulas):
+    with pytest.raises(Ursula.NotEnoughUrsulas):
         treasure_map_from_wire = bob.get_treasure_map(enacted_federated_policy.alice.stamp,
                                                       enacted_federated_policy.label)
 
@@ -99,7 +100,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_poli
     assert enacted_federated_policy.treasure_map == treasure_map_from_wire
 
 
-def test_treaure_map_is_legit(enacted_federated_policy):
+def test_treasure_map_is_legit(enacted_federated_policy):
     """
     Sure, the TreasureMap can get to Bob, but we also need to know that each Ursula in the TreasureMap is on the network.
     """

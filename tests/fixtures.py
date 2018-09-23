@@ -13,7 +13,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.characters.lawful import Bob
-from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration
+from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import TEST_CONTRACTS_DIR
 from nucypher.config.node import NodeConfiguration
 from nucypher.data_sources import DataSource
@@ -199,10 +199,12 @@ def blockchain_alice(alice_blockchain_test_config):
 
 @pytest.fixture(scope="module")
 def bob():
-    _bob = Bob(network_middleware=MockRestMiddleware(),
-               start_learning_now=False,
-               abort_on_learning_error=True,
-               federated_only=True)
+    _bob = BobConfiguration(temp=True,
+                            auto_initialize=True,
+                            network_middleware=MockRestMiddleware(),
+                            start_learning_now=False,
+                            abort_on_learning_error=True,
+                            federated_only=True).produce()
     return _bob
 
 

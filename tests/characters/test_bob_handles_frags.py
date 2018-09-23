@@ -1,3 +1,7 @@
+import contextlib
+import shutil
+from tempfile import TemporaryDirectory
+
 import pytest
 import pytest_twisted
 from twisted.internet import threads
@@ -6,6 +10,14 @@ from umbral.fragments import KFrag, CapsuleFrag
 
 from nucypher.crypto.powers import EncryptingPower
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
+
+
+@pytest.fixture(scope='function')
+def certificates_tempdir():
+    custom_filepath = '/tmp/nucypher-test-certificates-'
+    cert_tmpdir = TemporaryDirectory(prefix=custom_filepath)
+    yield cert_tmpdir.name
+    cert_tmpdir.cleanup()
 
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_policy, bob):
@@ -48,15 +60,19 @@ def test_bob_already_knows_all_nodes_in_treasure_map(enacted_federated_policy, f
 
 @pytest_twisted.inlineCallbacks
 def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_federated_policy,
-                                                                       federated_ursulas):
+                                                                       federated_ursulas,
+                                                                       certificates_tempdir):
     """
     Similar to above, but this time, we'll show that if Bob can connect to a single node, he can
     learn enough to follow the TreasureMap.
 
     Also, we'll get the TreasureMap from the hrac alone (ie, not via a side channel).
     """
+
     from nucypher.characters.lawful import Bob
+
     bob = Bob(network_middleware=MockRestMiddleware(),
+              known_certificates_dir=certificates_tempdir,
               start_learning_now=False,
               abort_on_learning_error=True,
               federated_only=True)

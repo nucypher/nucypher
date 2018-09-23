@@ -66,7 +66,7 @@ def test_validate_runtime_filepaths(custom_filepath):
     assert result.exit_code == 0
 
     # Remove the known nodes dir to "corrupt" the tree
-    os.rmdir(os.path.join(custom_filepath, 'known_nodes'))
+    shutil.rmtree(os.path.join(custom_filepath, 'known_nodes'))
     result = runner.invoke(cli, ['configure', 'validate',
                                  '--config-root', custom_filepath,
                                  '--filesystem'], catch_exceptions=False)
