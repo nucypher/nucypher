@@ -270,6 +270,7 @@ class PolicyAuthor(NucypherTokenActor):
 
         if policy_agent is None:
             # From defaults
+            self.token_agent = NucypherTokenAgent()
             self.miner_agent = MinerAgent(token_agent=self.token_agent)
             self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
         else:

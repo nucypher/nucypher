@@ -242,7 +242,7 @@ class Bob(Character):
         if not self.known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
             # plans to learn about any more, than this function will surely fail.
-            raise self.NotEnoughUrsulas
+            raise Ursula.NotEnoughUrsulas
 
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                 map_id)
@@ -386,6 +386,12 @@ class Ursula(Character, VerifiableNode, Miner):
     # TODO: Maybe this wants to be a registry, so that, for example,
     # TLSHostingPower still can enjoy default status, but on a different class
     _default_crypto_powerups = [SigningPower, EncryptingPower]
+
+    class NotEnoughUrsulas(Learner.NotEnoughTeachers, MinerAgent.NotEnoughMiners):
+        """
+        All Characters depend on knowing about enough Ursulas to perform their role.
+        This exception is raised when a piece of logic can't proceed without more Ursulas.
+        """
 
     class NotFound(Exception):
         pass

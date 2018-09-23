@@ -21,7 +21,6 @@ from typing import Union, List
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
-from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, NoSigningPower, CryptoPowerUp
@@ -320,12 +319,6 @@ class Character(Learner):
     _crashed = False
 
     from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
-
-    class NotEnoughUrsulas(MinerAgent.NotEnoughMiners):
-        """
-        All Characters depend on knowing about enough Ursulas to perform their role.
-        This exception is raised when a piece of logic can't proceed without more Ursulas.
-        """
 
     class InvalidSignature(Exception):
         """
