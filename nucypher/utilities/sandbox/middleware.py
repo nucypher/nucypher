@@ -21,7 +21,7 @@ class MockRestMiddleware(RestMiddleware):
         port = int(url.split(":")[1])
         return self._get_mock_client_by_port(port)
 
-    def _get_mock_client_by_port(self, port):  # TODO
+    def _get_mock_client_by_port(self, port):
         try:
             ursula = TEST_KNOWN_URSULAS_CACHE[port]
             rest_app = ursula.rest_app
@@ -31,7 +31,8 @@ class MockRestMiddleware(RestMiddleware):
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
         return mock_client
 
-    def consider_arrangement(self, arrangement=None):
+    def consider_arrangement(self, arrangement, certificate_filepath):
+        # assert os.path.isfile(certificate_filepath)
         mock_client = self._get_mock_client_by_ursula(arrangement.ursula)
         response = mock_client.post("http://localhost/consider_arrangement", bytes(arrangement))
         assert response.status_code == 200
@@ -53,12 +54,12 @@ class MockRestMiddleware(RestMiddleware):
         mock_client = self._get_mock_client_by_ursula(node)
         return mock_client.get("http://localhost/treasure_map/{}".format(map_id))
 
-    def node_information(self, host, port):
+    def node_information(self, host, port, certificate_filepath=None):
         mock_client = self._get_mock_client_by_port(port)
         response = mock_client.get("http://localhost/public_information")
         return response
 
-    def get_nodes_via_rest(self, url, certificate_path, announce_nodes=None, nodes_i_need=None):
+    def get_nodes_via_rest(self, url, certificate_filepath, announce_nodes=None, nodes_i_need=None):
 
         mock_client = self._get_mock_client_by_url(url)
 
@@ -70,17 +71,19 @@ class MockRestMiddleware(RestMiddleware):
 
         if announce_nodes:
             response = mock_client.post("https://{}/node_metadata".format(url),
-                                        verify=False,
-                                        data=bytes().join(bytes(n) for n in announce_nodes))  # TODO: TLS-only.
+                                        verify=certificate_filepath,
+                                        data=bytes().join(bytes(n) for n in announce_nodes))
         else:
             response = mock_client.get("https://{}/node_metadata".format(url),
-                                       verify=False)  # TODO: TLS-only.
+                                       verify=certificate_filepath)
         return response
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
         mock_client = self._get_mock_client_by_ursula(node)
+        certificate_filepath = node.certificate_filepath
+
         response = mock_client.post("http://localhost/treasure_map/{}".format(map_id),
-                                    data=map_payload, verify=False)
+                                    data=map_payload, verify=certificate_filepath)
         return response
 
 

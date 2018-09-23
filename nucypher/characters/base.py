@@ -515,11 +515,11 @@ class Character(Learner):
         try:
 
             # TODO: Streamline path generation
-            certificate_path = os.path.join(self.known_certificates_dir, current_teacher.certificate_filename)
+            certificate_filepath = os.path.join(self.known_certificates_dir, current_teacher.certificate_filename)
             response = self.network_middleware.get_nodes_via_rest(url=rest_url,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
-                                                                  certificate_path=certificate_path)
+                                                                  certificate_filepath=certificate_filepath)
         except requests.exceptions.ConnectionError as e:
             unresponsive_nodes.add(current_teacher)
             teacher_rest_info = current_teacher.rest_information()[0]

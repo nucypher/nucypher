@@ -6,7 +6,6 @@ from eth_utils import keccak
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
-from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.keystore import keypairs
 from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair, HostingKeypair
 

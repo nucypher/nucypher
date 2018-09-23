@@ -7,11 +7,15 @@ from tempfile import TemporaryDirectory
 from constant_sorrow import constants
 from itertools import islice
 
+from nucypher.characters.base import Character
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_CONFIG_FILE_LOCATION, TEMPLATE_CONFIG_FILE_LOCATION
 from nucypher.network.middleware import RestMiddleware
 
 
 class NodeConfiguration:
+
+    _Character = NotImplemented
+    _parser = NotImplemented
 
     DEFAULT_OPERATING_MODE = 'decentralized'
     __TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-cli-"
@@ -105,6 +109,12 @@ class NodeConfiguration:
             self.write_defaults()             # <<< Write runtime files and dirs
         if load_metadata:
             self.load_known_nodes(known_metadata_dir=known_metadata_dir)
+
+    @classmethod
+    def from_configuration_file(cls, filepath=None) -> 'NodeConfiguration':
+        filepath = filepath if filepath is None else DEFAULT_CONFIG_FILE_LOCATION
+        payload = cls._parser(filepath=filepath)
+        return cls(**payload)
 
     @property
     def payload(self):
@@ -232,10 +242,11 @@ class NodeConfiguration:
             for line in islice(template_file, 12, None):  # chop the warning header
                 new_file.writelines(line.lstrip(';'))  # TODO Copy Default Sections, Perhaps interactively
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         if self.temp:
             self.__temp_dir.cleanup()
 
-    @classmethod
-    def from_configuration_file(cls, filepath: str):
-        raise NotImplementedError
+    def produce(self, **overrides) -> Character:
+        """Initialize a new character instance and return it"""
+        merged_parameters = {**self.payload, **overrides}
+        return self._Character(**merged_parameters)

@@ -9,8 +9,10 @@ class RestMiddleware:
 
     def consider_arrangement(self, arrangement, certificate_filepath):
         node = arrangement.ursula
-        response = requests.post("https://{}/consider_arrangement".format(node.rest_interface), bytes(arrangement),
+        response = requests.post("https://{}/consider_arrangement".format(node.rest_interface),
+                                 bytes(arrangement),
                                  verify=certificate_filepath)
+
         if not response.status_code == 200:
             raise RuntimeError("Bad response: {}".format(response.content))
         return response
@@ -47,13 +49,13 @@ class RestMiddleware:
         endpoint = 'https://{}/kFrag/{}/reencrypt'.format(work_order.ursula.rest_interface, id_as_hex)
         return requests.post(endpoint, payload, verify=work_order.ursula.certificate_filepath)
 
-    def node_information(self, host, port, certificate_path=None):
+    def node_information(self, host, port, certificate_filepath=None):
         endpoint = "https://{}:{}/public_information".format(host, port)
         return requests.get(endpoint, verify=False)
 
     def get_nodes_via_rest(self,
                            url,
-                           certificate_path,
+                           certificate_filepath,
                            announce_nodes=None,
                            nodes_i_need=None):
         if nodes_i_need:
@@ -65,9 +67,9 @@ class RestMiddleware:
         if announce_nodes:
             payload = bytes().join(bytes(n) for n in announce_nodes)
             response = requests.post("https://{}/node_metadata".format(url),
-                                     verify=certificate_path,
+                                     verify=certificate_filepath,
                                      data=payload)
         else:
             response = requests.get("https://{}/node_metadata".format(url),
-                                    verify=certificate_path)
+                                    verify=certificate_filepath)
         return response

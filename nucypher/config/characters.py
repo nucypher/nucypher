@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 
-from nucypher.blockchain.eth.agents import EthereumContractAgent
+from nucypher.blockchain.eth.agents import EthereumContractAgent, PolicyAgent
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.node import NodeConfiguration
 from nucypher.crypto.powers import CryptoPower
@@ -132,35 +132,24 @@ class UrsulaConfiguration(NodeConfiguration):
 
 
 class AliceConfiguration(NodeConfiguration):
+    from nucypher.characters.lawful import Alice
+    from nucypher.config.parsers import parse_alice_config
 
-    def __init__(self,
-                 policy_agent: EthereumContractAgent = None,
-                 *args, **kwargs
-                 ) -> None:
-        super().__init__(*args, **kwargs)
+    _Character = Alice
+    _parser = parse_alice_config
+
+    def __init__(self, policy_agent: EthereumContractAgent = None, *args, **kwargs) -> None:
         self.policy_agent = policy_agent
+        super().__init__(*args, **kwargs)
 
     @property
     def payload(self) -> dict:
-
-        alice_payload = dict(
-            policy_agent=self.policy_agent
-        )
-
+        alice_payload = dict(policy_agent=self.policy_agent)
         base_payload = super().payload
         alice_payload.update(base_payload)
         return base_payload
 
-    def produce(self, **overrides):
-        merged_parameters = {**self.payload, **overrides}
-        from nucypher.characters.lawful import Alice
-        alice = Alice(**merged_parameters)
-        return alice
 
-    @classmethod
-    def from_configuration_file(cls, filepath=None) -> 'AliceConfiguration':
-        from nucypher.config.parsers import parse_alice_config
-        filepath = filepath if filepath is None else DEFAULT_CONFIG_FILE_LOCATION
-        payload = parse_alice_config(filepath=filepath)
-        instance = cls(**payload)
-        return instance
+class BobConfiguration(NodeConfiguration):
+    from nucypher.characters.lawful import Bob
+    _Character = Bob

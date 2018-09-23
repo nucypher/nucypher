@@ -1,28 +1,27 @@
 import binascii
-import os
 import random
 from collections import OrderedDict
-
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
-from functools import partial
-from typing import Iterable
-from typing import List
 
 import maya
 import time
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate
 from eth_utils import to_checksum_address
+from functools import partial
 from twisted.internet import threads
+from typing import Iterable
+from typing import List
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
+from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import datetime_to_period
-from nucypher.characters.base import Character
+from nucypher.characters.base import Character, Learner
 from nucypher.config.parsers import parse_character_config
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
