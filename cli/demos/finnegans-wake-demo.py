@@ -11,16 +11,15 @@ import maya
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.characters.lawful import Ursula
-from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration
+from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.data_sources import DataSource
 from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey
 
 
 @click.command()
-@click.option('--metadata-dir', type=click.Path())
 @click.option('--federated-only', is_flag=True)
-def run_demo(metadata_dir, federated_only):
+def run_demo(federated_only):
     
     ##############################################
     # This is already running in another process.
@@ -37,6 +36,7 @@ def run_demo(metadata_dir, federated_only):
                                network_middleware=RestMiddleware(),
                                start_learning_now=True,
                                load_metadata=True,
+                               abort_on_learning_error=True,
                                learn_on_same_thread=False).produce()  # TODO: 289
 
     # Here are our Policy details.
@@ -46,9 +46,9 @@ def run_demo(metadata_dir, federated_only):
     label = b"secret/files/and/stuff"
 
     # Alice grants to Bob.
-    BOB = Bob(federated_only=federated_only,
-              learn_on_same_thread=False,
-              start_learning_now=True)
+    BOB = BobConfiguration(federated_only=federated_only,
+                           learn_on_same_thread=False,
+                           start_learning_now=True).produce()
 
     ALICE.start_learning_loop(now=True)
     policy = ALICE.grant(BOB,
