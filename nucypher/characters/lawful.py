@@ -241,7 +241,7 @@ class Bob(Character):
         if not self.known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
             # plans to learn about any more, than this function will surely fail.
-            raise Ursula.NotEnoughUrsulas
+            raise self.NotEnoughTeachers
 
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                 map_id)

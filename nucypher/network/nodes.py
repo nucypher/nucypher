@@ -29,10 +29,6 @@ class VerifiableNode:
         self.certificate_filepath = certificate_filepath
         self._interface_signature_object = interface_signature
 
-        # TODO: This gets messy when it is None
-        # (although it being None is actually reasonable in some cases, at least for testing).
-        # Let's make this a method instead that inspects the TLSHostingPower (similar to get_deployer()).
-
     class InvalidNode(SuspiciousActivity):
         """
         Raised when a node has an invalid characteristic - stamp, interface, or address.
@@ -68,7 +64,10 @@ class VerifiableNode:
             self.verified_stamp = True
             return True
         elif self.federated_only and signature is constants.NOT_SIGNED:
-            raise self.WrongMode("This node can't be verified in this manner, but is OK to use in federated mode if you have reason to believe it is trustworthy.")
+            message = "This node can't be verified in this manner, " \
+                      "but is OK to use in federated mode if you"    \
+                      " have reason to believe it is trustworthy."
+            raise self.WrongMode(message)
         else:
             raise self.InvalidNode
 

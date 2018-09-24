@@ -116,7 +116,7 @@ def ecdsa_verify(message: bytes,
 
 def _save_tls_certificate(certificate: Certificate,
                           full_filepath: str,
-                          force: bool = True,  # TODO
+                          force: bool = True,  # TODO: Make configurable, or set to False by default.
                           ) -> str:
     if force is False and os.path.isfile(full_filepath):
         raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath))

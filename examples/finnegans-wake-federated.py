@@ -52,12 +52,12 @@ URSULA.save_certificate_to_disk(CERTIFICATE_DIR)
 #########
 
 
-ALICE = AliceConfiguration(network_middleware=RestMiddleware(),
-                           known_nodes=(URSULA,),
-                           federated_only=True,
-                           always_be_learning=True,
-                           known_certificates_dir=CERTIFICATE_DIR,
-                           )  # TODO: 289
+ALICE = Alice(network_middleware=RestMiddleware(),
+              known_nodes=(URSULA,),
+              federated_only=True,
+              always_be_learning=True,
+              known_certificates_dir=CERTIFICATE_DIR,
+              )
 
 # Here are our Policy details.
 policy_end_datetime = maya.now() + datetime.timedelta(days=5)
