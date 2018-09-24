@@ -1,13 +1,15 @@
 import datetime
 
 import maya
+import pytest
 from umbral.fragments import KFrag
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.utilities.sandbox.policy import MockPolicyCreation
 
 
-def test_mocked_decentralized_grant(alice, bob, three_agents):
+@pytest.mark.usefixtures('blockchain_ursulas')
+def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agents):
     # Monkey patch KFrag repr for better debugging.
     KFrag.__repr__ = lambda kfrag: "KFrag: {}".format(bytes(kfrag)[:10].hex())
 
@@ -20,7 +22,7 @@ def test_mocked_decentralized_grant(alice, bob, three_agents):
     policy_agent.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
     policy_agent.contract.functions.createPolicy = MockPolicyCreation
 
-    policy = alice.grant(bob, label, m=2, n=n, expiration=policy_end_datetime)
+    policy = blockchain_alice.grant(blockchain_bob, label, m=2, n=n, expiration=policy_end_datetime)
 
     # The number of accepted arrangements at least the number of Ursulas we're using (n)
     assert len(policy._accepted_arrangements) >= n
@@ -34,7 +36,7 @@ def test_mocked_decentralized_grant(alice, bob, three_agents):
 
         # Get the Arrangement from Ursula's datastore, looking up by hrac.
         # This will be changed in 180, when we use the Arrangement ID.
-        proper_hrac = keccak_digest(bytes(alice.stamp) + bytes(bob.stamp) + label)
+        proper_hrac = keccak_digest(bytes(blockchain_alice.stamp) + bytes(blockchain_bob.stamp) + label)
         retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
         retrieved_kfrag = KFrag.from_bytes(retrieved_policy.k_frag)
 

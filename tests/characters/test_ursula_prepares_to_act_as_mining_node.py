@@ -87,7 +87,7 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
         vladimir.validate_metadata()
 
 
-def test_vladimir_uses_his_own_signing_key(alice, blockchain_ursulas):
+def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas):
     """
     Similar to the attack above, but this time Vladimir makes his own interface signature
     using his own signing key, which he claims is Ursula's.
@@ -109,4 +109,4 @@ def test_vladimir_uses_his_own_signing_key(alice, blockchain_ursulas):
 
     # However, the actual handshake proves him wrong.
     with pytest.raises(vladimir.InvalidNode):
-        vladimir.verify_node(alice.network_middleware)
+        vladimir.verify_node(blockchain_alice.network_middleware)
