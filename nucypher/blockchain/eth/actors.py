@@ -279,8 +279,7 @@ class PolicyAuthor(NucypherTokenActor):
             self.miner_agent = policy_agent.miner_agent
 
         super().__init__(token_agent=self.policy_agent.token_agent,
-                         checksum_address=checksum_address,
-                         )
+                         checksum_address=checksum_address)
 
     def recruit(self, quantity: int, **options) -> List[str]:
         """

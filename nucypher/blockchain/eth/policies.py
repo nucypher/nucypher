@@ -173,17 +173,16 @@ class BlockchainPolicy(Policy):
         target_sample_quantity = self.n - len(handpicked_ursulas)
 
         selected_addresses = set()      # type: set
-        try:                            # Sample by reading from the Blockchain
-            actual_sample_quantity = math.ceil(target_sample_quantity * ADDITIONAL_URSULAS)
-            duration = int(calculate_period_duration(expiration))
-            sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity,
-                                                   duration=duration)
-        except MinerAgent.NotEnoughMiners:
-            error = "Cannot create policy with {} arrangements."
-            raise self.NotEnoughBlockchainUrsulas(error.format(self.n))
-        else:
-            selected_addresses.update(sampled_addresses)
+        actual_sample_quantity = math.ceil(target_sample_quantity * ADDITIONAL_URSULAS)
+        duration = int(calculate_period_duration(expiration))
 
+        try:  # Sample by reading from the Blockchain
+            sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity, duration=duration)
+        except MinerAgent.NotEnoughMiners as e:
+            error = "Cannot create policy with {} arrangements: {}".format(target_sample_quantity, e)
+            raise self.NotEnoughBlockchainUrsulas(error)
+
+        selected_addresses.update(sampled_addresses)
         found_ursulas = self.__find_ursulas(sampled_addresses, target_sample_quantity)
 
         candidates = handpicked_ursulas
