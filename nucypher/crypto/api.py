@@ -115,21 +115,15 @@ def ecdsa_verify(message: bytes,
 
 
 def _save_tls_certificate(certificate: Certificate,
-                          directory: str,
-                          common_name: str = None,
+                          full_filepath,
                           force: bool = True,
                           ) -> str:
+    if force is False and os.path.isfile(full_filepath):
+        raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath))
 
-    certificate_filepath = os.path.join(directory, '{}.pem'.format(common_name[2:8]))
-
-    if force is False and os.path.isfile(certificate_filepath):
-        raise FileExistsError('A TLS certificate already exists at {}.'.format(certificate_filepath))
-
-    with open(certificate_filepath, 'wb') as certificate_file:
+    with open(full_filepath, 'wb') as certificate_file:
         public_pem_bytes = certificate.public_bytes(Encoding.PEM)
         certificate_file.write(public_pem_bytes)
-
-    return certificate_filepath
 
 
 def load_tls_certificate(filepath: str) -> Certificate:
@@ -170,12 +164,7 @@ def generate_self_signed_certificate(common_name: str,
     cert = cert.add_extension(x509.SubjectAlternativeName([x509.DNSName(host)]), critical=False)
     cert = cert.sign(private_key, hashes.SHA512(), default_backend())
 
-    if certificate_dir:  # TODO: Make this more configurable?
-        tls_certificate_filepath = _save_tls_certificate(cert, directory=certificate_dir, common_name=common_name)
-    else:
-        tls_certificate_filepath = constants.CERTIFICATE_NOT_SAVED
-
-    return cert, private_key, tls_certificate_filepath
+    return cert, private_key
 
 
 def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
