@@ -82,7 +82,7 @@ jobs:
       - run:
           name: Ethereum Contract Unit Tests
           command: |
-            pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/unit/test_*.py | circleci tests split --split-by=timings)
+            pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/*/test_*.py | circleci tests split --split-by=timings)
       - store_test_results:
           path: ./reports/pytest/
 
