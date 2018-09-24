@@ -149,14 +149,6 @@ class Bob(Character):
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
 
-    @classmethod
-    def from_config(cls, filepath, overrides: dict = None) -> 'Bob':
-        payload = parse_character_config(filepath=filepath)
-        if overrides is not None:
-            payload.update(overrides)
-        instance = cls(**payload)
-        return instance
-
     def peek_at_treasure_map(self, treasure_map=None, map_id=None):
         """
         Take a quick gander at the TreasureMap matching map_id to see which
@@ -575,11 +567,6 @@ class Ursula(Character, VerifiableNode, Miner):
     #
     # Alternate Constructors
     #
-
-    @classmethod
-    def from_config(cls, ursula_configuration, **overrides) -> 'Ursula':
-        ursula = ursula_configuration.produce(**overrides)
-        return ursula
 
     @classmethod
     def from_rest_url(cls,

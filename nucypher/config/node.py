@@ -18,7 +18,7 @@ class NodeConfiguration:
     _parser = NotImplemented
 
     DEFAULT_OPERATING_MODE = 'decentralized'
-    __TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-cli-"
+    __TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
     __REGISTRY_NAME = 'contract_registry.json'
     __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
 

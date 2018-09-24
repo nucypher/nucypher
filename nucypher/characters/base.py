@@ -466,6 +466,10 @@ class Character(Learner):
         return self._checksum_address
 
     @classmethod
+    def from_config(cls, config, **overrides) -> 'Character':
+        return config.produce(**overrides)
+
+    @classmethod
     def from_public_keys(cls, powers_and_material: Dict, federated_only=True, *args, **kwargs) -> 'Character':
         # TODO: Need to be federated only until we figure out the best way to get the checksum_address in here.
         """

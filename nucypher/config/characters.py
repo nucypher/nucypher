@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 
-from nucypher.blockchain.eth.agents import EthereumContractAgent, PolicyAgent
+from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.node import NodeConfiguration
 from nucypher.crypto.powers import CryptoPower
@@ -120,7 +120,7 @@ class UrsulaConfiguration(NodeConfiguration):
 
         # if self.save_metadata:                     # TODO: Does this belong here..?
         ursula.write_node_metadata(node=ursula)
-        ursula.save_certificate_to_disk(directory=ursula.known_certificates_dir)  # TODO: Move this
+        ursula.save_certificate_to_disk(directory=ursula.known_certificates_dir)  # TODO: Move this..?
 
         if self.temp:
             class MockDatastoreThreadPool(object):  # TODO: Does this belong here..?
@@ -152,4 +152,5 @@ class AliceConfiguration(NodeConfiguration):
 
 class BobConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Bob
+
     _Character = Bob
