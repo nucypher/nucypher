@@ -210,8 +210,9 @@ class BlockchainPolicy(Policy):
             # TODO: Handle spare Ursulas and try to claw back up to n.
             found_spare_ursulas, remaining_spare_addresses = self.__find_ursulas(spare_addresses, remaining_quantity)
             accepted_spares, rejected_spares = self._consider_arrangements(network_middleware,
-                                                                            candidate_ursulas=found_spare_ursulas,
-                                                                            deposit=deposit, expiration=expiration)
+                                                                           candidate_ursulas=found_spare_ursulas,
+                                                                           deposit=deposit,
+                                                                           expiration=expiration)
             accepted.update(accepted_spares)
             rejected.update(rejected_spares)
 

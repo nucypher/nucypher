@@ -39,13 +39,17 @@ class Alice(Character, PolicyAuthor):
 
         policy_agent = kwargs.pop("policy_agent", None)
         checksum_address = kwargs.pop("checksum_address", None)
-        Character.__init__(self, is_me=is_me, federated_only=federated_only,
-                           checksum_address=checksum_address, network_middleware=network_middleware, *args, **kwargs)
+        Character.__init__(self,
+                           is_me=is_me,
+                           federated_only=federated_only,
+                           checksum_address=checksum_address,
+                           network_middleware=network_middleware,
+                           *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: 289
             PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address)
 
-    def generate_kfrags(self, bob, label, m, n) -> List:
+    def generate_kfrags(self, bob, label: bytes, m: int, n: int) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
 
@@ -411,7 +415,8 @@ class Ursula(Character, VerifiableNode, Miner):
                  crypto_power=None,
                  tls_curve: EllipticCurve = None,
                  tls_private_key=None,  # TODO: config here. #361
-                 # known_nodes: Iterable = None,
+                 known_nodes: Iterable = None,
+
                  **character_kwargs
                  ) -> None:
 
@@ -424,7 +429,7 @@ class Ursula(Character, VerifiableNode, Miner):
                            federated_only=federated_only,
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
-                           # known_nodes=known_nodes,
+                           known_nodes=known_nodes,
                            **character_kwargs)
 
         if not federated_only:
@@ -515,7 +520,7 @@ class Ursula(Character, VerifiableNode, Miner):
 
         certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
-        # VerifiableNode.from_tls_hosting_power(tls_hosting_power=self._crypto_power.power_ups(TLSHostingPower))
+        # VerifiableNode.from_tls_hosting_power(tls_hosting_power=self._crypto_power.power_ups(TLSHostingPower))  # TODO: use classmethod
         VerifiableNode.__init__(self,
                                 certificate=certificate,
                                 certificate_filepath=certificate_filepath,
@@ -548,7 +553,6 @@ class Ursula(Character, VerifiableNode, Miner):
     def __bytes__(self):
 
         interface_info = VariableLengthBytestring(bytes(self.rest_information()[0]))
-
         identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
 
         certificate = self.rest_server_certificate()
