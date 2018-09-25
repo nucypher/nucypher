@@ -1,5 +1,6 @@
 import configparser
 import os
+
 from typing import Union, Tuple
 
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION

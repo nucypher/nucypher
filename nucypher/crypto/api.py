@@ -1,8 +1,7 @@
-import datetime
 import os
 from random import SystemRandom
-from typing import Union, Tuple
 
+import datetime
 import sha3
 from constant_sorrow import constants
 from cryptography import x509
@@ -15,6 +14,7 @@ from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
+from typing import Tuple
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 

@@ -1,8 +1,8 @@
 from collections import OrderedDict
-from datetime import datetime
-from typing import Tuple, List
 
 import maya
+from datetime import datetime
+from typing import Tuple, List
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
 from nucypher.blockchain.eth.interfaces import EthereumContractRegistry

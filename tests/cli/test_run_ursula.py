@@ -1,7 +1,6 @@
+import pytest
 import pytest_twisted
 import time
-
-import pytest
 from click.testing import CliRunner
 from twisted.internet import threads
 from twisted.internet.error import CannotListenError

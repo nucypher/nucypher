@@ -1,7 +1,5 @@
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from web3.contract import Contract
-
 
 VALUE_FIELD = 0
 DECIMALS_FIELD = 1

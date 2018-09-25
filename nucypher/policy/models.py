@@ -1,16 +1,14 @@
 import binascii
-import os
-
-import uuid
 from abc import abstractmethod
 from collections import OrderedDict
-from typing import Generator, List, Set, Iterable
 
 import maya
 import msgpack
+import uuid
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
 from eth_utils import to_canonical_address, to_checksum_address
+from typing import Generator, List, Set
 from umbral.config import default_params
 from umbral.fragments import KFrag
 from umbral.pre import Capsule

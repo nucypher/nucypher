@@ -1,8 +1,8 @@
 import os
+
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
-
 
 SECRET_LENGTH = 32
 

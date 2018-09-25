@@ -1,8 +1,8 @@
 import random
-from typing import Set
 
 from eth_utils import to_checksum_address
 from twisted.internet import protocol
+from typing import Set
 
 from nucypher.blockchain.eth import constants
 from nucypher.characters.lawful import Ursula

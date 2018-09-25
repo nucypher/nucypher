@@ -1,5 +1,3 @@
-import os
-
 from apistar import TestClient
 
 from nucypher.characters.lawful import Ursula
