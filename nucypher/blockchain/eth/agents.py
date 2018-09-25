@@ -233,19 +233,20 @@ class PolicyAgent(EthereumContractAgent):
 
     principal_contract_name = "PolicyManager"
     _upgradeable = True
-    __instance = None
+    __instance = NO_CONTRACT_AVAILABLE
 
-    def __init__(self,
-                 miner_agent: MinerAgent = None,
-                 registry_filepath=None,
-                 *args, **kwargs) -> None:
-        miner_agent = miner_agent if miner_agent is not None else MinerAgent(registry_filepath=registry_filepath)
-        super().__init__(blockchain=miner_agent.blockchain, registry_filepath=registry_filepath, *args, **kwargs)
+    def __init__(self, miner_agent: MinerAgent, *args, **kwargs) -> None:
+        super().__init__(blockchain=miner_agent.blockchain, *args, **kwargs)
         self.miner_agent = miner_agent
         self.token_agent = miner_agent.token_agent
 
-    def create_policy(self, policy_id: str, author_address: str, value: int,
-                      periods: int, reward: int, node_addresses: List[str]):
+    def create_policy(self,
+                      policy_id: str,
+                      author_address: str,
+                      value: int,
+                      periods: int,
+                      reward: int,
+                      node_addresses: List[str]) -> str:
 
         txhash = self.contract.functions.createPolicy(policy_id,
                                                       periods,
@@ -260,15 +261,9 @@ class PolicyAgent(EthereumContractAgent):
         blockchain_record = self.contract.functions.policies(policy_id).call()
         return blockchain_record
 
-    def revoke_policy(self, policy_id: bytes, author) -> str:
-        """
-        Revoke by arrangement ID; Only the policy's author can revoke the policy.
-
-        :param policy_id: An existing arrangementID to revoke on the blockchain.
-
-        """
-
-        txhash = self.contract.functions.revokePolicy(policy_id).transact({'from': author.address})
+    def revoke_policy(self, policy_id: bytes, author_address) -> str:
+        """Revoke by arrangement ID; Only the policy's author_address can revoke the policy."""
+        txhash = self.contract.functions.revokePolicy(policy_id).transact({'from': author_address.address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 

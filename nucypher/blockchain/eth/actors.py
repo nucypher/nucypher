@@ -130,8 +130,11 @@ class Miner(NucypherTokenActor):
         return approve_txhash, deposit_txhash
 
     @only_me
-    def divide_stake(self, stake_index: int, target_value: int,
-                     additional_periods: int = None, expiration: maya.MayaDT = None) -> dict:
+    def divide_stake(self,
+                     stake_index: int,
+                     target_value: int,
+                     additional_periods: int = None,
+                     expiration: maya.MayaDT = None) -> dict:
         """
         Modifies the unlocking schedule and value of already locked tokens.
 
@@ -262,7 +265,7 @@ class Miner(NucypherTokenActor):
 class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
-    def __init__(self, checksum_address: str, policy_agent: PolicyAgent = None) -> None:
+    def __init__(self, checksum_address: str, policy_agent: PolicyAgent = None, *args, **kwargs) -> None:
         """
         :param policy_agent: A policy agent with the blockchain attached; If not passed, A default policy
         agent and blockchain connection will be created from default values.
@@ -280,7 +283,8 @@ class PolicyAuthor(NucypherTokenActor):
             self.miner_agent = policy_agent.miner_agent
 
         super().__init__(token_agent=self.policy_agent.token_agent,
-                         checksum_address=checksum_address)
+                         checksum_address=checksum_address,
+                         *args, **kwargs)
 
     def recruit(self, quantity: int, **options) -> List[str]:
         """
@@ -288,7 +292,6 @@ class PolicyAuthor(NucypherTokenActor):
         caches the resulting node ethereum addresses.
 
         :param quantity: Number of ursulas to sample from the blockchain.
-        :return: None; Since it only mutates self
 
         """
 
