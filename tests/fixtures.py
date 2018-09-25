@@ -7,6 +7,7 @@ import pytest
 from constant_sorrow import constants
 from sqlalchemy.engine import create_engine
 
+from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
@@ -332,7 +333,7 @@ def three_agents(testerchain):
 
     token_agent = token_deployer.make_agent()
 
-    miners_escrow_secret = os.urandom(constants.DISPATCHER_SECRET_LENGTH)
+    miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
         token_agent=token_agent,
         deployer_address=origin,
@@ -342,7 +343,7 @@ def three_agents(testerchain):
 
     miner_agent = miner_escrow_deployer.make_agent()
 
-    policy_manager_secret = os.urandom(constants.DISPATCHER_SECRET_LENGTH)
+    policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
         miner_agent=miner_agent,
         deployer_address=origin,

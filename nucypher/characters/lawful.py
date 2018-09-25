@@ -20,9 +20,8 @@ from umbral.signing import Signature
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
 from nucypher.blockchain.eth.agents import MinerAgent
-from nucypher.blockchain.eth.constants import datetime_to_period
+from nucypher.blockchain.eth.utils import datetime_to_period
 from nucypher.characters.base import Character, Learner
-from nucypher.config.parsers import parse_character_config
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower

@@ -5,8 +5,11 @@ from typing import Tuple, List
 import maya
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
-from nucypher.blockchain.eth.constants import calculate_period_duration, datetime_to_period, validate_stake_amount
 from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
+from nucypher.blockchain.eth.utils import (datetime_to_period,
+                                           validate_stake_amount,
+                                           validate_locktime,
+                                           calculate_period_duration)
 
 
 def only_me(func):
@@ -171,7 +174,6 @@ class Miner(NucypherTokenActor):
     @only_me
     def __validate_stake(self, amount: int, lock_periods: int) -> bool:
 
-        from .constants import validate_locktime, validate_stake_amount
         assert validate_stake_amount(amount=amount)
         assert validate_locktime(lock_periods=lock_periods)
 

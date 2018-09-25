@@ -9,6 +9,7 @@ from typing import Set
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent
+from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
@@ -74,7 +75,7 @@ class BlockchainArrangement(Arrangement):
     def revoke(self) -> str:
         """Revoke this arrangement and return the transaction hash as hex."""
 
-        txhash = self.policy_agent.revoke_policy(self.id, author=self.author)
+        txhash = self.policy_agent.revoke_policy(self.id, author_address=self.author)
         self.revoke_transaction = txhash
         self.is_revoked = True
         return txhash

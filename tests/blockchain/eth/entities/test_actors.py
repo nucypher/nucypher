@@ -1,7 +1,7 @@
 import maya
 import pytest
-from constant_sorrow import constants
 
+from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
 from nucypher.utilities.sandbox.blockchain import token_airdrop
 from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT

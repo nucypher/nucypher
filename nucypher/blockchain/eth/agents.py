@@ -1,7 +1,7 @@
 import random
 from abc import ABC
 
-from constant_sorrow import constants
+from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from typing import Generator, List, Tuple, Union
 from web3.contract import Contract
 
@@ -14,17 +14,18 @@ class EthereumContractAgent(ABC):
     Base class for ethereum contract wrapper types that interact with blockchain contract instances
     """
 
+    principal_contract_name = NotImplemented
+
     _upgradeable = NotImplemented
 
-    principal_contract_name = NotImplemented
     __contract_address = NotImplemented
-    __instance = None
+    __instance = NO_CONTRACT_AVAILABLE
 
     class ContractNotDeployed(Exception):
         pass
 
     def __new__(cls, *args, **kwargs) -> 'EthereumContractAgent':
-        if cls.__instance is None:
+        if cls.__instance is NO_CONTRACT_AVAILABLE:
             cls.__instance = super(EthereumContractAgent, cls).__new__(cls)
         return cls.__instance
 
@@ -78,7 +79,7 @@ class EthereumContractAgent(ABC):
 class NucypherTokenAgent(EthereumContractAgent):
     principal_contract_name = "NuCypherToken"
     _upgradeable = False
-    __instance = None
+    __instance = NO_CONTRACT_AVAILABLE
 
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
@@ -315,4 +316,4 @@ class UserEscrowAgent(EthereumContractAgent):
 
     principal_contract_name = "UserEscrow"
     _upgradeable = True
-    __instance = None
+    __instance = NO_CONTRACT_AVAILABLE
