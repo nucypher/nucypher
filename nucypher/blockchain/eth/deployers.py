@@ -122,30 +122,7 @@ class ContractDeployer:
         """
         if self.__armed is True:
             raise self.ContractDeploymentError('{} deployer is already armed.'.format(self._contract_name))
-
-        # If the blockchain network is public, prompt the user
-        if self.blockchain.interface.network not in self.blockchain.test_chains:
-            message = """
-            Are you sure you want to deploy {contract} on the {network} network?
-            
-            Type {word} to arm the deployer.
-            """.format(contract=self._contract_name, network=self.blockchain.interface.network, word=self._arming_word)
-
-            answer = input(message)
-            if answer == self._arming_word:
-                arm = True
-                outcome_message = '{} is armed!'.format(self.__class__.__name__)
-            else:
-                arm = False
-                outcome_message = '{} was not armed.'.format(self.__class__.__name__)
-
-                if fail_on_abort is True:
-                    raise self.ContractDeploymentError("User aborted deployment")
-
-            print(outcome_message)
-        else:
-            arm = True      # If this is a private chain, just arm the deployer without interaction.
-        self.__armed = arm  # Set the arming status
+        self.__armed = True
 
     def deploy(self) -> dict:
         """
@@ -274,7 +251,7 @@ class MinerEscrowDeployer(ContractDeployer):
                                                  deployer_address=self.deployer_address,
                                                  secret_hash=self.secret_hash)
 
-        dispatcher_deployer.arm(fail_on_abort=True)
+        dispatcher_deployer.arm()
         dispatcher_deploy_txhash = dispatcher_deployer.deploy()
 
         # Cache the dispatcher contract
@@ -346,7 +323,7 @@ class PolicyManagerDeployer(ContractDeployer):
                                                  deployer_address=self.deployer_address,
                                                  secret_hash=self.secret_hash)
 
-        dispatcher_deployer.arm(fail_on_abort=True)
+        dispatcher_deployer.arm()
         dispatcher_deploy_txhash = dispatcher_deployer.deploy()
 
         # Cache the dispatcher contract
