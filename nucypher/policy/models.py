@@ -241,14 +241,14 @@ class Policy:
         try:
             ursula.verify_node(network_middleware, accept_federated_only=arrangement.federated)
         except ursula.InvalidNode:
-            # TODO: What do we actually do here?  Report this at least (355)?  Maybe also have another bucket for invalid nodes?
-            # It's possible that nothing sordid is happening here; this node may be updating its interface info or rotating a signing key
-            #  and we learned about a previous one.
+            # TODO: What do we actually do here?  Report this at least (355)?
+            # Maybe also have another bucket for invalid nodes?
+            # It's possible that nothing sordid is happening here;
+            # this node may be updating its interface info or rotating a signing key
+            # and we learned about a previous one.
             raise
 
-        certificate_filepath = os.path.join(self.alice.known_metadata_dir, ursula.certificate_filename)
-        negotiation_response = network_middleware.consider_arrangement(arrangement=arrangement,
-                                                                       certificate_filepath=certificate_filepath)
+        negotiation_response = network_middleware.consider_arrangement(arrangement=arrangement)
 
         # TODO: check out the response: need to assess the result and see if we're actually good to go.
         negotiation_result = negotiation_response.status_code == 200

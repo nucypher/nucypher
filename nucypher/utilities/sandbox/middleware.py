@@ -31,8 +31,7 @@ class MockRestMiddleware(RestMiddleware):
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
         return mock_client
 
-    def consider_arrangement(self, arrangement, certificate_filepath):
-        # assert os.path.isfile(certificate_filepath)
+    def consider_arrangement(self, arrangement):
         mock_client = self._get_mock_client_by_ursula(arrangement.ursula)
         response = mock_client.post("http://localhost/consider_arrangement", bytes(arrangement))
         assert response.status_code == 200
