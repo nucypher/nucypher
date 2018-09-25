@@ -201,7 +201,6 @@ class BlockchainPolicy(Policy):
                                                          candidate_ursulas=candidates,
                                                          deposit=deposit,
                                                          expiration=expiration)
-
         # After all is said and done...
         if len(accepted) < self.n:
 
