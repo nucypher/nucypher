@@ -1,16 +1,14 @@
 from collections import deque
-from typing import List, Tuple, Iterable
-from typing import Set
 
 import math
 import maya
 from constant_sorrow import constants
-from eth_utils import to_canonical_address
+from typing import List
+from typing import Set
 
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent
-from nucypher.blockchain.eth.constants import calculate_period_duration
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
@@ -32,8 +30,8 @@ class BlockchainArrangement(Arrangement):
         super().__init__(alice=author, ursula=miner, *args, **kwargs)
 
         delta = expiration - maya.now()
-        hours = (delta.total_seconds() / 60) / 60                          # type: int
-        periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))  # type: int
+        hours = (delta.total_seconds() / 60) / 60                               # type: int
+        lock_periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))  # type: int
 
         # The relationship exists between two addresses
         self.author = author                     # type: PolicyAuthor
@@ -210,7 +208,6 @@ class BlockchainPolicy(Policy):
             remaining_quantity = self.n - len(accepted)
 
             # TODO: Handle spare Ursulas and try to claw back up to n.
-            assert False
             found_spare_ursulas, remaining_spare_addresses = self.__find_ursulas(spare_addresses, remaining_quantity)
             accepted_spares, rejected_spares = self._consider_arrangements(network_middleware,
                                                                             candidate_ursulas=found_spare_ursulas,

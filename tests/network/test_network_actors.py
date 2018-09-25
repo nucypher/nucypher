@@ -3,7 +3,6 @@ from hendrix.experience import crosstown_traffic
 from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
 from kademlia.utils import digest
 
-from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
