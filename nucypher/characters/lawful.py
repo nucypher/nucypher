@@ -524,9 +524,10 @@ class Ursula(Character, VerifiableNode, Miner):
 
         if is_me:
             message = "Initialized Self {} | {}".format(self.__class__.__name__, self.checksum_public_address)
+            self.log.info(message)
         else:
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self.checksum_public_address)
-        self.log.info(message)
+            self.log.debug(message)
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)
