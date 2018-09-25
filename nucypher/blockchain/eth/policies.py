@@ -22,10 +22,10 @@ class BlockchainArrangement(Arrangement):
     """
     federated = False
 
-    def __init__(self, author: PolicyAuthor,
+    def __init__(self,
+                 author: PolicyAuthor,
                  miner: Miner,
                  value: int,
-                 lock_periods: int,
                  expiration: maya.MayaDT,
                  *args, **kwargs) -> None:
 
@@ -120,19 +120,24 @@ class BlockchainPolicy(Policy):
         arrangement.is_published = True
         return arrangement
 
-    def __find_ursulas(self, ether_addresses: List[str], target_quantity: int, timeout: int = 120):
-        start_time = maya.now()  # Marker for timeout calculation
-        found_ursulas, unknown_addresses = set(), deque()  # type: set, deque
-        while len(found_ursulas) < target_quantity:
+    def __find_ursulas(self,
+                       ether_addresses: List[str],
+                       target_quantity: int,
+                       timeout: int = 10) -> Set[Ursula]:  # TODO: Make timeout configurable
 
-            # Check for a timeout
-            delta = maya.now() - start_time
+        start_time = maya.now()                            # marker for timeout calculation
+
+        found_ursulas, unknown_addresses = set(), deque()  # type: set, deque
+        while len(found_ursulas) < target_quantity:        # until there are enough Ursulas
+
+            delta = maya.now() - start_time                # check for a timeout
             if delta.total_seconds() >= timeout:
-                raise RuntimeError("Timeout: cannot find ursulas.")  # TODO: Better exception
+                missing_nodes = ', '.join(a for a in unknown_addresses)
+                raise RuntimeError("Timed out after {} seconds; Cannot find {}.".format(timeout, missing_nodes))
 
             # Select an ether_address: Prefer the selection pool, then unknowns queue
             if ether_addresses:
-                ether_address = to_canonical_address(ether_addresses.pop())
+                ether_address = ether_addresses.pop()
             else:
                 ether_address = unknown_addresses.popleft()
 
@@ -142,7 +147,7 @@ class BlockchainPolicy(Policy):
 
             except KeyError:
                 # Unknown Node
-                self.alice.learn_about_specific_node(ether_address)  # enter address in learning loop
+                self.alice.learn_about_specific_nodes({ether_address})  # enter address in learning loop
                 unknown_addresses.append(ether_address)
                 continue
 
@@ -193,8 +198,10 @@ class BlockchainPolicy(Policy):
         #
 
         # Attempt 1
-        accepted, rejected = self._consider_arrangements(network_middleware, candidate_ursulas=candidates,
-                                                          deposit=deposit, expiration=expiration)
+        accepted, rejected = self._consider_arrangements(network_middleware=network_middleware,
+                                                         candidate_ursulas=candidates,
+                                                         deposit=deposit,
+                                                         expiration=expiration)
 
         # After all is said and done...
         if len(accepted) < self.n:

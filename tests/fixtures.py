@@ -272,6 +272,8 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
     _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                           ether_addresses=ursula_addresses,
                                           stake=True)
+
+    token_agent.blockchain.time_travel(periods=1)
     yield _ursulas
 
 

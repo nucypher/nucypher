@@ -273,7 +273,7 @@ class Policy:
                                network_middleware: RestMiddleware,
                                candidate_ursulas: Set[Ursula],
                                deposit: int,
-                               expiration: maya.MayaDT) -> tuple:
+                               expiration: maya.MayaDT):
 
         for selected_ursula in candidate_ursulas:
             arrangement = self._arrangement_class(alice=self.alice,
