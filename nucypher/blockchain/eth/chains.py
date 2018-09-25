@@ -1,22 +1,15 @@
-from typing import List, Union
-
-from constant_sorrow import constants
-from web3.middleware import geth_poa_middleware
+from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
+from typing import Union
+from web3.contract import Contract
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
-from nucypher.config.blockchain import BlockchainConfiguration
-from nucypher.config.parsers import parse_blockchain_config
 
 
 class Blockchain:
     """A view of a blockchain through a provided interface"""
 
-    _instance = None
-    _default_network = NotImplemented
+    _instance = NO_BLOCKCHAIN_AVAILABLE
     __default_interface_class = BlockchainInterface
-
-    test_chains = ('tester', 'temp')
-    public_chains = ('mainnet', 'ropsten')
 
     class ConnectionNotEstablished(RuntimeError):
         pass

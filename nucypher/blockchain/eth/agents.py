@@ -35,9 +35,7 @@ class EthereumContractAgent(ABC):
                  contract: Contract = None
                  ) -> None:
 
-        if blockchain is None:
-            blockchain = Blockchain.connect()
-        self.blockchain = blockchain
+        self.blockchain = blockchain or Blockchain.connect()
 
         if registry_filepath is not None:
             # TODO: Warn on override/ do this elsewhere?
@@ -100,23 +98,13 @@ class MinerAgent(EthereumContractAgent):
 
     principal_contract_name = "MinersEscrow"
     _upgradeable = True
-    __instance = None  # TODO: constants.NO_CONTRACT_AVAILABLE
+    __instance = NO_CONTRACT_AVAILABLE
 
     class NotEnoughMiners(Exception):
         pass
 
-    def __init__(self,
-                 token_agent: NucypherTokenAgent = None,
-                 registry_filepath: str = None,
-                 *args, **kwargs
-                 ) -> None:
-
-        token_agent = token_agent if token_agent is not None else NucypherTokenAgent(registry_filepath=registry_filepath)
-
-        super().__init__(blockchain=token_agent.blockchain,
-                         registry_filepath=registry_filepath,
-                         *args, **kwargs)
-
+    def __init__(self, token_agent: NucypherTokenAgent, *args, **kwargs) -> None:
+        super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
         self.token_agent = token_agent
 
     #

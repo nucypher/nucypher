@@ -80,12 +80,10 @@ class Miner(NucypherTokenActor):
     class MinerError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self,
-                 is_me=True,
-                 miner_agent: MinerAgent = None,
-                 *args, **kwargs) -> None:
-
-        miner_agent = miner_agent if miner_agent is not None else MinerAgent()
+    def __init__(self, miner_agent: MinerAgent, is_me=True, *args, **kwargs) -> None:
+        if miner_agent is None:
+            token_agent = NucypherTokenAgent()
+            miner_agent = MinerAgent(token_agent=token_agent)
         super().__init__(token_agent=miner_agent.token_agent, *args, **kwargs)
 
         # Extrapolate dependencies
@@ -98,6 +96,7 @@ class Miner(NucypherTokenActor):
     #
     # Staking
     #
+
     @property
     def is_staking(self):
         """Checks if this Miner currently has locked tokens."""
