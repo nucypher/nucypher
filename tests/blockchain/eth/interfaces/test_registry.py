@@ -12,8 +12,9 @@ def test_contract_registry(tempfile_path):
     # Tests everything is as it should be when initially created
     test_registry = EthereumContractRegistry(registry_filepath=tempfile_path)
 
-    should_be_empty = test_registry.read()
-    assert should_be_empty == []
+    with pytest.raises(EthereumContractRegistry.RegistryError) as e:
+        _should_be_empty = test_registry.read()
+        assert 'Empty' in e
 
     # Test contract enrollment and dump_chain
     test_name = 'TestContract'
@@ -52,5 +53,5 @@ def test_contract_registry(tempfile_path):
     test_registry._EthereumContractRegistry__write(current_dataset)
 
     # Check that searching for an unknown contract raises
-    with pytest.raises(EthereumContractRegistry.IllegalRegistrar):
+    with pytest.raises(EthereumContractRegistry.IllegalRegistry):
         test_registry.search(contract_address=test_addr)

@@ -43,6 +43,7 @@ class NodeConfiguration:
                  federated_only: bool = None,
                  network_middleware: RestMiddleware = None,
                  registry_filepath: str = None,
+                 no_seed_registry: bool = False,
 
                  # Learner
                  learn_on_same_thread: bool = False,
@@ -107,7 +108,7 @@ class NodeConfiguration:
         #
 
         if auto_initialize:
-            self.write_defaults()             # <<< Write runtime files and dirs
+            self.write_defaults(no_registry=no_seed_registry)             # <<< Write runtime files and dirs
         if load_metadata:
             self.load_known_nodes(known_metadata_dir=known_metadata_dir)
 
@@ -206,8 +207,7 @@ class NodeConfiguration:
             os.mkdir(self.known_metadata_dir, mode=0o755)        # known_metadata
 
             # Files
-            with open(self.registry_filepath, 'w') as registry_file:
-                registry_file.write('MOCK REGISTRY')  # TODO: write the default registry
+            self.write_default_registry(filepath=self.registry_filepath)
 
         except FileExistsError:
             # TODO: beef up the error message
@@ -231,6 +231,16 @@ class NodeConfiguration:
             from nucypher.characters.lawful import Ursula
             node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)  # TODO: 466
             self.known_nodes.add(node)
+
+    def write_default_registry(self, filepath: str = None) -> str:
+        filepath = filepath or self.registry_filepath
+        if os.path.isfile(filepath):
+            raise self.ConfigurationError('There is an existing file at the registry filepath {}'.format(filepath))
+
+        with open(filepath, 'w') as registry_file:
+            registry_file.write('')
+
+        return filepath
 
     def write_default_configuration_file(self, filepath: str = DEFAULT_CONFIG_FILE_LOCATION):
         with contextlib.ExitStack() as stack:

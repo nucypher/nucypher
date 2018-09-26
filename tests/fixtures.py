@@ -54,7 +54,8 @@ def temp_config_root(temp_dir_path):
     """
     default_node_config = NodeConfiguration(temp=True,
                                             auto_initialize=False,
-                                            config_root=temp_dir_path)
+                                            config_root=temp_dir_path,
+                                            no_seed_registry=True)
     yield default_node_config.config_root
     default_node_config.cleanup()
 
@@ -80,7 +81,8 @@ def ursula_federated_test_config():
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
                                         federated_only=True,
-                                        network_middleware=MockRestMiddleware())
+                                        network_middleware=MockRestMiddleware(),
+                                        no_seed_registry=True)
     yield ursula_config
     ursula_config.cleanup()
 
@@ -96,7 +98,8 @@ def ursula_decentralized_test_config(three_agents):
                                         abort_on_learning_error=True,
                                         miner_agent=miner_agent,
                                         federated_only=False,
-                                        network_middleware=MockRestMiddleware())
+                                        network_middleware=MockRestMiddleware(),
+                                        no_seed_registry=True)
     yield ursula_config
     ursula_config.cleanup()
 
@@ -109,7 +112,8 @@ def alice_federated_test_config(federated_ursulas):
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=federated_ursulas,
                                 federated_only=True,
-                                abort_on_learning_error=True)
+                                abort_on_learning_error=True,
+                                no_seed_registry=True)
     yield config
     config.cleanup()
 
@@ -126,7 +130,8 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
                                 policy_agent=policy_agent,
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
-                                checksum_address=alice_address)
+                                checksum_address=alice_address,
+                                no_seed_registry=True)
     yield config
     config.cleanup()
 
@@ -138,7 +143,8 @@ def bob_federated_test_config():
                               network_middleware=MockRestMiddleware(),
                               start_learning_now=False,
                               abort_on_learning_error=True,
-                              federated_only=True)
+                              federated_only=True,
+                              no_seed_registry=True)
     yield config
     config.cleanup()
 
@@ -155,7 +161,8 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
                               known_nodes=blockchain_ursulas,
                               start_learning_now=False,
                               abort_on_learning_error=True,
-                              federated_only=False)
+                              federated_only=False,
+                              no_seed_registry=True)
     yield config
     config.cleanup()
 
