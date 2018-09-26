@@ -1,3 +1,5 @@
+from logging import getLogger
+
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
 from typing import Union
 from web3.contract import Contract
@@ -15,6 +17,8 @@ class Blockchain:
         pass
 
     def __init__(self, interface: Union[BlockchainInterface, BlockchainDeployerInterface] = None) -> None:
+
+        self.log = getLogger("blockchain")                       # type: Logger
 
         # Default interface
         if interface is None:
