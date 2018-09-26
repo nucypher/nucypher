@@ -52,5 +52,5 @@ def test_contract_registry(tempfile_path):
     test_registry._EthereumContractRegistry__write(current_dataset)
 
     # Check that searching for an unknown contract raises
-    with pytest.raises(EthereumContractRegistry.IllegalRegistrar):
+    with pytest.raises(EthereumContractRegistry.IllegalRegistry):
         test_registry.search(contract_address=test_addr)
