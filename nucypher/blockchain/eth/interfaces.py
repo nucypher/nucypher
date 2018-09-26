@@ -1,3 +1,4 @@
+from logging import getLogger
 from urllib.parse import urlparse
 
 from constant_sorrow import constants
@@ -95,6 +96,8 @@ class BlockchainInterface:
 
         """
 
+        self.log = getLogger("blockchain-interface")                       # type: Logger
+
         self.__network = network_name if network_name is not None else self.__default_network
         self.timeout = timeout if timeout is not None else self.__default_timeout
 
@@ -115,8 +118,7 @@ class BlockchainInterface:
             for provider in providers:
                 self.add_provider(provider)
         else:
-            # TODO: Emit a warning / log: No provider supplied for blockchain interface
-            pass
+            self.log.warning("No provider supplied for new blockchain interface; Using defaults")
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
         recompile = True if compiler is not None else False
@@ -124,13 +126,18 @@ class BlockchainInterface:
         self.__sol_compiler = compiler
 
         # Setup the registry and base contract factory cache
-        registry = registry if registry is not None else EthereumContractRegistry().from_config()
-        self._registry = registry
+        registry = registry if registry is not None else EthereumContractRegistry()
+        self.registry = registry
+        self.log.info("Using contract registry {}".format(self.registry.filepath))
 
         if self.__recompile is True:
-            # Execute the compilation if we're recompiling, otherwise read compiled contract data from the registry
+            # Execute the compilation if we're recompiling
+            # Otherwise read compiled contract data from the registry
             interfaces = self.__sol_compiler.compile()
-            self.__raw_contract_cache = interfaces
+            __raw_contract_cache = interfaces
+        else:
+            __raw_contract_cache = constants.NO_COMPILATION_PERFORMED
+        self.__raw_contract_cache = __raw_contract_cache
 
         # Auto-connect
         self.autoconnect = autoconnect
@@ -138,6 +145,7 @@ class BlockchainInterface:
             self.connect()
 
     def connect(self):
+        self.log.info("Connecting to {}".format(self.provider_uri))
 
         if self.__providers is constants.NO_BLOCKCHAIN_CONNECTION:
             raise self.InterfaceError("There are no configured blockchain providers")
@@ -150,25 +158,11 @@ class BlockchainInterface:
         if not self.is_connected:
             raise self.InterfaceError('Failed to connect to providers: {}'.format(self.__providers))
 
-        return True
-
-    @classmethod
-    def from_configuration_file(cls, config: NodeConfiguration) -> 'BlockchainInterface':
-        # Parse
-        payload = parse_blockchain_config(filepath=config.config_file_location)
-
-        # Init deps
-        compiler = SolidityCompiler() if payload['compile'] else None
-        registry = EthereumContractRegistry.from_config(config=config)
-        interface_class = BlockchainInterface if not payload['deploy'] else BlockchainDeployerInterface
-
-        # init class
-        interface = interface_class(timeout=payload['timeout'],
-                                    provider_uri=payload['provider_uri'],
-                                    compiler=compiler,
-                                    registry=registry)
-
-        return interface
+        if self.is_connected:
+            self.log.info('Successfully Connected to {}'.format(self.provider_uri))
+            return self.is_connected
+        else:
+            raise self.InterfaceError("Failed to connect to {}. Check your connection.".format(self.provider_uri))
 
     @property
     def providers(self) -> Tuple[Union[IPCProvider, WebsocketProvider, HTTPProvider], ...]:
@@ -245,18 +239,21 @@ class BlockchainInterface:
                 self.__providers = list()
             self.__providers.append(provider)
 
-    def get_contract_factory(self, contract_name) -> Contract:
+    def get_contract_factory(self, contract_name: str) -> Contract:
         """Retrieve compiled interface data from the cache and return web3 contract"""
         try:
             interface = self.__raw_contract_cache[contract_name]
         except KeyError:
-            raise self.UnknownContract('{} is not a compiled contract.'.format(contract_name))
-
-        contract = self.w3.eth.contract(abi=interface['abi'],
-                                        bytecode=interface['bin'],
-                                        ContractFactoryClass=Contract)
-
-        return contract
+            raise self.UnknownContract('{} is not a locally compiled contract.'.format(contract_name))
+        except TypeError:
+            if self.__raw_contract_cache is constants.NO_COMPILATION_PERFORMED:
+                message = "The local contract compiler cache is empty because no compilation was performed."
+                raise self.InterfaceError(message)
+        else:
+            contract = self.w3.eth.contract(abi=interface['abi'],
+                                            bytecode=interface['bin'],
+                                            ContractFactoryClass=Contract)
+            return contract
 
     def _wrap_contract(self, dispatcher_contract: Contract,
                        target_contract: Contract, factory=Contract) -> Contract:
@@ -271,7 +268,7 @@ class BlockchainInterface:
     def get_contract_by_address(self, address: str):
         """Read a single contract's data from the registrar and return it."""
         try:
-            contract_records = self._registry.search(contract_address=address)
+            contract_records = self.registry.search(contract_address=address)
         except RuntimeError:
             raise self.InterfaceError('Corrupted Registrar')  # TODO: Integrate with Registry
         else:
@@ -284,14 +281,14 @@ class BlockchainInterface:
         Instantiate a deployed contract from registrar data,
         and assemble it with it's dispatcher if it is upgradeable.
         """
-        target_contract_records = self._registry.search(contract_name=name)
+        target_contract_records = self.registry.search(contract_name=name)
 
         if not target_contract_records:
             raise self.InterfaceError("No such contract records with name {}".format(name))
 
         if upgradeable:
             # Lookup dispatchers; Search fot a published dispatcher that targets this contract record
-            dispatcher_records = self._registry.search(contract_name='Dispatcher')
+            dispatcher_records = self.registry.search(contract_name='Dispatcher')
 
             matching_pairs = list()
             for dispatcher_name, dispatcher_addr, dispatcher_abi in dispatcher_records:
@@ -363,9 +360,7 @@ class BlockchainInterface:
 class BlockchainDeployerInterface(BlockchainInterface):
 
     def __init__(self, deployer_address: str=None, *args, **kwargs) -> None:
-
-        # Depends on web3 instance
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # Depends on web3 instance
         self.__deployer_address = deployer_address if deployer_address is not None else constants.NO_DEPLOYER_CONFIGURED
 
     @property
@@ -373,22 +368,23 @@ class BlockchainDeployerInterface(BlockchainInterface):
         return self.__deployer_address
 
     @deployer_address.setter
-    def deployer_address(self, ether_address: str) -> None:
+    def deployer_address(self, checksum_address: str) -> None:
         if self.deployer_address is not constants.NO_DEPLOYER_CONFIGURED:
             raise RuntimeError("{} already has a deployer address set.".format(self.__class__.__name__))
-        self.__deployer_address = ether_address
+        self.__deployer_address = checksum_address
 
     def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:
         """
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract
         """
-
+        if self.__deployer_address is constants.NO_DEPLOYER_CONFIGURED:
+            raise self.InterfaceError('No deployer address is configured.')
         #
         # Build the deployment tx #
         #
         contract_factory = self.get_contract_factory(contract_name=contract_name)
-        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}  # TODO: price?
+        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
         deploy_bytecode = contract_factory.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
 
         # TODO: Logging
@@ -409,8 +405,10 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Instantiate & enroll contract
         #
         contract = contract_factory(address=address)
-        self._registry.enroll(contract_name=contract_name,
-                              contract_address=contract.address,
-                              contract_abi=contract_factory.abi)
+        self.log.info("Deployed {} to {}".format(contract_name, contract.address))
+
+        self.registry.enroll(contract_name=contract_name,
+                             contract_address=contract.address,
+                             contract_abi=contract_factory.abi)
 
         return contract, txhash

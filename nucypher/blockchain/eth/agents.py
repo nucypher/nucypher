@@ -39,7 +39,7 @@ class EthereumContractAgent(ABC):
 
         if registry_filepath is not None:
             # TODO: Warn on override/ do this elsewhere?
-            self.blockchain.interface._registry._swap_registry(filepath=registry_filepath)
+            self.blockchain.interface.registry._swap_registry(filepath=registry_filepath)
 
         if contract is None:
             # Fetch the contract by reading address and abi from the registry and blockchain
