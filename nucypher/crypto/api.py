@@ -116,6 +116,7 @@ def ecdsa_verify(message: bytes,
 
 def _save_tls_certificate(certificate: Certificate,
                           full_filepath: str,
+                          # save_private: bool = False,
                           force: bool = True,  # TODO: Make configurable, or set to False by default.
                           ) -> str:
     if force is False and os.path.isfile(full_filepath):
@@ -124,6 +125,10 @@ def _save_tls_certificate(certificate: Certificate,
     with open(full_filepath, 'wb') as certificate_file:
         public_pem_bytes = certificate.public_bytes(Encoding.PEM)
         certificate_file.write(public_pem_bytes)
+    # if save_private is True:
+    #     with open(full_filepath, 'wb') as certificate_file:
+    #         public_pem_bytes = certificate.public_bytes(Encoding.PEM)
+    #         certificate_file.write(public_pem_bytes)
 
     return full_filepath
 

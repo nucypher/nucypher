@@ -9,6 +9,8 @@ import click
 import shutil
 import subprocess
 from constant_sorrow import constants
+from cryptography.hazmat.primitives.asymmetric import ec
+from eth_account import Account
 from twisted.internet import reactor
 
 from nucypher.blockchain.eth.actors import Miner
@@ -24,8 +26,10 @@ from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 from nucypher.config.utils import validate_configuration_file
+from nucypher.crypto.api import generate_self_signed_certificate, _save_tls_certificate
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
                                                   DEVELOPMENT_ETH_AIRDROP_AMOUNT,
@@ -147,7 +151,10 @@ def configure(config, action, config_file, config_root, temp, filesystem):
     def __destroy(configuration):
         if temp:
             raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
-        click.confirm("Permanently destroy all nucypher files, configurations, known nodes, certificates and keys?", abort=True)
+
+        click.confirm("*Permanently delete* all nucypher private keys, configurations,"
+                      " known nodes, certificates and files at {}?".format(configuration.config_root), abort=True)
+
         shutil.rmtree(configuration.config_root, ignore_errors=True)
         click.echo("Deleted configuration files at {}".format(node_configuration.config_root))
 
@@ -155,8 +162,39 @@ def configure(config, action, config_file, config_root, temp, filesystem):
         if temp:
             click.echo("Using temporary storage area")
         click.confirm("Initialize new nucypher configuration?", abort=True)
+
         configuration.write_defaults()
         click.echo("Created configuration files at {}".format(node_configuration.config_root))
+
+        generate_keypair = click.confirm("Do you need to generate a new wallet to use for staking?")
+        if generate_keypair:
+            passphrase = click.prompt("Enter a passphrase to encrypt your wallet's private key")
+            keyring = NucypherKeyring.generate(passphrase=passphrase,
+                                               keyring_root=configuration.keyring_dir,
+                                               encryption=False,  # TODO: Set to True by default
+                                               wallet=True)
+
+        else:
+            existing_wallet_path = click.prompt("Enter existing wallet.json path")
+            keyring = NucypherKeyring.from_wallet_file(root_key_path=existing_wallet_path)  # TODO: classmethod and import
+
+        generate_certificate = click.confirm("Do you need to generate a new SSL certificate?")
+        if generate_certificate:
+
+            days = click.prompt("How many days do you want the certificate to remain valid? (365 is default)",
+                                default=365,
+                                type=int)
+
+            host = click.prompt("Enter the node's hostname", default='localhost')  # TODO: remove localhost as default
+
+            # TODO: save TLS private key
+            certificate, private_key = generate_self_signed_certificate(common_name=keyring.transacting_public_key,
+                                                                        host=host,
+                                                                        days_valid=days,
+                                                                        curve=ec.SECP384R1)
+
+            certificate_filepath = os.path.join(configuration.known_certificates_dir, "{}.pem".format(keyring.transacting_public_key))
+            _save_tls_certificate(certificate=certificate, full_filepath=certificate_filepath)
 
     if config_root:
         node_configuration = NodeConfiguration(temp=False,
@@ -197,32 +235,42 @@ def configure(config, action, config_file, config_root, temp, filesystem):
 
 @cli.command()
 @click.argument('action', default='list', required=False)
+@click.option('--provider-uri', type=str)
 @click.option('--address', help="The account to lock/unlock instead of the default")
 @uses_config
-def accounts(config, action, address):
+def accounts(config, action, address, provider_uri):
     """Manage ethereum node accounts"""
 
-    if action == 'list':
-        if config.accounts is constants.NO_BLOCKCHAIN_CONNECTION:
-            click.echo('There are no accounts configured')
-        else:
-            for index, address in enumerate(config.accounts):
-                if index == 0:
-                    row = 'etherbase | {}'.format(address)
-                else:
-                    row = '{} ....... | {}'.format(index, address)
-                click.echo(row)
+    if action == 'new':
+        pass  # TODO
+
+    elif action == 'export':
+        keyring = NucypherKeyring(common_name=address)
+        blockchain = Blockchain.connect(provider_uri=provider_uri)
+        click.confirm("Export private key to keyring on node {}?".format(provider_uri), abort=True)
+        passphrase = click.prompt("Enter passphrase", type=str)
+        keyring._export(blockchain=blockchain, passphrase=passphrase)
+
+    elif action == 'list':
+        blockchain = Blockchain.connect(provider_uri=provider_uri)
+        accounts = blockchain.interface.w3.eth.accounts
+        for index, address in enumerate(accounts):
+            if index == 0:
+                row = 'etherbase | {}'.format(address)
+            else:
+                row = '{} ....... | {}'.format(index, address)
+            click.echo(row)
 
     elif action == 'balance':
-        if config.accounts is constants.NO_BLOCKCHAIN_CONNECTION:
-            click.echo('No blockchain connection is available')
-        else:
-            if not address:
-                address = config.blockchain.interface.w3.eth.accounts[0]
-                click.echo('No address supplied, Using the default {}'.format(address))
+        blockchain = Blockchain.connect(provider_uri=provider_uri)
 
-            balance = config.token_agent.token_balance(address=address)
-            click.echo("Balance of {} is {}".format(address, balance))
+        if not address:
+            address = config.blockchain.interface.w3.eth.accounts[0]
+            click.echo('No address supplied, Using the default {}'.format(address))
+
+        token_agent = NucypherTokenAgent(blockchain=blockchain)
+        balance = token_agent.get_balance(address=address)
+        click.echo("Token balance of {} is {}".format(address, balance))
 
 
 @cli.command()
