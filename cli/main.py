@@ -639,7 +639,7 @@ def status(config, provider, contracts, network):
     MinerEscrow .............. {escrow}
     PolicyManager ............ {manager}
         
-    """.format(registry_filepath=config.blockchain.interface.registry_filepath,
+    """.format(registry_filepath=config.blockchain.interface.filepath,
                token=config.token_agent.contract_address,
                escrow=config.miner_agent.contract_address,
                manager=config.policy_agent.contract_address,
@@ -684,12 +684,14 @@ def status(config, provider, contracts, network):
 @click.option('--rest-host', type=str)
 @click.option('--rest-port', type=int)
 @click.option('--db-name', type=str)
+@click.option('--blockchain-uri', type=str)
 @click.option('--checksum-address', type=str)
 @click.option('--metadata-dir', type=click.Path())
 @click.option('--config-file', type=click.Path())
 def run_ursula(rest_port,
                rest_host,
                db_name,
+               blockchain_uri,
                checksum_address,
                federated_only,
                metadata_dir,
@@ -726,18 +728,23 @@ def run_ursula(rest_port,
                                             db_name=db_name,
                                             is_me=True,
                                             federated_only=federated_only,
+                                            blockchain_uri=blockchain_uri,
                                             checksum_address=checksum_address,
                                             # save_metadata=False,  # TODO
                                             load_metadata=True,
                                             known_metadata_dir=metadata_dir,
                                             start_learning_now=True,
                                             abort_on_learning_error=temp)
+
     try:
+
         URSULA = ursula_config.produce()
         URSULA.get_deployer().run()       # Run TLS Deploy (Reactor)
         if not URSULA.federated_only:     # TODO: Resume / Init
             URSULA.stake()                # Start Staking Daemon
+
     finally:
+
         click.echo("Cleaning up temporary runtime files and directories")
         ursula_config.cleanup()  # TODO: Integrate with other "graceful" shutdown functionality
         click.echo("Exited gracefully")

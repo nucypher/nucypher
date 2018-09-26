@@ -5,7 +5,8 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 
-from nucypher.blockchain.eth.agents import EthereumContractAgent
+from nucypher.blockchain.eth.agents import EthereumContractAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.node import NodeConfiguration
 from nucypher.crypto.powers import CryptoPower
@@ -36,6 +37,7 @@ class UrsulaConfiguration(NodeConfiguration):
                  crypto_power: CryptoPower = None,
 
                  # Blockchain
+                 blockchain_uri: str = None,
                  miner_agent: EthereumContractAgent = None,
                  checksum_address: str = None,
 
@@ -62,8 +64,9 @@ class UrsulaConfiguration(NodeConfiguration):
         #
         # Blockchain
         #
-        self.miner_agent = miner_agent
+        self.blockchain_uri = blockchain_uri
         self.checksum_address = checksum_address
+        self.miner_agent = miner_agent
 
         super().__init__(*args, **kwargs)
 
@@ -86,27 +89,26 @@ class UrsulaConfiguration(NodeConfiguration):
     def payload(self) -> dict:
 
         ursula_payload = dict(
+         # REST
+         rest_host=self.rest_host,
+         rest_port=self.rest_port,
+         db_name=self.db_name,
+         db_filepath=self.db_filepath,
 
-                 # REST
-                 rest_host=self.rest_host,
-                 rest_port=self.rest_port,
-                 db_name=self.db_name,
-                 db_filepath=self.db_filepath,
+         # TLS
+         tls_curve=self.tls_curve,
+         tls_private_key=self.tls_private_key,
+         certificate=self.certificate,
+         # certificate_filepath=self.certificate_filepath,  # TODO: Handle existing certificates, injecting the path
 
-                 # TLS
-                 tls_curve=self.tls_curve,
-                 tls_private_key=self.tls_private_key,
-                 certificate=self.certificate,
-                 # certificate_filepath=self.certificate_filepath,  # TODO: Handle existing certificates, injecting the path
+         # Ursula
+         interface_signature=self.interface_signature,
+         crypto_power=self.crypto_power,
 
-                 # Ursula
-                 interface_signature=self.interface_signature,
-                 crypto_power=self.crypto_power,
-
-                 # Blockchain
-                 miner_agent=self.miner_agent,
-                 checksum_address=self.checksum_address,
-                 registry_filepath=self.registry_filepath
+         # Blockchain
+         checksum_address=self.checksum_address,
+         registry_filepath=self.registry_filepath,
+         miner_agent=self.miner_agent
         )
 
         base_payload = super().payload
@@ -116,6 +118,12 @@ class UrsulaConfiguration(NodeConfiguration):
     def produce(self, **overrides):
         merged_parameters = {**self.payload, **overrides}
         from nucypher.characters.lawful import Ursula
+
+        if self.federated_only is False:
+            blockchain = Blockchain.connect(provider_uri=self.blockchain_uri)  # TODO: move this..?
+            token_agent = NucypherTokenAgent(blockchain=blockchain)
+            merged_parameters.update(token_agent=token_agent)
+
         ursula = Ursula(**merged_parameters)
 
         # if self.save_metadata:                     # TODO: Does this belong here..?
