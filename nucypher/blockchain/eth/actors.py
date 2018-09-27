@@ -1,12 +1,13 @@
 from collections import OrderedDict
+from logging import getLogger
 
 import maya
+from constant_sorrow import constants
 from datetime import datetime
+from twisted.internet import task, reactor
 from typing import Tuple, List
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
-from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 from nucypher.blockchain.eth.utils import (datetime_to_period,
                                            validate_stake_amount,
                                            validate_locktime,
@@ -79,25 +80,118 @@ class Miner(NucypherTokenActor):
     Ursula baseclass for blockchain operations, practically carrying a pickaxe.
     """
 
+    __current_period_sample_rate = 10
+
     class MinerError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self, miner_agent: MinerAgent = None, is_me=True, *args, **kwargs) -> None:
-        if miner_agent is None:
-            token_agent = NucypherTokenAgent()
-            miner_agent = MinerAgent(token_agent=token_agent)
-        super().__init__(token_agent=miner_agent.token_agent, *args, **kwargs)
+    def __init__(self, is_me: bool, miner_agent: MinerAgent = None, *args, **kwargs) -> None:
 
-        # Extrapolate dependencies
-        self.miner_agent = miner_agent
-        self.token_agent = miner_agent.token_agent
-        self.blockchain = self.token_agent.blockchain
-
-        # Establish initial state
+        self.log = getLogger("miner")
         self.is_me = is_me
+        if is_me:
+            if miner_agent is None:
+                token_agent = NucypherTokenAgent()
+                miner_agent = MinerAgent(token_agent=token_agent)
+            else:
+                token_agent = miner_agent.token_agent
+            blockchain = miner_agent.token_agent.blockchain
+        else:
+            token_agent = constants.STRANGER_MINER
+            blockchain = constants.STRANGER_MINER
+
+        self.miner_agent = miner_agent
+        self.token_agent = token_agent
+        self.blockchain = blockchain
+
+        super().__init__(token_agent=self.token_agent, *args, **kwargs)
+
+        if is_me is True:
+            self.__current_period = None # TODO: use constant
+            self._abort_on_staking_error = True
+            self._staking_task = task.LoopingCall(self._confirm_period)
+
     #
     # Staking
     #
+
+    @only_me
+    def stake(self,
+              confirm_now=False,
+              resume: bool = False,
+              expiration: maya.MayaDT = None,
+              lock_periods: int = None,
+              *args, **kwargs) -> None:
+
+        """High-level staking daemon loop"""
+
+        if lock_periods and expiration:
+            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
+        if expiration:
+            lock_periods = datetime_to_period(expiration)
+
+        if resume is False:
+            _staking_receipts = self.initialize_stake(expiration=expiration,
+                                                      lock_periods=lock_periods,
+                                                      *args, **kwargs)
+
+        # TODO: Check if this period has already been confirmed
+        # TODO: Check if there is an active stake in the current period: Resume staking daemon
+        # TODO: Validation and Sanity checks
+
+        if confirm_now:
+            self.confirm_activity()
+
+        # record start time and periods
+        self.__start_time = maya.now()
+        self.__uptime_period = self.miner_agent.get_current_period()
+        self.__terminal_period = self.__uptime_period + lock_periods
+        self.__current_period = self.__uptime_period
+        self.start_staking_loop()
+
+        #
+        # Daemon
+        #
+
+    def _confirm_period(self):
+        period = self.miner_agent.get_current_period()
+        # check for stale sample data
+        self.log.info("Checking for new period. Current period is {}".format(self.__current_period))  # TODO:  set to debug?
+        if self.__current_period != period:
+
+            # check for stake expiration
+            stake_expired = self.__current_period >= self.__terminal_period
+            if stake_expired:
+                self.log.info('Stake duration expired')
+                return True
+            self.confirm_activity()
+            self.__current_period = period
+            self.log.info("Confirmed activity for period {}".format(self.__current_period))
+
+    def _crash_gracefully(self, failure=None):
+        """
+        A facility for crashing more gracefully in the event that an exception
+        is unhandled in a different thread, especially inside a loop like the learning loop.
+        """
+        self._crashed = failure
+        failure.raiseException()
+
+    def handle_staking_errors(self, *args, **kwargs):
+        failure = args[0]
+        if self._abort_on_staking_error:
+            self.log.critical("Unhandled error during node staking.  Attempting graceful crash.")
+            reactor.callFromThread(self._crash_gracefully, failure=failure)
+        else:
+            self.log.warning("Unhandled error during node learning: {}".format(failure.getTraceback()))
+
+    def start_staking_loop(self, now=True):
+        if self._staking_task.running:
+            return False
+        else:
+            d = self._staking_task.start(interval=self.__current_period_sample_rate, now=now)
+            d.addErrback(self.handle_staking_errors)
+            self.log.info("Started staking loop")
+            return d
 
     @property
     def is_staking(self):
