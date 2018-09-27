@@ -82,7 +82,16 @@ class NucypherTokenAgent(EthereumContractAgent):
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
 
-        txhash = self.contract.functions.approve(target_address, amount).transact({'from': sender_address})
+        txhash = self.contract.functions.approve(target_address, amount).transact({'from': sender_address, 'gas': 40000})  # TODO: ...why?
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def transfer(self, amount: int, target_address: str, sender_address: str):
+        """
+        function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
+        """
+        self.approve_transfer(amount=amount, target_address=target_address, sender_address=sender_address)
+        txhash = self.contract.functions.transfer(target_address, amount).transact({'from': sender_address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
@@ -139,8 +148,8 @@ class MinerAgent(EthereumContractAgent):
 
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
         """Send tokes to the escrow from the miner's address"""
-
-        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address, 'gas': 2000000})  # TODO: what..?
+        import ipdb; ipdb.set_trace()
+        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address, 'gas': 40000})  # TODO: what..?
         self.blockchain.wait_for_receipt(deposit_txhash)
         return deposit_txhash
 
