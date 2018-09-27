@@ -787,9 +787,10 @@ def run_ursula(rest_port,
                                             start_learning_now=True,
                                             abort_on_learning_error=temp)
 
+    passphrase = click.prompt("Enter passphrase to unlock account", type=str)
     try:
 
-        URSULA = ursula_config.produce()
+        URSULA = ursula_config.produce(passphrase=passphrase)
         URSULA.get_deployer().run()       # Run TLS Deploy (Reactor)
         if not URSULA.federated_only:     # TODO: Resume / Init
             URSULA.stake()                # Start Staking Daemon

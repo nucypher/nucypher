@@ -230,8 +230,9 @@ class NodeConfiguration:
 
         for metadata_path in metadata_paths:
             from nucypher.characters.lawful import Ursula
-            node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)
-            self.known_nodes.add(node)
+            if self.checksum_address not in metadata_path:  # dont learn about self
+                node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)
+                self.known_nodes.add(node)
 
     def write_default_registry(self, filepath: str = None) -> str:
         filepath = filepath or self.registry_filepath
