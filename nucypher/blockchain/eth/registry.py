@@ -63,6 +63,7 @@ class EthereumContractRegistry:
         this function first to get the current state to append to the dict or
         modify it because _write_registry_file overwrites the file.
         """
+
         try:
             with open(self.__filepath, 'r') as registry_file:
                 registry_file.seek(0)

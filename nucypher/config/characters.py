@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 
-from nucypher.blockchain.eth.agents import EthereumContractAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import EthereumContractAgent, NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.node import NodeConfiguration
@@ -37,9 +37,8 @@ class UrsulaConfiguration(NodeConfiguration):
                  crypto_power: CryptoPower = None,
 
                  # Blockchain
-                 blockchain_uri: str = None,
+                 provider_uri: str = None,
                  miner_agent: EthereumContractAgent = None,
-                 checksum_address: str = None,
 
                  *args, **kwargs
                  ) -> None:
@@ -64,8 +63,7 @@ class UrsulaConfiguration(NodeConfiguration):
         #
         # Blockchain
         #
-        self.blockchain_uri = blockchain_uri
-        self.checksum_address = checksum_address
+        self.blockchain_uri = provider_uri
         self.miner_agent = miner_agent
 
         super().__init__(*args, **kwargs)
@@ -106,14 +104,12 @@ class UrsulaConfiguration(NodeConfiguration):
          crypto_power=self.crypto_power,
 
          # Blockchain
-         checksum_address=self.checksum_address,
-         registry_filepath=self.registry_filepath,
          miner_agent=self.miner_agent
         )
 
         base_payload = super().payload
-        ursula_payload.update(base_payload)
-        return ursula_payload
+        base_payload.update(ursula_payload)
+        return base_payload
 
     def produce(self, **overrides):
         merged_parameters = {**self.payload, **overrides}
@@ -121,8 +117,9 @@ class UrsulaConfiguration(NodeConfiguration):
 
         if self.federated_only is False:
             blockchain = Blockchain.connect(provider_uri=self.blockchain_uri)  # TODO: move this..?
-            token_agent = NucypherTokenAgent(blockchain=blockchain)
-            merged_parameters.update(token_agent=token_agent)
+            token_agent = NucypherTokenAgent(blockchain=blockchain, registry_filepath=self.registry_filepath)
+            miner_agent = MinerAgent(token_agent=token_agent)
+            merged_parameters.update(miner_agent=miner_agent)
 
         ursula = Ursula(**merged_parameters)
 
