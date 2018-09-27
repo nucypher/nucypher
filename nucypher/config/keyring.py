@@ -382,7 +382,7 @@ class NucypherKeyring:
         validate_passphrase(passphrase)
 
         # Create the key directories with default paths. Raises OSError if dirs exist
-        os.mkdir(_public_key_dir, mode=0o744)  # public
+        os.mkdir(_public_key_dir, mode=0o744)  # public()
         os.mkdir(_private_key_dir, mode=0o700) # private
 
         # Generate keys

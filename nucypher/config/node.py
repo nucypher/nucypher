@@ -60,22 +60,22 @@ class NodeConfiguration:
         #
         # Configuration Filepaths
         #
+
+
         self.keyring_dir = keyring_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_nodes_dir = constants.UNINITIALIZED_CONFIGURATION
         self.known_certificates_dir = known_metadata_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_metadata_dir = known_metadata_dir or constants.UNINITIALIZED_CONFIGURATION
         self.registry_filepath = registry_filepath or constants.UNINITIALIZED_CONFIGURATION
+        self.config_root = constants.UNINITIALIZED_CONFIGURATION
 
         self.temp = temp
         self.__temp_dir = constants.LIVE_CONFIGURATION
+        # Create a temp dir and set it as the config root if no config root was specified
         if temp:
-            # Create a temp dir and set it as the config root if no config root was specified
             self.__temp_dir = constants.UNINITIALIZED_CONFIGURATION
-            config_root = constants.UNINITIALIZED_CONFIGURATION
-        else:
-            self.__cache_runtime_filepaths(config_root=config_root)
 
-        self.config_root = config_root
+        self.__cache_runtime_filepaths(config_root=config_root)
         self.config_file_location = config_file_location
 
         #
@@ -139,6 +139,7 @@ class NodeConfiguration:
                             known_metadata_dir=self.known_metadata_dir,
                             save_metadata=self.save_metadata
                             )
+
         return base_payload
 
     @staticmethod
@@ -172,7 +173,8 @@ class NodeConfiguration:
         """Generate runtime filepaths and cache them on the config object"""
         filepaths = self.generate_runtime_filepaths(config_root=config_root)
         for field, filepath in filepaths.items():
-            setattr(self, field, filepath)
+            if getattr(self, field) is constants.UNINITIALIZED_CONFIGURATION:
+                setattr(self, field, filepath)
 
     def write_defaults(self) -> str:
         """Writes the configuration and runtime directory tree starting with the config root directory."""
