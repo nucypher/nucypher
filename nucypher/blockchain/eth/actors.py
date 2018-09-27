@@ -31,8 +31,8 @@ class NucypherTokenActor:
 
     def __init__(self,
                  checksum_address: str = None,
-                 token_agent: NucypherTokenAgent = None,
-                 registry_filepath: str = None) -> None:
+                 token_agent: NucypherTokenAgent = None
+                 ) -> None:
         """
         :param checksum_address:  If not passed, we assume this is an unknown actor
 
@@ -48,10 +48,11 @@ class NucypherTokenActor:
         except AttributeError:
             self.checksum_public_address = checksum_address  # type: str
 
-        if registry_filepath is not None:
-            EthereumContractRegistry(registry_filepath=registry_filepath)
+        if not token_agent:
+            token_agent = NucypherTokenAgent()
 
-        self.token_agent = token_agent if token_agent is not None else NucypherTokenAgent()
+        self.token_agent = token_agent
+        self.blockchain = self.token_agent.blockchain
         self._transaction_cache = list()  # type: list # track transactions transmitted
 
     def __repr__(self):
@@ -81,7 +82,7 @@ class Miner(NucypherTokenActor):
     class MinerError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self, miner_agent: MinerAgent, is_me=True, *args, **kwargs) -> None:
+    def __init__(self, miner_agent: MinerAgent = None, is_me=True, *args, **kwargs) -> None:
         if miner_agent is None:
             token_agent = NucypherTokenAgent()
             miner_agent = MinerAgent(token_agent=token_agent)
