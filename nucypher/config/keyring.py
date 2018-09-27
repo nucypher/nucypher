@@ -300,6 +300,12 @@ class NucypherKeyring:
 
         return __key_filepaths
 
+    def _export(self, blockchain, passphrase):
+        with open(self.__wallet_path, 'rb') as wallet:
+            data = wallet.read().decode('utf-8')
+            account = Account.decrypt(keyfile_json=data, password=passphrase)
+            blockchain.interface.w3.personal.importRawKey(private_key=account, passphrase=passphrase)
+
     def __decrypt_keyfile(self, key_path: str) -> UmbralPrivateKey:
         """Returns plaintext version of decrypting key."""
 
