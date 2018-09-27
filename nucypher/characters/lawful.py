@@ -435,7 +435,7 @@ class Ursula(Character, VerifiableNode, Miner):
                            known_nodes=known_nodes,
                            **character_kwargs)
 
-        if not federated_only:
+        if is_me is True and not federated_only:
             Miner.__init__(self,
                            is_me=is_me,
                            miner_agent=miner_agent,
@@ -660,11 +660,11 @@ class Ursula(Character, VerifiableNode, Miner):
         return stranger_ursulas
 
     @classmethod
-    def from_metadata_file(cls, filepath: str, federated_only: bool) -> 'Ursula':
+    def from_metadata_file(cls, filepath: str, federated_only: bool, *args, **kwargs) -> 'Ursula':
         with open(filepath, "r") as seed_file:
             seed_file.seek(0)
             node_bytes = binascii.unhexlify(seed_file.read())
-            node = Ursula.from_bytes(node_bytes, federated_only=federated_only)
+            node = Ursula.from_bytes(node_bytes, federated_only=federated_only, *args, **kwargs)
             return node
 
     #

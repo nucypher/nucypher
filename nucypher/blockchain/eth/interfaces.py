@@ -9,13 +9,12 @@ from eth_utils import to_canonical_address
 from typing import Tuple, Union
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
+from web3.middleware import geth_poa_middleware
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.blockchain.eth.constants import NUCYPHER_GAS_LIMIT
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.config.node import NodeConfiguration
-from nucypher.config.parsers import parse_blockchain_config
 
 
 class BlockchainInterface:
@@ -107,6 +106,7 @@ class BlockchainInterface:
 
         self.w3 = constants.NO_BLOCKCHAIN_CONNECTION
         self.__providers = providers or constants.NO_BLOCKCHAIN_CONNECTION
+        self.provider_uri = constants.NO_BLOCKCHAIN_CONNECTION
 
         if provider_uri and providers:
             raise self.InterfaceError("Pass a provider URI string, or a list of provider instances.")
@@ -215,6 +215,8 @@ class BlockchainInterface:
 
                     # Hardcoded gethdev IPC provider
                     provider = IPCProvider(ipc_path='/tmp/geth.ipc', timeout=timeout)
+                    # w3 = Web3(providers=(provider))
+                    # w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
                 else:
                     raise self.InterfaceError("{} is an ambiguous or unsupported blockchain provider URI".format(provider_uri))
