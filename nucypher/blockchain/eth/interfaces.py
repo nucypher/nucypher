@@ -106,7 +106,7 @@ class BlockchainInterface:
         #
 
         self.w3 = constants.NO_BLOCKCHAIN_CONNECTION
-        self.__providers = providers if providers is not None else constants.NO_BLOCKCHAIN_CONNECTION
+        self.__providers = providers or constants.NO_BLOCKCHAIN_CONNECTION
 
         if provider_uri and providers:
             raise self.InterfaceError("Pass a provider URI string, or a list of provider instances.")

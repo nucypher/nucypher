@@ -411,6 +411,7 @@ class Ursula(Character, VerifiableNode, Miner):
                  # registry_filepath: str = None,
 
                  # Character
+                 passphrase: str = None,
                  abort_on_learning_error: bool = False,
                  federated_only: bool = False,
                  start_learning_now: bool = None,
@@ -447,7 +448,9 @@ class Ursula(Character, VerifiableNode, Miner):
             # TODO: 340
             self._stored_treasure_maps = {}
             if not federated_only:
-                self.substantiate_stamp()
+                if passphrase is None:
+                    raise self.ActorError("No passphrase supplied to unlock account")
+                self.substantiate_stamp(passphrase=passphrase)
 
         if not crypto_power or (TLSHostingPower not in crypto_power._power_ups):
             # TODO: Maybe we want _power_ups to be public after all?

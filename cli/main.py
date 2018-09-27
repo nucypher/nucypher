@@ -11,7 +11,9 @@ import subprocess
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from eth_account import Account
+from eth_utils import is_checksum_address
 from twisted.internet import reactor
+from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
@@ -76,7 +78,7 @@ class NucypherClickConfig:
 
     def __init__(self):
 
-        # NodeConfiguration.from_config_file(filepath=DEFAULT_CONFIG_FILE_LOCATION)  # TODO: does the CLI depend on the configuration file..?
+        # NodeConfiguration.from_config_file(filepath=DEFAULT_CONFIG_FILE_LOCATION)
 
         self.node_config = constants.NO_NODE_CONFIGURATION
 
@@ -101,13 +103,8 @@ class NucypherClickConfig:
         if self.node_config.deploy:
             self.blockchain.interface.deployer_address = self.accounts[0]
 
-    def connect_to_contracts(self, simulation: bool=False):
+    def connect_to_contracts(self):
         """Initialize contract agency and set them on config"""
-
-        if simulation is True:
-            # TODO: Public API for mirroring existing registry
-            self.blockchain.interface._registry._swap_registry(filepath=self.sim_registry_filepath)
-
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.miner_agent = MinerAgent(token_agent=self.token_agent)
         self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
@@ -123,8 +120,6 @@ uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 @uses_config
 def cli(config, verbose, version, config_file):
     """Configure and manage a nucypher nodes"""
-
-    # validate_nucypher_ini_config(filepath=config_file)
 
     click.echo(BANNER)
 
@@ -236,41 +231,75 @@ def configure(config, action, config_file, config_root, temp, filesystem):
 @cli.command()
 @click.argument('action', default='list', required=False)
 @click.option('--provider-uri', type=str)
-@click.option('--address', help="The account to lock/unlock instead of the default")
+@click.option('--poa', is_flag=True)
+@click.option('--checksum-address', help="The account to lock/unlock instead of the default")
+@click.option('--registry-filepath', type=click.Path())
 @uses_config
-def accounts(config, action, address, provider_uri):
-    """Manage ethereum node accounts"""
+def accounts(config, action, checksum_address, provider_uri, registry_filepath, poa):
+    """Manage nucypher node accounts"""
+    blockchain = Blockchain.connect(provider_uri=provider_uri)
+
+    def __collect_transfer_details(denomination: str):
+        destination = click.prompt("Enter destination checksum_address")
+        if not is_checksum_address(destination):
+            click.echo("{} is not a valid checksum checksum_address".format(destination))
+            raise click.Abort()
+        amount = click.prompt("Enter amount of {} to transfer".format(denomination), type=int)
+        return destination, amount
+
+    if poa:  # TODO: needs cleanup - bury in blockchain
+        w3 = blockchain.interface.w3
+        w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+
+    token_agent = NucypherTokenAgent(blockchain=blockchain, registry_filepath=registry_filepath)
 
     if action == 'new':
         pass  # TODO
 
+    if action == 'set-default':
+        pass  # TODO: Change etherbase
+
     elif action == 'export':
-        keyring = NucypherKeyring(common_name=address)
-        blockchain = Blockchain.connect(provider_uri=provider_uri)
+        keyring = NucypherKeyring(common_name=checksum_address)
         click.confirm("Export private key to keyring on node {}?".format(provider_uri), abort=True)
         passphrase = click.prompt("Enter passphrase", type=str)
         keyring._export(blockchain=blockchain, passphrase=passphrase)
 
     elif action == 'list':
-        blockchain = Blockchain.connect(provider_uri=provider_uri)
         accounts = blockchain.interface.w3.eth.accounts
-        for index, address in enumerate(accounts):
+        for index, checksum_address in enumerate(accounts):
+            token_balance = token_agent.get_balance(address=checksum_address)
+            eth_balance = token_agent.blockchain.interface.w3.eth.getBalance(checksum_address)
             if index == 0:
-                row = 'etherbase | {}'.format(address)
+                row = 'etherbase | {} | Tokens: {} | ETH: {} '.format(checksum_address, token_balance, eth_balance)
             else:
-                row = '{} ....... | {}'.format(index, address)
+                row = '{} ....... | {} | Tokens: {} | ETH: {}'.format(index, checksum_address, token_balance, eth_balance)
             click.echo(row)
 
     elif action == 'balance':
-        blockchain = Blockchain.connect(provider_uri=provider_uri)
 
-        if not address:
-            address = config.blockchain.interface.w3.eth.accounts[0]
-            click.echo('No address supplied, Using the default {}'.format(address))
+        if not checksum_address:
+            checksum_address = blockchain.interface.w3.eth.accounts[0]
+            click.echo('No checksum_address supplied, Using the default {}'.format(checksum_address))
 
-        token_agent = NucypherTokenAgent(blockchain=blockchain)
-        balance = token_agent.get_balance(address=address)
-        click.echo("Token balance of {} is {}".format(address, balance))
+        token_balance = token_agent.get_balance(address=checksum_address)
+        eth_balance = token_agent.blockchain.interface.w3.eth.getBalance(checksum_address)
+        click.echo("Balance of {} | Tokens: {} | ETH: {}".format(checksum_address, token_balance, eth_balance))
+
+    elif action == "transfer-tokens":
+        destination, amount = __collect_transfer_details(denomination='tokens')
+        click.confirm("Are you sure you want to send {} tokens to {}?".format(amount, destination), abort=True)
+        txhash = token_agent.transfer(amount=amount, target_address=destination, sender_address=checksum_address)
+        blockchain.wait_for_receipt(txhash)
+        click.echo("Sent {} tokens to {} | {}".format(amount, destination, txhash))
+
+    elif action == "transfer-eth":
+        destination, amount = __collect_transfer_details(denomination='ETH')
+        tx = {'to': destination, 'from': checksum_address, 'value': amount}
+        click.confirm("Are you sure you want to send {} tokens to {}?".format(tx['value'], tx['to']), abort=True)
+        txhash = blockchain.interface.w3.eth.sendTransaction(tx)
+        blockchain.wait_for_receipt(txhash)
+        click.echo("Sent {} ETH to {} | {}".format(amount, destination, str(txhash)))
 
 
 @cli.command()
@@ -787,9 +816,10 @@ def run_ursula(rest_port,
                                             start_learning_now=True,
                                             abort_on_learning_error=temp)
 
+    passphrase = click.prompt("Enter passphrase to unlock account", type=str)
     try:
 
-        URSULA = ursula_config.produce()
+        URSULA = ursula_config.produce(passphrase=passphrase)
         URSULA.get_deployer().run()       # Run TLS Deploy (Reactor)
         if not URSULA.federated_only:     # TODO: Resume / Init
             URSULA.stake()                # Start Staking Daemon

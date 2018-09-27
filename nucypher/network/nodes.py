@@ -139,9 +139,9 @@ class VerifiableNode:
         else:
             self._verified_node = True
 
-    def substantiate_stamp(self):
+    def substantiate_stamp(self, passphrase: str):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
-        blockchain_power.unlock_account(password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)  # TODO: 349
+        blockchain_power.unlock_account(password=passphrase)  # TODO: 349
         signature = blockchain_power.sign_message(bytes(self.stamp))
         self._evidence_of_decentralized_identity = signature
 
@@ -195,7 +195,7 @@ class VerifiableNode:
 
         if not self.checksum_public_address == common_name_from_cert:
             # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
-            raise ValueError("You passed a common_name that is not the same one as the cert.  Why?  FWIW, You don't even need to pass a common name here; the cert will be saved according to the name on the cert itself.")
+            raise ValueError("You passed a __common_name that is not the same one as the cert.  Why?  FWIW, You don't even need to pass a common name here; the cert will be saved according to the name on the cert itself.")
 
         certificate_filepath = os.path.join(directory, self.certificate_filename)
         _save_tls_certificate(self.certificate, full_filepath=certificate_filepath)
