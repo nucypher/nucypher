@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Tuple, List
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 from nucypher.blockchain.eth.utils import (datetime_to_period,
                                            validate_stake_amount,

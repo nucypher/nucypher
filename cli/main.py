@@ -466,9 +466,9 @@ def simulate(config, action, nodes, federated_only, geth):
         #
         if not federated_only:
             if geth:
-                test_provider_uri = "ipc:///tmp/geth.ipc"
+                test_provider_uri = "tester://geth"
             else:
-                test_provider_uri = "pyevm://tester"
+                test_provider_uri = "tester://pyevm"
 
             simulation_registry = TemporaryEthereumContractRegistry()
             simulation_interface = BlockchainDeployerInterface(provider_uri=test_provider_uri,
@@ -732,14 +732,16 @@ def status(config, provider, contracts, network):
 @click.option('--rest-host', type=str)
 @click.option('--rest-port', type=int)
 @click.option('--db-name', type=str)
-@click.option('--blockchain-uri', type=str)
+@click.option('--provider-uri', type=str)
+@click.option('--registry-filepath', type=click.Path())
 @click.option('--checksum-address', type=str)
 @click.option('--metadata-dir', type=click.Path())
 @click.option('--config-file', type=click.Path())
 def run_ursula(rest_port,
                rest_host,
                db_name,
-               blockchain_uri,
+               provider_uri,
+               registry_filepath,
                checksum_address,
                federated_only,
                metadata_dir,
@@ -776,7 +778,8 @@ def run_ursula(rest_port,
                                             db_name=db_name,
                                             is_me=True,
                                             federated_only=federated_only,
-                                            blockchain_uri=blockchain_uri,
+                                            registry_filepath=registry_filepath,
+                                            provider_uri=provider_uri,
                                             checksum_address=checksum_address,
                                             # save_metadata=False,  # TODO
                                             load_metadata=True,
