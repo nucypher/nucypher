@@ -4,6 +4,7 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
+from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent, NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.chains import Blockchain
@@ -37,6 +38,7 @@ class UrsulaConfiguration(NodeConfiguration):
                  crypto_power: CryptoPower = None,
 
                  # Blockchain
+                 poa: bool = False,
                  provider_uri: str = None,
                  miner_agent: EthereumContractAgent = None,
 
@@ -63,6 +65,7 @@ class UrsulaConfiguration(NodeConfiguration):
         #
         # Blockchain
         #
+        self.poa = poa
         self.blockchain_uri = provider_uri
         self.miner_agent = miner_agent
 
@@ -116,12 +119,17 @@ class UrsulaConfiguration(NodeConfiguration):
         from nucypher.characters.lawful import Ursula
 
         if self.federated_only is False:
+
             blockchain = Blockchain.connect(provider_uri=self.blockchain_uri)  # TODO: move this..?
             token_agent = NucypherTokenAgent(blockchain=blockchain, registry_filepath=self.registry_filepath)
             miner_agent = MinerAgent(token_agent=token_agent)
             merged_parameters.update(miner_agent=miner_agent)
 
         ursula = Ursula(**merged_parameters)
+
+        if self.poa:
+            w3 = ursula.blockchain.interface.w3
+            w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
         # if self.save_metadata:                     # TODO: Does this belong here..?
         ursula.write_node_metadata(node=ursula)

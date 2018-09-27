@@ -758,12 +758,15 @@ def status(config, provider, contracts, network):
 @cli.command()
 @click.option('--dev', is_flag=True, default=False)
 @click.option('--federated-only', is_flag=True)
+@click.option('--poa', is_flag=True)
 @click.option('--rest-host', type=str)
 @click.option('--rest-port', type=int)
 @click.option('--db-name', type=str)
 @click.option('--provider-uri', type=str)
 @click.option('--registry-filepath', type=click.Path())
 @click.option('--checksum-address', type=str)
+@click.option('--stake-amount', type=int)
+@click.option('--stake-periods', type=int)
 @click.option('--metadata-dir', type=click.Path())
 @click.option('--config-file', type=click.Path())
 def run_ursula(rest_port,
@@ -772,9 +775,12 @@ def run_ursula(rest_port,
                provider_uri,
                registry_filepath,
                checksum_address,
+               stake_amount,
+               stake_periods,
                federated_only,
                metadata_dir,
                config_file,
+               poa,
                dev
                ) -> None:
     """
@@ -802,6 +808,7 @@ def run_ursula(rest_port,
     else:
         ursula_config = UrsulaConfiguration(temp=temp,
                                             auto_initialize=temp,
+                                            poa=poa,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
                                             db_name=db_name,
@@ -820,9 +827,12 @@ def run_ursula(rest_port,
     try:
 
         URSULA = ursula_config.produce(passphrase=passphrase)
+
+        if not federated_only:
+
+            URSULA.stake(amount=stake_amount, lock_periods=stake_periods)
+
         URSULA.get_deployer().run()       # Run TLS Deploy (Reactor)
-        if not URSULA.federated_only:     # TODO: Resume / Init
-            URSULA.stake()                # Start Staking Daemon
 
     finally:
 
