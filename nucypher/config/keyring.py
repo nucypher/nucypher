@@ -10,21 +10,33 @@ from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from eth_account import Account
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
-from typing import ClassVar
+from typing import ClassVar, Tuple
 from umbral.keys import UmbralPrivateKey
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.node import NodeConfiguration
-from nucypher.config.utils import validate_passphrase
 from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower
+
+
+def validate_passphrase(passphrase) -> bool:
+    """Validate a passphrase and return True or raise an error with a failure reason"""
+
+    rules = (
+        (len(passphrase) >= 16, 'Passphrase is too short, must be >= 16 chars.'),
+    )
+
+    for rule, failure_message in rules:
+        if not rule:
+            raise NodeConfiguration.ConfigurationError(failure_message)
+    return True
 
 
 def _parse_keyfile(keypath: str):
     """Parses a keyfile and returns key metadata as a dict."""
 
-    with open(keypath, 'r') as keyfile:
+    with open(keypath, 'rb') as keyfile:
         try:
-            key_metadata = json.loads(keyfile)
+            key_metadata = json.loads(keyfile.read())
         except json.JSONDecodeError:
             raise NodeConfiguration.ConfigurationError("Invalid data in keyfile {}".format(keypath))
         else:
@@ -54,18 +66,16 @@ def _save_private_keyfile(keypath: str, key_data: dict) -> str:
     mode = stat.S_IRUSR | stat.S_IWUSR              # 0o600
 
     try:
-        keyfile_descriptor = os.open(file=keypath, flags=flags, mode=mode)
+        keyfile_descriptor = os.open(keypath, flags=flags, mode=mode)
     finally:
         os.umask(0)  # Set the umask to 0 after opening
 
     # Write and destroy file descriptor reference
     with os.fdopen(keyfile_descriptor, 'wb') as keyfile:
-        keyfile.write(json.dumps(key_data))
-        output_path = keyfile.name
+        keyfile.write(bytes(json.dumps(key_data), encoding='utf-8'))
 
-    # TODO: output_path is an integer, who knows why?
     del keyfile_descriptor
-    return output_path
+    return keypath
 
 
 def _save_public_keyfile(keypath: str, key_data: bytes) -> str:
@@ -91,7 +101,7 @@ def _save_public_keyfile(keypath: str, key_data: bytes) -> str:
     mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH  # 0o644
 
     try:
-        keyfile_descriptor = os.open(file=keypath, flags=flags, mode=mode)
+        keyfile_descriptor = os.open(keypath, flags=flags, mode=mode)
     finally:
         os.umask(0) # Set the umask to 0 after opening
 
