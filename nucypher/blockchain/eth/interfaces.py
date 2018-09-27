@@ -11,6 +11,7 @@ from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
+from nucypher.blockchain.eth.constants import NUCYPHER_GAS_LIMIT
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.node import NodeConfiguration
@@ -195,11 +196,10 @@ class BlockchainInterface:
             uri_breakdown = urlparse(provider_uri)
 
             # PyEVM
-            if uri_breakdown.scheme == 'pyevm':
+            if uri_breakdown.scheme == 'tester':
 
-                if uri_breakdown.netloc == 'tester':
+                if uri_breakdown.netloc == 'pyevm':
 
-                    NUCYPHER_GAS_LIMIT = 5000000  # TODO: Move to constants
                     genesis_parameter_overrides = {'gas_limit': NUCYPHER_GAS_LIMIT}
 
                     # TODO: Update to newest eth-tester after #123 is merged
@@ -208,8 +208,13 @@ class BlockchainInterface:
                     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
-                elif uri_breakdown.netloc == 'trinity':
-                    raise NotImplemented
+                elif uri_breakdown.netloc == 'geth':
+                    # TODO: Auto gethdev
+                    # https://web3py.readthedocs.io/en/stable/providers.html  # geth-dev-proof-of-authority
+                    # from web3.auto.gethdev import w3
+
+                    # Hardcoded gethdev IPC provider
+                    provider = IPCProvider(ipc_path='/tmp/geth.ipc', timeout=timeout)
 
                 else:
                     raise self.InterfaceError("{} is an ambiguous or unsupported blockchain provider URI".format(provider_uri))
