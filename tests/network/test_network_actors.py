@@ -57,17 +57,17 @@ def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     assert treasure_map_as_set_on_network == enacted_federated_policy.treasure_map
 
 
-def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(alice, bob, federated_ursulas, enacted_federated_policy):
+def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alice, federated_bob, federated_ursulas, enacted_federated_policy):
     """
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
     treasure_map_as_set_on_network = list(federated_ursulas)[0].treasure_maps[
         digest(enacted_federated_policy.treasure_map.public_id())]
 
-    hrac_by_bob = bob.construct_policy_hrac(alice.stamp, enacted_federated_policy.label)
+    hrac_by_bob = federated_bob.construct_policy_hrac(federated_alice.stamp, enacted_federated_policy.label)
     assert enacted_federated_policy.hrac() == hrac_by_bob
 
-    hrac, map_id_by_bob = bob.construct_hrac_and_map_id(alice.stamp, enacted_federated_policy.label)
+    hrac, map_id_by_bob = federated_bob.construct_hrac_and_map_id(federated_alice.stamp, enacted_federated_policy.label)
     assert map_id_by_bob == treasure_map_as_set_on_network.public_id()
 
 
@@ -82,7 +82,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_poli
     # through a side-channel with Alice.
 
     # If Bob doesn't know about any Ursulas, he can't find the TreasureMap via the REST swarm:
-    with pytest.raises(bob.NotEnoughUrsulas):
+    with pytest.raises(bob.NotEnoughTeachers):
         treasure_map_from_wire = bob.get_treasure_map(enacted_federated_policy.alice.stamp,
                                                       enacted_federated_policy.label)
 
@@ -99,7 +99,7 @@ def test_bob_can_retreive_the_treasure_map_and_decrypt_it(enacted_federated_poli
     assert enacted_federated_policy.treasure_map == treasure_map_from_wire
 
 
-def test_treaure_map_is_legit(enacted_federated_policy):
+def test_treasure_map_is_legit(enacted_federated_policy):
     """
     Sure, the TreasureMap can get to Bob, but we also need to know that each Ursula in the TreasureMap is on the network.
     """

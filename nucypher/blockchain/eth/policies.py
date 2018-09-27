@@ -1,16 +1,14 @@
 from collections import deque
-from typing import List, Tuple, Iterable
-from typing import Set
 
 import math
 import maya
 from constant_sorrow import constants
-from eth_utils import to_canonical_address
+from typing import List
+from typing import Set
 
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent
-from nucypher.blockchain.eth.constants import calculate_period_duration
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
@@ -22,18 +20,18 @@ class BlockchainArrangement(Arrangement):
     """
     federated = False
 
-    def __init__(self, author: PolicyAuthor,
+    def __init__(self,
+                 author: PolicyAuthor,
                  miner: Miner,
                  value: int,
-                 lock_periods: int,
                  expiration: maya.MayaDT,
                  *args, **kwargs) -> None:
 
         super().__init__(alice=author, ursula=miner, *args, **kwargs)
 
         delta = expiration - maya.now()
-        hours = (delta.total_seconds() / 60) / 60                          # type: int
-        periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))  # type: int
+        hours = (delta.total_seconds() / 60) / 60                               # type: int
+        lock_periods = int(math.ceil(hours / int(constants.HOURS_PER_PERIOD)))  # type: int
 
         # The relationship exists between two addresses
         self.author = author                     # type: PolicyAuthor
@@ -120,19 +118,24 @@ class BlockchainPolicy(Policy):
         arrangement.is_published = True
         return arrangement
 
-    def __find_ursulas(self, ether_addresses: List[str], target_quantity: int, timeout: int = 120):
-        start_time = maya.now()  # Marker for timeout calculation
-        found_ursulas, unknown_addresses = set(), deque()  # type: set, deque
-        while len(found_ursulas) < target_quantity:
+    def __find_ursulas(self,
+                       ether_addresses: List[str],
+                       target_quantity: int,
+                       timeout: int = 10) -> Set[Ursula]:  # TODO: Make timeout configurable
 
-            # Check for a timeout
-            delta = maya.now() - start_time
+        start_time = maya.now()                            # marker for timeout calculation
+
+        found_ursulas, unknown_addresses = set(), deque()  # type: set, deque
+        while len(found_ursulas) < target_quantity:        # until there are enough Ursulas
+
+            delta = maya.now() - start_time                # check for a timeout
             if delta.total_seconds() >= timeout:
-                raise RuntimeError("Timeout: cannot find ursulas.")  # TODO: Better exception
+                missing_nodes = ', '.join(a for a in unknown_addresses)
+                raise RuntimeError("Timed out after {} seconds; Cannot find {}.".format(timeout, missing_nodes))
 
             # Select an ether_address: Prefer the selection pool, then unknowns queue
             if ether_addresses:
-                ether_address = to_canonical_address(ether_addresses.pop())
+                ether_address = ether_addresses.pop()
             else:
                 ether_address = unknown_addresses.popleft()
 
@@ -142,7 +145,7 @@ class BlockchainPolicy(Policy):
 
             except KeyError:
                 # Unknown Node
-                self.alice.learn_about_specific_node(ether_address)  # enter address in learning loop
+                self.alice.learn_about_specific_nodes({ether_address})  # enter address in learning loop
                 unknown_addresses.append(ether_address)
                 continue
 
@@ -173,17 +176,16 @@ class BlockchainPolicy(Policy):
         target_sample_quantity = self.n - len(handpicked_ursulas)
 
         selected_addresses = set()      # type: set
-        try:                            # Sample by reading from the Blockchain
-            actual_sample_quantity = math.ceil(target_sample_quantity * ADDITIONAL_URSULAS)
-            duration = int(calculate_period_duration(expiration))
-            sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity,
-                                                   duration=duration)
-        except MinerAgent.NotEnoughMiners:
-            error = "Cannot create policy with {} arrangements."
-            raise self.NotEnoughBlockchainUrsulas(error.format(self.n))
-        else:
-            selected_addresses.update(sampled_addresses)
+        actual_sample_quantity = math.ceil(target_sample_quantity * ADDITIONAL_URSULAS)
+        duration = int(calculate_period_duration(expiration))
 
+        try:  # Sample by reading from the Blockchain
+            sampled_addresses = self.alice.recruit(quantity=actual_sample_quantity, duration=duration)
+        except MinerAgent.NotEnoughMiners as e:
+            error = "Cannot create policy with {} arrangements: {}".format(target_sample_quantity, e)
+            raise self.NotEnoughBlockchainUrsulas(error)
+
+        selected_addresses.update(sampled_addresses)
         found_ursulas = self.__find_ursulas(sampled_addresses, target_sample_quantity)
 
         candidates = handpicked_ursulas
@@ -194,8 +196,10 @@ class BlockchainPolicy(Policy):
         #
 
         # Attempt 1
-        accepted, rejected = self._consider_arrangements(network_middleware, candidate_ursulas=candidates,
-                                                          deposit=deposit, expiration=expiration)
+        accepted, rejected = self._consider_arrangements(network_middleware=network_middleware,
+                                                         candidate_ursulas=candidates,
+                                                         deposit=deposit,
+                                                         expiration=expiration)
 
         # After all is said and done...
         if len(accepted) < self.n:
@@ -204,7 +208,6 @@ class BlockchainPolicy(Policy):
             remaining_quantity = self.n - len(accepted)
 
             # TODO: Handle spare Ursulas and try to claw back up to n.
-            assert False
             found_spare_ursulas, remaining_spare_addresses = self.__find_ursulas(spare_addresses, remaining_quantity)
             accepted_spares, rejected_spares = self._consider_arrangements(network_middleware,
                                                                             candidate_ursulas=found_spare_ursulas,

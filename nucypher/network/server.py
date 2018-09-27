@@ -1,8 +1,8 @@
 import binascii
 from logging import getLogger
 
-from apistar import http, Route, App
-from apistar.http import Response
+from apistar import Route, App
+from apistar.http import Response, Request, QueryParams
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from hendrix.experience import crosstown_traffic
@@ -122,14 +122,14 @@ class ProxyRESTRoutes:
 
         return response
 
-    def all_known_nodes(self, request: http.Request):
+    def all_known_nodes(self, request: Request):
         headers = {'Content-Type': 'application/octet-stream'}
         ursulas_as_bytes = bytes().join(bytes(n) for n in self._node_tracker.values())
         ursulas_as_bytes += self._node_bytes_caster()
         signature = self._stamp(ursulas_as_bytes)
         return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
 
-    def node_metadata_exchange(self, request: http.Request, query_params: http.QueryParams):
+    def node_metadata_exchange(self, request: Request, query_params: QueryParams):
         nodes = self._node_class.batch_from_bytes(request.body,
                                                   federated_only=self.federated_only,
                                                   )
@@ -158,7 +158,7 @@ class ProxyRESTRoutes:
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
         return self.all_known_nodes(request)
 
-    def consider_arrangement(self, request: http.Request):
+    def consider_arrangement(self, request: Request):
         from nucypher.policy.models import Arrangement
         arrangement = Arrangement.from_bytes(request.body)
 
@@ -176,7 +176,7 @@ class ProxyRESTRoutes:
         # TODO: Make this a legit response #234.
         return Response(b"This will eventually be an actual acceptance of the arrangement.", headers=headers)
 
-    def set_policy(self, id_as_hex, request: http.Request):
+    def set_policy(self, id_as_hex, request: Request):
         """
         REST endpoint for setting a kFrag.
         TODO: Instead of taking a Request, use the apistar typing system to type
@@ -205,7 +205,7 @@ class ProxyRESTRoutes:
 
         return  # TODO: Return A 200, with whatever policy metadata.
 
-    def reencrypt_via_rest(self, id_as_hex, request: http.Request):
+    def reencrypt_via_rest(self, id_as_hex, request: Request):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         id = binascii.unhexlify(id_as_hex)
         work_order = WorkOrder.from_rest_payload(id, request.body)
@@ -245,7 +245,7 @@ class ProxyRESTRoutes:
 
         return response
 
-    def receive_treasure_map(self, treasure_map_id, request: http.Request):
+    def receive_treasure_map(self, treasure_map_id, request: Request):
         from nucypher.policy.models import TreasureMap
 
         try:

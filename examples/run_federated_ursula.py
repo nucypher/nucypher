@@ -34,7 +34,6 @@ CERTIFICATE_DIR = "{}/certs".format(CRUFTSPACE)
 def spin_up_ursula(rest_port, db_name, teachers=(), certificate_dir=None):
     metadata_file = "examples-runtime-cruft/node-metadata-{}".format(rest_port)
 
-    asyncio.set_event_loop(asyncio.new_event_loop())  # Ugh.  Awful.  But needed until we shed the DHT.
     _URSULA = Ursula(rest_port=rest_port,
                      rest_host="localhost",
                      db_name=db_name,

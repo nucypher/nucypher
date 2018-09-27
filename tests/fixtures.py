@@ -1,8 +1,7 @@
-import contextlib
-import datetime
 import os
 import tempfile
 
+import datetime
 import maya
 import pytest
 from constant_sorrow import constants
@@ -12,8 +11,7 @@ from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTok
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.characters.lawful import Bob
-from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration
+from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import TEST_CONTRACTS_DIR
 from nucypher.config.node import NodeConfiguration
 from nucypher.data_sources import DataSource
@@ -76,10 +74,11 @@ def ursula_federated_test_config():
     ursula_config = UrsulaConfiguration(temp=True,
                                         auto_initialize=True,
                                         is_me=True,
-                                        always_be_learning=False,
+                                        start_learning_now=False,
                                         abort_on_learning_error=True,
                                         federated_only=True)
     yield ursula_config
+    ursula_config.cleanup()
 
 
 @pytest.fixture(scope="module")
@@ -89,11 +88,12 @@ def ursula_decentralized_test_config(three_agents):
     ursula_config = UrsulaConfiguration(temp=True,
                                         auto_initialize=True,
                                         is_me=True,
-                                        always_be_learning=False,
+                                        start_learning_now=False,
                                         abort_on_learning_error=True,
                                         miner_agent=miner_agent,
                                         federated_only=False)
     yield ursula_config
+    ursula_config.cleanup()
 
 
 @pytest.fixture(scope="module")
@@ -106,6 +106,7 @@ def alice_federated_test_config(federated_ursulas):
                                 federated_only=True,
                                 abort_on_learning_error=True)
     yield config
+    config.cleanup()
 
 
 @pytest.fixture(scope="module")
@@ -122,7 +123,36 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
                                 abort_on_learning_error=True,
                                 checksum_address=alice_address)
     yield config
+    config.cleanup()
 
+
+@pytest.fixture(scope="module")
+def bob_federated_test_config():
+    config = BobConfiguration(temp=True,
+                              auto_initialize=True,
+                              network_middleware=MockRestMiddleware(),
+                              start_learning_now=False,
+                              abort_on_learning_error=True,
+                              federated_only=True)
+    yield config
+    config.cleanup()
+
+
+@pytest.fixture(scope="module")
+def bob_blockchain_test_config(blockchain_ursulas, three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
+
+    config = BobConfiguration(temp=True,
+                              auto_initialize=True,
+                              checksum_address=bob_address,
+                              network_middleware=MockRestMiddleware(),
+                              known_nodes=blockchain_ursulas,
+                              start_learning_now=False,
+                              abort_on_learning_error=True,
+                              federated_only=False)
+    yield config
+    config.cleanup()
 
 #
 # Policies
@@ -130,13 +160,13 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
 
 
 @pytest.fixture(scope="module")
-def idle_federated_policy(alice, bob):
+def idle_federated_policy(federated_alice, federated_bob):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique uri (soon to be "label" - see #183)
     """
     n = DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
     random_label = b'label://' + os.urandom(32)
-    policy = alice.create_policy(bob, label=random_label, m=3, n=n, federated=True)
+    policy = federated_alice.create_policy(federated_bob, label=random_label, m=3, n=n, federated=True)
     return policy
 
 
@@ -158,12 +188,12 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
 
 
 @pytest.fixture(scope="module")
-def idle_blockchain_policy(blockchain_alice, bob):
+def idle_blockchain_policy(blockchain_alice, blockchain_bob):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique uri (soon to be "label" - see #183)
     """
     random_label = b'label://' + os.urandom(32)
-    policy = blockchain_alice.create_policy(bob, label=random_label, m=2, n=3)
+    policy = blockchain_alice.create_policy(blockchain_bob, label=random_label, m=2, n=3)
     return policy
 
 
@@ -174,36 +204,13 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()
 
-    idle_blockchain_policy.make_arrangements(network_middleware, deposit=deposit, expiration=contract_end_datetime,
+    idle_blockchain_policy.make_arrangements(network_middleware,
+                                             deposit=deposit,
+                                             expiration=contract_end_datetime,
                                              ursulas=list(blockchain_ursulas))
+
     idle_blockchain_policy.enact(network_middleware)  # REST call happens here, as does population of TreasureMap.
-
     return idle_blockchain_policy
-
-
-#
-# Alice, Bob, and Capsule
-#
-
-@pytest.fixture(scope="module")
-def alice(alice_federated_test_config):
-    alice = alice_federated_test_config.produce()
-    return alice
-
-
-@pytest.fixture(scope="module")
-def blockchain_alice(alice_blockchain_test_config):
-    alice = alice_blockchain_test_config.produce()
-    return alice
-
-
-@pytest.fixture(scope="module")
-def bob():
-    _bob = Bob(network_middleware=MockRestMiddleware(),
-               always_be_learning=False,
-               abort_on_learning_error=True,
-               federated_only=True)
-    return _bob
 
 
 @pytest.fixture(scope="module")
@@ -216,27 +223,42 @@ def capsule_side_channel(enacted_federated_policy):
 
 
 #
-# Ursulas
+# Alice, Bob, and Ursula
 #
 
 @pytest.fixture(scope="module")
+def federated_alice(alice_federated_test_config):
+    _alice = alice_federated_test_config.produce()
+    return _alice
+
+
+@pytest.fixture(scope="module")
+def blockchain_alice(alice_blockchain_test_config):
+    _alice = alice_blockchain_test_config.produce()
+    return _alice
+
+
+@pytest.fixture(scope="module")
+def federated_bob(bob_federated_test_config):
+    _bob = bob_federated_test_config.produce()
+    return _bob
+
+
+@pytest.fixture(scope="module")
+def blockchain_bob(bob_blockchain_test_config):
+    _bob = bob_blockchain_test_config.produce()
+    return _bob
+
+
+@pytest.fixture(scope="module")
 def federated_ursulas(ursula_federated_test_config):
-    _ursulas = None
-    try:
-        _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
-                                          quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
-        yield _ursulas
-    finally:
-        if _ursulas:
-            # Remove the DBs that have been sprayed hither and yon.
-            with contextlib.suppress(FileNotFoundError):
-                for ursula in _ursulas:
-                    os.remove(ursula.datastore.engine.engine.url.database)
+    _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
+                                      quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
+    yield _ursulas
 
 
 @pytest.fixture(scope="module")
 def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
-
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
 
@@ -247,23 +269,18 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
                   token_agent=token_agent,
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
-    _ursulas = None
-    try:
-        _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                              ether_addresses=ursula_addresses,
-                                              stake=True)
-        yield _ursulas
-    finally:
-        if _ursulas:
-            # Remove the DBs that have been sprayed hither and yon.
-            with contextlib.suppress(FileNotFoundError):
-                for ursula in _ursulas:
-                    os.remove(ursula.datastore.engine.engine.url.database)
+    _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
+                                          ether_addresses=ursula_addresses,
+                                          stake=True)
+
+    token_agent.blockchain.time_travel(periods=1)
+    yield _ursulas
 
 
 #
 # Blockchain
 #
+
 
 @pytest.fixture(scope='session')
 def solidity_compiler():

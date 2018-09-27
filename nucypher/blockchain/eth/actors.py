@@ -270,6 +270,7 @@ class PolicyAuthor(NucypherTokenActor):
 
         if policy_agent is None:
             # From defaults
+            self.token_agent = NucypherTokenAgent()
             self.miner_agent = MinerAgent(token_agent=self.token_agent)
             self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
         else:
@@ -278,8 +279,7 @@ class PolicyAuthor(NucypherTokenActor):
             self.miner_agent = policy_agent.miner_agent
 
         super().__init__(token_agent=self.policy_agent.token_agent,
-                         checksum_address=checksum_address,
-                         )
+                         checksum_address=checksum_address)
 
     def recruit(self, quantity: int, **options) -> List[str]:
         """

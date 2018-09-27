@@ -11,50 +11,68 @@ import pytest
 from nucypher.config.node import NodeConfiguration
 
 
-def test_initialize_configuration_directory():
+@pytest.fixture(scope='function')
+def custom_filepath():
+    custom_filepath = '/tmp/nucypher-tmp-test-custom'
+    yield custom_filepath
+    with contextlib.suppress(FileNotFoundError):
+        shutil.rmtree(custom_filepath)
+
+
+def test_initialize_configuration_directory(custom_filepath):
     runner = CliRunner()
 
     # Use the system temporary storage area
     result = runner.invoke(cli, ['configure', 'init', '--temp'], input='Y', catch_exceptions=False)
     assert '/tmp' in result.output, "Configuration not in system temporary directory"
-    assert NodeConfiguration.TEMP_CONFIGURATION_DIR_PREFIX in result.output
+    assert NodeConfiguration._NodeConfiguration__TEMP_CONFIGURATION_DIR_PREFIX in result.output
     assert result.exit_code == 0
 
-    # Use an custom configuration directory
-    custom_filepath = '/tmp/nucypher-tmp-test-custom'
+    args = ['configure', 'init', '--config-root', custom_filepath]
+    result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
+    assert '[y/N]' in result.output, "'configure init' did not prompt the user before attempting to write files"
+    assert '/tmp' in result.output, "Configuration not in system temporary directory"
+    assert 'Created' in result.output
+    assert custom_filepath in result.output
+    assert result.exit_code == 0
+    assert os.path.isdir(custom_filepath)
 
-    try:
-        os.mkdir(custom_filepath)  # TODO: Create a top-level installation directory, instead of writing only subdirs
+    # Ensure that there are not pre-existing configuration files at config_root
+    with pytest.raises(NodeConfiguration.ConfigurationError):
+        _result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
 
-        args = ['configure', 'init', '--config-root', custom_filepath]
-        result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
-        assert '[y/N]' in result.output
-        assert '/tmp' in result.output, "Configuration not in system temporary directory"
-        assert 'Created' in result.output
-        assert custom_filepath in result.output
-        assert result.exit_code == 0
-        assert os.path.isdir(custom_filepath)
-
-        assert True
-        
-        # Ensure that there are not pre-existing configuration files at config_root
-        with pytest.raises(NodeConfiguration.ConfigurationError):
-            _result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
-
-        args = ['configure', 'destroy', '--config-root', custom_filepath]
-        result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
-        assert '[y/N]' in result.output
-        assert '/tmp' in result.output, "Configuration not in system temporary directory"
-        assert 'Deleted' in result.output
-        assert custom_filepath in result.output
-        assert result.exit_code == 0
-        assert not os.path.isdir(custom_filepath)
-
-    finally:
-        with contextlib.suppress(FileNotFoundError):
-            shutil.rmtree(custom_filepath)
+    args = ['configure', 'destroy', '--config-root', custom_filepath]
+    result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
+    assert '[y/N]' in result.output
+    assert '/tmp' in result.output, "Configuration not in system temporary directory"
+    assert 'Deleted' in result.output
+    assert custom_filepath in result.output
+    assert result.exit_code == 0
+    assert not os.path.isdir(custom_filepath)
 
     # # TODO: Integrate with run ursula
+
+
+def test_validate_runtime_filepaths(custom_filepath):
+    runner = CliRunner()
+
+    args = ['configure', 'init', '--config-root', custom_filepath]
+    result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
+    result = runner.invoke(cli, ['configure', 'validate',
+                                 '--config-root', custom_filepath,
+                                 '--filesystem'], catch_exceptions=False)
+    assert custom_filepath in result.output
+    assert 'Valid' in result.output
+    assert result.exit_code == 0
+
+    # Remove the known nodes dir to "corrupt" the tree
+    shutil.rmtree(os.path.join(custom_filepath, 'known_nodes'))
+    result = runner.invoke(cli, ['configure', 'validate',
+                                 '--config-root', custom_filepath,
+                                 '--filesystem'], catch_exceptions=False)
+    assert custom_filepath in result.output
+    assert 'Invalid' in result.output
+    assert result.exit_code == 0  # TODO: exit differently for invalidity?
 
 
 @pytest.mark.skip("To be implemented")

@@ -1,5 +1,3 @@
-from typing import Union
-
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
@@ -7,13 +5,14 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
+from typing import Union
 from umbral import pre
 from umbral.config import default_curve
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
 
 from nucypher.crypto import api as API
-from nucypher.crypto.api import generate_self_signed_certificate, load_tls_certificate, _save_tls_certificate
+from nucypher.crypto.api import generate_self_signed_certificate, load_tls_certificate
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 
@@ -158,10 +157,9 @@ class HostingKeypair(Keypair):
                 raise TypeError(message)
 
             certificate, private_key = generate_self_signed_certificate(common_name=common_name,
-                                                                                              private_key=private_key,
-                                                                                              curve=self.curve,
-                                                                                              host=host,
-                                                                                              certificate_dir=certificate_dir)
+                                                                        private_key=private_key,
+                                                                        curve=self.curve,
+                                                                        host=host)
 
             super().__init__(private_key=private_key)
         else:
@@ -176,8 +174,7 @@ class HostingKeypair(Keypair):
 
     def generate_self_signed_cert(self, common_name):
         cryptography_key = self._privkey.to_cryptography_privkey()
-        return generate_self_signed_certificate(common_name, default_curve(),
-                                                cryptography_key, certificate_dir=self.certificate_dir)
+        return generate_self_signed_certificate(common_name, default_curve(), cryptography_key)
 
     def get_deployer(self, rest_app, port):
         return HendrixDeployTLS("start",

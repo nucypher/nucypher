@@ -1,26 +1,27 @@
 import binascii
-import os
 import random
 from collections import OrderedDict
-from functools import partial
-from typing import Iterable
-from typing import List
 
 import maya
 import time
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509 import load_pem_x509_certificate
+from cryptography.x509 import load_pem_x509_certificate, Certificate
 from eth_utils import to_checksum_address
+from functools import partial
 from twisted.internet import threads
+from typing import Iterable
+from typing import List
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
+from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.blockchain.eth.constants import datetime_to_period
-from nucypher.characters.base import Character
+from nucypher.characters.base import Character, Learner
 from nucypher.config.parsers import parse_character_config
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
@@ -148,14 +149,6 @@ class Bob(Character):
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
 
-    @classmethod
-    def from_config(cls, filepath, overrides: dict = None) -> 'Bob':
-        payload = parse_character_config(filepath=filepath)
-        if overrides is not None:
-            payload.update(overrides)
-        instance = cls(**payload)
-        return instance
-
     def peek_at_treasure_map(self, treasure_map=None, map_id=None):
         """
         Take a quick gander at the TreasureMap matching map_id to see which
@@ -240,7 +233,7 @@ class Bob(Character):
         if not self.known_nodes and not self._learning_task.running:
             # Quick sanity check - if we don't know of *any* Ursulas, and we have no
             # plans to learn about any more, than this function will surely fail.
-            raise self.NotEnoughUrsulas
+            raise self.NotEnoughTeachers
 
         treasure_map = self.get_treasure_map_from_known_ursulas(self.network_middleware,
                                                                 map_id)
@@ -385,6 +378,12 @@ class Ursula(Character, VerifiableNode, Miner):
     # TLSHostingPower still can enjoy default status, but on a different class
     _default_crypto_powerups = [SigningPower, EncryptingPower]
 
+    class NotEnoughUrsulas(Learner.NotEnoughTeachers, MinerAgent.NotEnoughMiners):
+        """
+        All Characters depend on knowing about enough Ursulas to perform their role.
+        This exception is raised when a piece of logic can't proceed without more Ursulas.
+        """
+
     class NotFound(Exception):
         pass
 
@@ -392,13 +391,13 @@ class Ursula(Character, VerifiableNode, Miner):
     def __init__(self,
 
                  # Ursula
-                 rest_host,
-                 rest_port,
-                 certificate=None,  # TODO: from_certificate classmethod instead, use only filepath..?
+                 rest_host: str,
+                 rest_port: int,
+                 certificate: Certificate = None,  # TODO: from_certificate classmethod instead, use only filepath..?
                  certificate_filepath: str = None,
-                 db_name=None,  # TODO: deprecate db_name, use only filepath.?
+                 db_name: str = None,  # TODO: deprecate db_name, use only filepath.?
                  db_filepath: str = None,
-                 is_me=True,
+                 is_me: bool = True,
                  interface_signature=None,
 
                  # Blockchain
@@ -409,27 +408,24 @@ class Ursula(Character, VerifiableNode, Miner):
                  # Character
                  abort_on_learning_error: bool = False,
                  federated_only: bool = False,
-                 always_be_learning: bool = None,
+                 start_learning_now: bool = None,
                  crypto_power=None,
-                 tls_curve=None,
-                 tls_private_key=None,  # Obviously config here. 361
-                 known_nodes: Iterable = None,
+                 tls_curve: EllipticCurve = None,
+                 tls_private_key=None,  # TODO: config here. #361
+                 # known_nodes: Iterable = None,
                  **character_kwargs
                  ) -> None:
-
-        if known_nodes is None:
-            known_nodes = tuple()
 
         self._work_orders = []
 
         Character.__init__(self,
                            is_me=is_me,
                            checksum_address=checksum_address,
-                           always_be_learning=always_be_learning,
+                           start_learning_now=start_learning_now,
                            federated_only=federated_only,
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
-                           known_nodes=known_nodes,
+                           # known_nodes=known_nodes,
                            **character_kwargs)
 
         if not federated_only:
@@ -518,9 +514,20 @@ class Ursula(Character, VerifiableNode, Miner):
         else:
             self.log.info("Not adhering rest_server; we'll use the one on crypto_power..")
 
+        certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
+        certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
+        # VerifiableNode.from_tls_hosting_power(tls_hosting_power=self._crypto_power.power_ups(TLSHostingPower))
         VerifiableNode.__init__(self,
-                                interface_signature=interface_signature,
-                                certificate_filepath=self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath)
+                                certificate=certificate,
+                                certificate_filepath=certificate_filepath,
+                                interface_signature=interface_signature)
+
+        if is_me:
+            message = "Initialized Self {} | {}".format(self.__class__.__name__, self.checksum_public_address)
+            self.log.info(message)
+        else:
+            message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self.checksum_public_address)
+            self.log.debug(message)
 
     def rest_information(self):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)
@@ -563,11 +570,6 @@ class Ursula(Character, VerifiableNode, Miner):
     #
 
     @classmethod
-    def from_config(cls, ursula_configuration, **overrides) -> 'Ursula':
-        ursula = ursula_configuration.produce(**overrides)
-        return ursula
-
-    @classmethod
     def from_rest_url(cls,
                       network_middleware: RestMiddleware,
                       host: str,
@@ -582,7 +584,8 @@ class Ursula(Character, VerifiableNode, Miner):
         return stranger_ursula_from_public_keys
 
     @classmethod
-    def from_bytes(cls, ursula_as_bytes: bytes,
+    def from_bytes(cls,
+                   ursula_as_bytes: bytes,
                    federated_only: bool = False,
                    ) -> 'Ursula':
 
@@ -642,11 +645,11 @@ class Ursula(Character, VerifiableNode, Miner):
         return stranger_ursulas
 
     @classmethod
-    def from_metadata_file(cls, filepath: str) -> 'Ursula':
+    def from_metadata_file(cls, filepath: str, federated_only: bool) -> 'Ursula':
         with open(filepath, "r") as seed_file:
             seed_file.seek(0)
             node_bytes = binascii.unhexlify(seed_file.read())
-            node = Ursula.from_bytes(node_bytes)
+            node = Ursula.from_bytes(node_bytes, federated_only=federated_only)
             return node
 
     #
@@ -670,22 +673,6 @@ class Ursula(Character, VerifiableNode, Miner):
     #
     # Utilities
     #
-
-    def write_node_metadata(self, node=None) -> str:
-
-        if node is None:
-            node = self
-
-        try:
-            filename = "node-metadata-{}".format(self.rest_information()[0].port)
-        except AttributeError:
-            raise AttributeError("{} does not have a rest_interface attached".format(self))
-
-        metadata_filepath = os.path.join(self.known_metadata_dir, filename)
-        with open(metadata_filepath, "w") as f:
-            f.write(bytes(node).hex())
-
-        return metadata_filepath
 
     def work_orders(self, bob=None):
         """

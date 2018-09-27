@@ -1,4 +1,6 @@
 import binascii
+import os
+
 import uuid
 from abc import abstractmethod
 from collections import OrderedDict
@@ -239,9 +241,11 @@ class Policy:
         try:
             ursula.verify_node(network_middleware, accept_federated_only=arrangement.federated)
         except ursula.InvalidNode:
-            # TODO: What do we actually do here?  Report this at least (355)?  Maybe also have another bucket for invalid nodes?
-            # It's possible that nothing sordid is happening here; this node may be updating its interface info or rotating a signing key
-            #  and we learned about a previous one.
+            # TODO: What do we actually do here?  Report this at least (355)?
+            # Maybe also have another bucket for invalid nodes?
+            # It's possible that nothing sordid is happening here;
+            # this node may be updating its interface info or rotating a signing key
+            # and we learned about a previous one.
             raise
 
         negotiation_response = network_middleware.consider_arrangement(arrangement=arrangement)
@@ -269,7 +273,7 @@ class Policy:
                                network_middleware: RestMiddleware,
                                candidate_ursulas: Set[Ursula],
                                deposit: int,
-                               expiration: maya.MayaDT) -> tuple:
+                               expiration: maya.MayaDT):
 
         for selected_ursula in candidate_ursulas:
             arrangement = self._arrangement_class(alice=self.alice,

@@ -21,7 +21,7 @@ hendrix = ">=3.1.0"
 requests = "*"
 maya = "*"
 sqlalchemy = "*"
-apistar = "*"
+apistar = "==0.5.42"
 click = "*"
 tzlocal = "==2.0.0b1"
 #

@@ -1,5 +1,8 @@
+import os
+
 import OpenSSL
 from constant_sorrow import constants
+from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 
 from nucypher.crypto.api import _save_tls_certificate
@@ -17,11 +20,13 @@ class VerifiableNode:
     _verified_node = False
 
     def __init__(self,
+                 certificate: Certificate,
+                 certificate_filepath: str,
                  interface_signature=constants.NOT_SIGNED.bool_value(False),
-                 certificate_filepath: str = None,
                  ) -> None:
 
-        self.certificate_filepath = certificate_filepath  # TODO: This gets messy when it is None (although it being None is actually reasonable in some cases, at least for testing).  Let's make this a method instead that inspects the TLSHostingPower (similar to get_deployer()).
+        self.certificate = certificate
+        self.certificate_filepath = certificate_filepath
         self._interface_signature_object = interface_signature
 
     class InvalidNode(SuspiciousActivity):
@@ -33,6 +38,12 @@ class VerifiableNode:
         """
         Raise when a Character tries to use another Character as decentralized when the latter is federated_only.
         """
+
+    @classmethod
+    def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs):
+        certificate_filepath = tls_hosting_power.keypair.certificate_filepath
+        certificate = tls_hosting_power.keypair.certificate
+        return cls(certificate=certificate, certificate_filepath=certificate_filepath, *args, **kwargs)
 
     def _stamp_has_valid_wallet_signature(self):
         signature_bytes = self._evidence_of_decentralized_identity
@@ -53,7 +64,10 @@ class VerifiableNode:
             self.verified_stamp = True
             return True
         elif self.federated_only and signature is constants.NOT_SIGNED:
-            raise self.WrongMode("This node can't be verified in this manner, but is OK to use in federated mode if you have reason to believe it is trustworthy.")
+            message = "This node can't be verified in this manner, " \
+                      "but is OK to use in federated mode if you"    \
+                      " have reason to believe it is trustworthy."
+            raise self.WrongMode(message)
         else:
             raise self.InvalidNode
 
@@ -141,21 +155,28 @@ class VerifiableNode:
                 raise NoSigningPower("This Ursula is a Stranger; you didn't init with an interface signature, so you can't verify.")
         return self._interface_signature_object
 
-    def certificate(self):
-        return self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
-
-    def save_certificate_to_disk(self, directory):
-        x509 = OpenSSL.crypto.X509.from_cryptography(self.certificate())
+    @property
+    def common_name(self):
+        x509 = OpenSSL.crypto.X509.from_cryptography(self.certificate)
         subject_components = x509.get_subject().get_components()
         common_name_as_bytes = subject_components[0][1]
         common_name_from_cert = common_name_as_bytes.decode()
+        return common_name_from_cert
+
+    @property
+    def certificate_filename(self):
+        return self.common_name + '.pem'  # TODO: use cert encoding..?
+
+    def save_certificate_to_disk(self, directory):
+        x509 = OpenSSL.crypto.X509.from_cryptography(self.certificate)
+        subject_components = x509.get_subject().get_components()
+        common_name_as_bytes = subject_components[0][1]
+        common_name_from_cert = common_name_as_bytes.decode()
+
         if not self.checksum_public_address == common_name_from_cert:
             # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
-            raise ValueError(
-                "You passed a common_name that is not the same one as the cert.  Why?  FWIW, You don't even need to pass a common name here; the cert will be saved according to the name on the cert itself.")
+            raise ValueError("You passed a common_name that is not the same one as the cert.  Why?  FWIW, You don't even need to pass a common name here; the cert will be saved according to the name on the cert itself.")
 
-        certificate_filepath = "{}/{}".format(directory,
-                                              common_name_from_cert)  # TODO: Do this with proper path tooling.
-        _save_tls_certificate(self.certificate(), full_filepath=certificate_filepath)
-
+        certificate_filepath = os.path.join(directory, self.certificate_filename)
+        _save_tls_certificate(self.certificate, full_filepath=certificate_filepath)
         self.certificate_filepath = certificate_filepath

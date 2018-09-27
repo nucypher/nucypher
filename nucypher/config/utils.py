@@ -40,7 +40,7 @@ def validate_configuration_file(config=None,
 
     if not config.sections():
 
-        raise NodeConfiguration.ConfigurationError("Empty configuration file")
+        raise NodeConfiguration.InvalidConfiguration("Empty configuration file")
 
     required_sections = ("nucypher", "blockchain")
 
