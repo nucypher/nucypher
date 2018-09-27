@@ -10,6 +10,7 @@ import shutil
 import subprocess
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
+from eth_account import Account
 from twisted.internet import reactor
 
 from nucypher.blockchain.eth.actors import Miner
@@ -234,32 +235,42 @@ def configure(config, action, config_file, config_root, temp, filesystem):
 
 @cli.command()
 @click.argument('action', default='list', required=False)
+@click.option('--provider-uri', type=str)
 @click.option('--address', help="The account to lock/unlock instead of the default")
 @uses_config
-def accounts(config, action, address):
+def accounts(config, action, address, provider_uri):
     """Manage ethereum node accounts"""
 
-    if action == 'list':
-        if config.accounts is constants.NO_BLOCKCHAIN_CONNECTION:
-            click.echo('There are no accounts configured')
-        else:
-            for index, address in enumerate(config.accounts):
-                if index == 0:
-                    row = 'etherbase | {}'.format(address)
-                else:
-                    row = '{} ....... | {}'.format(index, address)
-                click.echo(row)
+    if action == 'new':
+        pass  # TODO
+
+    elif action == 'export':
+        keyring = NucypherKeyring(common_name=address)
+        blockchain = Blockchain.connect(provider_uri=provider_uri)
+        click.confirm("Export private key to keyring on node {}?".format(provider_uri), abort=True)
+        passphrase = click.prompt("Enter passphrase", type=str)
+        keyring._export(blockchain=blockchain, passphrase=passphrase)
+
+    elif action == 'list':
+        blockchain = Blockchain.connect(provider_uri=provider_uri)
+        accounts = blockchain.interface.w3.eth.accounts
+        for index, address in enumerate(accounts):
+            if index == 0:
+                row = 'etherbase | {}'.format(address)
+            else:
+                row = '{} ....... | {}'.format(index, address)
+            click.echo(row)
 
     elif action == 'balance':
-        if config.accounts is constants.NO_BLOCKCHAIN_CONNECTION:
-            click.echo('No blockchain connection is available')
-        else:
-            if not address:
-                address = config.blockchain.interface.w3.eth.accounts[0]
-                click.echo('No address supplied, Using the default {}'.format(address))
+        blockchain = Blockchain.connect(provider_uri=provider_uri)
 
-            balance = config.token_agent.token_balance(address=address)
-            click.echo("Balance of {} is {}".format(address, balance))
+        if not address:
+            address = config.blockchain.interface.w3.eth.accounts[0]
+            click.echo('No address supplied, Using the default {}'.format(address))
+
+        token_agent = NucypherTokenAgent(blockchain=blockchain)
+        balance = token_agent.get_balance(address=address)
+        click.echo("Token balance of {} is {}".format(address, balance))
 
 
 @cli.command()
