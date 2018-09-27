@@ -406,7 +406,7 @@ class Ursula(Character, VerifiableNode, Miner):
                  # Blockchain
                  miner_agent=None,
                  checksum_address: str = None,
-                 registry_filepath: str = None,
+                 # registry_filepath: str = None,
 
                  # Character
                  abort_on_learning_error: bool = False,
@@ -436,8 +436,7 @@ class Ursula(Character, VerifiableNode, Miner):
             Miner.__init__(self,
                            is_me=is_me,
                            miner_agent=miner_agent,
-                           checksum_address=checksum_address,
-                           registry_filepath=registry_filepath)
+                           checksum_address=checksum_address)
 
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
