@@ -1,6 +1,7 @@
 import contextlib
 import json
 import os
+import shutil
 from glob import glob
 from os.path import abspath
 from tempfile import TemporaryDirectory
@@ -9,7 +10,8 @@ from constant_sorrow import constants
 from itertools import islice
 
 from nucypher.characters.base import Character
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_CONFIG_FILE_LOCATION, TEMPLATE_CONFIG_FILE_LOCATION
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_CONFIG_FILE_LOCATION, TEMPLATE_CONFIG_FILE_LOCATION, \
+    BASE_DIR
 from nucypher.network.middleware import RestMiddleware
 
 
@@ -19,9 +21,12 @@ class NodeConfiguration:
     _parser = NotImplemented
 
     DEFAULT_OPERATING_MODE = 'decentralized'
+
     __TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
-    __REGISTRY_NAME = 'contract_registry.json'
     __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
+
+    __REGISTRY_NAME = 'contract_registry.json'
+    __REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO
 
     class ConfigurationError(RuntimeError):
         pass
@@ -42,6 +47,8 @@ class NodeConfiguration:
                  is_me: bool = True,
                  federated_only: bool = None,
                  network_middleware: RestMiddleware = None,
+
+                 registry_source: str = __REGISTRY_SOURCE,
                  registry_filepath: str = None,
 
                  # Learner
