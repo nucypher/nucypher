@@ -1,11 +1,10 @@
 import json
 import os
-from typing import Union
-
-import shutil
 import tempfile
 
+import shutil
 from constant_sorrow import constants
+from typing import Union
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 

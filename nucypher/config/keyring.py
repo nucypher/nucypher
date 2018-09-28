@@ -2,7 +2,6 @@ import json
 import os
 import stat
 from base64 import urlsafe_b64encode
-from typing import ClassVar
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -11,6 +10,7 @@ from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from eth_account import Account
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
+from typing import ClassVar
 from umbral.keys import UmbralPrivateKey
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT

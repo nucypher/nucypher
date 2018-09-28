@@ -1,13 +1,12 @@
 import contextlib
 import os
-import shutil
 
+import pytest
+import shutil
 from click.testing import CliRunner
 
 from cli.main import cli
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_CONFIG_FILE_LOCATION
-import pytest
-
 from nucypher.config.node import NodeConfiguration
 
 

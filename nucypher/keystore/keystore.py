@@ -1,7 +1,6 @@
-from typing import Union
-
 from bytestring_splitter import BytestringSplitter
 from sqlalchemy.orm import sessionmaker
+from typing import Union
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
 

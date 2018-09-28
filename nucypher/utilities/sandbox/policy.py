@@ -1,7 +1,7 @@
 from collections import OrderedDict
-from typing import List, Set
 
 import maya
+from typing import Set
 
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware

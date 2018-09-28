@@ -2,7 +2,6 @@ import os
 
 from nucypher.blockchain.eth import constants
 
-
 TEST_KNOWN_URSULAS_CACHE = {}
 
 TEST_URSULA_STARTING_PORT = 7468

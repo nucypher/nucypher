@@ -1,6 +1,5 @@
-from datetime import datetime
-
 import pytest
+from datetime import datetime
 
 from nucypher.keystore import keystore, keypairs
 
