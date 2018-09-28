@@ -242,20 +242,31 @@ class NodeConfiguration:
 
         for metadata_path in metadata_paths:
             from nucypher.characters.lawful import Ursula
-            if self.checksum_address not in metadata_path:  # dont learn about self
+            if self.checksum_address not in metadata_path:  # don't learn about self
                 node = Ursula.from_metadata_file(filepath=abspath(metadata_path),
                                                  federated_only=self.federated_only)
                 self.known_nodes.add(node)
 
-    def write_default_registry(self, filepath: str = None) -> str:
-        filepath = filepath or self.registry_filepath
-        if os.path.isfile(filepath):
-            raise self.ConfigurationError('There is an existing file at the registry filepath {}'.format(filepath))
+    def import_registry(self,
+                        output_filepath: str = None,
+                        source: str = None,
+                        force: bool = False,
+                        blank=False) -> str:
 
-        with open(filepath, 'w') as registry_file:
-            registry_file.write('')
+        # if force and os.path.isfile(output_filepath):
+        #     raise self.ConfigurationError('There is an existing file at the registry output_filepath {}'.format(output_filepath))
+        #
+        # output_filepath = output_filepath or self.registry_filepath
+        # source = source or self.__REGISTRY_SOURCE
+        #
+        # # TODO: Validate registry
+        #
+        # if not blank:
+        #     shutil.copyfile(src=source, dst=output_filepath)
+        # else:
+        #     open(output_filepath, '').close()  # blank
 
-        return filepath
+        return output_filepath
 
     def write_default_configuration_file(self, filepath: str = DEFAULT_CONFIG_FILE_LOCATION):
         with contextlib.ExitStack() as stack:
@@ -269,7 +280,7 @@ class NodeConfiguration:
                 new_file.writelines(line.lstrip(';'))  # TODO Copy Default Sections, Perhaps interactively
 
     def cleanup(self) -> None:
-        if self.temp:
+        if self.__temp:
             self.__temp_dir.cleanup()
 
     def produce(self, **overrides) -> Character:
