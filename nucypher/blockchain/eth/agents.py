@@ -118,8 +118,13 @@ class MinerAgent(EthereumContractAgent):
     class NotEnoughMiners(Exception):
         pass
 
-    def __init__(self, token_agent: NucypherTokenAgent, *args, **kwargs) -> None:
-        super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
+    def __init__(self,
+                 token_agent: NucypherTokenAgent,
+                 *args, **kwargs
+                 ) -> None:
+        super().__init__(blockchain=token_agent.blockchain,
+                         *args, **kwargs)
+
         self.token_agent = token_agent
 
     #
