@@ -1,22 +1,22 @@
 import random
 from typing import Set
 
-from constant_sorrow import constants
 from eth_utils import to_checksum_address
 from twisted.internet import protocol
 
+from nucypher.blockchain.eth import constants
 from nucypher.characters.lawful import Ursula
+from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.api import secure_random
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEST_URSULA_STARTING_PORT,
                                                   TEST_KNOWN_URSULAS_CACHE)
 
 
-def make_federated_ursulas(ursula_config,
-                           quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                           know_each_other=True,
+def make_federated_ursulas(ursula_config: UrsulaConfiguration,
+                           quantity: int = DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                           know_each_other: bool = True,
                            **ursula_overrides) -> Set[Ursula]:
-
 
     if not TEST_KNOWN_URSULAS_CACHE:
         starting_port = TEST_URSULA_STARTING_PORT
@@ -47,10 +47,10 @@ def make_federated_ursulas(ursula_config,
     return federated_ursulas
 
 
-def make_decentralized_ursulas(ursula_config,
+def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                ether_addresses: list,
-                               stake=False,
-                               know_each_other=True,
+                               stake: bool = False,
+                               know_each_other: bool = True,
                                **ursula_overrides) -> Set[Ursula]:
 
     if isinstance(ether_addresses, int):
@@ -68,8 +68,6 @@ def make_decentralized_ursulas(ursula_config,
                                        db_name="test-{}".format(port),
                                        rest_port=port + 100,
                                        **ursula_overrides)
-
-
         if stake is True:
 
             min_stake, balance = int(constants.MIN_ALLOWED_LOCKED), ursula.token_balance

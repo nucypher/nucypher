@@ -5,8 +5,11 @@ from typing import Tuple, List
 import maya
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
-from nucypher.blockchain.eth.constants import calculate_period_duration, datetime_to_period, validate_stake_amount
 from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
+from nucypher.blockchain.eth.utils import (datetime_to_period,
+                                           validate_stake_amount,
+                                           validate_locktime,
+                                           calculate_period_duration)
 
 
 def only_me(func):
@@ -77,12 +80,10 @@ class Miner(NucypherTokenActor):
     class MinerError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self,
-                 is_me=True,
-                 miner_agent: MinerAgent = None,
-                 *args, **kwargs) -> None:
-
-        miner_agent = miner_agent if miner_agent is not None else MinerAgent()
+    def __init__(self, miner_agent: MinerAgent, is_me=True, *args, **kwargs) -> None:
+        if miner_agent is None:
+            token_agent = NucypherTokenAgent()
+            miner_agent = MinerAgent(token_agent=token_agent)
         super().__init__(token_agent=miner_agent.token_agent, *args, **kwargs)
 
         # Extrapolate dependencies
@@ -95,6 +96,7 @@ class Miner(NucypherTokenActor):
     #
     # Staking
     #
+
     @property
     def is_staking(self):
         """Checks if this Miner currently has locked tokens."""
@@ -128,8 +130,11 @@ class Miner(NucypherTokenActor):
         return approve_txhash, deposit_txhash
 
     @only_me
-    def divide_stake(self, stake_index: int, target_value: int,
-                     additional_periods: int = None, expiration: maya.MayaDT = None) -> dict:
+    def divide_stake(self,
+                     stake_index: int,
+                     target_value: int,
+                     additional_periods: int = None,
+                     expiration: maya.MayaDT = None) -> dict:
         """
         Modifies the unlocking schedule and value of already locked tokens.
 
@@ -171,7 +176,6 @@ class Miner(NucypherTokenActor):
     @only_me
     def __validate_stake(self, amount: int, lock_periods: int) -> bool:
 
-        from .constants import validate_locktime, validate_stake_amount
         assert validate_stake_amount(amount=amount)
         assert validate_locktime(lock_periods=lock_periods)
 
@@ -261,7 +265,7 @@ class Miner(NucypherTokenActor):
 class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
-    def __init__(self, checksum_address: str, policy_agent: PolicyAgent = None) -> None:
+    def __init__(self, checksum_address: str, policy_agent: PolicyAgent = None, *args, **kwargs) -> None:
         """
         :param policy_agent: A policy agent with the blockchain attached; If not passed, A default policy
         agent and blockchain connection will be created from default values.
@@ -279,7 +283,8 @@ class PolicyAuthor(NucypherTokenActor):
             self.miner_agent = policy_agent.miner_agent
 
         super().__init__(token_agent=self.policy_agent.token_agent,
-                         checksum_address=checksum_address)
+                         checksum_address=checksum_address,
+                         *args, **kwargs)
 
     def recruit(self, quantity: int, **options) -> List[str]:
         """
@@ -287,7 +292,6 @@ class PolicyAuthor(NucypherTokenActor):
         caches the resulting node ethereum addresses.
 
         :param quantity: Number of ursulas to sample from the blockchain.
-        :return: None; Since it only mutates self
 
         """
 

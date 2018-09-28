@@ -1,12 +1,13 @@
+from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
 from typing import List
-
 from umbral.keys import UmbralPrivateKey
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.utilities.sandbox.constants import DEVELOPMENT_ETH_AIRDROP_AMOUNT, \
-    DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK, TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+                                                  DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                                  TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
 
 
 def token_airdrop(token_agent, amount: int, origin: str, addresses: List[str]):
@@ -29,7 +30,7 @@ class TesterBlockchain(Blockchain):
     Blockchain subclass with additional test utility methods and options.
     """
 
-    _instance = None
+    _instance = NO_BLOCKCHAIN_AVAILABLE
     _default_network = 'tester'
     _test_account_cache = list()
 
@@ -59,7 +60,7 @@ class TesterBlockchain(Blockchain):
 
     @classmethod
     def sever_connection(cls) -> None:
-        cls._instance = None
+        cls._instance = NO_BLOCKCHAIN_AVAILABLE
 
     def unlock_account(self, address, password, duration):
         self.interface.w3.personal.unlockAccount(address, passphrase=password)

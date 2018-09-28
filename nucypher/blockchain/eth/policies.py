@@ -9,6 +9,7 @@ from typing import Set
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.actors import PolicyAuthor
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent
+from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.models import Arrangement, Policy
@@ -74,7 +75,7 @@ class BlockchainArrangement(Arrangement):
     def revoke(self) -> str:
         """Revoke this arrangement and return the transaction hash as hex."""
 
-        txhash = self.policy_agent.revoke_policy(self.id, author=self.author)
+        txhash = self.policy_agent.revoke_policy(self.id, author_address=self.author)
         self.revoke_transaction = txhash
         self.is_revoked = True
         return txhash
@@ -200,7 +201,6 @@ class BlockchainPolicy(Policy):
                                                          candidate_ursulas=candidates,
                                                          deposit=deposit,
                                                          expiration=expiration)
-
         # After all is said and done...
         if len(accepted) < self.n:
 
@@ -210,8 +210,9 @@ class BlockchainPolicy(Policy):
             # TODO: Handle spare Ursulas and try to claw back up to n.
             found_spare_ursulas, remaining_spare_addresses = self.__find_ursulas(spare_addresses, remaining_quantity)
             accepted_spares, rejected_spares = self._consider_arrangements(network_middleware,
-                                                                            candidate_ursulas=found_spare_ursulas,
-                                                                            deposit=deposit, expiration=expiration)
+                                                                           candidate_ursulas=found_spare_ursulas,
+                                                                           deposit=deposit,
+                                                                           expiration=expiration)
             accepted.update(accepted_spares)
             rejected.update(rejected_spares)
 
