@@ -6,6 +6,7 @@ from kademlia.utils import digest
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
+from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
@@ -166,7 +167,7 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
 
-    vladimir.substantiate_stamp()
+    vladimir.substantiate_stamp(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
     vladimir._interface_signature_object = signature
 
     class FakeArrangement:
