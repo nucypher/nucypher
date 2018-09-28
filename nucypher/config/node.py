@@ -68,21 +68,24 @@ class NodeConfiguration:
         # Configuration Filepaths
         #
 
-
         self.keyring_dir = keyring_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_nodes_dir = constants.UNINITIALIZED_CONFIGURATION
         self.known_certificates_dir = known_metadata_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_metadata_dir = known_metadata_dir or constants.UNINITIALIZED_CONFIGURATION
+
+        self.__registry_source = registry_source
         self.registry_filepath = registry_filepath or constants.UNINITIALIZED_CONFIGURATION
+
         self.config_root = constants.UNINITIALIZED_CONFIGURATION
+        self.__temp = temp
 
-        self.temp = temp
-        self.__temp_dir = constants.LIVE_CONFIGURATION
-        # Create a temp dir and set it as the config root if no config root was specified
-        if temp:
+        if self.__temp:
             self.__temp_dir = constants.UNINITIALIZED_CONFIGURATION
+        else:
+            self.config_root = config_root
+            self.__temp_dir = constants.LIVE_CONFIGURATION
+            self.__cache_runtime_filepaths()
 
-        self.__cache_runtime_filepaths(config_root=config_root)
         self.config_file_location = config_file_location
 
         #
@@ -118,6 +121,10 @@ class NodeConfiguration:
         if load_metadata:
             self.load_known_nodes(known_metadata_dir=known_metadata_dir)
 
+    @property
+    def temp(self):
+        return self.__temp
+
     @classmethod
     def from_configuration_file(cls, filepath=None) -> 'NodeConfiguration':
         filepath = filepath if filepath is None else DEFAULT_CONFIG_FILE_LOCATION
@@ -146,7 +153,6 @@ class NodeConfiguration:
                             known_metadata_dir=self.known_metadata_dir,
                             save_metadata=self.save_metadata
                             )
-
         return base_payload
 
     @staticmethod
@@ -176,9 +182,9 @@ class NodeConfiguration:
 
         return True
 
-    def __cache_runtime_filepaths(self, config_root: str) -> None:
+    def __cache_runtime_filepaths(self) -> None:
         """Generate runtime filepaths and cache them on the config object"""
-        filepaths = self.generate_runtime_filepaths(config_root=config_root)
+        filepaths = self.generate_runtime_filepaths(config_root=self.config_root)
         for field, filepath in filepaths.items():
             if getattr(self, field) is constants.UNINITIALIZED_CONFIGURATION:
                 setattr(self, field, filepath)
@@ -189,7 +195,7 @@ class NodeConfiguration:
         #
         # Create Config Root
         #
-        if self.temp:
+        if self.__temp:
             self.__temp_dir = TemporaryDirectory(prefix=self.__TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
         else:
@@ -205,7 +211,7 @@ class NodeConfiguration:
         #
         # Create Config Subdirectories
         #
-        self.__cache_runtime_filepaths(config_root=self.config_root)
+        self.__cache_runtime_filepaths()
         try:
 
             # Directories
@@ -215,16 +221,15 @@ class NodeConfiguration:
             os.mkdir(self.known_metadata_dir, mode=0o755)        # known_metadata
 
             # Files
-            self.write_default_registry(filepath=self.registry_filepath)
+            self.import_registry(output_filepath=self.registry_filepath,
+                                 source=self.__registry_source)
 
         except FileExistsError:
-            # TODO: beef up the error message
-            # existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
-            # NodeConfiguration.ConfigurationError("There are existing files at {}".format())
-            message = "There are pre-existing nucypher installation files at {}".format(self.config_root)
+            existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
+            message = "There are pre-existing nucypher installation files at {}: {}".format(self.config_root, existing_paths)
             raise NodeConfiguration.ConfigurationError(message)
 
-        self.check_config_tree_exists(config_root=self.config_root)
+        # self.check_config_tree_exists(config_root=self.config_root)
         return self.config_root
 
     def load_known_nodes(self, known_metadata_dir=None) -> None:
