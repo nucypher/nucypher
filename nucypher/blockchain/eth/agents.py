@@ -255,8 +255,13 @@ class PolicyAgent(EthereumContractAgent):
     _upgradeable = True
     __instance = NO_CONTRACT_AVAILABLE
 
-    def __init__(self, miner_agent: MinerAgent, *args, **kwargs) -> None:
-        super().__init__(blockchain=miner_agent.blockchain, *args, **kwargs)
+    def __init__(self,
+                 miner_agent: MinerAgent,
+                 *args, **kwargs) -> None:
+
+        super().__init__(blockchain=miner_agent.blockchain,
+                         *args, **kwargs)
+
         self.miner_agent = miner_agent
         self.token_agent = miner_agent.token_agent
 
