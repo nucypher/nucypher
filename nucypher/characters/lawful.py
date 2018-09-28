@@ -368,7 +368,8 @@ class Bob(Character):
 
 
 class Ursula(Character, VerifiableNode, Miner):
-    _internal_splitter = BytestringSplitter(Signature,
+    _internal_splitter = BytestringSplitter((int, 4, {'byteorder': 'big'}),
+                                            Signature,
                                             VariableLengthBytestring,
                                             (UmbralPublicKey, PUBLIC_KEY_LENGTH),
                                             (UmbralPublicKey, PUBLIC_KEY_LENGTH),
@@ -558,7 +559,10 @@ class Ursula(Character, VerifiableNode, Miner):
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
 
-        as_bytes = bytes().join((bytes(self._interface_signature),
+        timestamp = maya.now().epoch.to_bytes(4, 'big')
+
+        as_bytes = bytes().join((timestamp,
+                                 bytes(self._interface_signature),
                                  bytes(identity_evidence),
                                  bytes(self.public_keys(SigningPower)),
                                  bytes(self.public_keys(EncryptingPower)),
@@ -592,7 +596,8 @@ class Ursula(Character, VerifiableNode, Miner):
                    federated_only: bool = False,
                    ) -> 'Ursula':
 
-        (signature,
+        (timestamp,
+         signature,
          identity_evidence,
          verifying_key,
          encrypting_key,
@@ -623,7 +628,8 @@ class Ursula(Character, VerifiableNode, Miner):
         stranger_ursulas = []
 
         ursulas_attrs = cls._internal_splitter.repeat(ursulas_as_bytes)
-        for (signature,
+        for (timestamp,
+             signature,
              identity_evidence,
              verifying_key,
              encrypting_key,
