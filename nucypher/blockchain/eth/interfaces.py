@@ -383,29 +383,29 @@ class BlockchainDeployerInterface(BlockchainInterface):
         #
         # Build the deployment tx #
         #
-        contract_factory = self.get_contract_factory(contract_name=contract_name)
-        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
-        deploy_bytecode = contract_factory.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
 
-        # TODO: Logging
-        contract_sizes = dict()
-        if len(deploy_bytecode['data']) > 1000:
-            contract_sizes[contract_name] = str(len(deploy_bytecode['data']))
+        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
+        self.log.info("Deployer address is {}".format(deploy_transaction['from']))
+
+        contract_factory = self.get_contract_factory(contract_name=contract_name)
+        deploy_bytecode = contract_factory.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
+        self.log.info("Deploying contract: {}: {} bytes".format(contract_name, len(deploy_bytecode['data'])))
 
         #
         # Transmit the deployment tx #
         #
         txhash = contract_factory.constructor(*args, **kwargs).transact(transaction=deploy_transaction)
+        self.log.info("{} Deployment TX sent : txhash {}".format(contract_name, txhash))
 
         # Wait for receipt
         receipt = self.w3.eth.waitForTransactionReceipt(txhash)
         address = receipt['contractAddress']
+        self.log.info("Confirmed {} deployment: address {}".format(contract_name, address))
 
         #
         # Instantiate & enroll contract
         #
         contract = contract_factory(address=address)
-        self.log.info("Deployed {} to {}".format(contract_name, contract.address))
 
         self.registry.enroll(contract_name=contract_name,
                              contract_address=contract.address,
