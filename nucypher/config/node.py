@@ -1,6 +1,7 @@
 import contextlib
 import json
 import os
+import shutil
 from glob import glob
 from os.path import abspath
 from tempfile import TemporaryDirectory
@@ -9,7 +10,8 @@ from constant_sorrow import constants
 from itertools import islice
 
 from nucypher.characters.base import Character
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_CONFIG_FILE_LOCATION, TEMPLATE_CONFIG_FILE_LOCATION
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_CONFIG_FILE_LOCATION, TEMPLATE_CONFIG_FILE_LOCATION, \
+    BASE_DIR
 from nucypher.network.middleware import RestMiddleware
 
 
@@ -19,9 +21,12 @@ class NodeConfiguration:
     _parser = NotImplemented
 
     DEFAULT_OPERATING_MODE = 'decentralized'
+
     __TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
-    __REGISTRY_NAME = 'contract_registry.json'
     __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
+
+    __REGISTRY_NAME = 'contract_registry.json'
+    __REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO
 
     class ConfigurationError(RuntimeError):
         pass
@@ -42,6 +47,8 @@ class NodeConfiguration:
                  is_me: bool = True,
                  federated_only: bool = None,
                  network_middleware: RestMiddleware = None,
+
+                 registry_source: str = __REGISTRY_SOURCE,
                  registry_filepath: str = None,
                  no_seed_registry: bool = False,
 
@@ -62,21 +69,24 @@ class NodeConfiguration:
         # Configuration Filepaths
         #
 
-
         self.keyring_dir = keyring_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_nodes_dir = constants.UNINITIALIZED_CONFIGURATION
         self.known_certificates_dir = known_metadata_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_metadata_dir = known_metadata_dir or constants.UNINITIALIZED_CONFIGURATION
+
+        self.__registry_source = registry_source
         self.registry_filepath = registry_filepath or constants.UNINITIALIZED_CONFIGURATION
+
         self.config_root = constants.UNINITIALIZED_CONFIGURATION
+        self.__temp = temp
 
-        self.temp = temp
-        self.__temp_dir = constants.LIVE_CONFIGURATION
-        # Create a temp dir and set it as the config root if no config root was specified
-        if temp:
+        if self.__temp:
             self.__temp_dir = constants.UNINITIALIZED_CONFIGURATION
+        else:
+            self.config_root = config_root
+            self.__temp_dir = constants.LIVE_CONFIGURATION
+            self.__cache_runtime_filepaths()
 
-        self.__cache_runtime_filepaths(config_root=config_root)
         self.config_file_location = config_file_location
 
         #
@@ -112,6 +122,10 @@ class NodeConfiguration:
         if load_metadata:
             self.load_known_nodes(known_metadata_dir=known_metadata_dir)
 
+    @property
+    def temp(self):
+        return self.__temp
+
     @classmethod
     def from_configuration_file(cls, filepath=None) -> 'NodeConfiguration':
         filepath = filepath if filepath is None else DEFAULT_CONFIG_FILE_LOCATION
@@ -140,7 +154,6 @@ class NodeConfiguration:
                             known_metadata_dir=self.known_metadata_dir,
                             save_metadata=self.save_metadata
                             )
-
         return base_payload
 
     @staticmethod
@@ -170,9 +183,9 @@ class NodeConfiguration:
 
         return True
 
-    def __cache_runtime_filepaths(self, config_root: str) -> None:
+    def __cache_runtime_filepaths(self) -> None:
         """Generate runtime filepaths and cache them on the config object"""
-        filepaths = self.generate_runtime_filepaths(config_root=config_root)
+        filepaths = self.generate_runtime_filepaths(config_root=self.config_root)
         for field, filepath in filepaths.items():
             if getattr(self, field) is constants.UNINITIALIZED_CONFIGURATION:
                 setattr(self, field, filepath)
@@ -183,7 +196,7 @@ class NodeConfiguration:
         #
         # Create Config Root
         #
-        if self.temp:
+        if self.__temp:
             self.__temp_dir = TemporaryDirectory(prefix=self.__TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
         else:
@@ -199,7 +212,7 @@ class NodeConfiguration:
         #
         # Create Config Subdirectories
         #
-        self.__cache_runtime_filepaths(config_root=self.config_root)
+        self.__cache_runtime_filepaths()
         try:
 
             # Directories
@@ -209,16 +222,15 @@ class NodeConfiguration:
             os.mkdir(self.known_metadata_dir, mode=0o755)        # known_metadata
 
             # Files
-            self.write_default_registry(filepath=self.registry_filepath)
+            self.import_registry(output_filepath=self.registry_filepath,
+                                 source=self.__registry_source)
 
         except FileExistsError:
-            # TODO: beef up the error message
-            # existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
-            # NodeConfiguration.ConfigurationError("There are existing files at {}".format())
-            message = "There are pre-existing nucypher installation files at {}".format(self.config_root)
+            existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
+            message = "There are pre-existing nucypher installation files at {}: {}".format(self.config_root, existing_paths)
             raise NodeConfiguration.ConfigurationError(message)
 
-        self.check_config_tree_exists(config_root=self.config_root)
+        # self.check_config_tree_exists(config_root=self.config_root)
         return self.config_root
 
     def load_known_nodes(self, known_metadata_dir=None) -> None:
@@ -234,15 +246,26 @@ class NodeConfiguration:
             node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)  # TODO: 466
             self.known_nodes.add(node)
 
-    def write_default_registry(self, filepath: str = None) -> str:
-        filepath = filepath or self.registry_filepath
-        if os.path.isfile(filepath):
-            raise self.ConfigurationError('There is an existing file at the registry filepath {}'.format(filepath))
+    def import_registry(self,
+                        output_filepath: str = None,
+                        source: str = None,
+                        force: bool = False,
+                        blank=False) -> str:
 
-        with open(filepath, 'w') as registry_file:
-            registry_file.write('')
+        # if force and os.path.isfile(output_filepath):
+        #     raise self.ConfigurationError('There is an existing file at the registry output_filepath {}'.format(output_filepath))
+        #
+        # output_filepath = output_filepath or self.registry_filepath
+        # source = source or self.__REGISTRY_SOURCE
+        #
+        # # TODO: Validate registry
+        #
+        # if not blank:
+        #     shutil.copyfile(src=source, dst=output_filepath)
+        # else:
+        #     open(output_filepath, '').close()  # blank
 
-        return filepath
+        return output_filepath
 
     def write_default_configuration_file(self, filepath: str = DEFAULT_CONFIG_FILE_LOCATION):
         with contextlib.ExitStack() as stack:
@@ -256,7 +279,7 @@ class NodeConfiguration:
                 new_file.writelines(line.lstrip(';'))  # TODO Copy Default Sections, Perhaps interactively
 
     def cleanup(self) -> None:
-        if self.temp:
+        if self.__temp:
             self.__temp_dir.cleanup()
 
     def produce(self, **overrides) -> Character:

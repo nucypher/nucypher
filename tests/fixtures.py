@@ -23,7 +23,7 @@ from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
 
@@ -306,13 +306,12 @@ def testerchain(solidity_compiler):
     """
     https: // github.com / ethereum / eth - tester     # available-backends
     """
-
-    temp_registrar = TemporaryEthereumContractRegistry()
+    _temp_registry = TemporaryEthereumContractRegistry()
 
     # Use the the custom provider and registrar to init an interface
 
     deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
-                                                     registry=temp_registrar,
+                                                     registry=_temp_registry,
                                                      provider_uri='tester://pyevm')
 
     # Create the blockchain
@@ -322,6 +321,7 @@ def testerchain(solidity_compiler):
 
     origin, *everyone = testerchain.interface.w3.eth.accounts
     deployer_interface.deployer_address = origin  # Set the deployer address from a freshly created test account
+    testerchain.ether_airdrop(amount=1000000000)  # TODO: Use test constant
 
     yield testerchain
     testerchain.sever_connection()
@@ -342,7 +342,7 @@ def three_agents(testerchain):
     token_deployer.arm()
     token_deployer.deploy()
 
-    token_agent = token_deployer.make_agent()
+    token_agent = token_deployer.make_agent()              # 1
 
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
@@ -352,7 +352,7 @@ def three_agents(testerchain):
     miner_escrow_deployer.arm()
     miner_escrow_deployer.deploy()
 
-    miner_agent = miner_escrow_deployer.make_agent()
+    miner_agent = miner_escrow_deployer.make_agent()       # 2
 
     policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
@@ -362,6 +362,6 @@ def three_agents(testerchain):
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
 
-    policy_agent = policy_manager_deployer.make_agent()
+    policy_agent = policy_manager_deployer.make_agent()    # 3
 
     return token_agent, miner_agent, policy_agent

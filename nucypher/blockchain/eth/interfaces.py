@@ -9,7 +9,6 @@ from eth_utils import to_canonical_address
 from typing import Tuple, Union
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
-from web3.middleware import geth_poa_middleware
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.blockchain.eth.constants import NUCYPHER_GAS_LIMIT
@@ -24,7 +23,7 @@ class BlockchainInterface:
     """
     __default_timeout = 10  # seconds
     __default_network = 'tester'
-    __default_transaction_gas_limit = 500000  # TODO: determine sensible limit and validate transactions
+    # __default_transaction_gas_limit = 500000  # TODO: determine sensible limit and validate transactions
 
     class UnknownContract(Exception):
         pass
@@ -200,11 +199,8 @@ class BlockchainInterface:
 
                 if uri_breakdown.netloc == 'pyevm':
 
-                    genesis_parameter_overrides = {'gas_limit': NUCYPHER_GAS_LIMIT}
-
                     # TODO: Update to newest eth-tester after #123 is merged
-                    pyevm_backend = PyEVMBackend.from_genesis_overrides(parameter_overrides=genesis_parameter_overrides)
-
+                    pyevm_backend = PyEVMBackend.from_genesis_overrides(parameter_overrides={'gas_limit': NUCYPHER_GAS_LIMIT})
                     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
@@ -343,7 +339,7 @@ class BlockchainInterface:
             signed_message = sig_key.sign_msg(message)
             return signed_message
         else:
-            return self.w3.eth.sign(account, data=message)  # Technically deprecated...
+            return self.w3.eth.sign(account, data=message)  # TODO: Technically deprecated...
 
     def call_backend_verify(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes):
         """
@@ -356,6 +352,8 @@ class BlockchainInterface:
         return is_valid_sig and (sig_pubkey == pubkey)
 
     def unlock_account(self, address, password, duration):
+        if self.provider_uri == 'tester://pyevm':  # TODO How to handle passwordless unlocked accounts in test
+            return True
         return self.w3.personal.unlockAccount(address, password, duration)
 
 
@@ -385,29 +383,29 @@ class BlockchainDeployerInterface(BlockchainInterface):
         #
         # Build the deployment tx #
         #
-        contract_factory = self.get_contract_factory(contract_name=contract_name)
-        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
-        deploy_bytecode = contract_factory.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
 
-        # TODO: Logging
-        contract_sizes = dict()
-        if len(deploy_bytecode['data']) > 1000:
-            contract_sizes[contract_name] = str(len(deploy_bytecode['data']))
+        deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
+        self.log.info("Deployer address is {}".format(deploy_transaction['from']))
+
+        contract_factory = self.get_contract_factory(contract_name=contract_name)
+        deploy_bytecode = contract_factory.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
+        self.log.info("Deploying contract: {}: {} bytes".format(contract_name, len(deploy_bytecode['data'])))
 
         #
         # Transmit the deployment tx #
         #
         txhash = contract_factory.constructor(*args, **kwargs).transact(transaction=deploy_transaction)
+        self.log.info("{} Deployment TX sent : txhash {}".format(contract_name, txhash))
 
         # Wait for receipt
         receipt = self.w3.eth.waitForTransactionReceipt(txhash)
         address = receipt['contractAddress']
+        self.log.info("Confirmed {} deployment: address {}".format(contract_name, address))
 
         #
         # Instantiate & enroll contract
         #
         contract = contract_factory(address=address)
-        self.log.info("Deployed {} to {}".format(contract_name, contract.address))
 
         self.registry.enroll(contract_name=contract_name,
                              contract_address=contract.address,

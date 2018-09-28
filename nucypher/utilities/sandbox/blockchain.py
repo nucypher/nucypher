@@ -33,15 +33,12 @@ class TesterBlockchain(Blockchain):
     """
 
     _instance = NO_BLOCKCHAIN_AVAILABLE
-    _default_network = 'tester'
     _test_account_cache = list()
 
     def __init__(self, test_accounts=None, poa=True, airdrop=True, *args, **kwargs):
-
-        # Depends on circumflex
         super().__init__(*args, **kwargs)
 
-        self.log = getLogger("test-blockchain")                       # type: Logger
+        self.log = getLogger("test-blockchain")  # type: Logger
 
         # For use with Proof-Of-Authority test-blockchains
         if poa is True:
@@ -49,7 +46,7 @@ class TesterBlockchain(Blockchain):
             w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
         # Generate additional ethereum accounts for testing
-        enough_accounts = len(self.interface.w3.eth.accounts) > DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+        enough_accounts = len(self.interface.w3.eth.accounts) >= DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
         if test_accounts is not None and not enough_accounts:
 
             accounts_to_make = DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - len(self.interface.w3.eth.accounts)
@@ -66,29 +63,22 @@ class TesterBlockchain(Blockchain):
     def sever_connection(cls) -> None:
         cls._instance = NO_BLOCKCHAIN_AVAILABLE
 
-    def unlock_account(self, address, password, duration):
-        self.interface.w3.personal.unlockAccount(address, passphrase=password)
-        return True  # Test accounts are always unlocked
-
     def __generate_insecure_unlocked_accounts(self, quantity: int) -> List[str]:
         """
-        Generate additional unlocked accounts transferring wei_balance to each account on creation.
+        Generate additional unlocked accounts transferring a balance to each account on creation.
         """
-
         addresses = list()
         insecure_passphrase = TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
         for _ in range(quantity):
-            umbral_priv_key = UmbralPrivateKey.gen_key()
 
+            umbral_priv_key = UmbralPrivateKey.gen_key()
             address = self.interface.w3.personal.importRawKey(private_key=umbral_priv_key.to_bytes(),
                                                               passphrase=insecure_passphrase)
 
-            assert self.unlock_account(address, password=insecure_passphrase, duration=None), \
-                'Failed to unlock {}'.format(address)
-
+            assert self.interface.unlock_account(address, password=insecure_passphrase, duration=None), 'Failed to unlock {}'.format(address)
             addresses.append(address)
             self._test_account_cache.append(address)
-            self.log.info('Generated new account {}'.format(address))
+            self.log.info('Generated new insecure account {}'.format(address))
 
         return addresses
 

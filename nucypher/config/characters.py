@@ -120,10 +120,11 @@ class UrsulaConfiguration(NodeConfiguration):
 
         if self.federated_only is False:
 
-            blockchain = Blockchain.connect(provider_uri=self.blockchain_uri)  # TODO: move this..?
-            token_agent = NucypherTokenAgent(blockchain=blockchain, registry_filepath=self.registry_filepath)
-            miner_agent = MinerAgent(token_agent=token_agent)
-            merged_parameters.update(miner_agent=miner_agent)
+            if not self.miner_agent:   # TODO: move this..?
+                blockchain = Blockchain.connect(provider_uri=self.blockchain_uri, registry_filepath=self.registry_filepath)
+                token_agent = NucypherTokenAgent(blockchain=blockchain)
+                miner_agent = MinerAgent(token_agent=token_agent)
+                merged_parameters.update(miner_agent=miner_agent)
 
         ursula = Ursula(**merged_parameters)
 

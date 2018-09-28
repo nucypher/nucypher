@@ -12,9 +12,7 @@ def test_contract_registry(tempfile_path):
     # Tests everything is as it should be when initially created
     test_registry = EthereumContractRegistry(registry_filepath=tempfile_path)
 
-    with pytest.raises(EthereumContractRegistry.RegistryError) as e:
-        _should_be_empty = test_registry.read()
-        assert 'Empty' in e
+    assert test_registry.read() == list()
 
     # Test contract enrollment and dump_chain
     test_name = 'TestContract'
