@@ -4,7 +4,6 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 from web3.contract import Contract
 
-
 secret = (123456).to_bytes(32, byteorder='big')
 
 

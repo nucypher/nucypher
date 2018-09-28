@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 
 class ThreadedSession:
 
-    def __init__(self, sqlalchemy_engine):
+    def __init__(self, sqlalchemy_engine) -> None:
         self.engine = sqlalchemy_engine
 
     def __enter__(self):

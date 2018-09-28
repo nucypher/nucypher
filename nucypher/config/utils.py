@@ -1,37 +1,10 @@
 import configparser
 import os
-from shutil import copyfile
-from typing import Tuple, Union
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_INI_FILEPATH, DEFAULT_KEYRING_ROOT
+from typing import Union, Tuple
 
-
-class NucypherConfigurationError(RuntimeError):
-    pass
-
-
-def initialize_configuration(config_root: str=None, ) -> None:
-    """
-    Create the configuration directory tree.
-    If the directory already exists, FileExistsError is raised.
-    """
-    root = config_root if config_root else DEFAULT_CONFIG_ROOT
-
-    # TODO: Check for existing config?
-
-    #
-    # Make configuration directories
-    #
-    os.mkdir(root, mode=0o755)                                              # config root
-    os.mkdir(DEFAULT_KEYRING_ROOT, mode=0o755)                              # keyring
-    os.mkdir(os.path.join(DEFAULT_CONFIG_ROOT, 'known_nodes'), mode=0o755)  # known_nodes
-    os.mkdir(os.path.join(DEFAULT_CONFIG_ROOT, 'seed_nodes'), mode=0o755)   # seed_nodes
-
-    # Make a blank ini config file at the default path
-    with open(DEFAULT_INI_FILEPATH, 'w+') as ini_file:
-        if ini_file.read() == '':
-            ini_file.seek(0)
-            ini_file.write('[nucypher]')
+from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
+from nucypher.config.node import NodeConfiguration
 
 
 def validate_passphrase(passphrase) -> bool:
@@ -43,18 +16,11 @@ def validate_passphrase(passphrase) -> bool:
 
     for rule, failure_message in rules:
         if not rule:
-            raise NucypherConfigurationError(failure_message)
+            raise NodeConfiguration.ConfigurationError(failure_message)
     return True
 
 
-def check_config_tree(configuration_dir: str=None) -> bool:
-    path = configuration_dir if configuration_dir else DEFAULT_CONFIG_ROOT
-    if not os.path.exists(path):
-        raise NucypherConfigurationError('No Nucypher configuration directory found at {}.'.format(configuration_dir))
-    return True
-
-
-def check_config_runtime() -> bool:
+def check_config_permissions() -> bool:
     rules = (
         (os.name == 'nt' or os.getuid() != 0, 'Cannot run as root user.'),
     )
@@ -65,9 +31,9 @@ def check_config_runtime() -> bool:
     return True
 
 
-def validate_nucypher_ini_config(config=None,
-                                 filepath: str=DEFAULT_INI_FILEPATH,
-                                 raise_on_failure: bool=False) -> Union[bool, Tuple[bool, tuple]]:
+def validate_configuration_file(config=None,
+                                filepath: str = DEFAULT_CONFIG_FILE_LOCATION,
+                                raise_on_failure: bool=False) -> Union[bool, Tuple[bool, tuple]]:
 
     if config is None:
         config = configparser.ConfigParser()
@@ -75,7 +41,7 @@ def validate_nucypher_ini_config(config=None,
 
     if not config.sections():
 
-        raise NucypherConfigurationError("Empty configuration file")
+        raise NodeConfiguration.InvalidConfiguration("Empty configuration file")
 
     required_sections = ("nucypher", "blockchain")
 
@@ -84,19 +50,19 @@ def validate_nucypher_ini_config(config=None,
     try:
         operating_mode = config["nucypher"]["mode"]
     except KeyError:
-        raise NucypherConfigurationError("No operating mode configured")
+        raise NodeConfiguration.ConfigurationError("No operating mode configured")
     else:
         modes = ('federated', 'testing', 'decentralized', 'centralized')
         if operating_mode not in modes:
             missing_sections.append("mode")
             if raise_on_failure is True:
-                raise NucypherConfigurationError("Invalid nucypher operating mode '{}'. Specify {}".format(operating_mode, modes))
+                raise NodeConfiguration.ConfigurationError("Invalid nucypher operating mode '{}'. Specify {}".format(operating_mode, modes))
 
     for section in required_sections:
         if section not in config.sections():
             missing_sections.append(section)
             if raise_on_failure is True:
-                raise NucypherConfigurationError("Invalid config file: missing section '{}'".format(section))
+                raise NodeConfiguration.ConfigurationError("Invalid config file: missing section '{}'".format(section))
 
     if len(missing_sections) > 0:
         result = False, tuple(missing_sections)
@@ -104,4 +70,3 @@ def validate_nucypher_ini_config(config=None,
         result = True, tuple()
 
     return result
-

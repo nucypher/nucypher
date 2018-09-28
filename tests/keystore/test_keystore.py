@@ -1,24 +1,23 @@
-from datetime import datetime
-
 import pytest
+from datetime import datetime
 
 from nucypher.keystore import keystore, keypairs
 
 
 @pytest.mark.usefixtures('testerchain')
-def test_key_sqlite_keystore(test_keystore, bob):
+def test_key_sqlite_keystore(test_keystore, federated_bob):
 
     # Test add pubkey
-    test_keystore.add_key(bob.stamp, is_signing=True)
+    test_keystore.add_key(federated_bob.stamp, is_signing=True)
 
     # Test get pubkey
-    query_key = test_keystore.get_key(bob.stamp.fingerprint())
-    assert bytes(bob.stamp) == bytes(query_key)
+    query_key = test_keystore.get_key(federated_bob.stamp.fingerprint())
+    assert bytes(federated_bob.stamp) == bytes(query_key)
 
     # Test del pubkey
-    test_keystore.del_key(bob.stamp.fingerprint())
+    test_keystore.del_key(federated_bob.stamp.fingerprint())
     with pytest.raises(keystore.NotFound):
-        del_key = test_keystore.get_key(bob.stamp.fingerprint())
+        del_key = test_keystore.get_key(federated_bob.stamp.fingerprint())
 
 
 def test_policy_arrangement_sqlite_keystore(test_keystore):

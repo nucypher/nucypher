@@ -2,7 +2,7 @@ import eth_utils
 import pytest
 from constant_sorrow import constants
 
-from nucypher.characters import Alice, Character, Bob
+from nucypher.characters.lawful import Alice, Character, Bob
 from nucypher.crypto import api
 from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower, \
     BlockchainPower, PowerUpError
@@ -19,7 +19,7 @@ def test_actor_without_signing_power_cannot_sign():
     """
     cannot_sign = CryptoPower(power_ups=[])
     non_signer = Character(crypto_power=cannot_sign,
-                           always_be_learning=False,
+                           start_learning_now=False,
                            federated_only=True)
 
     # The non-signer's stamp doesn't work for signing...
@@ -40,7 +40,7 @@ def test_actor_with_signing_power_can_sign():
     message = b"Llamas."
 
     signer = Character(crypto_power_ups=[SigningPower], is_me=True,
-                       always_be_learning=False, federated_only=True)
+                       start_learning_now=False, federated_only=True)
     stamp_of_the_signer = signer.stamp
 
     # We can use the signer's stamp to sign a message (since the signer is_me)...
@@ -61,10 +61,10 @@ def test_anybody_can_verify():
     Here, we show that anybody can do it without needing to directly access Crypto.
     """
     # Alice can sign by default, by dint of her _default_crypto_powerups.
-    alice = Alice(federated_only=True, always_be_learning=False)
+    alice = Alice(federated_only=True, start_learning_now=False)
 
     # So, our story is fairly simple: an everyman meets Alice.
-    somebody = Character(always_be_learning=False, federated_only=True)
+    somebody = Character(start_learning_now=False, federated_only=True)
 
     # Alice signs a message.
     message = b"A message for all my friends who can only verify and not sign."
@@ -126,7 +126,7 @@ def test_anybody_can_encrypt():
     """
     Similar to anybody_can_verify() above; we show that anybody can encrypt.
     """
-    someone = Character(always_be_learning=False, federated_only=True)
+    someone = Character(start_learning_now=False, federated_only=True)
     bob = Bob(is_me=False, federated_only=True)
 
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
@@ -137,8 +137,8 @@ def test_anybody_can_encrypt():
     assert ciphertext is not None
 
 
-def test_node_deployer(ursulas):
-    for ursula in ursulas:
+def test_node_deployer(federated_ursulas):
+    for ursula in federated_ursulas:
         deployer = ursula.get_deployer()
         assert deployer.options['https_port'] == ursula.rest_information()[0].port
         assert deployer.application == ursula.rest_app
@@ -150,59 +150,59 @@ real-world scenarios.
 """
 
 
-def test_sign_cleartext_and_encrypt(alice, bob):
+def test_sign_cleartext_and_encrypt(federated_alice, federated_bob):
     """
-    Exhibit One: Alice signs the cleartext and encrypts her signature inside
+    Exhibit One: federated_alice signs the cleartext and encrypts her signature inside
     the ciphertext.
     """
     message = b"Have you accepted my answer on StackOverflow yet?"
 
-    message_kit, _signature = alice.encrypt_for(bob, message,
-                                                sign_plaintext=True)
+    message_kit, _signature = federated_alice.encrypt_for(federated_bob, message,
+                                                          sign_plaintext=True)
 
-    # Notice that our function still returns the signature here, in case Alice
+    # Notice that our function still returns the signature here, in case federated_alice
     # wants to do something else with it, such as post it publicly for later
     # public verifiability.
 
     # However, we can expressly refrain from passing the Signature, and the
     # verification still works:
-    cleartext = bob.verify_from(alice, message_kit, signature=None,
-                                decrypt=True)
+    cleartext = federated_bob.verify_from(federated_alice, message_kit, signature=None,
+                                          decrypt=True)
     assert cleartext == message
 
 
-def test_encrypt_and_sign_the_ciphertext(alice, bob):
+def test_encrypt_and_sign_the_ciphertext(federated_alice, federated_bob):
     """
-    Now, Alice encrypts first and then signs the ciphertext, providing a
+    Now, federated_alice encrypts first and then signs the ciphertext, providing a
     Signature that is completely separate from the message.
-    This is useful in a scenario in which Bob needs to prove authenticity
+    This is useful in a scenario in which federated_bob needs to prove authenticity
     publicly without disclosing contents.
     """
     message = b"We have a reaaall problem."
-    message_kit, signature = alice.encrypt_for(bob, message,
-                                               sign_plaintext=False)
-    cleartext = bob.verify_from(alice, message_kit, signature, decrypt=True)
+    message_kit, signature = federated_alice.encrypt_for(federated_bob, message,
+                                                         sign_plaintext=False)
+    cleartext = federated_bob.verify_from(federated_alice, message_kit, signature, decrypt=True)
     assert cleartext == message
 
 
-def test_encrypt_and_sign_including_signature_in_both_places(alice, bob):
+def test_encrypt_and_sign_including_signature_in_both_places(federated_alice, federated_bob):
     """
     Same as above, but showing that we can include the signature in both
     the plaintext (to be found upon decryption) and also passed into
     verify_from() (eg, gleaned over a side-channel).
     """
     message = b"We have a reaaall problem."
-    message_kit, signature = alice.encrypt_for(bob, message,
-                                               sign_plaintext=True)
-    cleartext = bob.verify_from(alice, message_kit, signature,
-                                decrypt=True)
+    message_kit, signature = federated_alice.encrypt_for(federated_bob, message,
+                                                         sign_plaintext=True)
+    cleartext = federated_bob.verify_from(federated_alice, message_kit, signature,
+                                          decrypt=True)
     assert cleartext == message
 
 
-def test_encrypt_but_do_not_sign(alice, bob):
+def test_encrypt_but_do_not_sign(federated_alice, federated_bob):
     """
-    Finally, Alice encrypts but declines to sign.
-    This is useful in a scenario in which Alice wishes to plausibly disavow
+    Finally, federated_alice encrypts but declines to sign.
+    This is useful in a scenario in which federated_alice wishes to plausibly disavow
     having created this content.
     """
     # TODO: How do we accurately demonstrate this test safely, if at all?
@@ -211,11 +211,11 @@ def test_encrypt_but_do_not_sign(alice, bob):
     # Alice might also want to encrypt a message but *not* sign it, in order
     # to refrain from creating evidence that can prove she was the
     # original sender.
-    message_kit, not_signature = alice.encrypt_for(bob, message, sign=False)
+    message_kit, not_signature = federated_alice.encrypt_for(federated_bob, message, sign=False)
 
     # The message is not signed...
     assert not_signature == constants.NOT_SIGNED
 
     # ...and thus, the message is not verified.
     with pytest.raises(Character.InvalidSignature):
-        bob.verify_from(alice, message_kit, decrypt=True)
+        federated_bob.verify_from(federated_alice, message_kit, decrypt=True)

@@ -2,17 +2,17 @@ from urllib.parse import urlparse
 
 from constant_sorrow import constants
 from eth_keys.datatypes import PublicKey, Signature
+from eth_tester import EthereumTester
+from eth_tester import PyEVMBackend
 from eth_utils import to_canonical_address
 from typing import Tuple, Union
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
-from eth_tester import EthereumTester
-from eth_tester import PyEVMBackend
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-from nucypher.config.constants import DEFAULT_INI_FILEPATH
+from nucypher.config.node import NodeConfiguration
 from nucypher.config.parsers import parse_blockchain_config
 
 
@@ -21,7 +21,6 @@ class BlockchainInterface:
     Interacts with a solidity compiler and a registry in order to instantiate compiled
     ethereum contracts with the given web3 provider backend.
     """
-    __fallabck_providers = (IPCProvider(ipc_path='/tmp/geth.ipc'), )  # user-managed geth over IPC default
     __default_timeout = 10  # seconds
     __default_network = 'tester'
     __default_transaction_gas_limit = 500000  # TODO: determine sensible limit and validate transactions
@@ -153,26 +152,25 @@ class BlockchainInterface:
         return True
 
     @classmethod
-    def from_config(cls, filepath=None) -> 'BlockchainInterface':
+    def from_configuration_file(cls, config: NodeConfiguration) -> 'BlockchainInterface':
         # Parse
-        filepath = filepath if filepath is None else DEFAULT_INI_FILEPATH
-        payload = parse_blockchain_config(filepath=filepath)
+        payload = parse_blockchain_config(filepath=config.config_file_location)
 
         # Init deps
         compiler = SolidityCompiler() if payload['compile'] else None
-        registry = EthereumContractRegistry.from_config(filepath=filepath)
+        registry = EthereumContractRegistry.from_config(config=config)
         interface_class = BlockchainInterface if not payload['deploy'] else BlockchainDeployerInterface
 
         # init class
-        circumflex = interface_class(timeout=payload['timeout'],
-                                     provider_uri=payload['provider_uri'],
-                                     compiler=compiler,
-                                     registry=registry)
+        interface = interface_class(timeout=payload['timeout'],
+                                    provider_uri=payload['provider_uri'],
+                                    compiler=compiler,
+                                    registry=registry)
 
-        return circumflex
+        return interface
 
     @property
-    def providers(self) -> Tuple[Union[IPCProvider, WebsocketProvider, HTTPProvider]]:
+    def providers(self) -> Tuple[Union[IPCProvider, WebsocketProvider, HTTPProvider], ...]:
         return tuple(self.__providers)
 
     @property
@@ -189,7 +187,7 @@ class BlockchainInterface:
     @property
     def version(self) -> str:
         """Return node version information"""
-        return self.w3.version.node           # type of connected node
+        return self.w3.version.node
 
     def add_provider(self,
                      provider: Union[IPCProvider, WebsocketProvider, HTTPProvider] = None,
@@ -207,9 +205,10 @@ class BlockchainInterface:
 
                 if uri_breakdown.netloc == 'tester':
 
-                    NUCYPHER_GAS_LIMIT = 5000000 #4899698  # 4626271  # TODO: Move ME
+                    NUCYPHER_GAS_LIMIT = 5000000  # TODO: Move to constants
                     genesis_parameter_overrides = {'gas_limit': NUCYPHER_GAS_LIMIT}
 
+                    # TODO: Update to newest eth-tester after #123 is merged
                     pyevm_backend = PyEVMBackend.from_genesis_overrides(parameter_overrides=genesis_parameter_overrides)
 
                     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
@@ -327,10 +326,38 @@ class BlockchainInterface:
 
         return unified_contract
 
+    def call_backend_sign(self, account: str, message: bytes) -> str:
+        """
+        Calls the appropriate signing function for the specified account on the
+        backend. If the backend is based on eth-tester, then it uses the
+        eth-tester signing interface to do so.
+        """
+        provider = self.providers[0]  # TODO: Handle multiple providers
+        if isinstance(provider, EthereumTesterProvider):
+            address = to_canonical_address(account)
+            sig_key = provider.ethereum_tester.backend._key_lookup[address]
+            signed_message = sig_key.sign_msg(message)
+            return signed_message
+        else:
+            return self.w3.eth.sign(account, data=message)  # Technically deprecated...
+
+    def call_backend_verify(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes):
+        """
+        Verifies a hex string signature and message hash are from the provided
+        public key.
+        """
+        is_valid_sig = signature.verify_msg_hash(msg_hash, pubkey)
+        sig_pubkey = signature.recover_public_key_from_msg_hash(msg_hash)
+
+        return is_valid_sig and (sig_pubkey == pubkey)
+
+    def unlock_account(self, address, password, duration):
+        return self.w3.personal.unlockAccount(address, password, duration)
+
 
 class BlockchainDeployerInterface(BlockchainInterface):
 
-    def __init__(self, deployer_address: str=None, *args, **kwargs):
+    def __init__(self, deployer_address: str=None, *args, **kwargs) -> None:
 
         # Depends on web3 instance
         super().__init__(*args, **kwargs)
@@ -382,28 +409,3 @@ class BlockchainDeployerInterface(BlockchainInterface):
                               contract_abi=contract_factory.abi)
 
         return contract, txhash
-
-    def call_backend_sign(self, account: str, message: bytes) -> str:
-        """
-        Calls the appropriate signing function for the specified account on the
-        backend. If the backend is based on eth-tester, then it uses the
-        eth-tester signing interface to do so.
-        """
-        provider = self.providers[0]  # TODO: Handle multiple providers
-        if isinstance(provider, EthereumTesterProvider):
-            address = to_canonical_address(account)
-            sig_key = provider.ethereum_tester.backend._key_lookup[address]
-            signed_message = sig_key.sign_msg(message)
-            return signed_message
-        else:
-            return self.w3.eth.sign(account, data=message) # Technically deprecated...
-
-    def call_backend_verify(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes):
-        """
-        Verifies a hex string signature and message hash are from the provided
-        public key.
-        """
-        is_valid_sig = signature.verify_msg_hash(msg_hash, pubkey)
-        sig_pubkey = signature.recover_public_key_from_msg_hash(msg_hash)
-
-        return is_valid_sig and (sig_pubkey == pubkey)

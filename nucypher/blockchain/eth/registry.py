@@ -1,12 +1,12 @@
 import json
 import os
-import shutil
 import tempfile
 
+import shutil
 from constant_sorrow import constants
+from typing import Union
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_INI_FILEPATH
-from nucypher.config.parsers import parse_blockchain_config
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 
 class EthereumContractRegistry:
@@ -17,7 +17,8 @@ class EthereumContractRegistry:
     WARNING: Unless you are developing NuCypher, you most likely won't ever need
     to use this.
     """
-    __default_registry_path = os.path.join(DEFAULT_CONFIG_ROOT, 'registry.json')
+    # TODO: Integrate with config classes
+    __default_registry_path = os.path.join(DEFAULT_CONFIG_ROOT, 'contract_registry.json')
 
     class RegistryError(Exception):
         pass
@@ -28,27 +29,21 @@ class EthereumContractRegistry:
     class IllegalRegistrar(RegistryError):
         """Raised when invalid data is encountered in the registry"""
 
-    def __init__(self, registry_filepath: str=None):
+    def __init__(self, registry_filepath: str=None) -> None:
         self.__registry_filepath = registry_filepath or self.__default_registry_path
 
     @classmethod
-    def from_config(cls, filepath=None, **overrides) -> 'EthereumContractRegistry':
-
-        filepath = filepath if filepath is None else DEFAULT_INI_FILEPATH
-        payload = parse_blockchain_config(filepath=filepath)
-
-        if payload['tmp_registry']:  # In memory only
-            registry = TemporaryEthereumContractRegistry()
+    def from_config(cls, config) -> Union['EthereumContractRegistry', 'TemporaryEthereumContractRegistry']:
+        if config.temp_registry is True:                # In memory only
+            return TemporaryEthereumContractRegistry()
         else:
-            registry = EthereumContractRegistry(**overrides)
-
-        return registry
+            return EthereumContractRegistry()
 
     @property
     def registry_filepath(self):
         return self.__registry_filepath
 
-    def _swap_registry(self, filepath: str) -> True:
+    def _swap_registry(self, filepath: str) -> bool:
         self.__registry_filepath = filepath
         return True
 
@@ -125,7 +120,7 @@ class EthereumContractRegistry:
 
 class TemporaryEthereumContractRegistry(EthereumContractRegistry):
 
-    def __init__(self):
+    def __init__(self) -> None:
         _, self.temp_filepath = tempfile.mkstemp()
         super().__init__(registry_filepath=self.temp_filepath)
 

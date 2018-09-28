@@ -1,59 +1,75 @@
 # This is an example of Alice setting a Policy on the NuCypher network.
-# In this example, Alice uses n=1, which is almost always a bad idea.  Don't do it.
+# In this example, Alice uses n=3.
 
-# WIP w/ hendrix@3.0.0
+# WIP w/ hendrix@3.1.0
 
-<<<<<<< HEAD:nucypher_cli/demos/finnegans-wake-demo.py
-=======
+import binascii
 import datetime
 import logging
->>>>>>> 26103ab... Project-wide automated import optimization, followed-up with some hand-tweaking:examples/finnegans-wake-demo.py
+import shutil
 import sys
-
-import datetime
+import os
 import maya
-from umbral.keys import UmbralPublicKey
 
-from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.characters import Alice, Bob
-<<<<<<< HEAD:nucypher_cli/demos/finnegans-wake-demo.py
-from nucypher.characters import Ursula
-from nucypher.data_sources import DataSource
-from umbral.keys import UmbralPublicKey
-=======
-from nucypher.config.constants import DEFAULT_SIMULATION_REGISTRY_FILEPATH
-from nucypher.config.metadata import collect_stored_nodes
+from nucypher.characters.lawful import Alice, Bob, Ursula
+from nucypher.config.characters import AliceConfiguration
 from nucypher.data_sources import DataSource
 # This is already running in another process.
 from nucypher.network.middleware import RestMiddleware
->>>>>>> 26103ab... Project-wide automated import optimization, followed-up with some hand-tweaking:examples/finnegans-wake-demo.py
+from umbral.keys import UmbralPublicKey
 
-# This is already running in another process.
+##
+# Boring setup stuff.
+##
 
+root = logging.getLogger()
+root.setLevel(logging.DEBUG)
 
-##############################################
-# This is already running in another process.
-##############################################
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+root.addHandler(ch)
 
-BLOCKCHAIN = Blockchain.connect()
+teacher_rest_port = sys.argv[2]
+with open("examples-runtime-cruft/node-metadata-{}".format(teacher_rest_port), "r") as f:
+    f.seek(0)
+    teacher_bytes = binascii.unhexlify(f.read())
+URSULA = Ursula.from_bytes(teacher_bytes, federated_only=True)
+print("Will learn from {}".format(URSULA))
 
-URSULA = Ursula.from_config()
+SHARED_CRUFTSPACE = "{}/examples-runtime-cruft".format(os.path.dirname(os.path.abspath(__file__)))
+CRUFTSPACE = "{}/finnegans-wake-demo".format(SHARED_CRUFTSPACE)
+CERTIFICATE_DIR = "{}/certs".format(CRUFTSPACE)
+shutil.rmtree(CRUFTSPACE, ignore_errors=True)
+os.mkdir(CRUFTSPACE)
+os.mkdir(CERTIFICATE_DIR)
+
+URSULA.save_certificate_to_disk(CERTIFICATE_DIR)
 
 #########
 # Alice #
 #########
 
-ALICE = Alice.from_config()
+
+ALICE = Alice(network_middleware=RestMiddleware(),
+              known_nodes=(URSULA,),
+              federated_only=True,
+              always_be_learning=True,
+              known_certificates_dir=CERTIFICATE_DIR,
+              )
 
 # Here are our Policy details.
-policy_end_datetime = maya.now() + datetime.timedelta(days=201)
+policy_end_datetime = maya.now() + datetime.timedelta(days=5)
 m = 2
 n = 3
 label = b"secret/files/and/stuff"
 
 # Alice grants to Bob.
-BOB = Bob.from_config()
-
+BOB = Bob(known_nodes=(URSULA,),
+          federated_only=True,
+          always_be_learning=True,
+          known_certificates_dir=CERTIFICATE_DIR)
 ALICE.start_learning_loop(now=True)
 policy = ALICE.grant(BOB, label, m=m, n=n,
                      expiration=policy_end_datetime)
@@ -81,7 +97,7 @@ BOB.join_policy(label,  # The label - he needs to know what data he's after.
                 alices_pubkey_bytes_saved_for_posterity,  # To verify the signature, he'll need Alice's public key.
                 # He can also bootstrap himself onto the network more quickly
                 # by providing a list of known nodes at this time.
-                # node_list=[("localhost", 3601)]
+                node_list=[("localhost", 3601)]
                 )
 
 # Now that Bob has joined the Policy, let's show how DataSources

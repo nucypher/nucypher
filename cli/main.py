@@ -1,22 +1,26 @@
-"""NuCypher CLI"""
+#!/usr/bin/env python3
 
-
-import asyncio
+import logging
+import os
 import random
 import sys
 
+import click
+import shutil
 import subprocess
 from constant_sorrow import constants
+from twisted.internet import reactor
 
 from nucypher.blockchain.eth.actors import Miner
-from nucypher.blockchain.eth.chains import Blockchain, TesterBlockchain
+from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
-from nucypher.characters import Ursula
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_SIMULATION_PORT, \
-    DEFAULT_SIMULATION_REGISTRY_FILEPATH, DEFAULT_INI_FILEPATH, DEFAULT_REST_PORT, DEFAULT_DHT_PORT, DEFAULT_DB_NAME, \
-    BASE_DIR
-from nucypher.config.metadata import write_node_metadata, collect_stored_nodes
-from nucypher.config.parsers import parse_nucypher_ini_config, parse_running_modes
+from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import BASE_DIR
+from nucypher.config.node import NodeConfiguration
+from nucypher.config.utils import validate_configuration_file
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
+from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
 
 __version__ = '0.1.0-alpha.0'
 
@@ -34,47 +38,39 @@ BANNER = """
 
 """.format(__version__)
 
-import os
-import click
-from twisted.internet import reactor
 
-from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
-from nucypher.utilities.blockchain import token_airdrop
-from nucypher.config.utils import validate_nucypher_ini_config, initialize_configuration
-from nucypher.utilities.simulate import UrsulaProcessProtocol
+#
+# Setup Logging
+#
+
+root = logging.getLogger()
+root.setLevel(logging.DEBUG)
+
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+root.addHandler(ch)
+
+
+#
+# CLI Configuration
+#
 
 
 class NucypherClickConfig:
 
     def __init__(self):
 
-        self.config_filepath = DEFAULT_INI_FILEPATH  # TODO
-        click.echo("Using configuration filepath {}".format(self.config_filepath))
+        # NodeConfiguration.from_config_file(filepath=DEFAULT_CONFIG_FILE_LOCATION)
 
-        # Set operating and run modes
-        operating_modes = parse_running_modes(filepath=self.config_filepath)
-        self.operating_mode = operating_modes.get('mode', 'decentralized')
-        self.simulation_mode = operating_modes.get('simulation', False)
-        if self.simulation_mode is True:
-            simulation_running = False
-            sim_registry_filepath = DEFAULT_SIMULATION_REGISTRY_FILEPATH
-        else:
-            simulation_running = constants.SIMULATION_DISABLED
-            sim_registry_filepath = constants.SIMULATION_DISABLED
-
-        self.simulation_running = simulation_running
-        self.sim_registry_filepath = sim_registry_filepath
-        self.sim_processes = list()
-
-        sim_mode = 'simulation' if self.simulation_mode else 'live'
-        click.echo("Running in {} {} mode".format(sim_mode, self.operating_mode))
-
-        self.payload = parse_nucypher_ini_config(filepath=self.config_filepath)
-        click.echo("Successfully parsed configuration file")
+        self.node_config = constants.NO_NODE_CONFIGURATION
 
         # Blockchain connection contract agency
-        self.blockchain = constants.NO_BLOCKCHAIN_CONNECTION
         self.accounts = constants.NO_BLOCKCHAIN_CONNECTION
+        self.blockchain = constants.NO_BLOCKCHAIN_CONNECTION
+        self.registry_filepath = constants.NO_BLOCKCHAIN_CONNECTION
+
         self.token_agent = constants.NO_BLOCKCHAIN_CONNECTION
         self.miner_agent = constants.NO_BLOCKCHAIN_CONNECTION
         self.policy_agent = constants.NO_BLOCKCHAIN_CONNECTION
@@ -82,34 +78,25 @@ class NucypherClickConfig:
     def connect_to_blockchain(self):
         """Initialize all blockchain entities from parsed config values"""
 
-        self.blockchain = Blockchain.from_config(filepath=self.config_filepath)
+        if self.node_config is constants.NO_NODE_CONFIGURATION:
+            raise RuntimeError("No node configuration is available")
+
+        self.blockchain = Blockchain.from_config(config=self.node_config)
         self.accounts = self.blockchain.interface.w3.eth.accounts
 
-        #TODO: Exception handling here for key error when using incompadible operating mode
-        if self.payload['tester'] and self.payload['deploy']:
+        if self.node_config.deploy:
             self.blockchain.interface.deployer_address = self.accounts[0]
 
     def connect_to_contracts(self, simulation: bool=False):
         """Initialize contract agency and set them on config"""
 
         if simulation is True:
+            # TODO: Public API for mirroring existing registry
             self.blockchain.interface._registry._swap_registry(filepath=self.sim_registry_filepath)
 
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.miner_agent = MinerAgent(token_agent=self.token_agent)
         self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
-
-    @property
-    def rest_uri(self):
-        host, port = self.payload['rest_host'], self.payload['rest_port']
-        uri_template = "http://{}:{}"
-        return uri_template.format(host, port)
-
-    @property
-    def dht_uri(self):
-        host, port = self.payload['dht_host'], self.payload['dht_port']
-        uri_template = "http://{}:{}"
-        return uri_template.format(host, port)
 
 
 uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
@@ -118,12 +105,12 @@ uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 @click.group()
 @click.option('--version', help="Prints the installed version.", is_flag=True)
 @click.option('--verbose', help="Enable verbose mode.", is_flag=True)
-@click.option('--config-file', help="Specify a custom config filepath.", type=click.Path(), default=DEFAULT_INI_FILEPATH)
+@click.option('--config-file', help="Specify a custom config filepath.", type=click.Path(), default="cool winnebago")
 @uses_config
 def cli(config, verbose, version, config_file):
     """Configure and manage a nucypher nodes"""
 
-    validate_nucypher_ini_config(filepath=config_file)
+    # validate_nucypher_ini_config(filepath=config_file)
 
     click.echo(BANNER)
 
@@ -139,20 +126,63 @@ def cli(config, verbose, version, config_file):
 
 @cli.command()
 @click.argument('action')
+@click.option('--temp', is_flag=True, default=False)
+@click.option('--filesystem', is_flag=True, default=False)
 @click.option('--config-file', help="Specify a custom .ini configuration filepath")
-@click.option('--data-dir', help="Specify a custom runtime directory")
+@click.option('--config-root', help="Specify a custom installation location")
 @uses_config
-def config(config, action, config_file, data_dir):
+def configure(config, action, config_file, config_root, temp, filesystem):
     """Manage the nucypher .ini configuration file"""
 
-    if action == "validate":
-        validate_nucypher_ini_config(config_file)
+    def __destroy(configuration):
+        if temp:
+            raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
+        click.confirm("Permanently destroy all nucypher files, configurations, known nodes, certificates and keys?", abort=True)
+        shutil.rmtree(configuration.config_root, ignore_errors=True)
+        click.echo("Deleted configuration files at {}".format(node_configuration.config_root))
 
-    if action == "init":
+    def __initialize(configuration):
+        if temp:
+            click.echo("Using temporary storage area")
         click.confirm("Initialize new nucypher configuration?", abort=True)
-        config_root = data_dir if data_dir else DEFAULT_CONFIG_ROOT
-        initialize_configuration(config_root=config_root)
-        click.echo("Created configuration files at {}".format(config_root))
+        configuration.write_defaults()
+        click.echo("Created configuration files at {}".format(node_configuration.config_root))
+
+    if config_root:
+        node_configuration = NodeConfiguration(temp=False,
+                                               config_root=config_root,
+                                               auto_initialize=False)
+    elif temp:
+        node_configuration = NodeConfiguration(temp=temp, auto_initialize=False)
+    elif config_file:
+        click.echo("Using configuration file at: {}".format(config_file))
+        node_configuration = NodeConfiguration.from_configuration_file(filepath=config_file)
+    else:
+        node_configuration = NodeConfiguration(auto_initialize=False)  # Fully Default
+
+
+    #
+    # Action switch
+    #
+    if action == "init":
+        __initialize(node_configuration)
+    elif action == "destroy":
+        __destroy(node_configuration)
+    elif action == "reset":
+        __destroy(node_configuration)
+        __initialize(node_configuration)
+    elif action == "validate":
+        is_valid = True  # Until there is a reason to believe otherwise
+        try:
+            if filesystem:   # Check runtime directory
+                is_valid = NodeConfiguration.check_config_tree_exists(config_root=node_configuration.config_root)
+            if config_file:
+                is_valid = validate_configuration_file(filepath=node_configuration.config_file_location)
+        except NodeConfiguration.InvalidConfiguration:
+            is_valid = False
+        finally:
+            result = 'Valid' if is_valid else 'Invalid'
+            click.echo('{} is {}'.format(node_configuration.config_root, result))
 
 
 @cli.command()
@@ -163,31 +193,33 @@ def accounts(config, action, address):
     """Manage ethereum node accounts"""
 
     if action == 'list':
-        for index, address in enumerate(config.accounts):
-            if index == 0:
-                row = 'etherbase | {}'.format(address)
-            else:
-                row = '{} ....... | {}'.format(index, address)
-            click.echo(row)
-
-    elif action == 'unlock':
-        # passphrase = click.prompt("Enter passphrase to unlock {}".format(address))
-        raise NotImplementedError
-
-    elif action == 'lock':
-
-        # click.confirm("Lock {}?".format(address))
-        raise NotImplementedError
+        if config.accounts is constants.NO_BLOCKCHAIN_CONNECTION:
+            click.echo('There are no accounts configured')
+        else:
+            for index, address in enumerate(config.accounts):
+                if index == 0:
+                    row = 'etherbase | {}'.format(address)
+                else:
+                    row = '{} ....... | {}'.format(index, address)
+                click.echo(row)
 
     elif action == 'balance':
-        raise NotImplementedError
+        if config.accounts is constants.NO_BLOCKCHAIN_CONNECTION:
+            click.echo('No blockchain connection is available')
+        else:
+            if not address:
+                address = config.blockchain.interface.w3.eth.accounts[0]
+                click.echo('No address supplied, Using the default {}'.format(address))
+
+            balance = config.token_agent.token_balance(address=address)
+            click.echo("Balance of {} is {}".format(address, balance))
 
 
 @cli.command()
 @click.argument('action', default='list', required=False)
 @click.option('--address', help="Send rewarded tokens to a specific address, instead of the default.")
 @click.option('--value', help="Stake value in the smallest denomination")
-@click.option('--duration', help="Stake duration in periods")
+@click.option('--duration', help="Stake duration in periods")  # TODO: lock/unlock durations
 @click.option('--index', help="A specific stake index to resume")
 @uses_config
 def stake(config, action, address, index, value, duration):
@@ -345,7 +377,6 @@ def stake(config, action, address, index, value, duration):
         raise NotImplementedError
 
 
-
 @cli.command()
 @click.argument('action')
 @click.option('--federated-only', is_flag=True)
@@ -395,7 +426,7 @@ def simulate(config, action, nodes, federated_only):
             click.confirm("Deploy all nucypher contracts to blockchain?", abort=True)
             click.echo("Bootstrapping simulated blockchain network")
 
-            blockchain = TesterBlockchain.from_config()
+            blockchain = TesterBlockchain()
 
             # TODO: Enforce Saftey - ensure this is "fake" #
             conditions = ()
@@ -411,7 +442,7 @@ def simulate(config, action, nodes, federated_only):
             token_agent = token_deployer.make_agent()
             click.echo("Deployed {}:{}".format(token_agent.contract_name, token_agent.contract_address))
 
-            miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=etherbase)
+            miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=etherbase)  # TODO: Deployer secrets
             miner_escrow_deployer.arm()
             miner_escrow_deployer.deploy()
             miner_agent = miner_escrow_deployer.make_agent()
@@ -435,7 +466,7 @@ def simulate(config, action, nodes, federated_only):
 
             # Commit the current state of deployment to a registry file.
             click.echo("Writing filesystem registry")
-            _sim_registry_name = config.blockchain.interface._registry.commit(filepath=DEFAULT_SIMULATION_REGISTRY_FILEPATH)
+            _sim_registry_name = config.blockchain.interface._registry.commit(filepath=DEFAULT_SIMULATION_REGISTRY_FILEPATH)  # TODO: Simulation config
 
             # Fin
             click.echo("Ready to simulate decentralized swarm.")
@@ -452,7 +483,7 @@ def simulate(config, action, nodes, federated_only):
         localhost = 'localhost'
 
         # Select a port range to use on localhost for sim servers
-        start_port, stop_port = DEFAULT_SIMULATION_PORT, DEFAULT_SIMULATION_PORT + int(nodes)
+        start_port, stop_port = DEFAULT_SIMULATION_PORT, DEFAULT_SIMULATION_PORT + int(nodes) # TODO: Simulation config
         port_range = range(start_port, stop_port)
         click.echo("Selected local ports {}-{}".format(start_port, stop_port))
 
@@ -462,12 +493,15 @@ def simulate(config, action, nodes, federated_only):
             # Parse ursula parameters
             #
 
-            rest_port, dht_port = sim_port_number, sim_port_number + 100
+            rest_port = sim_port_number
             db_name = 'sim-{}'.format(rest_port)
 
+            cli_exec = os.path.join(BASE_DIR, 'cli', 'main.py')
+            python_exec = 'python'
+
             proc_params = '''
-            run_ursula --host {} --rest-port {} --dht-port {} --db-name {}
-            '''.format(localhost, rest_port, dht_port, db_name).split()
+            python3 {} run_ursula --host {} --rest-port {} --db-name {}
+            '''.format(python_exec, cli_exec, localhost, rest_port, db_name).split()
 
             if federated_only:
                 click.echo("Setting federated operating mode")
@@ -492,7 +526,8 @@ def simulate(config, action, nodes, federated_only):
             # Spawn
             click.echo("Spawning node #{}".format(index+1))
             processProtocol = UrsulaProcessProtocol(command=proc_params)
-            ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
+            cli_exec = os.path.join(BASE_DIR, 'cli', 'main.py')
+            ursula_proc = reactor.spawnProcess(processProtocol, cli_exec, proc_params)
             config.sim_processes.append(ursula_proc)
 
             #
@@ -502,12 +537,10 @@ def simulate(config, action, nodes, federated_only):
             # Start with some basic status data, then build on it
 
             rest_uri = "http://{}:{}".format(localhost, rest_port)
-            dht_uri = "http://{}:{}".format(localhost, dht_port)
 
-            sim_data = "Started simulated Ursula | ReST {} | DHT {} ".format(rest_uri, dht_uri)
+            sim_data = "Started simulated Ursula | ReST {}".format(rest_uri)
             rest_uri = "{host}:{port}".format(host=localhost, port=str(sim_port_number))
-            dht_uri = '{host}:{port}'.format(host=localhost, port=dht_port)
-            sim_data.format(rest_uri, dht_uri)
+            sim_data.format(rest_uri)
 
             if not federated_only:
                 stake_infos = tuple(config.miner_agent.get_all_stakes(miner_address=sim_address))
@@ -565,8 +598,13 @@ def simulate(config, action, nodes, federated_only):
 
     elif action == 'demo':
         """Run the finnegans wake demo"""
-        demo_exec = os.path.join(BASE_DIR, 'nucypher_cli', 'demos', 'finnegans-wake-demo.py')
-        subprocess.run([sys.executable, demo_exec], stdout=subprocess.PIPE)
+        demo_exec = os.path.join(BASE_DIR, 'cli', 'demos', 'finnegans-wake-demo.py')
+        process_args = [sys.executable, demo_exec]
+
+        if federated_only:
+            process_args.append('--federated-only')
+
+        subprocess.run(process_args, stdout=subprocess.PIPE)
 
 
 @cli.command()
@@ -643,68 +681,68 @@ def status(config, provider, contracts, network):
 
 
 @cli.command()
-@click.option('--federated-only', is_flag=True, default=False)
-@click.option('--seed-node', is_flag=True, default=False)
-@click.option('--rest-port', type=int, default=DEFAULT_REST_PORT)
-@click.option('--dht-port', type=int, default=DEFAULT_DHT_PORT)
-@click.option('--db-name', type=str, default=DEFAULT_DB_NAME)
+@click.option('--dev', is_flag=True, default=False)
+@click.option('--federated-only', is_flag=True)
+@click.option('--rest-host', type=str)
+@click.option('--rest-port', type=int)
+@click.option('--db-name', type=str)
 @click.option('--checksum-address', type=str)
-@click.option('--data-dir', type=click.Path(), default=DEFAULT_CONFIG_ROOT)
-@click.option('--config-file', type=click.Path(), default=DEFAULT_INI_FILEPATH)
-def run_ursula(rest_port, dht_port, db_name,
-               checksum_address, federated_only,
-               seed_node, data_dir, config_file) -> None:
+@click.option('--metadata-dir', type=click.Path())
+@click.option('--config-file', type=click.Path())
+def run_ursula(rest_port,
+               rest_host,
+               db_name,
+               checksum_address,
+               federated_only,
+               metadata_dir,
+               config_file,
+               dev
+               ) -> None:
     """
 
     The following procedure is required to "spin-up" an Ursula node.
 
-        1. Collect all known known from storages
-        2. Start the asyncio event loop
-        3. Initialize Ursula object
-        4. Start DHT listener
-        5. Enter the learning loop
-        6. Run TLS deployment
-        7. Start the staking daemon
+        1. Initialize UrsulaConfiguration
+        2. Initialize Ursula
+        3. Run TLS deployment
+        4. Start the staking daemon
 
-    Configurable values are first read from the .ini configuration file,
+    Configurable values are first read from the configuration file,
     but can be overridden (mostly for testing purposes) with inline cli options.
 
     """
-
-    if not seed_node:
-        other_nodes = collect_stored_nodes(federated_only=federated_only)  # 1. Collect known nodes
+    if not dev:
+        click.echo("WARNING: Development mode is disabled")
+        temp = False
     else:
-        other_nodes = tuple()
+        click.echo("Running in development mode")
+        temp = True
 
-    overrides = dict(federated_only=federated_only,
-                     known_nodes=other_nodes,
-                     rest_port=rest_port,
-                     dht_port=dht_port,
-                     db_name=db_name,
-                     checksum_address=checksum_address)
-
-    if seed_node:
-        seed_overrides = dict(always_be_learning=False,
-                              abort_on_learning_error=False)
-
-        overrides.update(seed_overrides)
-
-    asyncio.set_event_loop(asyncio.new_event_loop())  # 2. Init DHT async loop
-
-    # 3. Initialize Ursula (includes overrides)
-    ursula = Ursula.from_config(filepath=config_file, overrides=overrides)
-
-    ursula.dht_listen()                # 4. Start DHT
-
-    write_node_metadata(seed_node=seed_node, node=ursula, node_metadata_dir=data_dir)
-
-    if not seed_node:
-        ursula.start_learning_loop()  # 5. Enter learning loop
-
-    ursula.get_deployer().run()       # 6. Run TLS Deployer
-
-    if not federated_only:
-        ursula.stake()                # 7. start staking daemon
+    if config_file:
+        ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file)
+    else:
+        ursula_config = UrsulaConfiguration(temp=temp,
+                                            auto_initialize=temp,
+                                            rest_host=rest_host,
+                                            rest_port=rest_port,
+                                            db_name=db_name,
+                                            is_me=True,
+                                            federated_only=federated_only,
+                                            checksum_address=checksum_address,
+                                            # save_metadata=False,  # TODO
+                                            load_metadata=True,
+                                            known_metadata_dir=metadata_dir,
+                                            start_learning_now=True,
+                                            abort_on_learning_error=temp)
+    try:
+        URSULA = ursula_config.produce()
+        URSULA.get_deployer().run()       # Run TLS Deploy (Reactor)
+        if not URSULA.federated_only:     # TODO: Resume / Init
+            URSULA.stake()                # Start Staking Daemon
+    finally:
+        click.echo("Cleaning up temporary runtime files and directories")
+        ursula_config.cleanup()  # TODO: Integrate with other "graceful" shutdown functionality
+        click.echo("Exited gracefully")
 
 
 if __name__ == "__main__":

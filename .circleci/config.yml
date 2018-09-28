@@ -31,6 +31,11 @@ workflows:
       - intercontract_integration:
           requires:
             - eth_contract_unit
+      - nucypher_cli_tests:
+          requires:
+              - crypto_unit
+              - network_unit
+              - keystore_unit
 
 python_36_base: &python_36_base
     working_directory: ~/nucypher-depends
@@ -77,7 +82,7 @@ jobs:
       - run:
           name: Ethereum Contract Unit Tests
           command: |
-            pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/unit/test_*.py | circleci tests split --split-by=timings)
+            pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/*/test_*.py | circleci tests split --split-by=timings)
       - store_test_results:
           path: ./reports/pytest/
 
@@ -142,12 +147,29 @@ jobs:
       - store_test_results:
           path: ./reports/pytest/
 
+  nucypher_cli_tests:
+    <<: *python_36_base
+    steps:
+    - checkout
+    - attach_workspace:
+        at: ~/.local/share/virtualenvs/
+    - run:
+        name: Nucypher CLI Tests
+        command: |
+          pipenv run pytest -v --runslow tests/cli --junitxml=./reports/pytest/results.xml
+    - store_test_results:
+        path: ./reports/pytest/
+
   mypy_type_check:
     <<: *python_36_base
     steps:
       - checkout
       - attach_workspace:
           at: ~/.local/share/virtualenvs/
+      - run:
+          name: Install lxml
+          command: |
+              pipenv run pip install lxml
       - run:
           name: Run Mypy Static Type Checks
           command: |

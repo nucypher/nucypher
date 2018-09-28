@@ -1,13 +1,13 @@
 import os
 
+import pytest
 import pytest_twisted
 import requests
 from cryptography.hazmat.primitives import serialization
 from twisted.internet import threads
 
-from nucypher.characters import Ursula
-from nucypher.utilities.blockchain import make_ursulas
-from nucypher.utilities.sandbox import make_ursulas
+from nucypher.characters.lawful import Ursula
+from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 
 
 def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy):
@@ -22,8 +22,8 @@ def test_alice_enacts_policies_in_policy_group_via_rest(enacted_federated_policy
 
 
 @pytest_twisted.inlineCallbacks
-def test_nodes_connect_via_tls_and_verify():
-    node = make_ursulas(1).pop()
+def test_federated_nodes_connect_via_tls_and_verify(ursula_federated_test_config):
+    node = make_federated_ursulas(ursula_config=ursula_federated_test_config, quantity=1).pop()
     node_deployer = node.get_deployer()
 
     node_deployer.addServices()
@@ -46,5 +46,7 @@ def test_nodes_connect_via_tls_and_verify():
     finally:
         os.remove("test-cert")
 
-#
-# def test_node_metadata_contains_proper_cert():
+
+@pytest.mark.skip(reason="To be implemented")
+def test_node_metadata_contains_proper_cert():
+    pass

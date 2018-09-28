@@ -1,9 +1,10 @@
 import maya
 import pytest
-from constant_sorrow import constants
 
+from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.actors import Miner, PolicyAuthor
-from nucypher.utilities.blockchain import token_airdrop
+from nucypher.utilities.sandbox.blockchain import token_airdrop
+from nucypher.utilities.sandbox.constants import DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
 
 
 class TestMiner:
@@ -12,7 +13,7 @@ class TestMiner:
     def miner(self, testerchain, three_agents):
         token_agent, miner_agent, policy_agent = three_agents
         origin, *everybody_else = testerchain.interface.w3.eth.accounts
-        token_airdrop(token_agent, origin=origin, addresses=everybody_else, amount=1000000*constants.M)
+        token_airdrop(token_agent, origin=origin, addresses=everybody_else, amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
         miner = Miner(miner_agent=miner_agent, checksum_address=everybody_else[0])
         return miner
 
@@ -68,7 +69,7 @@ class TestMiner:
         assert expected_yet_another_stake == stakes[stake_index + 2], 'Third stake values are invalid'
 
     @pytest.mark.slow()
-    @pytest.mark.usefixtures("mining_ursulas")
+    @pytest.mark.usefixtures("blockchain_ursulas")
     def test_miner_collects_staking_reward(self, testerchain, miner, three_agents):
         token_agent, miner_agent, policy_agent = three_agents
 

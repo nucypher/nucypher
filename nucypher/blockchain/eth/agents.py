@@ -1,12 +1,12 @@
 import random
 from abc import ABC
-from typing import Generator, List, Tuple, Union
 
-from constant_sorrow import constants
+from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
+from typing import Generator, List, Tuple, Union
+from web3.contract import Contract
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
 class EthereumContractAgent(ABC):
@@ -14,37 +14,37 @@ class EthereumContractAgent(ABC):
     Base class for ethereum contract wrapper types that interact with blockchain contract instances
     """
 
+    principal_contract_name = NotImplemented
+
     _upgradeable = NotImplemented
 
-    principal_contract_name = NotImplemented
     __contract_address = NotImplemented
-    __instance = None
+    __instance = NO_CONTRACT_AVAILABLE
 
     class ContractNotDeployed(Exception):
         pass
 
     def __new__(cls, *args, **kwargs) -> 'EthereumContractAgent':
-        if cls.__instance is None:
+        if cls.__instance is NO_CONTRACT_AVAILABLE:
             cls.__instance = super(EthereumContractAgent, cls).__new__(cls)
         return cls.__instance
 
     def __init__(self,
                  blockchain: Blockchain = None,
                  registry_filepath: str = None,
-                 *args, **kwargs) -> None:
+                 contract: Contract = None
+                 ) -> None:
 
-        if blockchain is None:
-            blockchain = Blockchain.connect()
-        self.blockchain = blockchain
+        self.blockchain = blockchain or Blockchain.connect()
 
         if registry_filepath is not None:
-            # TODO: Warn on override?
+            # TODO: Warn on override/ do this elsewhere?
             self.blockchain.interface._registry._swap_registry(filepath=registry_filepath)
 
-        # Fetch the contract by reading address and abi from the registry and blockchain
-        contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
-                                                                  upgradeable=self._upgradeable)
-
+        if contract is None:
+            # Fetch the contract by reading address and abi from the registry and blockchain
+            contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
+                                                                      upgradeable=self._upgradeable)
         self.__contract = contract
         super().__init__()
 
@@ -77,7 +77,7 @@ class EthereumContractAgent(ABC):
 class NucypherTokenAgent(EthereumContractAgent):
     principal_contract_name = "NuCypherToken"
     _upgradeable = False
-    __instance = None
+    __instance = NO_CONTRACT_AVAILABLE
 
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
@@ -98,14 +98,13 @@ class MinerAgent(EthereumContractAgent):
 
     principal_contract_name = "MinersEscrow"
     _upgradeable = True
-    __instance = None
+    __instance = NO_CONTRACT_AVAILABLE
 
     class NotEnoughMiners(Exception):
         pass
 
-    def __init__(self, token_agent: NucypherTokenAgent=None, registry_filepath=None, *args, **kwargs):
-        token_agent = token_agent if token_agent is not None else NucypherTokenAgent(registry_filepath=registry_filepath)
-        super().__init__(blockchain=token_agent.blockchain, registry_filepath=registry_filepath, *args, **kwargs)
+    def __init__(self, token_agent: NucypherTokenAgent, *args, **kwargs) -> None:
+        super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
         self.token_agent = token_agent
 
     #
@@ -183,7 +182,7 @@ class MinerAgent(EthereumContractAgent):
     #
     # Contract Utilities
     #
-    def swarm(self) -> Union[Generator[str, None, None], Generator[Tuple[str, bytes], None, None]]:
+    def swarm(self) -> Union[Generator[str, None, None], Generator[str, None, None]]:
         """
         Returns an iterator of all miner addresses via cumulative sum, on-network.
 
@@ -234,19 +233,20 @@ class PolicyAgent(EthereumContractAgent):
 
     principal_contract_name = "PolicyManager"
     _upgradeable = True
-    __instance = None
+    __instance = NO_CONTRACT_AVAILABLE
 
-    def __init__(self,
-                 miner_agent: MinerAgent = None,
-                 registry_filepath=None,
-                 *args, **kwargs):
-        miner_agent = miner_agent if miner_agent is not None else MinerAgent(registry_filepath=registry_filepath)
-        super().__init__(blockchain=miner_agent.blockchain, registry_filepath=registry_filepath, *args, **kwargs)
+    def __init__(self, miner_agent: MinerAgent, *args, **kwargs) -> None:
+        super().__init__(blockchain=miner_agent.blockchain, *args, **kwargs)
         self.miner_agent = miner_agent
         self.token_agent = miner_agent.token_agent
 
-    def create_policy(self, policy_id: str, author_address: str, value: int,
-                      periods: int, reward: int, node_addresses: List[str]):
+    def create_policy(self,
+                      policy_id: str,
+                      author_address: str,
+                      value: int,
+                      periods: int,
+                      reward: int,
+                      node_addresses: List[str]) -> str:
 
         txhash = self.contract.functions.createPolicy(policy_id,
                                                       periods,
@@ -261,15 +261,9 @@ class PolicyAgent(EthereumContractAgent):
         blockchain_record = self.contract.functions.policies(policy_id).call()
         return blockchain_record
 
-    def revoke_policy(self, policy_id: bytes, author) -> str:
-        """
-        Revoke by arrangement ID; Only the policy's author can revoke the policy.
-
-        :param policy_id: An existing arrangementID to revoke on the blockchain.
-
-        """
-
-        txhash = self.contract.functions.revokePolicy(policy_id).transact({'from': author.address})
+    def revoke_policy(self, policy_id: bytes, author_address) -> str:
+        """Revoke by arrangement ID; Only the policy's author_address can revoke the policy."""
+        txhash = self.contract.functions.revokePolicy(policy_id).transact({'from': author_address.address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
@@ -305,4 +299,4 @@ class UserEscrowAgent(EthereumContractAgent):
 
     principal_contract_name = "UserEscrow"
     _upgradeable = True
-    __instance = None
+    __instance = NO_CONTRACT_AVAILABLE

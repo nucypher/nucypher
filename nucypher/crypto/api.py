@@ -1,15 +1,20 @@
-import datetime
+import os
 from random import SystemRandom
-from typing import Union
 
+import datetime
 import sha3
 from constant_sorrow import constants
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
+from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
+from typing import Tuple
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
@@ -66,7 +71,9 @@ def keccak_digest(*messages: bytes) -> bytes:
     return hash.digest()
 
 
-def ecdsa_sign(message: bytes, privkey: UmbralPrivateKey) -> bytes:
+def ecdsa_sign(message: bytes,
+               privkey: UmbralPrivateKey
+               ) -> bytes:
     """
     Accepts a hashed message and signs it with the private key given.
 
@@ -80,11 +87,10 @@ def ecdsa_sign(message: bytes, privkey: UmbralPrivateKey) -> bytes:
     return signature_der_bytes
 
 
-def ecdsa_verify(
-        message: bytes,
-        signature: bytes,
-        pubkey: UmbralPublicKey
-) -> bool:
+def ecdsa_verify(message: bytes,
+                 signature: bytes,
+                 pubkey: UmbralPublicKey
+                 ) -> bool:
     """
     Accepts a message and signature and verifies it with the
     provided public key.
@@ -108,7 +114,37 @@ def ecdsa_verify(
     return True
 
 
-def generate_self_signed_certificate(common_name, curve, host, private_key=None, days_valid=365):
+def _save_tls_certificate(certificate: Certificate,
+                          full_filepath: str,
+                          force: bool = True,  # TODO: Make configurable, or set to False by default.
+                          ) -> str:
+    if force is False and os.path.isfile(full_filepath):
+        raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath))
+
+    with open(full_filepath, 'wb') as certificate_file:
+        public_pem_bytes = certificate.public_bytes(Encoding.PEM)
+        certificate_file.write(public_pem_bytes)
+
+    return full_filepath
+
+
+def load_tls_certificate(filepath: str) -> Certificate:
+    """Deserialize an X509 certificate from a filepath"""
+    try:
+        with open(filepath, 'r') as certificate_file:
+            cert = x509.load_pem_x509_certificate(certificate_file.read(),
+                                                  backend=default_backend())
+            return cert
+    except FileNotFoundError:
+        raise  # TODO: Better error message here
+
+
+def generate_self_signed_certificate(common_name: str,
+                                     curve: EllipticCurve,
+                                     host: str,
+                                     private_key: _EllipticCurvePrivateKey = None,
+                                     days_valid: int = 365
+                                     ) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
 
     if not private_key:
         private_key = ec.generate_private_key(curve, default_backend())
@@ -128,14 +164,15 @@ def generate_self_signed_certificate(common_name, curve, host, private_key=None,
     # TODO: What are we going to do about domain name here? 179
     cert = cert.add_extension(x509.SubjectAlternativeName([x509.DNSName(host)]), critical=False)
     cert = cert.sign(private_key, hashes.SHA512(), default_backend())
+
     return cert, private_key
 
 
 def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
-                    plaintext: bytes,
-                    signer: Union["SignatureStamp", "_Constant"],
-                    sign_plaintext=True,
-                    ) -> tuple:
+                     plaintext: bytes,
+                     signer: 'SignatureStamp',
+                     sign_plaintext: bool = True
+                     ) -> Tuple[UmbralMessageKit, 'SignatureStamp']:
 
     if signer is not constants.DO_NOT_SIGN:
         # The caller didn't expressly tell us not to sign; we'll sign.
@@ -155,7 +192,7 @@ def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
     else:
         # Don't sign.
         signature = sig_header = constants.NOT_SIGNED
-        alice_pubkey = None
+        alice_pubkey = None  # TODO: ..eh?
         ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
         message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule)
 

@@ -1,117 +1,34 @@
-import asyncio
 import binascii
-import random
 from logging import getLogger
 
-import kademlia
-from apistar import http, Route, App
-from apistar.http import Response
+from apistar import Route, App
+from apistar.http import Response, Request, QueryParams
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from hendrix.experience import crosstown_traffic
-from kademlia.crawling import NodeSpiderCrawl
-from kademlia.network import Server
 from kademlia.utils import digest
 from umbral import pre
 from umbral.fragments import KFrag
-from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
-from nucypher.network.protocols import NucypherSeedOnlyProtocol, NucypherHashProtocol, InterfaceInfo
-from nucypher.network.storage import SeedOnlyStorage
-
-
-class NucypherDHTServer(Server):
-    protocol_class = NucypherHashProtocol
-    capabilities = ()
-    digests_set = 0
-
-    def __init__(self, node_storage, treasure_map_storage, federated_only=False, id=None, *args, **kwargs):
-        super().__init__(ksize=20, alpha=3, id=None, storage=None)
-        self.node = kademlia.node.Node(id=id or digest(
-            random.getrandbits(255)))  # TODO: Assume that this can be attacked to get closer to desired kFrags.
-
-        # What an awful monkey patch.  Part of the journey of deprecating the DHT.  # TODO: 340
-        self.node._node_storage = node_storage
-        self.node._treasure_maps = treasure_map_storage
-
-        self.node.federated_only = federated_only
-
-    async def set_digest(self, dkey, value):
-        """
-        Set the given SHA1 digest key (bytes) to the given value in the network.
-
-        Returns True if a digest was in fact set.
-        """
-        node = self.node_class(dkey)
-
-        nearest = self.protocol.router.findNeighbors(node)
-        if len(nearest) == 0:
-            self.log.warning("There are no known neighbors to set key %s" % dkey.hex())
-            return False
-
-        spider = NodeSpiderCrawl(self.protocol, node, nearest, self.ksize, self.alpha)
-        nodes = await spider.find()
-
-        self.log.info("setting '%s' on %s" % (dkey.hex(), list(map(str, nodes))))
-
-        # if this node is close too, then store here as well
-        if self.node.distanceTo(node) < max([n.distanceTo(node) for n in nodes]):
-            self.storage[dkey] = value
-        ds = []
-        for n in nodes:
-            _disposition, value_was_set = await self.protocol.callStore(n, dkey, value)
-            if value_was_set:
-                self.digests_set += 1
-            ds.append(value_was_set)
-        # return true only if at least one store call succeeded
-        return any(ds)
-
-    def get_now(self, key):
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.get(bytes(key)))
-
-    def set_now(self, key, value):
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            # Terrible.  We cant' get off the DHT soon enough.
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        return loop.run_until_complete(self.set(key, value))
-
-    async def set(self, key, value):
-        """
-        Set the given string key to the given value in the network.
-        """
-        self.log.debug("setting '%s' = '%s' on network" % (key, value))
-        key = digest(bytes(key))
-        return await self.set_digest(key, value)
-
-
-class NucypherSeedOnlyDHTServer(NucypherDHTServer):
-    protocol_class = NucypherSeedOnlyProtocol
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.storage = SeedOnlyStorage()
+from nucypher.network.protocols import InterfaceInfo
 
 
 class ProxyRESTServer:
     log = getLogger("characters")
 
     def __init__(self,
-                 rest_host,
-                 rest_port,
-                 routes=None,
+                 rest_host: str,
+                 rest_port: int,
+                 routes: 'ProxyRESTRoutes' = None,
                  ) -> None:
         self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
-        if routes:
+        if routes:  # if is me
             self.rest_app = routes.rest_app
+            self.db_filepath = routes.db_filepath
         else:
             self.rest_app = constants.PUBLIC_ONLY
 
@@ -124,9 +41,9 @@ class ProxyRESTRoutes:
 
     def __init__(self,
                  db_name,
+                 db_filepath,
                  network_middleware,
                  federated_only,
-                 dht_server,
                  treasure_map_tracker,
                  node_tracker,
                  node_bytes_caster,
@@ -134,11 +51,12 @@ class ProxyRESTRoutes:
                  node_recorder,
                  stamp,
                  verifier,
+                 suspicious_activity_tracker,
+                 certificate_dir,
                  ) -> None:
 
         self.network_middleware = network_middleware
         self.federated_only = federated_only
-        self.dht_server = dht_server
 
         self._treasure_map_tracker = treasure_map_tracker
         self._work_order_tracker = work_order_tracker
@@ -147,6 +65,8 @@ class ProxyRESTRoutes:
         self._node_recorder = node_recorder
         self._stamp = stamp
         self._verifier = verifier
+        self._suspicious_activity_tracker = suspicious_activity_tracker
+        self._certificate_dir = certificate_dir
         self.datastore = None
 
         routes = [
@@ -174,21 +94,20 @@ class ProxyRESTRoutes:
         ]
 
         self.rest_app = App(routes=routes)
-
-        if not db_name:
-            raise TypeError("In order to start a datastore, you need to supply a db_name.")
+        self.db_name = db_name
+        self.db_filepath = db_filepath
 
         from nucypher.keystore import keystore
         from nucypher.keystore.db import Base
         from sqlalchemy.engine import create_engine
 
-        self.log.info("Starting datastore {}".format(db_name))
-        engine = create_engine('sqlite:///{}'.format(db_name))
+        self.log.info("Starting datastore {}".format(self.db_filepath))
+        engine = create_engine('sqlite:///{}'.format(self.db_filepath))
         Base.metadata.create_all(engine)
         self.datastore = keystore.KeyStore(engine)
         self.db_engine = engine
 
-        from nucypher.characters import Alice, Ursula
+        from nucypher.characters.lawful import Alice, Ursula
         self._alice_class = Alice
         self._node_class = Ursula
 
@@ -203,15 +122,17 @@ class ProxyRESTRoutes:
 
         return response
 
-    def all_known_nodes(self, request: http.Request):
+    def all_known_nodes(self, request: Request):
         headers = {'Content-Type': 'application/octet-stream'}
         ursulas_as_bytes = bytes().join(bytes(n) for n in self._node_tracker.values())
         ursulas_as_bytes += self._node_bytes_caster()
         signature = self._stamp(ursulas_as_bytes)
         return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
 
-    def node_metadata_exchange(self, request: http.Request, query_params: http.QueryParams):
-        nodes = self._node_class.batch_from_bytes(request.body, federated_only=self.federated_only)
+    def node_metadata_exchange(self, request: Request, query_params: QueryParams):
+        nodes = self._node_class.batch_from_bytes(request.body,
+                                                  federated_only=self.federated_only,
+                                                  )
         # TODO: This logic is basically repeated in learn_from_teacher_node.  Let's find a better way.
         for node in nodes:
 
@@ -227,14 +148,17 @@ class ProxyRESTRoutes:
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                               " Announced via REST."  # TODO: Include data about caller?
                     self.log.warning(message)
-
-                self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-                self._node_recorder(node)
+                    self._suspicious_activity_tracker['vladimirs'].append(node)  # TODO: Maybe also record the bytes representation separately to disk?
+                else:
+                    self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
+                    if self._certificate_dir:
+                        node.save_certificate_to_disk(self._certificate_dir)
+                    self._node_recorder(node)
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
         return self.all_known_nodes(request)
 
-    def consider_arrangement(self, request: http.Request):
+    def consider_arrangement(self, request: Request):
         from nucypher.policy.models import Arrangement
         arrangement = Arrangement.from_bytes(request.body)
 
@@ -252,7 +176,7 @@ class ProxyRESTRoutes:
         # TODO: Make this a legit response #234.
         return Response(b"This will eventually be an actual acceptance of the arrangement.", headers=headers)
 
-    def set_policy(self, id_as_hex, request: http.Request):
+    def set_policy(self, id_as_hex, request: Request):
         """
         REST endpoint for setting a kFrag.
         TODO: Instead of taking a Request, use the apistar typing system to type
@@ -281,7 +205,7 @@ class ProxyRESTRoutes:
 
         return  # TODO: Return A 200, with whatever policy metadata.
 
-    def reencrypt_via_rest(self, id_as_hex, request: http.Request):
+    def reencrypt_via_rest(self, id_as_hex, request: Request):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         id = binascii.unhexlify(id_as_hex)
         work_order = WorkOrder.from_rest_payload(id, request.body)
@@ -321,7 +245,7 @@ class ProxyRESTRoutes:
 
         return response
 
-    def receive_treasure_map(self, treasure_map_id, request: http.Request):
+    def receive_treasure_map(self, treasure_map_id, request: Request):
         from nucypher.policy.models import TreasureMap
 
         try:
@@ -335,8 +259,12 @@ class ProxyRESTRoutes:
 
         if do_store:
             self.log.info("{} storing TreasureMap {}".format(self, treasure_map_id))
-            self.dht_server.set_now(binascii.unhexlify(treasure_map_id),
-                                    constants.BYTESTRING_IS_TREASURE_MAP + bytes(treasure_map))
+
+            # # # #
+            # TODO: Now that the DHT is retired, let's do this another way.
+            # self.dht_server.set_now(binascii.unhexlify(treasure_map_id),
+            #                         constants.BYTESTRING_IS_TREASURE_MAP + bytes(treasure_map))
+            # # # #
 
             # TODO 341 - what if we already have this TreasureMap?
             self._treasure_map_tracker[digest(treasure_map_id)] = treasure_map
@@ -356,9 +284,23 @@ class TLSHostingPower(KeyPairBasedPower):
 
     not_found_error = NoHostingPower
 
-    def __init__(self, rest_server, certificate=None, *args, **kwargs):
+    def __init__(self,
+                 rest_server,
+                 certificate_filepath=None,
+                 certificate=None,
+                 certificate_dir=None,
+                 common_name=None,  # TODO: Is this actually optional?
+                 *args, **kwargs) -> None:
+
+        if certificate and certificate_filepath:
+            # TODO: Design decision here: if they do pass both, and they're identical, do we let that slide?
+            raise ValueError("Pass either a certificate or a certificate_filepath - what do you even expect from passing both?")
+
         if certificate:
-            kwargs['keypair'] = HostingKeypair(certificate=certificate)
+            kwargs['keypair'] = HostingKeypair(certificate=certificate,
+                                               certificate_dir=certificate_dir,
+                                               common_name=common_name)
+        elif certificate_filepath:
+            kwargs['keypair'] = HostingKeypair(certificate_filepath=certificate_filepath)
         self.rest_server = rest_server
         super().__init__(*args, **kwargs)
-

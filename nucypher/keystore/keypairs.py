@@ -1,5 +1,3 @@
-from typing import Union
-
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
@@ -7,13 +5,14 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
+from typing import Union
 from umbral import pre
 from umbral.config import default_curve
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
 
 from nucypher.crypto import api as API
-from nucypher.crypto.api import generate_self_signed_certificate
+from nucypher.crypto.api import generate_self_signed_certificate, load_tls_certificate
 from nucypher.crypto.kits import MessageKit
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 
@@ -29,7 +28,7 @@ class Keypair(object):
     def __init__(self,
                  private_key=None,
                  public_key=None,
-                 generate_keys_if_needed=True):
+                 generate_keys_if_needed=True) -> None:
         """
         Initalizes a Keypair object with an Umbral key object.
         :param generate_keys_if_needed: Generate keys or not?
@@ -75,7 +74,7 @@ class EncryptingKeypair(Keypair):
     A keypair for Umbral
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     def decrypt(self, message_kit: MessageKit, verifying_key: UmbralPublicKey = None) -> bytes:
@@ -97,7 +96,7 @@ class SigningKeypair(Keypair):
     A SigningKeypair that uses ECDSA.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     def sign(self, message: bytes) -> bytes:
@@ -132,28 +131,46 @@ class HostingKeypair(Keypair):
                  common_name=None,
                  host=None,
                  private_key: Union[UmbralPrivateKey, UmbralPublicKey] = None,
-                 certificate=None,
                  curve=None,
-                 generate_keys_if_needed=True,
-                 ):
+                 certificate=None,
+                 certificate_filepath: str = None,
+                 certificate_dir=None,
+                 generate_certificate=True,
+                 ) -> None:
 
         self.curve = curve or self._DEFAULT_CURVE
 
         if private_key:
             super().__init__(private_key=private_key)
+
         elif certificate:
-            self.certificate = certificate
             super().__init__(public_key=certificate.public_key())
-        elif generate_keys_if_needed:
+
+        elif certificate_filepath:
+            certificate = load_tls_certificate(filepath=certificate_filepath)
+
+        elif generate_certificate:
+
             if not all((common_name, host)):
-                raise TypeError("If you don't supply the certificate, one will be generated for you.  But for that, you need to pass both host and common_name..")
-            self.certificate, private_key = generate_self_signed_certificate(common_name=common_name,
-                                                                              private_key=private_key,
-                                                                              curve=self.curve,
-                                                                              host=host)
+                message = "If you don't supply the certificate, one will be generated for you." \
+                          "But for that, you need to pass both host and common_name.."
+                raise TypeError(message)
+
+            certificate, private_key = generate_self_signed_certificate(common_name=common_name,
+                                                                        private_key=private_key,
+                                                                        curve=self.curve,
+                                                                        host=host)
+
             super().__init__(private_key=private_key)
         else:
             raise TypeError("You didn't provide a cert, but also told us not to generate keys.  Not sure what to do.")
+
+        if not certificate_filepath:
+            certificate_filepath = constants.CERTIFICATE_NOT_SAVED
+
+        self.certificate = certificate
+        self.certificate_filepath = certificate_filepath
+        self.certificate_dir = certificate_dir
 
     def generate_self_signed_cert(self, common_name):
         cryptography_key = self._privkey.to_cryptography_privkey()

@@ -1,10 +1,12 @@
 import os
+
 import pytest
+from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
+from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
-from constant_sorrow import constants
 
 
 def test_token_deployer_and_agent(testerchain):
@@ -55,7 +57,7 @@ def test_deploy_ethereum_contracts(testerchain):
 
     token_agent = NucypherTokenAgent(blockchain=testerchain)
 
-    miners_escrow_secret = os.urandom(constants.DISPATCHER_SECRET_LENGTH)
+    miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
         token_agent=token_agent,
         deployer_address=origin,
@@ -65,7 +67,7 @@ def test_deploy_ethereum_contracts(testerchain):
 
     miner_agent = MinerAgent(token_agent=token_agent)
 
-    policy_manager_secret = os.urandom(constants.DISPATCHER_SECRET_LENGTH)
+    policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
         miner_agent=miner_agent,
         deployer_address=origin,

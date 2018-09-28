@@ -6,11 +6,11 @@ import configparser
 
 from constant_sorrow import constants
 
-from nucypher.config.constants import DEFAULT_INI_FILEPATH
-from nucypher.config.utils import validate_nucypher_ini_config
+from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
+from nucypher.config.utils import validate_configuration_file
 
 
-def parse_blockchain_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict:
+def parse_blockchain_config(config=None, filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
     """Parse blockchain configuration data"""
 
     if config is None:
@@ -45,14 +45,14 @@ def parse_blockchain_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> 
     return blockchain_payload
 
 
-def parse_character_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict:
+def parse_character_config(config=None, filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
     """Parse non character-specific configuration data"""
 
     if config is None:
         config = configparser.ConfigParser()
         config.read(filepath)
 
-    validate_nucypher_ini_config(filepath=filepath, config=config, raise_on_failure=True)
+    validate_configuration_file(filepath=filepath, config=config, raise_on_failure=True)
 
     operating_mode = config["nucypher"]["mode"]
     if operating_mode == "federated":
@@ -61,14 +61,14 @@ def parse_character_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> d
         federated_only = False
 
     character_payload = dict(federated_only=federated_only,
-                             start_learning_on_same_thread=config.getboolean(section='character', option='start_learning_on_same_thread'),
+                             start_learning_on_same_thread=config.getboolean(section='character', option='learn_on_same_thread'),
                              abort_on_learning_error=config.getboolean(section='character', option='abort_on_learning_error'),
-                             always_be_learning=config.getboolean(section='character', option='always_be_learning'))
+                             always_be_learning=config.getboolean(section='character', option='start_learning_now'))
 
     return character_payload
 
 
-def parse_ursula_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict:
+def parse_ursula_config(config=None, filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
     """Parse Ursula-specific configuration data"""
 
     if config is None:
@@ -81,10 +81,7 @@ def parse_ursula_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict
                           rest_host=config.get(section='ursula.network.rest', option='host'),
                           rest_port=config.getint(section='ursula.network.rest', option='port'),
                           db_name=config.get(section='ursula.network.rest', option='db_name'),
-
-                            # DHT
-                          dht_host=config.get(section='ursula.network.dht', option='host'),
-                          dht_port=config.getint(section='ursula.network.dht', option='port'))
+                          )
 
     character_payload.update(ursula_payload)
 
@@ -95,7 +92,7 @@ def parse_ursula_config(config=None, filepath: str=DEFAULT_INI_FILEPATH) -> dict
     return character_payload
 
 
-def parse_alice_config(config=None, filepath=DEFAULT_INI_FILEPATH) -> dict:
+def parse_alice_config(config=None, filepath=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
 
     if config is None:
         config = configparser.ConfigParser()
@@ -103,17 +100,17 @@ def parse_alice_config(config=None, filepath=DEFAULT_INI_FILEPATH) -> dict:
 
     character_payload = parse_character_config(config=config)
 
-    alice_payload = dict()  # Alice specific
+    alice_payload = dict()  # type: dict # Alice specific
 
     character_payload.update(alice_payload)
 
     return character_payload
 
 
-def parse_running_modes(filepath: str=DEFAULT_INI_FILEPATH) -> dict:
+def parse_running_modes(filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
     """Parse high-level operating and control modes"""
 
-    validate_nucypher_ini_config(filepath=filepath, raise_on_failure=True)
+    # validate_nucypher_ini_config(filepath=filepath, raise_on_failure=True)
 
     config = configparser.ConfigParser()
     config.read(filepath)
@@ -125,10 +122,10 @@ def parse_running_modes(filepath: str=DEFAULT_INI_FILEPATH) -> dict:
     return mode_payload
 
 
-def parse_nucypher_ini_config(filepath: str=DEFAULT_INI_FILEPATH) -> dict:
+def parse_configuration_file(filepath: str=DEFAULT_CONFIG_FILE_LOCATION) -> dict:
     """Top-level parser with sub-parser routing"""
 
-    validate_nucypher_ini_config(filepath=filepath, raise_on_failure=True)
+    validate_configuration_file(filepath=filepath, raise_on_failure=True)
 
     config = configparser.ConfigParser()
     config.read(filepath)
