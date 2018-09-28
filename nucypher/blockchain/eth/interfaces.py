@@ -9,7 +9,6 @@ from eth_utils import to_canonical_address
 from typing import Tuple, Union
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
-from web3.middleware import geth_poa_middleware
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.blockchain.eth.constants import NUCYPHER_GAS_LIMIT
@@ -24,7 +23,7 @@ class BlockchainInterface:
     """
     __default_timeout = 10  # seconds
     __default_network = 'tester'
-    __default_transaction_gas_limit = 500000  # TODO: determine sensible limit and validate transactions
+    # __default_transaction_gas_limit = 500000  # TODO: determine sensible limit and validate transactions
 
     class UnknownContract(Exception):
         pass
@@ -200,11 +199,8 @@ class BlockchainInterface:
 
                 if uri_breakdown.netloc == 'pyevm':
 
-                    genesis_parameter_overrides = {'gas_limit': NUCYPHER_GAS_LIMIT}
-
                     # TODO: Update to newest eth-tester after #123 is merged
-                    pyevm_backend = PyEVMBackend.from_genesis_overrides(parameter_overrides=genesis_parameter_overrides)
-
+                    pyevm_backend = PyEVMBackend.from_genesis_overrides(parameter_overrides={'gas_limit': NUCYPHER_GAS_LIMIT})
                     eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
@@ -343,7 +339,7 @@ class BlockchainInterface:
             signed_message = sig_key.sign_msg(message)
             return signed_message
         else:
-            return self.w3.eth.sign(account, data=message)  # Technically deprecated...
+            return self.w3.eth.sign(account, data=message)  # TODO: Technically deprecated...
 
     def call_backend_verify(self, pubkey: PublicKey, signature: Signature, msg_hash: bytes):
         """
@@ -356,6 +352,8 @@ class BlockchainInterface:
         return is_valid_sig and (sig_pubkey == pubkey)
 
     def unlock_account(self, address, password, duration):
+        if self.provider_uri == 'tester://pyevm':  # TODO How to handle passwordless unlocked accounts in test
+            return True
         return self.w3.personal.unlockAccount(address, password, duration)
 
 

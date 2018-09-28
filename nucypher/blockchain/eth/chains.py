@@ -42,6 +42,7 @@ class Blockchain:
 
     @classmethod
     def connect(cls, provider_uri: str = None) -> 'Blockchain':
+
         if cls._instance is NO_BLOCKCHAIN_AVAILABLE:
             cls._instance = cls(interface=BlockchainInterface(provider_uri=provider_uri))
         else:
