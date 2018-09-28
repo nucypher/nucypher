@@ -85,16 +85,12 @@ class Miner(NucypherTokenActor):
     class MinerError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self, is_me: bool, miner_agent: MinerAgent = None, *args, **kwargs) -> None:
+    def __init__(self, is_me: bool, miner_agent: MinerAgent, *args, **kwargs) -> None:
 
         self.log = getLogger("miner")
         self.is_me = is_me
         if is_me:
-            if miner_agent is None:
-                token_agent = NucypherTokenAgent()
-                miner_agent = MinerAgent(token_agent=token_agent)
-            else:
-                token_agent = miner_agent.token_agent
+            token_agent = miner_agent.token_agent
             blockchain = miner_agent.token_agent.blockchain
         else:
             token_agent = constants.STRANGER_MINER
@@ -107,7 +103,7 @@ class Miner(NucypherTokenActor):
         super().__init__(token_agent=self.token_agent, *args, **kwargs)
 
         if is_me is True:
-            self.__current_period = None # TODO: use constant
+            self.__current_period = None  # TODO: use constant
             self._abort_on_staking_error = True
             self._staking_task = task.LoopingCall(self._confirm_period)
 
@@ -153,10 +149,12 @@ class Miner(NucypherTokenActor):
         # Daemon
         #
 
+    @only_me
     def _confirm_period(self):
+
         period = self.miner_agent.get_current_period()
-        # check for stale sample data
         self.log.info("Checking for new period. Current period is {}".format(self.__current_period))  # TODO:  set to debug?
+
         if self.__current_period != period:
 
             # check for stake expiration
@@ -317,6 +315,7 @@ class Miner(NucypherTokenActor):
         approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, lock_periods=lock_periods)
         self._transaction_cache.append((datetime.utcnow(), initial_deposit_txhash))
 
+        self.log.info("{} Initialized new stake: {} tokens for {} periods".format(self.checksum_public_address, amount, lock_periods))
         return staking_transactions
 
     #
