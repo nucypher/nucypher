@@ -5,7 +5,8 @@ from constant_sorrow import constants
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer, \
+    ContractDeployer
 from nucypher.blockchain.eth.interfaces import EthereumContractRegistry
 
 
@@ -78,7 +79,6 @@ def test_deploy_ethereum_contracts(testerchain):
     #
     # Miner Escrow
     #
-
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
         token_agent=token_agent,
