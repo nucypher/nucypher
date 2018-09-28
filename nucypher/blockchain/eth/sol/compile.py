@@ -55,6 +55,7 @@ class SolidityCompiler:
     def compile(self) -> dict:
         """Executes the compiler with parameters specified in the json config"""
 
+        self.log.info("Using solidity compiler binary at {}".format(self.__sol_binary_path))
         self.log.info("Compiling solidity source files at {}".format(self.source_dir))
 
         source_paths = set()
