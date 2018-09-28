@@ -14,12 +14,13 @@ class TestMiner:
         token_agent, miner_agent, policy_agent = three_agents
         origin, *everybody_else = testerchain.interface.w3.eth.accounts
         token_airdrop(token_agent, origin=origin, addresses=everybody_else, amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
-        miner = Miner(miner_agent=miner_agent, checksum_address=everybody_else[0])
+        miner = Miner(miner_agent=miner_agent, checksum_address=everybody_else[0], is_me=True)
         return miner
 
     def test_miner_locking_tokens(self, testerchain, three_agents, miner):
         token_agent, miner_agent, policy_agent = three_agents
-        testerchain.ether_airdrop(amount=10000)
+        # testerchain.ether_airdrop(amount=10000)
+
         assert constants.MIN_ALLOWED_LOCKED < miner.token_balance, "Insufficient miner balance"
 
         expiration = maya.now().add(days=constants.MIN_LOCKED_PERIODS)
@@ -35,6 +36,9 @@ class TestMiner:
         # Staking starts after one period
         locked_tokens = miner_agent.contract.functions.getLockedTokens(miner.checksum_public_address).call()
         assert 0 == locked_tokens
+
+        # testerchain.time_travel(periods=1)
+
         locked_tokens = miner_agent.contract.functions.getLockedTokens(miner.checksum_public_address, 1).call()
         assert constants.MIN_ALLOWED_LOCKED == locked_tokens
 
@@ -101,8 +105,8 @@ class TestPolicyAuthor:
         token_agent, miner_agent, policy_agent = three_agents
         token_agent.ether_airdrop(amount=100000 * constants.M)
         _origin, ursula, alice, *everybody_else = testerchain.interface.w3.eth.accounts
-        miner = PolicyAuthor(checksum_address=alice, policy_agent=policy_agent)
-        return miner
+        author = PolicyAuthor(checksum_address=alice, policy_agent=policy_agent)
+        return author
 
     def test_create_policy_author(self, testerchain, three_agents):
         token_agent, miner_agent, policy_agent = three_agents

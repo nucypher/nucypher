@@ -2,7 +2,7 @@ import random
 
 from eth_utils import to_checksum_address
 from twisted.internet import protocol
-from typing import Set
+from typing import Set, Union
 
 from nucypher.blockchain.eth import constants
 from nucypher.characters.lawful import Ursula
@@ -48,11 +48,12 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
 
 
 def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
-                               ether_addresses: list,
+                               ether_addresses: Union[list, int],
                                stake: bool = False,
                                know_each_other: bool = True,
                                **ursula_overrides) -> Set[Ursula]:
 
+    # Alternately accepts an int of the quantity of ursulas to make
     if isinstance(ether_addresses, int):
         ether_addresses = [to_checksum_address(secure_random(20)) for _ in range(ether_addresses)]
 
