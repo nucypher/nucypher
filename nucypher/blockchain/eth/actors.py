@@ -164,10 +164,12 @@ class Miner(NucypherTokenActor):
             if stake_expired:
                 self.log.info('Stake duration expired')
                 return True
+
             self.confirm_activity()
             self.__current_period = period
             self.log.info("Confirmed activity for period {}".format(self.__current_period))
 
+    @only_me
     def _crash_gracefully(self, failure=None):
         """
         A facility for crashing more gracefully in the event that an exception
@@ -176,6 +178,7 @@ class Miner(NucypherTokenActor):
         self._crashed = failure
         failure.raiseException()
 
+    @only_me
     def handle_staking_errors(self, *args, **kwargs):
         failure = args[0]
         if self._abort_on_staking_error:
@@ -184,6 +187,7 @@ class Miner(NucypherTokenActor):
         else:
             self.log.warning("Unhandled error during node learning: {}".format(failure.getTraceback()))
 
+    @only_me
     def start_staking_loop(self, now=True):
         if self._staking_task.running:
             return False
@@ -212,8 +216,6 @@ class Miner(NucypherTokenActor):
     @only_me
     def deposit(self, amount: int, lock_periods: int) -> Tuple[str, str]:
         """Public facing method for token locking."""
-        if not self.is_me:
-            raise self.MinerError("Cannot execute miner staking functions with a non-self Miner instance.")
 
         approve_txhash = self.token_agent.approve_transfer(amount=amount,
                                                            target_address=self.miner_agent.contract_address,
@@ -272,7 +274,7 @@ class Miner(NucypherTokenActor):
     @only_me
     def __validate_stake(self, amount: int, lock_periods: int) -> bool:
 
-        assert validate_stake_amount(amount=amount)
+        assert validate_stake_amount(amount=amount)  # TODO: remove assertions..?
         assert validate_locktime(lock_periods=lock_periods)
 
         if not self.token_balance >= amount:
