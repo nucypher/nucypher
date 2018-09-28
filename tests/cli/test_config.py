@@ -18,6 +18,7 @@ def custom_filepath():
         shutil.rmtree(custom_filepath)
 
 
+@pytest.mark.skip
 def test_initialize_configuration_directory(custom_filepath):
     runner = CliRunner()
 
@@ -52,6 +53,7 @@ def test_initialize_configuration_directory(custom_filepath):
     # # TODO: Integrate with run ursula
 
 
+@pytest.mark.skip
 def test_validate_runtime_filepaths(custom_filepath):
     runner = CliRunner()
 
