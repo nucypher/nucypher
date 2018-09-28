@@ -1,5 +1,6 @@
 import random
 from abc import ABC
+from logging import getLogger
 
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from typing import Generator, List, Tuple, Union
@@ -31,15 +32,14 @@ class EthereumContractAgent(ABC):
 
     def __init__(self,
                  blockchain: Blockchain = None,
-                 registry_filepath: str = None,
                  contract: Contract = None
                  ) -> None:
 
-        self.blockchain = blockchain or Blockchain.connect()
+        self.log = getLogger('agency')
 
-        if registry_filepath is not None:
-            # TODO: Warn on override/ do this elsewhere?
-            self.blockchain.interface.registry._swap_registry(filepath=registry_filepath)
+        if blockchain is None:
+            blockchain = Blockchain.connect()
+        self.blockchain = blockchain
 
         if contract is None:
             # Fetch the contract by reading address and abi from the registry and blockchain
@@ -47,6 +47,10 @@ class EthereumContractAgent(ABC):
                                                                       upgradeable=self._upgradeable)
         self.__contract = contract
         super().__init__()
+        self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
+                                                                        self.contract_address,
+                                                                        self.blockchain.interface.provider_uri,
+                                                                        self.blockchain.interface.registry.filepath))
 
     def __repr__(self):
         class_name = self.__class__.__name__
