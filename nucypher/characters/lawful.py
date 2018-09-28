@@ -30,6 +30,7 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
+from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
 
 class Alice(Character, PolicyAuthor):
@@ -446,9 +447,9 @@ class Ursula(Character, VerifiableNode, Miner):
             # TODO: 340
             self._stored_treasure_maps = {}
             if not federated_only:
-                if passphrase is None:
-                    raise self.ActorError("No passphrase supplied to unlock account")
-                self.substantiate_stamp(passphrase=passphrase)
+                # if passphrase is None:
+                #     raise self.ActorError("No passphrase supplied to unlock account")
+                self.substantiate_stamp(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
 
         if not crypto_power or (TLSHostingPower not in crypto_power._power_ups):
             # TODO: Maybe we want _power_ups to be public after all?
