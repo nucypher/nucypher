@@ -14,12 +14,22 @@ from twisted.internet import reactor
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.constants import (DISPATCHER_SECRET_LENGTH,
+                                               MIN_ALLOWED_LOCKED,
+                                               MIN_LOCKED_PERIODS,
+                                               MAX_MINTING_PERIODS)
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import NodeConfiguration
 from nucypher.config.utils import validate_configuration_file
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
+from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
+                                                  DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+                                                  )
 from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
 
 __version__ = '0.1.0-alpha.0'
@@ -62,7 +72,7 @@ class NucypherClickConfig:
 
     def __init__(self):
 
-        # NodeConfiguration.from_config_file(filepath=DEFAULT_CONFIG_FILE_LOCATION)
+        # NodeConfiguration.from_config_file(filepath=DEFAULT_CONFIG_FILE_LOCATION)  # TODO: does the CLI depend on the configuration file..?
 
         self.node_config = constants.NO_NODE_CONFIGURATION
 
@@ -379,10 +389,11 @@ def stake(config, action, address, index, value, duration):
 
 @cli.command()
 @click.argument('action')
+@click.option('--geth', is_flag=True)
 @click.option('--federated-only', is_flag=True)
-@click.option('--nodes', help="The number of nodes to simulate", type=int)
+@click.option('--nodes', help="The number of nodes to simulate", type=int, default=10)
 @uses_config
-def simulate(config, action, nodes, federated_only):
+def simulate(config, action, nodes, federated_only, geth):
     """
     Simulate the nucypher blockchain network
 
@@ -400,94 +411,87 @@ def simulate(config, action, nodes, federated_only):
     --duration = The number of periods to run the simulation before termination
 
     """
+    if action == 'start':
 
-    if action == 'init':
-
-        # OK, Try connecting to the blockchain
-        click.echo("Connecting to provider endpoint")
-        config.connect_to_blockchain()
-
-        # Actual simulation setup logic
-        one_million_eth = 10 ** 6 * 10 ** 18
-        click.echo("Airdropping {} ETH to {} test accounts".format(one_million_eth, len(config.accounts)))
-        config.blockchain.ether_airdrop(amount=one_million_eth)  # wei -> ether | 1 Million ETH
-
-        # Fin
-        click.echo("Blockchain initialized")
-
-    if action == 'deploy':
-
-        if config.simulation_running is True:
-            raise RuntimeError("Network simulation already running")
-
+        #
+        # Blockchain Connection
+        #
         if not federated_only:
-            config.connect_to_blockchain()
+            if geth:
+                test_provider_uri = "ipc:///tmp/geth.ipc"
+            else:
+                test_provider_uri = "pyevm://tester"
 
-            click.confirm("Deploy all nucypher contracts to blockchain?", abort=True)
+            simulation_registry = TemporaryEthereumContractRegistry()
+            simulation_interface = BlockchainDeployerInterface(provider_uri=test_provider_uri,
+                                                               registry=simulation_registry,
+                                                               compiler=SolidityCompiler())
+
+            blockchain = TesterBlockchain(interface=simulation_interface, test_accounts=nodes, airdrop=False)
+
+            accounts = blockchain.interface.w3.eth.accounts
+            origin, *everyone_else = accounts
+
+            # Set the deployer address from the freshly created test account
+            simulation_interface.deployer_address = origin
+
+            #
+            # Blockchain Action
+            #
+            blockchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+
+            click.confirm("Deploy all nucypher contracts to {}?".format(test_provider_uri), abort=True)
             click.echo("Bootstrapping simulated blockchain network")
 
-            blockchain = TesterBlockchain()
-
-            # TODO: Enforce Saftey - ensure this is "fake" #
-            conditions = ()
-            assert True
-
-            # Parse addresses
-            etherbase, *everybody_else = blockchain.interface.w3.eth.accounts
-
             # Deploy contracts
-            token_deployer = NucypherTokenDeployer(blockchain=blockchain, deployer_address=etherbase)
+            token_deployer = NucypherTokenDeployer(blockchain=blockchain, deployer_address=origin)
             token_deployer.arm()
             token_deployer.deploy()
             token_agent = token_deployer.make_agent()
-            click.echo("Deployed {}:{}".format(token_agent.contract_name, token_agent.contract_address))
 
-            miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent, deployer_address=etherbase)  # TODO: Deployer secrets
+            miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
+            miner_escrow_deployer = MinerEscrowDeployer(token_agent=token_agent,
+                                                        deployer_address=origin,
+                                                        secret_hash=miners_escrow_secret)
             miner_escrow_deployer.arm()
             miner_escrow_deployer.deploy()
             miner_agent = miner_escrow_deployer.make_agent()
-            click.echo("Deployed {}:{}".format(miner_agent.contract_name, miner_agent.contract_address))
 
-            policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent, deployer_address=etherbase)
+            policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
+            policy_manager_deployer = PolicyManagerDeployer(miner_agent=miner_agent,
+                                                            deployer_address=origin,
+                                                            secret_hash=policy_manager_secret)
             policy_manager_deployer.arm()
             policy_manager_deployer.deploy()
             policy_agent = policy_manager_deployer.make_agent()
-            click.echo("Deployed {}:{}".format(policy_agent.contract_name, policy_agent.contract_address))
 
-            airdrop_amount = 1000000 * int(constants.M)
-            click.echo("Airdropping tokens {} to {} addresses".format(airdrop_amount, len(everybody_else)))
+            airdrop_amount = DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
+            click.echo("Airdropping tokens {} to {} addresses".format(airdrop_amount, len(everyone_else)))
             _receipts = token_airdrop(token_agent=token_agent,
-                                      origin=etherbase,
-                                      addresses=everybody_else,
+                                      origin=origin,
+                                      addresses=everyone_else,
                                       amount=airdrop_amount)
-
-            click.echo("Connecting to deployed contracts")
-            config.connect_to_contracts()
 
             # Commit the current state of deployment to a registry file.
             click.echo("Writing filesystem registry")
-            _sim_registry_name = config.blockchain.interface._registry.commit(filepath=DEFAULT_SIMULATION_REGISTRY_FILEPATH)  # TODO: Simulation config
+            _sim_registry_name = blockchain.interface.registry.commit(filepath=DEFAULT_SIMULATION_REGISTRY_FILEPATH)
 
-            # Fin
-            click.echo("Ready to simulate decentralized swarm.")
+        click.echo("Ready to run swarm.")
 
-        else:
-            click.echo("Ready to run federated swarm.")
-
-    elif action == 'swarm':
-
-        if not federated_only:
-            config.connect_to_blockchain()
-            config.connect_to_contracts(simulation=True)
-
-        localhost = 'localhost'
+        #
+        # Swarm
+        #
 
         # Select a port range to use on localhost for sim servers
-        start_port, stop_port = DEFAULT_SIMULATION_PORT, DEFAULT_SIMULATION_PORT + int(nodes) # TODO: Simulation config
-        port_range = range(start_port, stop_port)
-        click.echo("Selected local ports {}-{}".format(start_port, stop_port))
 
-        for index, sim_port_number in enumerate(port_range):
+        if not federated_only:
+            sim_addresses = everyone_else
+        else:
+            sim_addresses = NotImplemented
+
+        start_port = 8787
+        counter = 0
+        for sim_port_number, sim_address in enumerate(sim_addresses, start=start_port):
 
             #
             # Parse ursula parameters
@@ -500,22 +504,23 @@ def simulate(config, action, nodes, federated_only):
             python_exec = 'python'
 
             proc_params = '''
-            python3 {} run_ursula --host {} --rest-port {} --db-name {}
-            '''.format(python_exec, cli_exec, localhost, rest_port, db_name).split()
+            python3 {} run_ursula --rest-port {} --db-name {}
+            '''.format(python_exec, cli_exec, rest_port, db_name).split()
 
             if federated_only:
-                click.echo("Setting federated operating mode")
                 proc_params.append('--federated-only')
+
             else:
-                sim_address = config.accounts[index+1]
-                miner = Miner(miner_agent=config.miner_agent, checksum_address=sim_address)
+                token_agent = NucypherTokenAgent(blockchain=blockchain)
+                miner_agent = MinerAgent(token_agent=token_agent)
+                miner = Miner(miner_agent=miner_agent, checksum_address=sim_address)
 
                 # stake a random amount
-                min_stake, balance = constants.MIN_ALLOWED_LOCKED, miner.token_balance
+                min_stake, balance = MIN_ALLOWED_LOCKED, miner.token_balance
                 value = random.randint(min_stake, balance)
 
                 # for a random lock duration
-                min_locktime, max_locktime = constants.MIN_LOCKED_PERIODS, constants.MAX_MINTING_PERIODS
+                min_locktime, max_locktime = MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
                 periods = random.randint(min_locktime, max_locktime)
 
                 miner.initialize_stake(amount=value, lock_periods=periods)
@@ -524,11 +529,10 @@ def simulate(config, action, nodes, federated_only):
                 proc_params.extend('--checksum-address {}'.format(sim_address).split())
 
             # Spawn
-            click.echo("Spawning node #{}".format(index+1))
+            click.echo("Spawning node #{}".format(counter+1))
             processProtocol = UrsulaProcessProtocol(command=proc_params)
             cli_exec = os.path.join(BASE_DIR, 'cli', 'main.py')
             ursula_proc = reactor.spawnProcess(processProtocol, cli_exec, proc_params)
-            config.sim_processes.append(ursula_proc)
 
             #
             # post-spawnProcess
@@ -536,47 +540,41 @@ def simulate(config, action, nodes, federated_only):
 
             # Start with some basic status data, then build on it
 
-            rest_uri = "http://{}:{}".format(localhost, rest_port)
+            rest_uri = "http://{}:{}".format('localhost', rest_port)
 
             sim_data = "Started simulated Ursula | ReST {}".format(rest_uri)
-            rest_uri = "{host}:{port}".format(host=localhost, port=str(sim_port_number))
+            rest_uri = "{host}:{port}".format(host='localhost', port=str(sim_port_number))
             sim_data.format(rest_uri)
 
-            if not federated_only:
-                stake_infos = tuple(config.miner_agent.get_all_stakes(miner_address=sim_address))
-                sim_data += '| ETH address {}'.format(sim_address)
-                sim_data += '| {} Active stakes '.format(len(stake_infos))
+            # if not federated_only:
+            #     stake_infos = tuple(config.miner_agent.get_all_stakes(miner_address=sim_address))
+            #     sim_data += '| ETH address {}'.format(sim_address)
+            #     sim_data += '| {} Active stakes '.format(len(stake_infos))
 
             click.echo(sim_data)
-            config.simulation_running = True
+            counter += 1
 
         click.echo("Starting the reactor")
+        click.confirm("Start the reactor?", abort=True)
         try:
             reactor.run()
-
         finally:
 
-            if config.operating_mode == 'decentralized':
+            if not federated_only:
                 click.echo("Removing simulation registry")
-                os.remove(config.sim_registry_filepath)
+                os.remove(DEFAULT_SIMULATION_REGISTRY_FILEPATH)
 
             click.echo("Stopping simulated Ursula processes")
             for process in config.sim_processes:
                 os.kill(process.pid, 9)
                 click.echo("Killed {}".format(process))
-            config.simulation_running = False
-            click.echo("Simulation stopped")
+
+            click.echo("Simulation completed")
 
     elif action == 'stop':
-        # Kill the simulated ursulas TODO: read PIDs from storage?
-        if config.simulation_running is not True:
-            raise RuntimeError("Network simulation is not running")
-
+        # Kill the simulated ursulas
         for process in config.ursula_processes:
             process.transport.signalProcess('KILL')
-        else:
-            # TODO: Confirm they are dead
-            config.simulation_running = False
 
     elif action == 'status':
 
