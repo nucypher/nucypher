@@ -7,19 +7,6 @@ from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.node import NodeConfiguration
 
 
-def validate_passphrase(passphrase) -> bool:
-    """Validate a passphrase and return True or raise an error with a failure reason"""
-
-    rules = (
-        (len(passphrase) >= 16, 'Passphrase is too short, must be >= 16 chars.'),
-    )
-
-    for rule, failure_message in rules:
-        if not rule:
-            raise NodeConfiguration.ConfigurationError(failure_message)
-    return True
-
-
 def check_config_permissions() -> bool:
     rules = (
         (os.name == 'nt' or os.getuid() != 0, 'Cannot run as root user.'),

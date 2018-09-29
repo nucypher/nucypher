@@ -43,7 +43,6 @@ class ContractDeployer:
     @property
     def contract_address(self) -> str:
         if self._contract is CONTRACT_NOT_DEPLOYED:
-            cls = self.__class__
             raise ContractDeployer.ContractDeploymentError('Contract not deployed')
         address = self._contract.address  # type: str
         return address
@@ -164,14 +163,14 @@ class NucypherTokenDeployer(ContractDeployer):
         """
 
         is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
-        assert is_ready
+        assert is_ready  # TODO: remove assert
 
         _contract, deployment_txhash = self.blockchain.interface.deploy_contract(
                                        self._contract_name,
-                                       int(constants.TOKEN_SATURATION))
+                                       constants.TOKEN_SATURATION)
 
         self._contract = _contract
-        return {'deployment_receipt': self.deployment_receipt}
+        return {'txhash': deployment_txhash}
 
 
 class DispatcherDeployer(ContractDeployer):
@@ -182,7 +181,7 @@ class DispatcherDeployer(ContractDeployer):
 
     _contract_name = 'Dispatcher'
 
-    def __init__(self, target_contract, secret_hash, *args, **kwargs):
+    def __init__(self, target_contract, secret_hash: bytes, *args, **kwargs):
         self.target_contract = target_contract
         self.secret_hash = secret_hash
         super().__init__(*args, **kwargs)
@@ -267,7 +266,7 @@ class MinerEscrowDeployer(ContractDeployer):
 
         # 3 - Transfer tokens to the miner escrow #
         reward_txhash = self.token_agent.contract.functions.transfer(the_escrow_contract.address,
-                                                                     int(constants.TOKEN_SUPPLY)).transact(origin_args)
+                                                                     constants.TOKEN_SUPPLY).transact(origin_args)
 
         _reward_receipt = self.blockchain.wait_for_receipt(reward_txhash)
 

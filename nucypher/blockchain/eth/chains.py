@@ -1,8 +1,11 @@
+from logging import getLogger
+
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
 from typing import Union
 from web3.contract import Contract
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
 
 
 class Blockchain:
@@ -15,6 +18,8 @@ class Blockchain:
         pass
 
     def __init__(self, interface: Union[BlockchainInterface, BlockchainDeployerInterface] = None) -> None:
+
+        self.log = getLogger("blockchain")                       # type: Logger
 
         # Default interface
         if interface is None:
@@ -37,9 +42,13 @@ class Blockchain:
         return self.__interface
 
     @classmethod
-    def connect(cls, provider_uri: str = None) -> 'Blockchain':
+    def connect(cls,
+                provider_uri: str = None,
+                registry_filepath: str = None) -> 'Blockchain':
+
         if cls._instance is NO_BLOCKCHAIN_AVAILABLE:
-            cls._instance = cls(interface=BlockchainInterface(provider_uri=provider_uri))
+            registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+            cls._instance = cls(interface=BlockchainInterface(provider_uri=provider_uri, registry=registry))
         else:
             if provider_uri is not None:
                 existing_uri = cls._instance.interface.provider_uri

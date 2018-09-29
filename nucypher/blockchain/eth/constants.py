@@ -1,5 +1,6 @@
 """Nucypher Token and Miner constants."""
 
+NUCYPHER_GAS_LIMIT = 5000000  # TODO: move elsewhere?
 
 #
 # Dispatcher

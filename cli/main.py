@@ -9,7 +9,11 @@ import click
 import shutil
 import subprocess
 from constant_sorrow import constants
+from cryptography.hazmat.primitives.asymmetric import ec
+from eth_account import Account
+from eth_utils import is_checksum_address
 from twisted.internet import reactor
+from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
@@ -24,8 +28,10 @@ from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 from nucypher.config.utils import validate_configuration_file
+from nucypher.crypto.api import generate_self_signed_certificate, _save_tls_certificate
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
                                                   DEVELOPMENT_ETH_AIRDROP_AMOUNT,
@@ -72,7 +78,7 @@ class NucypherClickConfig:
 
     def __init__(self):
 
-        # NodeConfiguration.from_config_file(filepath=DEFAULT_CONFIG_FILE_LOCATION)  # TODO: does the CLI depend on the configuration file..?
+        # NodeConfiguration.from_config_file(filepath=DEFAULT_CONFIG_FILE_LOCATION)
 
         self.node_config = constants.NO_NODE_CONFIGURATION
 
@@ -97,13 +103,8 @@ class NucypherClickConfig:
         if self.node_config.deploy:
             self.blockchain.interface.deployer_address = self.accounts[0]
 
-    def connect_to_contracts(self, simulation: bool=False):
+    def connect_to_contracts(self):
         """Initialize contract agency and set them on config"""
-
-        if simulation is True:
-            # TODO: Public API for mirroring existing registry
-            self.blockchain.interface._registry._swap_registry(filepath=self.sim_registry_filepath)
-
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.miner_agent = MinerAgent(token_agent=self.token_agent)
         self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
@@ -119,8 +120,6 @@ uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 @uses_config
 def cli(config, verbose, version, config_file):
     """Configure and manage a nucypher nodes"""
-
-    # validate_nucypher_ini_config(filepath=config_file)
 
     click.echo(BANNER)
 
@@ -147,7 +146,10 @@ def configure(config, action, config_file, config_root, temp, filesystem):
     def __destroy(configuration):
         if temp:
             raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
-        click.confirm("Permanently destroy all nucypher files, configurations, known nodes, certificates and keys?", abort=True)
+
+        click.confirm("*Permanently delete* all nucypher private keys, configurations,"
+                      " known nodes, certificates and files at {}?".format(configuration.config_root), abort=True)
+
         shutil.rmtree(configuration.config_root, ignore_errors=True)
         click.echo("Deleted configuration files at {}".format(node_configuration.config_root))
 
@@ -155,8 +157,39 @@ def configure(config, action, config_file, config_root, temp, filesystem):
         if temp:
             click.echo("Using temporary storage area")
         click.confirm("Initialize new nucypher configuration?", abort=True)
+
         configuration.write_defaults()
         click.echo("Created configuration files at {}".format(node_configuration.config_root))
+
+        generate_keypair = click.confirm("Do you need to generate a new wallet to use for staking?")
+        if generate_keypair:
+            passphrase = click.prompt("Enter a passphrase to encrypt your wallet's private key")
+            keyring = NucypherKeyring.generate(passphrase=passphrase,
+                                               keyring_root=configuration.keyring_dir,
+                                               encryption=False,  # TODO: Set to True by default
+                                               wallet=True)
+
+        else:
+            existing_wallet_path = click.prompt("Enter existing wallet.json path")
+            keyring = NucypherKeyring.from_wallet_file(root_key_path=existing_wallet_path)  # TODO: classmethod and import
+
+        generate_certificate = click.confirm("Do you need to generate a new SSL certificate?")
+        if generate_certificate:
+
+            days = click.prompt("How many days do you want the certificate to remain valid? (365 is default)",
+                                default=365,
+                                type=int)
+
+            host = click.prompt("Enter the node's hostname", default='localhost')  # TODO: remove localhost as default
+
+            # TODO: save TLS private key
+            certificate, private_key = generate_self_signed_certificate(common_name=keyring.transacting_public_key,
+                                                                        host=host,
+                                                                        days_valid=days,
+                                                                        curve=ec.SECP384R1)
+
+            certificate_filepath = os.path.join(configuration.known_certificates_dir, "{}.pem".format(keyring.transacting_public_key))
+            _save_tls_certificate(certificate=certificate, full_filepath=certificate_filepath)
 
     if config_root:
         node_configuration = NodeConfiguration(temp=False,
@@ -197,32 +230,76 @@ def configure(config, action, config_file, config_root, temp, filesystem):
 
 @cli.command()
 @click.argument('action', default='list', required=False)
-@click.option('--address', help="The account to lock/unlock instead of the default")
+@click.option('--provider-uri', type=str)
+@click.option('--poa', is_flag=True)
+@click.option('--checksum-address', help="The account to lock/unlock instead of the default")
+@click.option('--registry-filepath', type=click.Path())
 @uses_config
-def accounts(config, action, address):
-    """Manage ethereum node accounts"""
+def accounts(config, action, checksum_address, provider_uri, registry_filepath, poa):
+    """Manage nucypher node accounts"""
+    blockchain = Blockchain.connect(provider_uri=provider_uri)
 
-    if action == 'list':
-        if config.accounts is constants.NO_BLOCKCHAIN_CONNECTION:
-            click.echo('There are no accounts configured')
-        else:
-            for index, address in enumerate(config.accounts):
-                if index == 0:
-                    row = 'etherbase | {}'.format(address)
-                else:
-                    row = '{} ....... | {}'.format(index, address)
-                click.echo(row)
+    def __collect_transfer_details(denomination: str):
+        destination = click.prompt("Enter destination checksum_address")
+        if not is_checksum_address(destination):
+            click.echo("{} is not a valid checksum checksum_address".format(destination))
+            raise click.Abort()
+        amount = click.prompt("Enter amount of {} to transfer".format(denomination), type=int)
+        return destination, amount
+
+    if poa:  # TODO: needs cleanup - bury in blockchain
+        w3 = blockchain.interface.w3
+        w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+
+    token_agent = NucypherTokenAgent(blockchain=blockchain, registry_filepath=registry_filepath)
+
+    if action == 'new':
+        pass  # TODO
+
+    if action == 'set-default':
+        pass  # TODO: Change etherbase
+
+    elif action == 'export':
+        keyring = NucypherKeyring(common_name=checksum_address)
+        click.confirm("Export private key to keyring on node {}?".format(provider_uri), abort=True)
+        passphrase = click.prompt("Enter passphrase", type=str)
+        keyring._export(blockchain=blockchain, passphrase=passphrase)
+
+    elif action == 'list':
+        accounts = blockchain.interface.w3.eth.accounts
+        for index, checksum_address in enumerate(accounts):
+            token_balance = token_agent.get_balance(address=checksum_address)
+            eth_balance = token_agent.blockchain.interface.w3.eth.getBalance(checksum_address)
+            if index == 0:
+                row = 'etherbase | {} | Tokens: {} | ETH: {} '.format(checksum_address, token_balance, eth_balance)
+            else:
+                row = '{} ....... | {} | Tokens: {} | ETH: {}'.format(index, checksum_address, token_balance, eth_balance)
+            click.echo(row)
 
     elif action == 'balance':
-        if config.accounts is constants.NO_BLOCKCHAIN_CONNECTION:
-            click.echo('No blockchain connection is available')
-        else:
-            if not address:
-                address = config.blockchain.interface.w3.eth.accounts[0]
-                click.echo('No address supplied, Using the default {}'.format(address))
 
-            balance = config.token_agent.token_balance(address=address)
-            click.echo("Balance of {} is {}".format(address, balance))
+        if not checksum_address:
+            checksum_address = blockchain.interface.w3.eth.accounts[0]
+            click.echo('No checksum_address supplied, Using the default {}'.format(checksum_address))
+
+        token_balance = token_agent.get_balance(address=checksum_address)
+        eth_balance = token_agent.blockchain.interface.w3.eth.getBalance(checksum_address)
+        click.echo("Balance of {} | Tokens: {} | ETH: {}".format(checksum_address, token_balance, eth_balance))
+
+    elif action == "transfer-tokens":
+        destination, amount = __collect_transfer_details(denomination='tokens')
+        click.confirm("Are you sure you want to send {} tokens to {}?".format(amount, destination), abort=True)
+        txhash = token_agent.transfer(amount=amount, target_address=destination, sender_address=checksum_address)
+        blockchain.wait_for_receipt(txhash)
+        click.echo("Sent {} tokens to {} | {}".format(amount, destination, txhash))
+
+    elif action == "transfer-eth":
+        destination, amount = __collect_transfer_details(denomination='ETH')
+        tx = {'to': destination, 'from': checksum_address, 'value': amount}
+        click.confirm("Are you sure you want to send {} tokens to {}?".format(tx['value'], tx['to']), abort=True)
+        txhash = blockchain.interface.w3.eth.sendTransaction(tx)
+        blockchain.wait_for_receipt(txhash)
+        click.echo("Sent {} ETH to {} | {}".format(amount, destination, str(txhash)))
 
 
 @cli.command()
@@ -418,9 +495,9 @@ def simulate(config, action, nodes, federated_only, geth):
         #
         if not federated_only:
             if geth:
-                test_provider_uri = "ipc:///tmp/geth.ipc"
+                test_provider_uri = "tester://geth"
             else:
-                test_provider_uri = "pyevm://tester"
+                test_provider_uri = "tester://pyevm"
 
             simulation_registry = TemporaryEthereumContractRegistry()
             simulation_interface = BlockchainDeployerInterface(provider_uri=test_provider_uri,
@@ -639,7 +716,7 @@ def status(config, provider, contracts, network):
     MinerEscrow .............. {escrow}
     PolicyManager ............ {manager}
         
-    """.format(registry_filepath=config.blockchain.interface.registry_filepath,
+    """.format(registry_filepath=config.blockchain.interface.filepath,
                token=config.token_agent.contract_address,
                escrow=config.miner_agent.contract_address,
                manager=config.policy_agent.contract_address,
@@ -681,19 +758,29 @@ def status(config, provider, contracts, network):
 @cli.command()
 @click.option('--dev', is_flag=True, default=False)
 @click.option('--federated-only', is_flag=True)
+@click.option('--poa', is_flag=True)
 @click.option('--rest-host', type=str)
 @click.option('--rest-port', type=int)
 @click.option('--db-name', type=str)
+@click.option('--provider-uri', type=str)
+@click.option('--registry-filepath', type=click.Path())
 @click.option('--checksum-address', type=str)
+@click.option('--stake-amount', type=int)
+@click.option('--stake-periods', type=int)
 @click.option('--metadata-dir', type=click.Path())
 @click.option('--config-file', type=click.Path())
 def run_ursula(rest_port,
                rest_host,
                db_name,
+               provider_uri,
+               registry_filepath,
                checksum_address,
+               stake_amount,
+               stake_periods,
                federated_only,
                metadata_dir,
                config_file,
+               poa,
                dev
                ) -> None:
     """
@@ -721,23 +808,34 @@ def run_ursula(rest_port,
     else:
         ursula_config = UrsulaConfiguration(temp=temp,
                                             auto_initialize=temp,
+                                            poa=poa,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
                                             db_name=db_name,
                                             is_me=True,
                                             federated_only=federated_only,
+                                            registry_filepath=registry_filepath,
+                                            provider_uri=provider_uri,
                                             checksum_address=checksum_address,
                                             # save_metadata=False,  # TODO
                                             load_metadata=True,
                                             known_metadata_dir=metadata_dir,
                                             start_learning_now=True,
                                             abort_on_learning_error=temp)
+
+    passphrase = click.prompt("Enter passphrase to unlock account", type=str)
     try:
-        URSULA = ursula_config.produce()
+
+        URSULA = ursula_config.produce(passphrase=passphrase)
+
+        if not federated_only:
+
+            URSULA.stake(amount=stake_amount, lock_periods=stake_periods)
+
         URSULA.get_deployer().run()       # Run TLS Deploy (Reactor)
-        if not URSULA.federated_only:     # TODO: Resume / Init
-            URSULA.stake()                # Start Staking Daemon
+
     finally:
+
         click.echo("Cleaning up temporary runtime files and directories")
         ursula_config.cleanup()  # TODO: Integrate with other "graceful" shutdown functionality
         click.echo("Exited gracefully")

@@ -1,4 +1,5 @@
 import os
+from logging import getLogger
 from os.path import abspath, dirname
 
 import itertools
@@ -26,13 +27,14 @@ class SolidityCompiler:
                  solc_binary_path: str = None,
                  configuration_path: str = None,
                  chain_name: str = None,
-                 contract_dir: str = None,
+                 source_dir: str = None,
                  test_contract_dir: str= None
                  ) -> None:
 
+        self.log = getLogger('solidity-compiler')
         # Compiler binary and root solidity source code directory
         self.__sol_binary_path = solc_binary_path if solc_binary_path is not None else self.__default_sol_binary_path
-        self._solidity_source_dir = contract_dir if contract_dir is not None else self.__default_contract_dir
+        self.source_dir = source_dir if source_dir is not None else self.__default_contract_dir
         self._test_solidity_source_dir = test_contract_dir
 
         # JSON config
@@ -53,8 +55,11 @@ class SolidityCompiler:
     def compile(self) -> dict:
         """Executes the compiler with parameters specified in the json config"""
 
+        self.log.info("Using solidity compiler binary at {}".format(self.__sol_binary_path))
+        self.log.info("Compiling solidity source files at {}".format(self.source_dir))
+
         source_paths = set()
-        source_walker = os.walk(top=self._solidity_source_dir, topdown=True)
+        source_walker = os.walk(top=self.source_dir, topdown=True)
         if self._test_solidity_source_dir:
             test_source_walker = os.walk(top=self._test_solidity_source_dir, topdown=True)
             source_walker = itertools.chain(source_walker, test_source_walker)
@@ -62,19 +67,29 @@ class SolidityCompiler:
         for root, dirs, files in source_walker:
             for filename in files:
                 if filename.endswith('.sol'):
-                    source_paths.add(os.path.join(root, filename))
+                    path = os.path.join(root, filename)
+                    source_paths.add(path)
+                    self.log.debug("Collecting solidity source {}".format(path))
 
         # Compile with remappings: https://github.com/ethereum/py-solc
-        project_root = dirname(self._solidity_source_dir)
+        project_root = dirname(self.source_dir)
 
-        remappings = ("contracts={}".format(self._solidity_source_dir),
+        remappings = ("contracts={}".format(self.source_dir),
                       "zeppelin={}".format(os.path.join(project_root, 'zeppelin')),
                       )
+
+        self.log.info("Compiling with import remappings {}".format(", ".join(remappings)))
+
+        optimization_runs = 10  # TODO: Move..?
         try:
             compiled_sol = compile_files(source_files=source_paths,
                                          import_remappings=remappings,
                                          allow_paths=project_root,
-                                         optimize=10)
+                                         optimize=optimization_runs)
+
+            self.log.info("Successfully compiled {} contracts with {} optimization runs".format(len(compiled_sol),
+                                                                                                optimization_runs))
+
         except FileNotFoundError:
             raise RuntimeError("The solidity compiler is not at the specified path. "
                                "Check that the file exists and is executable.")

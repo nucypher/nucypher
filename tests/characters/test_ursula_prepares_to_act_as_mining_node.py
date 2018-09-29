@@ -4,6 +4,7 @@ from eth_keys.datatypes import Signature as EthSignature
 from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.powers import SigningPower, CryptoPower
+from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 
@@ -71,7 +72,7 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
     vladimir = Vladimir.from_target_ursula(his_target, claim_signing_key=True)
 
     # Vladimir can substantiate the stamp using his own ether address...
-    vladimir.substantiate_stamp()
+    vladimir.substantiate_stamp(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
     vladimir.stamp_is_valid()
 
     # Now, even though his public signing key matches Ursulas...
@@ -102,7 +103,7 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
     vladimir._interface_signature_object = signature
 
-    vladimir.substantiate_stamp()
+    vladimir.substantiate_stamp(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
 
     # With this slightly more sophisticated attack, his metadata does appear valid.
     vladimir.validate_metadata()
