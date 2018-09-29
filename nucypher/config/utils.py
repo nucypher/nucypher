@@ -1,106 +1,10 @@
-import json
+import configparser
 import os
-import stat
 
-from .configs import NucypherConfiguration
+from typing import Union, Tuple
 
-
-def _save_private_keyfile(keypath: str, key_data: dict) -> str:
-    """
-    Creates a permissioned keyfile and save it to the local filesystem.
-    The file must be created in this call, and will fail if the path exists.
-    Returns the filepath string used to write the keyfile.
-
-    Note: getting and setting the umask is not thread-safe!
-
-    See linux open docs: http://man7.org/linux/man-pages/man2/open.2.html
-    ---------------------------------------------------------------------
-    O_CREAT - If pathname does not exist, create it as a regular file.
-
-
-    O_EXCL - Ensure that this call creates the file: if this flag is
-             specified in conjunction with O_CREAT, and pathname already
-             exists, then open() fails with the error EEXIST.
-    ---------------------------------------------------------------------
-    """
-
-    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL    # Write, Create, Non-Existing
-    mode = stat.S_IRUSR | stat.S_IWUSR              # 0o600
-
-    try:
-        keyfile_descriptor = os.open(path=keypath, flags=flags, mode=mode)
-    finally:
-        os.umask(0)  # Set the umask to 0 after opening
-
-    # Write and destroy file descriptor reference
-    with os.fdopen(keyfile_descriptor, 'wb') as keyfile:
-        keyfile.write(json.dumps(key_data))
-        output_path = keyfile.name
-
-    # TODO: output_path is an integer, who knows why?
-    del keyfile_descriptor
-    return output_path
-
-
-def _save_public_keyfile(keypath: str, key_data: bytes) -> str:
-    """
-    Creates a permissioned keyfile and save it to the local filesystem.
-    The file must be created in this call, and will fail if the path exists.
-    Returns the filepath string used to write the keyfile.
-
-    Note: getting and setting the umask is not thread-safe!
-
-    See Linux open docs: http://man7.org/linux/man-pages/man2/open.2.html
-    ---------------------------------------------------------------------
-    O_CREAT - If pathname does not exist, create it as a regular file.
-
-
-    O_EXCL - Ensure that this call creates the file: if this flag is
-             specified in conjunction with O_CREAT, and pathname already
-             exists, then open() fails with the error EEXIST.
-    ---------------------------------------------------------------------
-    """
-
-    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL    # Write, Create, Non-Existing
-    mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH # 0o644
-
-    try:
-        keyfile_descriptor = os.open(path=keypath, flags=flags, mode=mode)
-    finally:
-        os.umask(0) # Set the umask to 0 after opening
-
-    # Write and destroy the file descriptor reference
-    with os.fdopen(keyfile_descriptor, 'wb') as keyfile:
-        # key data should be urlsafe_base64
-        keyfile.write(key_data)
-        output_path = keyfile.name
-
-    # TODO: output_path is an integer, who knows why?
-    del keyfile_descriptor
-    return output_path
-
-
-def _parse_keyfile(keypath: str):
-    """Parses a keyfile and returns key metadata as a dict."""
-
-    with open(keypath, 'r') as keyfile:
-        try:
-            key_metadata = json.loads(keyfile)
-        except json.JSONDecodeError:
-            raise NucypherConfiguration.NucypherConfigurationError("Invalid data in keyfile {}".format(keypath))
-        else:
-            return key_metadata
-
-
-def generate_confg_dir(path: str=None,) -> None:
-    """
-    Create the configuration directory tree.
-    If the directory already exists, FileExistsError is raised.
-    """
-    path = path if path else NucypherConfiguration._default_configuration_directory
-
-    if not os.path.exists(path):
-        os.mkdir(path, mode=0o755)
+from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
+from nucypher.config.node import NodeConfiguration
 
 
 def validate_passphrase(passphrase) -> bool:
@@ -112,18 +16,11 @@ def validate_passphrase(passphrase) -> bool:
 
     for rule, failure_message in rules:
         if not rule:
-            raise NucypherConfiguration.NucypherConfigurationError(failure_message)
+            raise NodeConfiguration.ConfigurationError(failure_message)
     return True
 
 
-def check_config_tree(configuration_dir: str=None) -> bool:
-    path = configuration_dir if configuration_dir else NucypherConfiguration._default_configuration_directory
-    if not os.path.exists(path):
-        raise FileNotFoundError('No NuCypher configuration directory found at {}.'.format(configuration_dir))
-    return True
-
-
-def check_config_runtime() -> bool:
+def check_config_permissions() -> bool:
     rules = (
         (os.name == 'nt' or os.getuid() != 0, 'Cannot run as root user.'),
     )
@@ -134,3 +31,42 @@ def check_config_runtime() -> bool:
     return True
 
 
+def validate_configuration_file(config=None,
+                                filepath: str = DEFAULT_CONFIG_FILE_LOCATION,
+                                raise_on_failure: bool=False) -> Union[bool, Tuple[bool, tuple]]:
+
+    if config is None:
+        config = configparser.ConfigParser()
+        config.read(filepath)
+
+    if not config.sections():
+
+        raise NodeConfiguration.InvalidConfiguration("Empty configuration file")
+
+    required_sections = ("nucypher", "blockchain")
+
+    missing_sections = list()
+
+    try:
+        operating_mode = config["nucypher"]["mode"]
+    except KeyError:
+        raise NodeConfiguration.ConfigurationError("No operating mode configured")
+    else:
+        modes = ('federated', 'testing', 'decentralized', 'centralized')
+        if operating_mode not in modes:
+            missing_sections.append("mode")
+            if raise_on_failure is True:
+                raise NodeConfiguration.ConfigurationError("Invalid nucypher operating mode '{}'. Specify {}".format(operating_mode, modes))
+
+    for section in required_sections:
+        if section not in config.sections():
+            missing_sections.append(section)
+            if raise_on_failure is True:
+                raise NodeConfiguration.ConfigurationError("Invalid config file: missing section '{}'".format(section))
+
+    if len(missing_sections) > 0:
+        result = False, tuple(missing_sections)
+    else:
+        result = True, tuple()
+
+    return result

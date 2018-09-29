@@ -1,8 +1,8 @@
-import pytest
 import sha3
-from nucypher.keystore import keypairs
-from umbral.keys import UmbralPrivateKey
 from constant_sorrow.constants import PUBLIC_ONLY
+from umbral.keys import UmbralPrivateKey
+
+from nucypher.keystore import keypairs
 
 
 def test_gen_keypair_if_needed():

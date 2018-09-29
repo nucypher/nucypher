@@ -1,9 +1,15 @@
-from nucypher.blockchain.eth.actors import only_me
-from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
+import os
+
+import OpenSSL
 from constant_sorrow import constants
-from nucypher.network.protocols import SuspiciousActivity
+from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
-import maya
+
+from nucypher.crypto.api import _save_tls_certificate
+from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
+from nucypher.network.protocols import SuspiciousActivity
+from nucypher.network.server import TLSHostingPower
+from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
 
 class VerifiableNode:
@@ -13,7 +19,14 @@ class VerifiableNode:
     verified_interface = False
     _verified_node = False
 
-    def __init__(self, interface_signature=constants.NOT_SIGNED.bool_value(False)):
+    def __init__(self,
+                 certificate: Certificate,
+                 certificate_filepath: str,
+                 interface_signature=constants.NOT_SIGNED.bool_value(False),
+                 ) -> None:
+
+        self.certificate = certificate
+        self.certificate_filepath = certificate_filepath
         self._interface_signature_object = interface_signature
 
     class InvalidNode(SuspiciousActivity):
@@ -25,6 +38,12 @@ class VerifiableNode:
         """
         Raise when a Character tries to use another Character as decentralized when the latter is federated_only.
         """
+
+    @classmethod
+    def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs):
+        certificate_filepath = tls_hosting_power.keypair.certificate_filepath
+        certificate = tls_hosting_power.keypair.certificate
+        return cls(certificate=certificate, certificate_filepath=certificate_filepath, *args, **kwargs)
 
     def _stamp_has_valid_wallet_signature(self):
         signature_bytes = self._evidence_of_decentralized_identity
@@ -45,13 +64,19 @@ class VerifiableNode:
             self.verified_stamp = True
             return True
         elif self.federated_only and signature is constants.NOT_SIGNED:
-            raise self.WrongMode("This node can't be verified in this manner, but is OK to use in federated mode if you have reason to believe it is trustworthy.")
+            message = "This node can't be verified in this manner, " \
+                      "but is OK to use in federated mode if you"    \
+                      " have reason to believe it is trustworthy."
+            raise self.WrongMode(message)
         else:
             raise self.InvalidNode
 
     def interface_is_valid(self):
-        message = self._signable_interface_info_message()
-        interface_is_valid = self._interface_signature.verify(message, self.public_key(SigningPower))
+        """
+        Checks that the interface info is valid for this node's canonical address.
+        """
+        message = self._signable_interface_info_message()  # Contains canonical address.
+        interface_is_valid = self._interface_signature.verify(message, self.public_keys(SigningPower))
         self.verified_interface = interface_is_valid
         if interface_is_valid:
             return True
@@ -88,17 +113,18 @@ class VerifiableNode:
         self.validate_metadata(accept_federated_only)  # This is both the stamp and interface check.
 
         # The node's metadata is valid; let's be sure the interface is in order.
-        response = network_middleware.node_information(host=self.rest_interface.host,
-                                            port=self.rest_interface.port)
+        response = network_middleware.node_information(host=self.rest_information()[0].host,
+                                                       port=self.rest_information()[0].port)
         if not response.status_code == 200:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
-        signature, identity_evidence, verifying_key, encrypting_key, public_address, rest_info, dht_info = self._internal_splitter(response.content)
+        timestamp, signature, identity_evidence, verifying_key, encrypting_key, public_address, certificate_vbytes, rest_info = self._internal_splitter(response.content)
 
-        verifying_keys_match = verifying_key == self.public_key(SigningPower)
-        encrypting_keys_match = encrypting_key == self.public_key(EncryptingPower)
+        verifying_keys_match = verifying_key == self.public_keys(SigningPower)
+        encrypting_keys_match = encrypting_key == self.public_keys(EncryptingPower)
         addresses_match = public_address == self.canonical_public_address
+        evidence_matches = identity_evidence == self._evidence_of_decentralized_identity
 
-        if not all((encrypting_keys_match, verifying_keys_match, addresses_match)):
+        if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # TODO: Optional reporting.  355
             if not addresses_match:
                 self.log.warning("Wallet address swapped out.  It appears that someone is trying to defraud this node.")
@@ -108,12 +134,12 @@ class VerifiableNode:
 
     def substantiate_stamp(self):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
-        blockchain_power.unlock_account('this-is-not-a-secure-password')  # TODO: 349
+        blockchain_power.unlock_account(password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)  # TODO: 349
         signature = blockchain_power.sign_message(bytes(self.stamp))
         self._evidence_of_decentralized_identity = signature
 
     def _signable_interface_info_message(self):
-        message = self.canonical_public_address + self.rest_interface + self.dht_interface
+        message = self.canonical_public_address + self.rest_information()[0]
         return message
 
     def _sign_interface_info(self):
@@ -128,3 +154,29 @@ class VerifiableNode:
             except NoSigningPower:
                 raise NoSigningPower("This Ursula is a Stranger; you didn't init with an interface signature, so you can't verify.")
         return self._interface_signature_object
+
+    @property
+    def common_name(self):
+        x509 = OpenSSL.crypto.X509.from_cryptography(self.certificate)
+        subject_components = x509.get_subject().get_components()
+        common_name_as_bytes = subject_components[0][1]
+        common_name_from_cert = common_name_as_bytes.decode()
+        return common_name_from_cert
+
+    @property
+    def certificate_filename(self):
+        return self.common_name + '.pem'  # TODO: use cert encoding..?
+
+    def save_certificate_to_disk(self, directory):
+        x509 = OpenSSL.crypto.X509.from_cryptography(self.certificate)
+        subject_components = x509.get_subject().get_components()
+        common_name_as_bytes = subject_components[0][1]
+        common_name_from_cert = common_name_as_bytes.decode()
+
+        if not self.checksum_public_address == common_name_from_cert:
+            # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
+            raise ValueError("You passed a common_name that is not the same one as the cert.  Why?  FWIW, You don't even need to pass a common name here; the cert will be saved according to the name on the cert itself.")
+
+        certificate_filepath = os.path.join(directory, self.certificate_filename)
+        _save_tls_certificate(self.certificate, full_filepath=certificate_filepath)
+        self.certificate_filepath = certificate_filepath

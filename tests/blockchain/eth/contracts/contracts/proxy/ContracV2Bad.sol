@@ -1,16 +1,17 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
 
 import "./ContractInterface.sol";
-import "proxy/Upgradeable.sol";
+import "contracts/proxy/Upgradeable.sol";
 
 
 contract ContractV2Bad is ContractInterface, Upgradeable {
 
     event EventV1(uint256 value);
 
-    uint32 public storageValue;
+    uint public storageValue;
     string public dynamicallySizedValue;
+    uint public fakeValue;
     uint[] arrayValues;
     mapping (uint => uint) mappingValues;
     uint[] public mappingIndices;

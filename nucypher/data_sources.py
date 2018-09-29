@@ -1,15 +1,14 @@
-from nucypher.crypto.api import encrypt_and_sign
-from nucypher.crypto.powers import SigningPower
-from nucypher.crypto.signing import SignatureStamp
-from nucypher.keystore.keypairs import SigningKeypair
 from constant_sorrow.constants import NO_SIGNING_POWER
 from umbral.keys import UmbralPublicKey
-from umbral.signing import Signer
+
+from nucypher.crypto.api import encrypt_and_sign
+from nucypher.crypto.powers import SigningPower
+from nucypher.keystore.keypairs import SigningKeypair
 
 
 class DataSource:
 
-    def __init__(self, policy_pubkey_enc, signing_keypair=NO_SIGNING_POWER, label=None):
+    def __init__(self, policy_pubkey_enc, signing_keypair=NO_SIGNING_POWER, label=None) -> None:
         self.policy_pubkey = policy_pubkey_enc
         if signing_keypair is NO_SIGNING_POWER:
             signing_keypair = SigningKeypair()  # TODO: Generate signing key properly.  #241

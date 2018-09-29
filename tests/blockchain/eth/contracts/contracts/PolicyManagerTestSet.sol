@@ -105,14 +105,14 @@ contract MinersEscrowForPolicyMock {
     /**
     * @notice Emulate getDowntimeLength
     **/
-    function getDowntimeLength(address) public view returns (uint256) {
+    function getPastDowntimeLength(address) public view returns (uint256) {
         return downtime.length;
     }
 
     /**
     * @notice Emulate getDowntime
     **/
-    function getDowntime(address, uint256 _index)
+    function getPastDowntime(address, uint256 _index)
         public view returns (uint16 startPeriod, uint16 endPeriod)
     {
         Downtime storage data = downtime[_index];

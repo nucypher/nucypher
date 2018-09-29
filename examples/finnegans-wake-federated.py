@@ -1,20 +1,26 @@
 # This is an example of Alice setting a Policy on the NuCypher network.
-# In this example, Alice uses n=1, which is almost always a bad idea.  Don't do it.
+# In this example, Alice uses n=3.
 
-# WIP w/ hendrix@3.0.0
+# WIP w/ hendrix@3.1.0
 
 import binascii
 import datetime
 import logging
+import shutil
 import sys
-
+import os
 import maya
 
-from nucypher.characters import Alice, Bob, Ursula
+from nucypher.characters.lawful import Alice, Bob, Ursula
+from nucypher.config.characters import AliceConfiguration
 from nucypher.data_sources import DataSource
 # This is already running in another process.
 from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey
+
+##
+# Boring setup stuff.
+##
 
 root = logging.getLogger()
 root.setLevel(logging.DEBUG)
@@ -25,24 +31,33 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 root.addHandler(ch)
 
-teacher_dht_port = sys.argv[2]
-teacher_rest_port = int(teacher_dht_port) + 100
+teacher_rest_port = sys.argv[2]
 with open("examples-runtime-cruft/node-metadata-{}".format(teacher_rest_port), "r") as f:
     f.seek(0)
     teacher_bytes = binascii.unhexlify(f.read())
 URSULA = Ursula.from_bytes(teacher_bytes, federated_only=True)
 print("Will learn from {}".format(URSULA))
 
-# network_middleware = SandboxRestMiddleware([URSULA])
+SHARED_CRUFTSPACE = "{}/examples-runtime-cruft".format(os.path.dirname(os.path.abspath(__file__)))
+CRUFTSPACE = "{}/finnegans-wake-demo".format(SHARED_CRUFTSPACE)
+CERTIFICATE_DIR = "{}/certs".format(CRUFTSPACE)
+shutil.rmtree(CRUFTSPACE, ignore_errors=True)
+os.mkdir(CRUFTSPACE)
+os.mkdir(CERTIFICATE_DIR)
+
+URSULA.save_certificate_to_disk(CERTIFICATE_DIR)
 
 #########
 # Alice #
 #########
 
+
 ALICE = Alice(network_middleware=RestMiddleware(),
-              known_nodes=(URSULA,),  # in lieu of seed nodes
+              known_nodes=(URSULA,),
               federated_only=True,
-              always_be_learning=True)  # TODO: 289
+              always_be_learning=True,
+              known_certificates_dir=CERTIFICATE_DIR,
+              )
 
 # Here are our Policy details.
 policy_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -51,7 +66,10 @@ n = 3
 label = b"secret/files/and/stuff"
 
 # Alice grants to Bob.
-BOB = Bob(known_nodes=(URSULA,), federated_only=True, always_be_learning=True)
+BOB = Bob(known_nodes=(URSULA,),
+          federated_only=True,
+          always_be_learning=True,
+          known_certificates_dir=CERTIFICATE_DIR)
 ALICE.start_learning_loop(now=True)
 policy = ALICE.grant(BOB, label, m=m, n=n,
                      expiration=policy_end_datetime)

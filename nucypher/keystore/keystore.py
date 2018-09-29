@@ -1,13 +1,13 @@
-from typing import Union
-
-from nucypher.crypto.signing import Signature
 from bytestring_splitter import BytestringSplitter
-from nucypher.keystore.db.models import Key, PolicyArrangement, Workorder
+from sqlalchemy.orm import sessionmaker
+from typing import Union
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
-from . import keypairs
+
+from nucypher.crypto.signing import Signature
 from nucypher.crypto.utils import fingerprint_from_key
-from sqlalchemy.orm import sessionmaker
+from nucypher.keystore.db.models import Key, PolicyArrangement, Workorder
+from . import keypairs
 
 
 class NotFound(Exception):
@@ -23,7 +23,7 @@ class KeyStore(object):
     """
     kfrag_splitter = BytestringSplitter(Signature, (KFrag, KFrag.expected_bytes_length()))
 
-    def __init__(self, sqlalchemy_engine=None):
+    def __init__(self, sqlalchemy_engine=None) -> None:
         """
         Initalizes a KeyStore object.
 
