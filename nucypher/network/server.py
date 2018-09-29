@@ -191,8 +191,8 @@ class ProxyRESTRoutes:
         try:
             cleartext = self._verifier(alice, policy_message_kit, decrypt=True)
         except self.InvalidSignature:
-            # TODO: What do we do if the Policy isn't signed properly?
-            pass
+            # TODO: Perhaps we log this?
+            return Response(status_code=400)
 
         kfrag = KFrag.from_bytes(cleartext)
 
