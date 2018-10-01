@@ -395,7 +395,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         # Transmit the deployment tx #
         #
         txhash = contract_factory.constructor(*args, **kwargs).transact(transaction=deploy_transaction)
-        self.log.info("{} Deployment TX sent : txhash {}".format(contract_name, txhash))
+        self.log.info("{} Deployment TX sent : txhash {}".format(contract_name, txhash.hex()))
 
         # Wait for receipt
         receipt = self.w3.eth.waitForTransactionReceipt(txhash)
