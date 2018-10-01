@@ -18,7 +18,6 @@ class ContractDeployer:
     agency = NotImplemented
     _interface_class = BlockchainDeployerInterface
     _contract_name = NotImplemented
-    _arming_word = "I UNDERSTAND"
 
     class ContractDeploymentError(Exception):
         pass
@@ -27,8 +26,8 @@ class ContractDeployer:
         pass
 
     def __init__(self,
-                 blockchain: Blockchain,
-                 deployer_address: str
+                 deployer_address: str,
+                 blockchain: Blockchain = None,
                  ) -> None:
 
         self.__armed = False
@@ -38,10 +37,12 @@ class ContractDeployer:
         self.__deployer_address = deployer_address
 
         # Sanity check
-        if not isinstance(blockchain, Blockchain):
-            error = 'Only a Blockchain instance can be used to create a deployer; Got {}.'
-            raise ValueError(error.format(type(blockchain)))
-        self.blockchain = blockchain
+        if blockchain is not None:
+            if not isinstance(blockchain, Blockchain):
+                error = 'Only a Blockchain instance can be used to create a deployer; Got {}.'
+                raise ValueError(error.format(type(blockchain)))
+
+        self.blockchain = blockchain or Blockchain.connect()
 
     @property
     def contract_address(self) -> str:
@@ -70,7 +71,7 @@ class ContractDeployer:
     def is_armed(self) -> bool:
         return bool(self.__armed is True)
 
-    def check_ready_to_deploy(self, fail=False) -> Tuple[bool, list]:
+    def check_ready_to_deploy(self, fail=False, check_arming=False) -> Tuple[bool, list]:
         """
         Iterates through a set of rules required for an ethereum
         contract deployer to be eligible for deployment returning a
@@ -82,13 +83,14 @@ class ContractDeployer:
         If fail is set to True, raise a configuration error, instead of returning.
         """
 
-        rules = (
-            # (self.is_armed is True, 'Contract not armed'),
+        rules = [
             (self.is_deployed is not True, 'Contract already deployed'),
             (self.deployer_address is not None, 'No deployer address set.'),
             (self.deployer_address is not NO_DEPLOYER_CONFIGURED, 'No deployer address set.'),
+        ]
 
-        )
+        if check_arming:
+            rules.append((self.is_armed is True, 'Contract not armed'))
 
         disqualifications = list()
         for failed_rule, failure_reason in rules:
@@ -96,7 +98,7 @@ class ContractDeployer:
                 if fail is True:
                     raise self.ContractDeploymentError(failure_reason)
                 else:
-                    disqualifications.append(failure_reason)  # ...and here's why
+                    disqualifications.append(failure_reason)   # ... here's why
                     continue
 
         is_ready = True if len(disqualifications) == 0 else False
@@ -123,10 +125,9 @@ class ContractDeployer:
         incorrectly types the arming_word.
 
         """
-        if self.__armed is True and abort:
+        if self.__armed is True and abort is True:
             raise self.ContractDeploymentError('{} deployer is already armed.'.format(self._contract_name))
-        ready, disqualifications = self.check_ready_to_deploy(fail=abort)
-        self.__armed = ready
+        self.__armed, disqualifications = self.check_ready_to_deploy(fail=abort, check_arming=False)
         return self.__armed, disqualifications
 
     def deploy(self) -> dict:
@@ -147,16 +148,8 @@ class NucypherTokenDeployer(ContractDeployer):
     agency = NucypherTokenAgent
     _contract_name = agency.principal_contract_name
 
-    def __init__(self,
-                 blockchain,
-                 deployer_address: str
-                 ) -> None:
-
-        if not type(blockchain.interface) is self._interface_class:
-            raise ValueError("{} must be used to create a {}".format(self._interface_class.__name__,
-                                                                     self.__class__.__name__))
-
-        super().__init__(blockchain=blockchain, deployer_address=deployer_address)
+    def __init__(self, deployer_address: str, *args, **kwargs) -> None:
+        super().__init__(deployer_address=deployer_address, *args, **kwargs)
         self._creator = deployer_address
 
     def deploy(self) -> dict:
@@ -167,9 +160,7 @@ class NucypherTokenDeployer(ContractDeployer):
         The contract must be armed before it can be deployed.
         Deployment can only ever be executed exactly once!
         """
-
-        is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
-        assert is_ready  # TODO: remove assert
+        self.check_ready_to_deploy(fail=True, check_arming=True)
 
         _contract, deployment_txhash = self.blockchain.interface.deploy_contract(
                                        self._contract_name,
@@ -238,8 +229,7 @@ class MinerEscrowDeployer(ContractDeployer):
         """
 
         # Raise if not all-systems-go
-        is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
-        assert is_ready
+        self.check_ready_to_deploy(fail=True, check_arming=True)
 
         # Build deployment arguments
         origin_args = {'from': self.deployer_address}
@@ -316,8 +306,7 @@ class PolicyManagerDeployer(ContractDeployer):
         super().__init__(*args, **kwargs)
 
     def deploy(self) -> Dict[str, str]:
-        is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
-        assert is_ready
+        self.check_ready_to_deploy(fail=True, check_arming=True)
 
         # Creator deploys the policy manager
         the_policy_manager_contract, deploy_txhash = self.blockchain.interface.deploy_contract(
@@ -377,14 +366,13 @@ class UserEscrowDeployer(ContractDeployer):
         super().__init__(*args, **kwargs)
 
     def deploy(self) -> dict:
-        is_ready, _disqualifications = self.check_ready_to_deploy(fail=True)
-        assert is_ready
+        self.check_ready_to_deploy(fail=True, check_arming=True)
 
         deployment_args = [self.token_agent.contract_address,
                            self.miner_agent.contract_address,
                            self.policy_agent.contract_address]
 
-        deploy_transaction = {'from': self.token_agent.contract_address}  # TODO:.. eh?
+        # deploy_transaction = {'from': self.token_agent.contract_address}  # TODO:.. eh?
 
         the_user_escrow_contract, deploy_txhash = self.blockchain.interface.deploy_contract(
             self._contract_name,

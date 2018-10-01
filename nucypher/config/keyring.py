@@ -360,14 +360,14 @@ class NucypherKeyring:
     @classmethod
     def generate(cls,
                  passphrase: str,
-                 encryption: bool = True,
+                 encrypting: bool = True,
                  wallet: bool = True,
                  public_key_dir: str = None,
                  private_key_dir: str = None,
                  keyring_root: str = None,
                  ) -> 'NucypherKeyring':
         """
-        Generates new encryption, signing, and wallet keys encrypted with the passphrase,
+        Generates new encrypting, signing, and wallet keys encrypted with the passphrase,
         respectively saving keyfiles on the local filesystem from *default* paths,
         returning the corresponding Keyring instance.
         """
@@ -376,8 +376,8 @@ class NucypherKeyring:
         _public_key_dir = public_key_dir if public_key_dir else cls.__default_public_key_dir
         _private_key_dir = private_key_dir if private_key_dir else cls.__default_private_key_dir
 
-        if not encryption and not wallet:
-            raise ValueError('Either "encryption" or "wallet" must be True to generate new keys.')
+        if not encrypting and not wallet:
+            raise ValueError('Either "encrypting" or "wallet" must be True to generate new keys.')
 
         validate_passphrase(passphrase)
 
@@ -394,20 +394,20 @@ class NucypherKeyring:
             saved_wallet_path = _save_private_keyfile(new_wallet_path, new_wallet)
             keyring_args.update(wallet_path=saved_wallet_path)
 
-        if encryption is True:
+        if encrypting is True:
             enc_privkey, enc_pubkey = _generate_encryption_keys()
             sig_privkey, sig_pubkey = _generate_signing_keys()
 
         if wallet:          # common name router, prefer checksum address
             common_name = new_address
-        elif encryption:
+        elif encrypting:
             common_name = sig_pubkey
 
         __key_filepaths = cls.generate_filepaths(public_key_dir=_public_key_dir,
                                                  private_key_dir=_private_key_dir,
                                                  common_name=common_name)
 
-        if encryption is True:
+        if encrypting is True:
             passphrase_salt = os.urandom(32)
             enc_salt = os.urandom(32)
             sig_salt = os.urandom(32)

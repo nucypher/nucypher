@@ -26,7 +26,7 @@ class NodeConfiguration:
     __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
 
     __REGISTRY_NAME = 'contract_registry.json'
-    __REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO
+    REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO
 
     class ConfigurationError(RuntimeError):
         pass
@@ -48,7 +48,7 @@ class NodeConfiguration:
                  federated_only: bool = None,
                  network_middleware: RestMiddleware = None,
 
-                 registry_source: str = __REGISTRY_SOURCE,
+                 registry_source: str = REGISTRY_SOURCE,
                  registry_filepath: str = None,
                  no_seed_registry: bool = False,
 
@@ -256,7 +256,7 @@ class NodeConfiguration:
         #     raise self.ConfigurationError('There is an existing file at the registry output_filepath {}'.format(output_filepath))
         #
         # output_filepath = output_filepath or self.registry_filepath
-        # source = source or self.__REGISTRY_SOURCE
+        # source = source or self.REGISTRY_SOURCE
         #
         # # TODO: Validate registry
         #
