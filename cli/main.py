@@ -718,21 +718,176 @@ def simulate(config, action, nodes):
         demo_exec = os.path.join(BASE_DIR, 'cli', 'demos', 'finnegans-wake-demo.py')
         process_args = [sys.executable, demo_exec]
 
-        if federated_only:
+        if config.federated_only:
             process_args.append('--federated-only')
 
         subprocess.run(process_args, stdout=subprocess.PIPE)
 
 
 @cli.command()
-@click.option('--provider', help="Echo blockchain provider info", is_flag=True)
+@click.option('--contract-name', type=str)
+@click.option('--force', is_flag=True)
+@click.option('--deployer_address', type=str)
+@click.argument('action')
+@uses_config
+def deploy(config, action, deployer_address, contract_name, force):
+    if not config.deployer:
+        click.echo("The --deployer flag must be used to issue the deploy command.")
+        raise click.Abort()
+
+    #
+    # Initialize
+    #
+
+    config.connect_to_blockchain()
+    config.blockchain.interface.deployer_address = deployer_address or config.accounts[0]
+
+    DeployerInfo = collections.namedtuple('DeployerInfo', 'deployer_class upgradeable agent_name dependant')
+    deployers = collections.OrderedDict({
+
+        NucypherTokenDeployer._contract_name: DeployerInfo(deployer_class=NucypherTokenDeployer,
+                                                           upgradeable=False,
+                                                           agent_name='token_agent',
+                                                           dependant=None),
+
+        MinerEscrowDeployer._contract_name: DeployerInfo(deployer_class=MinerEscrowDeployer,
+                                                         upgradeable=True,
+                                                         agent_name='miner_agent',
+                                                         dependant='token_agent'),
+
+        PolicyManagerDeployer._contract_name: DeployerInfo(deployer_class=PolicyManagerDeployer,
+                                                           upgradeable=True,
+                                                           agent_name='policy_agent',
+                                                           dependant='miner_agent'
+                                                           ),
+
+        # UserEscrowDeployer._contract_name: DeployerInfo(deployer_class=UserEscrowDeployer,
+        #                                                 upgradeable=True,
+        #                                                 agent_name='user_agent',
+        #                                                 dependant='policy_agent'),  # TODO
+    })
+
+    if action == "contracts":
+
+        available_deployers = ", ".join(deployers)
+        click.echo("\n-----------------------------------------------")
+        click.echo("Available Deployers: {}".format(available_deployers))
+        click.echo("Blockchain Provider URI ... {}".format(config.blockchain.interface.provider_uri))
+        click.echo("Registry Output Filepath .. {}".format(config.blockchain.interface.registry.filepath))
+        click.echo("Deployer's Address ........ {}".format(config.blockchain.interface.deployer_address))
+        click.echo("-----------------------------------------------\n")
+
+        click.confirm("Continue?", abort=True)
+
+        __deployment_transactions = dict()
+        __deployment_agents = dict()
+
+        def __deploy_contract(deployer_class: ClassVar,
+                              upgradeable: bool,
+                              agent_name: str,
+                              dependant: str = None
+                              ) -> Tuple[dict, EthereumContractAgent]:
+
+            __contract_name = deployer_class._contract_name
+
+            __deployer_init_args = dict(blockchain=config.blockchain,
+                                        deployer_address=config.blockchain.interface.deployer_address)
+
+            if dependant is not None:
+                __deployer_init_args.update({dependant: __deployment_agents[dependant]})
+
+            if upgradeable:
+                def __collect_secret():
+                    # secret = click.prompt("Enter secret hash for {}".format(__contract_name))
+                    # secret_confirmation = click.prompt("Confirm secret hash for {}".format(__contract_name))
+                    secret = os.urandom(32)  # TODO
+                    secret_confirmation = secret[:]
+
+                    if len(bytes(secret)) != 32:
+                        click.echo("Deployer secret must be 32 bytes.")
+                        if click.prompt("Try again?"):
+                            return __collect_secret()
+                    if secret != secret_confirmation:
+                        click.echo("Secrets did not match")
+                        if click.prompt("Try again?"):
+                            return __collect_secret()
+                        else:
+                            raise click.Abort()
+                    __deployer_init_args.update({'secret_hash': secret})
+                    return secret
+                __collect_secret()
+
+            __deployer = deployer_class(**__deployer_init_args)
+
+            #
+            # Arm
+            #
+            if not force:
+                click.confirm("Arm {}?".format(deployer_class.__name__), abort=True)
+
+            is_armed, disqualifications = __deployer.arm(abort=False)
+            if not is_armed:
+                disqualifications = ', '.join(disqualifications)
+                click.echo("Failed to arm {}. Disqualifications: {}".format(__contract_name, disqualifications))
+                raise click.Abort()
+
+            #
+            # Deploy
+            #
+            if not force:
+                click.confirm("Deploy {}?".format(__contract_name), abort=True)
+            __transactions = __deployer.deploy()
+            __deployment_transactions[__contract_name] = __transactions
+
+            __agent = __deployer.make_agent()
+            __deployment_agents[agent_name] = __agent
+
+            return __transactions, __agent
+
+        if contract_name:
+            try:
+                deployer_info = deployers[contract_name]
+            except KeyError:
+                click.echo("No such contract {}. Available contracts are {}".format(contract_name, available_deployers))
+            else:
+                _txs, _agent = __deploy_contract(deployer_info.deployer_class,
+                                                 upgradeable=deployer_info.upgradeable,
+                                                 agent_name=deployer_info.agent_name,
+                                                 dependant=deployer_info.dependant)
+        else:
+            for deployer_name, deployer_info in deployers.items():
+                _txs, _agent = __deploy_contract(deployer_info.deployer_class,
+                                                 upgradeable=deployer_info.upgradeable,
+                                                 agent_name=deployer_info.agent_name,
+                                                 dependant=deployer_info.dependant)
+
+        if not force and click.prompt("View deployment transaction hashes?"):
+            for contract_name, transactions in __deployment_transactions.items():
+                click.echo(contract_name)
+                for tx_name, txhash in transactions.items():
+                    click.echo("{}:{}".format(tx_name, txhash))
+
+        if not force and click.confirm("Save transaction hashes to JSON file?"):
+            filepath = click.prompt("Enter output filepath", type=click.Path())
+            with open(filepath, 'w') as file:
+                file.write(json.dumps(__deployment_transactions))
+            click.echo("Successfully wrote transaction hashes file to {}".format(filepath))
+
+
+
+
+
+@cli.command()
 @click.option('--contracts', help="Echo nucypher smart contract info", is_flag=True)
 @click.option('--network', help="Echo the network status", is_flag=True)
 @uses_config
-def status(config, provider, contracts, network):
+def status(config, contracts, network):
     """
     Echo a snapshot of live network metadata.
     """
+    if not config.federated_only:
+        config.connect_to_blockchain()
+        config.connect_to_contracts()
 
     provider_payload = """
 
@@ -781,8 +936,7 @@ def status(config, provider, contracts, network):
     """.format(period=config.miner_agent.get_current_period(),
                ursulas=config.miner_agent.get_miner_population())
 
-    subpayloads = ((provider, provider_payload),
-                   (contracts, contract_payload),
+    subpayloads = ((contracts, contract_payload),
                    (network, network_payload),
                    )
 
@@ -798,33 +952,23 @@ def status(config, provider, contracts, network):
 
 
 @cli.command()
-@click.option('--dev', is_flag=True, default=False)
-@click.option('--federated-only', is_flag=True)
-@click.option('--poa', is_flag=True)
 @click.option('--rest-host', type=str)
 @click.option('--rest-port', type=int)
 @click.option('--db-name', type=str)
-@click.option('--provider-uri', type=str)
-@click.option('--registry-filepath', type=click.Path())
 @click.option('--checksum-address', type=str)
 @click.option('--stake-amount', type=int)
 @click.option('--stake-periods', type=int)
-@click.option('--metadata-dir', type=click.Path())
-@click.option('--config-file', type=click.Path())
-def run_ursula(rest_port,
-               rest_host,
-               db_name,
-               provider_uri,
-               registry_filepath,
-               checksum_address,
-               stake_amount,
-               stake_periods,
-               federated_only,
-               metadata_dir,
-               config_file,
-               poa,
-               dev
-               ) -> None:
+@click.argument('action')
+@uses_config
+def ursula(config,
+           action,
+           rest_port,
+           rest_host,
+           db_name,
+           checksum_address,
+           stake_amount,
+           stake_periods,
+           ) -> None:
     """
 
     The following procedure is required to "spin-up" an Ursula node.
@@ -838,49 +982,41 @@ def run_ursula(rest_port,
     but can be overridden (mostly for testing purposes) with inline cli options.
 
     """
-    if not dev:
-        click.echo("WARNING: Development mode is disabled")
-        temp = False
-    else:
-        click.echo("Running in development mode")
-        temp = True
+    if action == 'run':
+        if config.config_file:
+            ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config.config_file)
+        else:
+            ursula_config = UrsulaConfiguration(temp=config.dev,
+                                                auto_initialize=config.dev,
+                                                poa=config.poa,
+                                                rest_host=rest_host,
+                                                rest_port=rest_port,
+                                                db_name=db_name,
+                                                is_me=True,
+                                                federated_only=config.federated_only,
+                                                registry_filepath=config.registry_filepath,
+                                                provider_uri=config.provider_uri,
+                                                checksum_address=checksum_address,
+                                                # save_metadata=False,  # TODO
+                                                load_metadata=True,
+                                                known_metadata_dir=config.metadata_dir,
+                                                start_learning_now=True,
+                                                abort_on_learning_error=config.dev)
 
-    if config_file:
-        ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file)
-    else:
-        ursula_config = UrsulaConfiguration(temp=temp,
-                                            auto_initialize=temp,
-                                            poa=poa,
-                                            rest_host=rest_host,
-                                            rest_port=rest_port,
-                                            db_name=db_name,
-                                            is_me=True,
-                                            federated_only=federated_only,
-                                            registry_filepath=registry_filepath,
-                                            provider_uri=provider_uri,
-                                            checksum_address=checksum_address,
-                                            # save_metadata=False,  # TODO
-                                            load_metadata=True,
-                                            known_metadata_dir=metadata_dir,
-                                            start_learning_now=True,
-                                            abort_on_learning_error=temp)
+        try:
+            passphrase = click.prompt("Enter passphrase to unlock account", type=str)
+            URSULA = ursula_config.produce(passphrase=passphrase)
 
-    passphrase = click.prompt("Enter passphrase to unlock account", type=str)
-    try:
+            if not config.federated_only:
+                URSULA.stake(amount=stake_amount, lock_periods=stake_periods)
 
-        URSULA = ursula_config.produce(passphrase=passphrase)
+            URSULA.get_deployer().run()       # Run TLS Deploy (Reactor)
 
-        if not federated_only:
+        finally:
 
-            URSULA.stake(amount=stake_amount, lock_periods=stake_periods)
-
-        URSULA.get_deployer().run()       # Run TLS Deploy (Reactor)
-
-    finally:
-
-        click.echo("Cleaning up temporary runtime files and directories")
-        ursula_config.cleanup()  # TODO: Integrate with other "graceful" shutdown functionality
-        click.echo("Exited gracefully")
+            click.echo("Cleaning up temporary runtime files and directories")
+            ursula_config.cleanup()  # TODO: Integrate with other "graceful" shutdown functionality
+            click.echo("Exited gracefully")
 
 
 if __name__ == "__main__":
