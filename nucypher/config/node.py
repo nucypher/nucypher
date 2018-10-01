@@ -1,6 +1,8 @@
 import contextlib
 import json
 import os
+from json import JSONDecodeError
+
 import shutil
 from glob import glob
 from os.path import abspath
@@ -26,7 +28,7 @@ class NodeConfiguration:
     __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
 
     __REGISTRY_NAME = 'contract_registry.json'
-    REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO
+    REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO: Where will this be hosted?
 
     class ConfigurationError(RuntimeError):
         pass
@@ -252,18 +254,23 @@ class NodeConfiguration:
                         force: bool = False,
                         blank=False) -> str:
 
-        # if force and os.path.isfile(output_filepath):
-        #     raise self.ConfigurationError('There is an existing file at the registry output_filepath {}'.format(output_filepath))
-        #
-        # output_filepath = output_filepath or self.registry_filepath
-        # source = source or self.REGISTRY_SOURCE
-        #
-        # # TODO: Validate registry
-        #
-        # if not blank:
-        #     shutil.copyfile(src=source, dst=output_filepath)
-        # else:
-        #     open(output_filepath, '').close()  # blank
+        if force and os.path.isfile(output_filepath):
+            raise self.ConfigurationError('There is an existing file at the registry output_filepath {}'.format(output_filepath))
+
+        output_filepath = output_filepath or self.registry_filepath
+        source = source or self.REGISTRY_SOURCE
+
+        # Validate Registry
+        with open(source, 'r') as registry_file:
+            try:
+                json.loads(registry_file.read())
+            except JSONDecodeError:
+                raise self.ConfigurationError("The registry source {} is not valid JSON".format(source))
+
+        if not blank:
+            shutil.copyfile(src=source, dst=output_filepath)
+        else:
+            open(output_filepath, '').close()  # blank
 
         return output_filepath
 
