@@ -6,6 +6,7 @@ from web3.contract import Contract
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 
 
 class Blockchain:
@@ -44,11 +45,17 @@ class Blockchain:
     @classmethod
     def connect(cls,
                 provider_uri: str = None,
-                registry_filepath: str = None) -> 'Blockchain':
+                registry_filepath: str = None,
+                deployer: bool = False,
+                compile: bool = False,
+                ) -> 'Blockchain':
 
         if cls._instance is NO_BLOCKCHAIN_AVAILABLE:
             registry = EthereumContractRegistry(registry_filepath=registry_filepath)
-            cls._instance = cls(interface=BlockchainInterface(provider_uri=provider_uri, registry=registry))
+            compiler = SolidityCompiler() if compile is True else None
+            InterfaceClass = BlockchainDeployerInterface if deployer is True else BlockchainInterface
+            interface = InterfaceClass(provider_uri=provider_uri, registry=registry, compiler=compiler)
+            cls._instance = cls(interface=interface)
         else:
             if provider_uri is not None:
                 existing_uri = cls._instance.interface.provider_uri
