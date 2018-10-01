@@ -1,33 +1,34 @@
 #!/usr/bin/env python3
-
+import json
 import logging
 import os
 import random
 import sys
+from typing import Tuple, ClassVar
 
 import click
 import shutil
 import subprocess
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
-from eth_account import Account
 from eth_utils import is_checksum_address
 from twisted.internet import reactor
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.actors import Miner
-from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent, EthereumContractAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.constants import (DISPATCHER_SECRET_LENGTH,
                                                MIN_ALLOWED_LOCKED,
                                                MIN_LOCKED_PERIODS,
                                                MAX_MINTING_PERIODS)
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer, \
+    UserEscrowDeployer, ContractDeployer
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
+from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry, EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import BASE_DIR
+from nucypher.config.constants import BASE_DIR, DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 from nucypher.config.utils import validate_configuration_file
@@ -37,6 +38,7 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOU
                                                   DEVELOPMENT_ETH_AIRDROP_AMOUNT,
                                                   )
 from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
+import collections
 
 __version__ = '0.1.0-alpha.0'
 
@@ -78,15 +80,21 @@ class NucypherClickConfig:
 
     def __init__(self):
 
-        # NodeConfiguration.from_config_file(filepath=DEFAULT_CONFIG_FILE_LOCATION)
-
+        # Node Configuration
         self.node_config = constants.NO_NODE_CONFIGURATION
+        self.federated_only = constants.NO_NODE_CONFIGURATION
+        self.metadata_dir = constants.NO_NODE_CONFIGURATION
 
-        # Blockchain connection contract agency
-        self.accounts = constants.NO_BLOCKCHAIN_CONNECTION
+        # Blockchain
+        self.deployer = constants.NO_BLOCKCHAIN_CONNECTION
+        self.compile = constants.NO_BLOCKCHAIN_CONNECTION
+        self.poa = constants.NO_BLOCKCHAIN_CONNECTION
         self.blockchain = constants.NO_BLOCKCHAIN_CONNECTION
+        self.provider_uri = constants.NO_BLOCKCHAIN_CONNECTION
         self.registry_filepath = constants.NO_BLOCKCHAIN_CONNECTION
+        self.accounts = constants.NO_BLOCKCHAIN_CONNECTION
 
+        # Agency
         self.token_agent = constants.NO_BLOCKCHAIN_CONNECTION
         self.miner_agent = constants.NO_BLOCKCHAIN_CONNECTION
         self.policy_agent = constants.NO_BLOCKCHAIN_CONNECTION
@@ -94,14 +102,25 @@ class NucypherClickConfig:
     def connect_to_blockchain(self):
         """Initialize all blockchain entities from parsed config values"""
 
-        if self.node_config is constants.NO_NODE_CONFIGURATION:
-            raise RuntimeError("No node configuration is available")
+        #
+        # Blockchain Connection
+        #
+        if not self.federated_only:
+            if self.deployer:
+                self.registry_filepath = NodeConfiguration.REGISTRY_SOURCE
 
-        self.blockchain = Blockchain.from_config(config=self.node_config)
-        self.accounts = self.blockchain.interface.w3.eth.accounts
+            if self.compile:
+                click.confirm("Compile solidity source?", abort=True)
+            self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
+                                                 registry_filepath=self.registry_filepath,
+                                                 deployer=self.deployer,
+                                                 compile=self.compile)
 
-        if self.node_config.deploy:
-            self.blockchain.interface.deployer_address = self.accounts[0]
+            self.accounts = self.blockchain.interface.w3.eth.accounts
+
+            if self.poa:
+                w3 = self.blockchain.interface.w3
+                w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
     def connect_to_contracts(self):
         """Initialize contract agency and set them on config"""
@@ -114,37 +133,68 @@ uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 
 
 @click.group()
-@click.option('--version', help="Prints the installed version.", is_flag=True)
-@click.option('--verbose', help="Enable verbose mode.", is_flag=True)
-@click.option('--config-file', help="Specify a custom config filepath.", type=click.Path(), default="cool winnebago")
+@click.option('--version', is_flag=True)
+@click.option('--verbose', is_flag=True)
+@click.option('--dev', is_flag=True)
+@click.option('--federated-only', is_flag=True)
+@click.option('--config-root', type=click.Path())
+@click.option('--config-file', type=click.Path())
+@click.option('--metadata-dir', type=click.Path())
+@click.option('--provider-uri', type=str)
+@click.option('--compile', is_flag=True)
+@click.option('--registry-filepath', type=click.Path())
+@click.option('--deployer', is_flag=True)
+@click.option('--poa', is_flag=True)
 @uses_config
-def cli(config, verbose, version, config_file):
-    """Configure and manage a nucypher nodes"""
+def cli(config,
+        verbose,
+        version,
+        dev,
+        federated_only,
+        config_root,
+        config_file,
+        metadata_dir,
+        provider_uri,
+        registry_filepath,
+        deployer,
+        compile,
+        poa):
 
     click.echo(BANNER)
 
     # Store config data
     config.verbose = verbose
-    config.config_filepath = config_file
+    config.dev = dev
+    config.federated_only = federated_only
+    config.config_root = config_root
+    config.config_file = config_file
+    config.metadata_dir = metadata_dir
+    config.provider_uri = provider_uri
+    config.compile = compile
+    config.registry_filepath = registry_filepath
+    config.deployer = deployer
+    config.poa = poa
 
-    if config.verbose:
-        click.echo("Running in verbose mode...")
     if version:
         click.echo("Version {}".format(__version__))
 
+    if config.verbose:
+        click.echo("Running in verbose mode...")
+
+    if not config.dev:
+        click.echo("WARNING: Development mode is disabled")
+    else:
+        click.echo("Running in development mode")
+
 
 @cli.command()
-@click.argument('action')
-@click.option('--temp', is_flag=True, default=False)
 @click.option('--filesystem', is_flag=True, default=False)
-@click.option('--config-file', help="Specify a custom .ini configuration filepath")
-@click.option('--config-root', help="Specify a custom installation location")
+@click.argument('action')
 @uses_config
-def configure(config, action, config_file, config_root, temp, filesystem):
-    """Manage the nucypher .ini configuration file"""
+def configure(config, action, filesystem):
 
     def __destroy(configuration):
-        if temp:
+        if config.dev:
             raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
 
         click.confirm("*Permanently delete* all nucypher private keys, configurations,"
@@ -154,7 +204,7 @@ def configure(config, action, config_file, config_root, temp, filesystem):
         click.echo("Deleted configuration files at {}".format(node_configuration.config_root))
 
     def __initialize(configuration):
-        if temp:
+        if config.dev:
             click.echo("Using temporary storage area")
         click.confirm("Initialize new nucypher configuration?", abort=True)
 
@@ -166,7 +216,7 @@ def configure(config, action, config_file, config_root, temp, filesystem):
             passphrase = click.prompt("Enter a passphrase to encrypt your wallet's private key")
             keyring = NucypherKeyring.generate(passphrase=passphrase,
                                                keyring_root=configuration.keyring_dir,
-                                               encryption=False,  # TODO: Set to True by default
+                                               encrypting=False,  # TODO: Set to True by default
                                                wallet=True)
 
         else:
@@ -186,23 +236,22 @@ def configure(config, action, config_file, config_root, temp, filesystem):
             certificate, private_key = generate_self_signed_certificate(common_name=keyring.transacting_public_key,
                                                                         host=host,
                                                                         days_valid=days,
-                                                                        curve=ec.SECP384R1)
+                                                                        curve=ec.SECP384R1)  # TODO: use Config class?
 
             certificate_filepath = os.path.join(configuration.known_certificates_dir, "{}.pem".format(keyring.transacting_public_key))
             _save_tls_certificate(certificate=certificate, full_filepath=certificate_filepath)
 
-    if config_root:
+    if config.config_root:
         node_configuration = NodeConfiguration(temp=False,
-                                               config_root=config_root,
+                                               config_root=config.config_root,
                                                auto_initialize=False)
-    elif temp:
-        node_configuration = NodeConfiguration(temp=temp, auto_initialize=False)
-    elif config_file:
-        click.echo("Using configuration file at: {}".format(config_file))
-        node_configuration = NodeConfiguration.from_configuration_file(filepath=config_file)
+    elif config.dev:
+        node_configuration = NodeConfiguration(temp=config.dev, auto_initialize=False)
+    elif config.config_file:
+        click.echo("Using configuration file at: {}".format(config.config_file))
+        node_configuration = NodeConfiguration.from_configuration_file(filepath=config.config_file)
     else:
         node_configuration = NodeConfiguration(auto_initialize=False)  # Fully Default
-
 
     #
     # Action switch
@@ -219,7 +268,7 @@ def configure(config, action, config_file, config_root, temp, filesystem):
         try:
             if filesystem:   # Check runtime directory
                 is_valid = NodeConfiguration.check_config_tree_exists(config_root=node_configuration.config_root)
-            if config_file:
+            if config.config_file:
                 is_valid = validate_configuration_file(filepath=node_configuration.config_file_location)
         except NodeConfiguration.InvalidConfiguration:
             is_valid = False
@@ -229,15 +278,14 @@ def configure(config, action, config_file, config_root, temp, filesystem):
 
 
 @cli.command()
-@click.argument('action', default='list', required=False)
-@click.option('--provider-uri', type=str)
-@click.option('--poa', is_flag=True)
 @click.option('--checksum-address', help="The account to lock/unlock instead of the default")
-@click.option('--registry-filepath', type=click.Path())
+@click.argument('action', default='list', required=False)
 @uses_config
-def accounts(config, action, checksum_address, provider_uri, registry_filepath, poa):
+def accounts(config, action, checksum_address):
     """Manage nucypher node accounts"""
-    blockchain = Blockchain.connect(provider_uri=provider_uri)
+
+    if not config.federated_only:
+        config.connect_to_blockchain()
 
     def __collect_transfer_details(denomination: str):
         destination = click.prompt("Enter destination checksum_address")
@@ -247,11 +295,7 @@ def accounts(config, action, checksum_address, provider_uri, registry_filepath, 
         amount = click.prompt("Enter amount of {} to transfer".format(denomination), type=int)
         return destination, amount
 
-    if poa:  # TODO: needs cleanup - bury in blockchain
-        w3 = blockchain.interface.w3
-        w3.middleware_stack.inject(geth_poa_middleware, layer=0)
-
-    token_agent = NucypherTokenAgent(blockchain=blockchain, registry_filepath=registry_filepath)
+    config.connect_to_contracts()
 
     if action == 'new':
         pass  # TODO
@@ -261,15 +305,15 @@ def accounts(config, action, checksum_address, provider_uri, registry_filepath, 
 
     elif action == 'export':
         keyring = NucypherKeyring(common_name=checksum_address)
-        click.confirm("Export private key to keyring on node {}?".format(provider_uri), abort=True)
+        click.confirm("Export private key to keyring on node {}?".format(config.provider_uri), abort=True)
         passphrase = click.prompt("Enter passphrase", type=str)
-        keyring._export(blockchain=blockchain, passphrase=passphrase)
+        keyring._export(blockchain=config.blockchain, passphrase=passphrase)
 
     elif action == 'list':
-        accounts = blockchain.interface.w3.eth.accounts
+        accounts = config.blockchain.interface.w3.eth.accounts
         for index, checksum_address in enumerate(accounts):
-            token_balance = token_agent.get_balance(address=checksum_address)
-            eth_balance = token_agent.blockchain.interface.w3.eth.getBalance(checksum_address)
+            token_balance = config.token_agent.get_balance(address=checksum_address)
+            eth_balance = config.blockchain.interface.w3.eth.getBalance(checksum_address)
             if index == 0:
                 row = 'etherbase | {} | Tokens: {} | ETH: {} '.format(checksum_address, token_balance, eth_balance)
             else:
@@ -279,37 +323,37 @@ def accounts(config, action, checksum_address, provider_uri, registry_filepath, 
     elif action == 'balance':
 
         if not checksum_address:
-            checksum_address = blockchain.interface.w3.eth.accounts[0]
+            checksum_address = config.blockchain.interface.w3.eth.accounts[0]
             click.echo('No checksum_address supplied, Using the default {}'.format(checksum_address))
 
-        token_balance = token_agent.get_balance(address=checksum_address)
-        eth_balance = token_agent.blockchain.interface.w3.eth.getBalance(checksum_address)
+        token_balance = config.token_agent.get_balance(address=checksum_address)
+        eth_balance = config.token_agent.blockchain.interface.w3.eth.getBalance(checksum_address)
         click.echo("Balance of {} | Tokens: {} | ETH: {}".format(checksum_address, token_balance, eth_balance))
 
     elif action == "transfer-tokens":
         destination, amount = __collect_transfer_details(denomination='tokens')
         click.confirm("Are you sure you want to send {} tokens to {}?".format(amount, destination), abort=True)
-        txhash = token_agent.transfer(amount=amount, target_address=destination, sender_address=checksum_address)
-        blockchain.wait_for_receipt(txhash)
+        txhash = config.token_agent.transfer(amount=amount, target_address=destination, sender_address=checksum_address)
+        config.blockchain.wait_for_receipt(txhash)
         click.echo("Sent {} tokens to {} | {}".format(amount, destination, txhash))
 
     elif action == "transfer-eth":
         destination, amount = __collect_transfer_details(denomination='ETH')
         tx = {'to': destination, 'from': checksum_address, 'value': amount}
         click.confirm("Are you sure you want to send {} tokens to {}?".format(tx['value'], tx['to']), abort=True)
-        txhash = blockchain.interface.w3.eth.sendTransaction(tx)
-        blockchain.wait_for_receipt(txhash)
+        txhash = config.blockchain.interface.w3.eth.sendTransaction(tx)
+        config.blockchain.wait_for_receipt(txhash)
         click.echo("Sent {} ETH to {} | {}".format(amount, destination, str(txhash)))
 
 
 @cli.command()
-@click.argument('action', default='list', required=False)
-@click.option('--address', help="Send rewarded tokens to a specific address, instead of the default.")
+@click.option('--checksum-address', help="Send rewarded tokens to a specific address, instead of the default.")
 @click.option('--value', help="Stake value in the smallest denomination")
-@click.option('--duration', help="Stake duration in periods")  # TODO: lock/unlock durations
+@click.option('--duration', help="Stake duration in periods")
 @click.option('--index', help="A specific stake index to resume")
+@click.argument('action', default='list', required=False)
 @uses_config
-def stake(config, action, address, index, value, duration):
+def stake(config, action, checksum_address, index, value, duration):
     """
     Manage active and inactive node blockchain stakes.
 
@@ -336,9 +380,10 @@ def stake(config, action, address, index, value, duration):
 
     """
 
+    config.connect_to_blockchain()
     config.connect_to_contracts()
 
-    if not address:
+    if not checksum_address:
 
         for index, address in enumerate(config.accounts):
             if index == 0:
@@ -465,12 +510,10 @@ def stake(config, action, address, index, value, duration):
 
 
 @cli.command()
-@click.argument('action')
-@click.option('--geth', is_flag=True)
-@click.option('--federated-only', is_flag=True)
 @click.option('--nodes', help="The number of nodes to simulate", type=int, default=10)
+@click.argument('action')
 @uses_config
-def simulate(config, action, nodes, federated_only, geth):
+def simulate(config, action, nodes):
     """
     Simulate the nucypher blockchain network
 
@@ -493,14 +536,13 @@ def simulate(config, action, nodes, federated_only, geth):
         #
         # Blockchain Connection
         #
-        if not federated_only:
-            if geth:
-                test_provider_uri = "tester://geth"
-            else:
-                test_provider_uri = "tester://pyevm"
+
+        if not config.federated_only:
+            if config.provider_uri not in ("tester://geth", "tester://pyevm"):
+                raise NotImplementedError
 
             simulation_registry = TemporaryEthereumContractRegistry()
-            simulation_interface = BlockchainDeployerInterface(provider_uri=test_provider_uri,
+            simulation_interface = BlockchainDeployerInterface(provider_uri=config.provider_uri,
                                                                registry=simulation_registry,
                                                                compiler=SolidityCompiler())
 
@@ -517,7 +559,7 @@ def simulate(config, action, nodes, federated_only, geth):
             #
             blockchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 
-            click.confirm("Deploy all nucypher contracts to {}?".format(test_provider_uri), abort=True)
+            click.confirm("Deploy all nucypher contracts to {}?".format(config.provider_uri), abort=True)
             click.echo("Bootstrapping simulated blockchain network")
 
             # Deploy contracts
@@ -561,7 +603,7 @@ def simulate(config, action, nodes, federated_only, geth):
 
         # Select a port range to use on localhost for sim servers
 
-        if not federated_only:
+        if not config.federated_only:
             sim_addresses = everyone_else
         else:
             sim_addresses = NotImplemented
@@ -584,7 +626,7 @@ def simulate(config, action, nodes, federated_only, geth):
             python3 {} run_ursula --rest-port {} --db-name {}
             '''.format(python_exec, cli_exec, rest_port, db_name).split()
 
-            if federated_only:
+            if config.federated_only:
                 proc_params.append('--federated-only')
 
             else:
@@ -637,7 +679,7 @@ def simulate(config, action, nodes, federated_only, geth):
             reactor.run()
         finally:
 
-            if not federated_only:
+            if not config.federated_only:
                 click.echo("Removing simulation registry")
                 os.remove(DEFAULT_SIMULATION_REGISTRY_FILEPATH)
 
