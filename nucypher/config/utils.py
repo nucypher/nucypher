@@ -53,7 +53,7 @@ def validate_configuration_file(config=None,
     except KeyError:
         raise NodeConfiguration.ConfigurationError("No operating mode configured")
     else:
-        modes = ('federated', 'testing', 'decentralized', 'centralized')
+        modes = ('federated', 'tester', 'decentralized', 'centralized')
         if operating_mode not in modes:
             missing_sections.append("mode")
             if raise_on_failure is True:
