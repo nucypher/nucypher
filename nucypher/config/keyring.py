@@ -365,6 +365,7 @@ class NucypherKeyring:
                  public_key_dir: str = None,
                  private_key_dir: str = None,
                  keyring_root: str = None,
+                 exists_ok: bool = True
                  ) -> 'NucypherKeyring':
         """
         Generates new encrypting, signing, and wallet keys encrypted with the passphrase,
@@ -382,8 +383,11 @@ class NucypherKeyring:
         validate_passphrase(passphrase)
 
         # Create the key directories with default paths. Raises OSError if dirs exist
-        os.mkdir(_public_key_dir, mode=0o744)  # public()
-        os.mkdir(_private_key_dir, mode=0o700) # private
+        if exists_ok and not os.path.isdir(_public_key_dir):
+            os.mkdir(_public_key_dir, mode=0o744)   # public()
+
+        if exists_ok and not os.path.isdir(_private_key_dir):
+            os.mkdir(_private_key_dir, mode=0o700)  # private
 
         # Generate keys
         keyring_args = dict()

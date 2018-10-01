@@ -31,7 +31,7 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR, DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
-from nucypher.config.utils import validate_configuration_file
+from nucypher.config.utils import validate_configuration_file, generate_local_wallet, generate_account
 from nucypher.crypto.api import generate_self_signed_certificate, _save_tls_certificate
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
@@ -81,9 +81,13 @@ class NucypherClickConfig:
     def __init__(self):
 
         # Node Configuration
-        self.node_config = constants.NO_NODE_CONFIGURATION
+        self.node_configuration = constants.NO_NODE_CONFIGURATION
+        self.dev = constants.NO_NODE_CONFIGURATION
         self.federated_only = constants.NO_NODE_CONFIGURATION
+        self.config_root = constants.NO_NODE_CONFIGURATION
+        self.config_file = constants.NO_NODE_CONFIGURATION
         self.metadata_dir = constants.NO_NODE_CONFIGURATION
+        self.keyring_dir = constants.NO_NODE_CONFIGURATION
 
         # Blockchain
         self.deployer = constants.NO_BLOCKCHAIN_CONNECTION
@@ -98,6 +102,21 @@ class NucypherClickConfig:
         self.token_agent = constants.NO_BLOCKCHAIN_CONNECTION
         self.miner_agent = constants.NO_BLOCKCHAIN_CONNECTION
         self.policy_agent = constants.NO_BLOCKCHAIN_CONNECTION
+
+    def get_node_configuration(self):
+        if self.config_root:
+            node_configuration = NodeConfiguration(temp=False,
+                                                   config_root=self.config_root,
+                                                   auto_initialize=False)
+        elif self.dev:
+            node_configuration = NodeConfiguration(temp=self.dev, auto_initialize=False)
+        elif self.config_file:
+            click.echo("Using configuration file at: {}".format(self.config_file))
+            node_configuration = NodeConfiguration.from_configuration_file(filepath=self.config_file)
+        else:
+            node_configuration = NodeConfiguration(auto_initialize=False)  # Fully Default
+
+        self.node_configuration = node_configuration
 
     def connect_to_blockchain(self):
         """Initialize all blockchain entities from parsed config values"""
@@ -201,7 +220,7 @@ def configure(config, action, filesystem):
                       " known nodes, certificates and files at {}?".format(configuration.config_root), abort=True)
 
         shutil.rmtree(configuration.config_root, ignore_errors=True)
-        click.echo("Deleted configuration files at {}".format(node_configuration.config_root))
+        click.echo("Deleted configuration files at {}".format(configuration.config_root))
 
     def __initialize(configuration):
         if config.dev:
@@ -209,26 +228,20 @@ def configure(config, action, filesystem):
         click.confirm("Initialize new nucypher configuration?", abort=True)
 
         configuration.write_defaults()
-        click.echo("Created configuration files at {}".format(node_configuration.config_root))
+        click.echo("Created configuration files at {}".format(configuration.config_root))
 
-        generate_keypair = click.confirm("Do you need to generate a new wallet to use for staking?")
-        if generate_keypair:
+        if click.confirm("Do you need to generate a new wallet to use for staking?"):
             passphrase = click.prompt("Enter a passphrase to encrypt your wallet's private key")
-            keyring = NucypherKeyring.generate(passphrase=passphrase,
-                                               keyring_root=configuration.keyring_dir,
-                                               encrypting=False,  # TODO: Set to True by default
-                                               wallet=True)
-
-        else:
+            keyring = generate_local_wallet(passphrase=passphrase, keyring_root=configuration.keyring_dir)
+        elif click.confirm("Do you have an existing wallet you want import?"):
             existing_wallet_path = click.prompt("Enter existing wallet.json path")
-            keyring = NucypherKeyring.from_wallet_file(root_key_path=existing_wallet_path)  # TODO: classmethod and import
+            keyring = NucypherKeyring.from_keyring_directory(keyring_root=existing_wallet_path)  # TODO: classmethod and import
 
-        generate_certificate = click.confirm("Do you need to generate a new SSL certificate?")
-        if generate_certificate:
+        if click.confirm("Do you need to generate a new SSL certificate?"):
 
             days = click.prompt("How many days do you want the certificate to remain valid? (365 is default)",
                                 default=365,
-                                type=int)
+                                type=int)  # TODO: Perhaps make this equal to the stake length?
 
             host = click.prompt("Enter the node's hostname", default='localhost')  # TODO: remove localhost as default
 
@@ -241,40 +254,29 @@ def configure(config, action, filesystem):
             certificate_filepath = os.path.join(configuration.known_certificates_dir, "{}.pem".format(keyring.transacting_public_key))
             _save_tls_certificate(certificate=certificate, full_filepath=certificate_filepath)
 
-    if config.config_root:
-        node_configuration = NodeConfiguration(temp=False,
-                                               config_root=config.config_root,
-                                               auto_initialize=False)
-    elif config.dev:
-        node_configuration = NodeConfiguration(temp=config.dev, auto_initialize=False)
-    elif config.config_file:
-        click.echo("Using configuration file at: {}".format(config.config_file))
-        node_configuration = NodeConfiguration.from_configuration_file(filepath=config.config_file)
-    else:
-        node_configuration = NodeConfiguration(auto_initialize=False)  # Fully Default
-
+    config.get_node_configuration()
     #
     # Action switch
     #
     if action == "init":
-        __initialize(node_configuration)
+        __initialize(config.node_configuration)
     elif action == "destroy":
-        __destroy(node_configuration)
+        __destroy(config.node_configuration)
     elif action == "reset":
-        __destroy(node_configuration)
-        __initialize(node_configuration)
+        __destroy(config.node_configuration)
+        __initialize(config.node_configuration)
     elif action == "validate":
         is_valid = True  # Until there is a reason to believe otherwise
         try:
             if filesystem:   # Check runtime directory
-                is_valid = NodeConfiguration.check_config_tree_exists(config_root=node_configuration.config_root)
+                is_valid = NodeConfiguration.check_config_tree_exists(config_root=config.node_configuration.config_root)
             if config.config_file:
-                is_valid = validate_configuration_file(filepath=node_configuration.config_file_location)
+                is_valid = validate_configuration_file(filepath=config.node_configuration.config_file_location)
         except NodeConfiguration.InvalidConfiguration:
             is_valid = False
         finally:
             result = 'Valid' if is_valid else 'Invalid'
-            click.echo('{} is {}'.format(node_configuration.config_root, result))
+            click.echo('{} is {}'.format(config.node_configuration.config_root, result))
 
 
 @cli.command()
@@ -296,34 +298,51 @@ def accounts(config, action, checksum_address):
         return destination, amount
 
     config.connect_to_contracts()
+    config.get_node_configuration()
 
     if action == 'new':
-        pass  # TODO
+        choice = click.prompt("Create a new Hosted or Local account?").lower()
+        if choice not in ('hosted', 'local'):
+            click.echo("Invalid Input")
+            raise click.Abort()
+
+        passphrase = click.prompt("Enter a passphrase to encrypt your wallet's private key")
+
+        if choice == 'local':
+            keyring = generate_local_wallet(passphrase=passphrase, keyring_root=config.node_configuration.keyring_dir)
+            new_address = keyring.transacting_public_key
+        elif choice == 'hosted':
+            new_address = generate_account(w3=config.blockchain.interface.w3, passphrase=passphrase)
+        else:
+            raise click.Abort()
+
+        click.echo("Created new ETH address {}".format(new_address))
+        if click.echo("Set new address as the node's keying default account?".format(new_address)):
+            import ipdb; ipdb.set_trace()
 
     if action == 'set-default':
-        pass  # TODO: Change etherbase
+        config.blockchain.interface.w3.eth.defaultAccount = checksum_address  # TODO
 
     elif action == 'export':
         keyring = NucypherKeyring(common_name=checksum_address)
-        click.confirm("Export private key to keyring on node {}?".format(config.provider_uri), abort=True)
-        passphrase = click.prompt("Enter passphrase", type=str)
+        click.confirm("Export local private key to node's keyring: {}?".format(config.provider_uri), abort=True)
+        passphrase = click.prompt("Enter passphrase to decrypt account", type=str)
         keyring._export(blockchain=config.blockchain, passphrase=passphrase)
 
     elif action == 'list':
-        accounts = config.blockchain.interface.w3.eth.accounts
-        for index, checksum_address in enumerate(accounts):
+        for index, checksum_address in enumerate(config.accounts):
             token_balance = config.token_agent.get_balance(address=checksum_address)
             eth_balance = config.blockchain.interface.w3.eth.getBalance(checksum_address)
             if index == 0:
-                row = 'etherbase | {} | Tokens: {} | ETH: {} '.format(checksum_address, token_balance, eth_balance)
+                row = '\netherbase | {}\n    Tokens: {}\n    ETH: {}\n'.format(checksum_address, token_balance, eth_balance)
             else:
-                row = '{} ....... | {} | Tokens: {} | ETH: {}'.format(index, checksum_address, token_balance, eth_balance)
+                row = '{} ........ {}\n    Tokens: {}\n    ETH: {}\n'.format(index, checksum_address, token_balance, eth_balance)
             click.echo(row)
 
     elif action == 'balance':
 
         if not checksum_address:
-            checksum_address = config.blockchain.interface.w3.eth.accounts[0]
+            checksum_address = config.blockchain.interface.w3.eth.etherbase
             click.echo('No checksum_address supplied, Using the default {}'.format(checksum_address))
 
         token_balance = config.token_agent.get_balance(address=checksum_address)
@@ -872,9 +891,6 @@ def deploy(config, action, deployer_address, contract_name, force):
             with open(filepath, 'w') as file:
                 file.write(json.dumps(__deployment_transactions))
             click.echo("Successfully wrote transaction hashes file to {}".format(filepath))
-
-
-
 
 
 @cli.command()

@@ -4,7 +4,21 @@ import os
 from typing import Union, Tuple
 
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
+
+
+def generate_local_wallet(keyring_root:str, passphrase: str) -> NucypherKeyring:
+    keyring = NucypherKeyring.generate(passphrase=passphrase,
+                                       keyring_root=keyring_root,
+                                       encrypting=False,
+                                       wallet=True)
+    return keyring
+
+
+def generate_account(w3, passphrase: str) -> NucypherKeyring:
+    address = w3.personal.newAccount(passphrase)
+    return address
 
 
 def check_config_permissions() -> bool:
