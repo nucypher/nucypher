@@ -260,17 +260,22 @@ class NodeConfiguration:
         output_filepath = output_filepath or self.registry_filepath
         source = source or self.REGISTRY_SOURCE
 
-        # Validate Registry
-        with open(source, 'r') as registry_file:
-            try:
-                json.loads(registry_file.read())
-            except JSONDecodeError:
-                raise self.ConfigurationError("The registry source {} is not valid JSON".format(source))
-
         if not blank:
+            # Validate Registry
+            with open(source, 'r') as registry_file:
+                try:
+                    json.loads(registry_file.read())
+                except JSONDecodeError:
+                    message = "The registry source {} is not valid JSON".format(source)
+                    self.log.critical(message)
+                    raise self.ConfigurationError(message)
+                else:
+                    self.log.debug("Source registry {} is valid JSON".format(source))
+            self.log.info("Copied contract registry from {}".format(source))
             shutil.copyfile(src=source, dst=output_filepath)
         else:
-            open(output_filepath, '').close()  # blank
+            self.log.warning("Writing blank registry")
+            open(output_filepath, 'w').close()  # blank
 
         return output_filepath
 

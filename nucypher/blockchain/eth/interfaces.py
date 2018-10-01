@@ -22,7 +22,6 @@ class BlockchainInterface:
     ethereum contracts with the given web3 provider backend.
     """
     __default_timeout = 10  # seconds
-    __default_network = 'tester'
     # __default_transaction_gas_limit = 500000  # TODO: determine sensible limit and validate transactions
 
     class UnknownContract(Exception):
@@ -32,7 +31,6 @@ class BlockchainInterface:
         pass
 
     def __init__(self,
-                 network_name: str = None,
                  provider_uri: str = None,
                  providers: list = None,
                  autoconnect: bool = True,
@@ -44,33 +42,39 @@ class BlockchainInterface:
         A blockchain "network inerface"; The circumflex wraps entirely around the bounds of
         contract operations including compilation, deployment, and execution.
 
+         Filesystem          Configuration          Client               Web3                   Node
+        ================ ====================== =============== =====================  ===========================
 
-         Solidity Files -- SolidityCompiler ---                  --- HTTPProvider --
-                                               |                |                   |
-                                               |                |                    -- External EVM (geth, etc.)
-                                                                                    |
-                                               *BlockchainInterface* -- IPCProvider --
+         Solidity Files -- SolidityCompiler ---                  --- HTTPProvider ------ ...
+                                               |                |
+                                               |                |
+
+                                              *BlockchainInterface* -- IPCProvider ----- External EVM (geth, parity...)
 
                                                |      |         |
                                                |      |         |
-         Registry File -- ContractRegistry --       |          ---- TestProvider -- EthereumTester
+         Registry File -- ContractRegistry ---        |          ---- TestProvider ----- EthereumTester
                                                       |
-                                                      |                                  |
+                                                      |                                         |
                                                       |
-                                                                                       Pyevm (development chain)
-                                                 Blockchain
+                                                                                       PyEVM (Development Chain)
+         Runtime Files ---                -------- Blockchain
+                          |              |
+                          |              |             |
 
-                                                      |
+         Key Files ------ NodeConfiguration -------- Agent ... (Contract API)
 
-                                                    Agent ... (Contract API)
+                          |              |             |
+                          |              |
+                          |               ---------- Actor ... (Blockchain-Character API)
+                          |
+                          |                            |
 
-                                                      |
-
-                                                Character / Actor
+         Configuration File                        Character ... (Public API)
 
 
-        The circumflex is the junction of the solidity compiler, a contract registry, and a collection of
-        web3 network __providers as a means of interfacing with the ethereum blockchain to execute
+        The BlockchainInterface is the junction of the solidity compiler, a contract registry, and a collection of
+        web3 network providers as a means of interfacing with the ethereum blockchain to execute
         or deploy contract code on the network.
 
 
@@ -96,9 +100,6 @@ class BlockchainInterface:
 
         self.log = getLogger("blockchain-interface")                       # type: Logger
 
-        self.__network = network_name if network_name is not None else self.__default_network
-        self.timeout = timeout if timeout is not None else self.__default_timeout
-
         #
         # Providers
         #
@@ -106,6 +107,7 @@ class BlockchainInterface:
         self.w3 = constants.NO_BLOCKCHAIN_CONNECTION
         self.__providers = providers or constants.NO_BLOCKCHAIN_CONNECTION
         self.provider_uri = constants.NO_BLOCKCHAIN_CONNECTION
+        self.timeout = timeout if timeout is not None else self.__default_timeout
 
         if provider_uri and providers:
             raise self.InterfaceError("Pass a provider URI string, or a list of provider instances.")
@@ -168,10 +170,6 @@ class BlockchainInterface:
         return tuple(self.__providers)
 
     @property
-    def network(self) -> str:
-        return self.__network
-
-    @property
     def is_connected(self) -> bool:
         """
         https://web3py.readthedocs.io/en/stable/__providers.html#examples-using-automated-detection
@@ -179,9 +177,9 @@ class BlockchainInterface:
         return self.w3.isConnected()
 
     @property
-    def version(self) -> str:
+    def node_version(self) -> str:
         """Return node version information"""
-        return self.w3.version.node
+        return self.w3.node_version.node
 
     def add_provider(self,
                      provider: Union[IPCProvider, WebsocketProvider, HTTPProvider] = None,
@@ -215,7 +213,7 @@ class BlockchainInterface:
                     # w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
                 else:
-                    raise self.InterfaceError("{} is an ambiguous or unsupported blockchain provider URI".format(provider_uri))
+                    raise self.InterfaceError("{} is an invalid or unsupported blockchain provider URI".format(provider_uri))
 
             # IPC
             elif uri_breakdown.scheme == 'ipc':

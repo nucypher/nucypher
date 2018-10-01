@@ -126,7 +126,7 @@ class NucypherClickConfig:
         if self.compile:
             click.confirm("Compile solidity source?", abort=True)
         self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
-                                             registry_filepath=self.registry_filepath,
+                                             registry_filepath=self.registry_filepath or self.node_configuration.registry_filepath,
                                              deployer=self.deployer,
                                              compile=self.compile)
         if self.poa:
@@ -214,6 +214,7 @@ def cli(config,
 
     # Store config data
     config.verbose = verbose
+
     config.dev = dev
     config.federated_only = federated_only
     config.config_root = config_root
@@ -309,19 +310,22 @@ def accounts(config, action, checksum_address):
     #
     # Initialize
     #
+    config.get_node_configuration()
     if not config.federated_only:
         config.connect_to_blockchain()
+        config.connect_to_contracts()
 
-    def __collect_transfer_details(denomination: str):
-        destination = click.prompt("Enter destination checksum_address")
-        if not is_checksum_address(destination):
-            click.echo("{} is not a valid checksum checksum_address".format(destination))
-            raise click.Abort()
-        amount = click.prompt("Enter amount of {} to transfer".format(denomination), type=int)
-        return destination, amount
+        if not checksum_address:
+            checksum_address = config.blockchain.interface.w3.eth.coinbase
+            click.echo("WARNING: No checksum address specified - Using the node's default account.")
 
-    config.connect_to_contracts()
-    config.get_node_configuration()
+        def __collect_transfer_details(denomination: str):
+            destination = click.prompt("Enter destination checksum_address")
+            if not is_checksum_address(destination):
+                click.echo("{} is not a valid checksum checksum_address".format(destination))
+                raise click.Abort()
+            amount = click.prompt("Enter amount of {} to transfer".format(denomination), type=int)
+            return destination, amount
 
     #
     # Action Switch
