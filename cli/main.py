@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
+import collections
 import json
 import logging
 import os
 import random
+import shutil
 import sys
+from typing import Tuple, ClassVar
 
 import click
-import collections
-import shutil
-import subprocess
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from eth_utils import is_checksum_address
 from twisted.internet import reactor
-from typing import Tuple, ClassVar
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent, EthereumContractAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.constants import (DISPATCHER_SECRET_LENGTH,
@@ -36,7 +34,7 @@ from nucypher.crypto.api import generate_self_signed_certificate, _save_tls_cert
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
                                                   DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-                                                  )
+                                                  DEFAULT_SIMULATION_REGISTRY_FILEPATH)
 from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
 
 __version__ = '0.1.0-alpha.0'
@@ -214,6 +212,7 @@ def cli(config,
     # Store config data
     config.verbose = verbose
 
+    # TODO: Create NodeConfiguration from these values
     config.dev = dev
     config.federated_only = federated_only
     config.config_root = config_root
@@ -240,9 +239,16 @@ def cli(config,
 @cli.command()
 @click.option('--filesystem', is_flag=True, default=False)
 @click.option('--no-registry', is_flag=True)
+@click.option('--force', is_flag=True)
+@click.option('--checksum-address', type=str)
 @click.argument('action')
 @uses_config
-def configure(config, action, filesystem, no_registry):
+def configure(config,
+              action,
+              filesystem,
+              no_registry,
+              checksum_address,
+              force):
 
     #
     # Initialize
@@ -250,15 +256,17 @@ def configure(config, action, filesystem, no_registry):
     def __initialize(configuration):
         if config.dev:
             click.echo("Using temporary storage area")
-        click.confirm("Initialize new nucypher configuration?", abort=True)
+
+        if not force:
+            click.confirm("Initialize new nucypher configuration?", abort=True)
 
         configuration.write_defaults(no_registry=no_registry)
         click.echo("Created configuration files at {}".format(configuration.config_root))
 
-        if click.confirm("Do you need to generate a new wallet to use for staking?"):
+        if not force and click.confirm("Do you need to generate a new wallet to use for staking?"):
             address = config.create_account()
 
-        if click.confirm("Do you need to generate a new SSL certificate (Ursula)?"):
+        if not force and click.confirm("Do you need to generate a new SSL certificate (Ursula)?"):
             certificate_filepath = os.path.join(config.node_configuration.known_certificates_dir, '{}.pem'.format(address))
             config.create_node_tls_certificate(common_name=address, full_filepath=certificate_filepath)
 
@@ -274,6 +282,9 @@ def configure(config, action, filesystem, no_registry):
         finally:
             result = 'Valid' if is_valid else 'Invalid'
             click.echo('{} is {}'.format(config.node_configuration.config_root, result))
+
+    def __cleanup(configuration):
+        pass  # TODO
 
     def __destroy(configuration):
         if config.dev:
@@ -296,6 +307,8 @@ def configure(config, action, filesystem, no_registry):
     elif action == "reset":
         __destroy(config.node_configuration)
         __initialize(config.node_configuration)
+    elif action == "cleanup":
+        __cleanup(config.node_configuration)
     elif action == "validate":
         __validate()
 
@@ -304,7 +317,9 @@ def configure(config, action, filesystem, no_registry):
 @click.option('--checksum-address', help="The account to lock/unlock instead of the default", type=str)
 @click.argument('action', default='list', required=False)
 @uses_config
-def accounts(config, action, checksum_address):
+def accounts(config,
+             action,
+             checksum_address):
     """Manage local and hosted node accounts"""
 
     #
@@ -381,13 +396,18 @@ def accounts(config, action, checksum_address):
 
 
 @cli.command()
-@click.option('--checksum-address', help="Send rewarded tokens to a specific address, instead of the default.", type=str)
+@click.option('--checksum-address', type=str)
 @click.option('--value', help="Stake value in the smallest denomination", type=int)
 @click.option('--duration', help="Stake duration in periods", type=int)
 @click.option('--index', help="A specific stake index to resume", type=int)
 @click.argument('action', default='list', required=False)
 @uses_config
-def stake(config, action, checksum_address, index, value, duration):
+def stake(config,
+          action,
+          checksum_address,
+          index,
+          value,
+          duration):
     """
     Manage active and inactive node blockchain stakes.
 
@@ -554,7 +574,11 @@ def stake(config, action, checksum_address, index, value, duration):
 @click.option('--nodes', help="The number of nodes to simulate", type=int, default=10)
 @click.argument('action')
 @uses_config
-def simulate(config, action, nodes, geth, pyevm):
+def simulate(config,
+             action,
+             nodes,
+             geth,
+             pyevm):
     """
     Locally simulate the nucypher blockchain network
 
@@ -758,7 +782,11 @@ def simulate(config, action, nodes, geth, pyevm):
 @click.option('--deployer_address', type=str)
 @click.argument('action')
 @uses_config
-def deploy(config, action, deployer_address, contract_name, force):
+def deploy(config,
+           action,
+           deployer_address,
+           contract_name,
+           force):
     if not config.deployer:
         click.echo("The --deployer flag must be used to issue the deploy command.")
         raise click.Abort()
@@ -911,7 +939,9 @@ def deploy(config, action, deployer_address, contract_name, force):
 @click.option('--contracts', help="Echo nucypher smart contract info", is_flag=True)
 @click.option('--network', help="Echo the network status", is_flag=True)
 @uses_config
-def status(config, contracts, network):
+def status(config,
+           contracts,
+           network):
     """
     Echo a snapshot of live network metadata.
     """
