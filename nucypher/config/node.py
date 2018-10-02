@@ -241,6 +241,7 @@ class NodeConfiguration:
         return self.config_root
 
     def load_known_nodes(self, known_metadata_dir=None) -> None:
+        from nucypher.characters.lawful import Ursula
 
         if known_metadata_dir is None:
             known_metadata_dir = self.known_metadata_dir
@@ -250,7 +251,6 @@ class NodeConfiguration:
 
         self.log.info("Found {} known node metadata files at {}".format(len(metadata_paths), known_metadata_dir))
         for metadata_path in metadata_paths:
-            from nucypher.characters.lawful import Ursula
             node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)  # TODO: 466
             self.known_nodes.add(node)
 
