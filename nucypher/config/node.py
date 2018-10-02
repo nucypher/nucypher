@@ -5,6 +5,7 @@ from json import JSONDecodeError
 
 import shutil
 from glob import glob
+from logging import getLogger
 from os.path import abspath
 from tempfile import TemporaryDirectory
 
@@ -66,6 +67,8 @@ class NodeConfiguration:
                  save_metadata: bool = False
 
                  ) -> None:
+
+        self.log = getLogger(self.__class__.__name__)
 
         #
         # Configuration Filepaths
@@ -192,7 +195,7 @@ class NodeConfiguration:
             if getattr(self, field) is constants.UNINITIALIZED_CONFIGURATION:
                 setattr(self, field, filepath)
 
-    def write_defaults(self) -> str:
+    def write_defaults(self, no_registry=False) -> str:
         """Writes the configuration and runtime directory tree starting with the config root directory."""
 
         #
@@ -225,11 +228,13 @@ class NodeConfiguration:
 
             # Files
             self.import_registry(output_filepath=self.registry_filepath,
-                                 source=self.__registry_source)
+                                 source=self.__registry_source,
+                                 blank=no_registry)
 
         except FileExistsError:
             existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
             message = "There are pre-existing nucypher installation files at {}: {}".format(self.config_root, existing_paths)
+            self.log.critical(message)
             raise NodeConfiguration.ConfigurationError(message)
 
         # self.check_config_tree_exists(config_root=self.config_root)
@@ -243,6 +248,7 @@ class NodeConfiguration:
         glob_pattern = os.path.join(known_metadata_dir, '*.node')
         metadata_paths = sorted(glob(glob_pattern), key=os.path.getctime)
 
+        self.log.info("Found {} known node metadata files at {}".format(len(metadata_paths), known_metadata_dir))
         for metadata_path in metadata_paths:
             from nucypher.characters.lawful import Ursula
             node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)  # TODO: 466
@@ -271,12 +277,12 @@ class NodeConfiguration:
                     raise self.ConfigurationError(message)
                 else:
                     self.log.debug("Source registry {} is valid JSON".format(source))
-            self.log.info("Copied contract registry from {}".format(source))
-            shutil.copyfile(src=source, dst=output_filepath)
+
         else:
             self.log.warning("Writing blank registry")
             open(output_filepath, 'w').close()  # blank
 
+        self.log.info("Successfully wrote registry to {}".format(output_filepath))
         return output_filepath
 
     def write_default_configuration_file(self, filepath: str = DEFAULT_CONFIG_FILE_LOCATION):
@@ -296,5 +302,7 @@ class NodeConfiguration:
 
     def produce(self, **overrides) -> Character:
         """Initialize a new character instance and return it"""
+        if overrides:
+            self.log.debug("Overrides supplied to {}".format(self.__class__.__name__))
         merged_parameters = {**self.payload, **overrides}
         return self._Character(**merged_parameters)

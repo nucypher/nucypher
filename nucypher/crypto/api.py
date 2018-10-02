@@ -122,8 +122,6 @@ def _save_tls_certificate(certificate: Certificate,
     if force is False and os.path.isfile(full_filepath):
         raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath))
 
-    if '0x' not in full_filepath:
-        import ipdb; ipdb.set_trace()
     with open(full_filepath, 'wb') as certificate_file:
         public_pem_bytes = certificate.public_bytes(Encoding.PEM)
         certificate_file.write(public_pem_bytes)

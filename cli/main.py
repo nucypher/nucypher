@@ -240,9 +240,10 @@ def cli(config,
 
 @cli.command()
 @click.option('--filesystem', is_flag=True, default=False)
+@click.option('--no-registry', is_flag=True)
 @click.argument('action')
 @uses_config
-def configure(config, action, filesystem):
+def configure(config, action, filesystem, no_registry):
 
     #
     # Initialize
@@ -252,7 +253,7 @@ def configure(config, action, filesystem):
             click.echo("Using temporary storage area")
         click.confirm("Initialize new nucypher configuration?", abort=True)
 
-        configuration.write_defaults()
+        configuration.write_defaults(no_registry=no_registry)
         click.echo("Created configuration files at {}".format(configuration.config_root))
 
         if click.confirm("Do you need to generate a new wallet to use for staking?"):
