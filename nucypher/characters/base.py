@@ -87,8 +87,12 @@ class Learner(ABC):
     def known_nodes(self):
         return self.__known_nodes
 
-    def remember_node(self, node):
-        # TODO: 334
+    def remember_node(self, node, force_verification_check=False):
+
+        node.verify_node(self.network_middleware,  # TODO: Take middleware directly in this class?
+                         force=force_verification_check,
+                         accept_federated_only=self.federated_only)  # TODO: 466
+
         listeners = self._learning_listeners.pop(node.checksum_public_address, ())
         address = node.checksum_public_address
 
