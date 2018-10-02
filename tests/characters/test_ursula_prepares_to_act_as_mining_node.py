@@ -99,7 +99,7 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     vladimir = Vladimir.from_target_ursula(target_ursula=his_target)
 
     message = vladimir._signable_interface_info_message()
-    signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
+    signature = vladimir._crypto_power.power_ups(SigningPower).sign(vladimir.timestamp_bytes() + message)
     vladimir._interface_signature_object = signature
 
     vladimir.substantiate_stamp()
