@@ -9,7 +9,8 @@ class InterfaceInfo:
     expected_bytes_length = lambda: VariableLengthBytestring
 
     def __init__(self, host, port) -> None:
-        self.host = host
+        loopback, localhost = '127.0.0.1', 'localhost'
+        self.host = loopback if host == localhost else host
         self.port = int(port)
 
     @classmethod
@@ -18,6 +19,14 @@ class InterfaceInfo:
         port = int.from_bytes(port_bytes, "big")
         host = host_bytes.decode("utf-8")
         return cls(host=host, port=port)
+
+    @property
+    def uri(self):
+        return u"{}:{}".format(self.host, self.port)
+
+    @property
+    def formal_uri(self):
+        return u"{}://{}".format('https', self.uri)
 
     def __bytes__(self):
         return bytes(self.host, encoding="utf-8") + b":" + self.port.to_bytes(4, "big")

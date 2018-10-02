@@ -15,7 +15,7 @@ from nucypher.crypto.powers import CryptoPower
 
 class UrsulaConfiguration(NodeConfiguration):
 
-    DEFAULT_REST_HOST = 'localhost'
+    DEFAULT_REST_HOST = '127.0.0.1'
     DEFAULT_REST_PORT = 9151
     __DB_TEMPLATE = "ursula.{port}.db"
     DEFAULT_DB_NAME = __DB_TEMPLATE.format(port=DEFAULT_REST_PORT)

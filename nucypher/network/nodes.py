@@ -3,6 +3,7 @@ import os
 import OpenSSL
 import maya
 from constant_sorrow import constants
+from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 
@@ -44,7 +45,7 @@ class VerifiableNode:
         """
 
     @classmethod
-    def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs):
+    def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs) -> 'VerifiableNode':
         certificate_filepath = tls_hosting_power.keypair.certificate_filepath
         certificate = tls_hosting_power.keypair.certificate
         return cls(certificate=certificate, certificate_filepath=certificate_filepath, *args, **kwargs)
@@ -186,7 +187,10 @@ class VerifiableNode:
 
     @property
     def certificate_filename(self):
-        return self.common_name + '.pem'  # TODO: use cert encoding..?
+        return '{}.{}'.format(self.common_name, Encoding.PEM.name.lower())  # TODO: use cert's encoding..?
+
+    def get_certificate_filepath(self, certificates_dir: str) -> str:
+        return os.path.join(certificates_dir, self.certificate_filename)
 
     def save_certificate_to_disk(self, directory):
         x509 = OpenSSL.crypto.X509.from_cryptography(self.certificate)
@@ -194,11 +198,12 @@ class VerifiableNode:
         common_name_as_bytes = subject_components[0][1]
         common_name_from_cert = common_name_as_bytes.decode()
 
-        if not self.checksum_public_address == common_name_from_cert:
+        if not self.rest_information()[0].host == common_name_from_cert:
             # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
             raise ValueError("You passed a common_name that is not the same one as the cert. "
-                             "Common name is optional; the cert will be saved according to the name on the cert itself.")
+                             "Common name is optional; the cert will be saved according to "
+                             "the name on the cert itself.")
 
-        certificate_filepath = os.path.join(directory, self.certificate_filename)
+        certificate_filepath = self.get_certificate_filepath(certificates_dir=directory)
         _save_tls_certificate(self.certificate, full_filepath=certificate_filepath)
         self.certificate_filepath = certificate_filepath

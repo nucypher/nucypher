@@ -485,7 +485,6 @@ class Ursula(Character, VerifiableNode, Miner):
                 self.datastore = rest_routes.datastore  # TODO: Maybe organize this better?
 
                 tls_hosting_keypair = HostingKeypair(
-                    common_name=self.checksum_public_address,
                     private_key=tls_private_key,
                     curve=tls_curve,
                     host=rest_host,
@@ -505,11 +504,9 @@ class Ursula(Character, VerifiableNode, Miner):
                     tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                         certificate_filepath=certificate_filepath,
                                                         certificate=certificate,
-                                                        certificate_dir=self.known_certificates_dir,
-                                                        common_name=self.checksum_public_address,)
+                                                        certificate_dir=self.known_certificates_dir)
                 else:
                     tls_hosting_keypair = HostingKeypair(
-                        common_name=self.checksum_public_address,
                         curve=tls_curve,
                         host=rest_host,
                         certificate_filepath=certificate_filepath,
@@ -586,7 +583,7 @@ class Ursula(Character, VerifiableNode, Miner):
                       port: int,
                       federated_only: bool = False) -> 'Ursula':
 
-        response = network_middleware.node_information(host, port)
+        response = network_middleware.node_information(host, port)  # TODO
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 

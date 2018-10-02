@@ -140,8 +140,7 @@ class ProxyRESTRoutes:
             if node.checksum_public_address in self._node_tracker:
                 continue  # TODO: 168 Check version and update if required.
 
-            certificate_filepath = os.path.join(self._certificate_dir,
-                                                "{}.pem".format(node.checksum_public_address))
+            certificate_filepath = node.get_certificate_filepath(certificates_dir=self._certificate_dir)
 
             @crosstown_traffic()
             def learn_about_announced_nodes():
@@ -295,7 +294,6 @@ class TLSHostingPower(KeyPairBasedPower):
                  certificate_filepath=None,
                  certificate=None,
                  certificate_dir=None,
-                 common_name=None,  # TODO: Is this actually optional?
                  *args, **kwargs) -> None:
 
         if certificate and certificate_filepath:
@@ -305,7 +303,7 @@ class TLSHostingPower(KeyPairBasedPower):
         if certificate:
             kwargs['keypair'] = HostingKeypair(certificate=certificate,
                                                certificate_dir=certificate_dir,
-                                               common_name=common_name)
+                                               host=rest_server.rest_interface.host)
         elif certificate_filepath:
             kwargs['keypair'] = HostingKeypair(certificate_filepath=certificate_filepath)
         self.rest_server = rest_server

@@ -170,8 +170,7 @@ class NucypherClickConfig:
         host = click.prompt("Enter the node's hostname", default='localhost')  # TODO: remove localhost as default
 
         # TODO: save TLS private key
-        certificate, private_key = generate_self_signed_certificate(common_name=common_name,
-                                                                    host=host,
+        certificate, private_key = generate_self_signed_certificate(host=common_name,
                                                                     days_valid=days,
                                                                     curve=ec.SECP384R1)  # TODO: use Config class?
 

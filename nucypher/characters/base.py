@@ -107,6 +107,7 @@ class Learner(ABC):
 
         if self.save_metadata:
             node.write_node_metadata(node=node)
+            node.save_certificate_to_disk()
 
         self.log.info("Remembering {}, popping {} listeners.".format(node.checksum_public_address, len(listeners)))
         for listener in listeners:
@@ -305,12 +306,11 @@ class Learner(ABC):
     def write_node_metadata(self, node, serializer=bytes) -> str:
 
         try:
-            filename = "{}.node".format(node.checksum_public_address)  # TODO: Use common name
+            filename = "{}.node".format(node.checksum_public_address)
         except AttributeError:
             raise AttributeError("{} does not have a rest_interface attached".format(self))
 
         metadata_filepath = os.path.join(self.known_metadata_dir, filename)
-
         with open(metadata_filepath, "w") as f:
             f.write(serializer(node).hex())
         return metadata_filepath
@@ -531,7 +531,7 @@ class Character(Learner):
         try:
 
             # TODO: Streamline path generation
-            certificate_filepath = os.path.join(self.known_certificates_dir, current_teacher.certificate_filename)
+            certificate_filepath = current_teacher.get_certificate_filepath(certificates_dir=self.known_certificates_dir)
             response = self.network_middleware.get_nodes_via_rest(url=rest_url,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
@@ -562,11 +562,13 @@ class Character(Learner):
 
             try:
                 if eager:
-                    certificate_filepath = os.path.join(self.known_certificates_dir,
-                                                        "{}.pem".format(node.checksum_public_address))
-                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only, certificate_filepath=certificate_filepath)
+                    certificate_filepath = current_teacher.get_certificate_filepath(certificates_dir=certificate_filepath)
+                    node.verify_node(self.network_middleware,
+                                     accept_federated_only=self.federated_only,
+                                     certificate_filepath=certificate_filepath)
                 else:
                     node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
+
             except node.SuspiciousActivity:
                 # TODO: Account for possibility that stamp, rather than interface, was bad.
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
