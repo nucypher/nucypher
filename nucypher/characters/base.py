@@ -359,8 +359,6 @@ class Character(Learner):
             represented by zero Characters or by more than one Character.
 
         """
-        super().__init__(*args, **kwargs)
-
         self.federated_only = federated_only                     # type: bool
         self.known_certificates_dir = known_certificates_dir
 
@@ -399,6 +397,9 @@ class Character(Learner):
                 raise TypeError(
                     "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
             self._stamp = StrangerStamp(self.public_keys(SigningPower))
+
+        # Init the Learner superclass.
+        Learner.__init__(self, *args, **kwargs)
 
         # Decentralized
         if not federated_only:
