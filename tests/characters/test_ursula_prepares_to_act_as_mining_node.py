@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from eth_keys.datatypes import Signature as EthSignature
 
@@ -108,6 +110,9 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     # With this slightly more sophisticated attack, his metadata does appear valid.
     vladimir.validate_metadata()
 
+    certificate_filepath = os.path.join(vladimir.known_certificates_dir,
+                                        "{}.pem".format(his_target.checksum_public_address))
+
     # However, the actual handshake proves him wrong.
     with pytest.raises(vladimir.InvalidNode):
-        vladimir.verify_node(blockchain_alice.network_middleware)
+        vladimir.verify_node(blockchain_alice.network_middleware, certificate_filepath=certificate_filepath)

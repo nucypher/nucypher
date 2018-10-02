@@ -562,7 +562,9 @@ class Character(Learner):
 
             try:
                 if eager:
-                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)
+                    certificate_filepath = os.path.join(self.known_certificates_dir,
+                                                        "{}.pem".format(node.checksum_public_address))
+                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only, certificate_filepath=certificate_filepath)
                 else:
                     node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
             except node.SuspiciousActivity:

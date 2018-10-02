@@ -30,6 +30,7 @@ class UrsulaConfiguration(NodeConfiguration):
                  tls_curve: EllipticCurve = None,
                  tls_private_key: bytes = None,
                  certificate: Certificate = None,
+                 certificate_filepath: str = None,
 
                  # Ursula
                  db_name: str = None,
@@ -57,6 +58,7 @@ class UrsulaConfiguration(NodeConfiguration):
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.tls_private_key = tls_private_key
         self.certificate = certificate
+        self.certificate_filepath = certificate_filepath
 
         # Ursula
         self.interface_signature = interface_signature
@@ -100,7 +102,7 @@ class UrsulaConfiguration(NodeConfiguration):
          tls_curve=self.tls_curve,
          tls_private_key=self.tls_private_key,
          certificate=self.certificate,
-         # certificate_filepath=self.certificate_filepath,  # TODO: Handle existing certificates, injecting the path
+         certificate_filepath=self.certificate_filepath,
 
          # Ursula
          interface_signature=self.interface_signature,

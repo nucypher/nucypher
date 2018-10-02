@@ -103,7 +103,7 @@ class VerifiableNode:
                 if not accept_federated_only:
                     raise
 
-    def verify_node(self, network_middleware, accept_federated_only=False, force=False):
+    def verify_node(self, network_middleware, accept_federated_only=False, force=False, certificate_filepath=None):
         """
         Three things happening here:
 
@@ -119,7 +119,8 @@ class VerifiableNode:
 
         # The node's metadata is valid; let's be sure the interface is in order.
         response = network_middleware.node_information(host=self.rest_information()[0].host,
-                                                       port=self.rest_information()[0].port)
+                                                       port=self.rest_information()[0].port,
+                                                       certificate_filepath=certificate_filepath)
         if not response.status_code == 200:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
         timestamp, signature, identity_evidence, verifying_key, encrypting_key, public_address, certificate_vbytes, rest_info = self._internal_splitter(response.content)
@@ -160,7 +161,7 @@ class VerifiableNode:
             try:
                 self._sign_and_date_interface_info()
             except NoSigningPower:
-                raise NoSigningPower("This Node is a Stranger; you didn't init with an interface signature, so you can't verify.")
+                raise NoSigningPower("This Ursula is a stranger and cannot be used to verify.")
         return self._interface_signature_object
 
     @property
@@ -195,7 +196,8 @@ class VerifiableNode:
 
         if not self.checksum_public_address == common_name_from_cert:
             # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
-            raise ValueError("You passed a __common_name that is not the same one as the cert.  Why?  FWIW, You don't even need to pass a common name here; the cert will be saved according to the name on the cert itself.")
+            raise ValueError("You passed a common_name that is not the same one as the cert. "
+                             "Common name is optional; the cert will be saved according to the name on the cert itself.")
 
         certificate_filepath = os.path.join(directory, self.certificate_filename)
         _save_tls_certificate(self.certificate, full_filepath=certificate_filepath)

@@ -501,7 +501,7 @@ class Ursula(Character, VerifiableNode, Miner):
                     rest_host=rest_host,
                     rest_port=rest_port
                 )
-                if certificate or certificate_filepath:
+                if certificate or certificate_filepath:  # existing certificate
                     tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                         certificate_filepath=certificate_filepath,
                                                         certificate=certificate,

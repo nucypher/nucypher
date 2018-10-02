@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from hendrix.experience import crosstown_traffic
 from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
@@ -123,12 +125,16 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     ursulas = list(blockchain_ursulas)
     ursula_whom_vladimir_will_imitate, other_ursula = ursulas[0], ursulas[1]
 
-    # This Ursula is totally legit...
-    ursula_whom_vladimir_will_imitate.verify_node(MockRestMiddleware(),
-                                                  accept_federated_only=True)
-
-    # ...until Vladimir sees her on the network and tries to use her public information.
+    # Vladimir sees Ursula on the network and tries to use her public information.
     vladimir = Vladimir.from_target_ursula(ursula_whom_vladimir_will_imitate)
+
+    # This Ursula is totally legit...
+    certificate_filepath = os.path.join(vladimir.known_certificates_dir,  # TODO: Vladmir needs to store certs, too
+                                        "{}.pem".format(ursula_whom_vladimir_will_imitate.checksum_public_address))
+
+    ursula_whom_vladimir_will_imitate.verify_node(MockRestMiddleware(),
+                                                  accept_federated_only=True,
+                                                  certificate_filepath=certificate_filepath)
 
     learning_callers = []
     crosstown_traffic.decorator = crosstownTaskListDecoratorFactory(learning_callers)

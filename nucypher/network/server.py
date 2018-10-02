@@ -1,4 +1,5 @@
 import binascii
+import os
 from logging import getLogger
 
 from apistar import Route, App
@@ -139,10 +140,15 @@ class ProxyRESTRoutes:
             if node.checksum_public_address in self._node_tracker:
                 continue  # TODO: 168 Check version and update if required.
 
+            certificate_filepath = os.path.join(self._certificate_dir,
+                                                "{}.pem".format(node.checksum_public_address))
+
             @crosstown_traffic()
             def learn_about_announced_nodes():
                 try:
-                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)  # TODO: 466
+                    node.verify_node(self.network_middleware,
+                                     accept_federated_only=self.federated_only,  # TODO: 466
+                                     certificate_filepath=certificate_filepath)
                 except node.SuspiciousActivity:
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \

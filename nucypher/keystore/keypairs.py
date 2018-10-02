@@ -153,7 +153,7 @@ class HostingKeypair(Keypair):
 
             if not all((common_name, host)):
                 message = "If you don't supply the certificate, one will be generated for you." \
-                          "But for that, you need to pass both host and __common_name.."
+                          "But for that, you need to pass both host and common_name."
                 raise TypeError(message)
 
             certificate, private_key = generate_self_signed_certificate(common_name=common_name,
