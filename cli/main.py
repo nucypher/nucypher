@@ -343,7 +343,7 @@ def accounts(config, action, checksum_address):
 
     elif action == 'export':
         keyring = NucypherKeyring(common_name=checksum_address)
-        click.confirm("Export local private key to node's keyring: {}?".format(config.provider_uri), abort=True)
+        click.confirm("Export local private key for {} to node's keyring: {}?".format(checksum_address, config.provider_uri), abort=True)
         passphrase = click.prompt("Enter passphrase to decrypt account", type=str)
         keyring._export(blockchain=config.blockchain, passphrase=passphrase)
 
@@ -414,8 +414,13 @@ def stake(config, action, checksum_address, index, value, duration):
 
     """
 
-    config.connect_to_blockchain()
-    config.connect_to_contracts()
+    #
+    # Initialize
+    #
+    config.get_node_configuration()
+    if not config.federated_only:
+        config.connect_to_blockchain()
+        config.connect_to_contracts()
 
     if not checksum_address:
 
@@ -758,39 +763,43 @@ def deploy(config, action, deployer_address, contract_name, force):
         click.echo("The --deployer flag must be used to issue the deploy command.")
         raise click.Abort()
 
-    #
-    # Initialize
-    #
+    def __get_deployers():
 
-    config.connect_to_blockchain()
-    config.blockchain.interface.deployer_address = deployer_address or config.accounts[0]
+        config.connect_to_blockchain()
+        config.blockchain.interface.deployer_address = deployer_address or config.accounts[0]
 
-    DeployerInfo = collections.namedtuple('DeployerInfo', 'deployer_class upgradeable agent_name dependant')
-    deployers = collections.OrderedDict({
+        DeployerInfo = collections.namedtuple('DeployerInfo', 'deployer_class upgradeable agent_name dependant')
+        deployers = collections.OrderedDict({
 
-        NucypherTokenDeployer._contract_name: DeployerInfo(deployer_class=NucypherTokenDeployer,
-                                                           upgradeable=False,
-                                                           agent_name='token_agent',
-                                                           dependant=None),
+            NucypherTokenDeployer._contract_name: DeployerInfo(deployer_class=NucypherTokenDeployer,
+                                                               upgradeable=False,
+                                                               agent_name='token_agent',
+                                                               dependant=None),
 
-        MinerEscrowDeployer._contract_name: DeployerInfo(deployer_class=MinerEscrowDeployer,
-                                                         upgradeable=True,
-                                                         agent_name='miner_agent',
-                                                         dependant='token_agent'),
+            MinerEscrowDeployer._contract_name: DeployerInfo(deployer_class=MinerEscrowDeployer,
+                                                             upgradeable=True,
+                                                             agent_name='miner_agent',
+                                                             dependant='token_agent'),
 
-        PolicyManagerDeployer._contract_name: DeployerInfo(deployer_class=PolicyManagerDeployer,
-                                                           upgradeable=True,
-                                                           agent_name='policy_agent',
-                                                           dependant='miner_agent'
-                                                           ),
+            PolicyManagerDeployer._contract_name: DeployerInfo(deployer_class=PolicyManagerDeployer,
+                                                               upgradeable=True,
+                                                               agent_name='policy_agent',
+                                                               dependant='miner_agent'
+                                                               ),
 
-        # UserEscrowDeployer._contract_name: DeployerInfo(deployer_class=UserEscrowDeployer,
-        #                                                 upgradeable=True,
-        #                                                 agent_name='user_agent',
-        #                                                 dependant='policy_agent'),  # TODO
-    })
+            # UserEscrowDeployer._contract_name: DeployerInfo(deployer_class=UserEscrowDeployer,
+            #                                                 upgradeable=True,
+            #                                                 agent_name='user_agent',
+            #                                                 dependant='policy_agent'),  # TODO
+        })
+
+        click.confirm("Continue?", abort=True)
+        return deployers
 
     if action == "contracts":
+        deployers = __get_deployers()
+        __deployment_transactions = dict()
+        __deployment_agents = dict()
 
         available_deployers = ", ".join(deployers)
         click.echo("\n-----------------------------------------------")
@@ -799,11 +808,6 @@ def deploy(config, action, deployer_address, contract_name, force):
         click.echo("Registry Output Filepath .. {}".format(config.blockchain.interface.registry.filepath))
         click.echo("Deployer's Address ........ {}".format(config.blockchain.interface.deployer_address))
         click.echo("-----------------------------------------------\n")
-
-        click.confirm("Continue?", abort=True)
-
-        __deployment_transactions = dict()
-        __deployment_agents = dict()
 
         def __deploy_contract(deployer_class: ClassVar,
                               upgradeable: bool,
@@ -868,6 +872,9 @@ def deploy(config, action, deployer_address, contract_name, force):
             return __transactions, __agent
 
         if contract_name:
+            #
+            # Deploy Single Contract
+            #
             try:
                 deployer_info = deployers[contract_name]
             except KeyError:
@@ -878,6 +885,9 @@ def deploy(config, action, deployer_address, contract_name, force):
                                                  agent_name=deployer_info.agent_name,
                                                  dependant=deployer_info.dependant)
         else:
+            #
+            # Deploy All Contracts
+            #
             for deployer_name, deployer_info in deployers.items():
                 _txs, _agent = __deploy_contract(deployer_info.deployer_class,
                                                  upgradeable=deployer_info.upgradeable,
@@ -905,6 +915,10 @@ def status(config, contracts, network):
     """
     Echo a snapshot of live network metadata.
     """
+    #
+    # Initialize
+    #
+    config.get_node_configuration()
     if not config.federated_only:
         config.connect_to_blockchain()
         config.connect_to_contracts()
@@ -913,32 +927,29 @@ def status(config, contracts, network):
     
     | NuCypher ETH Contracts |
     
+    Provider URI ............. {provider_uri}
     Registry Path ............ {registry_filepath}
+
     NucypherToken ............ {token}
     MinerEscrow .............. {escrow}
     PolicyManager ............ {manager}
         
-    """.format(registry_filepath=config.blockchain.interface.filepath,
+    """.format(provider_uri=config.blockchain.interface.provider_uri,
+               registry_filepath=config.blockchain.interface.registry.filepath,
                token=config.token_agent.contract_address,
                escrow=config.miner_agent.contract_address,
                manager=config.policy_agent.contract_address,
                period=config.miner_agent.get_current_period())
 
     network_payload = """
-    
     | Blockchain Network |
     
     Current Period ........... {period}
+    Gas Price ................ {gas_price}
     Active Staking Ursulas ... {ursulas}
     
-    | Swarm |
-    
-    Known Nodes .............. 
-    Verified Nodes ........... 
-    Phantom Nodes ............ NotImplemented
-        
-    
     """.format(period=config.miner_agent.get_current_period(),
+               gas_price=config.blockchain.interface.w3.eth.gasPrice,
                ursulas=config.miner_agent.get_miner_population())
 
     subpayloads = ((contracts, contract_payload),
