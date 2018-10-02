@@ -451,7 +451,7 @@ class Ursula(Character, VerifiableNode, Miner):
             if not federated_only:
                 # if passphrase is None:
                 #     raise self.ActorError("No passphrase supplied to unlock account")
-                self.substantiate_stamp(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
+                self.substantiate_stamp(passphrase=passphrase)
 
         if not crypto_power or (TLSHostingPower not in crypto_power._power_ups):
             # TODO: Maybe we want _power_ups to be public after all?
