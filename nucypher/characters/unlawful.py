@@ -35,7 +35,9 @@ class Vladimir(Ursula):
                        certificate=target_ursula.rest_server_certificate(),
                        is_me=False)
 
-        vladimir._interface_signature_object = target_ursula._interface_signature_object  # Asshole.
+        # Asshole.
+        vladimir._interface_signature_object = target_ursula._interface_signature_object
+        vladimir._timestamp = target_ursula._timestamp
 
         cls.attach_transacting_key(blockchain=target_ursula.blockchain)
 
