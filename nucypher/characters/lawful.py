@@ -559,9 +559,7 @@ class Ursula(Character, VerifiableNode, Miner):
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
 
-        timestamp = maya.now().epoch.to_bytes(4, 'big')
-
-        as_bytes = bytes().join((timestamp,
+        as_bytes = bytes().join((self._timestamp,
                                  bytes(self._interface_signature),
                                  bytes(identity_evidence),
                                  bytes(self.public_keys(SigningPower)),
