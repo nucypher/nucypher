@@ -2,6 +2,8 @@ import os
 import tempfile
 
 import datetime
+from unittest.mock import Mock
+
 import maya
 import pytest
 from constant_sorrow import constants
@@ -77,7 +79,8 @@ def ursula_federated_test_config():
                                         is_me=True,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
-                                        federated_only=True)
+                                        federated_only=True,
+                                        network_middleware=MockRestMiddleware())
     yield ursula_config
     ursula_config.cleanup()
 
@@ -92,7 +95,8 @@ def ursula_decentralized_test_config(three_agents):
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
                                         miner_agent=miner_agent,
-                                        federated_only=False)
+                                        federated_only=False,
+                                        network_middleware=MockRestMiddleware())
     yield ursula_config
     ursula_config.cleanup()
 

@@ -51,7 +51,7 @@ def test_blockchain_ursula_verifies_stamp(blockchain_ursulas):
     first_ursula = list(blockchain_ursulas)[0]
 
     # This Ursula does not yet have a verified stamp
-    assert not first_ursula.verified_stamp
+    first_ursula.verified_stamp = False
     first_ursula.stamp_is_valid()
 
     # ...but now it's verified.
