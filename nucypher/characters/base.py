@@ -1,23 +1,22 @@
 import os
 import random
-from abc import abstractmethod, ABC
+import time
 from collections import defaultdict
 from collections import deque
 from contextlib import suppress
 from logging import Logger
 from logging import getLogger
+from typing import Dict, ClassVar, Set
+from typing import Tuple
+from typing import Union, List
 
 import maya
 import requests
-import time
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from twisted.internet import reactor
 from twisted.internet import task
-from typing import Dict, ClassVar, Set
-from typing import Tuple
-from typing import Union, List
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 

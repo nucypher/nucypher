@@ -133,7 +133,6 @@ class HostingKeypair(Keypair):
                  curve=None,
                  certificate=None,
                  certificate_filepath: str = None,
-                 certificate_dir=None,
                  generate_certificate=True,
                  ) -> None:
 
@@ -168,7 +167,6 @@ class HostingKeypair(Keypair):
 
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
-        self.certificate_dir = certificate_dir
 
     def generate_self_signed_cert(self, common_name):
         cryptography_key = self._privkey.to_cryptography_privkey()

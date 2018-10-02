@@ -485,8 +485,7 @@ class Ursula(Character, VerifiableNode, Miner):
                     private_key=tls_private_key,
                     curve=tls_curve,
                     host=rest_host,
-                    certificate=certificate,
-                    certificate_dir=self.known_certificates_dir)
+                    certificate=certificate)
 
                 tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                     keypair=tls_hosting_keypair)
@@ -500,14 +499,12 @@ class Ursula(Character, VerifiableNode, Miner):
                 if certificate or certificate_filepath:  # existing certificate
                     tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                         certificate_filepath=certificate_filepath,
-                                                        certificate=certificate,
-                                                        certificate_dir=self.known_certificates_dir)
+                                                        certificate=certificate)
                 else:
                     tls_hosting_keypair = HostingKeypair(
                         curve=tls_curve,
                         host=rest_host,
-                        certificate_filepath=certificate_filepath,
-                        certificate_dir=self.known_certificates_dir)
+                        certificate_filepath=certificate_filepath)
 
                     tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                         keypair=tls_hosting_keypair)
