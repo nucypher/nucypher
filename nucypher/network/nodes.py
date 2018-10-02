@@ -136,6 +136,8 @@ class VerifiableNode:
             if not verifying_keys_match:
                 self.log.warning("Verifying key swapped out.  It appears that someone is impersonating this node.")
             raise self.InvalidNode("Wrong cryptographic material for this node - something fishy going on.")
+        else:
+            self._verified_node = True
 
     def substantiate_stamp(self):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
