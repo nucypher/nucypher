@@ -19,16 +19,19 @@ class VerifiableNode:
     verified_stamp = False
     verified_interface = False
     _verified_node = False
+    _interface_info_splitter = (int, 4, {'byteorder': 'big'})
 
     def __init__(self,
                  certificate: Certificate,
                  certificate_filepath: str,
                  interface_signature=constants.NOT_SIGNED.bool_value(False),
+                 timestamp=constants.NOT_SIGNED,
                  ) -> None:
 
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
         self._interface_signature_object = interface_signature
+        self._timestamp = timestamp
 
     class InvalidNode(SuspiciousActivity):
         """

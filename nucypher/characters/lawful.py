@@ -403,6 +403,7 @@ class Ursula(Character, VerifiableNode, Miner):
                  db_filepath: str = None,
                  is_me: bool = True,
                  interface_signature=None,
+                 timestamp=None,
 
                  # Blockchain
                  miner_agent=None,
@@ -525,7 +526,8 @@ class Ursula(Character, VerifiableNode, Miner):
         VerifiableNode.__init__(self,
                                 certificate=certificate,
                                 certificate_filepath=certificate_filepath,
-                                interface_signature=interface_signature)
+                                interface_signature=interface_signature,
+                                timestamp=timestamp)
 
         if is_me:
             message = "Initialized Self {} | {}".format(self.__class__.__name__, self.checksum_public_address)
@@ -604,8 +606,10 @@ class Ursula(Character, VerifiableNode, Miner):
          rest_info) = cls._internal_splitter(ursula_as_bytes)
         certificate = load_pem_x509_certificate(certificate_vbytes.message_as_bytes,
                                                 default_backend())
+        timestamp = maya.MayaDT(timestamp)
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: verifying_key, EncryptingPower: encrypting_key},
+            timestamp=timestamp,
             interface_signature=signature,
             checksum_address=to_checksum_address(public_address),
             rest_host=rest_info.host,
@@ -636,11 +640,13 @@ class Ursula(Character, VerifiableNode, Miner):
              rest_info) in ursulas_attrs:
             certificate = load_pem_x509_certificate(certificate_vbytes.message_as_bytes,
                                                     default_backend())
+            timestamp = maya.MayaDT(timestamp)
             stranger_ursula_from_public_keys = cls.from_public_keys(
                 {SigningPower: verifying_key,
                  EncryptingPower: encrypting_key,
                  },
                 interface_signature=signature,
+                timestamp=timestamp,
                 checksum_address=to_checksum_address(public_address),
                 certificate=certificate,
                 rest_host=rest_info.host,
