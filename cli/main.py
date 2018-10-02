@@ -988,20 +988,25 @@ def ursula(config,
            resume  # TODO Implement stake resume
            ) -> None:
     """
+    Manage and Run Ursula Nodes.
 
-    The following procedure is required to "spin-up" an Ursula node.
+    Here is the procedure to "spin-up" an Ursula node.
 
-        1. Initialize UrsulaConfiguration
-        2. Initialize Ursula
-        3. Run TLS deployment
-        4. Start the staking daemon
-
-    Configurable values are first read from the configuration file,
-    but can be overridden (mostly for testing purposes) with inline cli options.
+        0. Validate CLI Input
+        1. Initialize UrsulaConfiguration (from configuration file or inline)
+        2. Initialize Ursula with Passphrase
+        3. Initialize Staking Loop
+        4. Run TLS deployment (Learning Loop + Reactor)
 
     """
-    if action == 'run':
-        if config.config_file:
+    if action == 'run':                # 0
+        if not config.federated_only:
+            if not all((stake_amount, stake_periods)) and not resume:
+                click.echo("Either --stake-amount and --stake-periods options "
+                           "or the --resume flag is required to run a non-federated Ursula")
+                raise click.Abort()
+
+        if config.config_file:         # 1
             ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config.config_file)
         else:
             ursula_config = UrsulaConfiguration(temp=config.dev,
@@ -1015,7 +1020,7 @@ def ursula(config,
                                                 registry_filepath=config.registry_filepath,
                                                 provider_uri=config.provider_uri,
                                                 checksum_address=checksum_address,
-                                                # save_metadata=False,  # TODO: implement feature switch
+                                                save_metadata=False,
                                                 load_metadata=True,
                                                 known_metadata_dir=config.metadata_dir,
                                                 start_learning_now=True,
@@ -1023,18 +1028,16 @@ def ursula(config,
 
         try:
             passphrase = click.prompt("Enter passphrase to unlock account", type=str)
-            URSULA = ursula_config.produce(passphrase=passphrase)
-
+            URSULA = ursula_config.produce(passphrase=passphrase)  # 2
             if not config.federated_only:
-                URSULA.stake(amount=stake_amount, lock_periods=stake_periods)
-
-            URSULA.get_deployer().run()       # Run TLS Deploy (Reactor)
+                URSULA.stake(amount=stake_amount,                  # 3
+                             lock_periods=stake_periods)
+            URSULA.get_deployer().run()                            # 4
 
         finally:
-
-            click.echo("Cleaning up temporary runtime files and directories")
-            ursula_config.cleanup()  # TODO: Integrate with other "graceful" shutdown functionality
-            click.echo("Exited gracefully")
+            click.echo("Cleaning up.")
+            ursula_config.cleanup()
+            click.echo("Exited gracefully.")
 
 
 if __name__ == "__main__":

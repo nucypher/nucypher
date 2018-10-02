@@ -350,8 +350,8 @@ class BlockchainInterface:
         return is_valid_sig and (sig_pubkey == pubkey)
 
     def unlock_account(self, address, password, duration):
-        if self.provider_uri == 'tester://pyevm':  # TODO How to handle passwordless unlocked accounts in test
-            return True
+        if 'tester' in self.provider_uri:
+            return True  # Test accounts are unlocked by default.
         return self.w3.personal.unlockAccount(address, password, duration)
 
 
