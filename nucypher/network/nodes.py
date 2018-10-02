@@ -152,8 +152,17 @@ class VerifiableNode:
             try:
                 self._sign_interface_info()
             except NoSigningPower:
-                raise NoSigningPower("This Ursula is a Stranger; you didn't init with an interface signature, so you can't verify.")
+                raise NoSigningPower("This Node is a Stranger; you didn't init with an interface signature, so you can't verify.")
         return self._interface_signature_object
+
+    @property
+    def _timestamp(self):
+        if not self._timestamp_bytes:
+            try:
+                self._sign_interface_info()
+            except NoSigningPower:
+                raise NoSigningPower("This Node is a Stranger; you didn't init with a timestamp, so you can't verify.")
+        return self._timestamp_bytes
 
     @property
     def common_name(self):
