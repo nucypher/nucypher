@@ -51,7 +51,7 @@ class MockRestMiddleware(RestMiddleware):
         mock_client = self._get_mock_client_by_ursula(node)
         return mock_client.get("http://localhost/treasure_map/{}".format(map_id))
 
-    def node_information(self, host, port, certificate_filepath=None):
+    def node_information(self, host, port, certificate_filepath):
         mock_client = self._get_mock_client_by_port(port)
         response = mock_client.get("http://localhost/public_information")
         return response

@@ -96,18 +96,19 @@ class Learner(ABC):
                 # This node is already known.  We can safely return.
                 return
 
+        certificate_filepath = node.save_certificate_to_disk(directory=self.known_certificates_dir)
         node.verify_node(self.network_middleware,  # TODO: Take middleware directly in this class?
                          force=force_verification_check,
-                         accept_federated_only=self.federated_only)  # TODO: 466
+                         accept_federated_only=self.federated_only,
+                         certificate_filepath=certificate_filepath)  # TODO: 466
 
-        listeners = self._learning_listeners.pop(node.checksum_public_address, ())
+        listeners = self._learning_listeners.pop(node.checksum_public_address, tuple())
         address = node.checksum_public_address
 
         self.__known_nodes[address] = node
 
         if self.save_metadata:
             node.write_node_metadata(node=node)
-            node.save_certificate_to_disk()
 
         self.log.info("Remembering {}, popping {} listeners.".format(node.checksum_public_address, len(listeners)))
         for listener in listeners:

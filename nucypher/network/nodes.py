@@ -1,4 +1,5 @@
 import os
+from logging import getLogger
 
 import OpenSSL
 import maya
@@ -28,6 +29,8 @@ class VerifiableNode:
                  interface_signature=constants.NOT_SIGNED.bool_value(False),
                  timestamp=constants.NOT_SIGNED,
                  ) -> None:
+
+        self.log = getLogger(self.__class__.__name__)
 
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
@@ -104,7 +107,12 @@ class VerifiableNode:
                 if not accept_federated_only:
                     raise
 
-    def verify_node(self, network_middleware, accept_federated_only=False, force=False, certificate_filepath=None):
+    def verify_node(self,
+                    network_middleware,
+                    certificate_filepath: str,
+                    accept_federated_only: bool = False,
+                    force: bool = False
+                    ) -> bool:
         """
         Three things happening here:
 
@@ -207,3 +215,5 @@ class VerifiableNode:
         certificate_filepath = self.get_certificate_filepath(certificates_dir=directory)
         _save_tls_certificate(self.certificate, full_filepath=certificate_filepath)
         self.certificate_filepath = certificate_filepath
+        self.log.info("Saved new TLS certificate {}".format(certificate_filepath))
+        return self.certificate_filepath

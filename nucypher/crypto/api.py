@@ -121,7 +121,8 @@ def _save_tls_certificate(certificate: Certificate,
                           force: bool = True,  # TODO: Make configurable, or set to False by default.
                           ) -> str:
 
-    if force is False and os.path.isfile(full_filepath):
+    cert_already_exists = os.path.isfile(full_filepath)
+    if force is False and cert_already_exists:
         raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath))
 
     with open(full_filepath, 'wb') as certificate_file:
