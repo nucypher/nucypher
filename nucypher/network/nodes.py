@@ -1,6 +1,7 @@
 import os
 
 import OpenSSL
+import maya
 from constant_sorrow import constants
 from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
@@ -144,7 +145,8 @@ class VerifiableNode:
 
     def _sign_interface_info(self):
         message = self._signable_interface_info_message()
-        self._interface_signature_object = self.stamp(message)
+        self._timestamp_bytes = maya.now().epoch.to_bytes(4, 'big')
+        self._interface_signature_object = self.stamp(self._timestamp + message)
 
     @property
     def _interface_signature(self):
