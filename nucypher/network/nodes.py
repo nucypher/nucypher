@@ -146,28 +146,31 @@ class VerifiableNode:
         message = self.canonical_public_address + self.rest_information()[0]
         return message
 
-    def _sign_interface_info(self):
+    def _sign_and_date_interface_info(self):
         message = self._signable_interface_info_message()
-        self._timestamp_bytes = maya.now().epoch.to_bytes(4, 'big')
-        self._interface_signature_object = self.stamp(self._timestamp + message)
+        self._timestamp = maya.now()
+        self._interface_signature_object = self.stamp(self.timestamp_bytes() + message)
 
     @property
     def _interface_signature(self):
         if not self._interface_signature_object:
             try:
-                self._sign_interface_info()
+                self._sign_and_date_interface_info()
             except NoSigningPower:
                 raise NoSigningPower("This Node is a Stranger; you didn't init with an interface signature, so you can't verify.")
         return self._interface_signature_object
 
     @property
-    def _timestamp(self):
-        if not self._timestamp_bytes:
+    def timestamp(self):
+        if not self._timestamp:
             try:
-                self._sign_interface_info()
+                self._sign_and_date_interface_info()
             except NoSigningPower:
                 raise NoSigningPower("This Node is a Stranger; you didn't init with a timestamp, so you can't verify.")
-        return self._timestamp_bytes
+        return self._timestamp
+
+    def timestamp_bytes(self):
+        return self.timestamp.epoch.to_bytes(4, 'big')
 
     @property
     def common_name(self):

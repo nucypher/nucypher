@@ -1,3 +1,4 @@
+import maya
 from eth_tester.exceptions import ValidationError
 
 from nucypher.characters.lawful import Ursula

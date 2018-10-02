@@ -561,7 +561,7 @@ class Ursula(Character, VerifiableNode, Miner):
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
 
-        as_bytes = bytes().join((self._timestamp,
+        as_bytes = bytes().join((self.timestamp_bytes(),
                                  bytes(self._interface_signature),
                                  bytes(identity_evidence),
                                  bytes(self.public_keys(SigningPower)),
