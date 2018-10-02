@@ -122,7 +122,7 @@ class NodeConfiguration:
         base_payload = dict(
                             # Identity
                             is_me=self.is_me,
-                            federated_only=self.federated_only,
+                            federated_only=self.federated_only,  # TODO: 466
                             checksum_address=self.checksum_address,
                             # keyring_dir=self.keyring_dir,  # TODO: local private keys
 
@@ -228,7 +228,7 @@ class NodeConfiguration:
 
         for metadata_path in metadata_paths:
             from nucypher.characters.lawful import Ursula
-            node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)
+            node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)  # TODO: 466
             self.known_nodes.add(node)
 
     def write_default_configuration_file(self, filepath: str = DEFAULT_CONFIG_FILE_LOCATION):

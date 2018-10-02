@@ -131,7 +131,7 @@ class ProxyRESTRoutes:
 
     def node_metadata_exchange(self, request: Request, query_params: QueryParams):
         nodes = self._node_class.batch_from_bytes(request.body,
-                                                  federated_only=self.federated_only,
+                                                  federated_only=self.federated_only,  # TODO: 466
                                                   )
         # TODO: This logic is basically repeated in learn_from_teacher_node.  Let's find a better way.
         for node in nodes:
@@ -142,7 +142,7 @@ class ProxyRESTRoutes:
             @crosstown_traffic()
             def learn_about_announced_nodes():
                 try:
-                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)
+                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)  # TODO: 466
                 except node.SuspiciousActivity:
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \

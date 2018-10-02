@@ -460,7 +460,7 @@ class Ursula(Character, VerifiableNode, Miner):
                     db_name=db_name,
                     db_filepath=db_filepath,
                     network_middleware=self.network_middleware,
-                    federated_only=self.federated_only,
+                    federated_only=self.federated_only,   # TODO: 466
                     treasure_map_tracker=self.treasure_maps,
                     node_tracker=self.known_nodes,
                     node_bytes_caster=self.__bytes__,

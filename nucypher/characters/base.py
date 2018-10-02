@@ -541,7 +541,7 @@ class Character(Learner):
 
         # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
         from nucypher.characters.lawful import Ursula
-        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)
+        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)  # TODO: 466
 
         new_nodes = []
         for node in node_list:
@@ -553,7 +553,7 @@ class Character(Learner):
                 if eager:
                     node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)
                 else:
-                    node.validate_metadata(accept_federated_only=self.federated_only)
+                    node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
             except node.SuspiciousActivity:
                 # TODO: Account for possibility that stamp, rather than interface, was bad.
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
