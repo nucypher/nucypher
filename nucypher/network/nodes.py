@@ -109,7 +109,7 @@ class VerifiableNode:
 
     def verify_node(self,
                     network_middleware,
-                    certificate_filepath: str,
+                    certificate_filepath: str = None,
                     accept_federated_only: bool = False,
                     force: bool = False
                     ) -> bool:
