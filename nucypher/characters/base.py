@@ -89,6 +89,13 @@ class Learner(ABC):
 
     def remember_node(self, node, force_verification_check=False):
 
+        # First, determine if this is an outdated representation of an already known node.
+        with suppress(KeyError):
+            already_known_node = self.known_nodes[node.checksum_public_address]
+            if not node.timestamp > already_known_node.timestamp:
+                # This node is already known.  We can safely return.
+                return
+
         node.verify_node(self.network_middleware,  # TODO: Take middleware directly in this class?
                          force=force_verification_check,
                          accept_federated_only=self.federated_only)  # TODO: 466
