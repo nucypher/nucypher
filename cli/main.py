@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import collections
+import hashlib
 import json
 import logging
 import os
@@ -38,6 +39,14 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOU
 from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
 
 __version__ = '0.1.0-alpha.0'
+
+
+def echo_version(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.echo(__version__)
+    ctx.exit()
+
 
 BANNER = """
                                   _               
@@ -140,17 +149,12 @@ class NucypherClickConfig:
 
     def create_account(self) -> str:
         """Creates a new local or hosted ethereum wallet"""
-        choice = click.prompt("Create a new Hosted or Local account?", default='hosted', type=str).strip().lower()
+        choice = click.prompt("Create a new Hosted or Local account?", default='hosted', type=click.STRING).strip().lower()
         if choice not in ('hosted', 'local'):
             click.echo("Invalid Input")
             raise click.Abort()
 
-        passphrase = click.prompt("Enter a passphrase to encrypt your wallet's private key")
-        passphrase_confirmation = click.prompt("Confirm passphrase to encrypt your wallet's private key")
-        if passphrase != passphrase_confirmation:
-            click.echo("Passphrases did not match")
-            raise click.Abort()
-
+        passphrase = click.prompt("Enter a passphrase to encrypt your wallet's private key", hide_input=True, confirmation_prompt=True)
         if choice == 'local':
             keyring = generate_local_wallet(passphrase=passphrase, keyring_root=self.node_configuration.keyring_dir)
             new_address = keyring.transacting_public_key
@@ -163,12 +167,12 @@ class NucypherClickConfig:
     def create_node_tls_certificate(self, common_name: str, full_filepath: str) -> None:
         days = click.prompt("How many days do you want the certificate to remain valid? (365 is default)",
                             default=365,
-                            type=int)  # TODO: Perhaps make this equal to the stake length?
+                            type=click.INT)  # TODO: Perhaps make this equal to the stake length?
 
-        host = click.prompt("Enter the node's hostname", default='localhost')  # TODO: remove localhost as default
+        host = click.prompt("Enter the node's hostname", default='127.0.0.1')  # TODO: remove localhost/loopback as default?
 
         # TODO: save TLS private key
-        certificate, private_key = generate_self_signed_certificate(host=common_name,
+        certificate, private_key = generate_self_signed_certificate(host=host,
                                                                     days_valid=days,
                                                                     curve=ec.SECP384R1)  # TODO: use Config class?
 
@@ -176,26 +180,39 @@ class NucypherClickConfig:
         _save_tls_certificate(certificate=certificate, full_filepath=certificate_filepath)
 
 
+# Register the above class as a decorator
 uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 
 
+# Custom input type
+class ChecksumAddress(click.ParamType):
+    name = 'checksum_address'
+
+    def convert(self, value, param, ctx):
+        if is_checksum_address(value):
+            return value
+        self.fail('{} is not a valid integer'.format(value, param, ctx))
+
+
+CHECKSUM_ADDRESS = ChecksumAddress()
+
+
 @click.group()
-@click.option('--version', is_flag=True)
-@click.option('--verbose', is_flag=True)
-@click.option('--dev', is_flag=True)
-@click.option('--federated-only', is_flag=True)
-@click.option('--config-root', type=click.Path())
-@click.option('--config-file', type=click.Path())
-@click.option('--metadata-dir', type=click.Path())
-@click.option('--provider-uri', type=str)
-@click.option('--compile', is_flag=True)
-@click.option('--registry-filepath', type=click.Path())
-@click.option('--deployer', is_flag=True)
-@click.option('--poa', is_flag=True)
+@click.option('--version', help="Echo the CLI version", is_flag=True, callback=echo_version, expose_value=False, is_eager=True)
+@click.option('-v', '--verbose', help="Specify verbosity level", count=True)
+@click.option('--dev', help="Run in development mode", is_flag=True)
+@click.option('--federated-only', help="Connect only to federated nodes", is_flag=True)
+@click.option('--config-root', help="Custom configuration directory", type=click.Path())
+@click.option('--config-file', help="Path to configuration file", type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True))
+@click.option('--metadata-dir', help="Custom known metadata directory", type=click.Path(exists=True, dir_okay=True, file_okay=False, writable=True))
+@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--compile/--no-compile', help="Compile solidity from source files", is_flag=True)
+@click.option('--registry-filepath', help="Custom contract registry filepath", type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True))
+@click.option('--deployer', help="Connect using a deployer's blockchain interface", is_flag=True)
+@click.option('--poa', help="Inject POA middleware", is_flag=True)
 @uses_config
 def cli(config,
         verbose,
-        version,
         dev,
         federated_only,
         config_root,
@@ -224,9 +241,6 @@ def cli(config,
     config.deployer = deployer
     config.poa = poa
 
-    if version:
-        click.echo("Version {}".format(__version__))
-
     if config.verbose:
         click.echo("Running in verbose mode...")
 
@@ -238,18 +252,18 @@ def cli(config,
 
 @cli.command()
 @click.option('--filesystem', is_flag=True, default=False)
-@click.option('--no-registry', is_flag=True)
-@click.option('--force', is_flag=True)
-@click.option('--checksum-address', type=str)
+@click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
+@click.option('--force', help="Ask confirm once; Do not generate wallet or certificate", is_flag=True)
+@click.option('--checksum-address', type=CHECKSUM_ADDRESS)
 @click.argument('action')
 @uses_config
 def configure(config,
               action,
               filesystem,
               no_registry,
-              checksum_address,
+              checksum_address,  # TODO: Clean by address
               force):
-
+    """Manage local nucypher files and directories"""
     #
     # Initialize
     #
@@ -300,7 +314,7 @@ def configure(config,
     # Action switch
     #
     config.get_node_configuration()
-    if action == "init":
+    if action == "install":
         __initialize(config.node_configuration)
     elif action == "destroy":
         __destroy(config.node_configuration)
@@ -314,7 +328,7 @@ def configure(config,
 
 
 @cli.command()
-@click.option('--checksum-address', help="The account to lock/unlock instead of the default", type=str)
+@click.option('--checksum-address', help="The account to lock/unlock instead of the default", type=CHECKSUM_ADDRESS)
 @click.argument('action', default='list', required=False)
 @uses_config
 def accounts(config,
@@ -339,7 +353,7 @@ def accounts(config,
             if not is_checksum_address(destination):
                 click.echo("{} is not a valid checksum checksum_address".format(destination))
                 raise click.Abort()
-            amount = click.prompt("Enter amount of {} to transfer".format(denomination), type=int)
+            amount = click.prompt("Enter amount of {} to transfer".format(denomination), type=click.INT)
             return destination, amount
 
     #
@@ -359,7 +373,7 @@ def accounts(config,
     elif action == 'export':
         keyring = NucypherKeyring(common_name=checksum_address)
         click.confirm("Export local private key for {} to node's keyring: {}?".format(checksum_address, config.provider_uri), abort=True)
-        passphrase = click.prompt("Enter passphrase to decrypt account", type=str)
+        passphrase = click.prompt("Enter passphrase to decrypt account", type=click.STRING, hide_input=True, confirmation_prompt=True)
         keyring._export(blockchain=config.blockchain, passphrase=passphrase)
 
     elif action == 'list':
@@ -396,10 +410,10 @@ def accounts(config,
 
 
 @cli.command()
-@click.option('--checksum-address', type=str)
-@click.option('--value', help="Stake value in the smallest denomination", type=int)
-@click.option('--duration', help="Stake duration in periods", type=int)
-@click.option('--index', help="A specific stake index to resume", type=int)
+@click.option('--checksum-address', type=CHECKSUM_ADDRESS)
+@click.option('--value', help="Token value of stake", type=click.IntRange(min=MIN_ALLOWED_LOCKED, max=MIN_ALLOWED_LOCKED, clamp=False))
+@click.option('--duration', help="Period duration of stake", type=click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False))
+@click.option('--index', help="A specific stake index to resume", type=click.INT)
 @click.argument('action', default='list', required=False)
 @uses_config
 def stake(config,
@@ -409,7 +423,8 @@ def stake(config,
           value,
           duration):
     """
-    Manage active and inactive node blockchain stakes.
+    Manage token staking.
+
 
     Arguments
     ==========
@@ -452,7 +467,7 @@ def stake(config,
             click.echo(row)
 
         click.echo("Select ethereum address")
-        account_selection = click.prompt("Enter 0-{}".format(len(config.accounts)), type=int)
+        account_selection = click.prompt("Enter 0-{}".format(len(config.accounts)), type=click.INT)
         address = config.accounts[account_selection]
 
     if action == 'list':
@@ -471,13 +486,13 @@ def stake(config,
         # Value
         balance = config.token_agent.get_balance(address=address)
         click.echo("Current balance: {}".format(balance))
-        value = click.prompt("Enter stake value", type=int)
+        value = click.prompt("Enter stake value", type=click.INT)
 
         # Duration
         message = "Minimum duration: {} | Maximum Duration: {}".format(constants.MIN_LOCKED_PERIODS,
                                                                        constants.MAX_REWARD_PERIODS)
         click.echo(message)
-        duration = click.prompt("Enter stake duration in days", type=int)
+        duration = click.prompt("Enter stake duration in days", type=click.INT)
 
         start_period = config.miner_agent.get_current_period()
         end_period = start_period + duration
@@ -535,10 +550,10 @@ def stake(config,
         if not index:
             for selection_index, stake_info in enumerate(stakes):
                 click.echo("{} ....... {}".format(selection_index, stake_info))
-            index = click.prompt("Select a stake to divide", type=int)
+            index = click.prompt("Select a stake to divide", type=click.INT)
 
-        target_value = click.prompt("Enter new target value", type=int)
-        extension = click.prompt("Enter number of periods to extend", type=int)
+        target_value = click.prompt("Enter new target value", type=click.INT)
+        extension = click.prompt("Enter number of periods to extend", type=click.INT)
 
         click.echo("""
         Current Stake: {}
@@ -569,9 +584,9 @@ def stake(config,
 
 
 @cli.command()
-@click.option('--geth', is_flag=True)
-@click.option('--pyevm', is_flag=True)
-@click.option('--nodes', help="The number of nodes to simulate", type=int, default=10)
+@click.option('--geth', help="Simulate with geth", is_flag=True)
+@click.option('--pyevm', help="Simulate with PyEVM", is_flag=True)
+@click.option('--nodes', help="The number of nodes to simulate", type=click.INT, default=10)
 @click.argument('action')
 @uses_config
 def simulate(config,
@@ -580,7 +595,7 @@ def simulate(config,
              geth,
              pyevm):
     """
-    Locally simulate the nucypher blockchain network
+    Locally simulate the nucypher network
 
     action - Which action to perform; The choices are:
            - start: Start a multi-process nucypher network simulation
@@ -777,22 +792,27 @@ def simulate(config,
 
 
 @cli.command()
-@click.option('--contract-name', type=str)
+@click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--force', is_flag=True)
-@click.option('--deployer_address', type=str)
+@click.option('--deployer-address', help="Deployer's checksum address", type=CHECKSUM_ADDRESS)
+@click.option('--registry-outfile', help="Output path for new registry", type=click.Path(), default=NodeConfiguration.REGISTRY_SOURCE)
 @click.argument('action')
 @uses_config
 def deploy(config,
            action,
            deployer_address,
            contract_name,
+           registry_outfile,
            force):
+    """Manage contract and registry deployment"""
+
     if not config.deployer:
         click.echo("The --deployer flag must be used to issue the deploy command.")
         raise click.Abort()
 
     def __get_deployers():
 
+        config.registry_filepath = registry_outfile
         config.connect_to_blockchain()
         config.blockchain.interface.deployer_address = deployer_address or config.accounts[0]
 
@@ -852,25 +872,18 @@ def deploy(config,
                 __deployer_init_args.update({dependant: __deployment_agents[dependant]})
 
             if upgradeable:
-                def __collect_secret():
-                    # secret = click.prompt("Enter secret hash for {}".format(__contract_name))
-                    # secret_confirmation = click.prompt("Confirm secret hash for {}".format(__contract_name))
-                    secret = os.urandom(32)  # TODO: How to we handle deployment secrets?
-                    secret_confirmation = secret[:]
-
-                    if len(bytes(secret)) != 32:
+                def __collect_secret_hash():
+                    secret = click.prompt("Enter secret hash for {}".format(__contract_name), hide_input=True, confirmation_prompt=True)
+                    secret_hash = hashlib.sha256(secret)
+                    if len(secret_hash) != 32:
                         click.echo("Deployer secret must be 32 bytes.")
                         if click.prompt("Try again?"):
-                            return __collect_secret()
-                    if secret != secret_confirmation:
-                        click.echo("Secrets did not match")
-                        if click.prompt("Try again?"):
-                            return __collect_secret()
+                            return __collect_secret_hash()
                         else:
                             raise click.Abort()
-                    __deployer_init_args.update({'secret_hash': secret})
+                    __deployer_init_args.update({'secret_hash': secret_hash})
                     return secret
-                __collect_secret()
+                __collect_secret_hash()
 
             __deployer = deployer_class(**__deployer_init_args)
 
@@ -929,10 +942,9 @@ def deploy(config,
                     click.echo("{}:{}".format(tx_name, txhash))
 
         if not force and click.confirm("Save transaction hashes to JSON file?"):
-            filepath = click.prompt("Enter output filepath", type=click.Path())
-            with open(filepath, 'w') as file:
-                file.write(json.dumps(__deployment_transactions))
-            click.echo("Successfully wrote transaction hashes file to {}".format(filepath))
+            file = click.prompt("Enter output filepath", type=click.File(mode='w'))   # TODO
+            file.write(json.dumps(__deployment_transactions))
+            click.echo("Successfully wrote transaction hashes file to {}".format(file.path))
 
 
 @cli.command()
@@ -998,13 +1010,15 @@ def status(config,
 
 
 @cli.command()
-@click.option('--rest-host', type=str)
-@click.option('--rest-port', type=int)
-@click.option('--db-name', type=str)
-@click.option('--checksum-address', type=str)
-@click.option('--stake-amount', type=int)
-@click.option('--stake-periods', type=int)
-@click.option('--resume', is_flag=True)
+@click.option('--rest-host', type=click.STRING)
+@click.option('--rest-port', type=click.IntRange(min=49151, max=65535, clamp=False))
+@click.option('--db-name', type=click.STRING)
+@click.option('--checksum-address', type=CHECKSUM_ADDRESS)
+@click.option('--stake-amount', type=click.IntRange(min=MIN_ALLOWED_LOCKED, max=MIN_ALLOWED_LOCKED, clamp=False))
+@click.option('--stake-periods', type=click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False))
+@click.option('--resume', help="Resume an existing stake", is_flag=True)
+@click.option('--no-reactor', help="Development feature", is_flag=True)
+@click.option('--password', help="Password to unlock Ursula's keyring", prompt=True, hide_input=True, confirmation_prompt=True)
 @click.argument('action')
 @uses_config
 def ursula(config,
@@ -1015,10 +1029,12 @@ def ursula(config,
            checksum_address,
            stake_amount,
            stake_periods,
-           resume  # TODO Implement stake resume
+           resume,  # TODO Implement stake resume
+           no_reactor,
+           password
            ) -> None:
     """
-    Manage and Run Ursula Nodes.
+    Manage and run an Ursula node
 
     Here is the procedure to "spin-up" an Ursula node.
 
@@ -1057,12 +1073,13 @@ def ursula(config,
                                                 abort_on_learning_error=config.dev)
 
         try:
-            passphrase = click.prompt("Enter passphrase to unlock account", type=str)
-            URSULA = ursula_config.produce(passphrase=passphrase)  # 2
+            URSULA = ursula_config.produce(passphrase=password)  # 2
             if not config.federated_only:
                 URSULA.stake(amount=stake_amount,                  # 3
                              lock_periods=stake_periods)
-            URSULA.get_deployer().run()                            # 4
+
+            if not no_reactor:
+                URSULA.get_deployer().run()                        # 4
 
         finally:
             click.echo("Cleaning up.")
