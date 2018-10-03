@@ -3,6 +3,7 @@ from hendrix.experience import crosstown_traffic
 from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
 from kademlia.utils import digest
 
+from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
@@ -176,3 +177,28 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
         idle_blockchain_policy.consider_arrangement(network_middleware=blockchain_alice.network_middleware,
                                                     arrangement=FakeArrangement(),
                                                     ursula=vladimir)
+
+
+def test_alice_does_not_update_with_old_ursula_info(federated_alice, federated_ursulas):
+    ursula = list(federated_ursulas)[0]
+    old_metadata = bytes(ursula)
+
+    # Alice has remembered Ursula.
+    assert federated_alice.known_nodes[ursula.checksum_public_address] == ursula
+
+    # But now, Ursula wants to sign and date her interface info again.  This causes a new timestamp.
+    ursula._sign_and_date_interface_info()
+
+    # Indeed, her metadata is not the same now.
+    assert bytes(ursula) != old_metadata
+
+    old_ursula = Ursula.from_bytes(old_metadata, federated_only=True)
+
+    # Once Alice learns about Ursula's updated info...
+    federated_alice.remember_node(ursula)
+
+    # ...she can't learn about old ursula anymore.
+    federated_alice.remember_node(old_ursula)
+
+    new_metadata = bytes(federated_alice.known_nodes[ursula.checksum_public_address])
+    assert new_metadata != old_metadata

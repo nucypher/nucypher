@@ -403,6 +403,7 @@ class Ursula(Character, VerifiableNode, Miner):
                  db_filepath: str = None,
                  is_me: bool = True,
                  interface_signature=None,
+                 timestamp=None,
 
                  # Blockchain
                  miner_agent=None,
@@ -460,7 +461,7 @@ class Ursula(Character, VerifiableNode, Miner):
                     db_name=db_name,
                     db_filepath=db_filepath,
                     network_middleware=self.network_middleware,
-                    federated_only=self.federated_only,
+                    federated_only=self.federated_only,   # TODO: 466
                     treasure_map_tracker=self.treasure_maps,
                     node_tracker=self.known_nodes,
                     node_bytes_caster=self.__bytes__,
@@ -525,7 +526,8 @@ class Ursula(Character, VerifiableNode, Miner):
         VerifiableNode.__init__(self,
                                 certificate=certificate,
                                 certificate_filepath=certificate_filepath,
-                                interface_signature=interface_signature)
+                                interface_signature=interface_signature,
+                                timestamp=timestamp)
 
         if is_me:
             message = "Initialized Self {} | {}".format(self.__class__.__name__, self.checksum_public_address)
@@ -559,9 +561,7 @@ class Ursula(Character, VerifiableNode, Miner):
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
 
-        timestamp = maya.now().epoch.to_bytes(4, 'big')
-
-        as_bytes = bytes().join((timestamp,
+        as_bytes = bytes().join((self.timestamp_bytes(),
                                  bytes(self._interface_signature),
                                  bytes(identity_evidence),
                                  bytes(self.public_keys(SigningPower)),
@@ -606,8 +606,10 @@ class Ursula(Character, VerifiableNode, Miner):
          rest_info) = cls._internal_splitter(ursula_as_bytes)
         certificate = load_pem_x509_certificate(certificate_vbytes.message_as_bytes,
                                                 default_backend())
+        timestamp = maya.MayaDT(timestamp)
         stranger_ursula_from_public_keys = cls.from_public_keys(
             {SigningPower: verifying_key, EncryptingPower: encrypting_key},
+            timestamp=timestamp,
             interface_signature=signature,
             checksum_address=to_checksum_address(public_address),
             rest_host=rest_info.host,
@@ -638,11 +640,13 @@ class Ursula(Character, VerifiableNode, Miner):
              rest_info) in ursulas_attrs:
             certificate = load_pem_x509_certificate(certificate_vbytes.message_as_bytes,
                                                     default_backend())
+            timestamp = maya.MayaDT(timestamp)
             stranger_ursula_from_public_keys = cls.from_public_keys(
                 {SigningPower: verifying_key,
                  EncryptingPower: encrypting_key,
                  },
                 interface_signature=signature,
+                timestamp=timestamp,
                 checksum_address=to_checksum_address(public_address),
                 certificate=certificate,
                 rest_host=rest_info.host,

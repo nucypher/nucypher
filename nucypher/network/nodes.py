@@ -1,6 +1,7 @@
 import os
 
 import OpenSSL
+import maya
 from constant_sorrow import constants
 from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
@@ -18,16 +19,19 @@ class VerifiableNode:
     verified_stamp = False
     verified_interface = False
     _verified_node = False
+    _interface_info_splitter = (int, 4, {'byteorder': 'big'})
 
     def __init__(self,
                  certificate: Certificate,
                  certificate_filepath: str,
                  interface_signature=constants.NOT_SIGNED.bool_value(False),
+                 timestamp=constants.NOT_SIGNED,
                  ) -> None:
 
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
         self._interface_signature_object = interface_signature
+        self._timestamp = timestamp
 
     class InvalidNode(SuspiciousActivity):
         """
@@ -75,7 +79,8 @@ class VerifiableNode:
         """
         Checks that the interface info is valid for this node's canonical address.
         """
-        message = self._signable_interface_info_message()  # Contains canonical address.
+        interface_info_message = self._signable_interface_info_message()  # Contains canonical address.
+        message = self.timestamp_bytes() + interface_info_message
         interface_is_valid = self._interface_signature.verify(message, self.public_keys(SigningPower))
         self.verified_interface = interface_is_valid
         if interface_is_valid:
@@ -131,6 +136,8 @@ class VerifiableNode:
             if not verifying_keys_match:
                 self.log.warning("Verifying key swapped out.  It appears that someone is impersonating this node.")
             raise self.InvalidNode("Wrong cryptographic material for this node - something fishy going on.")
+        else:
+            self._verified_node = True
 
     def substantiate_stamp(self):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
@@ -142,18 +149,31 @@ class VerifiableNode:
         message = self.canonical_public_address + self.rest_information()[0]
         return message
 
-    def _sign_interface_info(self):
+    def _sign_and_date_interface_info(self):
         message = self._signable_interface_info_message()
-        self._interface_signature_object = self.stamp(message)
+        self._timestamp = maya.now()
+        self._interface_signature_object = self.stamp(self.timestamp_bytes() + message)
 
     @property
     def _interface_signature(self):
         if not self._interface_signature_object:
             try:
-                self._sign_interface_info()
+                self._sign_and_date_interface_info()
             except NoSigningPower:
-                raise NoSigningPower("This Ursula is a Stranger; you didn't init with an interface signature, so you can't verify.")
+                raise NoSigningPower("This Node is a Stranger; you didn't init with an interface signature, so you can't verify.")
         return self._interface_signature_object
+
+    @property
+    def timestamp(self):
+        if not self._timestamp:
+            try:
+                self._sign_and_date_interface_info()
+            except NoSigningPower:
+                raise NoSigningPower("This Node is a Stranger; you didn't init with a timestamp, so you can't verify.")
+        return self._timestamp
+
+    def timestamp_bytes(self):
+        return self.timestamp.epoch.to_bytes(4, 'big')
 
     @property
     def common_name(self):

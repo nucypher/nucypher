@@ -87,8 +87,19 @@ class Learner(ABC):
     def known_nodes(self):
         return self.__known_nodes
 
-    def remember_node(self, node):
-        # TODO: 334
+    def remember_node(self, node, force_verification_check=False):
+
+        # First, determine if this is an outdated representation of an already known node.
+        with suppress(KeyError):
+            already_known_node = self.known_nodes[node.checksum_public_address]
+            if not node.timestamp > already_known_node.timestamp:
+                # This node is already known.  We can safely return.
+                return
+
+        node.verify_node(self.network_middleware,  # TODO: Take middleware directly in this class?
+                         force=force_verification_check,
+                         accept_federated_only=self.federated_only)  # TODO: 466
+
         listeners = self._learning_listeners.pop(node.checksum_public_address, ())
         address = node.checksum_public_address
 
@@ -359,8 +370,6 @@ class Character(Learner):
             represented by zero Characters or by more than one Character.
 
         """
-        super().__init__(*args, **kwargs)
-
         self.federated_only = federated_only                     # type: bool
         self.known_certificates_dir = known_certificates_dir
 
@@ -399,6 +408,9 @@ class Character(Learner):
                 raise TypeError(
                     "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
             self._stamp = StrangerStamp(self.public_keys(SigningPower))
+
+        # Init the Learner superclass.
+        Learner.__init__(self, *args, **kwargs)
 
         # Decentralized
         if not federated_only:
@@ -540,7 +552,7 @@ class Character(Learner):
 
         # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
         from nucypher.characters.lawful import Ursula
-        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)
+        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)  # TODO: 466
 
         new_nodes = []
         for node in node_list:
@@ -552,7 +564,7 @@ class Character(Learner):
                 if eager:
                     node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)
                 else:
-                    node.validate_metadata(accept_federated_only=self.federated_only)
+                    node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
             except node.SuspiciousActivity:
                 # TODO: Account for possibility that stamp, rather than interface, was bad.
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \

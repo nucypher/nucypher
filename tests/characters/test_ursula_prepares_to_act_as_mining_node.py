@@ -51,7 +51,7 @@ def test_blockchain_ursula_verifies_stamp(blockchain_ursulas):
     first_ursula = list(blockchain_ursulas)[0]
 
     # This Ursula does not yet have a verified stamp
-    assert not first_ursula.verified_stamp
+    first_ursula.verified_stamp = False
     first_ursula.stamp_is_valid()
 
     # ...but now it's verified.
@@ -99,7 +99,7 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     vladimir = Vladimir.from_target_ursula(target_ursula=his_target)
 
     message = vladimir._signable_interface_info_message()
-    signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
+    signature = vladimir._crypto_power.power_ups(SigningPower).sign(vladimir.timestamp_bytes() + message)
     vladimir._interface_signature_object = signature
 
     vladimir.substantiate_stamp()
