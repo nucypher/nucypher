@@ -174,13 +174,15 @@ class NodeConfiguration:
         return filepaths
 
     @staticmethod
-    def check_config_tree_exists(config_root: str) -> bool:
+    def check_config_tree_exists(config_root: str, no_registry=False) -> bool:
         # Top-level
         if not os.path.exists(config_root):
             raise NodeConfiguration.ConfigurationError('No configuration directory found at {}.'.format(config_root))
 
         # Sub-paths
         filepaths = NodeConfiguration.generate_runtime_filepaths(config_root=config_root)
+        if no_registry:
+            del filepaths['registry_filepath']
         for field, path in filepaths.items():
             if not os.path.exists(path):
                 message = 'Missing configuration directory {}.'
@@ -227,9 +229,10 @@ class NodeConfiguration:
             os.mkdir(self.known_metadata_dir, mode=0o755)        # known_metadata
 
             # Files
-            self.import_registry(output_filepath=self.registry_filepath,
-                                 source=self.__registry_source,
-                                 blank=no_registry)
+            if not no_registry:
+                self.import_registry(output_filepath=self.registry_filepath,
+                                     source=self.__registry_source,
+                                     blank=no_registry)
 
         except FileExistsError:
             existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
@@ -266,7 +269,7 @@ class NodeConfiguration:
         output_filepath = output_filepath or self.registry_filepath
         source = source or self.REGISTRY_SOURCE
 
-        if not blank:
+        if not blank and not self.temp:
             # Validate Registry
             with open(source, 'r') as registry_file:
                 try:

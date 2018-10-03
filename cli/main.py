@@ -274,7 +274,7 @@ def configure(config,
         is_valid = True      # Until there is a reason to believe otherwise...
         try:
             if filesystem:   # Check runtime directory
-                is_valid = NodeConfiguration.check_config_tree_exists(config_root=config.node_configuration.config_root)
+                is_valid = NodeConfiguration.check_config_tree_exists(config_root=config.node_configuration.config_root, no_registry=no_registry)
             if config.config_file:
                 is_valid = validate_configuration_file(filepath=config.node_configuration.config_file_location)
         except NodeConfiguration.InvalidConfiguration:
@@ -284,7 +284,7 @@ def configure(config,
             click.echo('{} is {}'.format(config.node_configuration.config_root, result))
 
     def __cleanup(configuration):
-        pass  # TODO
+        pass  # TODO: Cleanup a single node's metadata
 
     def __destroy(configuration):
         if config.dev:
