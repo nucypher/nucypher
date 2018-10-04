@@ -16,22 +16,23 @@ from eth_utils import is_checksum_address
 from twisted.internet import reactor
 from web3.middleware import geth_poa_middleware
 
+from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent, EthereumContractAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.constants import (DISPATCHER_SECRET_LENGTH,
                                                MIN_ALLOWED_LOCKED,
                                                MIN_LOCKED_PERIODS,
-                                               MAX_MINTING_PERIODS)
+                                               MAX_MINTING_PERIODS, MAX_ALLOWED_LOCKED)
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
+from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry, EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.config.keyring import NucypherKeyring, _save_tls_certificate
 from nucypher.config.node import NodeConfiguration
 from nucypher.config.utils import validate_configuration_file, generate_local_wallet, generate_account
-from nucypher.crypto.api import generate_self_signed_certificate, _save_tls_certificate
+from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
                                                   DEVELOPMENT_ETH_AIRDROP_AMOUNT,
@@ -110,18 +111,19 @@ class NucypherClickConfig:
         # Simulation
         self.sim_processes = constants.NO_SIMULATION_RUNNING
 
-    def get_node_configuration(self):
+    def get_node_configuration(self, configuration_class=NodeConfiguration):
         if self.config_root:
-            node_configuration = NodeConfiguration(temp=False,
-                                                   config_root=self.config_root,
-                                                   auto_initialize=False)
+            node_configuration = configuration_class(temp=False,
+                                                     config_root=self.config_root,
+                                                     auto_initialize=False)
         elif self.dev:
-            node_configuration = NodeConfiguration(temp=self.dev, auto_initialize=False)
+            node_configuration = configuration_class(temp=self.dev, auto_initialize=False)
         elif self.config_file:
             click.echo("Using configuration file at: {}".format(self.config_file))
-            node_configuration = NodeConfiguration.from_configuration_file(filepath=self.config_file)
+            node_configuration = configuration_class.from_configuration_file(filepath=self.config_file)
         else:
-            node_configuration = NodeConfiguration(auto_initialize=False)  # Fully Default
+            node_configuration = configuration_class(federated_only=self.federated_only,
+                                                     auto_initialize=False)
 
         self.node_configuration = node_configuration
 
