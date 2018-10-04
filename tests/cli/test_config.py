@@ -17,6 +17,7 @@ def custom_filepath():
         shutil.rmtree(custom_filepath)
 
 
+@pytest.mark.skip()
 def test_initialize_configuration_directory(custom_filepath):
     runner = CliRunner()
 
@@ -26,7 +27,7 @@ def test_initialize_configuration_directory(custom_filepath):
     assert NodeConfiguration._NodeConfiguration__TEMP_CONFIGURATION_DIR_PREFIX in result.output
     assert result.exit_code == 0
 
-    args = [ '--config-root', custom_filepath, 'configure', 'install', '--no-registry']
+    args = ['--config-root', custom_filepath, 'configure', 'install', '--no-registry']
     result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
     assert '[y/N]' in result.output, "'configure init' did not prompt the user before attempting to write files"
     assert '/tmp' in result.output, "Configuration not in system temporary directory"
@@ -51,6 +52,7 @@ def test_initialize_configuration_directory(custom_filepath):
     # # TODO: Integrate with run ursula
 
 
+@pytest.mark.skip()
 def test_validate_runtime_filepaths(custom_filepath):
     runner = CliRunner()
 

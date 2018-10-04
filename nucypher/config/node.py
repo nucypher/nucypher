@@ -28,7 +28,7 @@ class NodeConfiguration:
     __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
 
     __REGISTRY_NAME = 'contract_registry.json'
-    REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO: Where will this be hosted?
+    REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO: #461 Where will this be hosted?
 
     class ConfigurationError(RuntimeError):
         pass
@@ -39,25 +39,31 @@ class NodeConfiguration:
     def __init__(self,
 
                  temp: bool = False,
-                 auto_initialize: bool = False,
                  config_root: str = DEFAULT_CONFIG_ROOT,
+
+                 passphrase: str = None,
+                 auto_initialize: bool = False,
+                 auto_generate_keys: bool = False,
 
                  config_file_location: str = DEFAULT_CONFIG_FILE_LOCATION,
                  keyring_dir: str = None,
 
                  checksum_address: str = None,
                  is_me: bool = True,
-                 federated_only: bool = None,
+                 federated_only: bool = False,
                  network_middleware: RestMiddleware = None,
 
                  registry_source: str = REGISTRY_SOURCE,
                  registry_filepath: str = None,
-                 no_seed_registry: bool = False,
+                 import_seed_registry: bool = False,
 
                  # Learner
                  learn_on_same_thread: bool = False,
                  abort_on_learning_error: bool = False,
                  start_learning_now: bool = True,
+
+                 # TLS
+                 known_certificates_dir: str = None,
 
                  # Metadata
                  known_nodes: set = None,
@@ -142,10 +148,19 @@ class NodeConfiguration:
         return self.__temp
 
     @classmethod
-    def from_configuration_file(cls, filepath=None) -> 'NodeConfiguration':
-        filepath = filepath if filepath is None else DEFAULT_CONFIG_FILE_LOCATION
-        payload = cls._parser(filepath=filepath)
-        return cls(**payload)
+    def from_configuration_file(cls, filepath: str = None, **overrides) -> 'NodeConfiguration':
+        filepath = filepath if filepath is None else cls.DEFAULT_CONFIG_FILE_LOCATION
+        with open(filepath, 'r') as config_file:
+            payload = cls.__parser(config_file.read())
+        return cls(**{**payload, **overrides})
+
+    def to_configuration_file(self, filepath: str = None) -> str:
+        if filepath is None:
+            filename = '{}.config'.format(self._name.lower())
+            filepath = os.path.join(self.config_root, filename)
+        with open(filepath, 'w') as config_file:
+            config_file.write(json.dumps(self.payload, indent=4))
+        return filepath
 
     @property
     def payload(self):

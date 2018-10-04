@@ -32,7 +32,7 @@ def check_config_permissions() -> bool:
 
 
 def validate_configuration_file(config=None,
-                                filepath: str = DEFAULT_CONFIG_FILE_LOCATION,
+                                filepath: str = NodeConfiguration.DEFAULT_CONFIG_FILE_LOCATION,
                                 raise_on_failure: bool=False) -> Union[bool, Tuple[bool, tuple]]:
 
     if config is None:

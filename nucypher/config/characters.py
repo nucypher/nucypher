@@ -9,12 +9,15 @@ from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent, NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.node import NodeConfiguration
-from nucypher.crypto.powers import CryptoPower
+from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower
+from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
 
 class UrsulaConfiguration(NodeConfiguration):
+    _name = 'ursula'
+    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
 
     DEFAULT_REST_HOST = '127.0.0.1'
     DEFAULT_REST_PORT = 9151
@@ -58,6 +61,7 @@ class UrsulaConfiguration(NodeConfiguration):
         #
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.tls_private_key = tls_private_key
+
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
 
@@ -74,14 +78,6 @@ class UrsulaConfiguration(NodeConfiguration):
 
         super().__init__(*args, **kwargs)
 
-    @classmethod
-    def from_configuration_file(cls, filepath=None, **overrides) -> 'UrsulaConfiguration':
-        from nucypher.config.parsers import parse_ursula_config
-        filepath = filepath if filepath is None else DEFAULT_CONFIG_FILE_LOCATION
-        payload = parse_ursula_config(filepath=filepath)
-        instance = cls(**{**payload, **overrides})
-        return instance
-
     def generate_runtime_filepaths(self, config_root: str) -> dict:
         base_filepaths = NodeConfiguration.generate_runtime_filepaths(config_root=config_root)
         filepaths = dict(db_filepath=os.path.join(config_root, self.db_name),
@@ -89,28 +85,21 @@ class UrsulaConfiguration(NodeConfiguration):
         base_filepaths.update(filepaths)
         return base_filepaths
 
+    def write_defaults(self, tls: bool = True, *args, **kwargs):
+        return super().write_defaults(tls=tls,
+                                      host=self.rest_host,
+                                      curve=self.tls_curve,
+                                      *args, **kwargs)
+
     @property
     def payload(self) -> dict:
 
         ursula_payload = dict(
-         # REST
          rest_host=self.rest_host,
          rest_port=self.rest_port,
          db_name=self.db_name,
          db_filepath=self.db_filepath,
-
-         # TLS
-         tls_curve=self.tls_curve,
-         tls_private_key=self.tls_private_key,
-         certificate=self.certificate,
          certificate_filepath=self.certificate_filepath,
-
-         # Ursula
-         interface_signature=self.interface_signature,
-         crypto_power=self.crypto_power,
-
-         # Blockchain
-         miner_agent=self.miner_agent
         )
 
         base_payload = super().payload
@@ -176,10 +165,10 @@ class UrsulaConfiguration(NodeConfiguration):
 
 class AliceConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Alice
-    from nucypher.config.parsers import parse_alice_config
+
+    _name = 'alice'
 
     _Character = Alice
-    _parser = parse_alice_config
 
     def __init__(self, policy_agent: EthereumContractAgent = None, *args, **kwargs) -> None:
         self.policy_agent = policy_agent
@@ -195,5 +184,7 @@ class AliceConfiguration(NodeConfiguration):
 
 class BobConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Bob
+
+    _name = 'bob'
 
     _Character = Bob
