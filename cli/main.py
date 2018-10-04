@@ -231,15 +231,16 @@ def cli(config,
     config.poa = poa
 
     if config.verbose:
-        click.echo("Running in verbose mode...")
+        click.secho("Running in verbose mode...", fg='blue')
 
     if not config.dev:
-        click.echo("WARNING: Development mode is disabled")
+        click.secho("WARNING: Development mode is disabled", fg='yellow', bold=True)
     else:
-        click.echo("Running in development mode")
+        click.secho("Running in development mode", fg='blue')
 
 
 @cli.command()
+@click.option('--ursula', help="Configure ursula",  is_flag=True, default=False)
 @click.option('--filesystem', is_flag=True, default=False)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--force', help="Ask confirm once; Do not generate wallet or certificate", is_flag=True)
@@ -248,6 +249,7 @@ def cli(config,
 @uses_config
 def configure(config,
               action,
+              ursula,
               filesystem,
               no_registry,
               checksum_address,  # TODO: Clean by address
@@ -375,7 +377,7 @@ def accounts(config,
         def __collect_transfer_details(denomination: str):
             destination = click.prompt("Enter destination checksum_address")
             if not is_checksum_address(destination):
-                click.echo("{} is not a valid checksum checksum_address".format(destination))
+                click.secho("{} is not a valid checksum checksum_address".format(destination), fg='red', bold=True)
                 raise click.Abort()
             amount = click.prompt("Enter amount of {} to transfer".format(denomination), type=click.INT)
             return destination, amount
@@ -385,7 +387,7 @@ def accounts(config,
     #
     if action == 'new':
         new_address = config.create_account()
-        click.echo("Created new ETH address {}".format(new_address))
+        click.secho("Created new ETH address {}".format(new_address), fg='blue')
         if click.confirm("Set new address as the node's keying default account?".format(new_address)):
             config.blockchain.interface.w3.eth.defaultAccount = new_address
             click.echo("{} is now the node's default account.".format(config.blockchain.interface.w3.eth.defaultAccount))
@@ -407,7 +409,7 @@ def accounts(config,
             base_row_template = ' {address}\n    Tokens: {tokens}\n    ETH: {eth}\n '
             row_template = ('\netherbase |'+base_row_template) if not index else '{index} ....... |'+base_row_template
             row = row_template.format(index=index, address=checksum_address, tokens=token_balance, eth=eth_balance)
-            click.echo(row)
+            click.secho(row, fg='blue')
 
     elif action == 'balance':
         if not checksum_address:
@@ -415,7 +417,7 @@ def accounts(config,
             click.echo('No checksum_address supplied, Using the default {}'.format(checksum_address))
         token_balance = config.token_agent.get_balance(address=checksum_address)
         eth_balance = config.token_agent.blockchain.interface.w3.eth.getBalance(checksum_address)
-        click.echo("Balance of {} | Tokens: {} | ETH: {}".format(checksum_address, token_balance, eth_balance))
+        click.secho("Balance of {} | Tokens: {} | ETH: {}".format(checksum_address, token_balance, eth_balance), fg='blue')
 
     elif action == "transfer-tokens":
         destination, amount = __collect_transfer_details(denomination='tokens')
@@ -831,7 +833,7 @@ def deploy(config,
     """Manage contract and registry deployment"""
 
     if not config.deployer:
-        click.echo("The --deployer flag must be used to issue the deploy command.")
+        click.secho("The --deployer flag must be used to issue the deploy command.", fg='red', bold=True)
         raise click.Abort()
 
     def __get_deployers():
@@ -900,7 +902,7 @@ def deploy(config,
                     secret = click.prompt("Enter secret hash for {}".format(__contract_name), hide_input=True, confirmation_prompt=True)
                     secret_hash = hashlib.sha256(secret)
                     if len(secret_hash) != 32:
-                        click.echo("Deployer secret must be 32 bytes.")
+                        click.secho("Deployer secret must be 32 bytes.", fg='yellow')
                         if click.prompt("Try again?"):
                             return __collect_secret_hash()
                         else:
@@ -920,7 +922,8 @@ def deploy(config,
             is_armed, disqualifications = __deployer.arm(abort=False)
             if not is_armed:
                 disqualifications = ', '.join(disqualifications)
-                click.echo("Failed to arm {}. Disqualifications: {}".format(__contract_name, disqualifications))
+                click.secho("Failed to arm {}. Disqualifications: {}".format(__contract_name, disqualifications),
+                            fg='red', bold=True)
                 raise click.Abort()
 
             #
@@ -934,6 +937,9 @@ def deploy(config,
             __agent = __deployer.make_agent()
             __deployment_agents[agent_name] = __agent
 
+            click.secho("Deployed {} - Contract Address: {}".format(contract_name, __agent.contract_address),
+                        fg='green', bold=True)
+
             return __transactions, __agent
 
         if contract_name:
@@ -944,6 +950,7 @@ def deploy(config,
                 deployer_info = deployers[contract_name]
             except KeyError:
                 click.echo("No such contract {}. Available contracts are {}".format(contract_name, available_deployers))
+                raise click.Abort()
             else:
                 _txs, _agent = __deploy_contract(deployer_info.deployer_class,
                                                  upgradeable=deployer_info.upgradeable,
@@ -968,7 +975,7 @@ def deploy(config,
         if not force and click.confirm("Save transaction hashes to JSON file?"):
             file = click.prompt("Enter output filepath", type=click.File(mode='w'))   # TODO
             file.write(json.dumps(__deployment_transactions))
-            click.echo("Successfully wrote transaction hashes file to {}".format(file.path))
+            click.secho("Successfully wrote transaction hashes file to {}".format(file.path), fg='green')
 
 
 @cli.command()
@@ -1038,7 +1045,7 @@ def status(config,
 @click.option('--rest-port', type=click.IntRange(min=49151, max=65535, clamp=False))
 @click.option('--db-name', type=click.STRING)
 @click.option('--checksum-address', type=CHECKSUM_ADDRESS)
-@click.option('--stake-amount', type=click.IntRange(min=MIN_ALLOWED_LOCKED, max=MIN_ALLOWED_LOCKED, clamp=False))
+@click.option('--stake-amount', type=click.IntRange(min=MIN_ALLOWED_LOCKED, max=MAX_ALLOWED_LOCKED, clamp=False))
 @click.option('--stake-periods', type=click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False))
 @click.option('--resume', help="Resume an existing stake", is_flag=True)
 @click.option('--no-reactor', help="Development feature", is_flag=True)
@@ -1072,8 +1079,8 @@ def ursula(config,
     if action == 'run':                # 0
         if not config.federated_only:
             if not all((stake_amount, stake_periods)) and not resume:
-                click.echo("Either --stake-amount and --stake-periods options "
-                           "or the --resume flag is required to run a non-federated Ursula")
+                click.secho("Either --stake-amount and --stake-periods options "
+                            "or the --resume flag is required to run a non-federated Ursula", bold=True)
                 raise click.Abort()
 
         if config.config_file:         # 1
@@ -1097,14 +1104,18 @@ def ursula(config,
                                                 abort_on_learning_error=config.dev)
 
         try:
+
             URSULA = ursula_config.produce(passphrase=password)  # 2
+
             if not config.federated_only:
-                URSULA.stake(amount=stake_amount,                  # 3
+                URSULA.stake(amount=stake_amount,                # 3
                              lock_periods=stake_periods)
 
             if not no_reactor:
-                URSULA.get_deployer().run()                        # 4
+                URSULA.get_deployer().run()                       # 4
 
+        except Exception as e:
+            click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')
         finally:
             click.echo("Cleaning up.")
             ursula_config.cleanup()
