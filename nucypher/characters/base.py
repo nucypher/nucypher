@@ -111,8 +111,8 @@ class Learner:
 
         certificate_filepath = node.save_certificate_to_disk(directory=self.known_certificates_dir)
         try:
-            node.verify_node(self.network_middleware,
-                             force=force_verification_check,
+            node.verify_node(force=force_verification_check,
+                             network_middleware=self.network_middleware,
                              accept_federated_only=self.federated_only,  # TODO: 466
                              certificate_filepath=certificate_filepath)
         except requests.exceptions.ConnectionError:

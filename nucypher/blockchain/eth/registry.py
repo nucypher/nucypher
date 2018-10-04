@@ -28,6 +28,9 @@ class EthereumContractRegistry:
     class EmptyRegistry(RegistryError):
         pass
 
+    class NoRegistry(RegistryError):
+        pass
+
     class UnknownContract(RegistryError):
         pass
 
@@ -77,7 +80,7 @@ class EthereumContractRegistry:
                     registry_data = list()
 
         except FileNotFoundError:
-            raise self.RegistryError("No registry at filepath: {}".format(self.__filepath))
+            raise self.NoRegistry("No registry at filepath: {}".format(self.__filepath))
 
         except JSONDecodeError:
             raise

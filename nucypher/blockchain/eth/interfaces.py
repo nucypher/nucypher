@@ -24,16 +24,22 @@ class BlockchainInterface:
     __default_timeout = 10  # seconds
     # __default_transaction_gas_limit = 500000  # TODO: determine sensible limit and validate transactions
 
-    class UnknownContract(Exception):
+    class InterfaceError(Exception):
         pass
 
-    class InterfaceError(Exception):
+    class NoProvider(InterfaceError):
+        pass
+
+    class ConnectionFailed(InterfaceError):
+        pass
+
+    class UnknownContract(InterfaceError):
         pass
 
     def __init__(self,
                  provider_uri: str = None,
                  providers: list = None,
-                 autoconnect: bool = True,
+                 auto_connect: bool = True,
                  timeout: int = None,
                  registry: EthereumContractRegistry = None,
                  compiler: SolidityCompiler=None) -> None:
@@ -42,7 +48,7 @@ class BlockchainInterface:
         A blockchain "network inerface"; The circumflex wraps entirely around the bounds of
         contract operations including compilation, deployment, and execution.
 
-         Filesystem          Configuration          Client               Web3                   Node
+         Filesystem          Configuration           Node              Client                  EVM
         ================ ====================== =============== =====================  ===========================
 
          Solidity Files -- SolidityCompiler ---                  --- HTTPProvider ------ ...
@@ -55,22 +61,26 @@ class BlockchainInterface:
                                                |      |         |
          Registry File -- ContractRegistry ---        |          ---- TestProvider ----- EthereumTester
                                                       |
-                                                      |                                         |
-                                                      |
-                                                                                       PyEVM (Development Chain)
-         Runtime Files ---                -------- Blockchain
-                          |              |
-                          |              |             |
+                        |                             |                                         |
+                        |                             |
+                                                                                        PyEVM (Development Chain)
+         Runtime Files --                 -------- Blockchain
+                                         |
+                        |                |             |
 
          Key Files ------ NodeConfiguration -------- Agent ... (Contract API)
 
-                          |              |             |
-                          |              |
-                          |               ---------- Actor ... (Blockchain-Character API)
-                          |
-                          |                            |
+                        |                |             |
+                        |                |
+                        |                 ---------- Actor ... (Blockchain-Character API)
+                        |
+                        |                              |
+                        |
+         Config File ---                          Character ... (Public API)
 
-         Configuration File                        Character ... (Public API)
+                                                       |
+
+                                                     Human
 
 
         The BlockchainInterface is the junction of the solidity compiler, a contract registry, and a collection of
@@ -141,7 +151,7 @@ class BlockchainInterface:
         self.__raw_contract_cache = __raw_contract_cache
 
         # Auto-connect
-        self.autoconnect = autoconnect
+        self.autoconnect = auto_connect
         if self.autoconnect is True:
             self.connect()
 
@@ -149,7 +159,7 @@ class BlockchainInterface:
         self.log.info("Connecting to {}".format(self.provider_uri))
 
         if self.__providers is constants.NO_BLOCKCHAIN_CONNECTION:
-            raise self.InterfaceError("There are no configured blockchain providers")
+            raise self.NoProvider("There are no configured blockchain providers")
 
         # Connect
         web3_instance = Web3(providers=self.__providers)  # Instantiate Web3 object with provider
@@ -157,13 +167,13 @@ class BlockchainInterface:
 
         # Check connection
         if not self.is_connected:
-            raise self.InterfaceError('Failed to connect to providers: {}'.format(self.__providers))
+            raise self.ConnectionFailed('Failed to connect to providers: {}'.format(self.__providers))
 
         if self.is_connected:
             self.log.info('Successfully Connected to {}'.format(self.provider_uri))
             return self.is_connected
         else:
-            raise self.InterfaceError("Failed to connect to {}. Check your connection.".format(self.provider_uri))
+            raise self.ConnectionFailed("Failed to connect to {}.".format(self.provider_uri))
 
     @property
     def providers(self) -> Tuple[Union[IPCProvider, WebsocketProvider, HTTPProvider], ...]:
@@ -187,7 +197,7 @@ class BlockchainInterface:
                      timeout: int = None) -> None:
 
         if not provider_uri and not provider:
-            raise self.InterfaceError("No URI or provider instances supplied.")
+            raise self.NoProvider("No URI or provider instances supplied.")
 
         if provider_uri and not provider:
             uri_breakdown = urlparse(provider_uri)
@@ -213,7 +223,7 @@ class BlockchainInterface:
                     # w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
                 else:
-                    raise self.InterfaceError("{} is an invalid or unsupported blockchain provider URI".format(provider_uri))
+                    raise ValueError("{} is an invalid or unsupported blockchain provider URI".format(provider_uri))
 
             # IPC
             elif uri_breakdown.scheme == 'ipc':
@@ -269,7 +279,7 @@ class BlockchainInterface:
             raise self.InterfaceError('Corrupted Registrar')  # TODO: Integrate with Registry
         else:
             if not contract_records:
-                raise self.InterfaceError("No such contract with address {}".format(address))
+                raise self.UnknownContract("No such contract with address {}".format(address))
             return contract_records[0]
 
     def get_contract_by_name(self, name: str, upgradeable=False, factory=Contract) -> Contract:
@@ -280,7 +290,7 @@ class BlockchainInterface:
         target_contract_records = self.registry.search(contract_name=name)
 
         if not target_contract_records:
-            raise self.InterfaceError("No such contract records with name {}".format(name))
+            raise self.UnknownContract("No such contract records with name {}".format(name))
 
         if upgradeable:
             # Lookup dispatchers; Search fot a published dispatcher that targets this contract record
@@ -357,6 +367,9 @@ class BlockchainInterface:
 
 class BlockchainDeployerInterface(BlockchainInterface):
 
+    class NoDeployerAddress(RuntimeError):
+        pass
+
     def __init__(self, deployer_address: str=None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)  # Depends on web3 instance
         self.__deployer_address = deployer_address if deployer_address is not None else constants.NO_DEPLOYER_CONFIGURED
@@ -377,7 +390,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         return an instantiated deployed contract
         """
         if self.__deployer_address is constants.NO_DEPLOYER_CONFIGURED:
-            raise self.InterfaceError('No deployer address is configured.')
+            raise self.NoDeployerAddress
         #
         # Build the deployment tx #
         #
