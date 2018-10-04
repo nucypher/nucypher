@@ -3,7 +3,6 @@ import os
 
 from typing import Union, Tuple
 
-from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 

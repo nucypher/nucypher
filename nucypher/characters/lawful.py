@@ -395,9 +395,9 @@ class Ursula(Character, VerifiableNode, Miner):
                  # Ursula
                  rest_host: str,
                  rest_port: int,
-                 certificate: Certificate = None,  # TODO: from_certificate classmethod instead, use only filepath..?
+                 certificate: Certificate = None,
                  certificate_filepath: str = None,
-                 db_name: str = None,  # TODO: deprecate db_name, use only filepath.?
+                 db_name: str = None,
                  db_filepath: str = None,
                  is_me: bool = True,
                  interface_signature=None,
@@ -406,7 +406,6 @@ class Ursula(Character, VerifiableNode, Miner):
                  # Blockchain
                  miner_agent=None,
                  checksum_address: str = None,
-                 # registry_filepath: str = None,
 
                  # Character
                  passphrase: str = None,
@@ -421,8 +420,10 @@ class Ursula(Character, VerifiableNode, Miner):
                  **character_kwargs
                  ) -> None:
 
-        self._work_orders = []
-
+        #
+        # Character
+        #
+        self._work_orders = list()
         Character.__init__(self,
                            is_me=is_me,
                            checksum_address=checksum_address,

@@ -1,49 +1,75 @@
+import base64
 import json
 import os
 import stat
 from base64 import urlsafe_b64encode
+from typing import ClassVar, Tuple, Callable
 
+from constant_sorrow import constants
+from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.x509 import Certificate
 from eth_account import Account
+from eth_keys import KeyAPI as EthKeyAPI
+from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
-from typing import ClassVar, Tuple
-from umbral.keys import UmbralPrivateKey
+from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.config.node import NodeConfiguration
+from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower
+
+
+#
+# Utils
+#
 
 
 def validate_passphrase(passphrase) -> bool:
     """Validate a passphrase and return True or raise an error with a failure reason"""
 
     rules = (
+        (bool(passphrase), 'Passphrase must not be blank.'),
         (len(passphrase) >= 16, 'Passphrase is too short, must be >= 16 chars.'),
     )
 
     for rule, failure_message in rules:
         if not rule:
-            raise NodeConfiguration.ConfigurationError(failure_message)
+            raise ValueError(failure_message)
     return True
 
 
-def _parse_keyfile(keypath: str):
-    """Parses a keyfile and returns key metadata as a dict."""
+def _read_keyfile(keypath: str, as_json=True):
+    """Parses a json keyfile and returns deserialized key metadata as a dict."""
 
     with open(keypath, 'rb') as keyfile:
         try:
-            key_metadata = json.loads(keyfile.read())
+            key_metadata = keyfile.read()
+            if as_json is True:
+                key_metadata = json.loads(key_metadata)
         except json.JSONDecodeError:
-            raise NodeConfiguration.ConfigurationError("Invalid data in keyfile {}".format(keypath))
-        else:
-            return key_metadata
+            raise RuntimeError("Invalid data in keyfile {}".format(keypath))
+
+    return key_metadata
 
 
-def _save_private_keyfile(keypath: str, key_data: dict) -> str:
+#
+# Filesystem
+#
+
+def _save_private_keyfile(keypath: str,
+                          key_data,
+                          serialize: bool = True,
+                          serializer: Callable = bytes,
+                          encoding='utf-8',
+                          as_json: bool = False) -> str:
     """
     Creates a permissioned keyfile and save it to the local filesystem.
     The file must be created in this call, and will fail if the path exists.
@@ -70,11 +96,17 @@ def _save_private_keyfile(keypath: str, key_data: dict) -> str:
     finally:
         os.umask(0)  # Set the umask to 0 after opening
 
+    # Encode as_json if requested, rebinding the reference
+    if as_json is True:
+        key_data = json.dumps(key_data)
+    if serialize is True:
+        key_data = serializer(key_data, encoding=encoding)
+
     # Write and destroy file descriptor reference
     with os.fdopen(keyfile_descriptor, 'wb') as keyfile:
-        keyfile.write(bytes(json.dumps(key_data), encoding='utf-8'))
+        keyfile.write(key_data)
 
-    del keyfile_descriptor
+    # del keyfile_descriptor
     return keypath
 
 
@@ -103,18 +135,47 @@ def _save_public_keyfile(keypath: str, key_data: bytes) -> str:
     try:
         keyfile_descriptor = os.open(keypath, flags=flags, mode=mode)
     finally:
-        os.umask(0) # Set the umask to 0 after opening
+        os.umask(0)  # Set the umask to 0 after opening
 
     # Write and destroy the file descriptor reference
     with os.fdopen(keyfile_descriptor, 'wb') as keyfile:
         # key data should be urlsafe_base64
         keyfile.write(key_data)
-        output_path = keyfile.name
 
-    # TODO: output_path is an integer, who knows why?
     del keyfile_descriptor
-    return output_path
+    return keypath
 
+
+def _save_tls_certificate(certificate: Certificate,
+                          full_filepath: str,
+                          force: bool = True,  # TODO: Make configurable, or set to False by default.
+                          ) -> str:
+
+    cert_already_exists = os.path.isfile(full_filepath)
+    if force is False and cert_already_exists:
+        raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath))
+
+    with open(full_filepath, 'wb') as certificate_file:
+        public_pem_bytes = certificate.public_bytes(Encoding.PEM)
+        certificate_file.write(public_pem_bytes)
+
+    return full_filepath
+
+
+def _load_tls_certificate(filepath: str) -> Certificate:
+    """Deserialize an X509 certificate from a filepath"""
+    try:
+        with open(filepath, 'r') as certificate_file:
+            cert = x509.load_pem_x509_certificate(certificate_file.read(),
+                                                  backend=default_backend())
+            return cert
+    except FileNotFoundError:
+        raise FileNotFoundError("No SSL certificate found at {}".format(filepath))
+
+
+#
+# Encrypt and Decrypt
+#
 
 def _derive_key_material_from_passphrase(salt: bytes, passphrase: str) -> bytes:
     """
@@ -155,13 +216,12 @@ def _encrypt_umbral_key(wrapping_key: bytes, umbral_key: UmbralPrivateKey) -> di
     Returns an encrypted key as bytes with the nonce appended.
     """
     nonce = os.urandom(24)
-    enc_key = SecretBox(wrapping_key).encrypt(umbral_key.to_bytes(), nonce)
+    enc_key = SecretBox(wrapping_key).encrypt(umbral_key, nonce)
 
     crypto_data = {
         'nonce': urlsafe_b64encode(nonce).decode(),
         'enc_key': urlsafe_b64encode(enc_key).decode()
     }
-
     return crypto_data
 
 
@@ -182,14 +242,18 @@ def _decrypt_umbral_key(wrapping_key: bytes,
     return umbral_key
 
 
-def _generate_encryption_keys() -> tuple:
+#
+# Keypair Generation
+#
+
+def _generate_encryption_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
     """Use pyUmbral keys to generate a new encrypting key pair"""
     privkey = UmbralPrivateKey.gen_key()
     pubkey = privkey.get_pubkey()
     return privkey, pubkey
 
 
-def _generate_signing_keys() -> tuple:
+def _generate_signing_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
     """
     TODO: Do we really want to use Umbral keys for signing?
     TODO: Perhaps we can use Curve25519/EdDSA for signatures?
@@ -207,6 +271,11 @@ def _generate_wallet(passphrase: str) -> Tuple[str, dict]:
     return account.address, encrypted_wallet_data
 
 
+def _generate_tls_keys(host: str, curve: EllipticCurve) -> Tuple[_EllipticCurvePrivateKey, Certificate]:
+    cert, private_key = generate_self_signed_certificate(host, curve)
+    return private_key, cert
+
+
 class NucypherKeyring:
     """
     Handles keys for a single __common_name.
@@ -220,14 +289,14 @@ class NucypherKeyring:
     - keyring_root
         - .private
             - key.priv
+            - key.priv.pem
         - public
             - key.pub
+            - cert.pem
 
     """
 
     __default_keyring_root = os.path.join(DEFAULT_CONFIG_ROOT, 'keyring')
-    __default_public_key_dir = os.path.join(__default_keyring_root, 'public')
-    __default_private_key_dir = os.path.join(__default_keyring_root, 'private')
 
     class KeyringError(Exception):
         pass
@@ -238,14 +307,14 @@ class NucypherKeyring:
     def __init__(self,
                  common_name: str,
                  keyring_root: str = None,
-                 public_key_dir: str = None,
-                 private_key_dir: str = None,
                  root_key_path: str = None,
                  pub_root_key_path: str = None,
                  signing_key_path: str = None,
                  pub_signing_key_path: str = None,
                  wallet_path: str = None,
-                 tls_key_path: str = None) -> None:
+                 tls_key_path: str = None,
+                 tls_certificate_path: str = None,
+                 ) -> None:
         """
         Generates a NuCypherKeyring instance with the provided key paths,
         falling back to default keyring paths.
@@ -255,39 +324,83 @@ class NucypherKeyring:
 
         # Check for a custom private key or keyring root directory to use when locating keys
         self.__keyring_root = keyring_root or self.__default_keyring_root
-        self.__public_key_dir = public_key_dir or self.__default_public_key_dir
-        self.__private_key_dir = private_key_dir or self.__default_private_key_dir
 
-        __key_filepaths = self.generate_filepaths(common_name=self.__common_name,
-                                                  public_key_dir=self.__public_key_dir,
-                                                  private_key_dir=self.__private_key_dir)
+        # Generate base filepaths
+        __default_base_filepaths = self.generate_base_filepaths(keyring_root=self.__keyring_root)
+        self.__public_key_dir = __default_base_filepaths['public_key_dir']
+        self.__private_key_dir = __default_base_filepaths['private_key_dir']
 
-        # Check for any custom individual key paths
-        self.__root_keypath = root_key_path or __key_filepaths['root']
-        self.__signing_keypath = signing_key_path or __key_filepaths['signing']
-        self.__wallet_path = wallet_path or __key_filepaths['wallet']
-        self.__tls_keypath = tls_key_path or __key_filepaths['tls']
+        # Check for any custom individual key paths overrides
+        __default_key_filepaths = self.generate_key_filepaths(common_name=self.__common_name,
+                                                              public_key_dir=self.__public_key_dir,
+                                                              private_key_dir=self.__private_key_dir)
+        self.__root_keypath = root_key_path or __default_key_filepaths['root']
+        self.__signing_keypath = signing_key_path or __default_key_filepaths['signing']
+        self.__wallet_path = wallet_path or __default_key_filepaths['wallet']
+        self.__tls_keypath = tls_key_path or __default_key_filepaths['tls']
+        self.__tls_certificate = tls_certificate_path or __default_key_filepaths['tls_certificate']
 
         # Check for any custom individual public key paths
-        self.__root_pub_keypath = pub_root_key_path or __key_filepaths['root_pub']
-        self.__signing_pub_keypath = pub_signing_key_path or __key_filepaths['signing_pub']
+        self.__root_pub_keypath = pub_root_key_path or __default_key_filepaths['root_pub']
+        self.__signing_pub_keypath = pub_signing_key_path or __default_key_filepaths['signing_pub']
 
         # Setup key cache
-        self.__derived_key_material = None
-        self.__transacting_private_key = None
+        self.__derived_key_material = constants.KEYRING_LOCKED
 
     def __del__(self):
         self.lock()
 
+    #
+    # Public Keys
+    #
     @property
-    def transacting_public_key(self):
-        wallet = _parse_keyfile(keypath=self.__wallet_path)
-        return wallet['address']
+    def checksum_address(self):
+        try:
+            key_data = _read_keyfile(keypath=self.__wallet_path, as_json=True)
+            address = key_data['address']
+        except FileNotFoundError:
+            address = self.federated_address
+        return to_checksum_address(address)
+
+    @property
+    def federated_address(self):
+        signature_pubkey = self.signing_public_key
+        uncompressed_bytes = signature_pubkey.to_bytes(is_compressed=False)
+        without_prefix = uncompressed_bytes[1:]
+        verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
+        address = verifying_key_as_eth_key.to_checksum_address()
+        return address
+
+    @property
+    def signing_public_key(self):
+        signature_pubkey_bytes = _read_keyfile(keypath=self.__signing_pub_keypath, as_json=False)
+        signature_pubkey = UmbralPublicKey.from_bytes(signature_pubkey_bytes, decoder=base64.urlsafe_b64decode)
+        return signature_pubkey
+
+    @property
+    def encrypting_public_key(self):
+        encrypting_pubkey_bytes = _read_keyfile(keypath=self.__root_pub_keypath, as_json=False)
+        encrypting_pubkey = UmbralPublicKey.from_bytes(encrypting_pubkey_bytes, decoder=base64.urlsafe_b64decode)
+        return encrypting_pubkey
+
+    @property
+    def certificate_filepath(self):
+        return self.__tls_certificate
+
+
+    #
+    # Utils
+    #
+    @staticmethod
+    def generate_base_filepaths(keyring_root):
+        base_paths = dict(public_key_dir=os.path.join(keyring_root, 'public'),
+                          private_key_dir=os.path.join(keyring_root, 'private'))
+        return base_paths
 
     @staticmethod
-    def generate_filepaths(public_key_dir: str,
-                           private_key_dir: str,
-                           common_name: str) -> dict:
+    def generate_key_filepaths(public_key_dir: str,
+                               private_key_dir: str,
+                               common_name: str) -> dict:
 
         __key_filepaths = {
             'root': os.path.join(private_key_dir, 'root-{}.priv'.format(common_name)),
@@ -295,43 +408,50 @@ class NucypherKeyring:
             'signing': os.path.join(private_key_dir, 'signing-{}.priv'.format(common_name)),
             'signing_pub': os.path.join(public_key_dir, 'signing-{}.pub'.format(common_name)),
             'wallet': os.path.join(private_key_dir, 'wallet-{}.json'.format(common_name)),
-            'tls': os.path.join(private_key_dir, '{}.pem'.format(common_name))
+            'tls': os.path.join(private_key_dir, '{}.pem'.format(common_name)),
+            'tls_certificate': os.path.join(public_key_dir, '{}.priv.pem'.format(common_name))
         }
 
         return __key_filepaths
 
-    def _export(self, blockchain, passphrase):
+    def _export_wallet_to_node(self, blockchain, passphrase):  # TODO: Deprecate?
+        """Decrypt the wallet with a passphrase, then import the key to the nodes's keyring over RPC"""
         with open(self.__wallet_path, 'rb') as wallet:
             data = wallet.read().decode('utf-8')
             account = Account.decrypt(keyfile_json=data, password=passphrase)
             blockchain.interface.w3.personal.importRawKey(private_key=account, passphrase=passphrase)
 
+    #
+    # Access
+    #
     def __decrypt_keyfile(self, key_path: str) -> UmbralPrivateKey:
         """Returns plaintext version of decrypting key."""
 
         # Checks for cached key
-        if self.__derived_key_material is None:
-            message = 'The keyring cannot be used when it is locked.  Call .unlock first.'
-            raise self.KeyringLocked(message)
+        if self.__derived_key_material is constants.KEYRING_LOCKED:
+            raise self.KeyringLocked
 
-        key_data = _parse_keyfile(key_path)
-        wrap_key = _derive_wrapping_key_from_key_material(key_data['wrap_salt'], self.__derived_key_material)
-        plain_umbral_key = _decrypt_umbral_key(wrap_key, key_data['nonce'], key_data['enc_key'])
+        key_data = _read_keyfile(key_path)
+        wrap_key = _derive_wrapping_key_from_key_material(salt=base64.urlsafe_b64decode(key_data['wrap_salt']),
+                                                          key_material=self.__derived_key_material)
+        plain_umbral_key = _decrypt_umbral_key(wrap_key,
+                                               nonce=base64.urlsafe_b64decode(key_data['nonce']),
+                                               enc_key_material=base64.urlsafe_b64decode(key_data['enc_key']))
 
         return plain_umbral_key
 
     def unlock(self, passphrase: bytes) -> None:
-        if self.__derived_key_material is not None:
-            raise Exception('Keyring already unlocked')  # TODO better exception
+        if self.__derived_key_material is not constants.KEYRING_LOCKED:
+            return
 
-        # TODO: missing salt parameter below
-        derived_key = _derive_key_material_from_passphrase(passphrase=passphrase)
+        key_data = _read_keyfile(keypath=self.__root_keypath, as_json=True)
+        salt = base64.urlsafe_b64decode(key_data['master_salt'])
+        derived_key = _derive_key_material_from_passphrase(passphrase=passphrase, salt=salt)
         self.__derived_key_material = derived_key
 
     def lock(self) -> None:
         """Make efforts to remove references to the cached key data"""
-        self.__derived_key_material = None
-        self.__transacting_private_key = None
+        self.__derived_key_material = constants.KEYRING_LOCKED
 
     def derive_crypto_power(self, power_class: ClassVar) -> CryptoPower:
         """
@@ -357,13 +477,17 @@ class NucypherKeyring:
         new_cryptopower = power_class(keypair=keypair)
         return new_cryptopower
 
+    #
+    # Create
+    #
     @classmethod
     def generate(cls,
                  passphrase: str,
                  encrypting: bool = True,
                  wallet: bool = True,
-                 public_key_dir: str = None,
-                 private_key_dir: str = None,
+                 tls=True,
+                 host: str = None,
+                 curve = None,
                  keyring_root: str = None,
                  exists_ok: bool = True
                  ) -> 'NucypherKeyring':
@@ -373,43 +497,48 @@ class NucypherKeyring:
         returning the corresponding Keyring instance.
         """
 
-        # Prepare and validate user input
-        _public_key_dir = public_key_dir if public_key_dir else cls.__default_public_key_dir
-        _private_key_dir = private_key_dir if private_key_dir else cls.__default_private_key_dir
-
-        if not encrypting and not wallet:
-            raise ValueError('Either "encrypting" or "wallet" must be True to generate new keys.')
-
         validate_passphrase(passphrase)
 
+        if not any((wallet, encrypting, tls)):
+            raise ValueError('Either "encrypting", "wallet", or "tls" must be True to generate new keys.')
+
+        _base_filepaths = cls.generate_base_filepaths(keyring_root=keyring_root)
+        _public_key_dir = _base_filepaths['public_key_dir']
+        _private_key_dir = _base_filepaths['private_key_dir']
+
         # Create the key directories with default paths. Raises OSError if dirs exist
-        if exists_ok and not os.path.isdir(_public_key_dir):
-            os.mkdir(_public_key_dir, mode=0o744)   # public()
+        # if exists_ok and not os.path.isdir(_public_key_dir):
+        os.mkdir(_public_key_dir, mode=0o744)   # public dir
 
-        if exists_ok and not os.path.isdir(_private_key_dir):
-            os.mkdir(_private_key_dir, mode=0o700)  # private
+        # if exists_ok and not os.path.isdir(_private_key_dir):
+        os.mkdir(_private_key_dir, mode=0o700)  # private dir
 
+        #
         # Generate keys
+        #
+
         keyring_args = dict()
 
         if wallet is True:
             new_address, new_wallet = _generate_wallet(passphrase)
             new_wallet_path = os.path.join(_private_key_dir, 'wallet-{}.json'.format(new_address))
-            saved_wallet_path = _save_private_keyfile(new_wallet_path, new_wallet)
+            saved_wallet_path = _save_private_keyfile(new_wallet_path, new_wallet, as_json=True)
             keyring_args.update(wallet_path=saved_wallet_path)
+            common_name = new_address
 
         if encrypting is True:
             enc_privkey, enc_pubkey = _generate_encryption_keys()
             sig_privkey, sig_pubkey = _generate_signing_keys()
 
-        if wallet:          # common name router, prefer checksum address
-            common_name = new_address
-        elif encrypting:
-            common_name = sig_pubkey
+            if not wallet:
+                uncompressed_bytes = sig_pubkey.to_bytes(is_compressed=False)
+                without_prefix = uncompressed_bytes[1:]
+                verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
+                common_name = verifying_key_as_eth_key.to_checksum_address()
 
-        __key_filepaths = cls.generate_filepaths(public_key_dir=_public_key_dir,
-                                                 private_key_dir=_private_key_dir,
-                                                 common_name=common_name)
+        __key_filepaths = cls.generate_key_filepaths(common_name=common_name,
+                                                     private_key_dir=_private_key_dir,
+                                                     public_key_dir=_public_key_dir)
 
         if encrypting is True:
             passphrase_salt = os.urandom(32)
@@ -430,8 +559,8 @@ class NucypherKeyring:
             sig_json['wrap_salt'] = urlsafe_b64encode(sig_salt).decode()
             
             # Write private keys to files
-            rootkey_path = _save_private_keyfile(__key_filepaths['root'], enc_json)
-            sigkey_path = _save_private_keyfile(__key_filepaths['signing'], sig_json)
+            rootkey_path = _save_private_keyfile(__key_filepaths['root'], enc_json, as_json=True)
+            sigkey_path = _save_private_keyfile(__key_filepaths['signing'], sig_json, as_json=True)
 
             bytes_enc_pubkey = enc_pubkey.to_bytes(encoder=urlsafe_b64encode)
             bytes_sig_pubkey = sig_pubkey.to_bytes(encoder=urlsafe_b64encode)
@@ -453,6 +582,32 @@ class NucypherKeyring:
                 signing_key_path=sigkey_path,
                 pub_signing_key_path=sigkey_pub_path
             )
+
+        if tls is True:
+            if not all((host, curve)):
+                raise ValueError("Host and curve are required to make a new keyring TLS certificate")
+            private_key, cert = _generate_tls_keys(host, curve)
+
+            def __save_key(pk, encoding):
+                pem = pk.private_bytes(
+                    encoding=encoding,
+                    format=serialization.PrivateFormat.TraditionalOpenSSL,
+                    encryption_algorithm=serialization.NoEncryption()
+                )
+                return pem
+
+            tls_key_path = _save_private_keyfile(keypath=__key_filepaths['tls'],
+                                                 key_data=private_key,
+                                                 serialize=True,
+                                                 serializer=__save_key,
+                                                 encoding=serialization.Encoding.PEM,
+                                                 as_json=False)
+
+            certificate_filepath = _save_tls_certificate(full_filepath=__key_filepaths['tls_certificate'],
+                                                         certificate=cert)
+
+            keyring_args.update(tls_certificate_path=certificate_filepath,
+                                tls_key_path=tls_key_path)
 
         # return an instance using the generated key paths
         keyring_instance = cls(common_name=common_name, **keyring_args)

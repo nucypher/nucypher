@@ -1,5 +1,6 @@
 import os
 
+import maya
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
@@ -117,7 +118,32 @@ class UrsulaConfiguration(NodeConfiguration):
         return base_payload
 
     def produce(self, **overrides):
-        merged_parameters = {**self.payload, **overrides}
+        """Produce a new Ursula from configuration"""
+
+        self.keyring.unlock(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)  # TODO
+        power_ups = (self.keyring.derive_crypto_power(SigningPower),
+                     self.keyring.derive_crypto_power(EncryptingPower))
+
+        dynamic_payload = dict(
+
+            # Rest + TLS
+            network_middleware=self.network_middleware,
+            tls_curve=self.tls_curve,
+            tls_private_key=self.tls_private_key,
+            certificate=self.certificate,
+
+            # Ursula
+            interface_signature=self.interface_signature,
+            timestamp=maya.now(),
+            crypto_power_ups=power_ups,
+            known_nodes=self.known_nodes,
+
+            # Blockchain
+            miner_agent=self.miner_agent
+        )
+
+        # Three way merge
+        merged_parameters = {**self.payload, **dynamic_payload, **overrides}
         from nucypher.characters.lawful import Ursula
 
         if self.federated_only is False:
@@ -128,18 +154,19 @@ class UrsulaConfiguration(NodeConfiguration):
                 miner_agent = MinerAgent(token_agent=token_agent)
                 merged_parameters.update(miner_agent=miner_agent)
 
+            if self.poa:
+                w3 = miner_agent.blockchain.interface.w3
+                w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+
         ursula = Ursula(**merged_parameters)
+        # ursula = Ursula(**merged_parameters)
 
-        if self.poa:
-            w3 = ursula.blockchain.interface.w3
-            w3.middleware_stack.inject(geth_poa_middleware, layer=0)
-
-        # if self.save_metadata:                     # TODO: Does this belong here..?
+        # if self.save_metadata:
         ursula.write_node_metadata(node=ursula)
         ursula.save_certificate_to_disk(directory=ursula.known_certificates_dir)  # TODO: Move this..?
 
         if self.temp:
-            class MockDatastoreThreadPool(object):  # TODO: Does this belong here..?
+            class MockDatastoreThreadPool(object):
                 def callInThread(self, f, *args, **kwargs):
                     return f(*args, **kwargs)
             ursula.datastore_threadpool = MockDatastoreThreadPool()

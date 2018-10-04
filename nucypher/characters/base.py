@@ -444,11 +444,12 @@ class Character(Learner):
 
     def __init__(self,
                  is_me: bool = True,
-                 network_middleware: RestMiddleware = None,
-                 crypto_power: CryptoPower = None,
-                 crypto_power_ups: List[CryptoPowerUp] = None,
                  federated_only: bool = False,
                  checksum_address: bytes = None,
+                 network_middleware: RestMiddleware = None,
+                 keyring_dir: str = None,
+                 crypto_power: CryptoPower = None,
+                 crypto_power_ups: List[CryptoPowerUp] = None,
                  *args, **kwargs
                  ) -> None:
 
@@ -475,57 +476,71 @@ class Character(Learner):
             represented by zero Characters or by more than one Character.
 
         """
-        self.federated_only = federated_only                     # type: bool
+
+        self.federated_only = federated_only           # type: bool
 
         #
-        # Power-ups and Powers
+        # Powers
         #
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
-
-        crypto_power_ups = crypto_power_ups or []  # type: list
+        crypto_power_ups = crypto_power_ups or list()  # type: list
 
         if crypto_power:
-            self._crypto_power = crypto_power      # type: CryptoPower
+            self._crypto_power = crypto_power          # type: CryptoPower
         elif crypto_power_ups:
             self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
         else:
             self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
 
         #
-        # Identity and Network
+        # Self-Character
         #
-
         if is_me is True:
 
-            self.treasure_maps = {}  # type: dict
+            self.keyring_dir = keyring_dir  # type: str
+            self.treasure_maps = {}         # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
+            #
+            # Signing Power
+            #
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)  # type: SigningPower
                 self._stamp = signing_power.get_signature_stamp()           # type: SignatureStamp
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
 
+            #
+            # Learner
+            #
             Learner.__init__(self,
                              common_name=checksum_address,
                              network_middleware=network_middleware,
                              *args, **kwargs)
 
+        #
+        # Stranger-Character
+        #
         else:  # Feel like a stranger
             if network_middleware is not None:
-                raise TypeError(
-                    "Can't attach network middleware to a Character who isn't me.  What are you even trying to do?")
+                raise TypeError("Network middleware cannot be attached to a Stanger-Character.")
             self._stamp = StrangerStamp(self.public_keys(SigningPower))
+            self.keyring_dir = constants.STRANGER
+            self.network_middleware = constants.STRANGER
 
+        #
         # Decentralized
+        #
         if not federated_only:
             if not checksum_address:
                 raise ValueError("No checksum_address provided while running in a non-federated mode.")
             else:
                 self._checksum_address = checksum_address  # type: str
 
+        #
         # Federated
+        #
         elif federated_only:
             self._checksum_address = constants.NO_BLOCKCHAIN_CONNECTION
 

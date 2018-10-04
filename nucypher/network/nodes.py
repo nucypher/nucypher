@@ -8,11 +8,10 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 
-from nucypher.crypto.api import _save_tls_certificate
+from nucypher.config.keyring import _save_tls_certificate
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
-from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
 
 class VerifiableNode:
@@ -197,7 +196,7 @@ class VerifiableNode:
 
     @property
     def certificate_filename(self):
-        return '{}.{}'.format(self.common_name, Encoding.PEM.name.lower())  # TODO: use cert's encoding..?
+        return '{}.{}'.format(self.checksum_public_address, Encoding.PEM.name.lower())  # TODO: use cert's encoding..?
 
     def get_certificate_filepath(self, certificates_dir: str) -> str:
         return os.path.join(certificates_dir, self.certificate_filename)

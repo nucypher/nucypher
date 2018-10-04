@@ -149,37 +149,24 @@ class NucypherClickConfig:
         self.miner_agent = MinerAgent(token_agent=self.token_agent)
         self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
 
-    def create_account(self) -> str:
+    def create_account(self, passphrase: str = None) -> str:
         """Creates a new local or hosted ethereum wallet"""
         choice = click.prompt("Create a new Hosted or Local account?", default='hosted', type=click.STRING).strip().lower()
         if choice not in ('hosted', 'local'):
             click.echo("Invalid Input")
             raise click.Abort()
 
-        passphrase = click.prompt("Enter a passphrase to encrypt your wallet's private key", hide_input=True, confirmation_prompt=True)
+        if not passphrase:
+            passphrase = click.prompt("Enter a passphrase to encrypt your wallet's private key", hide_input=True, confirmation_prompt=True)
+
         if choice == 'local':
             keyring = generate_local_wallet(passphrase=passphrase, keyring_root=self.node_configuration.keyring_dir)
-            new_address = keyring.transacting_public_key
+            new_address = keyring.checksum_address
         elif choice == 'hosted':
             new_address = generate_account(w3=self.blockchain.interface.w3, passphrase=passphrase)
         else:
             raise click.Abort()
         return new_address
-
-    def create_node_tls_certificate(self, common_name: str, full_filepath: str) -> None:
-        days = click.prompt("How many days do you want the certificate to remain valid? (365 is default)",
-                            default=365,
-                            type=click.INT)  # TODO: Perhaps make this equal to the stake length?
-
-        host = click.prompt("Enter the node's hostname", default='127.0.0.1')  # TODO: remove localhost/loopback as default?
-
-        # TODO: save TLS private key
-        certificate, private_key = generate_self_signed_certificate(host=host,
-                                                                    days_valid=days,
-                                                                    curve=ec.SECP384R1)  # TODO: use Config class?
-
-        certificate_filepath = os.path.join(self.node_configuration.known_certificates_dir, full_filepath)
-        _save_tls_certificate(certificate=certificate, full_filepath=certificate_filepath)
 
 
 # Register the above class as a decorator
@@ -274,17 +261,50 @@ def configure(config,
             click.echo("Using temporary storage area")
 
         if not force:
-            click.confirm("Initialize new nucypher configuration?", abort=True)
+            click.confirm("Initialize new nucypher {} configuration?".format('ursula' if ursula else ''), abort=True)
 
-        configuration.write_defaults(no_registry=no_registry)
-        click.echo("Created configuration files at {}".format(configuration.config_root))
+        if not no_registry and not config.federated_only:
+            registry_source = config.node_configuration.REGISTRY_SOURCE
+            if not os.path.isfile(registry_source):
+                click.echo("Seed contract registry does not exist at path {}.  "
+                           "Use --no-registry to skip.".format(registry_source))
+                raise click.Abort()
 
-        if not force and click.confirm("Do you need to generate a new wallet to use for staking?"):
-            address = config.create_account()
+        passphrase = click.prompt("Enter a passphrase to encrypt your keyring", hide_input=True, confirmation_prompt=True)
 
-        if not force and click.confirm("Do you need to generate a new SSL certificate (Ursula)?"):
-            certificate_filepath = os.path.join(config.node_configuration.known_certificates_dir, '{}.pem'.format(address))
-            config.create_node_tls_certificate(common_name=address, full_filepath=certificate_filepath)
+        if ursula:
+
+            # Wallet
+            if not config.federated_only:
+                wallet = click.confirm("Do you need to generate a new wallet to use for staking?", default=False)
+            else:
+                wallet = False
+
+            # TLS
+            tls = click.confirm("Do you need to generate a new SSL certificate (Ursula)?", default=False)
+            if tls:
+                # TODO: remove localhost/loopback as default?
+                host = click.prompt("Enter the node's hostname", default='127.0.0.1', type=click.STRING)
+                config.node_configuration.rest_host = host
+        else:
+            wallet, tls, host = False, False, None
+
+        encrypting = click.confirm("Do you need to generate a new signing keypair?", default=True)
+
+        try:
+            new_installation_path = configuration.write_defaults(passphrase=passphrase,
+                                                                 wallet=wallet,
+                                                                 encrypting=encrypting,
+                                                                 tls=tls,
+                                                                 no_registry=no_registry)
+        except NodeConfiguration.ConfigurationError as e:
+            click.secho(str(e), fg='red')
+            raise click.Abort()
+
+        click.secho("Created configuration files at {}".format(new_installation_path), fg='green')
+        if click.prompt("Save node configuration?"):
+            configuration_filepath = config.node_configuration.to_configuration_file()
+            click.secho("Saved node configuration {}".format(configuration_filepath), fg='green')
 
     def __validate():
         is_valid = True      # Until there is a reason to believe otherwise...
@@ -306,8 +326,10 @@ def configure(config,
         if config.dev:
             raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
 
-        click.confirm("*Permanently delete* all nucypher private keys, configurations,"
-                      " known nodes, certificates and files at {}?".format(configuration.config_root), abort=True)
+        click.secho("*Permanently delete* all nucypher private keys, configurations,"
+                    " known nodes, certificates and files at {}?".format(configuration.config_root),
+                    fg='yellow', bold=True)
+        click.confirm('', abort=True)
 
         shutil.rmtree(configuration.config_root, ignore_errors=True)
         click.echo("Deleted configuration files at {}".format(configuration.config_root))
@@ -315,7 +337,7 @@ def configure(config,
     #
     # Action switch
     #
-    config.get_node_configuration()
+    config.get_node_configuration(configuration_class= UrsulaConfiguration if ursula else NodeConfiguration)
     if action == "install":
         __initialize(config.node_configuration)
     elif action == "destroy":
@@ -376,7 +398,7 @@ def accounts(config,
         keyring = NucypherKeyring(common_name=checksum_address)
         click.confirm("Export local private key for {} to node's keyring: {}?".format(checksum_address, config.provider_uri), abort=True)
         passphrase = click.prompt("Enter passphrase to decrypt account", type=click.STRING, hide_input=True, confirmation_prompt=True)
-        keyring._export(blockchain=config.blockchain, passphrase=passphrase)
+        keyring._export_wallet_to_node(blockchain=config.blockchain, passphrase=passphrase)
 
     elif action == 'list':
         for index, checksum_address in enumerate(config.accounts):

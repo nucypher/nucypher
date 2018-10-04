@@ -1,27 +1,26 @@
-import contextlib
 import json
 import os
-from json import JSONDecodeError
-
-import shutil
 from glob import glob
+from json import JSONDecodeError
 from logging import getLogger
 from os.path import abspath
 from tempfile import TemporaryDirectory
 
 from constant_sorrow import constants
-from itertools import islice
 
 from nucypher.characters.base import Character
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEFAULT_CONFIG_FILE_LOCATION, TEMPLATE_CONFIG_FILE_LOCATION, \
-    BASE_DIR
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.middleware import RestMiddleware
 
 
 class NodeConfiguration:
+    _name = 'node'
+
+    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
 
     _Character = NotImplemented
-    _parser = NotImplemented
+    __parser = json.loads
 
     DEFAULT_OPERATING_MODE = 'decentralized'
 
@@ -74,10 +73,10 @@ class NodeConfiguration:
         # Configuration Filepaths
         #
 
-        self.keyring_dir = keyring_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_nodes_dir = constants.UNINITIALIZED_CONFIGURATION
-        self.known_certificates_dir = known_metadata_dir or constants.UNINITIALIZED_CONFIGURATION
+        self.known_certificates_dir = known_certificates_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_metadata_dir = known_metadata_dir or constants.UNINITIALIZED_CONFIGURATION
+        self.keyring_dir = keyring_dir or constants.UNINITIALIZED_CONFIGURATION
 
         self.__registry_source = registry_source
         self.registry_filepath = registry_filepath or constants.UNINITIALIZED_CONFIGURATION
@@ -97,21 +96,29 @@ class NodeConfiguration:
         #
         # Identity
         #
+        self.federated_only = federated_only
+        self.checksum_address = checksum_address
 
         self.is_me = is_me
-        self.checksum_address = checksum_address
-        if not federated_only:  # TODO: get_config function?
-            federated_only = True if self.DEFAULT_OPERATING_MODE is 'federated' else False
-        self.federated_only = federated_only
+        if self.is_me:
+            # Keyring
+            self.keyring = NucypherKeyring(keyring_root=keyring_dir, common_name=checksum_address)
 
-        #
-        # Network & Learning
-        #
-
-        if is_me:
             network_middleware = network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS()
-        self.network_middleware = network_middleware
+            self.network_middleware = network_middleware
+        else:
+            if network_middleware:
+                raise self.ConfigurationError("Cannot configure a stranger to use network middleware")
+            self.known_nodes_dir = constants.STRANGER_CONFIGURATION
+            self.known_certificates_dir = constants.STRANGER_CONFIGURATION
+            self.known_metadata_dir = constants.STRANGER_CONFIGURATION
+            self.network_middleware = constants.STRANGER_CONFIGURATION
+            self.keyring_dir = constants.STRANGER_CONFIGURATION
+            self.keyring = constants.STRANGER_CONFIGURATION
 
+        #
+        # Learner
+        #
         self.known_nodes = known_nodes or set()
         self.learn_on_same_thread = learn_on_same_thread
         self.abort_on_learning_error = abort_on_learning_error
@@ -123,7 +130,10 @@ class NodeConfiguration:
         #
 
         if auto_initialize:
-            self.write_defaults(no_registry=no_seed_registry)             # <<< Write runtime files and dirs
+            self.write_defaults(no_registry=not import_seed_registry or federated_only,  #  <<< Write runtime files and dirs
+                                wallet=auto_generate_keys and not federated_only,
+                                encrypting=auto_generate_keys,
+                                passphrase=passphrase)
         if load_metadata:
             self.load_known_nodes(known_metadata_dir=known_metadata_dir)
 
@@ -145,16 +155,13 @@ class NodeConfiguration:
                             is_me=self.is_me,
                             federated_only=self.federated_only,  # TODO: 466
                             checksum_address=self.checksum_address,
-                            # keyring_dir=self.keyring_dir,  # TODO: local private keys
+                            keyring_dir=self.keyring_dir,  # TODO: local private keys
 
                             # Behavior
                             learn_on_same_thread=self.learn_on_same_thread,
                             abort_on_learning_error=self.abort_on_learning_error,
                             start_learning_now=self.start_learning_now,
-                            network_middleware=self.network_middleware,
 
-                            # Knowledge
-                            known_nodes=self.known_nodes,
                             known_certificates_dir=self.known_certificates_dir,
                             known_metadata_dir=self.known_metadata_dir,
                             save_metadata=self.save_metadata
@@ -197,8 +204,15 @@ class NodeConfiguration:
             if getattr(self, field) is constants.UNINITIALIZED_CONFIGURATION:
                 setattr(self, field, filepath)
 
-    def write_defaults(self, no_registry=False) -> str:
-        """Writes the configuration and runtime directory tree starting with the config root directory."""
+    def write_defaults(self,
+                       passphrase: str,
+                       no_registry: bool = False,
+                       wallet: bool = False,
+                       encrypting: bool = False,
+                       tls: bool = False,
+                       host: str = None,
+                       curve=None
+                       ) -> str:
 
         #
         # Create Config Root
@@ -229,10 +243,27 @@ class NodeConfiguration:
             os.mkdir(self.known_metadata_dir, mode=0o755)        # known_metadata
 
             # Files
-            if not no_registry:
+            if not no_registry and not self.federated_only:
                 self.import_registry(output_filepath=self.registry_filepath,
                                      source=self.__registry_source,
                                      blank=no_registry)
+
+            self.keyring = NucypherKeyring.generate(passphrase=passphrase,
+                                                    encrypting=encrypting,
+                                                    wallet=wallet,
+                                                    tls=tls,
+                                                    host=host,
+                                                    curve=curve,
+                                                    keyring_root=self.keyring_dir,
+                                                    exists_ok=False)  # TODO: exists?
+
+            if self.federated_only:
+                self.checksum_address = self.keyring.federated_address
+            else:
+                self.checksum_address = self.keyring.checksum_address
+
+            if tls:
+                self.certificate_filepath = self.keyring.certificate_filepath
 
         except FileExistsError:
             existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
@@ -240,7 +271,7 @@ class NodeConfiguration:
             self.log.critical(message)
             raise NodeConfiguration.ConfigurationError(message)
 
-        # self.check_config_tree_exists(config_root=self.config_root)
+        self.check_config_tree_exists(config_root=self.config_root, no_registry=no_registry or self.federated_only)
         return self.config_root
 
     def load_known_nodes(self, known_metadata_dir=None) -> None:
@@ -288,24 +319,21 @@ class NodeConfiguration:
         self.log.info("Successfully wrote registry to {}".format(output_filepath))
         return output_filepath
 
-    def write_default_configuration_file(self, filepath: str = DEFAULT_CONFIG_FILE_LOCATION):
-        with contextlib.ExitStack() as stack:
-            template_file = stack.enter_context(open(TEMPLATE_CONFIG_FILE_LOCATION, 'r'))
-            new_file = stack.enter_context(open(filepath, 'w+'))
-            if new_file.read() != '':
-                message = "{} is not a blank file.  Do you have an existing configuration file?"
-                raise self.ConfigurationError(message)
-
-            for line in islice(template_file, 12, None):  # chop the warning header
-                new_file.writelines(line.lstrip(';'))  # TODO Copy Default Sections, Perhaps interactively
-
     def cleanup(self) -> None:
         if self.__temp:
             self.__temp_dir.cleanup()
 
     def produce(self, **overrides) -> Character:
         """Initialize a new character instance and return it"""
+        dynamic_payload = dict(network_middleware=self.network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS(),
+                               known_nodes=self.known_nodes)
+
+        if self.is_me:  # TODO
+            crypto_power = self.keyring.derive_crypto_power()
+
         if overrides:
             self.log.debug("Overrides supplied to {}".format(self.__class__.__name__))
-        merged_parameters = {**self.payload, **overrides}
+
+        # Three way merge
+        merged_parameters = {**self.payload, **dynamic_payload, **overrides}
         return self._Character(**merged_parameters)
