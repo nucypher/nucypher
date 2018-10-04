@@ -43,7 +43,7 @@ class MockRestMiddleware(RestMiddleware):
 
     def send_work_order_payload_to_ursula(self, work_order):
         mock_client = self._get_mock_client_by_ursula(work_order.ursula)
-        payload = work_order.payload()
+        payload = work_order.static_payload()
         id_as_hex = work_order.arrangement_id.hex()
         return mock_client.post('http://localhost/kFrag/{}/reencrypt'.format(id_as_hex), payload)
 

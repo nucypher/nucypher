@@ -46,17 +46,21 @@ def validate_passphrase(passphrase) -> bool:
     return True
 
 
-def _read_keyfile(keypath: str, as_json=True):
+def _read_keyfile(keypath: str, as_json=True, decode=True, decoder=base64.urlsafe_b64decode):
     """Parses a json keyfile and returns deserialized key metadata as a dict."""
-
     with open(keypath, 'rb') as keyfile:
         try:
-            key_metadata = keyfile.read()
+            raw_metadata = keyfile.read()
             if as_json is True:
-                key_metadata = json.loads(key_metadata)
+                key_metadata = json.loads(raw_metadata)
+                if decode:
+                    key_metadata = {field: decoder(value) for field, value in key_metadata.items()}
+            else:
+                key_metadata = raw_metadata
+                if decode:
+                    key_metadata = decoder(raw_metadata)
         except json.JSONDecodeError:
             raise RuntimeError("Invalid data in keyfile {}".format(keypath))
-
     return key_metadata
 
 
@@ -216,11 +220,10 @@ def _encrypt_umbral_key(wrapping_key: bytes, umbral_key: UmbralPrivateKey) -> di
     Returns an encrypted key as bytes with the nonce appended.
     """
     nonce = os.urandom(24)
-    enc_key = SecretBox(wrapping_key).encrypt(umbral_key, nonce)
-
+    enc_key = SecretBox(wrapping_key).encrypt(umbral_key.to_bytes(), nonce)
     crypto_data = {
-        'nonce': urlsafe_b64encode(nonce).decode(),
-        'enc_key': urlsafe_b64encode(enc_key).decode()
+        'nonce': nonce,
+        'enc_key': bytes(enc_key)
     }
     return crypto_data
 
@@ -374,13 +377,13 @@ class NucypherKeyring:
     @property
     def signing_public_key(self):
         signature_pubkey_bytes = _read_keyfile(keypath=self.__signing_pub_keypath, as_json=False)
-        signature_pubkey = UmbralPublicKey.from_bytes(signature_pubkey_bytes, decoder=base64.urlsafe_b64decode)
+        signature_pubkey = UmbralPublicKey.from_bytes(signature_pubkey_bytes)
         return signature_pubkey
 
     @property
     def encrypting_public_key(self):
         encrypting_pubkey_bytes = _read_keyfile(keypath=self.__root_pub_keypath, as_json=False)
-        encrypting_pubkey = UmbralPublicKey.from_bytes(encrypting_pubkey_bytes, decoder=base64.urlsafe_b64decode)
+        encrypting_pubkey = UmbralPublicKey.from_bytes(encrypting_pubkey_bytes)
         return encrypting_pubkey
 
     @property
@@ -432,12 +435,11 @@ class NucypherKeyring:
             raise self.KeyringLocked
 
         key_data = _read_keyfile(key_path)
-        wrap_key = _derive_wrapping_key_from_key_material(salt=base64.urlsafe_b64decode(key_data['wrap_salt']),
+        wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
                                                           key_material=self.__derived_key_material)
         plain_umbral_key = _decrypt_umbral_key(wrap_key,
-                                               nonce=base64.urlsafe_b64decode(key_data['nonce']),
-                                               enc_key_material=base64.urlsafe_b64decode(key_data['enc_key']))
-
+                                               nonce=key_data['nonce'],
+                                               enc_key_material=key_data['enc_key'])
         return plain_umbral_key
 
     def unlock(self, passphrase: bytes) -> None:
@@ -445,8 +447,7 @@ class NucypherKeyring:
             return
 
         key_data = _read_keyfile(keypath=self.__root_keypath, as_json=True)
-        salt = base64.urlsafe_b64decode(key_data['master_salt'])
-        derived_key = _derive_key_material_from_passphrase(passphrase=passphrase, salt=salt)
+        derived_key = _derive_key_material_from_passphrase(passphrase=passphrase, salt=key_data['master_salt'])
         self.__derived_key_material = derived_key
 
     def lock(self) -> None:
@@ -469,7 +470,7 @@ class NucypherKeyring:
         elif power_class is EncryptingPower:
             key_path = self.__root_keypath
         else:
-            failure_message = "{} is an invalid type for deriving a CryptoPower.".format(type(power_class))
+            failure_message = "{} is an invalid type for deriving a CryptoPower.".format(power_class.__name__)
             raise ValueError(failure_message)
 
         umbral_privkey = self.__decrypt_keyfile(key_path)
@@ -485,7 +486,7 @@ class NucypherKeyring:
                  passphrase: str,
                  encrypting: bool = True,
                  wallet: bool = True,
-                 tls=True,
+                 tls: bool = True,
                  host: str = None,
                  curve = None,
                  keyring_root: str = None,
@@ -539,28 +540,34 @@ class NucypherKeyring:
         __key_filepaths = cls.generate_key_filepaths(common_name=common_name,
                                                      private_key_dir=_private_key_dir,
                                                      public_key_dir=_public_key_dir)
-
         if encrypting is True:
             passphrase_salt = os.urandom(32)
             enc_salt = os.urandom(32)
             sig_salt = os.urandom(32)
 
-            der_key_material = _derive_key_material_from_passphrase(passphrase_salt, passphrase)
-            enc_wrap_key = _derive_wrapping_key_from_key_material(enc_salt, der_key_material)
-            sig_wrap_key = _derive_wrapping_key_from_key_material(sig_salt, der_key_material)
+            der_key_material = _derive_key_material_from_passphrase(salt=passphrase_salt, passphrase=passphrase)
+            enc_wrap_key = _derive_wrapping_key_from_key_material(salt=enc_salt, key_material=der_key_material)
+            sig_wrap_key = _derive_wrapping_key_from_key_material(salt=sig_salt, key_material=der_key_material)
 
-            enc_json = _encrypt_umbral_key(der_key_material, enc_wrap_key)
-            sig_json = _encrypt_umbral_key(der_key_material, sig_wrap_key)
+            enc_key_data = _encrypt_umbral_key(umbral_key=enc_privkey, wrapping_key=enc_wrap_key)
+            enc_json = {
+                'nonce': urlsafe_b64encode(enc_key_data['nonce']).decode(),
+                'enc_key': urlsafe_b64encode(enc_key_data['enc_key']).decode(),
+                'master_salt': urlsafe_b64encode(enc_salt).decode(),
+                'wrap_salt': urlsafe_b64encode(enc_salt).decode(),
+            }
 
-            enc_json['master_salt'] = urlsafe_b64encode(enc_salt).decode()
-            sig_json['master_salt'] = urlsafe_b64encode(sig_salt).decode()
+            sig_key_data = _encrypt_umbral_key(umbral_key=sig_privkey, wrapping_key=sig_wrap_key)
+            sig_json = {
+                'nonce': urlsafe_b64encode(sig_key_data['nonce']).decode(),
+                'enc_key': urlsafe_b64encode(sig_key_data['enc_key']).decode(),
+                'master_salt': urlsafe_b64encode(sig_salt).decode(),
+                'wrap_salt': urlsafe_b64encode(sig_salt).decode()
+            }
 
-            enc_json['wrap_salt'] = urlsafe_b64encode(enc_salt).decode()
-            sig_json['wrap_salt'] = urlsafe_b64encode(sig_salt).decode()
-            
             # Write private keys to files
-            rootkey_path = _save_private_keyfile(__key_filepaths['root'], enc_json, as_json=True)
-            sigkey_path = _save_private_keyfile(__key_filepaths['signing'], sig_json, as_json=True)
+            rootkey_path = _save_private_keyfile(__key_filepaths['root'], enc_json, as_json=True, serialize=True)
+            sigkey_path = _save_private_keyfile(__key_filepaths['signing'], sig_json, as_json=True, serialize=True)
 
             bytes_enc_pubkey = enc_pubkey.to_bytes(encoder=urlsafe_b64encode)
             bytes_sig_pubkey = sig_pubkey.to_bytes(encoder=urlsafe_b64encode)

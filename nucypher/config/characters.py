@@ -92,28 +92,19 @@ class UrsulaConfiguration(NodeConfiguration):
                                       *args, **kwargs)
 
     @property
-    def payload(self) -> dict:
-
-        ursula_payload = dict(
+    def static_payload(self) -> dict:
+        payload = dict(
          rest_host=self.rest_host,
          rest_port=self.rest_port,
          db_name=self.db_name,
          db_filepath=self.db_filepath,
          certificate_filepath=self.certificate_filepath,
         )
+        return {**super().static_payload, **payload}
 
-        base_payload = super().payload
-        base_payload.update(ursula_payload)
-        return base_payload
-
-    def produce(self, **overrides):
-        """Produce a new Ursula from configuration"""
-
-        self.keyring.unlock(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)  # TODO
-        power_ups = (self.keyring.derive_crypto_power(SigningPower),
-                     self.keyring.derive_crypto_power(EncryptingPower))
-
-        dynamic_payload = dict(
+    @property
+    def dynamic_payload(self) -> dict:
+        payload = dict(
 
             # Rest + TLS
             network_middleware=self.network_middleware,
@@ -124,31 +115,33 @@ class UrsulaConfiguration(NodeConfiguration):
             # Ursula
             interface_signature=self.interface_signature,
             timestamp=maya.now(),
-            crypto_power_ups=power_ups,
             known_nodes=self.known_nodes,
 
             # Blockchain
             miner_agent=self.miner_agent
         )
+        return {**super().dynamic_payload, **payload}
 
-        # Three way merge
-        merged_parameters = {**self.payload, **dynamic_payload, **overrides}
-        from nucypher.characters.lawful import Ursula
+    def produce(self, **overrides):
+        """Produce a new Ursula from configuration"""
+
+        self.keyring.unlock(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)  # TODO: where to get passphrase from?
+
+        merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
 
         if self.federated_only is False:
 
             if not self.miner_agent:   # TODO: move this..?
-                blockchain = Blockchain.connect(provider_uri=self.blockchain_uri, registry_filepath=self.registry_filepath)
-                token_agent = NucypherTokenAgent(blockchain=blockchain)
-                miner_agent = MinerAgent(token_agent=token_agent)
-                merged_parameters.update(miner_agent=miner_agent)
+                self.blockchain = Blockchain.connect(provider_uri=self.blockchain_uri, registry_filepath=self.registry_filepath)
+                self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+                self.miner_agent = MinerAgent(token_agent=self.token_agent)
+                merged_parameters.update(miner_agent=self.miner_agent)
 
             if self.poa:
-                w3 = miner_agent.blockchain.interface.w3
+                w3 = self.miner_agent.blockchain.interface.w3
                 w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
-        ursula = Ursula(**merged_parameters)
-        # ursula = Ursula(**merged_parameters)
+        ursula = self._Character(**merged_parameters)
 
         # if self.save_metadata:
         ursula.write_node_metadata(node=ursula)
@@ -166,25 +159,22 @@ class UrsulaConfiguration(NodeConfiguration):
 class AliceConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Alice
 
-    _name = 'alice'
-
     _Character = Alice
+    _name = 'alice'
 
     def __init__(self, policy_agent: EthereumContractAgent = None, *args, **kwargs) -> None:
         self.policy_agent = policy_agent
         super().__init__(*args, **kwargs)
 
     @property
-    def payload(self) -> dict:
+    def static_payload(self) -> dict:
         alice_payload = dict(policy_agent=self.policy_agent)
-        base_payload = super().payload
+        base_payload = super().static_payload
         alice_payload.update(base_payload)
         return base_payload
 
 
 class BobConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Bob
-
-    _name = 'bob'
-
     _Character = Bob
+    _name = 'bob'

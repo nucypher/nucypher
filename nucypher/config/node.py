@@ -12,6 +12,7 @@ from nucypher.characters.base import Character
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.middleware import RestMiddleware
+from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
 
 class NodeConfiguration:
@@ -159,29 +160,45 @@ class NodeConfiguration:
             filename = '{}.config'.format(self._name.lower())
             filepath = os.path.join(self.config_root, filename)
         with open(filepath, 'w') as config_file:
-            config_file.write(json.dumps(self.payload, indent=4))
+            config_file.write(json.dumps(self.static_payload, indent=4))
         return filepath
 
     @property
-    def payload(self):
-        """Exported configuration values for initializing Ursula"""
-        base_payload = dict(
-                            # Identity
-                            is_me=self.is_me,
-                            federated_only=self.federated_only,  # TODO: 466
-                            checksum_address=self.checksum_address,
-                            keyring_dir=self.keyring_dir,  # TODO: local private keys
+    def static_payload(self):
+        """Exported static configuration values for initializing Ursula"""
+        payload = dict(
+                    # Identity
+                    is_me=self.is_me,
+                    federated_only=self.federated_only,  # TODO: 466
+                    checksum_address=self.checksum_address,
+                    keyring_dir=self.keyring_dir,
 
-                            # Behavior
-                            learn_on_same_thread=self.learn_on_same_thread,
-                            abort_on_learning_error=self.abort_on_learning_error,
-                            start_learning_now=self.start_learning_now,
+                    # Behavior
+                    learn_on_same_thread=self.learn_on_same_thread,
+                    abort_on_learning_error=self.abort_on_learning_error,
+                    start_learning_now=self.start_learning_now,
 
-                            known_certificates_dir=self.known_certificates_dir,
-                            known_metadata_dir=self.known_metadata_dir,
-                            save_metadata=self.save_metadata
-                            )
-        return base_payload
+                    known_certificates_dir=self.known_certificates_dir,
+                    known_metadata_dir=self.known_metadata_dir,
+                    save_metadata=self.save_metadata
+                )
+        return payload
+
+    @property
+    def dynamic_payload(self, **overrides) -> dict:
+        """Exported dynamic configuration values for initializing Ursula"""
+        if overrides:
+            self.log.debug("Overrides supplied to dynamic payload for {}".format(self.__class__.__name__))
+
+        if self.is_me:
+            power_ups = tuple(self.keyring.derive_crypto_power(PowerUp) for PowerUp in self._Character._default_crypto_powerups)
+        else:
+            power_ups = None
+
+        payload = dict(network_middleware=self.network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS(),
+                       known_nodes=self.known_nodes,
+                       crypto_power_ups=power_ups)
+        return payload
 
     @staticmethod
     def generate_runtime_filepaths(config_root: str) -> dict:
@@ -340,15 +357,6 @@ class NodeConfiguration:
 
     def produce(self, **overrides) -> Character:
         """Initialize a new character instance and return it"""
-        dynamic_payload = dict(network_middleware=self.network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS(),
-                               known_nodes=self.known_nodes)
-
-        if self.is_me:  # TODO
-            crypto_power = self.keyring.derive_crypto_power()
-
-        if overrides:
-            self.log.debug("Overrides supplied to {}".format(self.__class__.__name__))
-
-        # Three way merge
-        merged_parameters = {**self.payload, **dynamic_payload, **overrides}
+        self.keyring.unlock(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
+        merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
         return self._Character(**merged_parameters)
