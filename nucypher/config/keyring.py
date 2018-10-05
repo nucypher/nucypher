@@ -2,7 +2,6 @@ import base64
 import json
 import os
 import stat
-from base64 import urlsafe_b64encode
 from typing import ClassVar, Tuple, Callable
 
 from constant_sorrow import constants
@@ -28,9 +27,17 @@ from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower
 
 
 #
-# Utils
+# Constants
 #
 
+KEY_ENCODER = base64.urlsafe_b64encode
+KEY_DECODER = base64.urlsafe_b64decode
+KEY_FILE_ENCODING = 'utf-8'
+
+
+#
+# Utils
+#
 
 def validate_passphrase(passphrase) -> bool:
     """Validate a passphrase and return True or raise an error with a failure reason"""
@@ -46,11 +53,11 @@ def validate_passphrase(passphrase) -> bool:
     return True
 
 
-def _read_keyfile(keypath: str, as_json=True, decode=True, decoder=base64.urlsafe_b64decode):
+def _read_keyfile(keypath: str, as_json=True, decode=True, decoder=KEY_DECODER):
     """Parses a json keyfile and returns deserialized key metadata as a dict."""
     with open(keypath, 'rb') as keyfile:
         try:
-            raw_metadata = keyfile.read()
+            raw_metadata = keyfile.read().decode()
             if as_json is True:
                 key_metadata = json.loads(raw_metadata)
                 if decode:
@@ -72,7 +79,7 @@ def _save_private_keyfile(keypath: str,
                           key_data,
                           serialize: bool = True,
                           serializer: Callable = bytes,
-                          encoding='utf-8',
+                          encoding=KEY_FILE_ENCODING,
                           as_json: bool = False) -> str:
     """
     Creates a permissioned keyfile and save it to the local filesystem.
@@ -223,7 +230,7 @@ def _encrypt_umbral_key(wrapping_key: bytes, umbral_key: UmbralPrivateKey) -> di
     enc_key = SecretBox(wrapping_key).encrypt(umbral_key.to_bytes(), nonce)
     crypto_data = {
         'nonce': nonce,
-        'enc_key': bytes(enc_key)
+        'enc_key': bytes(enc_key.ciphertext)
     }
     return crypto_data
 
@@ -258,8 +265,7 @@ def _generate_encryption_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
 
 def _generate_signing_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
     """
-    TODO: Do we really want to use Umbral keys for signing?
-    TODO: Perhaps we can use Curve25519/EdDSA for signatures?
+    TODO: Do we really want to use Umbral keys for signing? Perhaps we can use Curve25519/EdDSA for signatures?
     """
     privkey = UmbralPrivateKey.gen_key()
     pubkey = privkey.get_pubkey()
@@ -281,15 +287,12 @@ def _generate_tls_keys(host: str, curve: EllipticCurve) -> Tuple[_EllipticCurveP
 
 class NucypherKeyring:
     """
-    Handles keys for a single __common_name.
-
+    Handles keys for a single identity, recognized by common_name.
     Warning: This class handles private keys!
-
-    OS configuration and interface for ethereum and umbral keys
 
     Keyring filesystem tree
     ------------------------
-    - keyring_root
+    - keyring
         - .private
             - key.priv
             - key.priv.pem
@@ -319,13 +322,10 @@ class NucypherKeyring:
                  tls_certificate_path: str = None,
                  ) -> None:
         """
-        Generates a NuCypherKeyring instance with the provided key paths,
-        falling back to default keyring paths.
+        Generates a NuCypherKeyring instance with the provided key paths falling back to default keyring paths.
         """
 
         self.__common_name = common_name
-
-        # Check for a custom private key or keyring root directory to use when locating keys
         self.__keyring_root = keyring_root or self.__default_keyring_root
 
         # Generate base filepaths
@@ -333,21 +333,23 @@ class NucypherKeyring:
         self.__public_key_dir = __default_base_filepaths['public_key_dir']
         self.__private_key_dir = __default_base_filepaths['private_key_dir']
 
-        # Check for any custom individual key paths overrides
+        # Check for overrides
         __default_key_filepaths = self.generate_key_filepaths(common_name=self.__common_name,
                                                               public_key_dir=self.__public_key_dir,
                                                               private_key_dir=self.__private_key_dir)
+
+        # Private
         self.__root_keypath = root_key_path or __default_key_filepaths['root']
         self.__signing_keypath = signing_key_path or __default_key_filepaths['signing']
         self.__wallet_path = wallet_path or __default_key_filepaths['wallet']
         self.__tls_keypath = tls_key_path or __default_key_filepaths['tls']
-        self.__tls_certificate = tls_certificate_path or __default_key_filepaths['tls_certificate']
 
-        # Check for any custom individual public key paths
+        # Public
         self.__root_pub_keypath = pub_root_key_path or __default_key_filepaths['root_pub']
         self.__signing_pub_keypath = pub_signing_key_path or __default_key_filepaths['signing_pub']
+        self.__tls_certificate = tls_certificate_path or __default_key_filepaths['tls_certificate']
 
-        # Setup key cache
+        # Set Initial State
         self.__derived_key_material = constants.KEYRING_LOCKED
 
     def __del__(self):
@@ -420,7 +422,7 @@ class NucypherKeyring:
     def _export_wallet_to_node(self, blockchain, passphrase):  # TODO: Deprecate?
         """Decrypt the wallet with a passphrase, then import the key to the nodes's keyring over RPC"""
         with open(self.__wallet_path, 'rb') as wallet:
-            data = wallet.read().decode('utf-8')
+            data = wallet.read().decode(KEY_FILE_ENCODING)
             account = Account.decrypt(keyfile_json=data, password=passphrase)
             blockchain.interface.w3.personal.importRawKey(private_key=account, passphrase=passphrase)
 
@@ -541,36 +543,32 @@ class NucypherKeyring:
                                                      private_key_dir=_private_key_dir,
                                                      public_key_dir=_public_key_dir)
         if encrypting is True:
-            passphrase_salt = os.urandom(32)
-            enc_salt = os.urandom(32)
-            sig_salt = os.urandom(32)
-
+            passphrase_salt, enc_salt, sig_salt = os.urandom(32), os.urandom(32), os.urandom(32)
             der_key_material = _derive_key_material_from_passphrase(salt=passphrase_salt, passphrase=passphrase)
             enc_wrap_key = _derive_wrapping_key_from_key_material(salt=enc_salt, key_material=der_key_material)
             sig_wrap_key = _derive_wrapping_key_from_key_material(salt=sig_salt, key_material=der_key_material)
 
-            enc_key_data = _encrypt_umbral_key(umbral_key=enc_privkey, wrapping_key=enc_wrap_key)
-            enc_json = {
-                'nonce': urlsafe_b64encode(enc_key_data['nonce']).decode(),
-                'enc_key': urlsafe_b64encode(enc_key_data['enc_key']).decode(),
-                'master_salt': urlsafe_b64encode(enc_salt).decode(),
-                'wrap_salt': urlsafe_b64encode(enc_salt).decode(),
-            }
+            def __encode_key_data(key_data: dict, master_salt: bytes, wrap_salt: bytes, encoder=KEY_ENCODER):
+                encoded_key_data = {
+                    'nonce': encoder(enc_key_data['nonce']).decode(),
+                    'enc_key': encoder(enc_key_data['enc_key']).decode(),
+                    'master_salt': encoder(passphrase_salt).decode(),
+                    'wrap_salt': encoder(enc_salt).decode(),
+                }
+                return encoded_key_data
 
+            enc_key_data = _encrypt_umbral_key(umbral_key=enc_privkey, wrapping_key=enc_wrap_key)
             sig_key_data = _encrypt_umbral_key(umbral_key=sig_privkey, wrapping_key=sig_wrap_key)
-            sig_json = {
-                'nonce': urlsafe_b64encode(sig_key_data['nonce']).decode(),
-                'enc_key': urlsafe_b64encode(sig_key_data['enc_key']).decode(),
-                'master_salt': urlsafe_b64encode(sig_salt).decode(),
-                'wrap_salt': urlsafe_b64encode(sig_salt).decode()
-            }
+
+            enc_json = __encode_key_data(key_data=enc_key_data, master_salt=passphrase_salt, wrap_salt=enc_salt)
+            sig_json = __encode_key_data(key_data=sig_key_data, master_salt=passphrase_salt, wrap_salt=sig_salt)
 
             # Write private keys to files
             rootkey_path = _save_private_keyfile(__key_filepaths['root'], enc_json, as_json=True, serialize=True)
             sigkey_path = _save_private_keyfile(__key_filepaths['signing'], sig_json, as_json=True, serialize=True)
 
-            bytes_enc_pubkey = enc_pubkey.to_bytes(encoder=urlsafe_b64encode)
-            bytes_sig_pubkey = sig_pubkey.to_bytes(encoder=urlsafe_b64encode)
+            bytes_enc_pubkey = enc_pubkey.to_bytes(encoder=KEY_ENCODER)
+            bytes_sig_pubkey = sig_pubkey.to_bytes(encoder=KEY_ENCODER)
 
             # Write public keys to files
             rootkey_pub_path = _save_public_keyfile(

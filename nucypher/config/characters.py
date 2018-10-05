@@ -11,11 +11,14 @@ from nucypher.blockchain.eth.agents import EthereumContractAgent, NucypherTokenA
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.node import NodeConfiguration
-from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower
+from nucypher.crypto.powers import CryptoPower
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
 
 class UrsulaConfiguration(NodeConfiguration):
+    from nucypher.characters.lawful import Ursula
+
+    _Character = Ursula
     _name = 'ursula'
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
 
@@ -113,9 +116,8 @@ class UrsulaConfiguration(NodeConfiguration):
             certificate=self.certificate,
 
             # Ursula
-            interface_signature=self.interface_signature,
+            # interface_signature=self.interface_signature,
             timestamp=maya.now(),
-            known_nodes=self.known_nodes,
 
             # Blockchain
             miner_agent=self.miner_agent
