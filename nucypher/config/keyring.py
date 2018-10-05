@@ -506,7 +506,8 @@ class NucypherKeyring:
         validate_passphrase(passphrase)
 
         if not any((wallet, encrypting, tls)):
-            raise ValueError('Either "encrypting", "wallet", or "tls" must be True to generate new keys.')
+            raise ValueError('Either "encrypting", "wallet", or "tls" must be True '
+                             'to generate new keys, or set "no_keys" to True to skip generation.')
 
         _base_filepaths = cls.generate_base_filepaths(keyring_root=keyring_root)
         _public_key_dir = _base_filepaths['public_key_dir']

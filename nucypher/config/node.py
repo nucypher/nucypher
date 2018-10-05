@@ -269,7 +269,8 @@ class NodeConfiguration:
               encrypting: bool = False,
               tls: bool = False,
               host: str = None,
-              curve=None
+              curve=None,
+              no_keys: bool = False
               ) -> str:
         """Write a new configuration to the disk"""
 
@@ -301,7 +302,7 @@ class NodeConfiguration:
             os.mkdir(self.known_certificates_dir, mode=0o755)    # known_certs
             os.mkdir(self.known_metadata_dir, mode=0o755)        # known_metadata
 
-            if not self.temp:
+            if not self.temp and not no_keys:
                 # Keyring
                 self.write_keyring(passphrase=passphrase,
                                    wallet=wallet,
@@ -355,7 +356,8 @@ class NodeConfiguration:
                       wallet: bool,
                       tls: bool,
                       host: str,
-                      tls_curve) -> NucypherKeyring:
+                      tls_curve,
+                      ) -> NucypherKeyring:
 
         self.keyring = NucypherKeyring.generate(passphrase=passphrase,
                                                 encrypting=encrypting,
@@ -365,7 +367,7 @@ class NodeConfiguration:
                                                 curve=tls_curve,
                                                 keyring_root=self.keyring_dir,
                                                 exists_ok=False)  # TODO: exists?
-        if self.federated_only:
+        if self.federated_only or not wallet:
             self.checksum_address = self.keyring.federated_address
         else:
             self.checksum_address = self.keyring.checksum_address

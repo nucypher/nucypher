@@ -108,7 +108,7 @@ class UrsulaConfiguration(NodeConfiguration):
     def dynamic_payload(self) -> dict:
         payload = dict(
             network_middleware=self.network_middleware,
-            tls_curve=self.tls_curve,
+            tls_curve=self.tls_curve,  # TODO: Needs to be in static payload with mapping
             certificate=self.certificate,
             interface_signature=self.interface_signature,
             timestamp=None,

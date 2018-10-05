@@ -274,42 +274,45 @@ def configure(config,
                            "Use --no-registry to skip.".format(registry_source))
                 raise click.Abort()
 
-        passphrase = click.prompt("Enter a passphrase to encrypt your keyring", hide_input=True, confirmation_prompt=True)
-
+        skip_all_key_generation = False
+        generate_wallet, generate_tls_keys, host = False, False, None
         if ursula:
 
             # Wallet
             if not config.federated_only:
-                wallet = click.confirm("Do you need to generate a new wallet to use for staking?", default=False)
-            else:
-                wallet = False
                 generate_wallet = click.confirm("Do you need to generate a new wallet to use for staking?", default=False)
                 if not generate_wallet:  # I'll take that as a no...
                     config.federated_only = True  # TODO: Without a wallet, let's assume this is a "federated configuration"
 
             # TLS
-            tls = click.confirm("Do you need to generate a new SSL certificate (Ursula)?", default=False)
-            if tls:
-                # TODO: remove localhost/loopback as default?
+            generate_tls_keys = click.confirm("Do you need to generate a new SSL certificate (Ursula)?", default=False)
+            if generate_tls_keys:
                 host = click.prompt("Enter the node's hostname", default='127.0.0.1', type=click.STRING)
                 config.node_configuration.rest_host = host
+
+        generate_encrypting_keys = click.confirm("Do you need to generate a new signing keypair?", default=True)
+        if not any((generate_wallet, generate_tls_keys, generate_encrypting_keys)):
+            skip_all_key_generation = click.confirm("Skip all key generation (Provide custom configuration file)?")
+
+        if not skip_all_key_generation:
+            passphrase = click.prompt("Enter a passphrase to encrypt your keyring",
+                                      hide_input=True, confirmation_prompt=True)
         else:
-            wallet, tls, host = False, False, None
-
-        encrypting = click.confirm("Do you need to generate a new signing keypair?", default=True)
-
+            passphrase = None
         try:
             new_installation_path = configuration.write(passphrase=passphrase,
-                                                        wallet=wallet,
-                                                        encrypting=encrypting,
-                                                        tls=tls,
-                                                        no_registry=no_registry)
+                                                        wallet=generate_wallet,
+                                                        encrypting=generate_encrypting_keys,
+                                                        tls=generate_tls_keys,
+                                                        no_registry=no_registry,
+                                                        no_keys=skip_all_key_generation
+                                                        )
         except NodeConfiguration.ConfigurationError as e:
             click.secho(str(e), fg='red')
             raise click.Abort()
 
         click.secho("Created configuration files at {}".format(new_installation_path), fg='green')
-        if click.prompt("Save node configuration?"):
+        if click.confirm("Save node configuration?"):
             configuration_filepath = config.node_configuration.to_configuration_file()
             click.secho("Saved node configuration {}".format(configuration_filepath), fg='green')
 
