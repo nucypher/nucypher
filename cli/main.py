@@ -182,7 +182,7 @@ class ChecksumAddress(click.ParamType):
     def convert(self, value, param, ctx):
         if is_checksum_address(value):
             return value
-        self.fail('{} is not a valid integer'.format(value, param, ctx))
+        self.fail('{} is not a valid EIP-55 checksum address'.format(value, param, ctx))
 
 
 CHECKSUM_ADDRESS = ChecksumAddress()
@@ -283,6 +283,9 @@ def configure(config,
                 wallet = click.confirm("Do you need to generate a new wallet to use for staking?", default=False)
             else:
                 wallet = False
+                generate_wallet = click.confirm("Do you need to generate a new wallet to use for staking?", default=False)
+                if not generate_wallet:  # I'll take that as a no...
+                    config.federated_only = True  # TODO: Without a wallet, let's assume this is a "federated configuration"
 
             # TLS
             tls = click.confirm("Do you need to generate a new SSL certificate (Ursula)?", default=False)
@@ -353,6 +356,8 @@ def configure(config,
         __cleanup(config.node_configuration)
     elif action == "validate":
         __validate()
+    else:
+        raise click.BadArgumentUsage("No such argument {}".format(action))
 
 
 @cli.command()
@@ -435,6 +440,9 @@ def accounts(config,
         txhash = config.blockchain.interface.w3.eth.sendTransaction(tx)
         config.blockchain.wait_for_receipt(txhash)
         click.echo("Sent {} ETH to {} | {}".format(amount, destination, str(txhash)))
+
+    else:
+        raise click.BadArgumentUsage
 
 
 @cli.command()
@@ -609,6 +617,9 @@ def stake(config,
         click.confirm("Are you sure you want to abort the staking process?", abort=True)
         # os.kill(pid=NotImplemented)
         raise NotImplementedError
+
+    else:
+        raise click.BadArgumentUsage
 
 
 @cli.command()
@@ -818,6 +829,9 @@ def simulate(config,
             """.format(ursula_processes)
         click.echo(status_message)
 
+    else:
+        raise click.BadArgumentUsage
+
 
 @cli.command()
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
@@ -979,6 +993,9 @@ def deploy(config,
             file.write(json.dumps(__deployment_transactions))
             click.secho("Successfully wrote transaction hashes file to {}".format(file.path), fg='green')
 
+    else:
+        raise click.BadArgumentUsage
+
 
 @cli.command()
 @click.option('--contracts', help="Echo nucypher smart contract info", is_flag=True)
@@ -1078,12 +1095,19 @@ def ursula(config,
         4. Run TLS deployment (Learning Loop + Reactor)
 
     """
-    if action == 'run':                # 0
+    if action == 'run':
 
-        if config.config_file:         # 1
+        if config.config_file:
+            #
+            # File-based Configuration
+            #
+            if any((rest_host, rest_port, db_name, stake_amount, stake_periods, checksum_address)):
+                raise click.BadOptionUsage("Inline overrides while using a configuration file is not yet supported.")  # TODO: inline overrides for file-based configurations
             ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config.config_file)
         else:
-            # Validate inline options
+            #
+            # Inline Configuration
+            #
             if not checksum_address and not config.dev:
                 raise click.BadOptionUsage("No account specified. pass --checksum-address or --dev, "
                                            "or use a configuration file with --config-file")
@@ -1108,27 +1132,32 @@ def ursula(config,
                                                 known_metadata_dir=config.metadata_dir,
                                                 start_learning_now=True,
                                                 abort_on_learning_error=config.dev)
-
         try:
-
+            #
+            # Run Ursula
+            #
             URSULA = ursula_config.produce(passphrase=password)  # 2
-
-            if not config.federated_only:
+            if not ursula_config.federated_only:
                 URSULA.stake(amount=stake_amount,                # 3
                              lock_periods=stake_periods)
-
             if not no_reactor:
                 URSULA.get_deployer().run()                       # 4
 
+        #
+        # Errors and Cleanup
+        #
         except Exception as e:
+            click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')
             if DEBUG:
                 raise
-            click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')
             raise click.Abort()
         finally:
             click.secho("Cleaning up.")
             ursula_config.cleanup()
             click.secho("Exited gracefully.")
+    
+    else:
+        raise click.BadArgumentUsage
 
 
 if __name__ == "__main__":
