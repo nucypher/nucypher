@@ -79,7 +79,7 @@ class Learner:
             raise ValueError("Cannot save nodes without a known_metadata_dir")
 
         known_nodes = known_nodes or tuple()
-        self.unresponsive_nodes = list() # TODO: Attempt to use these again later
+        self.unresponsive_nodes = list()  # TODO: Attempt to use these again later
         for node in known_nodes:
             try:
                 self.remember_node(node)
@@ -126,7 +126,7 @@ class Learner:
         self.__known_nodes[address] = node
 
         if self.save_metadata:
-            node.write_node_metadata(node=node)
+            self.write_node_metadata(node=node)
 
         self.log.info("Remembering {}, popping {} listeners.".format(node.checksum_public_address, len(listeners)))
         for listener in listeners:

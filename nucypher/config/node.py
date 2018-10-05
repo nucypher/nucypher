@@ -5,12 +5,14 @@ from json import JSONDecodeError
 from logging import getLogger
 from os.path import abspath
 from tempfile import TemporaryDirectory
+from typing import Set, List
 
 from constant_sorrow import constants
 
 from nucypher.characters.base import Character
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
 from nucypher.config.keyring import NucypherKeyring
+from nucypher.crypto.powers import CryptoPowerUp
 from nucypher.network.middleware import RestMiddleware
 
 
@@ -68,25 +70,27 @@ class NodeConfiguration:
                  # Metadata
                  known_nodes: set = None,
                  known_metadata_dir: str = None,
-                 load_metadata: bool = False,
-                 save_metadata: bool = False
+                 load_metadata: bool = True,
+                 save_metadata: bool = True
 
                  ) -> None:
 
         self.log = getLogger(self.__class__.__name__)
 
-        #
-        # Configuration Filepaths
-        #
-
-        self.keyring_dir = keyring_dir or constants.UNINITIALIZED_CONFIGURATION
+        # Known Nodes
         self.known_nodes_dir = constants.UNINITIALIZED_CONFIGURATION
         self.known_certificates_dir = known_certificates_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_metadata_dir = known_metadata_dir or constants.UNINITIALIZED_CONFIGURATION
 
+        # Keyring
+        self.keyring = constants.UNINITIALIZED_CONFIGURATION
+        self.keyring_dir = keyring_dir or constants.UNINITIALIZED_CONFIGURATION
+
+        # Contract Registry
         self.__registry_source = registry_source
         self.registry_filepath = registry_filepath or constants.UNINITIALIZED_CONFIGURATION
 
+        # Configuration Root Directory
         self.config_root = constants.UNINITIALIZED_CONFIGURATION
         self.__temp = temp
         if self.__temp:
@@ -107,22 +111,22 @@ class NodeConfiguration:
             #
             # Self
             #
-            if checksum_address:
+            if checksum_address and not self.__temp:
                 self.read_keyring()
-            self.network_middleware = network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS()
+            self.network_middleware = network_middleware
 
         else:
             #
             # Stranger
             #
-            if network_middleware:
-                raise self.ConfigurationError("Cannot configure a stranger to use network middleware")
             self.known_nodes_dir = constants.STRANGER_CONFIGURATION
             self.known_certificates_dir = constants.STRANGER_CONFIGURATION
             self.known_metadata_dir = constants.STRANGER_CONFIGURATION
-            self.network_middleware = constants.STRANGER_CONFIGURATION
             self.keyring_dir = constants.STRANGER_CONFIGURATION
             self.keyring = constants.STRANGER_CONFIGURATION
+            self.network_middleware = constants.STRANGER_CONFIGURATION
+            if network_middleware:
+                raise self.ConfigurationError("Cannot configure a stranger to use network middleware")
 
         #
         # Learner
@@ -146,24 +150,55 @@ class NodeConfiguration:
     def __call__(self, *args, **kwargs):
         return self.produce(*args, **kwargs)
 
+    def cleanup(self) -> None:
+        if self.__temp:
+            self.__temp_dir.cleanup()
+
     @property
     def temp(self):
         return self.__temp
 
+    def produce(self, passphrase: str = None, **overrides) -> Character:
+        """Initialize a new character instance and return it"""
+        if not self.temp:
+            self.read_keyring()
+            self.keyring.unlock(passphrase=passphrase)
+        merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
+        return self._Character(**merged_parameters)
+
     @classmethod
     def from_configuration_file(cls, filepath: str = None, **overrides) -> 'NodeConfiguration':
+        """Initialize a NodeConfiguration from a JSON file."""
         filepath = filepath if filepath is None else cls.DEFAULT_CONFIG_FILE_LOCATION
         with open(filepath, 'r') as config_file:
             payload = cls.__parser(config_file.read())
         return cls(**{**payload, **overrides})
 
     def to_configuration_file(self, filepath: str = None) -> str:
+        """Write the static_payload to a JSON file."""
         if filepath is None:
             filename = '{}.config'.format(self._name.lower())
             filepath = os.path.join(self.config_root, filename)
         with open(filepath, 'w') as config_file:
             config_file.write(json.dumps(self.static_payload, indent=4))
         return filepath
+
+    @staticmethod
+    def validate(config_root: str, no_registry=False) -> bool:
+        # Top-level
+        if not os.path.exists(config_root):
+            raise NodeConfiguration.ConfigurationError('No configuration directory found at {}.'.format(config_root))
+
+        # Sub-paths
+        filepaths = NodeConfiguration.generate_runtime_filepaths(config_root=config_root)
+        if no_registry:
+            del filepaths['registry_filepath']
+        for field, path in filepaths.items():
+            if not os.path.exists(path):
+                message = 'Missing configuration directory {}.'
+                raise NodeConfiguration.InvalidConfiguration(message.format(path))
+
+        return True
 
     @property
     def static_payload(self) -> dict:
@@ -189,23 +224,14 @@ class NodeConfiguration:
     @property
     def dynamic_payload(self, **overrides) -> dict:
         """Exported dynamic configuration values for initializing Ursula"""
-
+        if self.load_metadata:
+            known_nodes = self.read_known_nodes(known_metadata_dir=self.known_metadata_dir)
+        self.known_nodes.update(known_nodes)
+        payload = dict(network_middleware=self.network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS(),
+                       known_nodes=self.known_nodes,
+                       crypto_power_ups=self.derive_node_power_ups() or None)
         if overrides:
             self.log.debug("Overrides supplied to dynamic payload for {}".format(self.__class__.__name__))
-
-        if self.load_metadata:
-            self.read_known_nodes(known_metadata_dir=self.known_metadata_dir)
-
-        power_ups = None
-        if self.is_me and not self.temp:
-            power_ups = tuple(self.keyring.derive_crypto_power(PowerUp)
-                              for PowerUp in self._Character._default_crypto_powerups)
-
-        payload = dict(network_middleware=self.network_middleware,
-                       known_nodes=self.known_nodes,
-                       crypto_power_ups=power_ups)
-
-        if overrides:
             payload.update(overrides)
         return payload
 
@@ -221,29 +247,20 @@ class NodeConfiguration:
                          registry_filepath=os.path.join(config_root, NodeConfiguration.__REGISTRY_NAME))
         return filepaths
 
-    @staticmethod
-    def validate(config_root: str, no_registry=False) -> bool:
-        # Top-level
-        if not os.path.exists(config_root):
-            raise NodeConfiguration.ConfigurationError('No configuration directory found at {}.'.format(config_root))
-
-        # Sub-paths
-        filepaths = NodeConfiguration.generate_runtime_filepaths(config_root=config_root)
-        if no_registry:
-            del filepaths['registry_filepath']
-        for field, path in filepaths.items():
-            if not os.path.exists(path):
-                message = 'Missing configuration directory {}.'
-                raise NodeConfiguration.InvalidConfiguration(message.format(path))
-
-        return True
-
     def __cache_runtime_filepaths(self) -> None:
         """Generate runtime filepaths and cache them on the config object"""
         filepaths = self.generate_runtime_filepaths(config_root=self.config_root)
         for field, filepath in filepaths.items():
             if getattr(self, field) is constants.UNINITIALIZED_CONFIGURATION:
                 setattr(self, field, filepath)
+
+    def derive_node_power_ups(self) -> List[CryptoPowerUp]:
+        power_ups = list()
+        if self.is_me and not self.temp:
+            for power_class in self._Character._default_crypto_powerups:
+                power_up = self.keyring.derive_crypto_power(power_class)
+                power_ups.append(power_up)
+        return power_ups
 
     def write(self,
               passphrase: str,
@@ -254,6 +271,7 @@ class NodeConfiguration:
               host: str = None,
               curve=None
               ) -> str:
+        """Write a new configuration to the disk"""
 
         #
         # Create Config Root
@@ -307,19 +325,22 @@ class NodeConfiguration:
         self.validate(config_root=self.config_root, no_registry=no_registry or self.federated_only)
         return self.config_root
 
-    def read_known_nodes(self, known_metadata_dir=None) -> None:
+    def read_known_nodes(self, known_metadata_dir=None) -> Set[Character]:
+        """Read known nodes from metadata, and use them when producing a character"""
         from nucypher.characters.lawful import Ursula
 
         if known_metadata_dir is None:
             known_metadata_dir = self.known_metadata_dir
 
-        glob_pattern = os.path.join(known_metadata_dir, '*.node')
+        glob_pattern = os.path.join(known_metadata_dir, '*.node')  # TODO: Use constant
         metadata_paths = sorted(glob(glob_pattern), key=os.path.getctime)
 
         self.log.info("Found {} known node metadata files at {}".format(len(metadata_paths), known_metadata_dir))
+        known_nodes = set()
         for metadata_path in metadata_paths:
             node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)  # TODO: 466
-            self.known_nodes.add(node)
+            known_nodes.add(node)
+        return known_nodes
 
     def read_keyring(self, *args, **kwargs):
         if self.checksum_address is None:
@@ -383,15 +404,3 @@ class NodeConfiguration:
 
         self.log.info("Successfully wrote registry to {}".format(output_filepath))
         return output_filepath
-
-    def cleanup(self) -> None:
-        if self.__temp:
-            self.__temp_dir.cleanup()
-
-    def produce(self, passphrase: str = None, **overrides) -> Character:
-        """Initialize a new character instance and return it"""
-        if not self.temp:
-            self.read_keyring()
-            self.keyring.unlock(passphrase=passphrase)
-        merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
-        return self._Character(**merged_parameters)

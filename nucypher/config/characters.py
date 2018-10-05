@@ -33,8 +33,8 @@ class UrsulaConfiguration(NodeConfiguration):
 
                  # TLS
                  tls_curve: EllipticCurve = None,
-                 tls_private_key: bytes = None,
                  certificate: Certificate = None,
+                 tls_private_key: bytes = None,  # TODO: from config here
                  certificate_filepath: str = None,
 
                  # Ursula
@@ -61,10 +61,9 @@ class UrsulaConfiguration(NodeConfiguration):
         # TLS
         #
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
-        self.tls_private_key = tls_private_key
-
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
+        self.tls_private_key = tls_private_key
 
         # Ursula
         self.interface_signature = interface_signature
@@ -99,27 +98,25 @@ class UrsulaConfiguration(NodeConfiguration):
          rest_port=self.rest_port,
          db_name=self.db_name,
          db_filepath=self.db_filepath,
-         certificate_filepath=self.certificate_filepath,
         )
+        if not self.temp:
+            certificate_filepath = self.certificate_filepath or self.keyring.certificate_filepath
+            payload.update(dict(certificate_filepath=certificate_filepath))
         return {**super().static_payload, **payload}
 
     @property
     def dynamic_payload(self) -> dict:
         payload = dict(
-
-            # Rest + TLS
             network_middleware=self.network_middleware,
             tls_curve=self.tls_curve,
-            tls_private_key=self.tls_private_key,
             certificate=self.certificate,
-
-            # Ursula
             interface_signature=self.interface_signature,
             timestamp=None,
-
-            # Blockchain
             miner_agent=self.miner_agent
         )
+        if not self.temp:
+            tls_private_key = self.tls_private_key or self.keyring.tls_private_key
+            payload.update(dict(tls_private_key=tls_private_key))
         return {**super().dynamic_payload, **payload}
 
     def produce(self, passphrase: str = None, **overrides):
@@ -166,9 +163,8 @@ class AliceConfiguration(NodeConfiguration):
 
     @property
     def static_payload(self) -> dict:
-        alice_payload = dict(policy_agent=self.policy_agent)
-        base_payload = super().static_payload
-        return {**base_payload, **alice_payload}
+        payload = dict(policy_agent=self.policy_agent)
+        return {**super().static_payload, **payload}
 
 
 class BobConfiguration(NodeConfiguration):

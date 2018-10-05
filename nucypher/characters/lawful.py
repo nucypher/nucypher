@@ -441,8 +441,6 @@ class Ursula(Character, VerifiableNode, Miner):
             self._stored_treasure_maps = dict()
 
             if not federated_only:
-
-                # Staking Node
                 Miner.__init__(self, is_me=is_me, miner_agent=miner_agent, checksum_address=checksum_address)
 
                 # Access staking node via node's transacting keys
@@ -451,7 +449,6 @@ class Ursula(Character, VerifiableNode, Miner):
 
                 # Use blockchain power to substantiate stamp
                 self.substantiate_stamp(passphrase=passphrase)
-
 
         #
         # ProxyRESTServer and TLSHostingPower
