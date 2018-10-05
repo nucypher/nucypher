@@ -294,11 +294,11 @@ def configure(config,
         encrypting = click.confirm("Do you need to generate a new signing keypair?", default=True)
 
         try:
-            new_installation_path = configuration.write_defaults(passphrase=passphrase,
-                                                                 wallet=wallet,
-                                                                 encrypting=encrypting,
-                                                                 tls=tls,
-                                                                 no_registry=no_registry)
+            new_installation_path = configuration.write(passphrase=passphrase,
+                                                        wallet=wallet,
+                                                        encrypting=encrypting,
+                                                        tls=tls,
+                                                        no_registry=no_registry)
         except NodeConfiguration.ConfigurationError as e:
             click.secho(str(e), fg='red')
             raise click.Abort()
@@ -312,7 +312,7 @@ def configure(config,
         is_valid = True      # Until there is a reason to believe otherwise...
         try:
             if filesystem:   # Check runtime directory
-                is_valid = NodeConfiguration.check_config_tree_exists(config_root=config.node_configuration.config_root, no_registry=no_registry)
+                is_valid = NodeConfiguration.validate(config_root=config.node_configuration.config_root, no_registry=no_registry)
             if config.config_file:
                 is_valid = validate_configuration_file(filepath=config.node_configuration.config_file_location)
         except NodeConfiguration.InvalidConfiguration:

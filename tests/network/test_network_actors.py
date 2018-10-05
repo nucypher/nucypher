@@ -20,7 +20,7 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
     token_agent, miner_agent, policy_agent = three_agents
     for address in miner_agent.swarm():
         for propagating_ursula in blockchain_ursulas:
-            assert address in propagating_ursula.known_nodes, "{} did not know about {}".format(propagating_ursula,
+            assert address in propagating_ursula.known_nodes, "{} did not know about {}".format(propagating_ursula.checksum_public_address,
                                                                                                 address)
 
 

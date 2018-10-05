@@ -88,11 +88,11 @@ class UrsulaConfiguration(NodeConfiguration):
         base_filepaths.update(filepaths)
         return base_filepaths
 
-    def write_defaults(self, tls: bool = True, *args, **kwargs):
-        return super().write_defaults(tls=tls,
-                                      host=self.rest_host,
-                                      curve=self.tls_curve,
-                                      *args, **kwargs)
+    def write(self, tls: bool = True, *args, **kwargs):
+        return super().write(tls=tls,
+                             host=self.rest_host,
+                             curve=self.tls_curve,
+                             *args, **kwargs)
 
     @property
     def static_payload(self) -> dict:
@@ -116,8 +116,8 @@ class UrsulaConfiguration(NodeConfiguration):
             certificate=self.certificate,
 
             # Ursula
-            # interface_signature=self.interface_signature,
-            timestamp=maya.now(),
+            interface_signature=self.interface_signature,
+            timestamp=None,
 
             # Blockchain
             miner_agent=self.miner_agent
@@ -127,29 +127,31 @@ class UrsulaConfiguration(NodeConfiguration):
     def produce(self, **overrides):
         """Produce a new Ursula from configuration"""
 
-        self.keyring.unlock(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)  # TODO: where to get passphrase from?
+        if not self.temp:
+            self.keyring.unlock(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)  # TODO: where to get passphrase from?
 
         merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
 
         if self.federated_only is False:
 
-            if not self.miner_agent:   # TODO: move this..?
-                self.blockchain = Blockchain.connect(provider_uri=self.blockchain_uri, registry_filepath=self.registry_filepath)
-                self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-                self.miner_agent = MinerAgent(token_agent=self.token_agent)
-                merged_parameters.update(miner_agent=self.miner_agent)
-
             if self.poa:
                 w3 = self.miner_agent.blockchain.interface.w3
                 w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
+            if not self.miner_agent:   # TODO: move this..?
+                self.blockchain = Blockchain.connect(provider_uri=self.blockchain_uri,
+                                                     registry_filepath=self.registry_filepath)
+                self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+                self.miner_agent = MinerAgent(token_agent=self.token_agent)
+                merged_parameters.update(miner_agent=self.miner_agent)
+
         ursula = self._Character(**merged_parameters)
 
         # if self.save_metadata:
-        ursula.write_node_metadata(node=ursula)
-        ursula.save_certificate_to_disk(directory=ursula.known_certificates_dir)  # TODO: Move this..?
+        # ursula.write_node_metadata(node=ursula)
+        # ursula.save_certificate_to_disk(directory=ursula.known_certificates_dir)  # TODO: re/move this..?
 
-        if self.temp:
+        if self.temp:                                                               # TODO: Move this..?
             class MockDatastoreThreadPool(object):
                 def callInThread(self, f, *args, **kwargs):
                     return f(*args, **kwargs)

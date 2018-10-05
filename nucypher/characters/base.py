@@ -109,7 +109,8 @@ class Learner:
                 # This node is already known.  We can safely return.
                 return
 
-        certificate_filepath = node.save_certificate_to_disk(directory=self.known_certificates_dir)
+        node.save_certificate_to_disk(directory=self.known_certificates_dir)
+        certificate_filepath = node.get_certificate_filepath(certificates_dir=self.known_certificates_dir)
         try:
             node.verify_node(force=force_verification_check,
                              network_middleware=self.network_middleware,

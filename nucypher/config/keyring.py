@@ -23,8 +23,7 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
-from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower
-
+from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower, DelegatingPower
 
 #
 # Constants
@@ -360,11 +359,8 @@ class NucypherKeyring:
     #
     @property
     def checksum_address(self):
-        try:
-            key_data = _read_keyfile(keypath=self.__wallet_path, as_json=True)
-            address = key_data['address']
-        except FileNotFoundError:
-            address = self.federated_address
+        key_data = _read_keyfile(keypath=self.__wallet_path, as_json=True, decode=False)
+        address = key_data['address']
         return to_checksum_address(address)
 
     @property
@@ -466,11 +462,15 @@ class NucypherKeyring:
         TODO: TransactingPower
         """
 
+        # TODO: Improve this code
         if power_class is SigningPower:
             key_path = self.__signing_keypath
 
         elif power_class is EncryptingPower:
             key_path = self.__root_keypath
+        elif power_class is DelegatingPower:
+            return DelegatingPower()         # TODO: Handle non-keypair based
+
         else:
             failure_message = "{} is an invalid type for deriving a CryptoPower.".format(power_class.__name__)
             raise ValueError(failure_message)
@@ -548,17 +548,17 @@ class NucypherKeyring:
             enc_wrap_key = _derive_wrapping_key_from_key_material(salt=enc_salt, key_material=der_key_material)
             sig_wrap_key = _derive_wrapping_key_from_key_material(salt=sig_salt, key_material=der_key_material)
 
-            def __encode_key_data(key_data: dict, master_salt: bytes, wrap_salt: bytes, encoder=KEY_ENCODER):
-                encoded_key_data = {
-                    'nonce': encoder(enc_key_data['nonce']).decode(),
-                    'enc_key': encoder(enc_key_data['enc_key']).decode(),
-                    'master_salt': encoder(passphrase_salt).decode(),
-                    'wrap_salt': encoder(enc_salt).decode(),
-                }
-                return encoded_key_data
-
             enc_key_data = _encrypt_umbral_key(umbral_key=enc_privkey, wrapping_key=enc_wrap_key)
             sig_key_data = _encrypt_umbral_key(umbral_key=sig_privkey, wrapping_key=sig_wrap_key)
+
+            def __encode_key_data(key_data: dict, master_salt: bytes, wrap_salt: bytes, encoder=KEY_ENCODER):
+                encoded_key_data = {
+                    'nonce': encoder(key_data['nonce']).decode(),
+                    'enc_key': encoder(key_data['enc_key']).decode(),
+                    'master_salt': encoder(master_salt).decode(),
+                    'wrap_salt': encoder(wrap_salt).decode(),
+                }
+                return encoded_key_data
 
             enc_json = __encode_key_data(key_data=enc_key_data, master_salt=passphrase_salt, wrap_salt=enc_salt)
             sig_json = __encode_key_data(key_data=sig_key_data, master_salt=passphrase_salt, wrap_salt=sig_salt)

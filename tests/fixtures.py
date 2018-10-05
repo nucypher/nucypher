@@ -1,10 +1,8 @@
+import datetime
 import os
 import re
 import shutil
 import tempfile
-
-import datetime
-from unittest.mock import Mock
 
 import maya
 import pytest
@@ -25,7 +23,7 @@ from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, DEVELOPMENT_ETH_AIRDROP_AMOUNT,
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
                                                   TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas

@@ -34,7 +34,7 @@ class NodeConfiguration:
     class ConfigurationError(RuntimeError):
         pass
 
-    class InvalidConfiguration(RuntimeError):
+    class InvalidConfiguration(ConfigurationError):
         pass
 
     def __init__(self,
@@ -80,24 +80,22 @@ class NodeConfiguration:
         # Configuration Filepaths
         #
 
+        self.keyring_dir = keyring_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_nodes_dir = constants.UNINITIALIZED_CONFIGURATION
         self.known_certificates_dir = known_certificates_dir or constants.UNINITIALIZED_CONFIGURATION
         self.known_metadata_dir = known_metadata_dir or constants.UNINITIALIZED_CONFIGURATION
-        self.keyring_dir = keyring_dir or constants.UNINITIALIZED_CONFIGURATION
 
         self.__registry_source = registry_source
         self.registry_filepath = registry_filepath or constants.UNINITIALIZED_CONFIGURATION
 
         self.config_root = constants.UNINITIALIZED_CONFIGURATION
         self.__temp = temp
-
         if self.__temp:
             self.__temp_dir = constants.UNINITIALIZED_CONFIGURATION
         else:
             self.config_root = config_root
             self.__temp_dir = constants.LIVE_CONFIGURATION
             self.__cache_runtime_filepaths()
-
         self.config_file_location = config_file_location
 
         #
@@ -105,12 +103,9 @@ class NodeConfiguration:
         #
         self.federated_only = federated_only
         self.checksum_address = checksum_address
-
         self.is_me = is_me
         if self.is_me:
-            # Keyring
             self.keyring = NucypherKeyring(keyring_root=keyring_dir, common_name=checksum_address)
-
             network_middleware = network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS()
             self.network_middleware = network_middleware
         else:
@@ -137,12 +132,12 @@ class NodeConfiguration:
         #
 
         if auto_initialize:
-            self.write_defaults(no_registry=not import_seed_registry or federated_only,  #  <<< Write runtime files and dirs
-                                wallet=auto_generate_keys and not federated_only,
-                                encrypting=auto_generate_keys,
-                                passphrase=passphrase)
+            self.write(no_registry=not import_seed_registry or federated_only,
+                       wallet=auto_generate_keys and not federated_only,
+                       encrypting=auto_generate_keys,
+                       passphrase=passphrase)
         if load_metadata:
-            self.load_known_nodes(known_metadata_dir=known_metadata_dir)
+            self.read_known_nodes(known_metadata_dir=known_metadata_dir)
 
     @property
     def temp(self):
@@ -190,8 +185,9 @@ class NodeConfiguration:
         if overrides:
             self.log.debug("Overrides supplied to dynamic payload for {}".format(self.__class__.__name__))
 
-        if self.is_me:
-            power_ups = tuple(self.keyring.derive_crypto_power(PowerUp) for PowerUp in self._Character._default_crypto_powerups)
+        if self.is_me and not self.temp:
+            power_ups = tuple(self.keyring.derive_crypto_power(PowerUp)
+                              for PowerUp in self._Character._default_crypto_powerups)
         else:
             power_ups = None
 
@@ -213,7 +209,7 @@ class NodeConfiguration:
         return filepaths
 
     @staticmethod
-    def check_config_tree_exists(config_root: str, no_registry=False) -> bool:
+    def validate(config_root: str, no_registry=False) -> bool:
         # Top-level
         if not os.path.exists(config_root):
             raise NodeConfiguration.ConfigurationError('No configuration directory found at {}.'.format(config_root))
@@ -236,15 +232,15 @@ class NodeConfiguration:
             if getattr(self, field) is constants.UNINITIALIZED_CONFIGURATION:
                 setattr(self, field, filepath)
 
-    def write_defaults(self,
-                       passphrase: str,
-                       no_registry: bool = False,
-                       wallet: bool = False,
-                       encrypting: bool = False,
-                       tls: bool = False,
-                       host: str = None,
-                       curve=None
-                       ) -> str:
+    def write(self,
+              passphrase: str,
+              no_registry: bool = False,
+              wallet: bool = False,
+              encrypting: bool = False,
+              tls: bool = False,
+              host: str = None,
+              curve=None
+              ) -> str:
 
         #
         # Create Config Root
@@ -274,28 +270,20 @@ class NodeConfiguration:
             os.mkdir(self.known_certificates_dir, mode=0o755)    # known_certs
             os.mkdir(self.known_metadata_dir, mode=0o755)        # known_metadata
 
-            # Files
+            if not self.temp:
+                # Keyring
+                self.write_keyring(passphrase=passphrase,
+                                   wallet=wallet,
+                                   encrypting=encrypting,
+                                   tls=tls,
+                                   host=host,
+                                   tls_curve=curve)
+
+            # Registry
             if not no_registry and not self.federated_only:
-                self.import_registry(output_filepath=self.registry_filepath,
-                                     source=self.__registry_source,
-                                     blank=no_registry)
-
-            self.keyring = NucypherKeyring.generate(passphrase=passphrase,
-                                                    encrypting=encrypting,
-                                                    wallet=wallet,
-                                                    tls=tls,
-                                                    host=host,
-                                                    curve=curve,
-                                                    keyring_root=self.keyring_dir,
-                                                    exists_ok=False)  # TODO: exists?
-
-            if self.federated_only:
-                self.checksum_address = self.keyring.federated_address
-            else:
-                self.checksum_address = self.keyring.checksum_address
-
-            if tls:
-                self.certificate_filepath = self.keyring.certificate_filepath
+                self.write_registry(output_filepath=self.registry_filepath,
+                                    source=self.__registry_source,
+                                    blank=no_registry)
 
         except FileExistsError:
             existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
@@ -303,10 +291,10 @@ class NodeConfiguration:
             self.log.critical(message)
             raise NodeConfiguration.ConfigurationError(message)
 
-        self.check_config_tree_exists(config_root=self.config_root, no_registry=no_registry or self.federated_only)
+        self.validate(config_root=self.config_root, no_registry=no_registry or self.federated_only)
         return self.config_root
 
-    def load_known_nodes(self, known_metadata_dir=None) -> None:
+    def read_known_nodes(self, known_metadata_dir=None) -> None:
         from nucypher.characters.lawful import Ursula
 
         if known_metadata_dir is None:
@@ -320,11 +308,35 @@ class NodeConfiguration:
             node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)  # TODO: 466
             self.known_nodes.add(node)
 
-    def import_registry(self,
-                        output_filepath: str = None,
-                        source: str = None,
-                        force: bool = False,
-                        blank=False) -> str:
+    def write_keyring(self,
+                      passphrase: str,
+                      encrypting: bool,
+                      wallet: bool,
+                      tls: bool,
+                      host: str,
+                      tls_curve):
+
+        self.keyring = NucypherKeyring.generate(passphrase=passphrase,
+                                                encrypting=encrypting,
+                                                wallet=wallet,
+                                                tls=tls,
+                                                host=host,
+                                                curve=tls_curve,
+                                                keyring_root=self.keyring_dir,
+                                                exists_ok=False)  # TODO: exists?
+        if self.federated_only:
+            self.checksum_address = self.keyring.federated_address
+        else:
+            self.checksum_address = self.keyring.checksum_address
+        if tls:
+            self.certificate_filepath = self.keyring.certificate_filepath
+        return self.keyring
+
+    def write_registry(self,
+                       output_filepath: str = None,
+                       source: str = None,
+                       force: bool = False,
+                       blank=False) -> str:
 
         if force and os.path.isfile(output_filepath):
             raise self.ConfigurationError('There is an existing file at the registry output_filepath {}'.format(output_filepath))
@@ -357,6 +369,7 @@ class NodeConfiguration:
 
     def produce(self, **overrides) -> Character:
         """Initialize a new character instance and return it"""
-        self.keyring.unlock(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
+        if not self.temp:
+            self.keyring.unlock(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)  # TODO re/move this
         merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
         return self._Character(**merged_parameters)

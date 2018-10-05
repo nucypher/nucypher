@@ -140,11 +140,11 @@ class ProxyRESTRoutes:
             if node.checksum_public_address in self._node_tracker:
                 continue  # TODO: 168 Check version and update if required.
 
-            certificate_filepath = node.get_certificate_filepath(certificates_dir=self._certificate_dir)
-
             @crosstown_traffic()
             def learn_about_announced_nodes():
                 try:
+                    certificate_filepath = node.get_certificate_filepath(certificates_dir=self._certificate_dir)  # TODO: integrate with recorder?
+                    node.save_certificate_to_disk(directory=self._certificate_dir)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
@@ -154,10 +154,11 @@ class ProxyRESTRoutes:
                               " Announced via REST."  # TODO: Include data about caller?
                     self.log.warning(message)
                     self._suspicious_activity_tracker['vladimirs'].append(node)  # TODO: Maybe also record the bytes representation separately to disk?
+                except Exception as e:
+                    self.log.critical(str(e))
+                    raise
                 else:
                     self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-                    if self._certificate_dir:
-                        node.save_certificate_to_disk(self._certificate_dir)
                     self._node_recorder(node)
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
