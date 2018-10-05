@@ -49,6 +49,8 @@ def echo_version(ctx, param, value):
     ctx.exit()
 
 
+DEBUG = True
+
 BANNER = """
                                   _               
                                  | |              
@@ -1077,15 +1079,19 @@ def ursula(config,
 
     """
     if action == 'run':                # 0
-        if not config.federated_only:
-            if not all((stake_amount, stake_periods)) and not resume:
-                click.secho("Either --stake-amount and --stake-periods options "
-                            "or the --resume flag is required to run a non-federated Ursula", bold=True)
-                raise click.Abort()
 
         if config.config_file:         # 1
             ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config.config_file)
         else:
+            # Validate inline options
+            if not checksum_address and not config.dev:
+                raise click.BadOptionUsage("No account specified. pass --checksum-address or --dev, "
+                                           "or use a configuration file with --config-file")
+            if not config.federated_only:
+                if not all((stake_amount, stake_periods)) and not resume:
+                    raise click.BadOptionUsage("Either --stake-amount and --stake-periods options "
+                                               "or the --resume flag is required to run a non-federated Ursula")
+
             ursula_config = UrsulaConfiguration(temp=config.dev,
                                                 auto_initialize=config.dev,
                                                 poa=config.poa,
@@ -1115,11 +1121,14 @@ def ursula(config,
                 URSULA.get_deployer().run()                       # 4
 
         except Exception as e:
+            if DEBUG:
+                raise
             click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')
+            raise click.Abort()
         finally:
-            click.echo("Cleaning up.")
+            click.secho("Cleaning up.")
             ursula_config.cleanup()
-            click.echo("Exited gracefully.")
+            click.secho("Exited gracefully.")
 
 
 if __name__ == "__main__":
