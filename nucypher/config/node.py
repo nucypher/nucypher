@@ -12,7 +12,6 @@ from nucypher.characters.base import Character
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
 
 class NodeConfiguration:
@@ -105,10 +104,17 @@ class NodeConfiguration:
         self.checksum_address = checksum_address
         self.is_me = is_me
         if self.is_me:
-            self.keyring = NucypherKeyring(keyring_root=keyring_dir, common_name=checksum_address)
-            network_middleware = network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS()
-            self.network_middleware = network_middleware
+            #
+            # Self
+            #
+            if checksum_address:
+                self.read_keyring()
+            self.network_middleware = network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS()
+
         else:
+            #
+            # Stranger
+            #
             if network_middleware:
                 raise self.ConfigurationError("Cannot configure a stranger to use network middleware")
             self.known_nodes_dir = constants.STRANGER_CONFIGURATION
@@ -126,18 +132,19 @@ class NodeConfiguration:
         self.abort_on_learning_error = abort_on_learning_error
         self.start_learning_now = start_learning_now
         self.save_metadata = save_metadata
+        self.load_metadata = load_metadata
 
         #
         # Auto-Initialization
         #
-
         if auto_initialize:
             self.write(no_registry=not import_seed_registry or federated_only,
                        wallet=auto_generate_keys and not federated_only,
                        encrypting=auto_generate_keys,
                        passphrase=passphrase)
-        if load_metadata:
-            self.read_known_nodes(known_metadata_dir=known_metadata_dir)
+
+    def __call__(self, *args, **kwargs):
+        return self.produce(*args, **kwargs)
 
     @property
     def temp(self):
@@ -159,7 +166,7 @@ class NodeConfiguration:
         return filepath
 
     @property
-    def static_payload(self):
+    def static_payload(self) -> dict:
         """Exported static configuration values for initializing Ursula"""
         payload = dict(
                     # Identity
@@ -182,18 +189,24 @@ class NodeConfiguration:
     @property
     def dynamic_payload(self, **overrides) -> dict:
         """Exported dynamic configuration values for initializing Ursula"""
+
         if overrides:
             self.log.debug("Overrides supplied to dynamic payload for {}".format(self.__class__.__name__))
 
+        if self.load_metadata:
+            self.read_known_nodes(known_metadata_dir=self.known_metadata_dir)
+
+        power_ups = None
         if self.is_me and not self.temp:
             power_ups = tuple(self.keyring.derive_crypto_power(PowerUp)
                               for PowerUp in self._Character._default_crypto_powerups)
-        else:
-            power_ups = None
 
-        payload = dict(network_middleware=self.network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS(),
+        payload = dict(network_middleware=self.network_middleware,
                        known_nodes=self.known_nodes,
                        crypto_power_ups=power_ups)
+
+        if overrides:
+            payload.update(overrides)
         return payload
 
     @staticmethod
@@ -308,13 +321,20 @@ class NodeConfiguration:
             node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)  # TODO: 466
             self.known_nodes.add(node)
 
+    def read_keyring(self, *args, **kwargs):
+        if self.checksum_address is None:
+            raise self.ConfigurationError("No account specified to unlock keyring")
+        self.keyring = NucypherKeyring(keyring_root=self.keyring_dir,
+                                       common_name=self.checksum_address,
+                                       *args, ** kwargs)
+
     def write_keyring(self,
                       passphrase: str,
                       encrypting: bool,
                       wallet: bool,
                       tls: bool,
                       host: str,
-                      tls_curve):
+                      tls_curve) -> NucypherKeyring:
 
         self.keyring = NucypherKeyring.generate(passphrase=passphrase,
                                                 encrypting=encrypting,
@@ -330,6 +350,7 @@ class NodeConfiguration:
             self.checksum_address = self.keyring.checksum_address
         if tls:
             self.certificate_filepath = self.keyring.certificate_filepath
+
         return self.keyring
 
     def write_registry(self,
@@ -358,7 +379,7 @@ class NodeConfiguration:
 
         else:
             self.log.warning("Writing blank registry")
-            open(output_filepath, 'w').close()  # blank
+            open(output_filepath, 'w').close()  # write blank
 
         self.log.info("Successfully wrote registry to {}".format(output_filepath))
         return output_filepath
@@ -367,9 +388,10 @@ class NodeConfiguration:
         if self.__temp:
             self.__temp_dir.cleanup()
 
-    def produce(self, **overrides) -> Character:
+    def produce(self, passphrase: str = None, **overrides) -> Character:
         """Initialize a new character instance and return it"""
         if not self.temp:
-            self.keyring.unlock(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)  # TODO re/move this
+            self.read_keyring()
+            self.keyring.unlock(passphrase=passphrase)
         merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
         return self._Character(**merged_parameters)

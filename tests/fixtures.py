@@ -144,12 +144,12 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
                                 is_me=True,
                                 auto_initialize=True,
                                 auto_generate_keys=True,
+                                checksum_address=alice_address,
                                 passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                 network_middleware=MockRestMiddleware(),
                                 policy_agent=policy_agent,
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
-                                checksum_address=alice_address,
                                 import_seed_registry=True)
     yield config
     config.cleanup()
@@ -178,8 +178,8 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
     config = BobConfiguration(temp=True,
                               auto_initialize=True,
                               auto_generate_keys=True,
-                              passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                               checksum_address=bob_address,
+                              passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas,
                               start_learning_now=False,
@@ -365,7 +365,7 @@ def three_agents(testerchain):
     token_deployer.arm()
     token_deployer.deploy()
 
-    token_agent = token_deployer.make_agent()              # 1
+    token_agent = token_deployer.make_agent()              # 1: Token
 
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
@@ -375,7 +375,7 @@ def three_agents(testerchain):
     miner_escrow_deployer.arm()
     miner_escrow_deployer.deploy()
 
-    miner_agent = miner_escrow_deployer.make_agent()       # 2
+    miner_agent = miner_escrow_deployer.make_agent()       # 2 Miner Escrow
 
     policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
@@ -385,6 +385,6 @@ def three_agents(testerchain):
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
 
-    policy_agent = policy_manager_deployer.make_agent()    # 3
+    policy_agent = policy_manager_deployer.make_agent()    # 3 Policy Agent
 
     return token_agent, miner_agent, policy_agent

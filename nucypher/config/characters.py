@@ -1,6 +1,5 @@
 import os
 
-import maya
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
@@ -12,7 +11,6 @@ from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.node import NodeConfiguration
 from nucypher.crypto.powers import CryptoPower
-from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
 
 class UrsulaConfiguration(NodeConfiguration):
@@ -124,34 +122,30 @@ class UrsulaConfiguration(NodeConfiguration):
         )
         return {**super().dynamic_payload, **payload}
 
-    def produce(self, **overrides):
+    def produce(self, passphrase: str = None, **overrides):
         """Produce a new Ursula from configuration"""
 
         if not self.temp:
-            self.keyring.unlock(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)  # TODO: where to get passphrase from?
+            self.read_keyring()
+            self.keyring.unlock(passphrase=passphrase)
 
         merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
 
         if self.federated_only is False:
 
-            if self.poa:
+            if self.poa:               # TODO: move this..?
                 w3 = self.miner_agent.blockchain.interface.w3
                 w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
             if not self.miner_agent:   # TODO: move this..?
-                self.blockchain = Blockchain.connect(provider_uri=self.blockchain_uri,
-                                                     registry_filepath=self.registry_filepath)
+                self.blockchain = Blockchain.connect(provider_uri=self.blockchain_uri, registry_filepath=self.registry_filepath)
                 self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
                 self.miner_agent = MinerAgent(token_agent=self.token_agent)
                 merged_parameters.update(miner_agent=self.miner_agent)
 
         ursula = self._Character(**merged_parameters)
 
-        # if self.save_metadata:
-        # ursula.write_node_metadata(node=ursula)
-        # ursula.save_certificate_to_disk(directory=ursula.known_certificates_dir)  # TODO: re/move this..?
-
-        if self.temp:                                                               # TODO: Move this..?
+        if self.temp:                  # TODO: Move this..?
             class MockDatastoreThreadPool(object):
                 def callInThread(self, f, *args, **kwargs):
                     return f(*args, **kwargs)
@@ -174,8 +168,7 @@ class AliceConfiguration(NodeConfiguration):
     def static_payload(self) -> dict:
         alice_payload = dict(policy_agent=self.policy_agent)
         base_payload = super().static_payload
-        alice_payload.update(base_payload)
-        return base_payload
+        return {**base_payload, **alice_payload}
 
 
 class BobConfiguration(NodeConfiguration):

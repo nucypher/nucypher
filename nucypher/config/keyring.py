@@ -23,7 +23,7 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
-from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower, DelegatingPower
+from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower, DelegatingPower, KeyPairBasedPower
 
 #
 # Constants
@@ -245,7 +245,7 @@ def _decrypt_umbral_key(wrapping_key: bytes,
     try:
         dec_key = SecretBox(wrapping_key).decrypt(enc_key_material, nonce)
     except CryptoError:
-        raise  # TODO: Handle decryption failures
+        raise
 
     umbral_key = UmbralPrivateKey.from_bytes(dec_key)
     return umbral_key
@@ -415,7 +415,7 @@ class NucypherKeyring:
 
         return __key_filepaths
 
-    def _export_wallet_to_node(self, blockchain, passphrase):  # TODO: Deprecate?
+    def _export_wallet_to_node(self, blockchain, passphrase):  # TODO: Deprecate with geth.parity signing EIPs
         """Decrypt the wallet with a passphrase, then import the key to the nodes's keyring over RPC"""
         with open(self.__wallet_path, 'rb') as wallet:
             data = wallet.read().decode(KEY_FILE_ENCODING)
@@ -459,15 +459,18 @@ class NucypherKeyring:
         private key.
 
         TODO: Derive a key from the root_key.
-        TODO: TransactingPower
         """
 
-        # TODO: Improve this code
+        if issubclass(power_class, KeyPairBasedPower):
+            # TODO: TransactingPower and Delegating Power
+            pass
+
         if power_class is SigningPower:
             key_path = self.__signing_keypath
 
         elif power_class is EncryptingPower:
             key_path = self.__root_keypath
+
         elif power_class is DelegatingPower:
             return DelegatingPower()         # TODO: Handle non-keypair based
 
