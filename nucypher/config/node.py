@@ -113,7 +113,7 @@ class NodeConfiguration:
             #
             if checksum_address and not self.__temp:
                 self.read_keyring()
-            self.network_middleware = network_middleware
+            self.network_middleware = network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS()
 
         else:
             #

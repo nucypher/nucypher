@@ -318,12 +318,12 @@ def configure(config,
             click.secho(str(e), fg='red')
             raise click.Abort()
 
-        click.secho("Created configuration files at {}".format(new_installation_path), fg='green')
+        click.secho("Created nucypher installation files at {}".format(new_installation_path), fg='green')
         if not force:
-            save_node_configuration_file = click.confirm("Save node configuration?")
+            save_node_configuration_file = click.confirm("Generate node configuration file?")
         if save_node_configuration_file:
             configuration_filepath = config.node_configuration.to_configuration_file()
-            click.secho("Saved node configuration {}".format(configuration_filepath), fg='green')
+            click.secho("Saved node configuration file {}".format(configuration_filepath), fg='green')
 
     def __validate():
         is_valid = True      # Until there is a reason to believe otherwise...
@@ -1110,61 +1110,57 @@ def ursula(config,
         4. Run TLS deployment (Learning Loop + Reactor)
 
     """
+
+    if config.config_file:
+        #
+        # File-based Configuration
+        #
+        overrides = dict()
+        if any((rest_host, rest_port, db_name, stake_amount, stake_periods, checksum_address)):
+            raise click.BadOptionUsage(
+                "Inline overrides while using a configuration file is not yet supported.")  # TODO: inline overrides for file-based configurations
+        ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config.config_file)
+    else:
+        #
+        # Inline Configuration
+        #
+        if not checksum_address and not config.dev:
+            raise click.BadOptionUsage("No account specified. pass --checksum-address or --dev, "
+                                       "or use a configuration file with --config-file")
+        if not config.federated_only:
+            if not all((stake_amount, stake_periods)) and not resume:
+                raise click.BadOptionUsage("Either --stake-amount and --stake-periods options "
+                                           "or the --resume flag is required to run a non-federated Ursula")
+
+        ursula_config = UrsulaConfiguration(temp=config.dev,
+                                            auto_initialize=config.dev,
+                                            poa=config.poa,
+                                            rest_host=rest_host,
+                                            rest_port=rest_port,
+                                            db_name=db_name,
+                                            is_me=True,
+                                            federated_only=config.federated_only,
+                                            registry_filepath=config.registry_filepath,
+                                            provider_uri=config.provider_uri,
+                                            checksum_address=checksum_address,
+                                            save_metadata=False,
+                                            load_metadata=True,
+                                            known_metadata_dir=config.metadata_dir,
+                                            start_learning_now=True,
+                                            abort_on_learning_error=config.dev)
+        # Secondary overrides
+        overrides = dict()
+        if metadata_dir:
+            ursula_config.read_known_nodes(known_metadata_dir=metadata_dir)
+
+    URSULA = ursula_config.produce(passphrase=password, **overrides)  # 2
+
     if action == 'run':
-
-        if config.config_file:
-            #
-            # File-based Configuration
-            #
-            if any((rest_host, rest_port, db_name, stake_amount, stake_periods, checksum_address)):
-                raise click.BadOptionUsage("Inline overrides while using a configuration file is not yet supported.")  # TODO: inline overrides for file-based configurations
-            ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config.config_file)
-        else:
-            #
-            # Inline Configuration
-            #
-            if not checksum_address and not config.dev:
-                raise click.BadOptionUsage("No account specified. pass --checksum-address or --dev, "
-                                           "or use a configuration file with --config-file")
-            if not config.federated_only:
-                if not all((stake_amount, stake_periods)) and not resume:
-                    raise click.BadOptionUsage("Either --stake-amount and --stake-periods options "
-                                               "or the --resume flag is required to run a non-federated Ursula")
-
-            ursula_config = UrsulaConfiguration(temp=config.dev,
-                                                auto_initialize=config.dev,
-                                                poa=config.poa,
-                                                rest_host=rest_host,
-                                                rest_port=rest_port,
-                                                db_name=db_name,
-                                                is_me=True,
-                                                federated_only=config.federated_only,
-                                                registry_filepath=config.registry_filepath,
-                                                provider_uri=config.provider_uri,
-                                                checksum_address=checksum_address,
-                                                save_metadata=False,
-                                                load_metadata=True,
-                                                known_metadata_dir=config.metadata_dir,
-                                                start_learning_now=True,
-                                                abort_on_learning_error=config.dev)
         try:
-            # Secondary overrides
-            overrides = dict()
-            if metadata_dir:
-                ursula_config.read_known_nodes(known_metadata_dir=metadata_dir)
-            URSULA = ursula_config.produce(passphrase=password, **overrides)  # 2
-
-            #
-            # Run Ursula
-            #
             if not ursula_config.federated_only:                 # 3
                 URSULA.stake(amount=stake_amount, lock_periods=stake_periods)
             if not no_reactor:
-                URSULA.get_deployer().run()                       # 4
-
-        #
-        # Errors and Cleanup
-        #
+                URSULA.get_deployer().run()                      # 4
         except Exception as e:
             click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')
             if DEBUG:
@@ -1175,6 +1171,10 @@ def ursula(config,
             ursula_config.cleanup()
             click.secho("Exited gracefully.")
     
+    elif action == "save-metadata":
+        metadata_path = URSULA.write_node_metadata(node=URSULA)
+        click.secho("Successfully saved node metadata to {}.".format(metadata_path), fg='green')
+
     else:
         raise click.BadArgumentUsage
 
