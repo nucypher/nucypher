@@ -416,7 +416,7 @@ def accounts(config,
         click.echo("{} is now the node's default account.".format(config.blockchain.interface.w3.eth.defaultAccount))
 
     elif action == 'export':
-        keyring = NucypherKeyring(common_name=checksum_address)
+        keyring = NucypherKeyring(account=checksum_address)
         click.confirm("Export local private key for {} to node's keyring: {}?".format(checksum_address, config.provider_uri), abort=True)
         passphrase = click.prompt("Enter passphrase to decrypt account", type=click.STRING, hide_input=True, confirmation_prompt=True)
         keyring._export_wallet_to_node(blockchain=config.blockchain, passphrase=passphrase)

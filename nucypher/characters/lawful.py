@@ -414,7 +414,6 @@ class Ursula(Character, VerifiableNode, Miner):
                  start_learning_now: bool = None,
                  crypto_power=None,
                  tls_curve: EllipticCurve = None,
-                 tls_private_key=None,  # TODO: config here. #361
                  known_nodes: Iterable = None,
 
                  **character_kwargs
@@ -494,7 +493,6 @@ class Ursula(Character, VerifiableNode, Miner):
                 # TLSHostingPower
                 #
                 tls_hosting_keypair = HostingKeypair(
-                    private_key=tls_private_key,
                     curve=tls_curve,
                     host=rest_host,
                     certificate=certificate)

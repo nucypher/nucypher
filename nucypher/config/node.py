@@ -349,7 +349,7 @@ class NodeConfiguration:
         if self.checksum_address is None:
             raise self.ConfigurationError("No account specified to unlock keyring")
         self.keyring = NucypherKeyring(keyring_root=self.keyring_dir,
-                                       common_name=self.checksum_address,
+                                       account=self.checksum_address,
                                        *args, ** kwargs)
 
     def write_keyring(self,

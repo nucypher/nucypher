@@ -287,7 +287,7 @@ def _generate_tls_keys(host: str, curve: EllipticCurve) -> Tuple[_EllipticCurveP
 
 class NucypherKeyring:
     """
-    Handles keys for a single identity, recognized by common_name.
+    Handles keys for a single identity, recognized by account.
     Warning: This class handles private keys!
 
     Keyring filesystem tree
@@ -311,7 +311,7 @@ class NucypherKeyring:
         pass
 
     def __init__(self,
-                 common_name: str,
+                 account: str,
                  keyring_root: str = None,
                  root_key_path: str = None,
                  pub_root_key_path: str = None,
@@ -325,7 +325,7 @@ class NucypherKeyring:
         Generates a NuCypherKeyring instance with the provided key paths falling back to default keyring paths.
         """
 
-        self.__common_name = common_name
+        self.__account = account
         self.__keyring_root = keyring_root or self.__default_keyring_root
 
         # Generate base filepaths
@@ -334,7 +334,7 @@ class NucypherKeyring:
         self.__private_key_dir = __default_base_filepaths['private_key_dir']
 
         # Check for overrides
-        __default_key_filepaths = self.generate_key_filepaths(common_name=self.__common_name,
+        __default_key_filepaths = self.generate_key_filepaths(account=self.__account,
                                                               public_key_dir=self.__public_key_dir,
                                                               private_key_dir=self.__private_key_dir)
 
@@ -402,16 +402,15 @@ class NucypherKeyring:
     @staticmethod
     def generate_key_filepaths(public_key_dir: str,
                                private_key_dir: str,
-                               common_name: str) -> dict:
-
+                               account: str) -> dict:
         __key_filepaths = {
-            'root': os.path.join(private_key_dir, 'root-{}.priv'.format(common_name)),
-            'root_pub': os.path.join(public_key_dir, 'root-{}.pub'.format(common_name)),
-            'signing': os.path.join(private_key_dir, 'signing-{}.priv'.format(common_name)),
-            'signing_pub': os.path.join(public_key_dir, 'signing-{}.pub'.format(common_name)),
-            'wallet': os.path.join(private_key_dir, 'wallet-{}.json'.format(common_name)),
-            'tls': os.path.join(private_key_dir, '{}.priv.pem'.format(common_name)),
-            'tls_certificate': os.path.join(public_key_dir, '{}.pem'.format(common_name))
+            'root': os.path.join(private_key_dir, 'root-{}.priv'.format(account)),
+            'root_pub': os.path.join(public_key_dir, 'root-{}.pub'.format(account)),
+            'signing': os.path.join(private_key_dir, 'signing-{}.priv'.format(account)),
+            'signing_pub': os.path.join(public_key_dir, 'signing-{}.pub'.format(account)),
+            'wallet': os.path.join(private_key_dir, 'wallet-{}.json'.format(account)),
+            'tls': os.path.join(private_key_dir, '{}.priv.pem'.format(account)),
+            'tls_certificate': os.path.join(public_key_dir, '{}.pem'.format(account))
         }
 
         return __key_filepaths
@@ -465,9 +464,10 @@ class NucypherKeyring:
         if issubclass(power_class, KeyPairBasedPower):
 
             codex = {SigningPower: self.__signing_keypath,
-                     EncryptingPower: self.__root_keypath}
-                     # BlockchainPower: self.__wallet_path,  # TODO
+                     EncryptingPower: self.__root_keypath
+                     # BlockchainPower: self.__wallet_path,    # TODO
                      # TLSHostingPower: self.__tls_keypath}    # TODO
+                     }
 
             # Create Power
             try:
@@ -536,7 +536,7 @@ class NucypherKeyring:
             new_wallet_path = os.path.join(_private_key_dir, 'wallet-{}.json'.format(new_address))
             saved_wallet_path = _save_private_keyfile(new_wallet_path, new_wallet, as_json=True)
             keyring_args.update(wallet_path=saved_wallet_path)
-            common_name = new_address
+            account = new_address
 
         if encrypting is True:
             enc_privkey, enc_pubkey = _generate_encryption_keys()
@@ -546,9 +546,9 @@ class NucypherKeyring:
                 uncompressed_bytes = sig_pubkey.to_bytes(is_compressed=False)
                 without_prefix = uncompressed_bytes[1:]
                 verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
-                common_name = verifying_key_as_eth_key.to_checksum_address()
+                account = verifying_key_as_eth_key.to_checksum_address()
 
-        __key_filepaths = cls.generate_key_filepaths(common_name=common_name,
+        __key_filepaths = cls.generate_key_filepaths(account=account,
                                                      private_key_dir=_private_key_dir,
                                                      public_key_dir=_public_key_dir)
         if encrypting is True:
@@ -624,5 +624,5 @@ class NucypherKeyring:
                                 tls_key_path=tls_key_path)
 
         # return an instance using the generated key paths
-        keyring_instance = cls(common_name=common_name, **keyring_args)
+        keyring_instance = cls(account=account, **keyring_args)
         return keyring_instance

@@ -209,7 +209,7 @@ class VerifiableNode:
 
         if not self.rest_information()[0].host == common_name_from_cert:
             # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
-            raise ValueError("You passed a __common_name that is not the same one as the cert. "
+            raise ValueError("You passed a common_name that is not the same one as the cert. "
                              "Common name is optional; the cert will be saved according to "
                              "the name on the cert itself.")
 

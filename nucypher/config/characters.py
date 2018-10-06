@@ -114,9 +114,6 @@ class UrsulaConfiguration(NodeConfiguration):
             timestamp=None,
             miner_agent=self.miner_agent
         )
-        if not self.temp:
-            tls_private_key = self.tls_private_key or self.keyring.tls_private_key
-            payload.update(dict(tls_private_key=tls_private_key))
         return {**super().dynamic_payload, **payload}
 
     def produce(self, passphrase: str = None, **overrides):
