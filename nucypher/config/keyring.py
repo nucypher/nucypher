@@ -2,7 +2,7 @@ import base64
 import json
 import os
 import stat
-from typing import ClassVar, Tuple, Callable
+from typing import ClassVar, Tuple, Callable, Union
 
 from constant_sorrow import constants
 from cryptography import x509
@@ -23,7 +23,8 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
-from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower, DelegatingPower, KeyPairBasedPower
+from nucypher.crypto.powers import SigningPower, EncryptingPower, CryptoPower, DelegatingPower, KeyPairBasedPower, \
+    DerivedKeyBasedPower
 
 #
 # Constants
@@ -409,8 +410,8 @@ class NucypherKeyring:
             'signing': os.path.join(private_key_dir, 'signing-{}.priv'.format(common_name)),
             'signing_pub': os.path.join(public_key_dir, 'signing-{}.pub'.format(common_name)),
             'wallet': os.path.join(private_key_dir, 'wallet-{}.json'.format(common_name)),
-            'tls': os.path.join(private_key_dir, '{}.pem'.format(common_name)),
-            'tls_certificate': os.path.join(public_key_dir, '{}.priv.pem'.format(common_name))
+            'tls': os.path.join(private_key_dir, '{}.priv.pem'.format(common_name)),
+            'tls_certificate': os.path.join(public_key_dir, '{}.pem'.format(common_name))
         }
 
         return __key_filepaths
@@ -452,7 +453,7 @@ class NucypherKeyring:
         """Make efforts to remove references to the cached key data"""
         self.__derived_key_material = constants.KEYRING_LOCKED
 
-    def derive_crypto_power(self, power_class: ClassVar) -> CryptoPower:
+    def derive_crypto_power(self, power_class: ClassVar) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
         """
         Takes either a SigningPower or an EncryptingPower and returns
         a either a SigningPower or EncryptingPower with the coinciding
@@ -460,27 +461,31 @@ class NucypherKeyring:
 
         TODO: Derive a key from the root_key.
         """
-
+        # Keypair-Based
         if issubclass(power_class, KeyPairBasedPower):
-            # TODO: TransactingPower and Delegating Power
-            pass
 
-        if power_class is SigningPower:
-            key_path = self.__signing_keypath
+            codex = {SigningPower: self.__signing_keypath,
+                     EncryptingPower: self.__root_keypath}
+                     # BlockchainPower: self.__wallet_path,  # TODO
+                     # TLSHostingPower: self.__tls_keypath}    # TODO
 
-        elif power_class is EncryptingPower:
-            key_path = self.__root_keypath
+            # Create Power
+            try:
+                umbral_privkey = self.__decrypt_keyfile(codex[power_class])
+                keypair = power_class._keypair_class(umbral_privkey)
+                new_cryptopower = power_class(keypair=keypair)
+            except KeyError:
+                failure_message = "{} is an invalid type for deriving a CryptoPower".format(power_class.__name__)
+                raise TypeError(failure_message)
 
-        elif power_class is DelegatingPower:
-            return DelegatingPower()         # TODO: Handle non-keypair based
+        # Derived
+        elif issubclass(power_class, DerivedKeyBasedPower):
+            new_cryptopower = power_class()
 
         else:
             failure_message = "{} is an invalid type for deriving a CryptoPower.".format(power_class.__name__)
             raise ValueError(failure_message)
 
-        umbral_privkey = self.__decrypt_keyfile(key_path)
-        keypair = power_class._keypair_class(umbral_privkey)
-        new_cryptopower = power_class(keypair=keypair)
         return new_cryptopower
 
     #
