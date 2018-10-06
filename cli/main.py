@@ -1065,6 +1065,7 @@ def status(config,
 @cli.command()
 @click.option('--rest-host', type=click.STRING)
 @click.option('--rest-port', type=click.IntRange(min=49151, max=65535, clamp=False))
+@click.option('--metadata-dir', help="Custom known metadata directory", type=click.Path(exists=True, dir_okay=True, file_okay=False, writable=True))
 @click.option('--db-name', type=click.STRING)
 @click.option('--checksum-address', type=CHECKSUM_ADDRESS)
 @click.option('--stake-amount', type=click.IntRange(min=MIN_ALLOWED_LOCKED, max=MAX_ALLOWED_LOCKED, clamp=False))
@@ -1078,6 +1079,7 @@ def ursula(config,
            action,
            rest_port,
            rest_host,
+           metadata_dir,
            db_name,
            checksum_address,
            stake_amount,
@@ -1136,13 +1138,17 @@ def ursula(config,
                                                 start_learning_now=True,
                                                 abort_on_learning_error=config.dev)
         try:
+            # Secondary overrides
+            overrides = dict()
+            if metadata_dir:
+                ursula_config.read_known_nodes(known_metadata_dir=metadata_dir)
+            URSULA = ursula_config.produce(passphrase=password, **overrides)  # 2
+
             #
             # Run Ursula
             #
-            URSULA = ursula_config.produce(passphrase=password)  # 2
-            if not ursula_config.federated_only:
-                URSULA.stake(amount=stake_amount,                # 3
-                             lock_periods=stake_periods)
+            if not ursula_config.federated_only:                 # 3
+                URSULA.stake(amount=stake_amount, lock_periods=stake_periods)
             if not no_reactor:
                 URSULA.get_deployer().run()                       # 4
 

@@ -341,6 +341,8 @@ class NodeConfiguration:
         for metadata_path in metadata_paths:
             node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)  # TODO: 466
             known_nodes.add(node)
+
+        self.known_nodes.update(known_nodes)  # TODO: Use non-mutative approach?
         return known_nodes
 
     def read_keyring(self, *args, **kwargs):
