@@ -50,8 +50,8 @@ jobs:
       - run:
           name: Install Python Dependencies with Pipenv
           command: |
-            pipenv install --three --dev --pre --skip-lock --verbose
-            pipenv graph
+            pip3 install pip==18.0
+            pipenv install --three --dev --skip-lock --verbose
       - run:
           name: Install Solidity Compiler
           command: pipenv run ./scripts/install_solc.sh
