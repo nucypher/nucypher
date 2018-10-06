@@ -11,12 +11,10 @@ from typing import Tuple, ClassVar
 
 import click
 from constant_sorrow import constants
-from cryptography.hazmat.primitives.asymmetric import ec
 from eth_utils import is_checksum_address
 from twisted.internet import reactor
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.actors import Miner
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent, EthereumContractAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.constants import (DISPATCHER_SECRET_LENGTH,
@@ -24,15 +22,14 @@ from nucypher.blockchain.eth.constants import (DISPATCHER_SECRET_LENGTH,
                                                MIN_LOCKED_PERIODS,
                                                MAX_MINTING_PERIODS, MAX_ALLOWED_LOCKED)
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterface
-from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry, EthereumContractRegistry
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
-from nucypher.config.keyring import NucypherKeyring, _save_tls_certificate
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 from nucypher.config.utils import validate_configuration_file, generate_local_wallet, generate_account
-from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
                                                   DEVELOPMENT_ETH_AIRDROP_AMOUNT,
@@ -274,8 +271,11 @@ def configure(config,
                            "Use --no-registry to skip.".format(registry_source))
                 raise click.Abort()
 
-        skip_all_key_generation = False
-        generate_wallet, generate_tls_keys, host = False, False, None
+        # Defaults
+        host = UrsulaConfiguration.DEFAULT_REST_HOST
+        skip_all_key_generation, generate_wallet = False, False
+        generate_encrypting_keys, generate_tls_keys,save_node_configuration_file = force, force, force
+
         if ursula:
 
             # Wallet
@@ -285,34 +285,43 @@ def configure(config,
                     config.federated_only = True  # TODO: Without a wallet, let's assume this is a "federated configuration"
 
             # TLS
-            generate_tls_keys = click.confirm("Do you need to generate a new SSL certificate (Ursula)?", default=False)
-            if generate_tls_keys:
-                host = click.prompt("Enter the node's hostname", default='127.0.0.1', type=click.STRING)
+            if not force:
+                generate_tls_keys = click.confirm("Do you need to generate a new SSL certificate (Ursula)?", default=False)
+
+            if generate_tls_keys or force:
+                if not force:
+                    host = click.prompt("Enter the node's hostname", default=UrsulaConfiguration.DEFAULT_REST_HOST, type=click.STRING)
                 config.node_configuration.rest_host = host
 
-        generate_encrypting_keys = click.confirm("Do you need to generate a new signing keypair?", default=True)
-        if not any((generate_wallet, generate_tls_keys, generate_encrypting_keys)):
-            skip_all_key_generation = click.confirm("Skip all key generation (Provide custom configuration file)?")
+        if not force:
+            generate_encrypting_keys = click.confirm("Do you need to generate a new signing keypair?", default=False)
+            if not any((generate_wallet, generate_tls_keys, generate_encrypting_keys)):
+                skip_all_key_generation = click.confirm("Skip all key generation (Provide custom configuration file)?")
 
         if not skip_all_key_generation:
-            passphrase = click.prompt("Enter a passphrase to encrypt your keyring",
-                                      hide_input=True, confirmation_prompt=True)
+            if os.environ.get("NUCYPHER_KEYRING_PASSPHRASE"):
+                passphrase = os.environ.get("NUCYPHER_KEYRING_PASSPHRASE")
+            else:
+                passphrase = click.prompt("Enter a passphrase to encrypt your keyring",
+                                          hide_input=True, confirmation_prompt=True)
         else:
             passphrase = None
+
         try:
             new_installation_path = configuration.write(passphrase=passphrase,
                                                         wallet=generate_wallet,
                                                         encrypting=generate_encrypting_keys,
                                                         tls=generate_tls_keys,
                                                         no_registry=no_registry,
-                                                        no_keys=skip_all_key_generation
-                                                        )
+                                                        no_keys=skip_all_key_generation)
         except NodeConfiguration.ConfigurationError as e:
             click.secho(str(e), fg='red')
             raise click.Abort()
 
         click.secho("Created configuration files at {}".format(new_installation_path), fg='green')
-        if click.confirm("Save node configuration?"):
+        if not force:
+            save_node_configuration_file = click.confirm("Save node configuration?")
+        if save_node_configuration_file:
             configuration_filepath = config.node_configuration.to_configuration_file()
             click.secho("Saved node configuration {}".format(configuration_filepath), fg='green')
 
@@ -1072,7 +1081,8 @@ def status(config,
 @click.option('--stake-periods', type=click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False))
 @click.option('--resume', help="Resume an existing stake", is_flag=True)
 @click.option('--no-reactor', help="Development feature", is_flag=True)
-@click.option('--password', help="Password to unlock Ursula's keyring", prompt=True, hide_input=True, confirmation_prompt=True)
+@click.option('--password', help="Password to unlock Ursula's keyring",
+              prompt=True, hide_input=True, confirmation_prompt=True, envvar="NUCYPHER_KEYRING_PASSPHRASE")
 @click.argument('action')
 @uses_config
 def ursula(config,
