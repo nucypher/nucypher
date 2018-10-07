@@ -7,10 +7,10 @@ from apistar.http import Response, Request, QueryParams
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from hendrix.experience import crosstown_traffic
-from kademlia.utils import digest
 from umbral import pre
 from umbral.fragments import KFrag
 
+from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
 from nucypher.keystore.keypairs import HostingKeypair
@@ -240,7 +240,7 @@ class ProxyRESTRoutes:
         headers = {'Content-Type': 'application/octet-stream'}
 
         try:
-            treasure_map = self._treasure_map_tracker[digest(treasure_map_id)]
+            treasure_map = self._treasure_map_tracker[keccak_digest(binascii.unhexlify(treasure_map_id))]
             response = Response(content=bytes(treasure_map), headers=headers)
             self.log.info("{} providing TreasureMap {}".format(self._node_bytes_caster(),
                                                                treasure_map_id))
@@ -273,7 +273,7 @@ class ProxyRESTRoutes:
             # # # #
 
             # TODO 341 - what if we already have this TreasureMap?
-            self._treasure_map_tracker[digest(treasure_map_id)] = treasure_map
+            self._treasure_map_tracker[keccak_digest(binascii.unhexlify(treasure_map_id))] = treasure_map
             return Response(content=bytes(treasure_map), status_code=202)
         else:
             # TODO: Make this a proper 500 or whatever.
