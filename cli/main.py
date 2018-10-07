@@ -939,12 +939,6 @@ def deploy(config,
                 def __collect_secret_hash():
                     secret = click.prompt("Enter secret hash for {}".format(__contract_name), hide_input=True, confirmation_prompt=True)
                     secret_hash = hashlib.sha256(secret)
-                    if len(secret_hash) != 32:
-                        click.secho("Deployer secret must be 32 bytes.", fg='yellow')
-                        if click.prompt("Try again?"):
-                            return __collect_secret_hash()
-                        else:
-                            raise click.Abort()
                     __deployer_init_args.update({'secret_hash': secret_hash})
                     return secret
                 __collect_secret_hash()

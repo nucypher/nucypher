@@ -182,14 +182,13 @@ class NodeConfiguration:
             config_file.write(json.dumps(self.static_payload, indent=4))
         return filepath
 
-    @staticmethod
-    def validate(config_root: str, no_registry=False) -> bool:
+    def validate(self, config_root: str, no_registry=False) -> bool:
         # Top-level
         if not os.path.exists(config_root):
-            raise NodeConfiguration.ConfigurationError('No configuration directory found at {}.'.format(config_root))
+            raise self.ConfigurationError('No configuration directory found at {}.'.format(config_root))
 
         # Sub-paths
-        filepaths = NodeConfiguration.generate_runtime_filepaths(config_root=config_root)
+        filepaths = self.runtime_filepaths
         if no_registry:
             del filepaths['registry_filepath']
         for field, path in filepaths.items():
@@ -233,6 +232,16 @@ class NodeConfiguration:
             self.log.debug("Overrides supplied to dynamic payload for {}".format(self.__class__.__name__))
             payload.update(overrides)
         return payload
+
+    @property
+    def runtime_filepaths(self):
+        filepaths = dict(config_root=self.config_root,
+                         keyring_dir=self.keyring_dir,
+                         known_nodes_dir=self.known_nodes_dir,
+                         known_certificates_dir=self.known_certificates_dir,
+                         known_metadata_dir=self.known_metadata_dir,
+                         registry_filepath=self.registry_filepath)
+        return filepaths
 
     @staticmethod
     def generate_runtime_filepaths(config_root: str) -> dict:
@@ -322,7 +331,8 @@ class NodeConfiguration:
             self.log.critical(message)
             raise NodeConfiguration.ConfigurationError(message)
 
-        self.validate(config_root=self.config_root, no_registry=no_registry or self.federated_only)
+        if not self.__temp:
+            self.validate(config_root=self.config_root, no_registry=no_registry or self.federated_only)
         return self.config_root
 
     def read_known_nodes(self, known_metadata_dir=None) -> Set[Character]:
