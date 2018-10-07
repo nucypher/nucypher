@@ -167,11 +167,10 @@ class NodeConfiguration:
         return self._Character(**merged_parameters)
 
     @classmethod
-    def from_configuration_file(cls, filepath: str = None, **overrides) -> 'NodeConfiguration':
+    def from_configuration_file(cls, filepath, **overrides) -> 'NodeConfiguration':
         """Initialize a NodeConfiguration from a JSON file."""
-        filepath = filepath if filepath is None else cls.DEFAULT_CONFIG_FILE_LOCATION
-        with open(filepath, 'r') as config_file:
-            payload = cls.__parser(config_file.read())
+        with open(filepath, 'r') as file:
+            payload = cls.__parser(file.read())
         return cls(**{**payload, **overrides})
 
     def to_configuration_file(self, filepath: str = None) -> str:
