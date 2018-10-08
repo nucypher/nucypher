@@ -425,7 +425,7 @@ class Learner:
                                                         len(new_nodes)), )
         if new_nodes and self.known_certificates_dir:
             for node in new_nodes:
-                node.save_certificate_to_disk(self.known_certificates_dir)
+                node.save_certificate_to_disk(self.known_certificates_dir, force=True)
 
         return new_nodes
 

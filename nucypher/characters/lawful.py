@@ -397,6 +397,8 @@ class Ursula(Character, VerifiableNode, Miner):
                  rest_port: int,
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
+                 tls_private_key = None,           # TODO: Derivie from keyring
+
                  db_name: str = None,
                  db_filepath: str = None,
                  is_me: bool = True,
@@ -496,7 +498,8 @@ class Ursula(Character, VerifiableNode, Miner):
                     curve=tls_curve,
                     host=rest_host,
                     certificate=certificate,
-                    certificate_filepath=certificate_filepath
+                    certificate_filepath=certificate_filepath,
+                    private_key=tls_private_key
                 )
 
                 tls_hosting_power = TLSHostingPower(rest_server=rest_server,

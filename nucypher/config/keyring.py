@@ -325,18 +325,19 @@ class NucypherKeyring:
         Generates a NuCypherKeyring instance with the provided key paths falling back to default keyring paths.
         """
 
+        # Identity
         self.__account = account
         self.__keyring_root = keyring_root or self.__default_keyring_root
 
         # Generate base filepaths
-        __default_base_filepaths = self.generate_base_filepaths(keyring_root=self.__keyring_root)
+        __default_base_filepaths = self._generate_base_filepaths(keyring_root=self.__keyring_root)
         self.__public_key_dir = __default_base_filepaths['public_key_dir']
         self.__private_key_dir = __default_base_filepaths['private_key_dir']
 
         # Check for overrides
-        __default_key_filepaths = self.generate_key_filepaths(account=self.__account,
-                                                              public_key_dir=self.__public_key_dir,
-                                                              private_key_dir=self.__private_key_dir)
+        __default_key_filepaths = self._generate_key_filepaths(account=self.__account,
+                                                               public_key_dir=self.__public_key_dir,
+                                                               private_key_dir=self.__private_key_dir)
 
         # Private
         self.__root_keypath = root_key_path or __default_key_filepaths['root']
@@ -352,57 +353,70 @@ class NucypherKeyring:
         # Set Initial State
         self.__derived_key_material = constants.KEYRING_LOCKED
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.lock()
+
+    #
+    # Private Keys
+    #
+    @property
+    @unlock_required
+    def tls_private_key(self):
+        """TODO: Deprecate and use self.derive_crypto_power instead"""
+        key_data = _read_keyfile(keypath=self.__tls_keypath, deserializer=None)
+        __tls_key = serialization.load_pem_private_key(data=key_data,
+                                                       password=self.__derived_key_material,
+                                                       backend=default_backend())
+        return __tls_key
 
     #
     # Public Keys
     #
     @property
-    def checksum_address(self):
-        key_data = _read_keyfile(keypath=self.__wallet_path, as_json=True, decode=False)
+    def checksum_address(self) -> str:
+        key_data = _read_keyfile(keypath=self.__wallet_path, deserializer=None)
+        # TODO Json joads
         address = key_data['address']
         return to_checksum_address(address)
 
     @property
-    def federated_address(self):
+    def federated_address(self) -> str:
         signature_pubkey = self.signing_public_key
         uncompressed_bytes = signature_pubkey.to_bytes(is_compressed=False)
         without_prefix = uncompressed_bytes[1:]
         verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
         address = verifying_key_as_eth_key.to_checksum_address()
-        return address
+        return to_checksum_address(address)
 
     @property
     def signing_public_key(self):
-        signature_pubkey_bytes = _read_keyfile(keypath=self.__signing_pub_keypath, as_json=False)
+        signature_pubkey_bytes = _read_keyfile(keypath=self.__signing_pub_keypath, deserializer=None)
         signature_pubkey = UmbralPublicKey.from_bytes(signature_pubkey_bytes)
         return signature_pubkey
 
     @property
     def encrypting_public_key(self):
-        encrypting_pubkey_bytes = _read_keyfile(keypath=self.__root_pub_keypath, as_json=False)
+        encrypting_pubkey_bytes = _read_keyfile(keypath=self.__root_pub_keypath, deserializer=None)
         encrypting_pubkey = UmbralPublicKey.from_bytes(encrypting_pubkey_bytes)
         return encrypting_pubkey
 
     @property
-    def certificate_filepath(self):
+    def certificate_filepath(self) -> str:
         return self.__tls_certificate
-
 
     #
     # Utils
     #
     @staticmethod
-    def generate_base_filepaths(keyring_root):
+    def _generate_base_filepaths(keyring_root: str) -> Dict[str, str]:
         base_paths = dict(public_key_dir=os.path.join(keyring_root, 'public'),
                           private_key_dir=os.path.join(keyring_root, 'private'))
         return base_paths
 
     @staticmethod
-    def generate_key_filepaths(public_key_dir: str,
-                               private_key_dir: str,
-                               account: str) -> dict:
+    def _generate_key_filepaths(public_key_dir: str,
+                                private_key_dir: str,
+                                account: str) -> dict:
         __key_filepaths = {
             'root': os.path.join(private_key_dir, 'root-{}.priv'.format(account)),
             'root_pub': os.path.join(public_key_dir, 'root-{}.pub'.format(account)),
@@ -498,9 +512,8 @@ class NucypherKeyring:
                  wallet: bool = True,
                  tls: bool = True,
                  host: str = None,
-                 curve = None,
+                 curve: EllipticCurve = None,
                  keyring_root: str = None,
-                 exists_ok: bool = True
                  ) -> 'NucypherKeyring':
         """
         Generates new encrypting, signing, and wallet keys encrypted with the passphrase,
@@ -508,13 +521,12 @@ class NucypherKeyring:
         returning the corresponding Keyring instance.
         """
 
-        validate_passphrase(passphrase)
-
+        cls.validate_passphrase(passphrase)
         if not any((wallet, encrypting, tls)):
             raise ValueError('Either "encrypting", "wallet", or "tls" must be True '
                              'to generate new keys, or set "no_keys" to True to skip generation.')
 
-        _base_filepaths = cls.generate_base_filepaths(keyring_root=keyring_root)
+        _base_filepaths = cls._generate_base_filepaths(keyring_root=keyring_root)
         _public_key_dir = _base_filepaths['public_key_dir']
         _private_key_dir = _base_filepaths['private_key_dir']
 
@@ -526,7 +538,7 @@ class NucypherKeyring:
         os.mkdir(_private_key_dir, mode=0o700)  # private dir
 
         #
-        # Generate keys
+        # Generate New Keypairs
         #
 
         keyring_args = dict()

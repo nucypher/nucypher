@@ -189,7 +189,7 @@ class NucypherClickConfig:
                 if not generate_wallet:  # I'll take that as a no...
                     self.federated_only = True  # TODO: Without a wallet, let's assume this is a "federated configuration"
             if not force:  # TLS
-                generate_tls_keys = click.confirm("Do you need to generate a new SSL certificate (Ursula)?",
+                generate_tls_keys = click.confirm("Do you need to generate a new TLS certificate (Ursula)?",
                                                   default=False)
             if generate_tls_keys or force:
                 if not force:
@@ -256,7 +256,7 @@ class NucypherClickConfig:
 *Permanently and irreversibly delete all* nucypher files including:
   - Private and Public Keys
   - Known Nodes
-  - SSL certificates
+  - TLS certificates
   - Node Configurations
 Located at {}?'''.format(self.node_configuration.config_root), abort=True)
         shutil.rmtree(self.node_configuration.config_root, ignore_errors=True)

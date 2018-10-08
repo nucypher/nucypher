@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 
-from nucypher.config.keyring import _save_tls_certificate
+from nucypher.config.keyring import _write_tls_certificate
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
@@ -214,7 +214,7 @@ class VerifiableNode:
                              "the name on the cert itself.")
 
         certificate_filepath = self.get_certificate_filepath(certificates_dir=directory)
-        _save_tls_certificate(self.certificate, full_filepath=certificate_filepath, force=force)
+        _write_tls_certificate(self.certificate, full_filepath=certificate_filepath, force=force)
         self.certificate_filepath = certificate_filepath
         self.log.info("Saved new TLS certificate {}".format(certificate_filepath))
         return self.certificate_filepath

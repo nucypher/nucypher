@@ -138,28 +138,28 @@ class HostingKeypair(Keypair):
 
         self.curve = curve or self._DEFAULT_CURVE
 
-        if private_key:
+        if private_key and certificate_filepath:
+            from nucypher.config.keyring import _read_tls_public_certificate
+            certificate = _read_tls_public_certificate(filepath=certificate_filepath)
             super().__init__(private_key=private_key)
 
         elif certificate:
             super().__init__(public_key=certificate.public_key())
 
         elif certificate_filepath:
-            from nucypher.config.keyring import _load_tls_certificate
-            certificate = _load_tls_certificate(filepath=certificate_filepath)
+            from nucypher.config.keyring import _read_tls_public_certificate
+            certificate = _read_tls_public_certificate(filepath=certificate_filepath)
             super().__init__(public_key=certificate.public_key())
 
         elif generate_certificate:
-
             if not host:
-                message = "If you don't supply the certificate, one will be generated for you." \
+                message = "If you don't supply a TLS certificate, one will be generated for you." \
                           "But for that, you need to pass a hostname."
                 raise TypeError(message)
 
             certificate, private_key = generate_self_signed_certificate(host=host,
                                                                         private_key=private_key,
                                                                         curve=self.curve)
-
             super().__init__(private_key=private_key)
         else:
             raise TypeError("You didn't provide a cert, but also told us not to generate keys.  Not sure what to do.")

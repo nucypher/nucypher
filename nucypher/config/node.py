@@ -377,8 +377,7 @@ class NodeConfiguration:
                                                 tls=tls,
                                                 host=host,
                                                 curve=tls_curve,
-                                                keyring_root=self.keyring_dir,
-                                                exists_ok=False)  # TODO: exists?
+                                                keyring_root=self.keyring_dir)
         if self.federated_only or not wallet:
             self.checksum_address = self.keyring.federated_address
         else:
