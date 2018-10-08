@@ -144,7 +144,7 @@ class ProxyRESTRoutes:
             def learn_about_announced_nodes():
                 try:
                     certificate_filepath = node.get_certificate_filepath(certificates_dir=self._certificate_dir)  # TODO: integrate with recorder?
-                    node.save_certificate_to_disk(directory=self._certificate_dir)
+                    node.save_certificate_to_disk(directory=self._certificate_dir, force=True)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
