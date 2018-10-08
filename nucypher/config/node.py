@@ -224,7 +224,7 @@ class NodeConfiguration:
         """Exported dynamic configuration values for initializing Ursula"""
         if self.load_metadata:
             known_nodes = self.read_known_nodes(known_metadata_dir=self.known_metadata_dir)
-        self.known_nodes.update(known_nodes)
+            self.known_nodes.update(known_nodes)
         payload = dict(network_middleware=self.network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS(),
                        known_nodes=self.known_nodes,
                        crypto_power_ups=self.derive_node_power_ups() or None)
