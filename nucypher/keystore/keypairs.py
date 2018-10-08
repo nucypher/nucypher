@@ -147,6 +147,7 @@ class HostingKeypair(Keypair):
         elif certificate_filepath:
             from nucypher.config.keyring import _load_tls_certificate
             certificate = _load_tls_certificate(filepath=certificate_filepath)
+            super().__init__(public_key=certificate.public_key())
 
         elif generate_certificate:
 

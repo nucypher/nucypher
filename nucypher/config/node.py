@@ -348,8 +348,9 @@ class NodeConfiguration:
         self.log.info("Found {} known node metadata files at {}".format(len(metadata_paths), known_metadata_dir))
         known_nodes = set()
         for metadata_path in metadata_paths:
-            node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)  # TODO: 466
-            known_nodes.add(node)
+            if self.checksum_address not in metadata_path:
+                node = Ursula.from_metadata_file(filepath=abspath(metadata_path), federated_only=self.federated_only)  # TODO: 466
+                known_nodes.add(node)
 
         self.known_nodes.update(known_nodes)  # TODO: Use non-mutative approach?
         return known_nodes

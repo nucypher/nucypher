@@ -201,7 +201,7 @@ class VerifiableNode:
     def get_certificate_filepath(self, certificates_dir: str) -> str:
         return os.path.join(certificates_dir, self.certificate_filename)
 
-    def save_certificate_to_disk(self, directory):
+    def save_certificate_to_disk(self, directory, force=False):
         x509 = OpenSSL.crypto.X509.from_cryptography(self.certificate)
         subject_components = x509.get_subject().get_components()
         common_name_as_bytes = subject_components[0][1]
@@ -214,7 +214,7 @@ class VerifiableNode:
                              "the name on the cert itself.")
 
         certificate_filepath = self.get_certificate_filepath(certificates_dir=directory)
-        _save_tls_certificate(self.certificate, full_filepath=certificate_filepath)
+        _save_tls_certificate(self.certificate, full_filepath=certificate_filepath, force=force)
         self.certificate_filepath = certificate_filepath
         self.log.info("Saved new TLS certificate {}".format(certificate_filepath))
         return self.certificate_filepath

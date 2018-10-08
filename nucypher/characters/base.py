@@ -15,6 +15,7 @@ import requests
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
+from requests.exceptions import SSLError
 from twisted.internet import reactor
 from twisted.internet import task
 from umbral.keys import UmbralPublicKey
@@ -109,13 +110,15 @@ class Learner:
                 # This node is already known.  We can safely return.
                 return
 
-        node.save_certificate_to_disk(directory=self.known_certificates_dir)
+        node.save_certificate_to_disk(directory=self.known_certificates_dir, force=True)  # TODO: Verify before force?
         certificate_filepath = node.get_certificate_filepath(certificates_dir=self.known_certificates_dir)
         try:
             node.verify_node(force=force_verification_check,
                              network_middleware=self.network_middleware,
                              accept_federated_only=self.federated_only,  # TODO: 466
                              certificate_filepath=certificate_filepath)
+        except SSLError:
+            raise  # TODO
         except requests.exceptions.ConnectionError:
             self.log.info("No Response from known node {}|{}".format(node.rest_interface, node.checksum_public_address))
             raise self.UnresponsiveTeacher

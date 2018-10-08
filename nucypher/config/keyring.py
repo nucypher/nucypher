@@ -159,7 +159,7 @@ def _save_public_keyfile(keypath: str, key_data: bytes) -> str:
 
 def _save_tls_certificate(certificate: Certificate,
                           full_filepath: str,
-                          force: bool = True,  # TODO: Make configurable, or set to False by default.
+                          force: bool = False,
                           ) -> str:
 
     cert_already_exists = os.path.isfile(full_filepath)

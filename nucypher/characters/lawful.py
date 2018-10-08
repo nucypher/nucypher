@@ -495,7 +495,9 @@ class Ursula(Character, VerifiableNode, Miner):
                 tls_hosting_keypair = HostingKeypair(
                     curve=tls_curve,
                     host=rest_host,
-                    certificate=certificate)
+                    certificate=certificate,
+                    certificate_filepath=certificate_filepath
+                )
 
                 tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                     keypair=tls_hosting_keypair)
