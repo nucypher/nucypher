@@ -128,13 +128,11 @@ class HostingKeypair(Keypair):
     _DEFAULT_CURVE = ec.SECP384R1
 
     def __init__(self,
-                 common_name=None,
                  host=None,
                  private_key: Union[UmbralPrivateKey, UmbralPublicKey] = None,
                  curve=None,
                  certificate=None,
                  certificate_filepath: str = None,
-                 certificate_dir=None,
                  generate_certificate=True,
                  ) -> None:
 
@@ -151,15 +149,14 @@ class HostingKeypair(Keypair):
 
         elif generate_certificate:
 
-            if not all((common_name, host)):
+            if not host:
                 message = "If you don't supply the certificate, one will be generated for you." \
-                          "But for that, you need to pass both host and common_name.."
+                          "But for that, you need to pass a hostname."
                 raise TypeError(message)
 
-            certificate, private_key = generate_self_signed_certificate(common_name=common_name,
+            certificate, private_key = generate_self_signed_certificate(host=host,
                                                                         private_key=private_key,
-                                                                        curve=self.curve,
-                                                                        host=host)
+                                                                        curve=self.curve)
 
             super().__init__(private_key=private_key)
         else:
@@ -170,7 +167,6 @@ class HostingKeypair(Keypair):
 
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
-        self.certificate_dir = certificate_dir
 
     def generate_self_signed_cert(self, common_name):
         cryptography_key = self._privkey.to_cryptography_privkey()

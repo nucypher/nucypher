@@ -1,9 +1,11 @@
 import binascii
 import random
 from collections import OrderedDict
+from functools import partial
+from typing import Iterable
+from typing import List
 
 import maya
-import time
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
 from cryptography.hazmat.backends import default_backend
@@ -11,16 +13,12 @@ from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate
 from eth_utils import to_checksum_address
-from functools import partial
 from twisted.internet import threads
-from typing import Iterable
-from typing import List
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
-from nucypher.blockchain.eth.actors import PolicyAuthor, Miner, only_me
+from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
-from nucypher.blockchain.eth.utils import datetime_to_period
 from nucypher.characters.base import Character, Learner
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
@@ -408,9 +406,10 @@ class Ursula(Character, VerifiableNode, Miner):
                  # Blockchain
                  miner_agent=None,
                  checksum_address: str = None,
-                 registry_filepath: str = None,
+                 # registry_filepath: str = None,
 
                  # Character
+                 passphrase: str = None,
                  abort_on_learning_error: bool = False,
                  federated_only: bool = False,
                  start_learning_now: bool = None,
@@ -434,12 +433,11 @@ class Ursula(Character, VerifiableNode, Miner):
                            known_nodes=known_nodes,
                            **character_kwargs)
 
-        if not federated_only:
+        if is_me is True and not federated_only:
             Miner.__init__(self,
                            is_me=is_me,
                            miner_agent=miner_agent,
-                           checksum_address=checksum_address,
-                           registry_filepath=registry_filepath)
+                           checksum_address=checksum_address)
 
             blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
             self._crypto_power.consume_power_up(blockchain_power)
@@ -448,7 +446,9 @@ class Ursula(Character, VerifiableNode, Miner):
             # TODO: 340
             self._stored_treasure_maps = {}
             if not federated_only:
-                self.substantiate_stamp()
+                # if passphrase is None:
+                #     raise self.ActorError("No passphrase supplied to unlock account")
+                self.substantiate_stamp(passphrase=passphrase)
 
         if not crypto_power or (TLSHostingPower not in crypto_power._power_ups):
             # TODO: Maybe we want _power_ups to be public after all?
@@ -482,12 +482,10 @@ class Ursula(Character, VerifiableNode, Miner):
                 self.datastore = rest_routes.datastore  # TODO: Maybe organize this better?
 
                 tls_hosting_keypair = HostingKeypair(
-                    common_name=self.checksum_public_address,
                     private_key=tls_private_key,
                     curve=tls_curve,
                     host=rest_host,
-                    certificate=certificate,
-                    certificate_dir=self.known_certificates_dir)
+                    certificate=certificate)
 
                 tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                     keypair=tls_hosting_keypair)
@@ -498,19 +496,15 @@ class Ursula(Character, VerifiableNode, Miner):
                     rest_host=rest_host,
                     rest_port=rest_port
                 )
-                if certificate or certificate_filepath:
+                if certificate or certificate_filepath:  # existing certificate
                     tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                         certificate_filepath=certificate_filepath,
-                                                        certificate=certificate,
-                                                        certificate_dir=self.known_certificates_dir,
-                                                        common_name=self.checksum_public_address,)
+                                                        certificate=certificate)
                 else:
                     tls_hosting_keypair = HostingKeypair(
-                        common_name=self.checksum_public_address,
                         curve=tls_curve,
                         host=rest_host,
-                        certificate_filepath=certificate_filepath,
-                        certificate_dir=self.known_certificates_dir)
+                        certificate_filepath=certificate_filepath)
 
                     tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                         keypair=tls_hosting_keypair)
@@ -583,7 +577,7 @@ class Ursula(Character, VerifiableNode, Miner):
                       port: int,
                       federated_only: bool = False) -> 'Ursula':
 
-        response = network_middleware.node_information(host, port)
+        response = network_middleware.node_information(host, port)  # TODO
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 
@@ -658,11 +652,11 @@ class Ursula(Character, VerifiableNode, Miner):
         return stranger_ursulas
 
     @classmethod
-    def from_metadata_file(cls, filepath: str, federated_only: bool) -> 'Ursula':
+    def from_metadata_file(cls, filepath: str, federated_only: bool, *args, **kwargs) -> 'Ursula':
         with open(filepath, "r") as seed_file:
             seed_file.seek(0)
             node_bytes = binascii.unhexlify(seed_file.read())
-            node = Ursula.from_bytes(node_bytes, federated_only=federated_only)
+            node = Ursula.from_bytes(node_bytes, federated_only=federated_only, *args, **kwargs)
             return node
 
     #
@@ -699,74 +693,3 @@ class Ursula(Character, VerifiableNode, Miner):
                 if work_order.bob == bob:
                     work_orders_from_bob.append(work_order)
             return work_orders_from_bob
-
-    @only_me
-    def stake(self,
-              sample_rate: int = 10,
-              refresh_rate: int = 60,
-              confirm_now=True,
-              resume: bool = False,
-              expiration: maya.MayaDT = None,
-              lock_periods: int = None,
-              *args, **kwargs) -> None:
-
-        """High-level staking daemon loop"""
-
-        if lock_periods and expiration:
-            raise ValueError("Pass the number of lock periods or an expiration MayaDT; not both.")
-        if expiration:
-            lock_periods = datetime_to_period(expiration)
-
-        if resume is False:
-            _staking_receipts = super().initialize_stake(expiration=expiration,
-                                                         lock_periods=lock_periods,
-                                                         *args, **kwargs)
-
-        # TODO: Check if this period has already been confirmed
-        # TODO: Check if there is an active stake in the current period: Resume staking daemon
-        # TODO: Validation and Sanity checks
-
-        if confirm_now:
-            self.confirm_activity()
-
-        # record start time and periods
-        start_time = maya.now()
-        uptime_period = self.miner_agent.get_current_period()
-        terminal_period = uptime_period + lock_periods
-        current_period = uptime_period
-
-        #
-        # Daemon
-        #
-
-        try:
-            while True:
-
-                # calculate timedeltas
-                now = maya.now()
-                initialization_delta = now - start_time
-
-                # check if iteration re-samples
-                sample_stale = initialization_delta.seconds > (refresh_rate - 1)
-                if sample_stale:
-
-                    period = self.miner_agent.get_current_period()
-                    # check for stale sample data
-                    if current_period != period:
-
-                        # check for stake expiration
-                        stake_expired = current_period >= terminal_period
-                        if stake_expired:
-                            break
-
-                        self.confirm_activity()
-                        current_period = period
-                # wait before resampling
-                time.sleep(sample_rate)
-                continue
-
-        finally:
-
-            # TODO: Cleanup #
-
-            pass

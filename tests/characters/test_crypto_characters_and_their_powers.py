@@ -114,7 +114,7 @@ def test_character_blockchain_power(testerchain):
         power.sign_message(b'test')
 
     # Test lockAccount call
-    del (power)
+    del power
 
 
 """

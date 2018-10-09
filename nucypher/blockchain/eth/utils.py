@@ -6,11 +6,6 @@ from nucypher.blockchain.eth.constants import (MIN_ALLOWED_LOCKED,
                                                MAX_MINTING_PERIODS,
                                                SECONDS_PER_PERIOD)
 
-
-class PolicyConfigError(ValueError):
-    pass
-
-
 def __validate(rulebook) -> bool:
     for rule, failure_message in rulebook:
         if not rule:

@@ -1,8 +1,10 @@
 import os
+from logging import getLogger
 
 import OpenSSL
 import maya
 from constant_sorrow import constants
+from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 
@@ -28,6 +30,8 @@ class VerifiableNode:
                  timestamp=constants.NOT_SIGNED,
                  ) -> None:
 
+        self.log = getLogger(self.__class__.__name__)
+
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
         self._interface_signature_object = interface_signature
@@ -44,7 +48,7 @@ class VerifiableNode:
         """
 
     @classmethod
-    def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs):
+    def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs) -> 'VerifiableNode':
         certificate_filepath = tls_hosting_power.keypair.certificate_filepath
         certificate = tls_hosting_power.keypair.certificate
         return cls(certificate=certificate, certificate_filepath=certificate_filepath, *args, **kwargs)
@@ -103,7 +107,12 @@ class VerifiableNode:
                 if not accept_federated_only:
                     raise
 
-    def verify_node(self, network_middleware, accept_federated_only=False, force=False):
+    def verify_node(self,
+                    network_middleware,
+                    certificate_filepath: str = None,
+                    accept_federated_only: bool = False,
+                    force: bool = False
+                    ) -> bool:
         """
         Three things happening here:
 
@@ -119,10 +128,13 @@ class VerifiableNode:
 
         # The node's metadata is valid; let's be sure the interface is in order.
         response = network_middleware.node_information(host=self.rest_information()[0].host,
-                                                       port=self.rest_information()[0].port)
+                                                       port=self.rest_information()[0].port,
+                                                       certificate_filepath=certificate_filepath)
         if not response.status_code == 200:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
-        timestamp, signature, identity_evidence, verifying_key, encrypting_key, public_address, certificate_vbytes, rest_info = self._internal_splitter(response.content)
+        timestamp, signature, identity_evidence,  \
+            verifying_key, encrypting_key,        \
+            public_address, certificate_vbytes, rest_info = self._internal_splitter(response.content)
 
         verifying_keys_match = verifying_key == self.public_keys(SigningPower)
         encrypting_keys_match = encrypting_key == self.public_keys(EncryptingPower)
@@ -139,9 +151,9 @@ class VerifiableNode:
         else:
             self._verified_node = True
 
-    def substantiate_stamp(self):
+    def substantiate_stamp(self, passphrase: str):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
-        blockchain_power.unlock_account(password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)  # TODO: 349
+        blockchain_power.unlock_account(password=passphrase)  # TODO: 349
         signature = blockchain_power.sign_message(bytes(self.stamp))
         self._evidence_of_decentralized_identity = signature
 
@@ -160,7 +172,7 @@ class VerifiableNode:
             try:
                 self._sign_and_date_interface_info()
             except NoSigningPower:
-                raise NoSigningPower("This Node is a Stranger; you didn't init with an interface signature, so you can't verify.")
+                raise NoSigningPower("This Ursula is a stranger and cannot be used to verify.")
         return self._interface_signature_object
 
     @property
@@ -185,7 +197,10 @@ class VerifiableNode:
 
     @property
     def certificate_filename(self):
-        return self.common_name + '.pem'  # TODO: use cert encoding..?
+        return '{}.{}'.format(self.common_name, Encoding.PEM.name.lower())  # TODO: use cert's encoding..?
+
+    def get_certificate_filepath(self, certificates_dir: str) -> str:
+        return os.path.join(certificates_dir, self.certificate_filename)
 
     def save_certificate_to_disk(self, directory):
         x509 = OpenSSL.crypto.X509.from_cryptography(self.certificate)
@@ -193,10 +208,14 @@ class VerifiableNode:
         common_name_as_bytes = subject_components[0][1]
         common_name_from_cert = common_name_as_bytes.decode()
 
-        if not self.checksum_public_address == common_name_from_cert:
+        if not self.rest_information()[0].host == common_name_from_cert:
             # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
-            raise ValueError("You passed a common_name that is not the same one as the cert.  Why?  FWIW, You don't even need to pass a common name here; the cert will be saved according to the name on the cert itself.")
+            raise ValueError("You passed a __common_name that is not the same one as the cert. "
+                             "Common name is optional; the cert will be saved according to "
+                             "the name on the cert itself.")
 
-        certificate_filepath = os.path.join(directory, self.certificate_filename)
+        certificate_filepath = self.get_certificate_filepath(certificates_dir=directory)
         _save_tls_certificate(self.certificate, full_filepath=certificate_filepath)
         self.certificate_filepath = certificate_filepath
+        self.log.info("Saved new TLS certificate {}".format(certificate_filepath))
+        return self.certificate_filepath

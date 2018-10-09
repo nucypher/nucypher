@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from hendrix.experience import crosstown_traffic
 from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
@@ -7,6 +9,7 @@ from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
+from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
@@ -122,12 +125,11 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     ursulas = list(blockchain_ursulas)
     ursula_whom_vladimir_will_imitate, other_ursula = ursulas[0], ursulas[1]
 
-    # This Ursula is totally legit...
-    ursula_whom_vladimir_will_imitate.verify_node(MockRestMiddleware(),
-                                                  accept_federated_only=True)
-
-    # ...until Vladimir sees her on the network and tries to use her public information.
+    # Vladimir sees Ursula on the network and tries to use her public information.
     vladimir = Vladimir.from_target_ursula(ursula_whom_vladimir_will_imitate)
+
+    # This Ursula is totally legit...
+    ursula_whom_vladimir_will_imitate.verify_node(MockRestMiddleware(), accept_federated_only=True)
 
     learning_callers = []
     crosstown_traffic.decorator = crosstownTaskListDecoratorFactory(learning_callers)
@@ -167,7 +169,7 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
 
-    vladimir.substantiate_stamp()
+    vladimir.substantiate_stamp(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
     vladimir._interface_signature_object = signature
 
     class FakeArrangement:

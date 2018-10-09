@@ -1,4 +1,5 @@
 import os
+from ipaddress import IPv4Address
 from random import SystemRandom
 
 import datetime
@@ -116,9 +117,12 @@ def ecdsa_verify(message: bytes,
 
 def _save_tls_certificate(certificate: Certificate,
                           full_filepath: str,
+                          # save_private: bool = False,
                           force: bool = True,  # TODO: Make configurable, or set to False by default.
                           ) -> str:
-    if force is False and os.path.isfile(full_filepath):
+
+    cert_already_exists = os.path.isfile(full_filepath)
+    if force is False and cert_already_exists:
         raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath))
 
     with open(full_filepath, 'wb') as certificate_file:
@@ -139,9 +143,8 @@ def load_tls_certificate(filepath: str) -> Certificate:
         raise  # TODO: Better error message here
 
 
-def generate_self_signed_certificate(common_name: str,
+def generate_self_signed_certificate(host: str,
                                      curve: EllipticCurve,
-                                     host: str,
                                      private_key: _EllipticCurvePrivateKey = None,
                                      days_valid: int = 365
                                      ) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
@@ -153,7 +156,7 @@ def generate_self_signed_certificate(common_name: str,
 
     now = datetime.datetime.utcnow()
     subject = issuer = x509.Name([
-             x509.NameAttribute(NameOID.COMMON_NAME, common_name),
+             x509.NameAttribute(NameOID.COMMON_NAME, host),
         ])
     cert = x509.CertificateBuilder().subject_name(subject)
     cert = cert.issuer_name(issuer)
@@ -162,7 +165,7 @@ def generate_self_signed_certificate(common_name: str,
     cert = cert.not_valid_before(now)
     cert = cert.not_valid_after(now + datetime.timedelta(days=days_valid))
     # TODO: What are we going to do about domain name here? 179
-    cert = cert.add_extension(x509.SubjectAlternativeName([x509.DNSName(host)]), critical=False)
+    cert = cert.add_extension(x509.SubjectAlternativeName([x509.IPAddress(IPv4Address(host))]), critical=False)
     cert = cert.sign(private_key, hashes.SHA512(), default_backend())
 
     return cert, private_key

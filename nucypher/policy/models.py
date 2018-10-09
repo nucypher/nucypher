@@ -1,4 +1,5 @@
 import binascii
+import os
 from abc import abstractmethod
 from collections import OrderedDict
 
@@ -235,9 +236,11 @@ class Policy:
                 return self.publish(network_middleware)
 
     def consider_arrangement(self, network_middleware, ursula, arrangement):
-
+        certificate_filepath = ursula.get_certificate_filepath(certificates_dir=self.alice.known_certificates_dir)
         try:
-            ursula.verify_node(network_middleware, accept_federated_only=arrangement.federated)
+            ursula.verify_node(network_middleware,
+                               accept_federated_only=arrangement.federated,
+                               certificate_filepath=certificate_filepath)
         except ursula.InvalidNode:
             # TODO: What do we actually do here?  Report this at least (355)?
             # Maybe also have another bucket for invalid nodes?

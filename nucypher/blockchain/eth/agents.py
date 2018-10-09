@@ -1,5 +1,6 @@
 import random
 from abc import ABC
+from logging import getLogger
 
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
 from typing import Generator, List, Tuple, Union
@@ -31,15 +32,14 @@ class EthereumContractAgent(ABC):
 
     def __init__(self,
                  blockchain: Blockchain = None,
-                 registry_filepath: str = None,
                  contract: Contract = None
                  ) -> None:
 
-        self.blockchain = blockchain or Blockchain.connect()
+        self.log = getLogger('agency')
 
-        if registry_filepath is not None:
-            # TODO: Warn on override/ do this elsewhere?
-            self.blockchain.interface._registry._swap_registry(filepath=registry_filepath)
+        if blockchain is None:
+            blockchain = Blockchain.connect()
+        self.blockchain = blockchain
 
         if contract is None:
             # Fetch the contract by reading address and abi from the registry and blockchain
@@ -47,6 +47,10 @@ class EthereumContractAgent(ABC):
                                                                       upgradeable=self._upgradeable)
         self.__contract = contract
         super().__init__()
+        self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
+                                                                        self.contract_address,
+                                                                        self.blockchain.interface.provider_uri,
+                                                                        self.blockchain.interface.registry.filepath))
 
     def __repr__(self):
         class_name = self.__class__.__name__
@@ -82,7 +86,18 @@ class NucypherTokenAgent(EthereumContractAgent):
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
 
-        txhash = self.contract.functions.approve(target_address, amount).transact({'from': sender_address})
+        txhash = self.contract.functions.approve(target_address, amount)\
+            .transact({'from': sender_address})#, 'gas': 40000})  # TODO: needed for use with geth.
+
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def transfer(self, amount: int, target_address: str, sender_address: str):
+        """
+        function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
+        """
+        self.approve_transfer(amount=amount, target_address=target_address, sender_address=sender_address)
+        txhash = self.contract.functions.transfer(target_address, amount).transact({'from': sender_address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
@@ -103,8 +118,13 @@ class MinerAgent(EthereumContractAgent):
     class NotEnoughMiners(Exception):
         pass
 
-    def __init__(self, token_agent: NucypherTokenAgent, *args, **kwargs) -> None:
-        super().__init__(blockchain=token_agent.blockchain, *args, **kwargs)
+    def __init__(self,
+                 token_agent: NucypherTokenAgent,
+                 *args, **kwargs
+                 ) -> None:
+        super().__init__(blockchain=token_agent.blockchain,
+                         *args, **kwargs)
+
         self.token_agent = token_agent
 
     #
@@ -139,8 +159,8 @@ class MinerAgent(EthereumContractAgent):
 
     def deposit_tokens(self, amount: int, lock_periods: int, sender_address: str) -> str:
         """Send tokes to the escrow from the miner's address"""
-
-        deposit_txhash = self.contract.functions.deposit(amount, lock_periods).transact({'from': sender_address, 'gas': 2000000})  # TODO: what..?
+        deposit_txhash = self.contract.functions.deposit(amount, lock_periods)\
+            .transact({'from': sender_address, 'gas': 2000000})  # TODO: Causes tx to fail without high amount of gas
         self.blockchain.wait_for_receipt(deposit_txhash)
         return deposit_txhash
 
@@ -235,8 +255,13 @@ class PolicyAgent(EthereumContractAgent):
     _upgradeable = True
     __instance = NO_CONTRACT_AVAILABLE
 
-    def __init__(self, miner_agent: MinerAgent, *args, **kwargs) -> None:
-        super().__init__(blockchain=miner_agent.blockchain, *args, **kwargs)
+    def __init__(self,
+                 miner_agent: MinerAgent,
+                 *args, **kwargs) -> None:
+
+        super().__init__(blockchain=miner_agent.blockchain,
+                         *args, **kwargs)
+
         self.miner_agent = miner_agent
         self.token_agent = miner_agent.token_agent
 

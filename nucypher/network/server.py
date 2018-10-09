@@ -1,4 +1,5 @@
 import binascii
+import os
 from logging import getLogger
 
 from apistar import Route, App
@@ -139,10 +140,14 @@ class ProxyRESTRoutes:
             if node.checksum_public_address in self._node_tracker:
                 continue  # TODO: 168 Check version and update if required.
 
+            certificate_filepath = node.get_certificate_filepath(certificates_dir=self._certificate_dir)
+
             @crosstown_traffic()
             def learn_about_announced_nodes():
                 try:
-                    node.verify_node(self.network_middleware, accept_federated_only=self.federated_only)  # TODO: 466
+                    node.verify_node(self.network_middleware,
+                                     accept_federated_only=self.federated_only,  # TODO: 466
+                                     certificate_filepath=certificate_filepath)
                 except node.SuspiciousActivity:
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
@@ -286,20 +291,16 @@ class TLSHostingPower(KeyPairBasedPower):
 
     def __init__(self,
                  rest_server,
-                 certificate_filepath=None,
                  certificate=None,
-                 certificate_dir=None,
-                 common_name=None,  # TODO: Is this actually optional?
+                 certificate_filepath=None,
                  *args, **kwargs) -> None:
 
         if certificate and certificate_filepath:
             # TODO: Design decision here: if they do pass both, and they're identical, do we let that slide?
-            raise ValueError("Pass either a certificate or a certificate_filepath - what do you even expect from passing both?")
+            raise ValueError("Pass either a certificate or a certificate_filepath, not both.")
 
         if certificate:
-            kwargs['keypair'] = HostingKeypair(certificate=certificate,
-                                               certificate_dir=certificate_dir,
-                                               common_name=common_name)
+            kwargs['keypair'] = HostingKeypair(certificate=certificate, host=rest_server.rest_interface.host)
         elif certificate_filepath:
             kwargs['keypair'] = HostingKeypair(certificate_filepath=certificate_filepath)
         self.rest_server = rest_server

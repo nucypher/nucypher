@@ -2,7 +2,7 @@ import random
 
 from eth_utils import to_checksum_address
 from twisted.internet import protocol
-from typing import Set
+from typing import Set, Union
 
 from nucypher.blockchain.eth import constants
 from nucypher.characters.lawful import Ursula
@@ -10,7 +10,7 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.api import secure_random
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEST_URSULA_STARTING_PORT,
-                                                  TEST_KNOWN_URSULAS_CACHE)
+                                                  TEST_KNOWN_URSULAS_CACHE, TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
 
 
 def make_federated_ursulas(ursula_config: UrsulaConfiguration,
@@ -48,11 +48,12 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
 
 
 def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
-                               ether_addresses: list,
+                               ether_addresses: Union[list, int],
                                stake: bool = False,
                                know_each_other: bool = True,
                                **ursula_overrides) -> Set[Ursula]:
 
+    # Alternately accepts an int of the quantity of ursulas to make
     if isinstance(ether_addresses, int):
         ether_addresses = [to_checksum_address(secure_random(20)) for _ in range(ether_addresses)]
 
@@ -121,28 +122,30 @@ def spawn_random_staking_ursulas(miner_agent, addresses: list) -> list:
 
 class UrsulaProcessProtocol(protocol.ProcessProtocol):
 
-    def __init__(self, command):
+    def __init__(self, command, checksum_address):
         self.command = command
+        self.checksum_address = checksum_address
 
     def connectionMade(self):
-        print("connectionMade!")
-        self.transport.closeStdin()  # tell them we're done
+        print("Started simulated Ursula {}".format(self.checksum_address))
 
     def outReceived(self, data):
         print(data)
+        if b'passphrase' in data:
+            self.transport.write(bytes(TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD, encoding='ascii'))
+            self.transport.closeStdin()  # tell them we're done
 
     def errReceived(self, data):
         print(data)
 
     def inConnectionLost(self):
-        print("inConnectionLost! stdin is closed! (we probably did it)")
+        print("Lost connection to simulated Ursula {}".format(self.checksum_address))
 
     def outConnectionLost(self):
-        print("outConnectionLost! The child closed their stdout!")
+        print("Lost connection to simulated Ursula {}".format(self.checksum_address))
 
     def errConnectionLost(self):
-        print("errConnectionLost! The child closed their stderr.")
+        print("Simulated Ursula {} raised an Exception".format(self.checksum_address))
 
     def processEnded(self, status_object):
-        print("processEnded, status %d" % status_object.value.exitCode)
-        print("quitting")
+        print("Ursula {} stopped".format(self.checksum_address))

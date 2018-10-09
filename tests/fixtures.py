@@ -23,7 +23,7 @@ from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
 
@@ -54,7 +54,8 @@ def temp_config_root(temp_dir_path):
     """
     default_node_config = NodeConfiguration(temp=True,
                                             auto_initialize=False,
-                                            config_root=temp_dir_path)
+                                            config_root=temp_dir_path,
+                                            no_seed_registry=True)
     yield default_node_config.config_root
     default_node_config.cleanup()
 
@@ -80,7 +81,8 @@ def ursula_federated_test_config():
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
                                         federated_only=True,
-                                        network_middleware=MockRestMiddleware())
+                                        network_middleware=MockRestMiddleware(),
+                                        no_seed_registry=True)
     yield ursula_config
     ursula_config.cleanup()
 
@@ -96,7 +98,8 @@ def ursula_decentralized_test_config(three_agents):
                                         abort_on_learning_error=True,
                                         miner_agent=miner_agent,
                                         federated_only=False,
-                                        network_middleware=MockRestMiddleware())
+                                        network_middleware=MockRestMiddleware(),
+                                        no_seed_registry=True)
     yield ursula_config
     ursula_config.cleanup()
 
@@ -109,7 +112,8 @@ def alice_federated_test_config(federated_ursulas):
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=federated_ursulas,
                                 federated_only=True,
-                                abort_on_learning_error=True)
+                                abort_on_learning_error=True,
+                                no_seed_registry=True)
     yield config
     config.cleanup()
 
@@ -126,7 +130,8 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
                                 policy_agent=policy_agent,
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
-                                checksum_address=alice_address)
+                                checksum_address=alice_address,
+                                no_seed_registry=True)
     yield config
     config.cleanup()
 
@@ -138,7 +143,8 @@ def bob_federated_test_config():
                               network_middleware=MockRestMiddleware(),
                               start_learning_now=False,
                               abort_on_learning_error=True,
-                              federated_only=True)
+                              federated_only=True,
+                              no_seed_registry=True)
     yield config
     config.cleanup()
 
@@ -155,7 +161,8 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
                               known_nodes=blockchain_ursulas,
                               start_learning_now=False,
                               abort_on_learning_error=True,
-                              federated_only=False)
+                              federated_only=False,
+                              no_seed_registry=True)
     yield config
     config.cleanup()
 
@@ -299,14 +306,13 @@ def testerchain(solidity_compiler):
     """
     https: // github.com / ethereum / eth - tester     # available-backends
     """
-
-    temp_registrar = TemporaryEthereumContractRegistry()
+    _temp_registry = TemporaryEthereumContractRegistry()
 
     # Use the the custom provider and registrar to init an interface
 
     deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
-                                                     registry=temp_registrar,
-                                                     provider_uri='pyevm://tester')
+                                                     registry=_temp_registry,
+                                                     provider_uri='tester://pyevm')
 
     # Create the blockchain
     testerchain = TesterBlockchain(interface=deployer_interface,
@@ -315,6 +321,7 @@ def testerchain(solidity_compiler):
 
     origin, *everyone = testerchain.interface.w3.eth.accounts
     deployer_interface.deployer_address = origin  # Set the deployer address from a freshly created test account
+    testerchain.ether_airdrop(amount=1000000000)  # TODO: Use test constant
 
     yield testerchain
     testerchain.sever_connection()
@@ -335,7 +342,7 @@ def three_agents(testerchain):
     token_deployer.arm()
     token_deployer.deploy()
 
-    token_agent = token_deployer.make_agent()
+    token_agent = token_deployer.make_agent()              # 1
 
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
@@ -345,7 +352,7 @@ def three_agents(testerchain):
     miner_escrow_deployer.arm()
     miner_escrow_deployer.deploy()
 
-    miner_agent = miner_escrow_deployer.make_agent()
+    miner_agent = miner_escrow_deployer.make_agent()       # 2
 
     policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
@@ -355,6 +362,6 @@ def three_agents(testerchain):
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
 
-    policy_agent = policy_manager_deployer.make_agent()
+    policy_agent = policy_manager_deployer.make_agent()    # 3
 
     return token_agent, miner_agent, policy_agent

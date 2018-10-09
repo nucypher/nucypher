@@ -49,9 +49,9 @@ class RestMiddleware:
         endpoint = 'https://{}/kFrag/{}/reencrypt'.format(work_order.ursula.rest_interface, id_as_hex)
         return requests.post(endpoint, payload, verify=work_order.ursula.certificate_filepath)
 
-    def node_information(self, host, port, certificate_filepath=None):
+    def node_information(self, host, port, certificate_filepath):
         endpoint = "https://{}:{}/public_information".format(host, port)
-        return requests.get(endpoint, verify=False)
+        return requests.get(endpoint, verify=certificate_filepath)
 
     def get_nodes_via_rest(self,
                            url,

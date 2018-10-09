@@ -4,20 +4,21 @@ import os
 from typing import Union, Tuple
 
 from nucypher.config.constants import DEFAULT_CONFIG_FILE_LOCATION
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 
 
-def validate_passphrase(passphrase) -> bool:
-    """Validate a passphrase and return True or raise an error with a failure reason"""
+def generate_local_wallet(keyring_root:str, passphrase: str) -> NucypherKeyring:
+    keyring = NucypherKeyring.generate(passphrase=passphrase,
+                                       keyring_root=keyring_root,
+                                       encrypting=False,
+                                       wallet=True)
+    return keyring
 
-    rules = (
-        (len(passphrase) >= 16, 'Passphrase is too short, must be >= 16 chars.'),
-    )
 
-    for rule, failure_message in rules:
-        if not rule:
-            raise NodeConfiguration.ConfigurationError(failure_message)
-    return True
+def generate_account(w3, passphrase: str) -> NucypherKeyring:
+    address = w3.personal.newAccount(passphrase)
+    return address
 
 
 def check_config_permissions() -> bool:
@@ -52,7 +53,7 @@ def validate_configuration_file(config=None,
     except KeyError:
         raise NodeConfiguration.ConfigurationError("No operating mode configured")
     else:
-        modes = ('federated', 'testing', 'decentralized', 'centralized')
+        modes = ('federated', 'tester', 'decentralized', 'centralized')
         if operating_mode not in modes:
             missing_sections.append("mode")
             if raise_on_failure is True:

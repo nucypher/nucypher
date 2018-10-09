@@ -1,4 +1,3 @@
-import maya
 from eth_tester.exceptions import ValidationError
 
 from nucypher.characters.lawful import Ursula
@@ -17,23 +16,32 @@ class Vladimir(Ursula):
     fraud_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
 
     @classmethod
-    def from_target_ursula(cls, target_ursula, claim_signing_key=False):
+    def from_target_ursula(cls,
+                           target_ursula: Ursula,
+                           claim_signing_key: bool = False,
+                           attach_transacting_key: bool = True
+                           ) -> 'Vladimir':
         """
         Sometimes Vladimir seeks to attack or imitate a *specific* target Ursula.
 
         TODO: This is probably a more instructive method if it takes a bytes representation instead of the entire Ursula.
         """
-        crypto_power = CryptoPower(power_ups=Ursula._default_crypto_powerups)
+        crypto_power = CryptoPower(power_ups=target_ursula._default_crypto_powerups)
 
         if claim_signing_key:
             crypto_power.consume_power_up(SigningPower(pubkey=target_ursula.stamp.as_umbral_pubkey()))
 
-        vladimir = cls(crypto_power=crypto_power,
+        if attach_transacting_key:
+            cls.attach_transacting_key(blockchain=target_ursula.blockchain)
+
+        vladimir = cls(is_me=True,
+                       crypto_power=crypto_power,
                        rest_host=target_ursula.rest_information()[0].host,
                        rest_port=target_ursula.rest_information()[0].port,
-                       checksum_address=cls.fraud_address,
                        certificate=target_ursula.rest_server_certificate(),
-                       is_me=False)
+                       network_middleware=cls.network_middleware,
+                       checksum_address = cls.fraud_address,
+                       miner_agent=target_ursula.miner_agent)
 
         # Asshole.
         vladimir._interface_signature_object = target_ursula._interface_signature_object
