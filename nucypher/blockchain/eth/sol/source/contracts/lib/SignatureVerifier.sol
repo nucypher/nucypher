@@ -7,6 +7,8 @@ pragma solidity ^0.4.25;
 **/
 library SignatureVerifier {
 
+    enum HashAlgorithm {KECCAK256, SHA256, RIPEMD160}
+
     /**
     * @notice Recover signer address from hash and signature
     * @param _hash 32 bytes message hash
@@ -34,6 +36,38 @@ library SignatureVerifier {
         }
         require(v == 27 || v == 28);
         return ecrecover(_hash, v, r, s);
+    }
+
+    /**
+    * @notice Transform public key to address
+    * @param _publicKey secp256k1 public key
+    **/
+    function toAddress(bytes _publicKey) internal pure returns (address) {
+        return address(keccak256(_publicKey));
+    }
+
+    /**
+    * @notice Verify ECDSA signature
+    * @dev Uses one of pre built hashing algorithm
+    * @param _message Signed message
+    * @param _signature Signature of message hash
+    * @param _publicKey secp256k1 public key
+    * @param _algorithm Hashing algorithm
+    **/
+    function verify(bytes _message, bytes _signature, bytes _publicKey, HashAlgorithm _algorithm)
+        internal
+        pure
+        returns (bool)
+    {
+        bytes32 hash;
+        if (_algorithm == HashAlgorithm.KECCAK256) {
+            hash = keccak256(_message);
+        } else if (_algorithm == HashAlgorithm.SHA256) {
+            hash = sha256(_message);
+        } else {
+            hash = ripemd160(_message);
+        }
+        return toAddress(_publicKey) == recover(hash, _signature);
     }
 
 }
