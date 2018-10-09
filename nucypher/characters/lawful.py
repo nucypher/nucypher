@@ -2,7 +2,7 @@ import binascii
 import random
 from collections import OrderedDict
 from functools import partial
-from typing import Iterable
+from typing import Iterable, Callable
 from typing import List
 
 import maya
@@ -20,6 +20,7 @@ from umbral.signing import Signature
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
+from nucypher.config.storages import NodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower
@@ -397,7 +398,7 @@ class Ursula(Character, VerifiableNode, Miner):
                  rest_port: int,
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
-                 tls_private_key = None,           # TODO: Derivie from keyring
+                 tls_private_key = None,           # TODO: Derive from keyring
 
                  db_name: str = None,
                  db_filepath: str = None,
@@ -682,12 +683,11 @@ class Ursula(Character, VerifiableNode, Miner):
         return stranger_ursulas
 
     @classmethod
-    def from_metadata_file(cls, filepath: str, federated_only: bool, *args, **kwargs) -> 'Ursula':
-        with open(filepath, "r") as seed_file:
-            seed_file.seek(0)
-            node_bytes = binascii.unhexlify(seed_file.read())
-            node = Ursula.from_bytes(node_bytes, federated_only=federated_only, *args, **kwargs)
-            return node
+    def from_storage(cls,
+                     node_storage: NodeStorage,
+                     checksum_adress: str,
+                     federated_only: bool = False, *args, **kwargs) -> 'Ursula':
+        return node_storage.get(checksum_address=checksum_adress)
 
     #
     # Properties
