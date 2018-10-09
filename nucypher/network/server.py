@@ -156,7 +156,7 @@ class ProxyRESTRoutes:
                     self._suspicious_activity_tracker['vladimirs'].append(node)  # TODO: Maybe also record the bytes representation separately to disk?
                 except Exception as e:
                     self.log.critical(str(e))
-                    raise
+                    raise  # TODO
                 else:
                     self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
                     self._node_recorder(node)
