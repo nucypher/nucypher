@@ -21,6 +21,14 @@ contract SignatureVerifierMock {
         return SignatureVerifier.toAddress(_publicKey);
     }
 
+    function hash(bytes _message, SignatureVerifier.HashAlgorithm _algorithm)
+        public
+        pure
+        returns (bytes32 result)
+    {
+        return SignatureVerifier.hash(_message, _algorithm);
+    }
+
     function verify(bytes _message, bytes _signature, bytes _publicKey, SignatureVerifier.HashAlgorithm _algorithm)
         public
         pure
