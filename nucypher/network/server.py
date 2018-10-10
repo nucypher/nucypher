@@ -9,6 +9,7 @@ from constant_sorrow import constants
 from hendrix.experience import crosstown_traffic
 from umbral import pre
 from umbral.fragments import KFrag
+from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
@@ -217,16 +218,21 @@ class ProxyRESTRoutes:
         work_order = WorkOrder.from_rest_payload(id, request.body)
         self.log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
         with ThreadedSession(self.db_engine) as session:
-            kfrag_bytes = self.datastore.get_policy_arrangement(id.hex().encode(),
-                                                                session=session).k_frag  # Careful!  :-)
+            policy_arrangement = self.datastore.get_policy_arrangement(id.hex().encode(), session=session)
+
+        kfrag_bytes = policy_arrangement.k_frag  # Careful!  :-)
+        verifying_key_bytes = policy_arrangement.alice_pubkey_sig.key_data
+
         # TODO: Push this to a lower level.
         kfrag = KFrag.from_bytes(kfrag_bytes)
+        verifying_key = UmbralPublicKey.from_bytes(verifying_key_bytes)
         cfrag_byte_stream = b""
 
         for capsule in work_order.capsules:
             # TODO: Sign the result of this.  See #141.
+            capsule.set_correctness_keys(verifying=verifying_key)
             cfrag = pre.reencrypt(kfrag, capsule)
-            self.log.info("Re-encrypting for Capsule {}, made CFrag {}.".format(capsule, cfrag))
+            self.log.info("Re-encrypting for {}, made {}.".format(capsule, cfrag))
             cfrag_byte_stream += VariableLengthBytestring(cfrag)
 
         # TODO: Put this in Ursula's datastore
