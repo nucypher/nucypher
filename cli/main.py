@@ -83,6 +83,7 @@ root.addHandler(ch)
 
 fields = 'passphrase wallet signing tls skip_keys save_file'.split()
 PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetails', fields)
+KEYRING_PASSPHRASE_ENVVAR = 'NUCYPHER_KEYRING_PASSPHRASE'
 
 
 class NucypherClickConfig:
@@ -120,7 +121,7 @@ class NucypherClickConfig:
                                                      config_root=self.config_root,
                                                      auto_initialize=False)
         elif self.dev:
-            node_configuration = configuration_class(temp=self.dev, auto_initialize=False)
+            node_configuration = configuration_class(temp=self.dev, auto_initialize=False, federated_only=self.federated_only)
         elif self.config_file:
             click.echo("Using configuration file {}".format(self.config_file))
             node_configuration = configuration_class.from_configuration_file(filepath=self.config_file)
@@ -201,8 +202,8 @@ class NucypherClickConfig:
             if not any((generate_wallet, generate_tls_keys, generate_encrypting_keys)):
                 skip_all_key_generation = click.confirm("Skip all key generation (Provide custom configuration file)?")
         if not skip_all_key_generation:
-            if os.environ.get("NUCYPHER_KEYRING_PASSPHRASE"):
-                passphrase = os.environ.get("NUCYPHER_KEYRING_PASSPHRASE")
+            if os.environ.get(KEYRING_PASSPHRASE_ENVVAR):
+                passphrase = os.environ.get(KEYRING_PASSPHRASE_ENVVAR)
             else:
                 passphrase = click.prompt("Enter a passphrase to encrypt your keyring",
                                           hide_input=True, confirmation_prompt=True)
@@ -227,6 +228,11 @@ class NucypherClickConfig:
                 click.echo("Seed contract registry does not exist at path {}.  "
                            "Use --no-registry to skip.".format(registry_source))
                 raise click.Abort()
+
+        if self.config_root:  # Custom installation location
+            self.node_configuration.config_root = self.config_root
+        self.node_configuration.federated_only = self.federated_only
+
         try:
             pending_config = self._collect_pending_configuration_details(force=force, ursula=ursula)
             new_installation_path = self.node_configuration.write(passphrase=pending_config.passphrase,
@@ -370,9 +376,8 @@ def configure(config,
         is_valid = True      # Until there is a reason to believe otherwise...
         try:
             if filesystem:   # Check runtime directory
-                is_valid = NodeConfiguration.validate(config_root=config.node_configuration.config_root, no_registry=no_registry)
-            if config.config_file:
-                is_valid = validate_configuration_file(filepath=config.node_configuration.config_file_location)
+                is_valid = NodeConfiguration.validate(config_root=config.node_configuration.config_root,
+                                                      no_registry=no_registry)
         except NodeConfiguration.InvalidConfiguration:
             is_valid = False
         finally:

@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 import os
 import re
@@ -37,10 +38,11 @@ from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decen
 @pytest.fixture(scope="session", autouse=True)
 def cleanup():
     yield  # we've got a lot of men and women here...
-    for f in os.listdir(tempfile.tempdir):
-        if re.search(r'nucypher-*', f):
-            shutil.rmtree(os.path.join(tempfile.tempdir, f),
-                          ignore_errors=True)
+    with contextlib.suppress(FileNotFoundError):
+        for f in os.listdir(tempfile.tempdir):
+            if re.search(r'nucypher-*', f):
+                shutil.rmtree(os.path.join(tempfile.tempdir, f),
+                              ignore_errors=True)
 
 
 @pytest.fixture(scope="function")
