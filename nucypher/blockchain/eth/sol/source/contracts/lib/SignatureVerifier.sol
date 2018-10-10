@@ -47,6 +47,25 @@ library SignatureVerifier {
     }
 
     /**
+    * @notice Hash using one of pre built hashing algorithm
+    * @param _message Signed message
+    * @param _algorithm Hashing algorithm
+    **/
+    function hash(bytes _message, HashAlgorithm _algorithm)
+        internal
+        pure
+        returns (bytes32 result)
+    {
+        if (_algorithm == HashAlgorithm.KECCAK256) {
+            result = keccak256(_message);
+        } else if (_algorithm == HashAlgorithm.SHA256) {
+            result = sha256(_message);
+        } else {
+            result = ripemd160(_message);
+        }
+    }
+
+    /**
     * @notice Verify ECDSA signature
     * @dev Uses one of pre built hashing algorithm
     * @param _message Signed message
@@ -59,15 +78,7 @@ library SignatureVerifier {
         pure
         returns (bool)
     {
-        bytes32 hash;
-        if (_algorithm == HashAlgorithm.KECCAK256) {
-            hash = keccak256(_message);
-        } else if (_algorithm == HashAlgorithm.SHA256) {
-            hash = sha256(_message);
-        } else {
-            hash = ripemd160(_message);
-        }
-        return toAddress(_publicKey) == recover(hash, _signature);
+        return toAddress(_publicKey) == recover(hash(_message, _algorithm), _signature);
     }
 
 }
