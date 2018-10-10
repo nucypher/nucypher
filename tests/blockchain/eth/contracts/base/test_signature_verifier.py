@@ -92,6 +92,19 @@ def test_address(testerchain, signature_verifier):
 
 
 @pytest.mark.slow
+def test_hash(testerchain, signature_verifier):
+    message = os.urandom(100)
+
+    # Prepare message hash
+    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
+    hash_ctx.update(message)
+    message_hash = hash_ctx.finalize()
+
+    # Verify hash function
+    assert message_hash == signature_verifier.functions.hash(message, ALGORITHM_SHA256).call()
+
+
+@pytest.mark.slow
 def test_verify(testerchain, signature_verifier):
     message = os.urandom(100)
 
