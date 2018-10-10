@@ -18,6 +18,7 @@ from nucypher.network.middleware import RestMiddleware
 class NodeConfiguration:
 
     _name = 'node'
+    _Character = NotImplemented
 
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
     DEFAULT_OPERATING_MODE = 'decentralized'
@@ -100,9 +101,9 @@ class NodeConfiguration:
         else:
             self.config_root = config_root
             self.__temp_dir = constants.LIVE_CONFIGURATION
+            from nucypher.characters.lawful import Ursula  # TODO : Needs cleanup
             self.node_storage = node_storage or self.__DEFAULT_NODE_STORAGE(federated_only=federated_only,
-                                                                            serializer=self.NODE_SERIALIZER,
-                                                                            deserializer=self.NODE_DESERIALIZER)
+                                                                            character_class=Ursula)
             self.__cache_runtime_filepaths()
         self.config_file_location = config_file_location
 
