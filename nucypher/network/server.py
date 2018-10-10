@@ -41,6 +41,9 @@ class ProxyRESTServer:
 class ProxyRESTRoutes:
     log = getLogger("characters")
 
+    class InvalidSignature(Exception):
+        """Raised when a received signature is not valid."""
+
     def __init__(self,
                  db_name,
                  db_filepath,
@@ -193,7 +196,8 @@ class ProxyRESTRoutes:
         """
         policy_message_kit = UmbralMessageKit.from_bytes(request.body)
 
-        alice = self._alice_class.from_public_keys({SigningPower: policy_message_kit.sender_pubkey_sig})
+        alices_verifying_key = policy_message_kit.sender_pubkey_sig
+        alice = self._alice_class.from_public_keys({SigningPower: alices_verifying_key})
 
         try:
             cleartext = self._verifier(alice, policy_message_kit, decrypt=True)
@@ -202,6 +206,9 @@ class ProxyRESTRoutes:
             return Response(status_code=400)
 
         kfrag = KFrag.from_bytes(cleartext)
+
+        if not kfrag.verify(signing_pubkey=alices_verifying_key):
+            raise self.InvalidSignature("{} is invalid".format(kfrag))
 
         with ThreadedSession(self.db_engine) as session:
             self.datastore.attach_kfrag_to_saved_arrangement(
