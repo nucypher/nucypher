@@ -5,37 +5,45 @@ workflows:
   test:
     jobs:
       - bundle_dependencies-36
-      - mypy_type_check:
+      - eth_contract_unit:
           requires:
             - bundle_dependencies-36
-      - eth_contract_unit:
+      - config_unit:
           requires:
             - bundle_dependencies-36
       - crypto_unit:
           requires:
-              - bundle_dependencies-36
+            - bundle_dependencies-36
       - network_unit:
           requires:
-              - bundle_dependencies-36
+            - bundle_dependencies-36
       - keystore_unit:
           requires:
-              - bundle_dependencies-36
+            - bundle_dependencies-36
       - blockchain_interface_unit:
           requires:
-              - bundle_dependencies-36
+            - bundle_dependencies-36
       - character:
           requires:
-              - crypto_unit
-              - network_unit
-              - keystore_unit
+            - bundle_dependencies-36
       - intercontract_integration:
           requires:
             - eth_contract_unit
-      - nucypher_cli_tests:
+      - mypy_type_check:
           requires:
-              - crypto_unit
-              - network_unit
-              - keystore_unit
+            - config_unit
+            - crypto_unit
+            - network_unit
+            - keystore_unit
+            - character
+      - cli_tests:
+          requires:
+            - blockchain_interface_unit
+            - config_unit
+            - crypto_unit
+            - network_unit
+            - keystore_unit
+            - character
 
 python_36_base: &python_36_base
     working_directory: ~/nucypher-depends
@@ -50,7 +58,7 @@ jobs:
       - run:
           name: Install Python Dependencies with Pipenv
           command: |
-            pip3 install pip==18.0
+            pip3 install --user pip==18.0
             pipenv install --three --dev --skip-lock --verbose
       - run:
           name: Install Solidity Compiler
@@ -82,7 +90,19 @@ jobs:
       - run:
           name: Ethereum Contract Unit Tests
           command: |
-            pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/*/test_*.py | circleci tests split --split-by=timings)
+            pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/**/**/test_*.py | circleci tests split --split-by=timings)
+      - store_test_results:
+          path: ./reports/pytest/
+
+  config_unit:
+    <<: *python_36_base
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
+      - run:
+          name: Node Configuration Tests
+          command: pipenv run pytest --cov=nucypher/config -v --runslow tests/config --junitxml=./reports/pytest/results.xml
       - store_test_results:
           path: ./reports/pytest/
 
@@ -147,7 +167,7 @@ jobs:
       - store_test_results:
           path: ./reports/pytest/
 
-  nucypher_cli_tests:
+  cli_tests:
     <<: *python_36_base
     steps:
     - checkout
@@ -171,7 +191,7 @@ jobs:
           command: |
               pipenv run pip install lxml
       - run:
-          name: Run Mypy Static Type Checks
+          name: Run Mypy Static Type Checks (Always Succeed)
           command: |
               mkdir ./mypy_reports ./mypy_results
               export MYPYPATH=./nucypher
