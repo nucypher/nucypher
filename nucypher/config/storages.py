@@ -1,9 +1,14 @@
+import binascii
 import os
+import tempfile
 from abc import abstractmethod, ABC
 from logging import getLogger
 
 import boto3 as boto3
-from typing import Set, Callable
+import shutil
+from botocore.errorfactory import ClientError
+from constant_sorrow import constants
+from typing import Callable
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
@@ -12,23 +17,27 @@ class NodeStorage(ABC):
 
     _name = NotImplemented
     _TYPE_LABEL = 'storage_type'
+    NODE_SERIALIZER = binascii.hexlify
+    NODE_DESERIALIZER = binascii.unhexlify
 
     class NodeStorageError(Exception):
         pass
 
-    class NoNodeMetadataFound(NodeStorageError):
+    class UnknownNode(NodeStorageError):
         pass
 
     def __init__(self,
-                 serializer: Callable,
-                 deserializer: Callable,
-                 federated_only: bool,  # TODO
+                 character_class,
+                 federated_only: bool,  # TODO# 466
+                 serializer: Callable = NODE_SERIALIZER,
+                 deserializer: Callable = NODE_DESERIALIZER,
                  ) -> None:
 
         self.log = getLogger(self.__class__.__name__)
         self.serializer = serializer
         self.deserializer = deserializer
         self.federated_only = federated_only
+        self.character_class = character_class
 
     def __getitem__(self, item):
         return self.get(checksum_address=item, federated_only=self.federated_only)
@@ -84,7 +93,10 @@ class InMemoryNodeStorage(NodeStorage):
         return set(self.__known_nodes.values())
 
     def get(self, checksum_address: str, federated_only: bool):
-        return self.__known_nodes[checksum_address]
+        try:
+            return self.__known_nodes[checksum_address]
+        except KeyError:
+            raise self.UnknownNode
 
     def save(self, node):
         self.__known_nodes[node.checksum_public_address] = node
@@ -108,13 +120,13 @@ class InMemoryNodeStorage(NodeStorage):
         self.__known_nodes = dict()
 
 
-class FileBasedNodeStorage(NodeStorage):
+class LocalFileBasedNodeStorage(NodeStorage):
 
     _name = 'local'
     __FILENAME_TEMPLATE = '{}.node'
     __DEFAULT_DIR = os.path.join(DEFAULT_CONFIG_ROOT, 'known_nodes', 'metadata')
 
-    class NoNodeMetadataFound(FileNotFoundError, NodeStorage.NoNodeMetadataFound):
+    class NoNodeMetadataFileFound(FileNotFoundError, NodeStorage.UnknownNode):
         pass
 
     def __init__(self,
@@ -132,23 +144,27 @@ class FileBasedNodeStorage(NodeStorage):
 
     def __read(self, filepath: str, federated_only: bool):
         from nucypher.characters.lawful import Ursula
-        with open(filepath, "r") as seed_file:
-            seed_file.seek(0)
-            node_bytes = self.deserializer(seed_file.read())
-            node = Ursula.from_bytes(node_bytes, federated_only=federated_only)
+        try:
+            with open(filepath, "rb") as seed_file:
+                seed_file.seek(0)
+                node_bytes = self.deserializer(seed_file.read())
+                node = Ursula.from_bytes(node_bytes, federated_only=federated_only)
+        except FileNotFoundError:
+            raise self.UnknownNode
         return node
 
     def __write(self, filepath: str, node):
-        with open(filepath, "w") as f:
-            f.write(self.serializer(node).hex())
+        with open(filepath, "wb") as f:
+            f.write(self.serializer(self.character_class.__bytes__(node)))
         self.log.info("Wrote new node metadata to filesystem {}".format(filepath))
         return filepath
 
     def all(self, federated_only: bool) -> set:
-        metadata_paths = sorted(os.listdir(self.known_metadata_dir), key=os.path.getctime)
-        self.log.info("Found {} known node metadata files at {}".format(len(metadata_paths), self.known_metadata_dir))
+        filenames = os.listdir(self.known_metadata_dir)
+        self.log.info("Found {} known node metadata files at {}".format(len(filenames), self.known_metadata_dir))
         known_nodes = set()
-        for metadata_path in metadata_paths:
+        for filename in filenames:
+            metadata_path = os.path.join(self.known_metadata_dir, filename)
             node = self.__read(filepath=metadata_path, federated_only=federated_only)   # TODO: 466
             known_nodes.add(node)
         return known_nodes
@@ -178,7 +194,7 @@ class FileBasedNodeStorage(NodeStorage):
         return payload
 
     @classmethod
-    def from_payload(cls, payload: str, *args, **kwargs) -> 'FileBasedNodeStorage':
+    def from_payload(cls, payload: str, *args, **kwargs) -> 'LocalFileBasedNodeStorage':
         storage_type = payload[cls._TYPE_LABEL]
         if not storage_type == cls._name:
             raise cls.NodeStorageError("Wrong storage type. got {}".format(storage_type))
@@ -194,16 +210,42 @@ class FileBasedNodeStorage(NodeStorage):
             raise self.NodeStorageError("There is no existing configuration at {}".format(self.known_metadata_dir))
 
 
+class TemporaryFileBasedNodeStorage(LocalFileBasedNodeStorage):
+    _name = 'tmp'
+
+    def __init__(self, *args, **kwargs):
+        self.__temp_dir = constants.NO_STORAGE_AVAILIBLE
+        super().__init__(known_metadata_dir=self.__temp_dir, *args, **kwargs)
+
+    def __del__(self):
+        if not self.__temp_dir is constants.NO_STORAGE_AVAILIBLE:
+            shutil.rmtree(self.__temp_dir, ignore_errors=True)
+
+    def initialize(self):
+        self.__temp_dir = tempfile.mkdtemp(prefix="nucypher-tmp-nodes-")
+        self.known_metadata_dir = self.__temp_dir
+
+
 class S3NodeStorage(NodeStorage):
     def __init__(self,
                  bucket_name: str,
+                 s3_resource=None,
                  *args, **kwargs) -> None:
 
         super().__init__(*args, **kwargs)
         self.__bucket_name = bucket_name
         self.__s3client = boto3.client('s3')
-        self.__s3resource = boto3.resource('s3')
-        self.bucket = self.__s3resource.Bucket(bucket_name)
+        self.__s3resource = s3_resource or boto3.resource('s3')
+        self.bucket = constants.NO_STORAGE_AVAILIBLE
+
+    def __read(self, node_obj: str):
+        try:
+            node_object_metadata = node_obj.get()
+        except ClientError:
+            raise self.UnknownNode
+        node_bytes = self.deserializer(node_object_metadata['Body'].read())
+        node = self.character_class.from_bytes(node_bytes)
+        return node
 
     def generate_presigned_url(self, checksum_address: str) -> str:
         payload = {'Bucket': self.__bucket_name, 'Key': checksum_address}
@@ -211,21 +253,29 @@ class S3NodeStorage(NodeStorage):
         return url
 
     def all(self, federated_only: bool) -> set:
-        raise NotImplementedError  # TODO
+        node_objs = self.bucket.objects.all()
+        nodes = set()
+        for node_obj in node_objs:
+            node = self.__read(node_obj=node_obj)
+            nodes.add(node)
+        return nodes
 
     def get(self, checksum_address: str, federated_only: bool):
         node_obj = self.bucket.Object(checksum_address)
-        node = self.deserializer(node_obj)
+        node = self.__read(node_obj=node_obj)
         return node
 
     def save(self, node):
         self.__s3client.put_object(Bucket=self.__bucket_name,
                                    Key=node.checksum_public_address,
-                                   Body=self.serializer(node))
+                                   Body=self.serializer(bytes(node)))
 
     def remove(self, checksum_address: str) -> bool:
-        _node_obj = self.get(checksum_address=checksum_address, federated_only=self.federated_only)
-        return _node_obj()
+        node_obj = self.bucket.Object(checksum_address)
+        response = node_obj.delete()
+        if response['ResponseMetadata']['HTTPStatusCode'] != 204:
+            raise self.NodeStorageError("S3 Storage failed to delete node {}".format(checksum_address))
+        return True
 
     def payload(self) -> str:
         payload = {
@@ -239,5 +289,8 @@ class S3NodeStorage(NodeStorage):
         return cls(bucket_name=payload['bucket_name'], *args, **kwargs)
 
     def initialize(self):
-        return self.__s3client.create_bucket(Bucket=self.__bucket_name)
+        self.bucket = self.__s3resource.Bucket(self.__bucket_name)
 
+
+### Node Storage Registry ###
+NODE_STORAGES = {storage_class._name: storage_class for storage_class in NodeStorage.__subclasses__()}

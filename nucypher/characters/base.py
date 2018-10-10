@@ -1,27 +1,26 @@
-import os
 import random
-import time
 from collections import defaultdict
 from collections import deque
 from contextlib import suppress
 from logging import Logger
 from logging import getLogger
-from typing import Dict, ClassVar, Set
-from typing import Tuple
-from typing import Union, List
+from tempfile import TemporaryDirectory
 
 import maya
 import requests
+import time
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from requests.exceptions import SSLError
 from twisted.internet import reactor
 from twisted.internet import task
+from typing import Dict, ClassVar, Set
+from typing import Tuple
+from typing import Union, List
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
-from nucypher.config.node import NodeConfiguration
 from nucypher.config.storages import InMemoryNodeStorage
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
@@ -79,14 +78,13 @@ class Learner:
         self._learning_listeners = defaultdict(list)
         self._node_ids_to_learn_about_immediately = set()
 
-        self.known_certificates_dir = known_certificates_dir
+        self.known_certificates_dir = known_certificates_dir or TemporaryDirectory("nucypher-tmp-certs-").name
         self.__known_nodes = dict()
 
         # Read
         if node_storage is None:
             node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only,    #TODO: remove federated_only
-                                                       serializer=NodeConfiguration.NODE_SERIALIZER,
-                                                       deserializer=NodeConfiguration.NODE_DESERIALIZER)
+                                                       character_class=self.__class__)
 
         self.node_storage = node_storage
         if save_metadata and node_storage is constants.NO_STORAGE_AVAILIBLE:

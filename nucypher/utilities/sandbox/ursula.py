@@ -132,7 +132,7 @@ class UrsulaProcessProtocol(protocol.ProcessProtocol):
     def outReceived(self, data):
         print(data)
         if b'passphrase' in data:
-            self.transport.write(bytes(TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD, encoding='ascii'))
+            self.transport.__write(bytes(TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD, encoding='ascii'))
             self.transport.closeStdin()  # tell them we're done
 
     def errReceived(self, data):

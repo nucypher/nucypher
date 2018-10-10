@@ -6,6 +6,7 @@ from appdirs import AppDirs
 import nucypher
 
 # Base Filepaths
+
 BASE_DIR = abspath(dirname(dirname(nucypher.__file__)))
 PROJECT_ROOT = abspath(dirname(nucypher.__file__))
 APP_DIR = AppDirs("nucypher", "NuCypher")

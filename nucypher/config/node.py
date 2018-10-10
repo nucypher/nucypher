@@ -10,7 +10,7 @@ from constant_sorrow import constants
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.storages import NodeStorage, InMemoryNodeStorage, FileBasedNodeStorage
+from nucypher.config.storages import NodeStorage, InMemoryNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp
 from nucypher.network.middleware import RestMiddleware
 
@@ -28,7 +28,7 @@ class NodeConfiguration:
     __CONFIG_FILE_DESERIALIZER = json.loads
     __TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
     __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
-    __DEFAULT_NODE_STORAGE = FileBasedNodeStorage
+    __DEFAULT_NODE_STORAGE = LocalFileBasedNodeStorage
 
     __REGISTRY_NAME = 'contract_registry.json'
     REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO: #461 Where will this be hosted?
@@ -96,8 +96,7 @@ class NodeConfiguration:
         if self.__temp:
             self.__temp_dir = constants.UNINITIALIZED_CONFIGURATION
             self.node_storage = InMemoryNodeStorage(federated_only=federated_only,
-                                                    serializer=self.NODE_SERIALIZER,
-                                                    deserializer=self.NODE_DESERIALIZER)
+                                                    character_class=self.__class__)
         else:
             self.config_root = config_root
             self.__temp_dir = constants.LIVE_CONFIGURATION
