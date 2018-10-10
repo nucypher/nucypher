@@ -470,14 +470,23 @@ class TreasureMap:
 
 
 class WorkOrder(object):
-    def __init__(self, bob, arrangement_id, capsules, receipt_bytes,
-                 receipt_signature, ursula=None) -> None:
+    def __init__(self,
+                 bob,
+                 arrangement_id,
+                 capsules,
+                 capsule_signatures,
+                 receipt_bytes,
+                 receipt_signature,
+                 ursula=None,
+                 ) -> None:
         self.bob = bob
         self.arrangement_id = arrangement_id
         self.capsules = capsules
+        self.capsule_signatures = capsule_signatures
         self.receipt_bytes = receipt_bytes
         self.receipt_signature = receipt_signature
         self.ursula = ursula  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
+
 
     def __repr__(self):
         return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for Ursula: {node}".format(
@@ -494,27 +503,39 @@ class WorkOrder(object):
 
     @classmethod
     def construct_by_bob(cls, arrangement_id, capsules, ursula, bob):
-        receipt_bytes = b"wo:" + ursula.canonical_public_address  # TODO: represent the capsules as bytes and hash them as part of the receipt, ie  + keccak_digest(b"".join(capsules))  - See #137
+        capsules_bytes = [bytes(c) for c in capsules]
+        receipt_bytes = b"wo:" + ursula.canonical_public_address
+        receipt_bytes += msgpack.dumps(capsules_bytes)
         receipt_signature = bob.stamp(receipt_bytes)
-        return cls(bob, arrangement_id, capsules, receipt_bytes, receipt_signature,
+        capsule_signatures = [bob.stamp(c) for c in capsules_bytes]
+        return cls(bob, arrangement_id, capsules, capsule_signatures, receipt_bytes, receipt_signature,
                    ursula)
 
     @classmethod
     def from_rest_payload(cls, arrangement_id, rest_payload):
         payload_splitter = BytestringSplitter(Signature) + key_splitter
-        signature, bob_pubkey_sig, (receipt_bytes, packed_capsules) = payload_splitter(rest_payload,
-                                                                                       msgpack_remainder=True)
-        capsules = [Capsule.from_bytes(p, params=default_params()) for p in msgpack.loads(packed_capsules)]
+        signature, bob_pubkey_sig, \
+            (receipt_bytes, packed_capsules, packed_signatures) = payload_splitter(rest_payload,
+                                                                                   msgpack_remainder=True)
+        capsules, capsule_signatures = list(), list()
+        for capsule_bytes, signed_capsule in zip(msgpack.loads(packed_capsules), msgpack.loads(packed_signatures)):
+            capsules.append(Capsule.from_bytes(capsule_bytes, params=default_params()))
+            signed_capsule = Signature.from_bytes(signed_capsule)
+            capsule_signatures.append(signed_capsule)
+            if not signed_capsule.verify(capsule_bytes, bob_pubkey_sig):
+                raise ValueError("This doesn't appear to be from Bob.")
+
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
             raise ValueError("This doesn't appear to be from Bob.")
         bob = Bob.from_public_keys({SigningPower: bob_pubkey_sig})
-        return cls(bob, arrangement_id, capsules, receipt_bytes, signature)
+        return cls(bob, arrangement_id, capsules, capsule_signatures, receipt_bytes, signature)
 
     def payload(self):
         capsules_as_bytes = [bytes(p) for p in self.capsules]
+        capsule_signatures_as_bytes = [bytes(s) for s in self.capsule_signatures]
         packed_receipt_and_capsules = msgpack.dumps(
-            (self.receipt_bytes, msgpack.dumps(capsules_as_bytes)))
+            (self.receipt_bytes, msgpack.dumps(capsules_as_bytes), msgpack.dumps(capsule_signatures_as_bytes)))
         return bytes(self.receipt_signature) + self.bob.stamp + packed_receipt_and_capsules
 
     def complete(self, cfrags):

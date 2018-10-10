@@ -225,13 +225,18 @@ class ProxyRESTRoutes:
 
         # TODO: Push this to a lower level.
         kfrag = KFrag.from_bytes(kfrag_bytes)
-        verifying_key = UmbralPublicKey.from_bytes(verifying_key_bytes)
+        alices_verifying_key = UmbralPublicKey.from_bytes(verifying_key_bytes)
         cfrag_byte_stream = b""
 
-        for capsule in work_order.capsules:
+        for capsule, capsule_signature in zip(work_order.capsules, work_order.capsule_signatures):
+            # This is the capsule signed by Bob
+            capsule_signature = bytes(capsule_signature)
+            # Ursula signs on top of it. Now both are committed to the same capsule.
+            capsule_signed_by_both = bytes(self._stamp(capsule_signature))
+
+            capsule.set_correctness_keys(verifying=alices_verifying_key)
             # TODO: Sign the result of this.  See #141.
-            capsule.set_correctness_keys(verifying=verifying_key)
-            cfrag = pre.reencrypt(kfrag, capsule)
+            cfrag = pre.reencrypt(kfrag, capsule, metadata=capsule_signed_by_both)
             self.log.info("Re-encrypting for {}, made {}.".format(capsule, cfrag))
             cfrag_byte_stream += VariableLengthBytestring(cfrag)
 
