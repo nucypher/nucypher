@@ -19,12 +19,12 @@ from eth_account import Account
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
+from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.powers import SigningPower, EncryptingPower, KeyPairBasedPower, DerivedKeyBasedPower
-from nucypher.network.server import TLSHostingPower
 
 FILE_ENCODING = 'utf-8'
 
@@ -60,6 +60,7 @@ def _assemble_key_data(key_data: Dict[str, bytes],
                        master_salt: bytes,
                        wrap_salt: bytes) -> Dict[str, bytes]:
     encoded_key_data = {
+        'nonce': key_data['nonce'],
         'key': key_data['key'],
         'master_salt': master_salt,
         'wrap_salt': wrap_salt,
@@ -209,14 +210,28 @@ def _derive_wrapping_key_from_key_material(salt: bytes,
 def _encrypt_umbral_key(wrapping_key: bytes,
                         umbral_key: UmbralPrivateKey
                         ) -> Dict[str, bytes]:
-    ciphertext = umbral_key.to_bytes(password=wrapping_key)
-    return {'key': ciphertext}
+    """
+    Encrypts a key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
+    Returns an encrypted key as bytes with the nonce appended.
+    """
+    nonce = os.urandom(__NONCE_LENGTH)
+    ciphertext = SecretBox(wrapping_key).encrypt(umbral_key.to_bytes(), nonce).ciphertext
+    return {'nonce': nonce, 'key': ciphertext}
 
 
 def _decrypt_umbral_key(wrapping_key: bytes,
+                        nonce: bytes,
                         encrypting_key_material: bytes
                         ) -> UmbralPrivateKey:
-    umbral_key = UmbralPrivateKey.from_bytes(key_bytes=encrypting_key_material, password=wrapping_key)
+    """
+    Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
+    Returns a decrypted key as an UmbralPrivateKey.
+    """
+    try:
+        decrypted_key = SecretBox(wrapping_key).decrypt(encrypting_key_material, nonce)
+    except CryptoError:
+        raise
+    umbral_key = UmbralPrivateKey.from_bytes(decrypted_key)
     return umbral_key
 
 
@@ -374,6 +389,19 @@ class NucypherKeyring:
         self.lock()
 
     #
+    # Private Keys
+    #
+    @property
+    @unlock_required
+    def tls_private_key(self):
+        """TODO: Deprecate and use self.derive_crypto_power instead"""
+        key_data = _read_keyfile(keypath=self.__tls_keypath, deserializer=None)
+        __tls_key = serialization.load_pem_private_key(data=key_data,
+                                                       password=self.__derived_key_material,
+                                                       backend=default_backend())
+        return __tls_key
+
+    #
     # Public Keys
     #
     @property
@@ -447,6 +475,7 @@ class NucypherKeyring:
         wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
                                                           key_material=self.__derived_key_material)
         plain_umbral_key = _decrypt_umbral_key(wrap_key,
+                                               nonce=key_data['nonce'],
                                                encrypting_key_material=key_data['key'])
         return plain_umbral_key
 
@@ -491,10 +520,10 @@ class NucypherKeyring:
         if issubclass(power_class, KeyPairBasedPower):
 
             codex = {SigningPower: self.__signing_keypath,
-                     EncryptingPower: self.__root_keypath,
-                     TLSHostingPower: self.__tls_keypath,    # TODO
+                     EncryptingPower: self.__root_keypath
                      # BlockchainPower: self.__wallet_path,    # TODO
-                    }
+                     # TLSHostingPower: self.__tls_keypath}    # TODO
+                     }
 
             # Create Power
             try:

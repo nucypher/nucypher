@@ -1146,9 +1146,8 @@ def ursula(config,
 
     """
 
-    password = os.environ.get(KEYRING_PASSPHRASE_ENVVAR, None)
-    if not password:
-        password = click.prompt("Password to unlock Ursula's keyring", hide_input=True)
+    if not os.environ.get(KEYRING_PASSPHRASE_ENVVAR):
+        click.prompt("Password to unlock Ursula's keyring", hide_input=True)
 
     def __make_ursula():
         if not checksum_address and not config.dev:
