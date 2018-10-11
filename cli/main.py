@@ -1092,15 +1092,12 @@ def status(config,
 @click.option('--stake-periods', type=click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False))
 @click.option('--resume', help="Resume an existing stake", is_flag=True)
 @click.option('--no-reactor', help="Development feature", is_flag=True)
-@click.option('--password', help="Password to unlock Ursula's keyring",
-              prompt=True, hide_input=True, confirmation_prompt=True, envvar="NUCYPHER_KEYRING_PASSPHRASE")
 @click.argument('action')
 @uses_config
 def ursula(config,
            action,
            rest_port,
            rest_host,
-           additional_nodes,
            db_name,
            checksum_address,
            stake_amount,
@@ -1123,6 +1120,9 @@ def ursula(config,
 
     """
 
+    if not os.environ.get(KEYRING_PASSPHRASE_ENVVAR):
+        click.prompt("Password to unlock Ursula's keyring", hide_input=True)
+
     def __make_ursula():
         if not checksum_address and not config.dev:
             raise click.BadArgumentUsage("No Configuration file found, and no --checksum address <addr> was provided.")
@@ -1131,9 +1131,9 @@ def ursula(config,
                                        "or use a configuration file with --config-file <path>")
         if not config.federated_only:
             if not all((stake_amount, stake_periods)) and not resume:
-                raise click.BadOptionUsage("Both the --stake-amount <amount> and --stake-periods <periods> options "
-                                           "or the --resume flag is required to run a non-federated Ursula."
-                                           "For federated run 'nucypher-cli --federated-only ursula <action>'")
+                raise click.BadOptionUsage(message="Both the --stake-amount <amount> and --stake-periods <periods> options "
+                                                   "or the --resume flag is required to run a non-federated Ursula."
+                                                   "For federated run 'nucypher-cli --federated-only ursula <action>'")
 
         return UrsulaConfiguration(temp=config.dev,
                                    auto_initialize=config.dev,
