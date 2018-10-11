@@ -24,14 +24,19 @@ class ProxyRESTServer:
     def __init__(self,
                  rest_host: str,
                  rest_port: int,
+                 hosting_power = None,
                  routes: 'ProxyRESTRoutes' = None,
                  ) -> None:
+
+        self.routes = routes
         self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
         if routes:  # if is me
             self.rest_app = routes.rest_app
             self.db_filepath = routes.db_filepath
         else:
             self.rest_app = constants.PUBLIC_ONLY
+
+        self.__hosting_power = hosting_power
 
     def rest_url(self):
         return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
@@ -291,18 +296,17 @@ class TLSHostingPower(KeyPairBasedPower):
     not_found_error = NoHostingPower
 
     def __init__(self,
-                 rest_server,
-                 certificate=None,
-                 certificate_filepath=None,
+                 host: str,
+                 public_certificate=None,
+                 public_certificate_filepath=None,
                  *args, **kwargs) -> None:
 
-        if certificate and certificate_filepath:
+        if public_certificate and public_certificate_filepath:
             # TODO: Design decision here: if they do pass both, and they're identical, do we let that slide?
-            raise ValueError("Pass either a certificate or a certificate_filepath, not both.")
+            raise ValueError("Pass either a public_certificate or a public_certificate_filepath, not both.")
 
-        if certificate:
-            kwargs['keypair'] = HostingKeypair(certificate=certificate, host=rest_server.rest_interface.host)
-        elif certificate_filepath:
-            kwargs['keypair'] = HostingKeypair(certificate_filepath=certificate_filepath)
-        self.rest_server = rest_server
+        if public_certificate:
+            kwargs['keypair'] = HostingKeypair(certificate=public_certificate, host=host)
+        elif public_certificate_filepath:
+            kwargs['keypair'] = HostingKeypair(certificate_filepath=public_certificate_filepath, host=host)
         super().__init__(*args, **kwargs)

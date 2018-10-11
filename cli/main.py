@@ -1170,7 +1170,7 @@ def ursula(config,
     click.secho("Running in {} mode".format(config.operating_mode), fg='blue')
 
     # Bootnodes, Seeds, Known Nodes
-    ursula_config.get_bootnodes()
+    ursula_config.load_bootnodes()
     quantity_known_nodes = len(ursula_config.known_nodes)
     if quantity_known_nodes > 0:
         click.secho("Loaded {} known nodes from storages".format(quantity_known_nodes, fg='blue'))

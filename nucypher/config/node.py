@@ -18,12 +18,11 @@ from cryptography.hazmat.primitives.serialization import Encoding
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, BOOTNODES
-from nucypher.config.keyring import NucypherKeyring, _write_tls_certificate, _read_tls_public_certificate
+from nucypher.config.keyring import NucypherKeyring, _write_tls_certificate
 from nucypher.config.storages import NodeStorage, InMemoryNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.nodes import VerifiableNode
 
 
 class NodeConfiguration:
@@ -395,7 +394,7 @@ class NodeConfiguration:
                                                 curve=tls_curve,
                                                 keyring_root=self.keyring_dir)
 
-        # TODO: Operating mode switch
+        # TODO: Operating mode switch #466
         if self.federated_only or not wallet:
             self.checksum_address = self.keyring.federated_address
         else:
