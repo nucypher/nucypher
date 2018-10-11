@@ -395,9 +395,11 @@ class Ursula(Character, VerifiableNode, Miner):
                  # Ursula
                  rest_host: str,
                  rest_port: int,
-                 certificate: Certificate = None,  # TODO: from_certificate classmethod instead, use only filepath..?
+                 certificate: Certificate = None,
                  certificate_filepath: str = None,
-                 db_name: str = None,  # TODO: deprecate db_name, use only filepath.?
+                 tls_private_key = None,           # TODO: Derivie from keyring
+
+                 db_name: str = None,
                  db_filepath: str = None,
                  is_me: bool = True,
                  interface_signature=None,
@@ -406,7 +408,6 @@ class Ursula(Character, VerifiableNode, Miner):
                  # Blockchain
                  miner_agent=None,
                  checksum_address: str = None,
-                 # registry_filepath: str = None,
 
                  # Character
                  passphrase: str = None,
@@ -415,14 +416,15 @@ class Ursula(Character, VerifiableNode, Miner):
                  start_learning_now: bool = None,
                  crypto_power=None,
                  tls_curve: EllipticCurve = None,
-                 tls_private_key=None,  # TODO: config here. #361
                  known_nodes: Iterable = None,
 
                  **character_kwargs
                  ) -> None:
 
-        self._work_orders = []
-
+        #
+        # Character
+        #
+        self._work_orders = list()
         Character.__init__(self,
                            is_me=is_me,
                            checksum_address=checksum_address,
@@ -433,30 +435,38 @@ class Ursula(Character, VerifiableNode, Miner):
                            known_nodes=known_nodes,
                            **character_kwargs)
 
-        if is_me is True and not federated_only:
-            Miner.__init__(self,
-                           is_me=is_me,
-                           miner_agent=miner_agent,
-                           checksum_address=checksum_address)
+        #
+        # Self-Ursula
+        #
+        if is_me is True:           # TODO: 340
+            self._stored_treasure_maps = dict()
 
-            blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
-            self._crypto_power.consume_power_up(blockchain_power)
-
-        if is_me is True:
-            # TODO: 340
-            self._stored_treasure_maps = {}
             if not federated_only:
-                # if passphrase is None:
-                #     raise self.ActorError("No passphrase supplied to unlock account")
+                Miner.__init__(self, is_me=is_me, miner_agent=miner_agent, checksum_address=checksum_address)
+
+                # Access staking node via node's transacting keys
+                blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
+                self._crypto_power.consume_power_up(blockchain_power)
+
+                # Use blockchain power to substantiate stamp
                 self.substantiate_stamp(passphrase=passphrase)
 
+        #
+        # ProxyRESTServer and TLSHostingPower
+        #
         if not crypto_power or (TLSHostingPower not in crypto_power._power_ups):
             # TODO: Maybe we want _power_ups to be public after all?
             # We'll hook all the TLS stuff up unless the crypto_power was already passed.
 
+            #
+            # Self-Ursula
+            #
             if is_me:
                 self.suspicious_activities_witnessed = {'vladimirs': [], 'bad_treasure_maps': []}
 
+                #
+                # REST Server
+                #
                 rest_routes = ProxyRESTRoutes(
                     db_name=db_name,
                     db_filepath=db_filepath,
@@ -481,22 +491,37 @@ class Ursula(Character, VerifiableNode, Miner):
                 self.rest_url = rest_server.rest_url
                 self.datastore = rest_routes.datastore  # TODO: Maybe organize this better?
 
+                #
+                # TLSHostingPower
+                #
                 tls_hosting_keypair = HostingKeypair(
-                    private_key=tls_private_key,
                     curve=tls_curve,
                     host=rest_host,
-                    certificate=certificate)
+                    certificate=certificate,
+                    certificate_filepath=certificate_filepath,
+                    private_key=tls_private_key
+                )
 
                 tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                     keypair=tls_hosting_keypair)
 
+            #
+            # Stranger-Ursula
+            #
             else:
-                # Unless the caller passed a crypto power, we'll make our own TLSHostingPower for this stranger.
+
+                # REST Server
+                # Unless the caller passed a crypto power,
+                # we'll make our own TLSHostingPower for this stranger.
                 rest_server = ProxyRESTServer(
                     rest_host=rest_host,
                     rest_port=rest_port
                 )
-                if certificate or certificate_filepath:  # existing certificate
+
+                #
+                # TLSHostingPower
+                #
+                if certificate or certificate_filepath:
                     tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                         certificate_filepath=certificate_filepath,
                                                         certificate=certificate)
@@ -505,24 +530,29 @@ class Ursula(Character, VerifiableNode, Miner):
                         curve=tls_curve,
                         host=rest_host,
                         certificate_filepath=certificate_filepath)
-
                     tls_hosting_power = TLSHostingPower(rest_server=rest_server,
                                                         keypair=tls_hosting_keypair)
 
-            self._crypto_power.consume_power_up(tls_hosting_power)  # Make this work for not me for certificate to work
+            # OK - Now we have a ProxyRestServer and a TLSHostingPower for some Ursula
+            self._crypto_power.consume_power_up(tls_hosting_power)          # Consume!
 
         else:
-            self.log.info("Not adhering rest_server; we'll use the one on crypto_power..")
+            self.log.info("Not adhering rest_server; Using the one on crypto_power.")
 
+        #
+        # Verifiable Node
+        #
         certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
-        # VerifiableNode.from_tls_hosting_power(tls_hosting_power=self._crypto_power.power_ups(TLSHostingPower))  # TODO: use classmethod
         VerifiableNode.__init__(self,
                                 certificate=certificate,
                                 certificate_filepath=certificate_filepath,
                                 interface_signature=interface_signature,
                                 timestamp=timestamp)
 
+        #
+        # Logging
+        #
         if is_me:
             message = "Initialized Self {} | {}".format(self.__class__.__name__, self.checksum_public_address)
             self.log.info(message)
@@ -540,8 +570,8 @@ class Ursula(Character, VerifiableNode, Miner):
         )
 
     def get_deployer(self):
-        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app,
-                                                                              port=self.rest_information()[0].port)
+        port = self.rest_information()[0].port
+        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app, port=port)
         return deployer
 
     def rest_server_certificate(self):  # TODO: relocate and use reference on TLS hosting power

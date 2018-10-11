@@ -115,34 +115,6 @@ def ecdsa_verify(message: bytes,
     return True
 
 
-def _save_tls_certificate(certificate: Certificate,
-                          full_filepath: str,
-                          # save_private: bool = False,
-                          force: bool = True,  # TODO: Make configurable, or set to False by default.
-                          ) -> str:
-
-    cert_already_exists = os.path.isfile(full_filepath)
-    if force is False and cert_already_exists:
-        raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath))
-
-    with open(full_filepath, 'wb') as certificate_file:
-        public_pem_bytes = certificate.public_bytes(Encoding.PEM)
-        certificate_file.write(public_pem_bytes)
-
-    return full_filepath
-
-
-def load_tls_certificate(filepath: str) -> Certificate:
-    """Deserialize an X509 certificate from a filepath"""
-    try:
-        with open(filepath, 'r') as certificate_file:
-            cert = x509.load_pem_x509_certificate(certificate_file.read(),
-                                                  backend=default_backend())
-            return cert
-    except FileNotFoundError:
-        raise  # TODO: Better error message here
-
-
 def generate_self_signed_certificate(host: str,
                                      curve: EllipticCurve,
                                      private_key: _EllipticCurvePrivateKey = None,

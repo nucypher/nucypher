@@ -210,8 +210,8 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
 
     # The rest of this test will show that if Bob generates another WorkOrder, it's for a *different* Ursula.
     generated_work_orders = federated_bob.generate_work_orders(enacted_federated_policy.treasure_map.public_id(),
-                                                     capsule_side_channel[0].capsule,
-                                                     num_ursulas=1)
+                                                               capsule_side_channel[0].capsule,
+                                                               num_ursulas=1)
     id_of_this_new_ursula, new_work_order = list(generated_work_orders.items())[0]
 
     # This new Ursula isn't the same one to whom we've already issued a WorkOrder.

@@ -48,7 +48,7 @@ class CryptoPower(object):
         else:
             raise TypeError(
                 ("power_up must be a subclass of CryptoPowerUp or an instance "
-                 "of a subclass of CryptoPowerUp."))
+                 "of a CryptoPowerUp subclass."))
         self._power_ups[power_up_class] = power_up_instance
 
         if power_up.confers_public_key:

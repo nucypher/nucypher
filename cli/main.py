@@ -11,7 +11,6 @@ from typing import Tuple, ClassVar
 
 import click
 from constant_sorrow import constants
-from cryptography.hazmat.primitives.asymmetric import ec
 from eth_utils import is_checksum_address
 from twisted.internet import reactor
 from web3.middleware import geth_poa_middleware
@@ -21,7 +20,7 @@ from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.constants import (DISPATCHER_SECRET_LENGTH,
                                                MIN_ALLOWED_LOCKED,
                                                MIN_LOCKED_PERIODS,
-                                               MAX_MINTING_PERIODS)
+                                               MAX_MINTING_PERIODS, MAX_ALLOWED_LOCKED)
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
@@ -31,7 +30,6 @@ from nucypher.config.constants import BASE_DIR
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 from nucypher.config.utils import validate_configuration_file, generate_local_wallet, generate_account
-from nucypher.crypto.api import generate_self_signed_certificate, _save_tls_certificate
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
                                                   DEVELOPMENT_ETH_AIRDROP_AMOUNT,
@@ -44,9 +42,11 @@ __version__ = '0.1.0-alpha.0'
 def echo_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
-    click.echo(__version__)
+    click.secho(__version__, bold=True)
     ctx.exit()
 
+
+DEBUG = True
 
 BANNER = """
                                   _               
@@ -81,10 +81,14 @@ root.addHandler(ch)
 # CLI Configuration
 #
 
+fields = 'passphrase wallet signing tls skip_keys save_file'.split()
+PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetails', fields)
+
 
 class NucypherClickConfig:
 
     def __init__(self):
+        self.log = logging.getLogger(self.__class__.__name__)
 
         # Node Configuration
         self.node_configuration = constants.NO_NODE_CONFIGURATION
@@ -110,18 +114,19 @@ class NucypherClickConfig:
         # Simulation
         self.sim_processes = constants.NO_SIMULATION_RUNNING
 
-    def get_node_configuration(self):
+    def get_node_configuration(self, configuration_class=NodeConfiguration):
         if self.config_root:
-            node_configuration = NodeConfiguration(temp=False,
-                                                   config_root=self.config_root,
-                                                   auto_initialize=False)
+            node_configuration = configuration_class(temp=False,
+                                                     config_root=self.config_root,
+                                                     auto_initialize=False)
         elif self.dev:
-            node_configuration = NodeConfiguration(temp=self.dev, auto_initialize=False)
+            node_configuration = configuration_class(temp=self.dev, auto_initialize=False)
         elif self.config_file:
-            click.echo("Using configuration file at: {}".format(self.config_file))
-            node_configuration = NodeConfiguration.from_configuration_file(filepath=self.config_file)
+            click.echo("Using configuration file {}".format(self.config_file))
+            node_configuration = configuration_class.from_configuration_file(filepath=self.config_file)
         else:
-            node_configuration = NodeConfiguration(auto_initialize=False)  # Fully Default
+            node_configuration = configuration_class(federated_only=self.federated_only,
+                                                     auto_initialize=False)
 
         self.node_configuration = node_configuration
 
@@ -140,44 +145,122 @@ class NucypherClickConfig:
             w3 = self.blockchain.interface.w3
             w3.middleware_stack.inject(geth_poa_middleware, layer=0)
         self.accounts = self.blockchain.interface.w3.eth.accounts
+        self.log.debug("CLI established connection to provider {}".format(self.blockchain.interface.provider_uri))
 
     def connect_to_contracts(self) -> None:
         """Initialize contract agency and set them on config"""
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.miner_agent = MinerAgent(token_agent=self.token_agent)
         self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
+        self.log.debug("CLI established connection to nucypher contracts")
 
-    def create_account(self) -> str:
+    def create_account(self, passphrase: str = None) -> str:
         """Creates a new local or hosted ethereum wallet"""
         choice = click.prompt("Create a new Hosted or Local account?", default='hosted', type=click.STRING).strip().lower()
         if choice not in ('hosted', 'local'):
             click.echo("Invalid Input")
             raise click.Abort()
 
-        passphrase = click.prompt("Enter a passphrase to encrypt your wallet's private key", hide_input=True, confirmation_prompt=True)
+        if not passphrase:
+            message = "Enter a passphrase to encrypt your wallet's private key"
+            passphrase = click.prompt(message, hide_input=True, confirmation_prompt=True)
+
         if choice == 'local':
             keyring = generate_local_wallet(passphrase=passphrase, keyring_root=self.node_configuration.keyring_dir)
-            new_address = keyring.transacting_public_key
+            new_address = keyring.checksum_address
         elif choice == 'hosted':
             new_address = generate_account(w3=self.blockchain.interface.w3, passphrase=passphrase)
         else:
             raise click.Abort()
         return new_address
 
-    def create_node_tls_certificate(self, common_name: str, full_filepath: str) -> None:
-        days = click.prompt("How many days do you want the certificate to remain valid? (365 is default)",
-                            default=365,
-                            type=click.INT)  # TODO: Perhaps make this equal to the stake length?
+    def _collect_pending_configuration_details(self, ursula: bool=False, force: bool = False) -> PendingConfigurationDetails:
 
-        host = click.prompt("Enter the node's hostname", default='127.0.0.1')  # TODO: remove localhost/loopback as default?
+        # Defaults
+        passphrase = None
+        host = UrsulaConfiguration.DEFAULT_REST_HOST
+        skip_all_key_generation, generate_wallet = False, False
+        generate_encrypting_keys, generate_tls_keys, save_node_configuration_file = force, force, force
 
-        # TODO: save TLS private key
-        certificate, private_key = generate_self_signed_certificate(host=host,
-                                                                    days_valid=days,
-                                                                    curve=ec.SECP384R1)  # TODO: use Config class?
+        if ursula:
+            if not self.federated_only:  # Wallet
+                generate_wallet = click.confirm("Do you need to generate a new wallet to use for staking?",
+                                                default=False)
+                if not generate_wallet:  # I'll take that as a no...
+                    self.federated_only = True  # TODO: Without a wallet, let's assume this is a "federated configuration"
+            if not force:  # TLS
+                generate_tls_keys = click.confirm("Do you need to generate a new TLS certificate (Ursula)?",
+                                                  default=False)
+            if generate_tls_keys or force:
+                if not force:
+                    host = click.prompt("Enter the node's hostname", default=UrsulaConfiguration.DEFAULT_REST_HOST,
+                                        type=click.STRING)
+                self.node_configuration.rest_host = host
+        if not force:  # Signing / Encrypting
+            generate_encrypting_keys = click.confirm("Do you need to generate a new signing keypair?", default=False)
+            if not any((generate_wallet, generate_tls_keys, generate_encrypting_keys)):
+                skip_all_key_generation = click.confirm("Skip all key generation (Provide custom configuration file)?")
+        if not skip_all_key_generation:
+            if os.environ.get("NUCYPHER_KEYRING_PASSPHRASE"):
+                passphrase = os.environ.get("NUCYPHER_KEYRING_PASSPHRASE")
+            else:
+                passphrase = click.prompt("Enter a passphrase to encrypt your keyring",
+                                          hide_input=True, confirmation_prompt=True)
+        if not force:
+            save_node_configuration_file = click.confirm("Generate node configuration file?")
 
-        certificate_filepath = os.path.join(self.node_configuration.known_certificates_dir, full_filepath)
-        _save_tls_certificate(certificate=certificate, full_filepath=certificate_filepath)
+        details = PendingConfigurationDetails(passphrase=passphrase, wallet=generate_wallet,
+                                              signing=generate_encrypting_keys, tls=generate_tls_keys,
+                                              skip_keys=skip_all_key_generation, save_file=save_node_configuration_file)
+        return details
+
+    def create_new_configuration(self, ursula: bool=False, force: bool = False, no_registry: bool = False):
+        if force:
+            click.secho("Force is enabled - Using defaults", fg='yellow')
+        if self.dev:
+            click.secho("Using temporary storage area", fg='blue')
+        if not force:
+            click.confirm("Initialize new nucypher {} configuration?".format('ursula' if ursula else ''), abort=True)
+        if not no_registry and not self.federated_only:
+            registry_source = self.node_configuration.REGISTRY_SOURCE
+            if not os.path.isfile(registry_source):
+                click.echo("Seed contract registry does not exist at path {}.  "
+                           "Use --no-registry to skip.".format(registry_source))
+                raise click.Abort()
+        try:
+            pending_config = self._collect_pending_configuration_details(force=force, ursula=ursula)
+            new_installation_path = self.node_configuration.write(passphrase=pending_config.passphrase,
+                                                                  wallet=pending_config.wallet,
+                                                                  encrypting=pending_config.signing,
+                                                                  tls=pending_config.tls,
+                                                                  no_registry=no_registry,
+                                                                  no_keys=pending_config.skip_keys)
+            if not pending_config.skip_keys:
+                click.secho("Generated new keys at {}".format(self.node_configuration.keyring_dir), fg='blue')
+        except NodeConfiguration.ConfigurationError as e:
+            click.secho(str(e), fg='red')
+            raise click.Abort()
+        else:
+            click.secho("Created nucypher installation files at {}".format(new_installation_path), fg='green')
+            if pending_config.save_file is True:
+                configuration_filepath = self.node_configuration.to_configuration_file(filepath=self.config_file)
+                click.secho("Saved node configuration file {}".format(configuration_filepath), fg='green')
+                if ursula:
+                    click.secho("\nTo run an Ursula node from the "
+                                "default configuration filepath run 'nucypher-cli ursula run'\n")
+
+    def destroy_configuration(self):
+        if self.dev:
+            raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
+        click.confirm('''
+*Permanently and irreversibly delete all* nucypher files including:
+  - Private and Public Keys
+  - Known Nodes
+  - TLS certificates
+  - Node Configurations
+Located at {}?'''.format(self.node_configuration.config_root), abort=True)
+        shutil.rmtree(self.node_configuration.config_root, ignore_errors=True)
+        click.secho("Deleted configuration files at {}".format(self.node_configuration.config_root), fg='blue')
 
 
 # Register the above class as a decorator
@@ -191,7 +274,7 @@ class ChecksumAddress(click.ParamType):
     def convert(self, value, param, ctx):
         if is_checksum_address(value):
             return value
-        self.fail('{} is not a valid integer'.format(value, param, ctx))
+        self.fail('{} is not a valid EIP-55 checksum address'.format(value, param, ctx))
 
 
 CHECKSUM_ADDRESS = ChecksumAddress()
@@ -229,7 +312,6 @@ def cli(config,
     # Store config data
     config.verbose = verbose
 
-    # TODO: Create NodeConfiguration from these values
     config.dev = dev
     config.federated_only = federated_only
     config.config_root = config_root
@@ -241,16 +323,25 @@ def cli(config,
     config.deployer = deployer
     config.poa = poa
 
+    # TODO: Create NodeConfiguration from these values
+    # node_configuration = NodeConfiguration(temp=dev,
+    #                                        federated_only=federated_only,
+    #                                        config_root=config_root,
+    #                                        known_metadata_dir=metadata_dir,
+    #                                        registry_filepath=registry_filepath,
+    #                                        )
+
     if config.verbose:
-        click.echo("Running in verbose mode...")
+        click.secho("Verbose mode is enabled", fg='blue')
 
     if not config.dev:
-        click.echo("WARNING: Development mode is disabled")
+        click.secho("WARNING: Development mode is disabled", fg='yellow', bold=True)
     else:
-        click.echo("Running in development mode")
+        click.secho("Running in development mode", fg='blue')
 
 
 @cli.command()
+@click.option('--ursula', help="Configure ursula",  is_flag=True, default=False)
 @click.option('--filesystem', is_flag=True, default=False)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--force', help="Ask confirm once; Do not generate wallet or certificate", is_flag=True)
@@ -259,36 +350,27 @@ def cli(config,
 @uses_config
 def configure(config,
               action,
+              ursula,
               filesystem,
               no_registry,
               checksum_address,  # TODO: Clean by address
               force):
     """Manage local nucypher files and directories"""
-    #
-    # Initialize
-    #
-    def __initialize(configuration):
-        if config.dev:
-            click.echo("Using temporary storage area")
-
-        if not force:
-            click.confirm("Initialize new nucypher configuration?", abort=True)
-
-        configuration.write_defaults(no_registry=no_registry)
-        click.echo("Created configuration files at {}".format(configuration.config_root))
-
-        if not force and click.confirm("Do you need to generate a new wallet to use for staking?"):
-            address = config.create_account()
-
-        if not force and click.confirm("Do you need to generate a new SSL certificate (Ursula)?"):
-            certificate_filepath = os.path.join(config.node_configuration.known_certificates_dir, '{}.pem'.format(address))
-            config.create_node_tls_certificate(common_name=address, full_filepath=certificate_filepath)
-
-    def __validate():
+    config.get_node_configuration(configuration_class=UrsulaConfiguration if ursula else NodeConfiguration)
+    if action == "install":
+        config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry)
+    elif action == "destroy":
+        config.destroy_configuration()
+    elif action == "reset":
+        config.destroy_configuration()
+        config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry)
+    elif action == "cleanup":
+        pass  # TODO: Clean by address
+    elif action == "validate":
         is_valid = True      # Until there is a reason to believe otherwise...
         try:
             if filesystem:   # Check runtime directory
-                is_valid = NodeConfiguration.check_config_tree_exists(config_root=config.node_configuration.config_root, no_registry=no_registry)
+                is_valid = NodeConfiguration.validate(config_root=config.node_configuration.config_root, no_registry=no_registry)
             if config.config_file:
                 is_valid = validate_configuration_file(filepath=config.node_configuration.config_file_location)
         except NodeConfiguration.InvalidConfiguration:
@@ -296,35 +378,8 @@ def configure(config,
         finally:
             result = 'Valid' if is_valid else 'Invalid'
             click.echo('{} is {}'.format(config.node_configuration.config_root, result))
-
-    def __cleanup(configuration):
-        pass  # TODO: Cleanup a single node's metadata
-
-    def __destroy(configuration):
-        if config.dev:
-            raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
-
-        click.confirm("*Permanently delete* all nucypher private keys, configurations,"
-                      " known nodes, certificates and files at {}?".format(configuration.config_root), abort=True)
-
-        shutil.rmtree(configuration.config_root, ignore_errors=True)
-        click.echo("Deleted configuration files at {}".format(configuration.config_root))
-
-    #
-    # Action switch
-    #
-    config.get_node_configuration()
-    if action == "install":
-        __initialize(config.node_configuration)
-    elif action == "destroy":
-        __destroy(config.node_configuration)
-    elif action == "reset":
-        __destroy(config.node_configuration)
-        __initialize(config.node_configuration)
-    elif action == "cleanup":
-        __cleanup(config.node_configuration)
-    elif action == "validate":
-        __validate()
+    else:
+        raise click.BadArgumentUsage("No such argument {}".format(action))
 
 
 @cli.command()
@@ -351,7 +406,7 @@ def accounts(config,
         def __collect_transfer_details(denomination: str):
             destination = click.prompt("Enter destination checksum_address")
             if not is_checksum_address(destination):
-                click.echo("{} is not a valid checksum checksum_address".format(destination))
+                click.secho("{} is not a valid checksum checksum_address".format(destination), fg='red', bold=True)
                 raise click.Abort()
             amount = click.prompt("Enter amount of {} to transfer".format(denomination), type=click.INT)
             return destination, amount
@@ -361,7 +416,7 @@ def accounts(config,
     #
     if action == 'new':
         new_address = config.create_account()
-        click.echo("Created new ETH address {}".format(new_address))
+        click.secho("Created new ETH address {}".format(new_address), fg='blue')
         if click.confirm("Set new address as the node's keying default account?".format(new_address)):
             config.blockchain.interface.w3.eth.defaultAccount = new_address
             click.echo("{} is now the node's default account.".format(config.blockchain.interface.w3.eth.defaultAccount))
@@ -371,10 +426,10 @@ def accounts(config,
         click.echo("{} is now the node's default account.".format(config.blockchain.interface.w3.eth.defaultAccount))
 
     elif action == 'export':
-        keyring = NucypherKeyring(common_name=checksum_address)
+        keyring = NucypherKeyring(account=checksum_address)
         click.confirm("Export local private key for {} to node's keyring: {}?".format(checksum_address, config.provider_uri), abort=True)
         passphrase = click.prompt("Enter passphrase to decrypt account", type=click.STRING, hide_input=True, confirmation_prompt=True)
-        keyring._export(blockchain=config.blockchain, passphrase=passphrase)
+        keyring._export_wallet_to_node(blockchain=config.blockchain, passphrase=passphrase)
 
     elif action == 'list':
         for index, checksum_address in enumerate(config.accounts):
@@ -383,7 +438,7 @@ def accounts(config,
             base_row_template = ' {address}\n    Tokens: {tokens}\n    ETH: {eth}\n '
             row_template = ('\netherbase |'+base_row_template) if not index else '{index} ....... |'+base_row_template
             row = row_template.format(index=index, address=checksum_address, tokens=token_balance, eth=eth_balance)
-            click.echo(row)
+            click.secho(row, fg='blue')
 
     elif action == 'balance':
         if not checksum_address:
@@ -391,7 +446,7 @@ def accounts(config,
             click.echo('No checksum_address supplied, Using the default {}'.format(checksum_address))
         token_balance = config.token_agent.get_balance(address=checksum_address)
         eth_balance = config.token_agent.blockchain.interface.w3.eth.getBalance(checksum_address)
-        click.echo("Balance of {} | Tokens: {} | ETH: {}".format(checksum_address, token_balance, eth_balance))
+        click.secho("Balance of {} | Tokens: {} | ETH: {}".format(checksum_address, token_balance, eth_balance), fg='blue')
 
     elif action == "transfer-tokens":
         destination, amount = __collect_transfer_details(denomination='tokens')
@@ -407,6 +462,9 @@ def accounts(config,
         txhash = config.blockchain.interface.w3.eth.sendTransaction(tx)
         config.blockchain.wait_for_receipt(txhash)
         click.echo("Sent {} ETH to {} | {}".format(amount, destination, str(txhash)))
+
+    else:
+        raise click.BadArgumentUsage
 
 
 @cli.command()
@@ -581,6 +639,9 @@ def stake(config,
         click.confirm("Are you sure you want to abort the staking process?", abort=True)
         # os.kill(pid=NotImplemented)
         raise NotImplementedError
+
+    else:
+        raise click.BadArgumentUsage
 
 
 @cli.command()
@@ -790,6 +851,9 @@ def simulate(config,
             """.format(ursula_processes)
         click.echo(status_message)
 
+    else:
+        raise click.BadArgumentUsage
+
 
 @cli.command()
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
@@ -807,7 +871,7 @@ def deploy(config,
     """Manage contract and registry deployment"""
 
     if not config.deployer:
-        click.echo("The --deployer flag must be used to issue the deploy command.")
+        click.secho("The --deployer flag must be used to issue the deploy command.", fg='red', bold=True)
         raise click.Abort()
 
     def __get_deployers():
@@ -838,7 +902,7 @@ def deploy(config,
             # UserEscrowDeployer._contract_name: DeployerInfo(deployer_class=UserEscrowDeployer,
             #                                                 upgradeable=True,
             #                                                 agent_name='user_agent',
-            #                                                 dependant='policy_agent'),  # TODO
+            #                                                 dependant='policy_agent'),  # TODO: User Escrow CLI Deployment
         })
 
         click.confirm("Continue?", abort=True)
@@ -875,12 +939,6 @@ def deploy(config,
                 def __collect_secret_hash():
                     secret = click.prompt("Enter secret hash for {}".format(__contract_name), hide_input=True, confirmation_prompt=True)
                     secret_hash = hashlib.sha256(secret)
-                    if len(secret_hash) != 32:
-                        click.echo("Deployer secret must be 32 bytes.")
-                        if click.prompt("Try again?"):
-                            return __collect_secret_hash()
-                        else:
-                            raise click.Abort()
                     __deployer_init_args.update({'secret_hash': secret_hash})
                     return secret
                 __collect_secret_hash()
@@ -896,7 +954,8 @@ def deploy(config,
             is_armed, disqualifications = __deployer.arm(abort=False)
             if not is_armed:
                 disqualifications = ', '.join(disqualifications)
-                click.echo("Failed to arm {}. Disqualifications: {}".format(__contract_name, disqualifications))
+                click.secho("Failed to arm {}. Disqualifications: {}".format(__contract_name, disqualifications),
+                            fg='red', bold=True)
                 raise click.Abort()
 
             #
@@ -910,6 +969,9 @@ def deploy(config,
             __agent = __deployer.make_agent()
             __deployment_agents[agent_name] = __agent
 
+            click.secho("Deployed {} - Contract Address: {}".format(contract_name, __agent.contract_address),
+                        fg='green', bold=True)
+
             return __transactions, __agent
 
         if contract_name:
@@ -919,7 +981,8 @@ def deploy(config,
             try:
                 deployer_info = deployers[contract_name]
             except KeyError:
-                click.echo("No such contract {}. Available contracts are {}".format(contract_name, available_deployers))
+                click.secho("No such contract {}. Available contracts are {}".format(contract_name, available_deployers), fg='red', bold=True)
+                raise click.Abort()
             else:
                 _txs, _agent = __deploy_contract(deployer_info.deployer_class,
                                                  upgradeable=deployer_info.upgradeable,
@@ -944,7 +1007,10 @@ def deploy(config,
         if not force and click.confirm("Save transaction hashes to JSON file?"):
             file = click.prompt("Enter output filepath", type=click.File(mode='w'))   # TODO
             file.write(json.dumps(__deployment_transactions))
-            click.echo("Successfully wrote transaction hashes file to {}".format(file.path))
+            click.secho("Successfully wrote transaction hashes file to {}".format(file.path), fg='green')
+
+    else:
+        raise click.BadArgumentUsage
 
 
 @cli.command()
@@ -1010,28 +1076,33 @@ def status(config,
 
 
 @cli.command()
+@click.option('--debug', is_flag=True)
 @click.option('--rest-host', type=click.STRING)
 @click.option('--rest-port', type=click.IntRange(min=49151, max=65535, clamp=False))
+@click.option('--additional-nodes', help="Custom known metadata directory", type=click.Path(exists=True, dir_okay=True, file_okay=False, writable=True))
 @click.option('--db-name', type=click.STRING)
 @click.option('--checksum-address', type=CHECKSUM_ADDRESS)
-@click.option('--stake-amount', type=click.IntRange(min=MIN_ALLOWED_LOCKED, max=MIN_ALLOWED_LOCKED, clamp=False))
+@click.option('--stake-amount', type=click.IntRange(min=MIN_ALLOWED_LOCKED, max=MAX_ALLOWED_LOCKED, clamp=False))
 @click.option('--stake-periods', type=click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False))
 @click.option('--resume', help="Resume an existing stake", is_flag=True)
 @click.option('--no-reactor', help="Development feature", is_flag=True)
-@click.option('--password', help="Password to unlock Ursula's keyring", prompt=True, hide_input=True, confirmation_prompt=True)
+@click.option('--password', help="Password to unlock Ursula's keyring",
+              prompt=True, hide_input=True, confirmation_prompt=True, envvar="NUCYPHER_KEYRING_PASSPHRASE")
 @click.argument('action')
 @uses_config
 def ursula(config,
            action,
            rest_port,
            rest_host,
+           additional_nodes,
            db_name,
            checksum_address,
            stake_amount,
            stake_periods,
            resume,  # TODO Implement stake resume
            no_reactor,
-           password
+           password,
+           debug
            ) -> None:
     """
     Manage and run an Ursula node
@@ -1045,46 +1116,93 @@ def ursula(config,
         4. Run TLS deployment (Learning Loop + Reactor)
 
     """
-    if action == 'run':                # 0
+
+    def __make_ursula():
+        if not checksum_address and not config.dev:
+            raise click.BadArgumentUsage("No Configuration file found, and no --checksum address <addr> was provided.")
+        if not checksum_address and not config.dev:
+            raise click.BadOptionUsage("No account specified. pass --checksum-address or --dev, "
+                                       "or use a configuration file with --config-file <path>")
         if not config.federated_only:
             if not all((stake_amount, stake_periods)) and not resume:
-                click.echo("Either --stake-amount and --stake-periods options "
-                           "or the --resume flag is required to run a non-federated Ursula")
-                raise click.Abort()
+                raise click.BadOptionUsage("Both the --stake-amount <amount> and --stake-periods <periods> options "
+                                           "or the --resume flag is required to run a non-federated Ursula."
+                                           "For federated run 'nucypher-cli --federated-only ursula <action>'")
 
-        if config.config_file:         # 1
-            ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config.config_file)
-        else:
-            ursula_config = UrsulaConfiguration(temp=config.dev,
-                                                auto_initialize=config.dev,
-                                                poa=config.poa,
-                                                rest_host=rest_host,
-                                                rest_port=rest_port,
-                                                db_name=db_name,
-                                                is_me=True,
-                                                federated_only=config.federated_only,
-                                                registry_filepath=config.registry_filepath,
-                                                provider_uri=config.provider_uri,
-                                                checksum_address=checksum_address,
-                                                save_metadata=False,
-                                                load_metadata=True,
-                                                known_metadata_dir=config.metadata_dir,
-                                                start_learning_now=True,
-                                                abort_on_learning_error=config.dev)
+        return UrsulaConfiguration(temp=config.dev,
+                                   auto_initialize=config.dev,
+                                   is_me=True,
+                                   rest_host=rest_host,
+                                   rest_port=rest_port,
+                                   db_name=db_name,
+                                   federated_only=config.federated_only,
+                                   registry_filepath=config.registry_filepath,
+                                   provider_uri=config.provider_uri,
+                                   checksum_address=checksum_address,
+                                   poa=config.poa,
+                                   save_metadata=False,
+                                   load_metadata=True,
+                                   known_metadata_dir=config.metadata_dir,
+                                   start_learning_now=True,
+                                   abort_on_learning_error=config.dev)
 
+    #
+    # Produce
+    #
+    overrides = dict()
+    if config.dev:
+        ursula_config = __make_ursula()
+    else:
+        try:        # TODO: inline overrides for file-based configurations
+            filepath = config.config_file or UrsulaConfiguration.DEFAULT_CONFIG_FILE_LOCATION
+            click.secho("Reading Ursula node configuration file {}".format(filepath), fg='blue')
+            ursula_config = UrsulaConfiguration.from_configuration_file(filepath=filepath)
+        except FileNotFoundError:
+            ursula_config = __make_ursula()
+
+    config.operating_mode = "federated" if ursula_config.federated_only else "decentralized"
+    click.secho("Running in {} mode".format(config.operating_mode), fg='blue')
+
+    if additional_nodes:  # Secondary override
+        ursula_config.read_known_nodes(known_metadata_dir=additional_nodes)
+        click.secho("Loaded additional known nodes", color='blue')
+
+    quantity_known_nodes = len(ursula_config.known_nodes)
+    if quantity_known_nodes:
+        click.secho("Loaded {} known nodes from storages".format(quantity_known_nodes, fg='blue'))
+    else:
+        click.secho("WARNING: No seed nodes available", fg='red', bold=True)
+
+    URSULA = ursula_config.produce(passphrase=password, **overrides)  # 2
+    click.secho("Initialized Ursula {}".format(URSULA.checksum_public_address), fg='green')
+
+    #
+    # Run
+    #
+    if action == 'run':
         try:
-            URSULA = ursula_config.produce(passphrase=password)  # 2
-            if not config.federated_only:
-                URSULA.stake(amount=stake_amount,                  # 3
-                             lock_periods=stake_periods)
-
+            if not ursula_config.federated_only:                      # 3
+                URSULA.stake(amount=stake_amount, lock_periods=stake_periods)
+                click.secho("Initialized Stake", fg='blue')
             if not no_reactor:
-                URSULA.get_deployer().run()                        # 4
-
+                click.secho("Running Ursula on {}".format(URSULA.rest_interface), fg='green', bold=True)
+                URSULA.get_deployer().run()                           # 4
+        except Exception as e:
+            config.log.critical(str(e))
+            click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')
+            if debug: raise
+            raise click.Abort()
         finally:
-            click.echo("Cleaning up.")
+            click.secho("Stopping Ursula")
             ursula_config.cleanup()
-            click.echo("Exited gracefully.")
+            click.secho("Ursula Stopped", fg='red')
+
+    elif action == "save-metadata":
+        metadata_path = URSULA.write_node_metadata(node=URSULA)
+        click.secho("Successfully saved node metadata to {}.".format(metadata_path), fg='green')
+
+    else:
+        raise click.BadArgumentUsage
 
 
 if __name__ == "__main__":

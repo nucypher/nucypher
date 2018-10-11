@@ -8,11 +8,10 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 
-from nucypher.crypto.api import _save_tls_certificate
+from nucypher.config.keyring import _write_tls_certificate
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
-from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
 
 class VerifiableNode:
@@ -197,12 +196,12 @@ class VerifiableNode:
 
     @property
     def certificate_filename(self):
-        return '{}.{}'.format(self.common_name, Encoding.PEM.name.lower())  # TODO: use cert's encoding..?
+        return '{}.{}'.format(self.checksum_public_address, Encoding.PEM.name.lower())  # TODO: use cert's encoding..?
 
     def get_certificate_filepath(self, certificates_dir: str) -> str:
         return os.path.join(certificates_dir, self.certificate_filename)
 
-    def save_certificate_to_disk(self, directory):
+    def save_certificate_to_disk(self, directory, force=False):
         x509 = OpenSSL.crypto.X509.from_cryptography(self.certificate)
         subject_components = x509.get_subject().get_components()
         common_name_as_bytes = subject_components[0][1]
@@ -210,12 +209,12 @@ class VerifiableNode:
 
         if not self.rest_information()[0].host == common_name_from_cert:
             # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
-            raise ValueError("You passed a __common_name that is not the same one as the cert. "
+            raise ValueError("You passed a common_name that is not the same one as the cert. "
                              "Common name is optional; the cert will be saved according to "
                              "the name on the cert itself.")
 
         certificate_filepath = self.get_certificate_filepath(certificates_dir=directory)
-        _save_tls_certificate(self.certificate, full_filepath=certificate_filepath)
+        _write_tls_certificate(self.certificate, full_filepath=certificate_filepath, force=force)
         self.certificate_filepath = certificate_filepath
         self.log.info("Saved new TLS certificate {}".format(certificate_filepath))
         return self.certificate_filepath

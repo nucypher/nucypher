@@ -44,7 +44,7 @@ class RestMiddleware:
         return response
 
     def send_work_order_payload_to_ursula(self, work_order):
-        payload = work_order.payload()
+        payload = work_order.static_payload()
         id_as_hex = work_order.arrangement_id.hex()
         endpoint = 'https://{}/kFrag/{}/reencrypt'.format(work_order.ursula.rest_interface, id_as_hex)
         return requests.post(endpoint, payload, verify=work_order.ursula.certificate_filepath)

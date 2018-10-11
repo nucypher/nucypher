@@ -32,6 +32,7 @@ eth-utils="*"
 eth-keys="*"
 web3 = "*"
 appdirs = "*"
+colorama = "*"
 
 [dev-packages]
 ipdb = "*"

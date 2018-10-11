@@ -18,10 +18,11 @@ from nucypher.data_sources import DataSource
 from nucypher.network.middleware import RestMiddleware
 from umbral.keys import UmbralPublicKey
 
-##
-# Boring setup stuff.
-##
+######################
+# Boring setup stuff #
+######################
 
+# Setup logging
 root = logging.getLogger()
 root.setLevel(logging.DEBUG)
 
@@ -31,13 +32,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 root.addHandler(ch)
 
-teacher_rest_port = sys.argv[2]
-with open("examples-runtime-cruft/node-metadata-{}".format(teacher_rest_port), "r") as f:
-    f.seek(0)
-    teacher_bytes = binascii.unhexlify(f.read())
-URSULA = Ursula.from_bytes(teacher_bytes, federated_only=True)
-print("Will learn from {}".format(URSULA))
-
+# Temporary storage area for demo
 SHARED_CRUFTSPACE = "{}/examples-runtime-cruft".format(os.path.dirname(os.path.abspath(__file__)))
 CRUFTSPACE = "{}/finnegans-wake-demo".format(SHARED_CRUFTSPACE)
 CERTIFICATE_DIR = "{}/certs".format(CRUFTSPACE)
@@ -45,7 +40,19 @@ shutil.rmtree(CRUFTSPACE, ignore_errors=True)
 os.mkdir(CRUFTSPACE)
 os.mkdir(CERTIFICATE_DIR)
 
-URSULA.save_certificate_to_disk(CERTIFICATE_DIR)
+# Read seed node metadata file
+try:
+    teacher_metadata_path = sys.argv[2]
+except IndexError:
+    raise ValueError("Missing path to seed node metadata file")
+else:
+    with open(teacher_metadata_path, "r") as f:
+        f.seek(0)
+        teacher_bytes = binascii.unhexlify(f.read())
+    URSULA = Ursula.from_bytes(teacher_bytes, federated_only=True)
+    print("Will learn from {}".format(URSULA))
+    URSULA.save_certificate_to_disk(CERTIFICATE_DIR)
+
 
 #########
 # Alice #

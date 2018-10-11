@@ -1,8 +1,8 @@
-import os
-import tempfile
-
 import datetime
-from unittest.mock import Mock
+import os
+import re
+import shutil
+import tempfile
 
 import maya
 import pytest
@@ -23,7 +23,8 @@ from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, DEVELOPMENT_ETH_AIRDROP_AMOUNT)
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
+                                                  TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
 
@@ -31,6 +32,16 @@ from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decen
 #
 # Temporary
 #
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup():
+    yield  # we've got a lot of men and women here...
+    for f in os.listdir(tempfile.tempdir):
+        if re.search(r'nucypher-*', f):
+            shutil.rmtree(os.path.join(tempfile.tempdir, f),
+                          ignore_errors=True)
+
 
 @pytest.fixture(scope="function")
 def tempfile_path():
@@ -55,7 +66,7 @@ def temp_config_root(temp_dir_path):
     default_node_config = NodeConfiguration(temp=True,
                                             auto_initialize=False,
                                             config_root=temp_dir_path,
-                                            no_seed_registry=True)
+                                            import_seed_registry=False)
     yield default_node_config.config_root
     default_node_config.cleanup()
 
@@ -77,12 +88,15 @@ def ursula_federated_test_config():
 
     ursula_config = UrsulaConfiguration(temp=True,
                                         auto_initialize=True,
+                                        auto_generate_keys=True,
+                                        passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                         is_me=True,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
                                         federated_only=True,
                                         network_middleware=MockRestMiddleware(),
-                                        no_seed_registry=True)
+                                        save_metadata=False,
+                                        load_metadata=False)
     yield ursula_config
     ursula_config.cleanup()
 
@@ -93,13 +107,17 @@ def ursula_decentralized_test_config(three_agents):
 
     ursula_config = UrsulaConfiguration(temp=True,
                                         auto_initialize=True,
+                                        auto_generate_keys=True,
+                                        passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                         is_me=True,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
                                         miner_agent=miner_agent,
                                         federated_only=False,
                                         network_middleware=MockRestMiddleware(),
-                                        no_seed_registry=True)
+                                        import_seed_registry=False,
+                                        save_metadata=False,
+                                        load_metadata=False)
     yield ursula_config
     ursula_config.cleanup()
 
@@ -108,12 +126,15 @@ def ursula_decentralized_test_config(three_agents):
 def alice_federated_test_config(federated_ursulas):
     config = AliceConfiguration(temp=True,
                                 auto_initialize=True,
+                                auto_generate_keys=True,
+                                passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                 is_me=True,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=federated_ursulas,
                                 federated_only=True,
                                 abort_on_learning_error=True,
-                                no_seed_registry=True)
+                                save_metadata=False,
+                                load_metadata=False)
     yield config
     config.cleanup()
 
@@ -126,12 +147,16 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
     config = AliceConfiguration(temp=True,
                                 is_me=True,
                                 auto_initialize=True,
+                                auto_generate_keys=True,
+                                checksum_address=alice_address,
+                                passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                 network_middleware=MockRestMiddleware(),
                                 policy_agent=policy_agent,
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
-                                checksum_address=alice_address,
-                                no_seed_registry=True)
+                                import_seed_registry=False,
+                                save_metadata=False,
+                                load_metadata=False)
     yield config
     config.cleanup()
 
@@ -140,11 +165,14 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
 def bob_federated_test_config():
     config = BobConfiguration(temp=True,
                               auto_initialize=True,
+                              auto_generate_keys=True,
+                              passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                               network_middleware=MockRestMiddleware(),
                               start_learning_now=False,
                               abort_on_learning_error=True,
                               federated_only=True,
-                              no_seed_registry=True)
+                              save_metadata=False,
+                              load_metadata=False)
     yield config
     config.cleanup()
 
@@ -156,13 +184,17 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
 
     config = BobConfiguration(temp=True,
                               auto_initialize=True,
+                              auto_generate_keys=True,
                               checksum_address=bob_address,
+                              passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas,
                               start_learning_now=False,
                               abort_on_learning_error=True,
                               federated_only=False,
-                              no_seed_registry=True)
+                              import_seed_registry=False,
+                              save_metadata=False,
+                              load_metadata=False)
     yield config
     config.cleanup()
 
@@ -342,7 +374,7 @@ def three_agents(testerchain):
     token_deployer.arm()
     token_deployer.deploy()
 
-    token_agent = token_deployer.make_agent()              # 1
+    token_agent = token_deployer.make_agent()              # 1: Token
 
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
@@ -352,7 +384,7 @@ def three_agents(testerchain):
     miner_escrow_deployer.arm()
     miner_escrow_deployer.deploy()
 
-    miner_agent = miner_escrow_deployer.make_agent()       # 2
+    miner_agent = miner_escrow_deployer.make_agent()       # 2 Miner Escrow
 
     policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
@@ -362,6 +394,6 @@ def three_agents(testerchain):
     policy_manager_deployer.arm()
     policy_manager_deployer.deploy()
 
-    policy_agent = policy_manager_deployer.make_agent()    # 3
+    policy_agent = policy_manager_deployer.make_agent()    # 3 Policy Agent
 
     return token_agent, miner_agent, policy_agent
