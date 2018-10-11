@@ -16,7 +16,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
-from nucypher.config.constants import TEST_CONTRACTS_DIR
+from nucypher.config.constants import BASE_DIR
 from nucypher.config.node import NodeConfiguration
 from nucypher.data_sources import DataSource
 from nucypher.keystore import keystore
@@ -28,6 +28,8 @@ from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_D
                                                   TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
+
+TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
 
 
 #

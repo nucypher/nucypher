@@ -398,7 +398,6 @@ class Ursula(Character, VerifiableNode, Miner):
                  rest_port: int,
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
-                 tls_private_key = None,           # TODO: Derive from keyring
 
                  db_name: str = None,
                  db_filepath: str = None,
@@ -442,31 +441,32 @@ class Ursula(Character, VerifiableNode, Miner):
         if is_me is True:           # TODO: 340
             self._stored_treasure_maps = dict()
 
+            #
+            # Staking Ursula
+            #
             if not federated_only:
                 Miner.__init__(self, is_me=is_me, miner_agent=miner_agent, checksum_address=checksum_address)
 
-                # Access staking node via node's transacting keys
+                # Access staking node via node's transacting keys  TODO: Better handle ephemeral staking self ursula
                 blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
                 self._crypto_power.consume_power_up(blockchain_power)
 
-                # Use blockchain power to substantiate stamp
+                # Use blockchain power to substantiate stamp, instead of signing key
                 self.substantiate_stamp(passphrase=passphrase)
 
         #
-        # ProxyRESTServer and TLSHostingPower
+        # ProxyRESTServer and TLSHostingPower # TODO: Maybe we want _power_ups to be public after all?
         #
         if not crypto_power or (TLSHostingPower not in crypto_power._power_ups):
-            # TODO: Maybe we want _power_ups to be public after all?
-            # We'll hook all the TLS stuff up unless the crypto_power was already passed.
 
             #
-            # Self-Ursula
+            # Ephemeral Self-Ursula
             #
             if is_me:
                 self.suspicious_activities_witnessed = {'vladimirs': [], 'bad_treasure_maps': []}
 
                 #
-                # REST Server
+                # REST Server (Ephemeral Self-Ursula)
                 #
                 rest_routes = ProxyRESTRoutes(
                     db_name=db_name,
@@ -484,61 +484,40 @@ class Ursula(Character, VerifiableNode, Miner):
                     certificate_dir=self.known_certificates_dir,
                 )
 
-                rest_server = ProxyRESTServer(
-                    rest_host=rest_host,
-                    rest_port=rest_port,
-                    routes=rest_routes,
-                )
-                self.rest_url = rest_server.rest_url
-                self.datastore = rest_routes.datastore  # TODO: Maybe organize this better?
-
                 #
-                # TLSHostingPower
+                # TLSHostingPower (Ephemeral Self-Ursula)
                 #
-                tls_hosting_keypair = HostingKeypair(
-                    curve=tls_curve,
-                    host=rest_host,
-                    certificate=certificate,
-                    certificate_filepath=certificate_filepath,
-                    private_key=tls_private_key
-                )
-
-                tls_hosting_power = TLSHostingPower(rest_server=rest_server,
-                                                    keypair=tls_hosting_keypair)
+                tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host)
+                tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
+                self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port,
+                                                   routes=rest_routes, hosting_power=tls_hosting_power)
 
             #
             # Stranger-Ursula
             #
             else:
 
+                # TLSHostingPower
+                if certificate or certificate_filepath:
+                    tls_hosting_power = TLSHostingPower(host=rest_host,
+                                                        public_certificate_filepath=certificate_filepath,
+                                                        public_certificate=certificate)
+                else:
+                    tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host)
+                    tls_hosting_power = TLSHostingPower(host=rest_host, keypair=tls_hosting_keypair)
+
                 # REST Server
-                # Unless the caller passed a crypto power,
-                # we'll make our own TLSHostingPower for this stranger.
-                rest_server = ProxyRESTServer(
+                # Unless the caller passed a crypto power we'll make our own TLSHostingPower for this stranger.
+                self.rest_server = ProxyRESTServer(
                     rest_host=rest_host,
-                    rest_port=rest_port
+                    rest_port=rest_port,
+                    hosting_power=tls_hosting_power
                 )
 
-                #
-                # TLSHostingPower
-                #
-                if certificate or certificate_filepath:
-                    tls_hosting_power = TLSHostingPower(rest_server=rest_server,
-                                                        certificate_filepath=certificate_filepath,
-                                                        certificate=certificate)
-                else:
-                    tls_hosting_keypair = HostingKeypair(
-                        curve=tls_curve,
-                        host=rest_host,
-                        certificate_filepath=certificate_filepath)
-                    tls_hosting_power = TLSHostingPower(rest_server=rest_server,
-                                                        keypair=tls_hosting_keypair)
-
+            #
             # OK - Now we have a ProxyRestServer and a TLSHostingPower for some Ursula
+            #
             self._crypto_power.consume_power_up(tls_hosting_power)          # Consume!
-
-        else:
-            self.log.info("Not adhering rest_server; Using the one on crypto_power.")
 
         #
         # Verifiable Node
@@ -565,7 +544,7 @@ class Ursula(Character, VerifiableNode, Miner):
         hosting_power = self._crypto_power.power_ups(TLSHostingPower)
 
         return (
-            hosting_power.rest_server.rest_interface,
+            self.rest_server.rest_interface,
             hosting_power.keypair.certificate,
             hosting_power.keypair.pubkey
         )
@@ -608,7 +587,7 @@ class Ursula(Character, VerifiableNode, Miner):
                       port: int,
                       federated_only: bool = False) -> 'Ursula':
 
-        response = network_middleware.node_information(host, port)  # TODO
+        response = network_middleware.node_information(host, port)  # TODO: pre-load certificates here?
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 
@@ -686,16 +665,30 @@ class Ursula(Character, VerifiableNode, Miner):
     def from_storage(cls,
                      node_storage: NodeStorage,
                      checksum_adress: str,
-                     federated_only: bool = False, *args, **kwargs) -> 'Ursula':
-        return node_storage.get(checksum_address=checksum_adress)
+                     federated_only: bool = False) -> 'Ursula':
+        return node_storage.get(checksum_address=checksum_adress,
+                                federated_only=federated_only)
 
     #
     # Properties
     #
+    @property
+    def datastore(self):
+        try:
+            return self.rest_server.routes.datastore
+        except AttributeError:
+            raise AttributeError("No rest server attached")
+
+    @property
+    def rest_url(self):
+        try:
+            return self.rest_server.rest_url
+        except AttributeError:
+            raise AttributeError("No rest server attached")
 
     @property
     def rest_app(self):
-        rest_app_on_server = self._crypto_power.power_ups(TLSHostingPower).rest_server.rest_app
+        rest_app_on_server = self.rest_server.rest_app
 
         if not rest_app_on_server:
             m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."
