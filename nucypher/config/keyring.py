@@ -19,7 +19,6 @@ from eth_account import Account
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
-from nacl.secret import SecretBox
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -61,7 +60,6 @@ def _assemble_key_data(key_data: Dict[str, bytes],
                        master_salt: bytes,
                        wrap_salt: bytes) -> Dict[str, bytes]:
     encoded_key_data = {
-        'nonce': key_data['nonce'],
         'key': key_data['key'],
         'master_salt': master_salt,
         'wrap_salt': wrap_salt,
@@ -211,28 +209,14 @@ def _derive_wrapping_key_from_key_material(salt: bytes,
 def _encrypt_umbral_key(wrapping_key: bytes,
                         umbral_key: UmbralPrivateKey
                         ) -> Dict[str, bytes]:
-    """
-    Encrypts a key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
-    Returns an encrypted key as bytes with the nonce appended.
-    """
-    nonce = os.urandom(__NONCE_LENGTH)
-    ciphertext = SecretBox(wrapping_key).encrypt(umbral_key.to_bytes(), nonce).ciphertext
-    return {'nonce': nonce, 'key': ciphertext}
+    ciphertext = umbral_key.to_bytes(password=wrapping_key)
+    return {'key': ciphertext}
 
 
 def _decrypt_umbral_key(wrapping_key: bytes,
-                        nonce: bytes,
                         encrypting_key_material: bytes
                         ) -> UmbralPrivateKey:
-    """
-    Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
-    Returns a decrypted key as an UmbralPrivateKey.
-    """
-    try:
-        decrypted_key = SecretBox(wrapping_key).decrypt(encrypting_key_material, nonce)
-    except CryptoError:
-        raise
-    umbral_key = UmbralPrivateKey.from_bytes(decrypted_key)
+    umbral_key = UmbralPrivateKey.from_bytes(key_bytes=encrypting_key_material, password=wrapping_key)
     return umbral_key
 
 
@@ -463,7 +447,6 @@ class NucypherKeyring:
         wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
                                                           key_material=self.__derived_key_material)
         plain_umbral_key = _decrypt_umbral_key(wrap_key,
-                                               nonce=key_data['nonce'],
                                                encrypting_key_material=key_data['key'])
         return plain_umbral_key
 
