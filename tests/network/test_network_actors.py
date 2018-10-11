@@ -1,9 +1,9 @@
 import os
 
 import pytest
+from binascii import unhexlify
 from hendrix.experience import crosstown_traffic
 from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
-from kademlia.utils import digest
 
 from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
@@ -58,7 +58,7 @@ def test_alice_sets_treasure_map(enacted_federated_policy, federated_ursulas):
     enacted_federated_policy.publish_treasure_map(network_middleware=MockRestMiddleware())
 
     treasure_map_as_set_on_network = list(federated_ursulas)[0].treasure_maps[
-        digest(enacted_federated_policy.treasure_map.public_id())]
+        keccak_digest(unhexlify(enacted_federated_policy.treasure_map.public_id()))]
     assert treasure_map_as_set_on_network == enacted_federated_policy.treasure_map
 
 
@@ -67,7 +67,7 @@ def test_treasure_map_stored_by_ursula_is_the_correct_one_for_bob(federated_alic
     The TreasureMap given by Alice to Ursula is the correct one for Bob; he can decrypt and read it.
     """
     treasure_map_as_set_on_network = list(federated_ursulas)[0].treasure_maps[
-        digest(enacted_federated_policy.treasure_map.public_id())]
+        keccak_digest(unhexlify(enacted_federated_policy.treasure_map.public_id()))]
 
     hrac_by_bob = federated_bob.construct_policy_hrac(federated_alice.stamp, enacted_federated_policy.label)
     assert enacted_federated_policy.hrac() == hrac_by_bob

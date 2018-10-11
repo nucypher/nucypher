@@ -9,8 +9,6 @@ name = "pypi"
 #
 constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "nucypher-depend"}
 bytestringSplitter = "*"
-rpcudp = {git = "https://github.com/nucypher/rpcudp", ref = "nucypher-depend"}
-kademlia = {git = "https://github.com/nucypher/kademlia", ref = "nucypher-depend"}
 pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "nucypher-depend"}
 #
 # Third-Party
