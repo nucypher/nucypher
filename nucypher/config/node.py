@@ -1,18 +1,27 @@
 import binascii
 import json
 import os
+import ssl
 from json import JSONDecodeError
 from logging import getLogger
 from tempfile import TemporaryDirectory
 from typing import List
+from urllib.parse import urlparse
 
+import requests
 from constant_sorrow import constants
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.serialization import Encoding
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.characters.lawful import Ursula
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, BOOTNODES
+from nucypher.config.keyring import NucypherKeyring, _write_tls_certificate, _read_tls_public_certificate
 from nucypher.config.storages import NodeStorage, InMemoryNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp
+from nucypher.crypto.signing import signature_splitter
 from nucypher.network.middleware import RestMiddleware
+from nucypher.network.nodes import VerifiableNode
 
 
 class NodeConfiguration:
@@ -185,8 +194,11 @@ class NodeConfiguration:
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
         storage_class = NODE_STORAGES[storage_type]
         node_storage = storage_class.from_payload(payload=storage_payload,
+                                                  character_class=cls._Character,
+                                                  federated_only=payload['federated_only'],
                                                   serializer=cls.NODE_SERIALIZER,
                                                   deserializer=cls.NODE_DESERIALIZER)
+
         payload.update(dict(node_storage=node_storage))
         return cls(**{**payload, **overrides})
 
@@ -354,7 +366,7 @@ class NodeConfiguration:
 
     def read_known_nodes(self) -> set:
         """Read known nodes from metadata, and use them when producing a character"""
-        known_nodes = self.node_storage.all()
+        known_nodes = self.node_storage.all(federated_only=self.federated_only)
         return known_nodes
 
     def read_keyring(self, *args, **kwargs):
@@ -421,3 +433,41 @@ class NodeConfiguration:
 
         self.log.info("Successfully wrote registry to {}".format(output_filepath))
         return output_filepath
+
+    def get_bootnodes(self, read_storages: bool = True):
+        """
+        Engage known nodes from storages and pre-fetch hardcoded bootnode certificates.
+        """
+        self.log.debug("Loading bootnodes")
+
+        # Hardcoded Bootnodes
+        for bootnode in BOOTNODES:
+            parsed_url = urlparse(bootnode.rest_url)
+            bootnode_certificate = ssl.get_server_certificate((parsed_url.hostname, parsed_url.port))
+            certificate = x509.load_pem_x509_certificate(bootnode_certificate.encode(), backend=default_backend())
+            filename = '{}.{}'.format(bootnode.checksum_address, Encoding.PEM.name.lower())
+            certificate_filepath = os.path.join(self.known_certificates_dir, filename)
+            _write_tls_certificate(certificate=certificate, full_filepath=certificate_filepath, force=True)
+
+            unresponsive_nodes = set()
+            try:
+                response = self.network_middleware.get_nodes_via_rest(url=parsed_url.netloc,
+                                                                      certificate_filepath=certificate_filepath)
+            except requests.exceptions.ConnectionError as e:
+                unresponsive_nodes.add(bootnode)
+                self.log.info("No Response from Bootnode {}".format(bootnode.rest_url))
+                raise e
+
+            else:
+                if response.status_code != 200:
+                    raise RuntimeError("Bad response from bootnode {}".format(bootnode.rest_url))
+                signature, nodes = signature_splitter(response.content, return_remainder=True)
+                node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)  # TODO: 466
+
+            for node in node_list:
+                self.known_nodes.add(node)
+                self.log.debug("Connected to Bootnode {}|{}".format(bootnode.checksum_address, parsed_url.geturl()))
+
+        # Get Known Nodes
+        if read_storages is True:
+            self.read_known_nodes()
