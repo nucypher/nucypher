@@ -10,7 +10,6 @@ from tempfile import TemporaryDirectory
 from typing import List
 from urllib.parse import urlparse
 
-import requests
 from constant_sorrow import constants
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -19,7 +18,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, BOOTNODES
 from nucypher.config.keyring import NucypherKeyring, _write_tls_certificate
-from nucypher.config.storages import NodeStorage, InMemoryNodeStorage
+from nucypher.config.storages import NodeStorage, InMemoryNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network.middleware import RestMiddleware
@@ -39,7 +38,7 @@ class NodeConfiguration:
     __CONFIG_FILE_DESERIALIZER = json.loads
     __TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
     __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
-    __DEFAULT_NODE_STORAGE = InMemoryNodeStorage
+    __DEFAULT_NODE_STORAGE = LocalFileBasedNodeStorage
 
     __REGISTRY_NAME = 'contract_registry.json'
     REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO: #461 Where will this be hosted?
