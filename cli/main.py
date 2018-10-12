@@ -128,7 +128,6 @@ class NucypherClickConfig:
                                                              auto_initialize=False)
             else:
                 click.secho("Reading Ursula node configuration file {}".format(filepath), fg='blue')
-
         self.node_configuration = node_configuration
 
     def connect_to_blockchain(self):
@@ -1146,8 +1145,9 @@ def ursula(config,
 
     """
 
-    if not os.environ.get(KEYRING_PASSPHRASE_ENVVAR):
-        click.prompt("Password to unlock Ursula's keyring", hide_input=True)
+    password = os.environ.get(KEYRING_PASSPHRASE_ENVVAR, None)
+    if not password:
+        password = click.prompt("Password to unlock Ursula's keyring", hide_input=True)
 
     def __make_ursula():
         if not checksum_address and not config.dev:

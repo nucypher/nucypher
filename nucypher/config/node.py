@@ -7,9 +7,13 @@ from tempfile import TemporaryDirectory
 from typing import List
 
 from constant_sorrow import constants
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.serialization import Encoding
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.characters.lawful import Ursula
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, BOOTNODES
+from nucypher.config.keyring import NucypherKeyring, _write_tls_certificate
 from nucypher.config.storages import NodeStorage, InMemoryNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp
 from nucypher.network.middleware import RestMiddleware

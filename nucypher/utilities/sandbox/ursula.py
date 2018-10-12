@@ -1,24 +1,24 @@
+import click
+import maya
 import os
 import random
-import sys
 
-import maya
-import time
-from os import linesep
-
-import click
 from eth_utils import to_checksum_address
-from twisted.internet import reactor
-from twisted.protocols.basic import LineReceiver
-from typing import Set, Union
-
 from nucypher.blockchain.eth import constants
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import BOOTNODES
 from nucypher.crypto.api import secure_random
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEST_URSULA_STARTING_PORT,
                                                   TEST_KNOWN_URSULAS_CACHE)
+from twisted.conch.insults import window
+from twisted.conch.insults.insults import TerminalProtocol
+from twisted.internet import reactor, task, protocol
+from twisted.protocols.basic import LineReceiver
+from typing import Set, Union
+
+
 
 
 def make_federated_ursulas(ursula_config: UrsulaConfiguration,
@@ -105,7 +105,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
 
 class UrsulaCommandProtocol(LineReceiver):
 
-    delimiter = linesep.encode("ascii")
+    delimiter = os.linesep.encode("ascii")
     encoding = 'utf-8'
 
     width = 80
