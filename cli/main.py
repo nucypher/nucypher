@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-import collections
+
 import hashlib
 import json
 import logging
 import os
 import random
-import shutil
-import ssl
-import sys
-from typing import Tuple, ClassVar
 
 import click
+import collections
+import shutil
 from constant_sorrow import constants
 from eth_utils import is_checksum_address
-from twisted.internet import reactor
+from twisted.internet import reactor, stdio
+from typing import Tuple, ClassVar
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent, EthereumContractAgent
@@ -27,15 +26,14 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import BASE_DIR
+from nucypher.config.constants import BASE_DIR, BOOTNODES
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
                                                   DEVELOPMENT_ETH_AIRDROP_AMOUNT,
                                                   DEFAULT_SIMULATION_REGISTRY_FILEPATH)
-from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
-
+from nucypher.utilities.sandbox.ursula import UrsulaCommandProtocol
 
 __version__ = '0.1.0-alpha.0'
 BANNER = """
@@ -61,14 +59,14 @@ def echo_version(ctx, param, value):
 
 
 # Setup Logging
-root = logging.getLogger()
-root.setLevel(logging.DEBUG)
-
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.DEBUG)  # TODO: set to INFO
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-root.addHandler(ch)
+# root = logging.getLogger()
+# root.setLevel(logging.DEBUG)
+#
+# ch = logging.StreamHandler(sys.stdout)
+# ch.setLevel(logging.DEBUG)  # TODO: set to INFO
+# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# ch.setFormatter(formatter)
+# root.addHandler(ch)
 
 
 #
@@ -115,20 +113,21 @@ class NucypherClickConfig:
         self.sim_processes = constants.NO_SIMULATION_RUNNING
 
     def get_node_configuration(self, configuration_class=UrsulaConfiguration):
-
-        try:
-            filepath = self.config_file or UrsulaConfiguration.DEFAULT_CONFIG_FILE_LOCATION
-            node_configuration = configuration_class.from_configuration_file(filepath=filepath)
-        except FileNotFoundError:
-            if self.config_root:
-                node_configuration = configuration_class(temp=False, config_root=self.config_root, auto_initialize=False)
-            elif self.dev:
-                node_configuration = configuration_class(temp=self.dev, auto_initialize=False, federated_only=self.federated_only)
-            else:
-                node_configuration = configuration_class(federated_only=self.federated_only,
-                                                         auto_initialize=False)
+        if self.dev:
+            node_configuration = configuration_class(temp=self.dev, auto_initialize=False,
+                                                     federated_only=self.federated_only)
         else:
-            click.secho("Reading Ursula node configuration file {}".format(filepath), fg='blue')
+            try:
+                filepath = self.config_file or UrsulaConfiguration.DEFAULT_CONFIG_FILE_LOCATION
+                node_configuration = configuration_class.from_configuration_file(filepath=filepath)
+            except FileNotFoundError:
+                if self.config_root:
+                    node_configuration = configuration_class(temp=False, config_root=self.config_root, auto_initialize=False)
+                else:
+                    node_configuration = configuration_class(federated_only=self.federated_only,
+                                                             auto_initialize=False)
+            else:
+                click.secho("Reading Ursula node configuration file {}".format(filepath), fg='blue')
 
         self.node_configuration = node_configuration
 
@@ -588,15 +587,15 @@ def stake(config,
         # config.miner_agent.deposit_tokens(amount=value, lock_periods=duration, sender_address=address)
         #
         # proc_params = ['run_ursula']
-        # processProtocol = UrsulaProcessProtocol(command=proc_params, checksum_address=checksum_address)
-        # ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
+        # processProtocol = UrsulaCommandProtocol(command=proc_params, checksum_address=checksum_address)
+        # ursula_proc = reactor.spawnProcess(processProtocol, "nucypher", proc_params)
         raise NotImplementedError
 
     elif action == 'resume':
         """Reconnect and resume an existing live stake"""
         # proc_params = ['run_ursula']
-        # processProtocol = UrsulaProcessProtocol(command=proc_params, checksum_address=checksum_address)
-        # ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
+        # processProtocol = UrsulaCommandProtocol(command=proc_params, checksum_address=checksum_address)
+        # ursula_proc = reactor.spawnProcess(processProtocol, "nucypher", proc_params)
         raise NotImplementedError
 
     elif action == 'confirm-activity':
@@ -799,7 +798,7 @@ def simulate(config,
 
             # Spawn
             click.echo("Spawning node #{}".format(counter+1))
-            processProtocol = UrsulaProcessProtocol(command=process_params, checksum_address=sim_address)
+            processProtocol = UrsulaCommandProtocol(command=process_params, checksum_address=sim_address)
             cli_exec = os.path.join(BASE_DIR, 'cli', 'main.py')
             ursula_process = reactor.spawnProcess(processProtocol=processProtocol,
                                                   executable=cli_exec,
@@ -1217,9 +1216,13 @@ def ursula(config,
             if not ursula_config.federated_only:                      # 3
                 URSULA.stake(amount=stake_amount, lock_periods=stake_periods)
                 click.secho("Initialized Stake", fg='blue')
-            if not no_reactor:
-                click.secho("Running Ursula on {}".format(URSULA.rest_interface), fg='green', bold=True)
-                URSULA.get_deployer().run()                           # 4
+
+            # GO!
+            click.secho("Running Ursula on {}".format(URSULA.rest_interface), fg='green', bold=True)
+            stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
+            URSULA.get_deployer().addServices()                           # 4
+            reactor.run()
+
         except Exception as e:
             config.log.critical(str(e))
             click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')
