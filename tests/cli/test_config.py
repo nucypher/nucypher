@@ -43,7 +43,7 @@ def test_initialize_configuration_files_and_directories(custom_filepath):
     assert TEST_CUSTOM_INSTALLATION_PATH in result.output, "Configuration not in system temporary directory"
     assert 'Created' in result.output
     assert custom_filepath in result.output
-    assert "'nucypher-cli ursula run'" in result.output
+    assert "'nucypher ursula run'" in result.output
     assert result.exit_code == 0
     assert os.path.isdir(custom_filepath)
 

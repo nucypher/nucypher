@@ -22,7 +22,6 @@ setup(name='nucypher',
       include_package_data=True,
       entry_points='''
                    [console_scripts]
-                   nucypher-cli=cli.main:cli
-                   run-ursula=cli.run_ursula:run_ursula
+                   nucypher=cli.main:cli
                    '''
       )

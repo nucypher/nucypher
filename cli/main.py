@@ -114,19 +114,21 @@ class NucypherClickConfig:
         # Simulation
         self.sim_processes = constants.NO_SIMULATION_RUNNING
 
-    def get_node_configuration(self, configuration_class=NodeConfiguration):
-        if self.config_root:
-            node_configuration = configuration_class(temp=False,
-                                                     config_root=self.config_root,
-                                                     auto_initialize=False)
-        elif self.dev:
-            node_configuration = configuration_class(temp=self.dev, auto_initialize=False, federated_only=self.federated_only)
-        elif self.config_file:
-            click.echo("Using configuration file {}".format(self.config_file))
-            node_configuration = configuration_class.from_configuration_file(filepath=self.config_file)
+    def get_node_configuration(self, configuration_class=UrsulaConfiguration):
+
+        try:
+            filepath = self.config_file or UrsulaConfiguration.DEFAULT_CONFIG_FILE_LOCATION
+            node_configuration = configuration_class.from_configuration_file(filepath=filepath)
+        except FileNotFoundError:
+            if self.config_root:
+                node_configuration = configuration_class(temp=False, config_root=self.config_root, auto_initialize=False)
+            elif self.dev:
+                node_configuration = configuration_class(temp=self.dev, auto_initialize=False, federated_only=self.federated_only)
+            else:
+                node_configuration = configuration_class(federated_only=self.federated_only,
+                                                         auto_initialize=False)
         else:
-            node_configuration = configuration_class(federated_only=self.federated_only,
-                                                     auto_initialize=False)
+            click.secho("Reading Ursula node configuration file {}".format(filepath), fg='blue')
 
         self.node_configuration = node_configuration
 
@@ -255,7 +257,7 @@ class NucypherClickConfig:
                 click.secho("Saved node configuration file {}".format(configuration_filepath), fg='green')
                 if ursula:
                     click.secho("\nTo run an Ursula node from the "
-                                "default configuration filepath run 'nucypher-cli ursula run'\n")
+                                "default configuration filepath run 'nucypher ursula run'\n")
 
     def destroy_configuration(self):
         if self.dev:
@@ -353,7 +355,6 @@ def cli(config,
 @click.option('--filesystem', is_flag=True, default=False)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--force', help="Ask confirm once; Do not generate wallet or certificate", is_flag=True)
-@click.option('--checksum-address', type=CHECKSUM_ADDRESS)
 @click.argument('action')
 @uses_config
 def configure(config,
@@ -361,7 +362,6 @@ def configure(config,
               ursula,
               filesystem,
               no_registry,
-              checksum_address,  # TODO: Clean by address
               force):
     """Manage local nucypher files and directories"""
     config.get_node_configuration(configuration_class=UrsulaConfiguration if ursula else NodeConfiguration)
@@ -778,7 +778,7 @@ def simulate(config,
 
             sim_db_name = 'sim-{}'.format(sim_port_number)
 
-            process_params = ['nucypher-cli', '--dev']
+            process_params = ['nucypher', '--dev']
             if geth is True:
                 process_params.append('--poa')
             if config.federated_only:
@@ -1033,65 +1033,95 @@ def status(config,
     # Initialize
     #
     config.get_node_configuration()
-    if not config.federated_only:
+    if not config.node_configuration.federated_only:
         config.connect_to_blockchain()
         config.connect_to_contracts()
 
-    contract_payload = """
-    
-    | NuCypher ETH Contracts |
-    
-    Provider URI ............. {provider_uri}
-    Registry Path ............ {registry_filepath}
-
-    NucypherToken ............ {token}
-    MinerEscrow .............. {escrow}
-    PolicyManager ............ {manager}
+        contract_payload = """
         
-    """.format(provider_uri=config.blockchain.interface.provider_uri,
-               registry_filepath=config.blockchain.interface.registry.filepath,
-               token=config.token_agent.contract_address,
-               escrow=config.miner_agent.contract_address,
-               manager=config.policy_agent.contract_address,
-               period=config.miner_agent.get_current_period())
-
-    network_payload = """
-    | Blockchain Network |
+        | NuCypher ETH Contracts |
+        
+        Provider URI ............. {provider_uri}
+        Registry Path ............ {registry_filepath}
     
-    Current Period ........... {period}
-    Gas Price ................ {gas_price}
-    Active Staking Ursulas ... {ursulas}
-    
-    """.format(period=config.miner_agent.get_current_period(),
-               gas_price=config.blockchain.interface.w3.eth.gasPrice,
-               ursulas=config.miner_agent.get_miner_population())
+        NucypherToken ............ {token}
+        MinerEscrow .............. {escrow}
+        PolicyManager ............ {manager}
+            
+        """.format(provider_uri=config.blockchain.interface.provider_uri,
+                   registry_filepath=config.blockchain.interface.registry.filepath,
+                   token=config.token_agent.contract_address,
+                   escrow=config.miner_agent.contract_address,
+                   manager=config.policy_agent.contract_address,
+                   period=config.miner_agent.get_current_period())
+        click.secho(contract_payload)
 
-    subpayloads = ((contracts, contract_payload),
-                   (network, network_payload),
-                   )
+        network_payload = """
+        | Blockchain Network |
+        
+        Current Period ........... {period}
+        Gas Price ................ {gas_price}
+        Active Staking Ursulas ... {ursulas}
+        
+        """.format(period=config.miner_agent.get_current_period(),
+                   gas_price=config.blockchain.interface.w3.eth.gasPrice,
+                   ursulas=config.miner_agent.get_miner_population())
+        click.secho(network_payload)
 
-    if not any(sp[0] for sp in subpayloads):
-        payload = ''.join(sp[1] for sp in subpayloads)
-    else:
-        payload = str()
-        for requested, subpayload in subpayloads:
-            if requested is True:
-                payload += subpayload
+    #
+    # Known Nodes
+    #
 
-    click.echo(payload)
+    # Gather Data
+    known_nodes = config.node_configuration.read_known_nodes()
+    known_certificate_files = os.listdir(config.node_configuration.known_certificates_dir)
+    number_of_known_nodes = len(known_nodes)
+    seen_nodes = len(known_certificate_files)
+
+    # Operating Mode
+    federated_only = config.node_configuration.federated_only
+    if federated_only:
+        click.secho("Configured in Federated Only mode", fg='green')
+
+    # Heading
+    label = "Known Nodes (connected {} / seen {})".format(number_of_known_nodes, seen_nodes)
+    heading = '\n'+label+" "*(45-len(label))+"Last Seen    "
+    click.secho(heading, bold=True, nl=False)
+
+    # Legend
+    color_index = {
+        'self': 'yellow',
+        'known': 'white',
+        'bootnode': 'blue'
+    }
+    for node_type, color in color_index.items():
+        click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
+    click.echo('\n')
+
+    bootnode_addresses = list(bn.checksum_address for bn in BOOTNODES)
+    for node in known_nodes:
+        row_template = "{} | {} | {}"
+        node_type = 'known'
+        if node.checksum_public_address == config.node_configuration.checksum_address:
+            node_type = 'self'
+            row_template += ' ({})'.format(node_type)
+        if node.checksum_public_address in bootnode_addresses:
+            node_type = 'bootnode'
+            row_template += ' ({})'.format(node_type)
+        click.secho(row_template.format(node.checksum_public_address,
+                                        node.rest_url(),
+                                        node.timestamp), fg=color_index[node_type])
 
 
 @cli.command()
 @click.option('--debug', is_flag=True)
 @click.option('--rest-host', type=click.STRING)
 @click.option('--rest-port', type=click.IntRange(min=49151, max=65535, clamp=False))
-@click.option('--additional-nodes', help="Custom known metadata directory", type=click.Path(exists=True, dir_okay=True, file_okay=False, writable=True))
 @click.option('--db-name', type=click.STRING)
 @click.option('--checksum-address', type=CHECKSUM_ADDRESS)
 @click.option('--stake-amount', type=click.IntRange(min=MIN_ALLOWED_LOCKED, max=MAX_ALLOWED_LOCKED, clamp=False))
 @click.option('--stake-periods', type=click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False))
 @click.option('--resume', help="Resume an existing stake", is_flag=True)
-@click.option('--no-reactor', help="Development feature", is_flag=True)
 @click.argument('action')
 @uses_config
 def ursula(config,
@@ -1103,8 +1133,6 @@ def ursula(config,
            stake_amount,
            stake_periods,
            resume,  # TODO Implement stake resume
-           no_reactor,
-           password,
            debug
            ) -> None:
     """
@@ -1120,8 +1148,9 @@ def ursula(config,
 
     """
 
-    if not os.environ.get(KEYRING_PASSPHRASE_ENVVAR):
-        click.prompt("Password to unlock Ursula's keyring", hide_input=True)
+    password = os.environ.get(KEYRING_PASSPHRASE_ENVVAR, None)
+    if not password:
+        password = click.prompt("Password to unlock Ursula's keyring", hide_input=True)
 
     def __make_ursula():
         if not checksum_address and not config.dev:
@@ -1133,7 +1162,7 @@ def ursula(config,
             if not all((stake_amount, stake_periods)) and not resume:
                 raise click.BadOptionUsage(message="Both the --stake-amount <amount> and --stake-periods <periods> options "
                                                    "or the --resume flag is required to run a non-federated Ursula."
-                                                   "For federated run 'nucypher-cli --federated-only ursula <action>'")
+                                                   "For federated run 'nucypher --federated-only ursula <action>'")
 
         return UrsulaConfiguration(temp=config.dev,
                                    auto_initialize=config.dev,
@@ -1148,8 +1177,8 @@ def ursula(config,
                                    poa=config.poa,
                                    save_metadata=False,
                                    load_metadata=True,
-                                   known_metadata_dir=config.metadata_dir,
                                    start_learning_now=True,
+                                   learn_on_same_thread=False,
                                    abort_on_learning_error=config.dev)
 
     #
