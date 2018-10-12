@@ -29,25 +29,14 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import BASE_DIR
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
-from nucypher.config.utils import validate_configuration_file, generate_local_wallet, generate_account
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
                                                   DEVELOPMENT_ETH_AIRDROP_AMOUNT,
                                                   DEFAULT_SIMULATION_REGISTRY_FILEPATH)
 from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
 
+
 __version__ = '0.1.0-alpha.0'
-
-
-def echo_version(ctx, param, value):
-    if not value or ctx.resilient_parsing:
-        return
-    click.secho(__version__, bold=True)
-    ctx.exit()
-
-
-DEBUG = True
-
 BANNER = """
                                   _               
                                  | |              
@@ -63,10 +52,14 @@ BANNER = """
 """.format(__version__)
 
 
-#
-# Setup Logging
-#
+def echo_version(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.secho(BANNER, bold=True)
+    ctx.exit()
 
+
+# Setup Logging
 root = logging.getLogger()
 root.setLevel(logging.DEBUG)
 
@@ -81,6 +74,12 @@ root.addHandler(ch)
 # CLI Configuration
 #
 
+# CLI Constants
+DEBUG = True
+KEYRING_PASSPHRASE_ENVVAR = 'NUCYPHER_KEYRING_PASSPHRASE'
+
+
+# Pending Configuration Named Tuple
 fields = 'passphrase wallet signing tls skip_keys save_file'.split()
 PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetails', fields)
 
@@ -120,7 +119,7 @@ class NucypherClickConfig:
                                                      config_root=self.config_root,
                                                      auto_initialize=False)
         elif self.dev:
-            node_configuration = configuration_class(temp=self.dev, auto_initialize=False)
+            node_configuration = configuration_class(temp=self.dev, auto_initialize=False, federated_only=self.federated_only)
         elif self.config_file:
             click.echo("Using configuration file {}".format(self.config_file))
             node_configuration = configuration_class.from_configuration_file(filepath=self.config_file)
@@ -166,12 +165,15 @@ class NucypherClickConfig:
             passphrase = click.prompt(message, hide_input=True, confirmation_prompt=True)
 
         if choice == 'local':
-            keyring = generate_local_wallet(passphrase=passphrase, keyring_root=self.node_configuration.keyring_dir)
+            keyring = NucypherKeyring.generate(passphrase=passphrase,
+                                               keyring_root=self.node_configuration.keyring_dir,
+                                               encrypting=False,
+                                               wallet=True)
             new_address = keyring.checksum_address
         elif choice == 'hosted':
-            new_address = generate_account(w3=self.blockchain.interface.w3, passphrase=passphrase)
+            new_address = self.blockchain.interface.w3.personal.newAccount(passphrase)
         else:
-            raise click.Abort()
+            raise click.BadParameter("Invalid choice; Options are hosted or local.")
         return new_address
 
     def _collect_pending_configuration_details(self, ursula: bool=False, force: bool = False) -> PendingConfigurationDetails:
@@ -201,8 +203,8 @@ class NucypherClickConfig:
             if not any((generate_wallet, generate_tls_keys, generate_encrypting_keys)):
                 skip_all_key_generation = click.confirm("Skip all key generation (Provide custom configuration file)?")
         if not skip_all_key_generation:
-            if os.environ.get("NUCYPHER_KEYRING_PASSPHRASE"):
-                passphrase = os.environ.get("NUCYPHER_KEYRING_PASSPHRASE")
+            if os.environ.get(KEYRING_PASSPHRASE_ENVVAR):
+                passphrase = os.environ.get(KEYRING_PASSPHRASE_ENVVAR)
             else:
                 passphrase = click.prompt("Enter a passphrase to encrypt your keyring",
                                           hide_input=True, confirmation_prompt=True)
@@ -227,14 +229,19 @@ class NucypherClickConfig:
                 click.echo("Seed contract registry does not exist at path {}.  "
                            "Use --no-registry to skip.".format(registry_source))
                 raise click.Abort()
+
+        if self.config_root:  # Custom installation location
+            self.node_configuration.config_root = self.config_root
+        self.node_configuration.federated_only = self.federated_only
+
         try:
             pending_config = self._collect_pending_configuration_details(force=force, ursula=ursula)
-            new_installation_path = self.node_configuration.write(passphrase=pending_config.passphrase,
-                                                                  wallet=pending_config.wallet,
-                                                                  encrypting=pending_config.signing,
-                                                                  tls=pending_config.tls,
-                                                                  no_registry=no_registry,
-                                                                  no_keys=pending_config.skip_keys)
+            new_installation_path = self.node_configuration.initialize(passphrase=pending_config.passphrase,
+                                                                       wallet=pending_config.wallet,
+                                                                       encrypting=pending_config.signing,
+                                                                       tls=pending_config.tls,
+                                                                       no_registry=no_registry,
+                                                                       no_keys=pending_config.skip_keys)
             if not pending_config.skip_keys:
                 click.secho("Generated new keys at {}".format(self.node_configuration.keyring_dir), fg='blue')
         except NodeConfiguration.ConfigurationError as e:
@@ -370,9 +377,8 @@ def configure(config,
         is_valid = True      # Until there is a reason to believe otherwise...
         try:
             if filesystem:   # Check runtime directory
-                is_valid = NodeConfiguration.validate(config_root=config.node_configuration.config_root, no_registry=no_registry)
-            if config.config_file:
-                is_valid = validate_configuration_file(filepath=config.node_configuration.config_file_location)
+                is_valid = NodeConfiguration.validate(config_root=config.node_configuration.config_root,
+                                                      no_registry=no_registry)
         except NodeConfiguration.InvalidConfiguration:
             is_valid = False
         finally:
@@ -572,27 +578,28 @@ def stake(config,
                    start_period=start_period,
                    end_period=end_period))
 
-        if not click.confirm("Is this correct?"):
-            # field = click.prompt("Which stake field do you want to edit?")
-            raise NotImplementedError
-
-        # Initialize the staged stake
-        config.miner_agent.deposit_tokens(amount=value, lock_periods=duration, sender_address=address)
-
-        proc_params = ['run_ursula']
-        processProtocol = UrsulaProcessProtocol(command=proc_params)
-        ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
+        # TODO: Ursula Process management
+        # if not click.confirm("Is this correct?"):
+        #     # field = click.prompt("Which stake field do you want to edit?")
+        #     raise NotImplementedError
+        #
+        # # Initialize the staged stake
+        # config.miner_agent.deposit_tokens(amount=value, lock_periods=duration, sender_address=address)
+        #
+        # proc_params = ['run_ursula']
+        # processProtocol = UrsulaProcessProtocol(command=proc_params, checksum_address=checksum_address)
+        # ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
+        raise NotImplementedError
 
     elif action == 'resume':
         """Reconnect and resume an existing live stake"""
-
-        proc_params = ['run_ursula']
-        processProtocol = UrsulaProcessProtocol(command=proc_params)
-        ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
+        # proc_params = ['run_ursula']
+        # processProtocol = UrsulaProcessProtocol(command=proc_params, checksum_address=checksum_address)
+        # ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
+        raise NotImplementedError
 
     elif action == 'confirm-activity':
         """Manually confirm activity for the active period"""
-
         stakes = config.miner_agent.get_all_stakes(miner_address=address)
         if len(stakes) == 0:
             raise RuntimeError("There are no active stakes for {}".format(address))
@@ -645,7 +652,7 @@ def stake(config,
 
 
 @cli.command()
-@click.option('--geth', help="Simulate with geth", is_flag=True)
+@click.option('--geth', help="Simulate with geth dev-mode", is_flag=True)
 @click.option('--pyevm', help="Simulate with PyEVM", is_flag=True)
 @click.option('--nodes', help="The number of nodes to simulate", type=click.INT, default=10)
 @click.argument('action')
@@ -936,12 +943,10 @@ def deploy(config,
                 __deployer_init_args.update({dependant: __deployment_agents[dependant]})
 
             if upgradeable:
-                def __collect_secret_hash():
-                    secret = click.prompt("Enter secret hash for {}".format(__contract_name), hide_input=True, confirmation_prompt=True)
-                    secret_hash = hashlib.sha256(secret)
-                    __deployer_init_args.update({'secret_hash': secret_hash})
-                    return secret
-                __collect_secret_hash()
+                secret = click.prompt("Enter deployment secret for {}".format(__contract_name),
+                                      hide_input=True, confirmation_prompt=True)
+                secret_hash = hashlib.sha256(secret)
+                __deployer_init_args.update({'secret_hash': secret_hash})
 
             __deployer = deployer_class(**__deployer_init_args)
 
@@ -1006,7 +1011,7 @@ def deploy(config,
 
         if not force and click.confirm("Save transaction hashes to JSON file?"):
             file = click.prompt("Enter output filepath", type=click.File(mode='w'))   # TODO
-            file.write(json.dumps(__deployment_transactions))
+            file.__write(json.dumps(__deployment_transactions))
             click.secho("Successfully wrote transaction hashes file to {}".format(file.path), fg='green')
 
     else:
@@ -1163,12 +1168,12 @@ def ursula(config,
     config.operating_mode = "federated" if ursula_config.federated_only else "decentralized"
     click.secho("Running in {} mode".format(config.operating_mode), fg='blue')
 
-    if additional_nodes:  # Secondary override
-        ursula_config.read_known_nodes(known_metadata_dir=additional_nodes)
-        click.secho("Loaded additional known nodes", color='blue')
+    # ursula_config.read_known_nodes(known_metadata_dir=additional_nodes)
+    # if additional_nodes:  # Secondary override
+    #     click.secho("Loaded additional known nodes", color='blue')
 
     quantity_known_nodes = len(ursula_config.known_nodes)
-    if quantity_known_nodes:
+    if quantity_known_nodes > 0:
         click.secho("Loaded {} known nodes from storages".format(quantity_known_nodes, fg='blue'))
     else:
         click.secho("WARNING: No seed nodes available", fg='red', bold=True)

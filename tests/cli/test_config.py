@@ -7,43 +7,58 @@ from click.testing import CliRunner
 
 from cli.main import cli
 from nucypher.config.node import NodeConfiguration
+from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+
+
+TEST_CUSTOM_INSTALLATION_PATH = '/tmp/nucypher-tmp-test-custom'
 
 
 @pytest.fixture(scope='function')
 def custom_filepath():
-    custom_filepath = '/tmp/nucypher-tmp-test-custom'
+    custom_filepath = TEST_CUSTOM_INSTALLATION_PATH
     yield custom_filepath
     with contextlib.suppress(FileNotFoundError):
-        shutil.rmtree(custom_filepath)
+        shutil.rmtree(custom_filepath, ignore_errors=True)
 
 
-@pytest.mark.skip()
-def test_initialize_configuration_directory(custom_filepath):
+def test_initialize_configuration_files_and_directories(custom_filepath):
     runner = CliRunner()
 
     # Use the system temporary storage area
-    result = runner.invoke(cli, ['--dev', 'configure', 'install', '--no-registry'], input='Y', catch_exceptions=False)
+    args = ['--dev', '--federated-only', 'configure', 'install', '--ursula', '--force']
+    result = runner.invoke(cli, args,
+                           input='{}\n{}'''.format(TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+                                                   TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD),
+                           catch_exceptions=False)
     assert '/tmp' in result.output, "Configuration not in system temporary directory"
     assert NodeConfiguration._NodeConfiguration__TEMP_CONFIGURATION_DIR_PREFIX in result.output
     assert result.exit_code == 0
 
-    args = ['--config-root', custom_filepath, 'configure', 'install', '--no-registry']
-    result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
-    assert '[y/N]' in result.output, "'configure init' did not prompt the user before attempting to write files"
-    assert '/tmp' in result.output, "Configuration not in system temporary directory"
+    # Use a custom local filepath
+    args = ['--config-root', custom_filepath, '--federated-only', 'configure', 'install', '--ursula', '--force']
+    result = runner.invoke(cli, args,
+                           input='{}\n{}'''.format(TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+                                                   TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD),
+                           catch_exceptions=False)
+    assert TEST_CUSTOM_INSTALLATION_PATH in result.output, "Configuration not in system temporary directory"
     assert 'Created' in result.output
     assert custom_filepath in result.output
+    assert "'nucypher-cli ursula run'" in result.output
     assert result.exit_code == 0
     assert os.path.isdir(custom_filepath)
 
     # Ensure that there are not pre-existing configuration files at config_root
-    with pytest.raises(NodeConfiguration.ConfigurationError):
-        _result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
+    _result = runner.invoke(cli, args,
+                           input='{}\n{}'''.format(TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+                                                   TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD),
+                           catch_exceptions=False)
+    assert "There are existing configuration files" in _result.output
 
+    # Destroy / Uninstall
     args = ['--config-root', custom_filepath, 'configure', 'destroy']
     result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
     assert '[y/N]' in result.output
-    assert '/tmp' in result.output, "Configuration not in system temporary directory"
+    assert TEST_CUSTOM_INSTALLATION_PATH in result.output, "Configuration not in system temporary directory"
     assert 'Deleted' in result.output
     assert custom_filepath in result.output
     assert result.exit_code == 0

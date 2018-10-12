@@ -19,9 +19,9 @@ class UrsulaConfiguration(NodeConfiguration):
     _Character = Ursula
     _name = 'ursula'
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
-
     DEFAULT_REST_HOST = '127.0.0.1'
     DEFAULT_REST_PORT = 9151
+
     __DB_TEMPLATE = "ursula.{port}.db"
     DEFAULT_DB_NAME = __DB_TEMPLATE.format(port=DEFAULT_REST_PORT)
 
@@ -85,11 +85,11 @@ class UrsulaConfiguration(NodeConfiguration):
         base_filepaths.update(filepaths)
         return base_filepaths
 
-    def write(self, tls: bool = True, *args, **kwargs):
-        return super().write(tls=tls,
-                             host=self.rest_host,
-                             curve=self.tls_curve,
-                             *args, **kwargs)
+    def initialize(self, tls: bool = True, *args, **kwargs):
+        return super().initialize(tls=tls,
+                                  host=self.rest_host,
+                                  curve=self.tls_curve,
+                                  *args, **kwargs)
 
     @property
     def static_payload(self) -> dict:

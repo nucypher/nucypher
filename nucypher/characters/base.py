@@ -1,26 +1,27 @@
-import os
 import random
-import time
 from collections import defaultdict
 from collections import deque
 from contextlib import suppress
 from logging import Logger
 from logging import getLogger
-from typing import Dict, ClassVar, Set
-from typing import Tuple
-from typing import Union, List
+from tempfile import TemporaryDirectory
 
 import maya
 import requests
+import time
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from requests.exceptions import SSLError
 from twisted.internet import reactor
 from twisted.internet import task
+from typing import Dict, ClassVar, Set
+from typing import Tuple
+from typing import Union, List
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
+from nucypher.config.storages import InMemoryNodeStorage
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, NoSigningPower, CryptoPowerUp
@@ -40,7 +41,12 @@ class Learner:
 
     _SHORT_LEARNING_DELAY = 5
     _LONG_LEARNING_DELAY = 90
+    LEARNING_TIMEOUT = 10
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 10
+
+    # For Keeps
+    __DEFAULT_NODE_STORAGE = InMemoryNodeStorage
+    __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
 
     class NotEnoughTeachers(RuntimeError):
         pass
@@ -50,14 +56,15 @@ class Learner:
 
     def __init__(self,
                  common_name: str,
-                 network_middleware: RestMiddleware = RestMiddleware(),
+                 network_middleware: RestMiddleware = __DEFAULT_MIDDLEWARE_CLASS(),
                  start_learning_now: bool = False,
                  learn_on_same_thread: bool = False,
                  known_nodes: tuple = None,
                  known_certificates_dir: str = None,
-                 known_metadata_dir: str = None,
+                 node_storage = None,
                  save_metadata: bool = False,
-                 abort_on_learning_error: bool = False) -> None:
+                 abort_on_learning_error: bool = False
+                 ) -> None:
 
         self.log = getLogger("characters")                       # type: Logger
 
@@ -71,21 +78,25 @@ class Learner:
         self._learning_listeners = defaultdict(list)
         self._node_ids_to_learn_about_immediately = set()
 
-        self.known_certificates_dir = known_certificates_dir
+        self.known_certificates_dir = known_certificates_dir or TemporaryDirectory("nucypher-tmp-certs-").name
         self.__known_nodes = dict()
 
         # Read
-        self.known_metadata_dir = known_metadata_dir
-        if save_metadata and known_metadata_dir is None:
-            raise ValueError("Cannot save nodes without a known_metadata_dir")
+        if node_storage is None:
+            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only,    #TODO: remove federated_only
+                                                       character_class=self.__class__)
+
+        self.node_storage = node_storage
+        if save_metadata and node_storage is constants.NO_STORAGE_AVAILIBLE:
+            raise ValueError("Cannot save nodes without a configured node storage")
 
         known_nodes = known_nodes or tuple()
-        self.unresponsive_nodes = list()  # TODO: Attempt to use these again later
+        self.unresponsive_startup_nodes = list()  # TODO: Attempt to use these again later
         for node in known_nodes:
             try:
                 self.remember_node(node)
             except self.UnresponsiveTeacher:
-                self.unresponsive_nodes.append(node)
+                self.unresponsive_startup_nodes.append(node)
 
         self.teacher_nodes = deque()
         self._current_teacher_node = None   # type: Teacher
@@ -249,7 +260,7 @@ class Learner:
 
     def block_until_specific_nodes_are_known(self,
                                              canonical_addresses: Set,
-                                             timeout=10,
+                                             timeout=LEARNING_TIMEOUT,
                                              allow_missing=0,
                                              learn_on_this_thread=False):
         start = maya.now()
@@ -328,17 +339,7 @@ class Learner:
         # Scenario 3: We don't know about this node, and neither does our friend.
 
     def write_node_metadata(self, node, serializer=bytes) -> str:
-
-        try:
-            filename = "{}.node".format(node.checksum_public_address)
-        except AttributeError:
-            raise AttributeError("{} does not have a rest_interface attached".format(self))
-
-        metadata_filepath = os.path.join(self.known_metadata_dir, filename)
-        with open(metadata_filepath, "w") as f:
-            f.write(serializer(node).hex())
-        self.log.info("Wrote new node metadata {}".format(metadata_filepath))
-        return metadata_filepath
+        return self.node_storage.save(node=node)
 
     def learn_from_teacher_node(self, eager=True):
         """
