@@ -7,33 +7,42 @@ name = "pypi"
 #
 # NuCypher
 #
-constantSorrow = {git = "https://github.com/nucypher/constantSorrow.git", ref = "nucypher-depend"}
+constant-sorrow = "*"
 bytestringSplitter = "*"
+hendrix = ">=3.1.0"
+# Pinned Nucypher
 pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "nucypher-depend"}
 #
 # Third-Party
 #
 cryptography = ">=2.3"
 pysha3="*"
-hendrix = ">=3.1.0"
 requests = "*"
-maya = "*"
 sqlalchemy = "*"
 apistar = "==0.5.42"
-click = "*"
 tzlocal = "==2.0.0b1"
+maya = "*"
 #
 # Third-Party Ethereum
 #
 coincurve = ">=8.0.2"
 eth-utils="*"
 eth-keys="*"
+eth-tester = ">=0.1.0b33"
+py-evm = ">=0.2.0a33"
+py-solc = "*"
 web3 = "*"
+#
+# CLI / Config
+#
 appdirs = "*"
+click = "*"
 colorama = "*"
+moto = "*"
+boto3 = "*"
+nucypher = {editable = true, path = "."}
 
 [dev-packages]
-ipdb = "*"
 #
 # Pytest
 #
@@ -44,19 +53,6 @@ pytest-cov = "*"
 mypy = "*"
 codecov = "*"
 coverage = "*"
-#
-# Ethereum
-#
-py-solc = "*"
-#eth-tester = "*"
-eth-tester = {git = "https://github.com/KPrasch/eth-tester.git", ref = "ef4bb2fa793af8aa964b83536b20f525aa74d4e4"}
-py-evm = ">=0.2.0a31"
-#
-# CLI
-#
-moto = "*"
-boto3 = "*"
-nucypher = {editable = true, path = "."}
 
 [pipenv]
 allow_prereleases = true
