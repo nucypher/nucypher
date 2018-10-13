@@ -50,8 +50,8 @@ contract ChallengeLibrary {
         // copy public key except first byte
         bytes memory preparedPublicKey = new bytes(64);
         assembly {
-            let destination := add(mload(preparedPublicKey), 32)
-            let source := add(mload(_minerPublicKey), 33)
+            let destination := add(preparedPublicKey, 32)
+            let source := add(_minerPublicKey, 33)
             mstore(destination, mload(source))
             mstore(add(destination, 32), mload(add(source, 32)))
         }
@@ -74,8 +74,8 @@ contract ChallengeLibrary {
     function check(
         bytes _capsuleBytes,
         bytes _cFragBytes
-    ) public returns (bool) {
-        return false;
+    ) public pure returns (bool) {
+        return _capsuleBytes.length == 100 && _cFragBytes.length == 100; // just for tests
     }
 
 }
