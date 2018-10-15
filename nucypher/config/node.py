@@ -1,18 +1,29 @@
 import binascii
 import json
 import os
+import socket
+import ssl
+import time
 from json import JSONDecodeError
 from logging import getLogger
 from tempfile import TemporaryDirectory
 from typing import List
+from urllib.parse import urlparse
 
+import requests
 from constant_sorrow import constants
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.serialization import Encoding
 
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.characters.lawful import Ursula
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, BOOTNODES
+from nucypher.config.keyring import NucypherKeyring, _write_tls_certificate, _read_tls_public_certificate
 from nucypher.config.storages import NodeStorage, InMemoryNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp
+from nucypher.crypto.signing import signature_splitter
 from nucypher.network.middleware import RestMiddleware
+from nucypher.network.nodes import VerifiableNode
 
 
 class NodeConfiguration:
@@ -185,8 +196,11 @@ class NodeConfiguration:
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
         storage_class = NODE_STORAGES[storage_type]
         node_storage = storage_class.from_payload(payload=storage_payload,
+                                                  character_class=cls._Character,
+                                                  federated_only=payload['federated_only'],
                                                   serializer=cls.NODE_SERIALIZER,
                                                   deserializer=cls.NODE_DESERIALIZER)
+
         payload.update(dict(node_storage=node_storage))
         return cls(**{**payload, **overrides})
 
@@ -354,7 +368,7 @@ class NodeConfiguration:
 
     def read_known_nodes(self) -> set:
         """Read known nodes from metadata, and use them when producing a character"""
-        known_nodes = self.node_storage.all()
+        known_nodes = self.node_storage.all(federated_only=self.federated_only)
         return known_nodes
 
     def read_keyring(self, *args, **kwargs):
@@ -421,3 +435,76 @@ class NodeConfiguration:
 
         self.log.info("Successfully wrote registry to {}".format(output_filepath))
         return output_filepath
+
+    def __learn_from_bootnode(self, bootnode):
+        parsed_url = urlparse(bootnode.rest_url)
+
+        # Pre-fetch certificate
+        self.log.info("Fetching bootnode {} TLS certificate".format(bootnode.checksum_address))
+        bootnode_certificate = ssl.get_server_certificate((parsed_url.hostname, parsed_url.port))
+        certificate = x509.load_pem_x509_certificate(bootnode_certificate.encode(),
+                                                     backend=default_backend())
+
+        # Write certificate
+        filename = '{}.{}'.format(bootnode.checksum_address, Encoding.PEM.name.lower())
+        certificate_filepath = os.path.join(self.known_certificates_dir, filename)
+        _write_tls_certificate(certificate=certificate, full_filepath=certificate_filepath, force=True)
+        self.log.info("Saved bootnode {} TLS certificate".format(bootnode.checksum_address))
+
+        # Learn from Bootnode
+        response = self.network_middleware.get_nodes_via_rest(url=parsed_url.netloc,
+                                                              certificate_filepath=certificate_filepath)
+        self.log.info("Retrieved bootnode data from {}".format(bootnode.checksum_address))
+
+        if response.status_code != 200:
+            raise RuntimeError("Bad response from bootnode {}".format(bootnode.rest_url))
+
+        signature, nodes = signature_splitter(response.content, return_remainder=True)
+        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)  # TODO: 466
+        self.log.debug("Learned from Bootnode {}|{}".format(bootnode.checksum_address, parsed_url.geturl()))
+
+        for node in node_list:
+            self.known_nodes.add(node)
+
+        return node_list
+
+    def load_bootnodes(self,
+                       read_storages: bool = True,
+                       load_seed_nodes: bool = True,
+                       retry_attempts: int = 3,
+                       retry_rate: int = 2,
+                       timeout=3):
+        """
+        Engage known nodes from storages and pre-fetch hardcoded bootnode certificates for node learning.
+        """
+        if load_seed_nodes is True:
+            socket.setdefaulttimeout(timeout)  # Set Socket Timeout
+
+            unresponsive_seed_nodes = set()
+
+            def __attempt_bootnode_learning(bootnode, current_attempt=1):
+                self.log.debug("Loading Bootnode {}|{}".format(bootnode.checksum_address, bootnode.rest_url))
+
+                try:
+                    self.__learn_from_bootnode(bootnode=bootnode)
+                except socket.timeout:
+                    if current_attempt == retry_attempts:
+                        message = "No Response from Bootnode {} after {} attempts"
+                        self.log.info(message.format(bootnode.rest_url, retry_attempts))
+                        return
+                    unresponsive_seed_nodes.add(bootnode)
+                    self.log.info("No Response from Bootnode {}. Retrying in {} seconds...".format(bootnode.rest_url, retry_rate))
+                    time.sleep(retry_rate)
+                    __attempt_bootnode_learning(bootnode=bootnode, current_attempt=current_attempt+1)
+                else:
+                    self.log.info("Successfully learned from bootnode {}".format(bootnode.rest_url))
+                    if current_attempt > 1:
+                        unresponsive_seed_nodes.remove(bootnode)
+
+            for bootnode in BOOTNODES:
+                __attempt_bootnode_learning(bootnode=bootnode)
+            if len(unresponsive_seed_nodes) > 0:
+                self.log.info("No Bootnodes were availible after {} attempts".format(retry_attempts))
+
+        if read_storages is True:
+            self.read_known_nodes()

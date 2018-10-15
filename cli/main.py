@@ -6,6 +6,7 @@ import logging
 import os
 import random
 import shutil
+import ssl
 import sys
 from typing import Tuple, ClassVar
 
@@ -1168,10 +1169,8 @@ def ursula(config,
     config.operating_mode = "federated" if ursula_config.federated_only else "decentralized"
     click.secho("Running in {} mode".format(config.operating_mode), fg='blue')
 
-    # ursula_config.read_known_nodes(known_metadata_dir=additional_nodes)
-    # if additional_nodes:  # Secondary override
-    #     click.secho("Loaded additional known nodes", color='blue')
-
+    # Bootnodes, Seeds, Known Nodes
+    ursula_config.get_bootnodes()
     quantity_known_nodes = len(ursula_config.known_nodes)
     if quantity_known_nodes > 0:
         click.secho("Loaded {} known nodes from storages".format(quantity_known_nodes, fg='blue'))
