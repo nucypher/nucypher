@@ -11,9 +11,10 @@ class HealthMonitorMixin:
 
     def post_stats(self):
         """
-        TODO
+        TODO: Implement this method
         Sends a POST request with the stats collected during runtime.
         """
+        # TODO: Only POST stats if health monitoring enabled
         if not self.__health_stats:
             # Nothing has been collected, no need to POST anything.
             pass
@@ -21,4 +22,6 @@ class HealthMonitorMixin:
 
     @property
     def health_stats(self):
+        # TODO: Find a more reasonable interface for this to prevent arbitrary
+        # information being added to the stats log.
         return self.__health_stats

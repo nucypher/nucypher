@@ -26,6 +26,7 @@ from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
+from nucypher.network.mixins import HealthMonitorMixin
 from nucypher.network.nodes import VerifiableNode
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
@@ -366,7 +367,7 @@ class Bob(Character):
         return cleartexts
 
 
-class Ursula(Character, VerifiableNode, Miner):
+class Ursula(Character, VerifiableNode, Miner, HealthMonitorMixin):
     _internal_splitter = BytestringSplitter((int, 4, {'byteorder': 'big'}),
                                             Signature,
                                             VariableLengthBytestring,
