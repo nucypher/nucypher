@@ -1,0 +1,2 @@
+class HealthMonitorMixin:
+    pass
