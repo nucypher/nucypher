@@ -21,6 +21,7 @@ class UrsulaConfiguration(NodeConfiguration):
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
     DEFAULT_REST_HOST = '127.0.0.1'
     DEFAULT_REST_PORT = 9151
+    DEFAULT_HEALTH_MONITOR_HOST = 'TO_BE_DETERMINED'
 
     __DB_TEMPLATE = "ursula.{port}.db"
     DEFAULT_DB_NAME = __DB_TEMPLATE.format(port=DEFAULT_REST_PORT)
@@ -41,6 +42,8 @@ class UrsulaConfiguration(NodeConfiguration):
                  db_filepath: str = None,
                  interface_signature=None,
                  crypto_power: CryptoPower = None,
+                 health_monitor: bool = False,
+                 health_monitor_host: str = None,
 
                  # Blockchain
                  poa: bool = False,
@@ -65,6 +68,7 @@ class UrsulaConfiguration(NodeConfiguration):
         # Ursula
         self.interface_signature = interface_signature
         self.crypto_power = crypto_power
+        self.health_monitor_host = health_monitor_host or self.DEFAULT_HEALTH_MONITOR_HOST
 
         #
         # Blockchain
