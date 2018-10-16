@@ -13,6 +13,7 @@ from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate
 from eth_utils import to_checksum_address
+from twisted.internet import task
 from twisted.internet import threads
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
@@ -414,6 +415,7 @@ class Ursula(Character, VerifiableNode, Miner, HealthMonitorMixin):
                  abort_on_learning_error: bool = False,
                  federated_only: bool = False,
                  start_learning_now: bool = None,
+                 start_health_monitor_now: bool = False,
                  crypto_power=None,
                  tls_curve: EllipticCurve = None,
                  known_nodes: Iterable = None,
@@ -441,6 +443,13 @@ class Ursula(Character, VerifiableNode, Miner, HealthMonitorMixin):
         if is_me is True:           # TODO: 340
             self._stored_treasure_maps = dict()
 
+            # Setup HealthMonitorMixin
+            HealthMonitorMixin.__init__()
+            self._health_monitor_task = task.LoopingCall(self.post_stats)
+
+            if start_health_monitor_now:
+                self._health_monitor_task.start(
+                    constants.HEALTH_MONITOR_POST_INTERVAL(360.0))
             #
             # Staking Ursula
             #
