@@ -322,8 +322,68 @@ class PolicyAgent(EthereumContractAgent):
         return txhash
 
 
-class UserEscrowAgent(EthereumContractAgent):
+class UserEscrowAgent(MinerAgent):
 
     principal_contract_name = "UserEscrow"
     _upgradeable = True
+    _proxy_name = "UserEscrowProxy"
     __instance = NO_CONTRACT_AVAILABLE
+
+    def __init__(self,
+                 policy_agent: PolicyAgent,
+                 beneficiary: str = None,
+                 *args, **kwargs):
+
+        self.__beneficiary = beneficiary or NO_BENEFICIARY
+        self.policy_agent = policy_agent
+        self.miner_agent = self.policy_agent.miner_agent
+        self.token_agent = self.miner_agent.token_agent
+        super().__init__(token_agent=self.token_agent, *args, **kwargs)
+        self.__read_beneficiary()
+
+    @property
+    def beneficiary(self):
+        return self.contract.functions.getOwner().call()
+
+    @property
+    def end_timestamp(self):
+        return self.contract.functions.endLockTimeStamp().call()
+
+    @property
+    def allocation(self):
+        return self.contract.functions.lockedValue().call()
+
+    def get_locked_tokens(self) -> int:
+        """Returns the amount of tokens this miner has locked for the beneficiary."""
+        return self.contract.functions.getLockedTokens().call()
+
+    def withdraw_tokens(self, value: int) -> str:
+        txhash = self.contract.functions.withdrawTokens(value).transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def withdraw_eth(self) -> str:
+        txhash = self.contract.functions.withdrawETH().transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def _initial_deposit(self, value: int, duration: int) -> str:
+        txhash = self.contract.functions.initialDeposit(value, duration).transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def _deposit_as_miner(self, value:int, periods: int) -> str:
+        txhash = self.contract.functions.depositAsMiner(value, periods).transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def _withdraw_as_miner(self, value: int) -> str:
+        txhash = self.contract.functions.withdrawAsMiner(value).transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def __get_state_contract(self) -> str:
+        return self.contract.functions.getStateContract()
+
+    def __read_beneficiary(self) -> None:
+        self.__beneficiary = self.contract.functions.owner.call()
