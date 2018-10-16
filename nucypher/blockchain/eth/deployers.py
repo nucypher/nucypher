@@ -33,7 +33,7 @@ class ContractDeployer:
         self.__armed = False
         self._contract = CONTRACT_NOT_DEPLOYED
         self.deployment_receipt = CONTRACT_NOT_DEPLOYED
-        self.__dispatcher = NotImplemented
+        self.__proxy_contract = NotImplemented
         self.__deployer_address = deployer_address
 
         # Sanity check
@@ -61,7 +61,7 @@ class ContractDeployer:
 
     @property
     def dispatcher(self):
-        return self.__dispatcher
+        return self.__proxy_contract
 
     @property
     def is_deployed(self) -> bool:
@@ -324,7 +324,7 @@ class PolicyManagerDeployer(ContractDeployer):
         dispatcher_contract = dispatcher_deployer.contract
         self.__dispatcher_contract = dispatcher_contract
 
-        # Wrap the escrow contract (Govern)
+        # Wrap the escrow contract
         wrapped_policy_manager_contract = self.blockchain.interface._wrap_contract(dispatcher_contract,
                                                                                    target_contract=the_policy_manager_contract)
 

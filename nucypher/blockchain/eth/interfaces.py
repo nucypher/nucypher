@@ -260,13 +260,13 @@ class BlockchainInterface:
                                             ContractFactoryClass=Contract)
             return contract
 
-    def _wrap_contract(self, dispatcher_contract: Contract,
+    def _wrap_contract(self, wrapper_contract: Contract,
                        target_contract: Contract, factory=Contract) -> Contract:
         """Used for upgradeable contracts."""
 
         # Wrap the contract
         wrapped_contract = self.w3.eth.contract(abi=target_contract.abi,
-                                                address=dispatcher_contract.address,
+                                                address=wrapper_contract.address,
                                                 ContractFactoryClass=factory)
         return wrapped_contract
 
@@ -281,44 +281,50 @@ class BlockchainInterface:
                 raise self.UnknownContract("No such contract with address {}".format(address))
             return contract_records[0]
 
-    def get_contract_by_name(self, name: str, upgradeable=False, factory=Contract) -> Contract:
+    def get_contract_by_name(self,
+                             name: str,
+                             proxy_name: str = None,
+                             match_proxy_target: bool = False,
+                             factory: Contract = Contract) -> Contract:
         """
         Instantiate a deployed contract from registrar data,
-        and assemble it with it's dispatcher if it is upgradeable.
+        and assemble it with it's proxy if it is upgradeable.
         """
         target_contract_records = self.registry.search(contract_name=name)
 
         if not target_contract_records:
             raise self.UnknownContract("No such contract records with name {}".format(name))
 
-        if upgradeable:
-            # Lookup dispatchers; Search fot a published dispatcher that targets this contract record
-            dispatcher_records = self.registry.search(contract_name='Dispatcher')
+        if proxy_name:  # It's upgradeable
 
-            matching_pairs = list()
-            for dispatcher_name, dispatcher_addr, dispatcher_abi in dispatcher_records:
+            # Lookup proxies; Search fot a published proxy that targets this contract record
+            proxy_records = self.registry.search(contract_name=proxy_name)
 
-                dispatcher_contract = self.w3.eth.contract(abi=dispatcher_abi,
-                                                           address=dispatcher_addr,
-                                                           ContractFactoryClass=factory)
+            if match_proxy_target:  # It's a one-to-one proxy
+                matching_pairs = list()
+                for proxy_name, proxy_addr, proxy_abi in proxy_records:
+                    proxy_contract = self.w3.eth.contract(abi=proxy_abi,
+                                                          address=proxy_addr,
+                                                          ContractFactoryClass=factory)
 
-                # Read this dispatchers target address from the blockchain
-                live_target_address = dispatcher_contract.functions.target().call()
+                    # Read this dispatchers target address from the blockchain
+                    live_target_address = proxy_contract.functions.target().call()
+                    for target_name, target_addr, target_abi in target_contract_records:
+                        if target_addr == live_target_address:
+                            matching_pairs.append((proxy_name, proxy_addr, target_abi))
 
-                for target_name, target_addr, target_abi in target_contract_records:
-                    if target_addr == live_target_address:
-                        pair = dispatcher_addr, target_abi
-                        matching_pairs.append(pair)
+                    proxy_records = matching_pairs
 
-            else:  # for/else
+            if len(proxy_records) > 1:
+                message = "Multiple records returned from the registry for non-targeting-proxy contract {}"
+                raise self.InterfaceError(message.format(name))
+            try:
+                selected_contract_name, selected_contract_address, selected_contract_abi = proxy_records[0]
+            except IndexError:
+                raise self.InterfaceError("No proxy targets known contract records for {}".format(name))
+            except ValueError:
+                raise
 
-                if len(matching_pairs) == 0:
-                    raise self.InterfaceError("No dispatcher targets known contract records for {}".format(name))
-
-                elif len(matching_pairs) > 1:
-                    raise self.InterfaceError("There is more than one dispatcher targeting {}".format(name))
-
-                selected_contract_address, selected_contract_abi = matching_pairs[0]
         else:
             if len(target_contract_records) != 1:  # TODO: Allow multiple non-upgradeable records (UserEscrow)
                 m = "Multiple records returned from the registry for non-upgradeable contract {}"
