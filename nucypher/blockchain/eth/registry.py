@@ -127,7 +127,7 @@ class EthereumContractRegistry:
             raise self.IllegalRegistry(message)
 
         if not contracts:
-            raise self.UnknownContract
+            raise self.UnknownContract(": {}".format(contract_name))
 
         if contract_address and len(contracts) > 1:
             m = "Multiple records returned for address {}"

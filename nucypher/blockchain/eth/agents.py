@@ -2,7 +2,7 @@ import random
 from abc import ABC
 from logging import getLogger
 
-from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
+from constant_sorrow.constants import NO_CONTRACT_AVAILABLE, NO_BENEFICIARY
 from typing import Generator, List, Tuple, Union
 from web3.contract import Contract
 
@@ -18,7 +18,7 @@ class EthereumContractAgent(ABC):
     principal_contract_name = NotImplemented
 
     _upgradeable = NotImplemented
-
+    _proxy_name = None
     __contract_address = NotImplemented
     __instance = NO_CONTRACT_AVAILABLE
 
@@ -44,7 +44,7 @@ class EthereumContractAgent(ABC):
         if contract is None:
             # Fetch the contract by reading address and abi from the registry and blockchain
             contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
-                                                                      upgradeable=self._upgradeable)
+                                                                      proxy_name=self._proxy_name)
         self.__contract = contract
         super().__init__()
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
@@ -113,6 +113,7 @@ class MinerAgent(EthereumContractAgent):
 
     principal_contract_name = "MinersEscrow"
     _upgradeable = True
+    _proxy_name = "Dispatcher"
     __instance = NO_CONTRACT_AVAILABLE
 
     class NotEnoughMiners(Exception):
@@ -253,6 +254,7 @@ class PolicyAgent(EthereumContractAgent):
 
     principal_contract_name = "PolicyManager"
     _upgradeable = True
+    _proxy_name = "Dispatcher"
     __instance = NO_CONTRACT_AVAILABLE
 
     def __init__(self,
