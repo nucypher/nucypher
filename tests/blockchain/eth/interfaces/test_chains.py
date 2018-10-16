@@ -1,7 +1,7 @@
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 
 
-def test_chain_creation(testerchain):
+def test_testerchain_creation(testerchain):
     # Ensure we are testing on the correct network...
     assert 'tester' in testerchain.interface.provider_uri
 
