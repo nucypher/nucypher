@@ -350,10 +350,10 @@ class Miner(NucypherTokenActor):
         return policy_reward_txhash
 
     @only_me
-    def collect_staking_reward(self) -> str:
+    def collect_staking_reward(self, collector_address: str) -> str:
         """Withdraw tokens rewarded for staking."""
 
-        collection_txhash = self.miner_agent.collect_staking_reward(collector_address=self.checksum_public_address)
+        collection_txhash = self.miner_agent.collect_staking_reward(collector_address=collector_address)
         self._transaction_cache.append((datetime.utcnow(), collection_txhash))
 
         return collection_txhash

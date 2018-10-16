@@ -25,10 +25,10 @@ class EthereumContractAgent(ABC):
     class ContractNotDeployed(Exception):
         pass
 
-    def __new__(cls, *args, **kwargs) -> 'EthereumContractAgent':
-        if cls.__instance is NO_CONTRACT_AVAILABLE:
-            cls.__instance = super(EthereumContractAgent, cls).__new__(cls)
-        return cls.__instance
+    # def __new__(cls, *args, **kwargs) -> 'EthereumContractAgent': TODO: remove?
+    #     if cls.__instance is NO_CONTRACT_AVAILABLE:
+    #         cls.__instance = super(EthereumContractAgent, cls).__new__(cls)
+    #     return cls.__instance
 
     def __init__(self,
                  blockchain: Blockchain = None,
@@ -290,7 +290,7 @@ class PolicyAgent(EthereumContractAgent):
 
     def revoke_policy(self, policy_id: bytes, author_address) -> str:
         """Revoke by arrangement ID; Only the policy's author_address can revoke the policy."""
-        txhash = self.contract.functions.revokePolicy(policy_id).transact({'from': author_address.address})
+        txhash = self.contract.functions.revokePolicy(policy_id).transact({'from': author_address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
@@ -301,13 +301,13 @@ class PolicyAgent(EthereumContractAgent):
         return policy_reward_txhash
 
     def fetch_policy_arrangements(self, policy_id):
-        records = self.contract.functions.getArrangementsLength(policy_id).call()
-        for records in range(records):
-            arrangement = self.contract.functions.getArrangementInfo(policy_id, 0).call()[records]
+        record_count = self.contract.functions.getArrangementsLength(policy_id).call()
+        for index in range(record_count):
+            arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
             yield arrangement
 
-    def revoke_arrangement(self, policy_id: str, node_address: str):
-        txhash = self.contract.functions.revokeArrangement(policy_id, node_address)
+    def revoke_arrangement(self, policy_id: str, node_address: str, author_address: str):
+        txhash = self.contract.functions.revokeArrangement(policy_id, node_address).transact({'from': author_address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 

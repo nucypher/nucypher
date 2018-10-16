@@ -1,4 +1,5 @@
 from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED
+from eth_utils import is_checksum_address
 from typing import Tuple, Dict
 
 from nucypher.blockchain.eth import constants
