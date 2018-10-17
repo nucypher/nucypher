@@ -3,11 +3,19 @@ from logging import getLogger
 
 import maya
 from constant_sorrow import constants
+from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_CONTRACT_AVAILABLE, NO_DEPLOYER_ADDRESS
 from datetime import datetime
+from eth_utils import is_checksum_address
 from twisted.internet import task, reactor
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Union
 
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
+from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer, \
+    UserEscrowProxyDeployer, UserEscrowDeployer
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import (datetime_to_period,
                                            validate_stake_amount,
                                            validate_locktime,
@@ -73,6 +81,146 @@ class NucypherTokenActor:
         """Return this actors's current token balance"""
         balance = self.token_agent.get_balance(address=self.checksum_public_address)
         return balance
+
+
+class Deployer(NucypherTokenActor):
+
+    __interface_class = BlockchainDeployerInterface
+
+    def __init__(self,
+                 blockchain,
+                 deployer_address: str = None,
+                 token_agent: NucypherTokenAgent = None,
+                 miner_agent: MinerAgent = None,
+                 policy_agent: PolicyAgent = None,
+                 ) -> None:
+
+        self.__deployer_address = deployer_address or NO_DEPLOYER_ADDRESS
+        self.blockchain = blockchain
+
+        self.token_agent = token_agent or NO_CONTRACT_AVAILABLE
+        self.miner_agent = miner_agent or NO_CONTRACT_AVAILABLE
+        self.policy_agent = policy_agent or NO_CONTRACT_AVAILABLE
+
+        self.user_escrow_deployers = dict()
+
+    @classmethod
+    def from_deployed_blockchain(cls, provider_uri, *args, **kwargs) -> 'Deployer':
+        blockchain = cls.connect_to_blockchain(provider_uri=provider_uri)
+        token_agent = NucypherTokenAgent(blockchain=blockchain)
+        miner_agent = MinerAgent(blockchain=blockchain, token_agent=token_agent)
+        policy_agent = PolicyAgent(blockchain=blockchain, miner_agent=miner_agent)
+        instance = cls(blockchain=blockchain,
+                       token_agent=token_agent,
+                       miner_agent=miner_agent,
+                       policy_agent=policy_agent,
+                       *args, **kwargs)
+        return instance
+
+    @classmethod
+    def from_blockchain(cls, provider_uri: str, registry=None, *args, **kwargs):
+        blockchain = cls.connect_to_blockchain(provider_uri=provider_uri, registry=registry)
+        instance = cls(blockchain=blockchain, *args, **kwargs)
+        return instance
+
+    @classmethod
+    def connect_to_blockchain(cls, provider_uri: str, compile=True, registry=None):
+        compiler = SolidityCompiler() if compile else None
+        registry = registry or EthereumContractRegistry()
+        interface = cls.__interface_class(compiler=compiler, registry=registry, provider_uri=provider_uri)
+        blockchain = Blockchain(interface=interface)
+        return blockchain
+
+    @property
+    def deployer_address(self):
+        return self.blockchain.interface.deployer_address
+
+    @deployer_address.setter
+    def deployer_address(self, value):
+        self.blockchain.interface.deployer_address = value
+
+    @property
+    def token_balance(self):
+        if self.token_agent is CONTRACT_NOT_DEPLOYED:
+            raise self.ActorError("Token contract not deployed")
+        return super().token_balance
+
+    def deploy_token_contract(self):
+
+        token_deployer = NucypherTokenDeployer(blockchain=self.blockchain, deployer_address=self.deployer_address)
+        token_deployer.arm()
+        token_deployer.deploy()
+        self.token_agent = token_deployer.make_agent()
+
+    def deploy_miner_contract(self, secret):
+
+        miner_escrow_deployer = MinerEscrowDeployer(token_agent=self.token_agent,
+                                                    deployer_address=self.deployer_address,
+                                                    secret_hash=secret)
+        miner_escrow_deployer.arm()
+        miner_escrow_deployer.deploy()
+        self.miner_agent = miner_escrow_deployer.make_agent()
+
+    def deploy_policy_contract(self, secret):
+
+        policy_manager_deployer = PolicyManagerDeployer(miner_agent=self.miner_agent,
+                                                        deployer_address=self.deployer_address,
+                                                        secret_hash=secret)
+        policy_manager_deployer.arm()
+        policy_manager_deployer.deploy()
+        self.policy_agent = policy_manager_deployer.make_agent()
+
+    def deploy_escrow_proxy(self, secret):
+
+        escrow_proxy_deployer = UserEscrowProxyDeployer(policy_agent=self.policy_agent,
+                                                        deployer_address=self.deployer_address,
+                                                        secret_hash=secret)
+        escrow_proxy_deployer.arm()
+        escrow_proxy_deployer.deploy()
+        return escrow_proxy_deployer
+
+    def deploy_user_escrow(self):
+        user_escrow_deployer = UserEscrowDeployer(deployer_address=self.deployer_address,
+                                                  policy_agent=self.policy_agent)
+
+        user_escrow_deployer.arm()
+        user_escrow_deployer.deploy()
+        principal_address = user_escrow_deployer.principal_contract.address
+        self.user_escrow_deployers[principal_address] = user_escrow_deployer
+        return user_escrow_deployer
+
+    def deploy_network_contracts(self, miner_secret, policy_secret):
+        """
+        Musketeers, if you will; Deploy the "big three" contracts to the blockchain.
+        """
+        self.deploy_token_contract()
+        self.deploy_miner_contract(secret=miner_secret)
+        self.deploy_policy_contract(secret=policy_secret)
+
+    def __allocate(self,
+                   deployer,
+                   target_address: str,
+                   value: int,
+                   duration: int):
+
+        deployer.initial_deposit(value=value, duration=duration)
+        deployer.assign_beneficiary(beneficiary_address=target_address)
+
+    def deploy_beneficiary_contracts(self, allocations: List[Dict[str, Union[str, int]]]):
+        """
+
+        Example dataset:
+
+        data = [{'address': '0xdeadbeef', 'amount': 100, 'periods': 100},
+                {'address': '0xabced120', 'amount': 133432, 'periods': 1},
+                {'address': '0xf7aefec2', 'amount': 999, 'periods': 30}]
+        """
+        for allocation in allocations:
+            deployer = self.deploy_user_escrow()
+            self.__allocate(deployer=deployer,
+                            target_address=allocation['address'],
+                            value=allocation['amount'],
+                            duration=allocation['periods'])
 
 
 class Miner(NucypherTokenActor):
