@@ -14,8 +14,8 @@ def agent(three_agents, testerchain):
     token_agent, miner_agent, policy_agent = three_agents
 
     proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer,
-                                          policy_agent=policy_agent,
-                                          secret_hash=os.urandom(32))
+                                             policy_agent=policy_agent,
+                                             secret_hash=os.urandom(32))
     assert proxy_deployer.arm()
     proxy_deployer.deploy()
 
@@ -30,7 +30,7 @@ def agent(three_agents, testerchain):
 
 
 def test_user_escrow_agent_represents_beneficiary(agent):
-    assert agent.principal_contract_name == UserEscrowAgent.principal_contract_name
+    assert agent.registry_contract_name == UserEscrowAgent.registry_contract_name
     assert agent != agent.miner_agent, "UserEscrow Agent is connected to the MinerEscrow's contract"
     assert agent.contract_address != agent.miner_agent.contract_address, "UserEscrow and MinerEscrow agents represent the same contract"
 

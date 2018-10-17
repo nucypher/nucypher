@@ -13,7 +13,7 @@ from sqlalchemy.engine import create_engine
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
+from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry, InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
@@ -342,12 +342,12 @@ def testerchain(solidity_compiler):
     """
     https: // github.com / ethereum / eth - tester     # available-backends
     """
-    _temp_registry = TemporaryEthereumContractRegistry()
+    memory_registry = InMemoryEthereumContractRegistry()
 
     # Use the the custom provider and registrar to init an interface
 
     deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
-                                                     registry=_temp_registry,
+                                                     registry=memory_registry,
                                                      provider_uri='tester://pyevm')
 
     # Create the blockchain

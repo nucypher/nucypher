@@ -20,12 +20,16 @@ def test_token_deployer_and_agent(testerchain):
         deployer.deploy()
 
     # Token must be armed before deploying to the blockchain
-    deployer.arm()
-    deployer.deploy()
+    assert deployer.arm()
+    deployment_txhashes = deployer.deploy()
+
+    for title, txhash in deployment_txhashes.items():
+        receipt = testerchain.wait_for_receipt(txhash=txhash)
+        assert receipt['status'] == 1, "Transaction Rejected {}:{}".format(title, txhash)
 
     # Create a token instance
     token_agent = deployer.make_agent()
-    token_contract = testerchain.get_contract(token_agent.contract_name)
+    token_contract = token_agent.contract
 
     expected_token_supply = token_contract.functions.totalSupply().call()
     assert expected_token_supply == token_agent.contract.functions.totalSupply().call()

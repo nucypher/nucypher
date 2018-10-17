@@ -33,7 +33,7 @@ def test_token_properties(agent):
 
     assert len(agent.contract_address) == 42
     assert agent.contract.address == agent.contract_address
-    assert agent.contract_name == NucypherTokenAgent.principal_contract_name
+    assert agent.contract_name == NucypherTokenAgent.registry_contract_name
     assert agent._upgradeable is False
 
 
