@@ -49,7 +49,7 @@ class EthereumContractRegistry:
         self.__filepath = filepath
         return True
 
-    def __write(self, registry_data: list) -> None:
+    def write(self, registry_data: list) -> None:
         """
         Writes the registry data list as JSON to the registry file. If no
         file exists, it will create it and write the data. If a file does exist
@@ -103,7 +103,7 @@ class EthereumContractRegistry:
             registry_data = list()  # empty registry
 
         registry_data.append(contract_data)
-        self.__write(registry_data)
+        self.write(registry_data)
         self.log.info("Enrolled {}:{} into registry {}".format(contract_name, contract_address, self.filepath))
 
     def search(self, contract_name: str=None, contract_address: str=None):
@@ -161,6 +161,32 @@ class TemporaryEthereumContractRegistry(EthereumContractRegistry):
             self.clear()                                  # clear prior sim runs
 
         _ = shutil.copy(self.temp_filepath, filepath)
-        self.temp_filepath = constants.REGISTRY_COMMITED  # just in case
+        self.temp_filepath = constants.REGISTRY_COMMITTED  # just in case
         self.log.info("Wrote temporary registry to filesystem {}".format(filepath))
         return filepath
+
+
+class InMemoryEthereumContractRegistry(EthereumContractRegistry):
+
+    def __init__(self) -> None:
+        super().__init__(registry_filepath=":memory:")
+        self.__registry_data = None  # type: str
+
+    def clear(self):
+        self.__registry_data = list()
+
+    def _swap_registry(self, filepath: str) -> bool:
+        raise NotImplementedError
+
+    def write(self, registry_data: list) -> None:
+        self.__registry_data = json.dumps(registry_data)
+
+    def read(self) -> list:
+        try:
+            registry_data = json.loads(self.__registry_data)
+        except TypeError:
+            if self.__registry_data is None:
+                registry_data = list()
+            else:
+                raise
+        return registry_data

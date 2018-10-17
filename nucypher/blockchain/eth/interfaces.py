@@ -262,7 +262,10 @@ class BlockchainInterface:
 
     def _wrap_contract(self, wrapper_contract: Contract,
                        target_contract: Contract, factory=Contract) -> Contract:
-        """Used for upgradeable contracts."""
+        """
+        Used for upgradeable contracts;
+        Returns a new contract object assembled with the address of one contract but the abi or another.
+        """
 
         # Wrap the contract
         wrapped_contract = self.w3.eth.contract(abi=target_contract.abi,
@@ -284,10 +287,10 @@ class BlockchainInterface:
     def get_contract_by_name(self,
                              name: str,
                              proxy_name: str = None,
-                             match_proxy_target: bool = False,
+                             assemble_with_target: bool = True,
                              factory: Contract = Contract) -> Contract:
         """
-        Instantiate a deployed contract from registrar data,
+        Instantiate a deployed contract from registry data,
         and assemble it with it's proxy if it is upgradeable.
         """
         target_contract_records = self.registry.search(contract_name=name)
@@ -300,7 +303,7 @@ class BlockchainInterface:
             # Lookup proxies; Search fot a published proxy that targets this contract record
             proxy_records = self.registry.search(contract_name=proxy_name)
 
-            if match_proxy_target:  # It's a one-to-one proxy
+            if assemble_with_target:  # It's a one-to-one proxy
                 matching_pairs = list()
                 for proxy_name, proxy_addr, proxy_abi in proxy_records:
                     proxy_contract = self.w3.eth.contract(abi=proxy_abi,
@@ -319,7 +322,7 @@ class BlockchainInterface:
                 message = "Multiple records returned from the registry for non-targeting-proxy contract {}"
                 raise self.InterfaceError(message.format(name))
             try:
-                selected_contract_name, selected_contract_address, selected_contract_abi = proxy_records[0]
+                _proxy_name, selected_proxy_address, selected_target_abi = proxy_records[0]
             except IndexError:
                 raise self.InterfaceError("No proxy targets known contract records for {}".format(name))
             except ValueError:
@@ -330,11 +333,11 @@ class BlockchainInterface:
                 m = "Multiple records returned from the registry for non-upgradeable contract {}"
                 raise self.InterfaceError(m.format(name))
 
-            selected_contract_name, selected_contract_address, selected_contract_abi = target_contract_records[0]
+            _proxy_name, selected_proxy_address, selected_target_abi = target_contract_records[0]
 
         # Create the contract from selected sources
-        unified_contract = self.w3.eth.contract(abi=selected_contract_abi,
-                                                address=selected_contract_address,
+        unified_contract = self.w3.eth.contract(abi=selected_target_abi,
+                                                address=selected_proxy_address,
                                                 ContractFactoryClass=factory)
 
         return unified_contract
