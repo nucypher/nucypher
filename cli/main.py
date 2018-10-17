@@ -1011,7 +1011,7 @@ def deploy(config,
 
         if not force and click.confirm("Save transaction hashes to JSON file?"):
             file = click.prompt("Enter output filepath", type=click.File(mode='w'))   # TODO
-            file.__write(json.dumps(__deployment_transactions))
+            file.write(json.dumps(__deployment_transactions))
             click.secho("Successfully wrote transaction hashes file to {}".format(file.path), fg='green')
 
     else:
