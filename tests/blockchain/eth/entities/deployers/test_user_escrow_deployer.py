@@ -14,7 +14,6 @@ def user_escrow_proxy(three_agents):
     deployer, alice, bob, *all_yall = testerchain.interface.w3.eth.accounts
 
     escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer,
-                                                    policy_agent=policy_agent,
                                                     secret_hash=os.urandom(32))
     assert escrow_proxy_deployer.arm()
     _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy()
@@ -24,27 +23,16 @@ def user_escrow_proxy(three_agents):
     testerchain.sever_connection()
 
 
-def test_user_escrow_proxy_deployer():
-    pass
-
-
+@pytest.mark.usesfixtures('three_agents')
 def test_user_escrow_deployer(three_agents, testerchain):
-    token_agent, miner_agent, policy_agent = three_agents
     deployer, alice, bob, *all_yall = testerchain.interface.w3.eth.accounts
 
-    # Depends on UserEscrowProxy Deployment (and thus Linker, too)
-    # with pytest.raises(testerchain.interface.registry.UnknownContract):
-    # deployer = UserEscrowDeployer(policy_agent=policy_agent,
-    #                               deployer_address=deployer)
-
     escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer,
-                                                    policy_agent=policy_agent,
                                                     secret_hash=os.urandom(32))
     assert escrow_proxy_deployer.arm()
     _escrow_proxy_deployments_txhashes = escrow_proxy_deployer.deploy()
 
-    deployer = UserEscrowDeployer(policy_agent=policy_agent,
-                                  deployer_address=deployer)
+    deployer = UserEscrowDeployer(deployer_address=deployer)
     assert deployer.arm()
     deployment_txhashes = deployer.deploy()
 
@@ -61,8 +49,7 @@ def test_deploy_multiple(three_agents, testerchain):
 
     number_of_deployments = 100
     for index in range(number_of_deployments):
-        deployer = UserEscrowDeployer(policy_agent=policy_agent,
-                                      deployer_address=deployer)
+        deployer = UserEscrowDeployer(deployer_address=deployer)
         assert deployer.arm()
         deployment_txhashes = deployer.deploy()
 

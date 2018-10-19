@@ -13,11 +13,9 @@ def test_token_deployer_and_agent(testerchain):
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
     token_deployer.arm()
     token_deployer.deploy()
-    token_agent = token_deployer.make_agent()
 
     secret_hash = os.urandom(32)
     deployer = MinerEscrowDeployer(blockchain=testerchain,
-                                   token_agent=token_agent,
                                    deployer_address=origin,
                                    secret_hash=secret_hash)
 
@@ -41,7 +39,7 @@ def test_token_deployer_and_agent(testerchain):
     assert expected_token_supply == miner_agent.contract.functions.totalSupply().call()
 
     # Retrieve the token from the blockchain
-    same_miner_agent = MinerAgent(token_agent=token_agent)
+    same_miner_agent = MinerAgent()
 
     # Compare the contract address for equality
     assert miner_agent.contract_address == same_miner_agent.contract_address

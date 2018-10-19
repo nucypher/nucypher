@@ -47,7 +47,7 @@ def test_deploy_ethereum_contracts(testerchain):
     #
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
-        token_agent=token_agent,
+        blockchain=testerchain,
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
     assert miner_escrow_deployer.deployer_address == origin
@@ -64,7 +64,7 @@ def test_deploy_ethereum_contracts(testerchain):
     assert miner_escrow_deployer.is_deployed
     assert len(miner_escrow_deployer.contract_address) == 42
 
-    miner_agent = MinerAgent(token_agent=token_agent)
+    miner_agent = MinerAgent(blockchain=testerchain)
     assert len(miner_agent.contract_address) == 42
     assert miner_agent.contract_address == miner_escrow_deployer.contract_address
 
@@ -78,7 +78,7 @@ def test_deploy_ethereum_contracts(testerchain):
     #
     policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
-        miner_agent=miner_agent,
+        blockchain=testerchain,
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
     assert policy_manager_deployer.deployer_address == origin

@@ -5,16 +5,11 @@ from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_ALLOWED_LO
     MIN_LOCKED_PERIODS
 
 
-@pytest.fixture(scope='module')
-def agent(three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
-    return miner_agent
-
-
-def test_deposit_tokens(agent):
-    testerchain = agent.blockchain
+def test_deposit_tokens(testerchain, three_agents):
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
-    token_agent = agent.token_agent
+    token_agent, miner_agent, policy_agent = three_agents
+
+    agent = miner_agent
 
     _txhash = token_agent.transfer(amount=MIN_ALLOWED_LOCKED * 2,      # Transfer
                                    target_address=someone,
@@ -38,16 +33,20 @@ def test_deposit_tokens(agent):
 
     testerchain.time_travel(periods=1)
     assert agent.get_locked_tokens(node_address=someone) == MIN_ALLOWED_LOCKED
-    balance = agent.token_agent.get_balance(address=someone)
+    balance = token_agent.get_balance(address=someone)
     assert balance == MIN_ALLOWED_LOCKED
 
 
-def test_get_miner_population(agent, blockchain_ursulas):
+def test_get_miner_population(three_agents, blockchain_ursulas):
+    token_agent, miner_agent, policy_agent = three_agents
+    agent = miner_agent
     assert agent.get_miner_population() == len(blockchain_ursulas) + 1
 
 
 @pytest.mark.slow()
-def test_get_swarm(agent, blockchain_ursulas):
+def test_get_swarm(three_agents, blockchain_ursulas):
+    token_agent, miner_agent, policy_agent = three_agents
+    agent = miner_agent
     swarm = agent.swarm()
     swarm_addresses = list(swarm)
     assert len(swarm_addresses) == len(blockchain_ursulas) + 1
@@ -62,13 +61,17 @@ def test_get_swarm(agent, blockchain_ursulas):
         pytest.fail()
 
 
-def test_locked_tokens(agent, blockchain_ursulas):
+def test_locked_tokens(three_agents, blockchain_ursulas):
+    token_agent, miner_agent, policy_agent = three_agents
+    agent = miner_agent
     ursula = blockchain_ursulas.pop()
     locked_amount = agent.get_locked_tokens(node_address=ursula.checksum_public_address)
     assert MAX_ALLOWED_LOCKED > locked_amount > MIN_ALLOWED_LOCKED
 
 
-def test_get_all_stakes(agent, blockchain_ursulas):
+def test_get_all_stakes(three_agents, blockchain_ursulas):
+    token_agent, miner_agent, policy_agent = three_agents
+    agent = miner_agent
     ursula = blockchain_ursulas.pop()
     all_stakes = list(agent.get_all_stakes(miner_address=ursula.checksum_public_address))
     assert len(all_stakes) == 1
@@ -79,13 +82,15 @@ def test_get_all_stakes(agent, blockchain_ursulas):
     assert MAX_ALLOWED_LOCKED > value > MIN_ALLOWED_LOCKED
 
 
-def get_stake_info(agent):
+def get_stake_info(three_agents):
     assert False
 
 
 @pytest.mark.slow()
 @pytest.mark.usefixtures("blockchain_ursulas")
-def test_sample_miners(agent):
+def test_sample_miners(three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    agent = miner_agent
     miners_population = agent.get_miner_population()
 
     with pytest.raises(MinerAgent.NotEnoughMiners):
@@ -96,7 +101,9 @@ def test_sample_miners(agent):
     assert len(set(miners)) == 3  # ...unique addresses
 
 
-def test_get_current_period(agent):
+def test_get_current_period(three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    agent = miner_agent
     testerchain = agent.blockchain
     start_period = agent.get_current_period()
     testerchain.time_travel(periods=1)
@@ -104,7 +111,9 @@ def test_get_current_period(agent):
     assert end_period > start_period
 
 
-def test_confirm_activity(agent):
+def test_confirm_activity(three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    agent = miner_agent
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
     txhash = agent.confirm_activity(node_address=someone)
@@ -115,7 +124,9 @@ def test_confirm_activity(agent):
 
 
 @pytest.mark.skip('To be implemented')
-def test_divide_stake(agent):
+def test_divide_stake(three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    agent = miner_agent
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
     token_agent = agent.token_agent
@@ -150,10 +161,12 @@ def test_divide_stake(agent):
     stakes = list(agent.get_all_stakes(miner_address=someone))
     assert len(stakes) == 2
 
-def test_collect_staking_reward(agent):
+
+def test_collect_staking_reward(three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+    agent = miner_agent
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
-    token_agent = agent.token_agent
 
     # Confirm Activity
     _txhash = agent.confirm_activity(node_address=someone)
