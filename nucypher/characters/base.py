@@ -21,6 +21,7 @@ from typing import Union, List
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.storages import InMemoryNodeStorage
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
@@ -450,6 +451,7 @@ class Character(Learner):
     def __init__(self,
                  is_me: bool = True,
                  federated_only: bool = False,
+                 blockchain: Blockchain = None,
                  checksum_address: bytes = None,
                  network_middleware: RestMiddleware = None,
                  keyring_dir: str = None,
@@ -502,6 +504,8 @@ class Character(Learner):
         # Self-Character
         #
         if is_me is True:
+            if not self.federated_only:
+                self.blockchain = blockchain or Blockchain.connect()
 
             self.keyring_dir = keyring_dir  # type: str
             self.treasure_maps = {}         # type: dict

@@ -46,7 +46,7 @@ class Alice(Character, PolicyAuthor):
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: 289
-            PolicyAuthor.__init__(self, policy_agent=policy_agent, checksum_address=checksum_address)
+            PolicyAuthor.__init__(self, checksum_address=checksum_address)
 
     def generate_kfrags(self, bob, label: bytes, m: int, n: int) -> List:
         """
@@ -406,7 +406,6 @@ class Ursula(Character, VerifiableNode, Miner):
                  timestamp=None,
 
                  # Blockchain
-                 miner_agent=None,
                  checksum_address: str = None,
 
                  # Character
@@ -445,7 +444,7 @@ class Ursula(Character, VerifiableNode, Miner):
             # Staking Ursula
             #
             if not federated_only:
-                Miner.__init__(self, is_me=is_me, miner_agent=miner_agent, checksum_address=checksum_address)
+                Miner.__init__(self, is_me=is_me, checksum_address=checksum_address)
 
                 # Access staking node via node's transacting keys  TODO: Better handle ephemeral staking self ursula
                 blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)

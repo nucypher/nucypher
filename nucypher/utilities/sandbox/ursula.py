@@ -104,30 +104,6 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
     return ursulas
 
 
-def spawn_random_staking_ursulas(miner_agent, addresses: list) -> list:
-    """
-    Deposit and lock a random amount of tokens in the miner escrow
-    from each address, "spawning" new Miners.
-    """
-    from nucypher.blockchain.eth.actors import Miner
-
-    miners = list()
-    for address in addresses:
-        miner = Miner(miner_agent=miner_agent, checksum_address=address)
-        miners.append(miner)
-
-        # stake a random amount
-        min_stake, balance = constants.MIN_ALLOWED_LOCKED, miner.token_balance
-        amount = random.randint(min_stake, balance)
-
-        # for a random lock duration
-        min_locktime, max_locktime = constants.MIN_LOCKED_PERIODS, constants.MAX_MINTING_PERIODS
-        periods = random.randint(min_locktime, max_locktime)
-
-        miner.initialize_stake(amount=amount, lock_periods=periods)
-
-    return miners
-
 class UrsulaCommandProtocol(LineReceiver):
 
     delimiter = linesep.encode("ascii")
