@@ -76,8 +76,7 @@ def test_deploy_and_allocate(three_agents, user_escrow_proxy):
 
     _last_deployment_address = None
     for index in range(number_of_deployments):
-        escrow_deployer = UserEscrowDeployer(policy_agent=policy_agent,
-                                             deployer_address=origin)
+        escrow_deployer = UserEscrowDeployer(deployer_address=origin)
         escrow_deployer.arm()
         _deployment_txhashes = escrow_deployer.deploy()
 
