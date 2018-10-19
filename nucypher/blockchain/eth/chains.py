@@ -45,13 +45,13 @@ class Blockchain:
     @classmethod
     def connect(cls,
                 provider_uri: str = None,
-                registry_filepath: str = None,
+                registry: EthereumContractRegistry = None,
                 deployer: bool = False,
                 compile: bool = False,
                 ) -> 'Blockchain':
 
         if cls._instance is NO_BLOCKCHAIN_AVAILABLE:
-            registry = EthereumContractRegistry(registry_filepath=registry_filepath)
+            registry = registry or EthereumContractRegistry()
             compiler = SolidityCompiler() if compile is True else None
             InterfaceClass = BlockchainDeployerInterface if deployer is True else BlockchainInterface
             interface = InterfaceClass(provider_uri=provider_uri, registry=registry, compiler=compiler)
