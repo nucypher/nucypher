@@ -1,4 +1,4 @@
-from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED
+from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_DEPLOYER_CONFIGURED, NO_BENEFICIARY
 from eth_utils import is_checksum_address
 from typing import Tuple, Dict
 from web3.contract import Contract
@@ -12,6 +12,7 @@ from nucypher.blockchain.eth.agents import (
     UserEscrowAgent
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.registry import AllocationRegistry
 from .chains import Blockchain
 
 
@@ -32,12 +33,13 @@ class ContractDeployer:
 
     def __init__(self, deployer_address: str, blockchain: Blockchain = None) -> None:
 
-        self.__armed = False
-        self._contract = CONTRACT_NOT_DEPLOYED
+        self.blockchain = blockchain or Blockchain.connect()
+
         self.deployment_receipt = CONTRACT_NOT_DEPLOYED
+        self._contract = CONTRACT_NOT_DEPLOYED
+        self.__armed = False
         self.__proxy_contract = NotImplemented
         self.__deployer_address = deployer_address
-        self.blockchain = blockchain or Blockchain.connect()
 
     @property
     def contract_address(self) -> str:
@@ -177,9 +179,9 @@ class DispatcherDeployer(ContractDeployer):
     __upgradeable = False
 
     def __init__(self, target_contract: Contract, secret_hash: bytes, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.target_contract = target_contract
         self.secret_hash = secret_hash
-        super().__init__(*args, **kwargs)
 
     def deploy(self) -> dict:
         args = (self._contract_name, self.target_contract.address, self.secret_hash)
@@ -198,9 +200,9 @@ class MinerEscrowDeployer(ContractDeployer):
     __upgradeable = True
     __proxy_deployer = DispatcherDeployer
 
-    def __init__(self, token_agent, secret_hash, *args, **kwargs):
+    def __init__(self, secret_hash, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.token_agent = token_agent
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
         self.secret_hash = secret_hash
 
     def __check_policy_manager(self):
@@ -280,7 +282,7 @@ class MinerEscrowDeployer(ContractDeployer):
 
     def make_agent(self) -> EthereumContractAgent:
         self.__check_policy_manager()  # Ensure the PolicyManager contract has already been initialized
-        agent = self.agency(token_agent=self.token_agent, contract=self._contract)
+        agent = self.agency(blockchain=self.blockchain, contract=self._contract)
         return agent
 
 
@@ -295,14 +297,14 @@ class PolicyManagerDeployer(ContractDeployer):
     __proxy_deployer = DispatcherDeployer
 
     def make_agent(self) -> EthereumContractAgent:
-        agent = self.agency(miner_agent=self.miner_agent, contract=self._contract)
+        agent = self.agency(blockchain=self.blockchain, contract=self._contract)
         return agent
 
-    def __init__(self, miner_agent, secret_hash, *args, **kwargs):
-        self.token_agent = miner_agent.token_agent
-        self.miner_agent = miner_agent
-        self.secret_hash = secret_hash
+    def __init__(self, secret_hash, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.secret_hash = secret_hash
 
     def deploy(self) -> Dict[str, str]:
         self.check_ready_to_deploy(fail=True, check_arming=True)
@@ -372,12 +374,12 @@ class UserEscrowProxyDeployer(ContractDeployer):
     __upgradeable = True
     __proxy_deployer = LibraryLinkerDeployer
 
-    def __init__(self, policy_agent: PolicyAgent, secret_hash: bytes, *args, **kwargs):
-        self.policy_agent = policy_agent
-        self.miner_agent = policy_agent.miner_agent
-        self.token_agent = policy_agent.token_agent
-        self.secret_hash = secret_hash
+    def __init__(self, secret_hash: bytes, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.policy_agent = PolicyAgent(blockchain=self.blockchain)
+        self.secret_hash = secret_hash
 
     def __get_state_contract(self) -> str:
         return self.contract.functions.getStateContract()
@@ -416,44 +418,87 @@ class UserEscrowDeployer(ContractDeployer):
 
     agency = UserEscrowAgent
     _contract_name = agency.registry_contract_name
-    __upgradeable = True
     __proxy_deployer = UserEscrowProxyDeployer
+    __allocation_registry = AllocationRegistry
 
-    def __init__(self, policy_agent: PolicyAgent, *args, **kwargs) -> None:
-        self.policy_agent = policy_agent
-        self.miner_agent = policy_agent.miner_agent
-        self.token_agent = policy_agent.token_agent
+    def __init__(self, allocation_registry: AllocationRegistry = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.policy_agent = PolicyAgent(blockchain=self.blockchain)
         self.__principal_contract = CONTRACT_NOT_DEPLOYED
+        self.__beneficiary_address = NO_BENEFICIARY
+        self.__allocation_registry = allocation_registry or self.__allocation_registry()
+
+    def make_agent(self) -> EthereumContractAgent:
+        if self.__beneficiary_address is NO_BENEFICIARY:
+            raise self.ContractDeploymentError("No beneficiary assigned to {}".format(self.principal_contract.address))
+        agent = self.agency(blockchain=self.blockchain,
+                            beneficiary=self.__beneficiary_address,
+                            allocation_registry=self.__allocation_registry)
+        return agent
+
+    @property
+    def allocation_registry(self):
+        return self.__allocation_registry
 
     @property
     def principal_contract(self):
+        """Directly reference the beneficiary's deployed contract instead of the proxy contracts's interface"""
         if self.__principal_contract is CONTRACT_NOT_DEPLOYED:
             raise self.ContractDeploymentError("{} not deployed".format(self.__class__.__name__))
         return self.__principal_contract
 
     def assign_beneficiary(self, beneficiary_address: str) -> str:
+        """Relinquish ownership of a UserEscrow deployment to the beneficiary"""
         if not is_checksum_address(beneficiary_address):
             raise self.ContractDeploymentError("{} is not a valid checksum address.".format(beneficiary_address))
-        txhash = self.contract.functions.transferOwnership(beneficiary_address).transact({'from': self.deployer_address})
+        txhash = self.principal_contract.functions.transferOwnership(beneficiary_address).transact({'from': self.deployer_address})
         self.blockchain.wait_for_receipt(txhash)
+        self.__beneficiary_address = beneficiary_address
         return txhash
 
-    def initial_deposit(self, value: int, duration: int) -> str:
+    def initial_deposit(self, value: int, duration: int) -> dict:
+        """Allocate an amount of tokens with lock time, and transfer ownership to the beneficiary"""
+        # Approve
+        allocation_transactions = dict()
         approve_txhash = self.token_agent.approve_transfer(amount=value,
                                                            target_address=self.principal_contract.address,
                                                            sender_address=self.deployer_address)
+        allocation_transactions['approve'] = approve_txhash
+        self.blockchain.wait_for_receipt(approve_txhash)
 
+        # Deposit
         txhash = self.principal_contract.functions.initialDeposit(value, duration).transact({'from': self.deployer_address})
+        allocation_transactions['initial_deposit'] = txhash
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
-    def make_agent(self) -> EthereumContractAgent:
-        agent = self.agency(policy_agent=self.policy_agent,
-                            contract=self._contract)
-        return agent
+    def enroll_principal_contract(self):
+        if self.__beneficiary_address is NO_BENEFICIARY:
+            raise self.ContractDeploymentError("No beneficiary assigned to {}".format(self.principal_contract.address))
+        self.__allocation_registry.enroll(beneficiary_address=self.__beneficiary_address,
+                                          contract_address=self.principal_contract.address,
+                                          contract_abi=self.principal_contract.abi)
+
+    def deliver(self, value: int, duration: int, beneficiary_address: str) -> dict:
+        """
+        Transfer allocated tokens and hand-off the contract to the beneficiary.
+
+         Encapsulates three operations:
+            - Initial Deposit
+            - Transfer Ownership
+            - Enroll in Allocation Registry
+
+        """
+
+        deposit_txhash = self.initial_deposit(value=value, duration=duration)
+        assign_txhash = self.assign_beneficiary(beneficiary_address=beneficiary_address)
+        self.enroll_principal_contract()
+        return dict(deposit_txhash=deposit_txhash, assign_txhash=assign_txhash)
 
     def deploy(self) -> dict:
+        """Deploy a new instance of UserEscrow to the blockchain."""
 
         self.check_ready_to_deploy(fail=True, check_arming=True)
 
@@ -461,16 +506,10 @@ class UserEscrowDeployer(ContractDeployer):
         proxy_contract = self.__proxy_deployer.get_latest_version(blockchain=self.blockchain)
 
         args = (self._contract_name, proxy_contract.address, self.token_agent.contract_address)
-        user_escrow_contract, deploy_txhash = self.blockchain.interface.deploy_contract(*args)
+        user_escrow_contract, deploy_txhash = self.blockchain.interface.deploy_contract(*args, enroll=False)
         self.__principal_contract = user_escrow_contract
         deployment_transactions['deploy_user_escrow'] = deploy_txhash
 
-        # Wrap the escrow contract
-        wrapped_user_escrow_contract = self.blockchain.interface._wrap_contract(wrapper_contract=proxy_contract,
-                                                                                target_contract=user_escrow_contract)
-
-        # Switch the contract for the wrapped one
-        user_escrow_contract = wrapped_user_escrow_contract
         self._contract = user_escrow_contract
 
         return deployment_transactions

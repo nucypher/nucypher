@@ -39,8 +39,8 @@ SECONDS_PER_PERIOD = HOURS_PER_PERIOD * 60 * 60  # Seconds in single period
 MIN_LOCKED_PERIODS = 30                          # 720 Hours minimum
 MAX_MINTING_PERIODS = 365                        # Maximum number of periods
 
-MIN_ALLOWED_LOCKED = 15000*M
-MAX_ALLOWED_LOCKED = int(4e6)*M
+MIN_ALLOWED_LOCKED = 15000 * M
+MAX_ALLOWED_LOCKED = int(4e6) * M
 
 """
 
