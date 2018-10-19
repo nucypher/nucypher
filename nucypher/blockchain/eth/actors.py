@@ -15,7 +15,7 @@ from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer, \
     UserEscrowProxyDeployer, UserEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import EthereumContractRegistry
+from nucypher.blockchain.eth.registry import EthereumContractRegistry, AllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.blockchain.eth.utils import (datetime_to_period,
                                            validate_stake_amount,
@@ -41,7 +41,7 @@ class NucypherTokenActor:
 
     def __init__(self,
                  checksum_address: str = None,
-                 token_agent: NucypherTokenAgent = None
+                 blockchain: Blockchain = None
                  ) -> None:
         """
         :param checksum_address:  If not passed, we assume this is an unknown actor
@@ -58,11 +58,11 @@ class NucypherTokenActor:
         except AttributeError:
             self.checksum_public_address = checksum_address  # type: str
 
-        if not token_agent:
-            token_agent = NucypherTokenAgent()
+        if blockchain is None:
+            blockchain = Blockchain.connect()
+        self.blockchain = blockchain
 
-        self.token_agent = token_agent
-        self.blockchain = self.token_agent.blockchain
+        self.token_agent = NucypherTokenAgent()
         self._transaction_cache = list()  # type: list # track transactions transmitted
 
     def __repr__(self):
@@ -89,48 +89,26 @@ class Deployer(NucypherTokenActor):
     __interface_class = BlockchainDeployerInterface
 
     def __init__(self,
-                 blockchain,
+                 blockchain: Blockchain,
                  deployer_address: str = None,
-                 token_agent: NucypherTokenAgent = None,
-                 miner_agent: MinerAgent = None,
-                 policy_agent: PolicyAgent = None,
+                 bare: bool = True
                  ) -> None:
 
         self.__deployer_address = deployer_address or NO_DEPLOYER_ADDRESS
         self.blockchain = blockchain
 
-        self.token_agent = token_agent or NO_CONTRACT_AVAILABLE
-        self.miner_agent = miner_agent or NO_CONTRACT_AVAILABLE
-        self.policy_agent = policy_agent or NO_CONTRACT_AVAILABLE
+        if not bare:
+            self.token_agent = NucypherTokenAgent(blockchain=blockchain)
+            self.miner_agent = MinerAgent(blockchain=blockchain)
+            self.policy_agent = PolicyAgent(blockchain=blockchain)
 
         self.user_escrow_deployers = dict()
 
     @classmethod
-    def from_deployed_blockchain(cls, provider_uri, *args, **kwargs) -> 'Deployer':
-        blockchain = cls.connect_to_blockchain(provider_uri=provider_uri)
-        token_agent = NucypherTokenAgent(blockchain=blockchain)
-        miner_agent = MinerAgent(blockchain=blockchain, token_agent=token_agent)
-        policy_agent = PolicyAgent(blockchain=blockchain, miner_agent=miner_agent)
-        instance = cls(blockchain=blockchain,
-                       token_agent=token_agent,
-                       miner_agent=miner_agent,
-                       policy_agent=policy_agent,
-                       *args, **kwargs)
-        return instance
-
-    @classmethod
     def from_blockchain(cls, provider_uri: str, registry=None, *args, **kwargs):
-        blockchain = cls.connect_to_blockchain(provider_uri=provider_uri, registry=registry)
+        blockchain = Blockchain.connect(provider_uri=provider_uri, registry=registry)
         instance = cls(blockchain=blockchain, *args, **kwargs)
         return instance
-
-    @classmethod
-    def connect_to_blockchain(cls, provider_uri: str, compile=True, registry=None):
-        compiler = SolidityCompiler() if compile else None
-        registry = registry or EthereumContractRegistry()
-        interface = cls.__interface_class(compiler=compiler, registry=registry, provider_uri=provider_uri)
-        blockchain = Blockchain(interface=interface)
-        return blockchain
 
     @property
     def deployer_address(self):
@@ -138,6 +116,7 @@ class Deployer(NucypherTokenActor):
 
     @deployer_address.setter
     def deployer_address(self, value):
+        """Used for validated post-init setting of deployer's address"""
         self.blockchain.interface.deployer_address = value
 
     @property
@@ -155,8 +134,7 @@ class Deployer(NucypherTokenActor):
 
     def deploy_miner_contract(self, secret):
 
-        miner_escrow_deployer = MinerEscrowDeployer(token_agent=self.token_agent,
-                                                    deployer_address=self.deployer_address,
+        miner_escrow_deployer = MinerEscrowDeployer(deployer_address=self.deployer_address,
                                                     secret_hash=secret)
         miner_escrow_deployer.arm()
         miner_escrow_deployer.deploy()
@@ -164,8 +142,7 @@ class Deployer(NucypherTokenActor):
 
     def deploy_policy_contract(self, secret):
 
-        policy_manager_deployer = PolicyManagerDeployer(miner_agent=self.miner_agent,
-                                                        deployer_address=self.deployer_address,
+        policy_manager_deployer = PolicyManagerDeployer(deployer_address=self.deployer_address,
                                                         secret_hash=secret)
         policy_manager_deployer.arm()
         policy_manager_deployer.deploy()
@@ -173,16 +150,14 @@ class Deployer(NucypherTokenActor):
 
     def deploy_escrow_proxy(self, secret):
 
-        escrow_proxy_deployer = UserEscrowProxyDeployer(policy_agent=self.policy_agent,
-                                                        deployer_address=self.deployer_address,
+        escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=self.deployer_address,
                                                         secret_hash=secret)
         escrow_proxy_deployer.arm()
         escrow_proxy_deployer.deploy()
         return escrow_proxy_deployer
 
     def deploy_user_escrow(self):
-        user_escrow_deployer = UserEscrowDeployer(deployer_address=self.deployer_address,
-                                                  policy_agent=self.policy_agent)
+        user_escrow_deployer = UserEscrowDeployer(deployer_address=self.deployer_address)
 
         user_escrow_deployer.arm()
         user_escrow_deployer.deploy()
@@ -198,19 +173,10 @@ class Deployer(NucypherTokenActor):
         self.deploy_miner_contract(secret=miner_secret)
         self.deploy_policy_contract(secret=policy_secret)
 
-    def __allocate(self,
-                   deployer,
-                   target_address: str,
-                   value: int,
-                   duration: int):
-
-        deployer.initial_deposit(value=value, duration=duration)
-        deployer.assign_beneficiary(beneficiary_address=target_address)
-
     def deploy_beneficiary_contracts(self, allocations: List[Dict[str, Union[str, int]]]):
         """
 
-        Example dataset:
+        Example allocation dataset:
 
         data = [{'address': '0xdeadbeef', 'amount': 100, 'periods': 100},
                 {'address': '0xabced120', 'amount': 133432, 'periods': 1},
@@ -218,10 +184,23 @@ class Deployer(NucypherTokenActor):
         """
         for allocation in allocations:
             deployer = self.deploy_user_escrow()
-            self.__allocate(deployer=deployer,
-                            target_address=allocation['address'],
-                            value=allocation['amount'],
-                            duration=allocation['periods'])
+            deployer.deliver(value=allocation['amount'],
+                             duration=allocation['periods'],
+                             beneficiary_address=allocation['address'])
+
+    @staticmethod
+    def __read_allocation_data(filepath: str):
+        with open(filepath, 'r') as allocation_file:
+            data = allocation_file.read()
+            try:
+                allocation_data = json.loads(data)
+            except JSONDecodeError:
+                raise
+        return allocation_data
+
+    def deploy_beneficiaries_from_file(self, allocation_data_filepath: str):
+        allocations = self.__read_allocation_data(filepath=allocation_data_filepath)
+        self.deploy_beneficiary_contracts(allocations=allocations)
 
 
 class Miner(NucypherTokenActor):
@@ -234,32 +213,28 @@ class Miner(NucypherTokenActor):
     class MinerError(NucypherTokenActor.ActorError):
         pass
 
-    def __init__(self, is_me: bool, miner_agent: MinerAgent, *args, **kwargs) -> None:
-
+    def __init__(self, is_me: bool, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.log = getLogger("miner")
         self.is_me = is_me
+
         if is_me:
-            token_agent = miner_agent.token_agent
-            blockchain = miner_agent.token_agent.blockchain
-        else:
-            token_agent = constants.STRANGER_MINER
-            blockchain = constants.STRANGER_MINER
+            self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
 
-        self.miner_agent = miner_agent
-        self.token_agent = token_agent
-        self.blockchain = blockchain
-
-        super().__init__(token_agent=self.token_agent, *args, **kwargs)
-
-        if is_me is True:
-            self.__current_period = None  # TODO: use constant
+            # Staking Loop
+            self.__current_period = None
             self._abort_on_staking_error = True
             self._staking_task = task.LoopingCall(self._confirm_period)
+
+        else:
+            self.token_agent = constants.STRANGER_MINER
+
+        # Everyone!
+        self.miner_agent = MinerAgent(blockchain=self.blockchain)
 
     #
     # Staking
     #
-
     @only_me
     def stake(self,
               confirm_now=False,
@@ -511,26 +486,18 @@ class Miner(NucypherTokenActor):
 class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
-    def __init__(self, checksum_address: str, policy_agent: PolicyAgent = None, *args, **kwargs) -> None:
+    def __init__(self, checksum_address: str, *args, **kwargs) -> None:
         """
         :param policy_agent: A policy agent with the blockchain attached; If not passed, A default policy
         agent and blockchain connection will be created from default values.
 
         """
+        super().__init__(checksum_address=checksum_address, *args, **kwargs)
 
-        if policy_agent is None:
-            # From defaults
-            self.token_agent = NucypherTokenAgent()
-            self.miner_agent = MinerAgent(token_agent=self.token_agent)
-            self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
-        else:
-            # From agent
-            self.policy_agent = policy_agent
-            self.miner_agent = policy_agent.miner_agent
-
-        super().__init__(token_agent=self.policy_agent.token_agent,
-                         checksum_address=checksum_address,
-                         *args, **kwargs)
+        # From defaults
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.policy_agent = PolicyAgent(blockchain=self.blockchain)
 
     def recruit(self, quantity: int, **options) -> List[str]:
         """
@@ -541,7 +508,7 @@ class PolicyAuthor(NucypherTokenActor):
 
         """
 
-        miner_addresses = self.policy_agent.miner_agent.sample(quantity=quantity, **options)
+        miner_addresses = self.miner_agent.sample(quantity=quantity, **options)
         return miner_addresses
 
     def create_policy(self, *args, **kwargs):
