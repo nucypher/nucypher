@@ -34,7 +34,7 @@ class PolicyArrangement(Base):
 
     id = Column(LargeBinary, unique=True, primary_key=True)
     expiration = Column(DateTime)
-    k_frag = Column(LargeBinary, unique=True, nullable=True)
+    kfrag = Column(LargeBinary, unique=True, nullable=True)
     alice_pubkey_sig_id = Column(Integer, ForeignKey('keys.id'))
     alice_pubkey_sig = relationship(Key, backref="policies", lazy='joined')
     # alice_pubkey_enc_id = Column(Integer, ForeignKey('keys.id'))
@@ -44,12 +44,12 @@ class PolicyArrangement(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def __init__(self, expiration, id,
-                 k_frag=None, alice_pubkey_sig=None,
+                 kfrag=None, alice_pubkey_sig=None,
                  # alice_pubkey_enc_id, bob_pubkey_sig_id,
                  alice_signature=None) -> None:
         self.expiration = expiration
         self.id = id
-        self.k_frag = k_frag
+        self.kfrag = kfrag
         self.alice_pubkey_sig = alice_pubkey_sig
         # self.alice_pubkey_enc_id = alice_pubkey_enc_id
         # self.bob_pubkey_sig_id = bob_pubkey_sig_id

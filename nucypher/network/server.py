@@ -221,13 +221,14 @@ class ProxyRESTRoutes:
 
     def reencrypt_via_rest(self, id_as_hex, request: Request):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
-        id = binascii.unhexlify(id_as_hex)
-        work_order = WorkOrder.from_rest_payload(id, request.body)
+        arrangement_id = binascii.unhexlify(id_as_hex)
+        work_order = WorkOrder.from_rest_payload(arrangement_id, request.body)
         self.log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
         with ThreadedSession(self.db_engine) as session:
-            policy_arrangement = self.datastore.get_policy_arrangement(id.hex().encode(), session=session)
+            policy_arrangement = self.datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
+                                                                       session=session)
 
-        kfrag_bytes = policy_arrangement.k_frag  # Careful!  :-)
+        kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
         verifying_key_bytes = policy_arrangement.alice_pubkey_sig.key_data
 
         # TODO: Push this to a lower level.

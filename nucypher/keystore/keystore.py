@@ -141,7 +141,7 @@ class KeyStore(object):
         if policy_arrangement.alice_pubkey_sig.key_data != alice.stamp:
             raise alice.SuspiciousActivity
 
-        policy_arrangement.k_frag = bytes(kfrag)
+        policy_arrangement.kfrag = bytes(kfrag)
         session.commit()
 
     def add_workorder(self, bob_pubkey_sig, bob_signature, arrangement_id, session=None) -> Workorder:
