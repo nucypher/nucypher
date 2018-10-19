@@ -287,57 +287,60 @@ class BlockchainInterface:
     def get_contract_by_name(self,
                              name: str,
                              proxy_name: str = None,
-                             assemble_with_target: bool = True,
+                             use_proxy_address: bool = True,
                              factory: Contract = Contract) -> Contract:
         """
         Instantiate a deployed contract from registry data,
-        and assemble it with it's proxy if it is upgradeable.
+        and assimilate it with it's proxy if it is upgradeable.
         """
+
         target_contract_records = self.registry.search(contract_name=name)
 
         if not target_contract_records:
             raise self.UnknownContract("No such contract records with name {}".format(name))
 
         if proxy_name:  # It's upgradeable
-
             # Lookup proxies; Search fot a published proxy that targets this contract record
+
             proxy_records = self.registry.search(contract_name=proxy_name)
 
-            if assemble_with_target:  # It's a one-to-one proxy
-                matching_pairs = list()
-                for proxy_name, proxy_addr, proxy_abi in proxy_records:
-                    proxy_contract = self.w3.eth.contract(abi=proxy_abi,
-                                                          address=proxy_addr,
-                                                          ContractFactoryClass=factory)
+            unified_pairs = list()
+            for proxy_name, proxy_addr, proxy_abi in proxy_records:
+                proxy_contract = self.w3.eth.contract(abi=proxy_abi,
+                                                      address=proxy_addr,
+                                                      ContractFactoryClass=factory)
 
-                    # Read this dispatchers target address from the blockchain
-                    live_target_address = proxy_contract.functions.target().call()
-                    for target_name, target_addr, target_abi in target_contract_records:
-                        if target_addr == live_target_address:
-                            matching_pairs.append((proxy_name, proxy_addr, target_abi))
+                # Read this dispatchers target address from the blockchain
+                proxy_live_target_address = proxy_contract.functions.target().call()
+                for target_name, target_addr, target_abi in target_contract_records:
 
-                    proxy_records = matching_pairs
+                    if target_addr == proxy_live_target_address:
+                        if use_proxy_address:
+                            pair = (proxy_addr, target_abi)
+                        else:
+                            pair = (proxy_live_target_address, target_abi)
+                    else:
+                        continue
 
-            if len(proxy_records) > 1:
-                message = "Multiple records returned from the registry for non-targeting-proxy contract {}"
+                    unified_pairs.append(pair)
+
+            if len(unified_pairs) > 1:
+                address, abi = unified_pairs[0]
+                message = "Multiple {} deployments are targeting {}".format(proxy_name, address)
                 raise self.InterfaceError(message.format(name))
-            try:
-                _proxy_name, selected_proxy_address, selected_target_abi = proxy_records[0]
-            except IndexError:
-                raise self.InterfaceError("No proxy targets known contract records for {}".format(name))
-            except ValueError:
-                raise
 
-        else:
-            if len(target_contract_records) != 1:  # TODO: Allow multiple non-upgradeable records (UserEscrow)
-                m = "Multiple records returned from the registry for non-upgradeable contract {}"
+            else:
+                selected_address, selected_abi = unified_pairs[0]
+
+        else:  # It's not upgradeable
+            if len(target_contract_records) != 1:
+                m = "Multiple records registered for non-upgradeable contract {}"
                 raise self.InterfaceError(m.format(name))
-
-            _proxy_name, selected_proxy_address, selected_target_abi = target_contract_records[0]
+            _target_contract_name, selected_address, selected_abi = target_contract_records[0]
 
         # Create the contract from selected sources
-        unified_contract = self.w3.eth.contract(abi=selected_target_abi,
-                                                address=selected_proxy_address,
+        unified_contract = self.w3.eth.contract(abi=selected_abi,
+                                                address=selected_address,
                                                 ContractFactoryClass=factory)
 
         return unified_contract
@@ -389,31 +392,31 @@ class BlockchainDeployerInterface(BlockchainInterface):
     @deployer_address.setter
     def deployer_address(self, checksum_address: str) -> None:
         if self.deployer_address is not constants.NO_DEPLOYER_CONFIGURED:
-            raise RuntimeError("{} already has a deployer address set.".format(self.__class__.__name__))
+            raise RuntimeError("{} already has a deployer address set: {}.".format(self.__class__.__name__, self.deployer_address))
         self.__deployer_address = checksum_address
 
-    def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:
+    def deploy_contract(self, contract_name: str, *constructor_args, enroll: bool = True, **kwargs) -> Tuple[Contract, str]:
         """
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract
         """
         if self.__deployer_address is constants.NO_DEPLOYER_CONFIGURED:
             raise self.NoDeployerAddress
+
         #
         # Build the deployment tx #
         #
-
         deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
         self.log.info("Deployer address is {}".format(deploy_transaction['from']))
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)
-        deploy_bytecode = contract_factory.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
+        deploy_bytecode = contract_factory.constructor(*constructor_args).buildTransaction(deploy_transaction)
         self.log.info("Deploying contract: {}: {} bytes".format(contract_name, len(deploy_bytecode['data'])))
 
         #
         # Transmit the deployment tx #
         #
-        txhash = contract_factory.constructor(*args, **kwargs).transact(transaction=deploy_transaction)
+        txhash = contract_factory.constructor(*constructor_args, **kwargs).transact(transaction=deploy_transaction)
         self.log.info("{} Deployment TX sent : txhash {}".format(contract_name, txhash.hex()))
 
         # Wait for receipt
@@ -422,12 +425,12 @@ class BlockchainDeployerInterface(BlockchainInterface):
         self.log.info("Confirmed {} deployment: address {}".format(contract_name, address))
 
         #
-        # Instantiate & enroll contract
+        # Instantiate & Enroll contract
         #
         contract = contract_factory(address=address)
 
-        self.registry.enroll(contract_name=contract_name,
-                             contract_address=contract.address,
-                             contract_abi=contract_factory.abi)
-
+        if enroll is True:
+            self.registry.enroll(contract_name=contract_name,
+                                 contract_address=contract.address,
+                                 contract_abi=contract_factory.abi)
         return contract, txhash

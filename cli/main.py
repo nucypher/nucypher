@@ -139,7 +139,6 @@ class NucypherClickConfig:
         if self.compile:
             click.confirm("Compile solidity source?", abort=True)
         self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
-                                             registry_filepath=self.registry_filepath or self.node_configuration.registry_filepath,
                                              deployer=self.deployer,
                                              compile=self.compile)
         if self.poa:
@@ -151,8 +150,8 @@ class NucypherClickConfig:
     def connect_to_contracts(self) -> None:
         """Initialize contract agency and set them on config"""
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.miner_agent = MinerAgent(token_agent=self.token_agent)
-        self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
+        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.policy_agent = PolicyAgent(blockchain=self.blockchain)
         self.log.debug("CLI established connection to nucypher contracts")
 
     def create_account(self, passphrase: str = None) -> str:
@@ -584,7 +583,7 @@ def stake(config,
         #     raise NotImplementedError
         #
         # # Initialize the staged stake
-        # config.miner_agent.deposit_tokens(amount=value, lock_periods=duration, sender_address=address)
+        # config.__proxy_contract.deposit_tokens(amount=value, lock_periods=duration, sender_address=address)
         #
         # proc_params = ['run_ursula']
         # processProtocol = UrsulaCommandProtocol(command=proc_params, checksum_address=checksum_address)
