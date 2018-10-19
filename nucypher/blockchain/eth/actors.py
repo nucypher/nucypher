@@ -1,11 +1,12 @@
+import json
 from collections import OrderedDict
+from json import JSONDecodeError
 from logging import getLogger
 
 import maya
 from constant_sorrow import constants
 from constant_sorrow.constants import CONTRACT_NOT_DEPLOYED, NO_CONTRACT_AVAILABLE, NO_DEPLOYER_ADDRESS
 from datetime import datetime
-from eth_utils import is_checksum_address
 from twisted.internet import task, reactor
 from typing import Tuple, List, Dict, Union
 
