@@ -91,17 +91,21 @@ class Deployer(NucypherTokenActor):
     def __init__(self,
                  blockchain: Blockchain,
                  deployer_address: str = None,
+                 allocation_registry: AllocationRegistry = None,
                  bare: bool = True
                  ) -> None:
 
-        self.__deployer_address = deployer_address or NO_DEPLOYER_ADDRESS
         self.blockchain = blockchain
+        self.__deployer_address = NO_DEPLOYER_ADDRESS
+        if deployer_address:
+            self.deployer_address = deployer_address
 
         if not bare:
             self.token_agent = NucypherTokenAgent(blockchain=blockchain)
             self.miner_agent = MinerAgent(blockchain=blockchain)
             self.policy_agent = PolicyAgent(blockchain=blockchain)
 
+        self.allocation_registy = allocation_registry
         self.user_escrow_deployers = dict()
 
     @classmethod
@@ -157,7 +161,8 @@ class Deployer(NucypherTokenActor):
         return escrow_proxy_deployer
 
     def deploy_user_escrow(self):
-        user_escrow_deployer = UserEscrowDeployer(deployer_address=self.deployer_address)
+        user_escrow_deployer = UserEscrowDeployer(deployer_address=self.deployer_address,
+                                                  allocation_registry=self.allocation_registy)
 
         user_escrow_deployer.arm()
         user_escrow_deployer.deploy()
