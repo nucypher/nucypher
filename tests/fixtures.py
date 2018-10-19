@@ -116,7 +116,6 @@ def ursula_decentralized_test_config(three_agents):
                                         is_me=True,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
-                                        miner_agent=miner_agent,
                                         federated_only=False,
                                         network_middleware=MockRestMiddleware(),
                                         import_seed_registry=False,
@@ -155,7 +154,6 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
                                 checksum_address=alice_address,
                                 passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                 network_middleware=MockRestMiddleware(),
-                                policy_agent=policy_agent,
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
                                 import_seed_registry=False,
@@ -382,7 +380,6 @@ def three_agents(testerchain):
 
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
-        token_agent=token_agent,
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
     miner_escrow_deployer.arm()
@@ -392,7 +389,6 @@ def three_agents(testerchain):
 
     policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
-        miner_agent=miner_agent,
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
     policy_manager_deployer.arm()

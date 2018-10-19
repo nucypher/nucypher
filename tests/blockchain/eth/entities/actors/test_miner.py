@@ -12,7 +12,7 @@ def miner(testerchain, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
     token_airdrop(token_agent, origin=origin, addresses=everybody_else, amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
-    miner = Miner(miner_agent=miner_agent, checksum_address=everybody_else[0], is_me=True)
+    miner = Miner(checksum_address=everybody_else[0], is_me=True)
     return miner
 
 
@@ -27,7 +27,7 @@ def test_miner_locking_tokens(testerchain, three_agents, miner):
                            expiration=expiration)
 
     # Verify that the escrow is "approved" to receive tokens
-    allowance = miner_agent.token_agent.contract.functions.allowance(
+    allowance = token_agent.contract.functions.allowance(
         miner.checksum_public_address,
         miner_agent.contract_address).call()
     assert 0 == allowance

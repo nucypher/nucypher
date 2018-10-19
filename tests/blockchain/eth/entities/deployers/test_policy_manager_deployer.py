@@ -16,7 +16,6 @@ def test_policy_manager_deployer(testerchain):
 
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
-        token_agent=token_agent,
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
     miner_escrow_deployer.arm()
@@ -26,7 +25,6 @@ def test_policy_manager_deployer(testerchain):
 
     policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     deployer = PolicyManagerDeployer(
-        miner_agent=miner_agent,
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
     deployer.arm()
@@ -42,7 +40,7 @@ def test_policy_manager_deployer(testerchain):
     policy_manager_contract = policy_agent.contract
 
     # Retrieve the token from the blockchain
-    some_policy_agent = PolicyAgent(miner_agent=miner_agent)
+    some_policy_agent = PolicyAgent()
     assert some_policy_agent.contract.address == policy_manager_contract.address
 
     # Compare the contract address for equality
