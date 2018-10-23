@@ -114,6 +114,50 @@ class Learner:
     def known_nodes(self):
         return self.__known_nodes
 
+    def load_seednodes(self,
+                       read_storages: bool = True,
+                       retry_attempts: int = 3,
+                       retry_rate: int = 2,
+                       timeout=3):
+        """
+        Engage known nodes from storages and pre-fetch hardcoded bootnode certificates for node learning.
+        """
+        def __attempt_bootnode_learning(bootnode, current_attempt=1):
+            self.log.debug("Loading Bootnode {}|{}:{}".format(bootnode.checksum_address, bootnode.rest_host, bootnode.rest_port))
+
+            try:
+                seed_node = self.network_middleware.learn_from_seednode(seednode_metadata=bootnode,
+                                                            timeout=timeout,
+                                                            accept_federated_only=self.federated_only)  # TODO: 466
+                self.remember_node(seed_node)
+            except RuntimeError:
+                if current_attempt == retry_attempts:
+                    message = "No Response from Bootnode {} after {} attempts"
+                    self.log.info(message.format(bootnode.rest_url, retry_attempts))
+                    return
+                unresponsive_seed_nodes.add(bootnode)
+                self.log.info("No Response from Bootnode {}. Retrying in {} seconds...".format(bootnode.rest_url, retry_rate))
+                time.sleep(retry_rate)
+                __attempt_bootnode_learning(bootnode=bootnode, current_attempt=current_attempt+1)
+            else:
+                self.log.info("Successfully learned from bootnode {}".format(bootnode.rest_url))
+                if current_attempt > 1:
+                    unresponsive_seed_nodes.remove(bootnode)
+
+
+        for bootnode in self._seed_nodes:
+            __attempt_bootnode_learning(bootnode=bootnode)
+
+        unresponsive_seed_nodes = set()
+
+
+
+        if len(unresponsive_seed_nodes) > 0:
+            self.log.info("No Bootnodes were availible after {} attempts".format(retry_attempts))
+
+        if read_storages is True:
+            self.read_known_nodes()
+
     def remember_node(self, node, force_verification_check=False):
 
         # First, determine if this is an outdated representation of an already known node.
@@ -154,6 +198,7 @@ class Learner:
         if self._learning_task.running:
             return False
         else:
+            self.load_seednodes()
             d = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
             d.addErrback(self.handle_learning_errors)
             return d
