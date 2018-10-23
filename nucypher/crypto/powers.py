@@ -2,7 +2,7 @@ import inspect
 
 from eth_keys.datatypes import PublicKey, Signature as EthSignature
 from eth_utils import keccak
-from typing import List, Union
+from typing import List, Tuple
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
@@ -198,7 +198,7 @@ class DelegatingPower(DerivedKeyBasedPower):
     def __init__(self) -> None:
         self.umbral_keying_material = UmbralKeyingMaterial()
 
-    def generate_kfrags(self, bob_pubkey_enc, signer, label, m, n) -> Union[UmbralPublicKey, List]:
+    def generate_kfrags(self, bob_pubkey_enc, signer, label, m, n) -> Tuple[UmbralPublicKey, List]:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
 
@@ -211,5 +211,12 @@ class DelegatingPower(DerivedKeyBasedPower):
         # TODO: salt?  #265
 
         __private_key = self.umbral_keying_material.derive_privkey_by_label(label)
-        kfrags = pre.split_rekey(__private_key, signer, bob_pubkey_enc, m, n)
+        kfrags = pre.generate_kfrags(delegating_privkey=__private_key,
+                                     receiving_pubkey=bob_pubkey_enc,
+                                     threshold=m,
+                                     N=n,
+                                     signer=signer,
+                                     sign_delegating_key=False,
+                                     sign_receiving_key=False,
+                                     )
         return __private_key.get_pubkey(), kfrags

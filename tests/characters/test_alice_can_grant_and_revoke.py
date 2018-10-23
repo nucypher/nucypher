@@ -41,7 +41,7 @@ def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agen
         # This will be changed in 180, when we use the Arrangement ID.
         proper_hrac = keccak_digest(bytes(blockchain_alice.stamp) + bytes(blockchain_bob.stamp) + label)
         retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
-        retrieved_kfrag = KFrag.from_bytes(retrieved_policy.k_frag)
+        retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
 
         assert kfrag == retrieved_kfrag
 
@@ -74,6 +74,6 @@ def test_federated_grant(federated_alice, federated_bob):
         # This will be changed in 180, when we use the Arrangement ID.
         proper_hrac = keccak_digest(bytes(federated_alice.stamp) + bytes(federated_bob.stamp) + label)
         retrieved_policy = arrangement.ursula.datastore.get_policy_arrangement(arrangement.id.hex().encode())
-        retrieved_kfrag = KFrag.from_bytes(retrieved_policy.k_frag)
+        retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
 
         assert kfrag == retrieved_kfrag

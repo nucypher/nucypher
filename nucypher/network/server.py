@@ -9,6 +9,7 @@ from constant_sorrow import constants
 from hendrix.experience import crosstown_traffic
 from umbral import pre
 from umbral.fragments import KFrag
+from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
@@ -39,6 +40,9 @@ class ProxyRESTServer:
 
 class ProxyRESTRoutes:
     log = getLogger("characters")
+
+    class InvalidSignature(Exception):
+        """Raised when a received signature is not valid."""
 
     def __init__(self,
                  db_name,
@@ -192,7 +196,8 @@ class ProxyRESTRoutes:
         """
         policy_message_kit = UmbralMessageKit.from_bytes(request.body)
 
-        alice = self._alice_class.from_public_keys({SigningPower: policy_message_kit.sender_pubkey_sig})
+        alices_verifying_key = policy_message_kit.sender_pubkey_sig
+        alice = self._alice_class.from_public_keys({SigningPower: alices_verifying_key})
 
         try:
             cleartext = self._verifier(alice, policy_message_kit, decrypt=True)
@@ -201,6 +206,9 @@ class ProxyRESTRoutes:
             return Response(status_code=400)
 
         kfrag = KFrag.from_bytes(cleartext)
+
+        if not kfrag.verify(signing_pubkey=alices_verifying_key):
+            raise self.InvalidSignature("{} is invalid".format(kfrag))
 
         with ThreadedSession(self.db_engine) as session:
             self.datastore.attach_kfrag_to_saved_arrangement(
@@ -213,20 +221,31 @@ class ProxyRESTRoutes:
 
     def reencrypt_via_rest(self, id_as_hex, request: Request):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
-        id = binascii.unhexlify(id_as_hex)
-        work_order = WorkOrder.from_rest_payload(id, request.body)
+        arrangement_id = binascii.unhexlify(id_as_hex)
+        work_order = WorkOrder.from_rest_payload(arrangement_id, request.body)
         self.log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
         with ThreadedSession(self.db_engine) as session:
-            kfrag_bytes = self.datastore.get_policy_arrangement(id.hex().encode(),
-                                                                session=session).k_frag  # Careful!  :-)
+            policy_arrangement = self.datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
+                                                                       session=session)
+
+        kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
+        verifying_key_bytes = policy_arrangement.alice_pubkey_sig.key_data
+
         # TODO: Push this to a lower level.
         kfrag = KFrag.from_bytes(kfrag_bytes)
+        alices_verifying_key = UmbralPublicKey.from_bytes(verifying_key_bytes)
         cfrag_byte_stream = b""
 
-        for capsule in work_order.capsules:
+        for capsule, capsule_signature in zip(work_order.capsules, work_order.capsule_signatures):
+            # This is the capsule signed by Bob
+            capsule_signature = bytes(capsule_signature)
+            # Ursula signs on top of it. Now both are committed to the same capsule.
+            capsule_signed_by_both = bytes(self._stamp(capsule_signature))
+
+            capsule.set_correctness_keys(verifying=alices_verifying_key)
             # TODO: Sign the result of this.  See #141.
-            cfrag = pre.reencrypt(kfrag, capsule)
-            self.log.info("Re-encrypting for Capsule {}, made CFrag {}.".format(capsule, cfrag))
+            cfrag = pre.reencrypt(kfrag, capsule, metadata=capsule_signed_by_both)
+            self.log.info("Re-encrypting for {}, made {}.".format(capsule, cfrag))
             cfrag_byte_stream += VariableLengthBytestring(cfrag)
 
         # TODO: Put this in Ursula's datastore

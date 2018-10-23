@@ -7,11 +7,10 @@ name = "pypi"
 #
 # NuCypher
 #
+umbral = "*"
 constant-sorrow = "*"
 bytestringSplitter = "*"
 hendrix = ">=3.1.0"
-# Pinned Nucypher
-pyumbral = {git = "https://github.com/nucypher/pyumbral.git", ref = "nucypher-depend"}
 #
 # Third-Party
 #

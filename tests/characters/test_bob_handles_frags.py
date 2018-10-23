@@ -179,7 +179,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
         raise RuntimeError("We've lost track of the Ursula that has the WorkOrder.  Can't really proceed.")
 
     kfrag_bytes = ursula.datastore.get_policy_arrangement(
-        work_order.arrangement_id.hex().encode()).k_frag
+        work_order.arrangement_id.hex().encode()).kfrag
     the_kfrag = KFrag.from_bytes(kfrag_bytes)
     the_correct_cfrag = pre.reencrypt(the_kfrag, capsule)
 

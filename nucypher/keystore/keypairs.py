@@ -7,7 +7,6 @@ from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from typing import Union
 from umbral import pre
-from umbral.config import default_curve
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
 
@@ -172,7 +171,10 @@ class HostingKeypair(Keypair):
 
     def generate_self_signed_cert(self, common_name):
         cryptography_key = self._privkey.to_cryptography_privkey()
-        return generate_self_signed_certificate(common_name, default_curve(), cryptography_key)
+        return generate_self_signed_certificate(host=common_name,
+                                                curve=self.curve,
+                                                private_key=cryptography_key,
+                                                )
 
     def get_deployer(self, rest_app, port):
         return HendrixDeployTLS("start",
