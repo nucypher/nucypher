@@ -46,6 +46,11 @@ class VerifiableNode:
         Raise when a Character tries to use another Character as decentralized when the latter is federated_only.
         """
 
+    def seed_node_metadata(self):
+        return SeednodeMetadata(self.checksum_public_address,
+                                self.rest_server.rest_interface.host,
+                                self.rest_server.rest_interface.port)
+
     @classmethod
     def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs) -> 'VerifiableNode':
         certificate_filepath = tls_hosting_power.keypair.certificate_filepath
