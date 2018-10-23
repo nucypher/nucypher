@@ -584,9 +584,10 @@ class Ursula(Character, VerifiableNode, Miner):
                       network_middleware: RestMiddleware,
                       host: str,
                       port: int,
+                      certificate_filepath,
                       federated_only: bool = False) -> 'Ursula':
 
-        response = network_middleware.node_information(host, port)  # TODO: pre-load certificates here?
+        response = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 

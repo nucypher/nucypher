@@ -3,9 +3,11 @@ import requests
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 
 from umbral.fragments import CapsuleFrag
+from twisted.logger import Logger
 
 
 class RestMiddleware:
+    log = Logger()
 
     def consider_arrangement(self, arrangement):
         node = arrangement.ursula

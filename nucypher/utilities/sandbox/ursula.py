@@ -15,7 +15,6 @@ from typing import Set, Union
 from nucypher.blockchain.eth import constants
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import BOOTNODES
 from nucypher.crypto.api import secure_random
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEST_URSULA_STARTING_PORT,
