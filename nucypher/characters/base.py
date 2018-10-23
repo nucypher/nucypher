@@ -61,6 +61,7 @@ class Learner:
                  start_learning_now: bool = False,
                  learn_on_same_thread: bool = False,
                  known_nodes: tuple = None,
+                 seed_nodes: Tuple[tuple] = None,
                  known_certificates_dir: str = None,
                  node_storage = None,
                  save_metadata: bool = False,
@@ -104,6 +105,7 @@ class Learner:
         self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
         self._learning_round = 0            # type: int
         self._rounds_without_new_nodes = 0  # type: int
+        self._seed_nodes = seed_nodes
 
         if self.start_learning_now:
             self.start_learning_loop(now=self.learn_on_same_thread)
