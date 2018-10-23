@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 
+from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.keyring import _write_tls_certificate
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from nucypher.network.protocols import SuspiciousActivity
@@ -15,7 +16,6 @@ from nucypher.network.server import TLSHostingPower
 
 
 class VerifiableNode:
-
     _evidence_of_decentralized_identity = constants.NOT_SIGNED
     verified_stamp = False
     verified_interface = False
@@ -72,7 +72,7 @@ class VerifiableNode:
             return True
         elif self.federated_only and signature is constants.NOT_SIGNED:
             message = "This node can't be verified in this manner, " \
-                      "but is OK to use in federated mode if you"    \
+                      "but is OK to use in federated mode if you" \
                       " have reason to believe it is trustworthy."
             raise self.WrongMode(message)
         else:
@@ -131,9 +131,9 @@ class VerifiableNode:
                                                        certificate_filepath=certificate_filepath)
         if not response.status_code == 200:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
-        timestamp, signature, identity_evidence,  \
-            verifying_key, encrypting_key,        \
-            public_address, certificate_vbytes, rest_info = self._internal_splitter(response.content)
+        timestamp, signature, identity_evidence, \
+        verifying_key, encrypting_key, \
+        public_address, certificate_vbytes, rest_info = self._internal_splitter(response.content)
 
         verifying_keys_match = verifying_key == self.public_keys(SigningPower)
         encrypting_keys_match = encrypting_key == self.public_keys(EncryptingPower)

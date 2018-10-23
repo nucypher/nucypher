@@ -1,4 +1,9 @@
+from urllib.parse import urlparse
+
 from apistar import TestClient
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.serialization import Encoding
 
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
@@ -88,6 +93,7 @@ class EvilMiddleWare(MockRestMiddleware):
     """
     Middleware for assholes.
     """
+
     def propagate_shitty_interface_id(self, ursula, shitty_interface_id):
         """
         Try to get Ursula to propagate a malicious (or otherwise shitty) interface ID.

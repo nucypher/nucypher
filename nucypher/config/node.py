@@ -1,31 +1,21 @@
 import binascii
 import json
 import os
-import socket
-import ssl
-import time
 from json import JSONDecodeError
 from logging import getLogger
 from tempfile import TemporaryDirectory
 from typing import List
-from urllib.parse import urlparse
 
 from constant_sorrow import constants
-from cryptography import x509
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.serialization import Encoding
 
-from nucypher.characters.lawful import Ursula
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, BOOTNODES
-from nucypher.config.keyring import NucypherKeyring, _write_tls_certificate
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, InMemoryNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp
-from nucypher.crypto.signing import signature_splitter
 from nucypher.network.middleware import RestMiddleware
 
 
 class NodeConfiguration:
-
     _name = 'node'
     _Character = NotImplemented
 
@@ -236,19 +226,19 @@ class NodeConfiguration:
     def static_payload(self) -> dict:
         """Exported static configuration values for initializing Ursula"""
         payload = dict(
-                    # Identity
-                    is_me=self.is_me,
-                    federated_only=self.federated_only,  # TODO: 466
-                    checksum_address=self.checksum_address,
-                    keyring_dir=self.keyring_dir,
-                    known_certificates_dir=self.known_certificates_dir,
+            # Identity
+            is_me=self.is_me,
+            federated_only=self.federated_only,  # TODO: 466
+            checksum_address=self.checksum_address,
+            keyring_dir=self.keyring_dir,
+            known_certificates_dir=self.known_certificates_dir,
 
-                    # Behavior
-                    learn_on_same_thread=self.learn_on_same_thread,
-                    abort_on_learning_error=self.abort_on_learning_error,
-                    start_learning_now=self.start_learning_now,
-                    save_metadata=self.save_metadata
-                )
+            # Behavior
+            learn_on_same_thread=self.learn_on_same_thread,
+            abort_on_learning_error=self.abort_on_learning_error,
+            start_learning_now=self.start_learning_now,
+            save_metadata=self.save_metadata
+        )
         return payload
 
     @property
@@ -334,9 +324,9 @@ class NodeConfiguration:
         try:
 
             # Directories
-            os.mkdir(self.keyring_dir, mode=0o700)               # keyring
-            os.mkdir(self.known_nodes_dir, mode=0o755)           # known_nodes
-            os.mkdir(self.known_certificates_dir, mode=0o755)    # known_certs
+            os.mkdir(self.keyring_dir, mode=0o700)  # keyring
+            os.mkdir(self.known_nodes_dir, mode=0o755)  # known_nodes
+            os.mkdir(self.known_certificates_dir, mode=0o755)  # known_certs
             self.node_storage.initialize()  # TODO: default know dir
 
             if not self.temp and not no_keys:
@@ -356,7 +346,8 @@ class NodeConfiguration:
 
         except FileExistsError:
             existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
-            message = "There are pre-existing nucypher installation files at {}: {}".format(self.config_root, existing_paths)
+            message = "There are pre-existing nucypher installation files at {}: {}".format(self.config_root,
+                                                                                            existing_paths)
             self.log.critical(message)
             raise NodeConfiguration.ConfigurationError(message)
 
@@ -374,7 +365,7 @@ class NodeConfiguration:
             raise self.ConfigurationError("No account specified to unlock keyring")
         self.keyring = NucypherKeyring(keyring_root=self.keyring_dir,
                                        account=self.checksum_address,
-                                       *args, ** kwargs)
+                                       *args, **kwargs)
 
     def write_keyring(self,
                       passphrase: str,
@@ -410,7 +401,8 @@ class NodeConfiguration:
                        blank=False) -> str:
 
         if force and os.path.isfile(output_filepath):
-            raise self.ConfigurationError('There is an existing file at the registry output_filepath {}'.format(output_filepath))
+            raise self.ConfigurationError(
+                'There is an existing file at the registry output_filepath {}'.format(output_filepath))
 
         output_filepath = output_filepath or self.registry_filepath
         source = source or self.REGISTRY_SOURCE
