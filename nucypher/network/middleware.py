@@ -19,6 +19,17 @@ class RestMiddleware:
             raise RuntimeError("Bad response: {}".format(response.content))
         return response
 
+    def _get_certificate(self, hostname, port):
+        bootnode_certificate = ssl.get_server_certificate(hostname, port)
+        certificate = x509.load_pem_x509_certificate(bootnode_certificate.encode(),
+                                                     backend=default_backend())
+        # Write certificate
+        filename = '{}.{}'.format(bootnode.checksum_address, Encoding.PEM.name.lower())
+        certificate_filepath = os.path.join(self.known_certificates_dir, filename)
+        _write_tls_certificate(certificate=certificate, full_filepath=certificate_filepath, force=True)
+        self.log.info("Saved bootnode {} TLS certificate".format(bootnode.checksum_address))
+
+
     def enact_policy(self, ursula, id, payload):
         response = requests.post('https://{}/kFrag/{}'.format(ursula.rest_interface, id.hex()), payload,
                                  verify=ursula.certificate_filepath)
