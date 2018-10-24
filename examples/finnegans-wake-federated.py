@@ -12,7 +12,6 @@ import os
 import maya
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
-from nucypher.config.characters import AliceConfiguration
 from nucypher.data_sources import DataSource
 # This is already running in another process.
 from nucypher.network.middleware import RestMiddleware
@@ -55,6 +54,7 @@ URSULA.save_certificate_to_disk(CERTIFICATE_DIR)
 ALICE = Alice(network_middleware=RestMiddleware(),
               known_nodes=(URSULA,),
               federated_only=True,
+              start_learning_now=True,
               known_certificates_dir=CERTIFICATE_DIR,
               )
 
@@ -67,7 +67,9 @@ label = b"secret/files/and/stuff"
 # Alice grants to Bob.
 BOB = Bob(known_nodes=(URSULA,),
           federated_only=True,
+          start_learning_now=True,
           known_certificates_dir=CERTIFICATE_DIR)
+
 ALICE.start_learning_loop(now=True)
 policy = ALICE.grant(BOB, label, m=m, n=n,
                      expiration=policy_end_datetime)
@@ -92,10 +94,7 @@ del ALICE
 # data shared on it.
 # He needs a few pieces of knowledge to do that.
 BOB.join_policy(label,  # The label - he needs to know what data he's after.
-                alices_pubkey_bytes_saved_for_posterity,  # To verify the signature, he'll need Alice's public key.
-                # He can also bootstrap himself onto the network more quickly
-                # by providing a list of known nodes at this time.
-                node_list=[("localhost", 3601)]
+                alices_pubkey_bytes_saved_for_posterity  # To verify the signature, he'll need Alice's public key.
                 )
 
 # Now that Bob has joined the Policy, let's show how DataSources
