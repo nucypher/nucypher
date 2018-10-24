@@ -2,6 +2,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 
 
+@pytest.mark.slow()
 def test_create_token(testerchain):
     """
     These are tests for standard tokens taken from Consensys github:
@@ -52,6 +53,7 @@ def test_create_token(testerchain):
     assert 10 ** 9 - 1 == token.functions.totalSupply().call()
 
 
+@pytest.mark.slow()
 def test_approve_and_call(testerchain):
     creator = testerchain.interface.w3.eth.accounts[0]
     account1 = testerchain.interface.w3.eth.accounts[1]

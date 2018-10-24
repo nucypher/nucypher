@@ -16,6 +16,7 @@ def miner(testerchain, three_agents):
     return miner
 
 
+@pytest.mark.slow()
 def test_miner_locking_tokens(testerchain, three_agents, miner):
     token_agent, miner_agent, policy_agent = three_agents
     # testerchain.ether_airdrop(amount=10000)
@@ -42,6 +43,7 @@ def test_miner_locking_tokens(testerchain, three_agents, miner):
     assert constants.MIN_ALLOWED_LOCKED == locked_tokens
 
 
+@pytest.mark.slow()
 @pytest.mark.usefixtures("three_agents")
 def test_miner_divides_stake(miner):
     current_period = miner.miner_agent.get_current_period()

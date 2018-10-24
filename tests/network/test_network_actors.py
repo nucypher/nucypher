@@ -13,6 +13,7 @@ from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMEN
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
+@pytest.mark.slow()
 def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas, three_agents):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
@@ -24,6 +25,7 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
                                                                                                 address)
 
 
+@pytest.mark.slow()
 @pytest.mark.skip("What do we want this test to do now?")
 def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_ursulas):
     # Imagine alice knows of nobody.

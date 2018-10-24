@@ -49,6 +49,7 @@ def test_create_policy(testerchain, three_agents):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
+@pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_fetch_policy_arrangements(three_agents, policy_meta):
     token_agent, miner_agent, policy_agent = three_agents
@@ -61,6 +62,7 @@ def test_fetch_policy_arrangements(three_agents, policy_meta):
     assert list(record[0] for record in arrangements) == policy_meta.addresses
 
 
+@pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_revoke_arrangement(three_agents, policy_meta):
     token_agent, miner_agent, policy_agent = three_agents
@@ -75,6 +77,7 @@ def test_revoke_arrangement(three_agents, policy_meta):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
+@pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_revoke_policy(three_agents, policy_meta):
     token_agent, miner_agent, policy_agent = three_agents
@@ -114,6 +117,7 @@ def test_collect_refund(testerchain, three_agents, policy_meta):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
+@pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_collect_policy_reward(testerchain, three_agents, policy_meta):
     token_agent, miner_agent, policy_agent = three_agents

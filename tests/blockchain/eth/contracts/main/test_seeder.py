@@ -17,6 +17,7 @@ TEST_MAX_SEEDS = 20
 #
 
 
+@pytest.mark.slow()
 def test_seeder(testerchain):
     origin, seed_address, another_seed_address, *everyone_else = testerchain.interface.w3.eth.accounts
     seed = ('0.0.0.0', 5757)
