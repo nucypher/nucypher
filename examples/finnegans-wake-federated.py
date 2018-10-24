@@ -55,7 +55,6 @@ URSULA.save_certificate_to_disk(CERTIFICATE_DIR)
 ALICE = Alice(network_middleware=RestMiddleware(),
               known_nodes=(URSULA,),
               federated_only=True,
-              always_be_learning=True,
               known_certificates_dir=CERTIFICATE_DIR,
               )
 
@@ -68,7 +67,6 @@ label = b"secret/files/and/stuff"
 # Alice grants to Bob.
 BOB = Bob(known_nodes=(URSULA,),
           federated_only=True,
-          always_be_learning=True,
           known_certificates_dir=CERTIFICATE_DIR)
 ALICE.start_learning_loop(now=True)
 policy = ALICE.grant(BOB, label, m=m, n=n,
