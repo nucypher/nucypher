@@ -105,7 +105,7 @@ class Learner:
         self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
         self._learning_round = 0            # type: int
         self._rounds_without_new_nodes = 0  # type: int
-        self._seed_nodes = seed_nodes
+        self._seed_nodes = seed_nodes or []
 
         if self.start_learning_now:
             self.start_learning_loop(now=self.learn_on_same_thread)
@@ -140,23 +140,20 @@ class Learner:
                 time.sleep(retry_rate)
                 __attempt_bootnode_learning(bootnode=bootnode, current_attempt=current_attempt+1)
             else:
-                self.log.info("Successfully learned from bootnode {}".format(bootnode.rest_url))
+                self.log.info("Successfully learned from {}|{}:{}".format(bootnode.checksum_address, bootnode.rest_host, bootnode.rest_port))
                 if current_attempt > 1:
                     unresponsive_seed_nodes.remove(bootnode)
-
 
         for bootnode in self._seed_nodes:
             __attempt_bootnode_learning(bootnode=bootnode)
 
         unresponsive_seed_nodes = set()
 
-
-
         if len(unresponsive_seed_nodes) > 0:
             self.log.info("No Bootnodes were availible after {} attempts".format(retry_attempts))
 
-        if read_storages is True:
-            self.read_known_nodes()
+        # if read_storages is True:
+        #     self.read_known_nodes()
 
     def remember_node(self, node, force_verification_check=False):
 

@@ -5,6 +5,7 @@ from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_ALLOWED_LO
     MIN_LOCKED_PERIODS
 
 
+@pytest.mark.slow()
 def test_deposit_tokens(testerchain, three_agents):
     origin, someone, *everybody_else = testerchain.interface.w3.eth.accounts
     token_agent, miner_agent, policy_agent = three_agents
@@ -37,6 +38,7 @@ def test_deposit_tokens(testerchain, three_agents):
     assert balance == MIN_ALLOWED_LOCKED
 
 
+@pytest.mark.slow()
 def test_get_miner_population(three_agents, blockchain_ursulas):
     token_agent, miner_agent, policy_agent = three_agents
     agent = miner_agent
@@ -61,6 +63,7 @@ def test_get_swarm(three_agents, blockchain_ursulas):
         pytest.fail()
 
 
+@pytest.mark.slow()
 def test_locked_tokens(three_agents, blockchain_ursulas):
     token_agent, miner_agent, policy_agent = three_agents
     agent = miner_agent
@@ -69,6 +72,7 @@ def test_locked_tokens(three_agents, blockchain_ursulas):
     assert MAX_ALLOWED_LOCKED > locked_amount > MIN_ALLOWED_LOCKED
 
 
+@pytest.mark.slow()
 def test_get_all_stakes(three_agents, blockchain_ursulas):
     token_agent, miner_agent, policy_agent = three_agents
     agent = miner_agent
@@ -111,6 +115,7 @@ def test_get_current_period(three_agents):
     assert end_period > start_period
 
 
+@pytest.mark.slow()
 def test_confirm_activity(three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     agent = miner_agent
@@ -162,6 +167,7 @@ def test_divide_stake(three_agents):
     assert len(stakes) == 2
 
 
+@pytest.mark.slow()
 def test_collect_staking_reward(three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     agent = miner_agent
