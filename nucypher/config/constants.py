@@ -1,4 +1,3 @@
-import os
 from collections import namedtuple
 from os.path import abspath, dirname
 
@@ -12,12 +11,11 @@ PROJECT_ROOT = abspath(dirname(nucypher.__file__))
 APP_DIR = AppDirs("nucypher", "NuCypher")
 DEFAULT_CONFIG_ROOT = APP_DIR.user_data_dir
 
+#
 # Bootnodes
+#
 Bootnode = namedtuple('Bootnode', ['checksum_address', 'rest_url'])
 BOOTNODES = (
     Bootnode('0xDbf2Bc4b81eB46CdDfa52348Ecf3c142841267E0', 'https://18.223.117.103:9151'),
 )
 
-# Test Constants  # TODO: Tidy up filepath here
-TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts', 'contracts')
-NUMBER_OF_URSULAS_IN_MOCK_NETWORK = 10

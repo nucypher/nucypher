@@ -34,7 +34,6 @@ class UrsulaConfiguration(NodeConfiguration):
                  # TLS
                  tls_curve: EllipticCurve = None,
                  certificate: Certificate = None,
-                 tls_private_key: bytes = None,  # TODO: from config here
                  certificate_filepath: str = None,
 
                  # Ursula
@@ -63,7 +62,6 @@ class UrsulaConfiguration(NodeConfiguration):
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
-        self.tls_private_key = tls_private_key
 
         # Ursula
         self.interface_signature = interface_signature
@@ -114,9 +112,6 @@ class UrsulaConfiguration(NodeConfiguration):
             timestamp=None,
             miner_agent=self.miner_agent
         )
-        if not self.temp:
-            tls_private_key = self.keyring.tls_private_key
-            payload.update(dict(tls_private_key=tls_private_key))
         return {**super().dynamic_payload, **payload}
 
     def produce(self, passphrase: str = None, **overrides):

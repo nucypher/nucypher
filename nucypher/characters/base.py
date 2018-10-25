@@ -574,7 +574,7 @@ class Character(Learner):
 
     @property
     def rest_interface(self):
-        return self._crypto_power.power_ups(TLSHostingPower).rest_server.rest_url()
+        return self.rest_server.rest_url()
 
     @property
     def stamp(self):

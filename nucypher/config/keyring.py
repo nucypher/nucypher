@@ -25,6 +25,7 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
 from nucypher.crypto.powers import SigningPower, EncryptingPower, KeyPairBasedPower, DerivedKeyBasedPower
+from nucypher.network.server import TLSHostingPower
 
 FILE_ENCODING = 'utf-8'
 
@@ -389,19 +390,6 @@ class NucypherKeyring:
         self.lock()
 
     #
-    # Private Keys
-    #
-    @property
-    @unlock_required
-    def tls_private_key(self):
-        """TODO: Deprecate and use self.derive_crypto_power instead"""
-        key_data = _read_keyfile(keypath=self.__tls_keypath, deserializer=None)
-        __tls_key = serialization.load_pem_private_key(data=key_data,
-                                                       password=self.__derived_key_material,
-                                                       backend=default_backend())
-        return __tls_key
-
-    #
     # Public Keys
     #
     @property
@@ -520,10 +508,10 @@ class NucypherKeyring:
         if issubclass(power_class, KeyPairBasedPower):
 
             codex = {SigningPower: self.__signing_keypath,
-                     EncryptingPower: self.__root_keypath
+                     EncryptingPower: self.__root_keypath,
+                     TLSHostingPower: self.__tls_keypath,    # TODO
                      # BlockchainPower: self.__wallet_path,    # TODO
-                     # TLSHostingPower: self.__tls_keypath}    # TODO
-                     }
+                    }
 
             # Create Power
             try:
