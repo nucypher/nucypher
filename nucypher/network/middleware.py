@@ -10,6 +10,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
 from twisted.logger import Logger
 from umbral.fragments import CapsuleFrag
+from umbral.signing import Signature
 
 from nucypher.config.keyring import _write_tls_certificate
 
@@ -63,7 +64,7 @@ class RestMiddleware:
         return potential_seed_node
 
     def _get_certificate(self, checksum_address, certs_dir, hostname, port,
-                         timeout=3, retry_attempts: int=3, retry_rate: int = 2,):
+                         timeout=3, retry_attempts: int = 3, retry_rate: int = 2, ):
         socket.setdefaulttimeout(timeout)  # Set Socket Timeout
         current_attempt = 0
         try:
@@ -95,8 +96,10 @@ class RestMiddleware:
 
     def reencrypt(self, work_order):
         ursula_rest_response = self.send_work_order_payload_to_ursula(work_order)
-        cfrags = BytestringSplitter((CapsuleFrag, VariableLengthBytestring)).repeat(ursula_rest_response.content)
-        work_order.complete(cfrags)  # TODO: We'll do verification of Ursula's signature here.  #141
+        cfrags_and_signatures = BytestringSplitter((CapsuleFrag, VariableLengthBytestring), Signature).repeat(
+            ursula_rest_response.content)
+        cfrags = work_order.complete(
+            cfrags_and_signatures)  # TODO: We'll do verification of Ursula's signature here.  #141
         return cfrags
 
     def get_competitive_rate(self):
