@@ -2,7 +2,7 @@ import os
 
 import maya
 import pytest
-from eth_utils import is_checksum_address
+from eth_utils import is_checksum_address, to_wei
 
 from nucypher.blockchain.eth.agents import UserEscrowAgent
 from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS, \
@@ -89,14 +89,6 @@ def test_read_allocation(agent, three_agents):
     assert allocation == TEST_ALLOCATION
 
 
-def test_read_locked_tokens(agent, three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
-    balance = token_agent.get_balance(address=agent.principal_contract.address)
-    assert balance == TEST_ALLOCATION
-    assert agent.principal_contract.functions.getLockedTokens().call() == TEST_ALLOCATION
-    assert agent.locked_tokens == TEST_ALLOCATION
-
-
 @pytest.mark.usesfixtures("three_agents")
 def test_read_timestamp(agent):
     timestamp = agent.end_timestamp
@@ -106,31 +98,67 @@ def test_read_timestamp(agent):
     assert now < end_locktime, '{} is not in the future!'.format(end_locktime.slang_date())
 
 
+@pytest.mark.slow()
 @pytest.mark.usesfixtures("three_agents")
-def test_deposit_as_miner(testerchain, agent, three_agents):
-    old_locked_value = agent.principal_contract.functions.lockedValue().call()
+def test_deposit_and_withdraw_as_miner(testerchain, agent, three_agents):
+    token_agent, miner_agent, policy_agent = three_agents
+
+    assert miner_agent.get_locked_tokens(miner_address=agent.contract_address) == 0
+    assert miner_agent.get_locked_tokens(miner_address=agent.contract_address, periods=1) == 0
+    assert agent.allocation == TEST_ALLOCATION
+    assert token_agent.get_balance(address=agent.contract_address) == TEST_ALLOCATION
+
+    # Move the tokens to the MinerEscrow
     txhash = agent.deposit_as_miner(value=MIN_ALLOWED_LOCKED, periods=MIN_LOCKED_PERIODS)
+    assert txhash  # TODO
+
+    assert token_agent.get_balance(address=agent.contract_address) == TEST_ALLOCATION - MIN_ALLOWED_LOCKED
+    assert agent.allocation == TEST_ALLOCATION
+    assert miner_agent.get_locked_tokens(miner_address=agent.contract_address) == 0
+    assert miner_agent.get_locked_tokens(miner_address=agent.contract_address, periods=1) == MIN_ALLOWED_LOCKED
+    assert miner_agent.get_locked_tokens(miner_address=agent.contract_address, periods=MIN_LOCKED_PERIODS) == MIN_ALLOWED_LOCKED
+    assert miner_agent.get_locked_tokens(miner_address=agent.contract_address, periods=MIN_LOCKED_PERIODS+1) == 0
+
+    testerchain.time_travel(periods=1)
+    for _ in range(MIN_LOCKED_PERIODS-1):
+        agent.confirm_activity()
+        testerchain.time_travel(periods=1)
+    testerchain.time_travel(periods=1)
+    agent.mint()
+
+    assert miner_agent.get_locked_tokens(miner_address=agent.contract_address) == 0
+    assert token_agent.get_balance(address=agent.contract_address) == TEST_ALLOCATION - MIN_ALLOWED_LOCKED
+    txhash = agent.withdraw_as_miner(value=MIN_ALLOWED_LOCKED)
+    assert txhash  # TODO
+    assert token_agent.get_balance(address=agent.contract_address) == TEST_ALLOCATION
+
+    txhash = agent.withdraw_as_miner(value=miner_agent.owned_tokens(address=agent.contract_address))
     assert txhash
-    new_locked_value = agent.principal_contract.functions.lockedValue().call()
-    assert new_locked_value > old_locked_value
+    assert token_agent.get_balance(address=agent.contract_address) > TEST_ALLOCATION
 
 
-@pytest.mark.usesfixtures("three_agents")
-def test_withdraw_as_miner(agent, testerchain):
+def test_collect_policy_reward(testerchain, agent, three_agents):
+    _token_agent, __proxy_contract, policy_agent = three_agents
+    deployer_address, beneficiary_address, author, ursula, *everybody_else = testerchain.interface.w3.eth.accounts
+
+    _txhash = agent.deposit_as_miner(value=MIN_ALLOWED_LOCKED, periods=MIN_LOCKED_PERIODS)
     testerchain.time_travel(periods=1)
 
-    txhash = agent.withdraw_as_miner(value=MIN_ALLOWED_LOCKED)
-    assert txhash
+    _txhash = policy_agent.create_policy(policy_id=os.urandom(16),
+                                         author_address=author,
+                                         value=to_wei(1, 'ether'),
+                                         periods=2,
+                                         initial_reward=0,
+                                         node_addresses=[agent.contract_address])
 
+    _txhash = agent.confirm_activity()
+    testerchain.time_travel(periods=2)
+    _txhash = agent.confirm_activity()
 
-def test_withdraw_eth(testerchain, agent, three_agents):
-    token_agent, __proxy_contract, policy_agent = three_agents
-    deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
-    old_balance = testerchain.interface.w3.eth.getBalance(account=beneficiary_address)
-    txhash = agent.withdraw_eth()
-    assert txhash
-    new_balance = testerchain.interface.w3.eth.getBalance(account=beneficiary_address)
-    assert new_balance > old_balance
+    old_balance = testerchain.interface.w3.eth.getBalance(account=agent.beneficiary)
+    txhash = agent.collect_policy_reward()
+    assert txhash  # TODO
+    assert testerchain.interface.w3.eth.getBalance(account=agent.beneficiary) > old_balance
 
 
 def test_withdraw_tokens(testerchain, agent, three_agents):
@@ -138,6 +166,8 @@ def test_withdraw_tokens(testerchain, agent, three_agents):
     deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
 
     old_balance = token_agent.get_balance(address=beneficiary_address)
+    testerchain.time_travel(periods=1)
+
     agent.withdraw_tokens(value=agent.allocation)
     new_balance = token_agent.get_balance(address=beneficiary_address)
     assert new_balance > old_balance

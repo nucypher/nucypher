@@ -22,7 +22,7 @@ def policy_meta(testerchain, three_agents):
                                   author_address=someone,
                                   value=MIN_ALLOWED_LOCKED,
                                   periods=10,
-                                  reward=20,
+                                  initial_reward=20,
                                   node_addresses=node_addresses)
 
     return TestPolicyMetadata(_policy_id, someone, node_addresses)
@@ -41,7 +41,7 @@ def test_create_policy(testerchain, three_agents):
                                  author_address=someone,
                                  value=MIN_ALLOWED_LOCKED,
                                  periods=10,
-                                 reward=20,
+                                 initial_reward=20,
                                  node_addresses=node_addresses)
 
     receipt = testerchain.wait_for_receipt(txhash)

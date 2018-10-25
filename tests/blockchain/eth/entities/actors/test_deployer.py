@@ -7,7 +7,7 @@ from web3.auto import w3
 
 from nucypher.blockchain.eth.actors import Deployer
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MIN_ALLOWED_LOCKED, MAX_MINTING_PERIODS, \
-    MAX_ALLOWED_LOCKED
+    MAX_ALLOWED_LOCKED, ONE_YEAR_IN_SECONDS
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry, InMemoryAllocationRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -43,9 +43,9 @@ def test_rapid_deployment():
     total_allocations = 100
 
     # Start with some hard-coded cases...
-    allocation_data = [{'address': all_yall[1], 'amount': MAX_ALLOWED_LOCKED, 'periods': MIN_LOCKED_PERIODS},
-                       {'address': all_yall[2], 'amount': MIN_ALLOWED_LOCKED, 'periods': MIN_LOCKED_PERIODS},
-                       {'address': all_yall[3], 'amount': MIN_ALLOWED_LOCKED*100, 'periods': MAX_MINTING_PERIODS*3}]
+    allocation_data = [{'address': all_yall[1], 'amount': MAX_ALLOWED_LOCKED, 'duration': ONE_YEAR_IN_SECONDS},
+                       {'address': all_yall[2], 'amount': MIN_ALLOWED_LOCKED, 'duration': ONE_YEAR_IN_SECONDS*2},
+                       {'address': all_yall[3], 'amount': MIN_ALLOWED_LOCKED*100, 'duration': ONE_YEAR_IN_SECONDS*3}]
 
     # Pile on the rest
     for _ in range(total_allocations - len(allocation_data)):
@@ -54,8 +54,8 @@ def test_rapid_deployment():
         beneficiary_address = acct.address
         amount = random.randint(MIN_ALLOWED_LOCKED, MAX_ALLOWED_LOCKED)
         duration = random.randint(MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS*3)
-        random_allocation = {'address': beneficiary_address, 'amount': amount, 'periods': duration}
-        allocation_data.append((random_allocation))
+        random_allocation = {'address': beneficiary_address, 'amount': amount, 'duration': duration}
+        allocation_data.append(random_allocation)
 
     deployer.deploy_beneficiary_contracts(allocations=allocation_data)
 

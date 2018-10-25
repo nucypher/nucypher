@@ -32,7 +32,7 @@ def test_deposit_tokens(testerchain, three_agents):
     assert receipt['logs'][1]['address'] == agent.contract_address
 
     testerchain.time_travel(periods=1)
-    assert agent.get_locked_tokens(node_address=someone) == MIN_ALLOWED_LOCKED
+    assert agent.get_locked_tokens(miner_address=someone) == MIN_ALLOWED_LOCKED
     balance = token_agent.get_balance(address=someone)
     assert balance == MIN_ALLOWED_LOCKED
 
@@ -65,7 +65,7 @@ def test_locked_tokens(three_agents, blockchain_ursulas):
     token_agent, miner_agent, policy_agent = three_agents
     agent = miner_agent
     ursula = blockchain_ursulas.pop()
-    locked_amount = agent.get_locked_tokens(node_address=ursula.checksum_public_address)
+    locked_amount = agent.get_locked_tokens(miner_address=ursula.checksum_public_address)
     assert MAX_ALLOWED_LOCKED > locked_amount > MIN_ALLOWED_LOCKED
 
 

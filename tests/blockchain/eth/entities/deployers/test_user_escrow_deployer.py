@@ -64,7 +64,6 @@ def test_deploy_multiple(three_agents, testerchain):
 
 
 @pytest.mark.slow()
-# @pytest.mark.usesfixtures('user_escrow_proxy')
 def test_deploy_and_allocate(three_agents, user_escrow_proxy):
     token_agent, miner_agent, policy_agent = three_agents
     testerchain = policy_agent.blockchain
