@@ -10,8 +10,8 @@ def test_proper_seed_node_instantiation(ursula_federated_test_config):
                                   know_each_other=False)
 
     firstula = lonely_ursula_maker().pop()
-
-    any_other_ursula = lonely_ursula_maker(seed_nodes=[firstula.seed_node_metadata()]).pop()
+    firstula_as_seed_node = firstula.seed_node_metadata()
+    any_other_ursula = lonely_ursula_maker(seed_nodes=[firstula_as_seed_node]).pop()
 
     assert not any_other_ursula.known_nodes
     any_other_ursula.start_learning_loop()

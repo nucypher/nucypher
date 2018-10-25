@@ -355,11 +355,6 @@ class NodeConfiguration:
             self.validate(config_root=self.config_root, no_registry=no_registry or self.federated_only)
         return self.config_root
 
-    def read_known_nodes(self) -> set:
-        """Read known nodes from metadata, and use them when producing a character"""
-        known_nodes = self.node_storage.all(federated_only=self.federated_only)
-        return known_nodes
-
     def read_keyring(self, *args, **kwargs):
         if self.checksum_address is None:
             raise self.ConfigurationError("No account specified to unlock keyring")
