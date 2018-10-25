@@ -486,7 +486,7 @@ class WorkOrder(object):
         self.receipt_bytes = receipt_bytes
         self.receipt_signature = receipt_signature
         self.ursula = ursula  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
-
+        self.completed = False
 
     def __repr__(self):
         return "WorkOrder for hrac {hrac}: (capsules: {capsule_bytes}) for Ursula: {node}".format(
@@ -538,10 +538,16 @@ class WorkOrder(object):
             (self.receipt_bytes, msgpack.dumps(capsules_as_bytes), msgpack.dumps(capsule_signatures_as_bytes)))
         return bytes(self.receipt_signature) + self.bob.stamp + packed_receipt_and_capsules
 
-    def complete(self, cfrags):
-        # TODO: Verify that this is in fact complete - right number of CFrags and properly signed.
-        # TODO: Mark it complete with datetime.
-        pass
+    def complete(self, cfrags_and_signatures):
+        good_cfrags = []
+        for cfrag, signature in cfrags_and_signatures:
+            if signature.verify(bytes(cfrag), self.ursula.stamp.as_umbral_pubkey()):
+                good_cfrags.append(cfrag)
+            else:
+                raise cfrag.NoProofProvided("This CFrag is not properly signed by Ursula.")
+        else:
+            self.completed = maya.now()
+            return good_cfrags
 
 
 class WorkOrderHistory:
