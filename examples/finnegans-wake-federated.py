@@ -6,15 +6,17 @@
 import binascii
 import datetime
 import logging
+import os
 import shutil
 import sys
-import os
+
 import maya
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.data_sources import DataSource
 # This is already running in another process.
 from nucypher.network.middleware import RestMiddleware
+
 from umbral.keys import UmbralPublicKey
 
 ##
