@@ -134,6 +134,16 @@ contract MinersEscrow is Issuer {
     }
 
     /**
+    * @notice Set policy manager address
+    **/
+    // TODO maybe combine this with initialization in Issuer?
+    function setPolicyManager(PolicyManagerInterface _policyManager) external onlyOwner {
+        require(address(policyManager) == 0x0 &&
+            _policyManager.escrow() == address(this));
+        policyManager = _policyManager;
+    }
+
+    /**
     * @notice Get the start period. Use in the calculation of the last period of the stake
     **/
     function getStartPeriod(MinerInfo storage _info, uint16 _currentPeriod)
@@ -642,15 +652,12 @@ contract MinersEscrow is Issuer {
         }
     }
 
-    /**
-    * @notice Set policy manager address
-    **/
-    function setPolicyManager(PolicyManagerInterface _policyManager) external onlyOwner {
-        require(address(policyManager) == 0x0 &&
-            _policyManager.escrow() == address(this));
-        policyManager = _policyManager;
+    // TODO complete
+    function slashMiner(address _miner, uint256 _amount) public {
+        revert("Not implemented yet");
     }
 
+    //-------------Additional getters for miners info-------------
     /**
     * @notice Return the length of the array of miners
     **/
@@ -700,6 +707,8 @@ contract MinersEscrow is Issuer {
         endPeriod = downtime.endPeriod;
     }
 
+
+    //------------------------Upgradeable------------------------
     /**
     * @dev Get MinerInfo structure by delegatecall
     **/
