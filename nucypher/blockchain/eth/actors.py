@@ -178,19 +178,19 @@ class Deployer(NucypherTokenActor):
         self.deploy_miner_contract(secret=miner_secret)
         self.deploy_policy_contract(secret=policy_secret)
 
-    def deploy_beneficiary_contracts(self, allocations: List[Dict[str, Union[str, int]]]):
+    def deploy_beneficiary_contracts(self, allocations: List[Dict[str, Union[str, int]]]) -> None:
         """
 
-        Example allocation dataset:
+        Example allocation dataset (one year is 31540000 seconds):
 
-        data = [{'address': '0xdeadbeef', 'amount': 100, 'periods': 100},
-                {'address': '0xabced120', 'amount': 133432, 'periods': 1},
-                {'address': '0xf7aefec2', 'amount': 999, 'periods': 30}]
+        data = [{'address': '0xdeadbeef', 'amount': 100, 'duration': 31540000},
+                {'address': '0xabced120', 'amount': 133432, 'duration': 31540000*2},
+                {'address': '0xf7aefec2', 'amount': 999, 'duration': 31540000*3}]
         """
         for allocation in allocations:
             deployer = self.deploy_user_escrow()
             deployer.deliver(value=allocation['amount'],
-                             duration=allocation['periods'],
+                             duration=allocation['duration'],
                              beneficiary_address=allocation['address'])
 
     @staticmethod
@@ -330,9 +330,9 @@ class Miner(NucypherTokenActor):
         return bool(self.locked_tokens > 0)
 
     @property
-    def locked_tokens(self, ):
+    def locked_tokens(self):
         """Returns the amount of tokens this miner has locked."""
-        return self.miner_agent.get_locked_tokens(node_address=self.checksum_public_address)
+        return self.miner_agent.get_locked_tokens(miner_address=self.checksum_public_address)
 
     @property
     def stakes(self) -> Tuple[list]:

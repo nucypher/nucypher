@@ -1,5 +1,6 @@
 """Nucypher Token and Miner constants."""
 
+ONE_YEAR_IN_SECONDS = 31540000
 NUCYPHER_GAS_LIMIT = 5000000  # TODO: move elsewhere?
 
 #

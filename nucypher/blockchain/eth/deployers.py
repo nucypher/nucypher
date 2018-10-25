@@ -21,7 +21,6 @@ class ContractDeployer:
     agency = NotImplemented
     _contract_name = NotImplemented
     _interface_class = BlockchainDeployerInterface
-    __is_proxy = False
     __upgradeable = NotImplemented
     __proxy_deployer = NotImplemented
 
@@ -40,6 +39,7 @@ class ContractDeployer:
         self.__armed = False
         self.__proxy_contract = NotImplemented
         self.__deployer_address = deployer_address
+        self.__ready_to_deploy = False
 
     @property
     def contract_address(self) -> str:
@@ -68,7 +68,8 @@ class ContractDeployer:
     def is_armed(self) -> bool:
         return bool(self.__armed is True)
 
-    def check_ready_to_deploy(self, fail=False, check_arming=False) -> Tuple[bool, list]:
+    @property
+    def ready_to_deploy(self, fail=False, check_arming=False) -> Tuple[bool, list]:
         """
         Iterates through a set of rules required for an ethereum
         contract deployer to be eligible for deployment returning a
@@ -79,6 +80,9 @@ class ContractDeployer:
 
         If fail is set to True, raise a configuration error, instead of returning.
         """
+
+        if self.__ready_to_deploy is True:
+            return True, list()
 
         rules = [
             (self.is_deployed is not True, 'Contract already deployed'),
@@ -111,7 +115,7 @@ class ContractDeployer:
 
         return True
 
-    def arm(self, abort=True) -> tuple:
+    def arm(self, abort=True) -> bool:
         """
         Safety mechanism for ethereum contract deployment
 
@@ -124,8 +128,8 @@ class ContractDeployer:
         """
         if self.__armed is True and abort is True:
             raise self.ContractDeploymentError('{} deployer is already armed.'.format(self._contract_name))
-        self.__armed, disqualifications = self.check_ready_to_deploy(fail=abort, check_arming=False)
-        return self.__armed, disqualifications
+        self.__armed, disqualifications = self.ready_to_deploy
+        return self.__armed
 
     def deploy(self) -> dict:
         """
@@ -158,7 +162,7 @@ class NucypherTokenDeployer(ContractDeployer):
         The contract must be armed before it can be deployed.
         Deployment can only ever be executed exactly once!
         """
-        self.check_ready_to_deploy(fail=True, check_arming=True)
+        self.ready_to_deploy
 
         _contract, deployment_txhash = self.blockchain.interface.deploy_contract(
                                        self._contract_name,
@@ -175,7 +179,6 @@ class DispatcherDeployer(ContractDeployer):
     """
 
     _contract_name = 'Dispatcher'
-    __is_proxy = True
     __upgradeable = False
 
     def __init__(self, target_contract: Contract, secret_hash: bytes, *args, **kwargs):
@@ -228,7 +231,7 @@ class MinerEscrowDeployer(ContractDeployer):
         """
 
         # Raise if not all-systems-go
-        self.check_ready_to_deploy(fail=True, check_arming=True)
+        self.ready_to_deploy
 
         # Build deployment arguments
         origin_args = {'from': self.deployer_address}
@@ -307,7 +310,7 @@ class PolicyManagerDeployer(ContractDeployer):
         self.secret_hash = secret_hash
 
     def deploy(self) -> Dict[str, str]:
-        self.check_ready_to_deploy(fail=True, check_arming=True)
+        self.ready_to_deploy
 
         # Creator deploys the policy manager
         policy_manager_contract, deploy_txhash = self.blockchain.interface.deploy_contract(
@@ -352,8 +355,6 @@ class PolicyManagerDeployer(ContractDeployer):
 class LibraryLinkerDeployer(ContractDeployer):
 
     _contract_name = 'UserEscrowLibraryLinker'
-    __is_proxy = True
-    __upgradeable = False
 
     def __init__(self, target_contract: Contract, secret_hash: bytes, *args, **kwargs):
         self.target_contract = target_contract
@@ -370,8 +371,6 @@ class LibraryLinkerDeployer(ContractDeployer):
 class UserEscrowProxyDeployer(ContractDeployer):
 
     _contract_name = 'UserEscrowProxy'
-    __is_proxy = True
-    __upgradeable = True
     __proxy_deployer = LibraryLinkerDeployer
 
     def __init__(self, secret_hash: bytes, *args, **kwargs):
@@ -418,7 +417,7 @@ class UserEscrowDeployer(ContractDeployer):
 
     agency = UserEscrowAgent
     _contract_name = agency.registry_contract_name
-    __proxy_deployer = UserEscrowProxyDeployer
+    __linker_deployer = LibraryLinkerDeployer
     __allocation_registry = AllocationRegistry
 
     def __init__(self, allocation_registry: AllocationRegistry = None, *args, **kwargs) -> None:
@@ -500,12 +499,12 @@ class UserEscrowDeployer(ContractDeployer):
     def deploy(self) -> dict:
         """Deploy a new instance of UserEscrow to the blockchain."""
 
-        self.check_ready_to_deploy(fail=True, check_arming=True)
+        self.ready_to_deploy
 
         deployment_transactions = dict()
-        proxy_contract = self.__proxy_deployer.get_latest_version(blockchain=self.blockchain)
 
-        args = (self._contract_name, proxy_contract.address, self.token_agent.contract_address)
+        linker_contract = self.blockchain.interface.get_contract_by_name(name=self.__linker_deployer._contract_name)
+        args = (self._contract_name, linker_contract.address, self.token_agent.contract_address)
         user_escrow_contract, deploy_txhash = self.blockchain.interface.deploy_contract(*args, enroll=False)
         self.__principal_contract = user_escrow_contract
         deployment_transactions['deploy_user_escrow'] = deploy_txhash

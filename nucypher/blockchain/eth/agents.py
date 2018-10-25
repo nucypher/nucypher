@@ -115,9 +115,16 @@ class MinerAgent(EthereumContractAgent):
     # MinersEscrow Contract API
     #
 
-    def get_locked_tokens(self, node_address):
-        """Returns the amount of tokens this miner has locked."""
-        return self.contract.functions.getLockedTokens(node_address).call()
+    def get_locked_tokens(self, miner_address: str, periods: int = 0) -> int:
+        """
+        Returns the amount of tokens this miner has locked.
+
+        TODO: Validate input (periods not less then 0)
+        """
+        return self.contract.functions.getLockedTokens(miner_address, periods).call()
+
+    def owned_tokens(self, address: str) -> int:
+        return self.contract.functions.minerInfo(address).call()[0]
 
     def get_stake_info(self, miner_address: str, stake_index: int):
         first_period, *others, locked_value = self.contract.functions.getStakeInfo(miner_address, stake_index).call()
@@ -152,7 +159,11 @@ class MinerAgent(EthereumContractAgent):
         return txhash
 
     def mint(self, node_address) -> Tuple[str, str]:
-        """Computes reward tokens for the miner's account"""
+        """
+        Computes reward tokens for the miner's account;
+        This is only used to calculate the reward for the final period of a stake,
+        when you intend to withdraw 100% of tokens.
+        """
 
         mint_txhash = self.contract.functions.mint().transact({'from': node_address})
         self.blockchain.wait_for_receipt(mint_txhash)
@@ -231,12 +242,12 @@ class PolicyAgent(EthereumContractAgent):
                       author_address: str,
                       value: int,
                       periods: int,
-                      reward: int,
+                      initial_reward: int,
                       node_addresses: List[str]) -> str:
 
         txhash = self.contract.functions.createPolicy(policy_id,
                                                       periods,
-                                                      reward,
+                                                      initial_reward,
                                                       node_addresses).transact({'from': author_address,
                                                                                 'value': value})
         self.blockchain.wait_for_receipt(txhash)
@@ -315,8 +326,6 @@ class UserEscrowAgent(EthereumContractAgent):
         self.__read_proxy()
         super().__init__(blockchain=self.blockchain, contract=self.principal_contract, *args, **kwargs)
 
-        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-
     def __read_proxy(self):
         self.__proxy_agent = self.UserEscrowProxyAgent(blockchain=self.blockchain)
         contract = self.__proxy_agent._generate_beneficiary_agency(principal_address=self.principal_contract.address)
@@ -353,7 +362,6 @@ class UserEscrowAgent(EthereumContractAgent):
 
     @property
     def proxy_contract(self):
-        """Directly reference the beneficiary's deployed contract instead of the proxy contracts's interface"""
         if self.__proxy_contract is NO_CONTRACT_AVAILABLE:
             raise RuntimeError("{} not available".format(self.registry_contract_name))
         return self.__proxy_contract
@@ -366,28 +374,15 @@ class UserEscrowAgent(EthereumContractAgent):
         return self.__principal_contract
 
     @property
-    def allocation(self):
-        return self.principal_contract.functions.lockedValue().call()
-
-    @property
-    def end_timestamp(self):
-        return self.principal_contract.functions.endLockTimestamp().call()
-
-    @property
-    def locked_tokens(self) -> int:
-        """Returns the amount of tokens this miner has locked for the beneficiary."""
+    def allocation(self) -> int:
         return self.principal_contract.functions.getLockedTokens().call()
+
+    @property
+    def end_timestamp(self) -> int:
+        return self.principal_contract.functions.endLockTimestamp().call()
 
     def lock(self, amount: int, periods: int) -> str:
         txhash = self.__proxy_contract.functions.lock(amount, periods).transact({'from': self.__beneficiary})
-        self.blockchain.wait_for_receipt(txhash)
-        return txhash
-
-    def deposit_tokens(self, amount: int, sender_address: str):
-        """Deposit without locking"""
-        txhash = self.token_agent.transfer(amount=amount,
-                                           sender_address=sender_address,
-                                           target_address=self.principal_contract.address)
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
@@ -408,5 +403,25 @@ class UserEscrowAgent(EthereumContractAgent):
 
     def withdraw_as_miner(self, value: int) -> str:
         txhash = self.__proxy_contract.functions.withdrawAsMiner(value).transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def confirm_activity(self) -> str:
+        txhash = self.__proxy_contract.functions.confirmActivity().transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def mint(self) -> str:
+        txhash = self.__proxy_contract.functions.mint().transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def collect_policy_reward(self) -> str:
+        txhash = self.__proxy_contract.functions.withdrawPolicyReward().transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def set_min_reward_rate(self, rate: int) -> str:
+        txhash = self.__proxy_contract.functions.setMinRewardRate(rate).transact({'from': self.__beneficiary})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
