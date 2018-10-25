@@ -152,8 +152,13 @@ class Learner:
         if len(unresponsive_seed_nodes) > 0:
             self.log.info("No Bootnodes were availible after {} attempts".format(retry_attempts))
 
-        # if read_storages is True:
-        #     self.read_known_nodes()
+        if read_storages is True:
+            self.read_nodes_from_storage()
+
+    def read_nodes_from_storage(self) -> set:
+        stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: 466
+        for node in stored_nodes:
+            self.remember_node(node)
 
     def remember_node(self, node, force_verification_check=False):
 
