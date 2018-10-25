@@ -1,5 +1,6 @@
 from tempfile import TemporaryDirectory
 
+import maya
 import pytest
 import pytest_twisted
 from twisted.internet import threads
@@ -152,12 +153,18 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     ursula_id, work_order = list(work_orders.items())[0]
 
+    # The work order is not yet complete, of course.
+    assert work_order.completed is False
+
     # **** RE-ENCRYPTION HAPPENS HERE! ****
     cfrags = federated_bob.get_reencrypted_cfrags(work_order)
 
     # We only gave one Capsule, so we only got one cFrag.
     assert len(cfrags) == 1
     the_cfrag = cfrags[0]
+
+    # ...and the work order is complete.
+    assert work_order.completed
 
     # Attach the CFrag to the Capsule.
     capsule = capsule_side_channel[0].capsule
