@@ -37,30 +37,6 @@ class MockRestMiddleware(RestMiddleware):
             raise RuntimeError(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
-    def learn_from_seednode(self, seednode_metadata, timeout=3, accept_federated_only=False):
-        # Pre-fetch certificate
-        self.log.info("Fetching bootnode {} TLS certificate".format(seednode_metadata.checksum_address))
-
-        certificate, filepath = self._get_certificate(seednode_metadata.rest_host, seednode_metadata.rest_port)
-
-        potential_seed_node = Ursula.from_rest_url(self,
-                                                   seednode_metadata.rest_host,
-                                                   seednode_metadata.rest_port,
-                                                   certificate_filepath=filepath,
-                                                   federated_only=True)  # TODO: 466
-
-        if not seednode_metadata.checksum_address == potential_seed_node.checksum_public_address:
-            raise potential_seed_node.SuspiciousActivity(
-                "This seed node has a different wallet address: {} (was hoping for {}).  Are you sure this is a seed node?".format(
-                    potential_seed_node.checksum_public_address,
-                    bootnode.checksum_address))
-        try:
-            potential_seed_node.verify_node(self, accept_federated_only=accept_federated_only)
-        except potential_seed_node.InvalidNode:
-            raise  # TODO: What if our seed node fails verification?
-
-        return potential_seed_node
-
     def _get_certificate(self, hostname, port):
         ursula = self._get_ursula_by_port(port)
         return ursula.certificate, ursula.certificate_filepath
