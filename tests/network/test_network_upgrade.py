@@ -1,6 +1,4 @@
 import os
-
-import pytest
 import pytest_twisted
 import requests
 from cryptography.hazmat.primitives import serialization
@@ -40,13 +38,7 @@ def test_federated_nodes_connect_via_tls_and_verify(ursula_federated_test_config
 
     try:
         with open("test-cert", "wb") as f:
-            # f.write(cert.tbs_certificate_bytes.hex())
             f.write(cert_bytes)
         yield threads.deferToThread(check_node_with_cert, node, "test-cert")
     finally:
         os.remove("test-cert")
-
-
-@pytest.mark.skip(reason="To be implemented")
-def test_node_metadata_contains_proper_cert():
-    pass
