@@ -47,7 +47,6 @@ contract SignatureVerifierMock {
 contract UmbralDeserializerMock {
     using UmbralDeserializer for bytes;
 
-
     function toOriginalCapsule(bytes memory _capsuleBytes)
         public pure returns (bytes memory pointE, bytes memory pointV, bytes32 bnSig)
     {
