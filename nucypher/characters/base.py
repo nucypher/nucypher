@@ -208,11 +208,17 @@ class Learner:
     def start_learning_loop(self, now=False):
         if self._learning_task.running:
             return False
-        else:
+        elif now:
             self.load_seednodes()
             d = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
             d.addErrback(self.handle_learning_errors)
             return d
+        else:
+            seeder_deferred = deferToThread(self.load_seednodes)
+            learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
+            seeder_deferred.addErrback(self.handle_learning_errors)
+            learner_deferred.addErrback(self.handle_learning_errors)
+            return defer.DeferredList([seeder_deferred, learner_deferred])
 
     def handle_learning_errors(self, *args, **kwargs):
         failure = args[0]
