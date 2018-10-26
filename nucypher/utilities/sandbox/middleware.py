@@ -37,7 +37,7 @@ class MockRestMiddleware(RestMiddleware):
             raise RuntimeError(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
-    def _get_certificate(self, hostname, port):
+    def _get_certificate(self, checksum_address, certs_dir, hostname, port):
         ursula = self._get_ursula_by_port(port)
         return ursula.certificate, ursula.certificate_filepath
 

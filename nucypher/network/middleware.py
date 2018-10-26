@@ -25,13 +25,16 @@ class RestMiddleware:
             raise RuntimeError("Bad response: {}".format(response.content))
         return response
 
-
-    def learn_from_seednode(self, seednode_metadata, timeout=3, accept_federated_only=False):
+    def learn_about_seednode(self, seednode_metadata, known_certs_dir, timeout=3, accept_federated_only=False):
         from nucypher.characters.lawful import Ursula
         # Pre-fetch certificate
         self.log.info("Fetching bootnode {} TLS certificate".format(seednode_metadata.checksum_address))
 
-        certificate, filepath = self._get_certificate(seednode_metadata.rest_host, seednode_metadata.rest_port)
+        # TODO: Utilize timeout.
+        certificate, filepath = self._get_certificate(checksum_address=seednode_metadata.checksum_address,
+                                                      hostname=seednode_metadata.rest_host,
+                                                      port=seednode_metadata.rest_port,
+                                                      certs_dir=known_certs_dir,)
 
         potential_seed_node = Ursula.from_rest_url(self,
                                                    seednode_metadata.rest_host,
@@ -45,21 +48,24 @@ class RestMiddleware:
                     potential_seed_node.checksum_public_address,
                     bootnode.checksum_address))
         try:
-            potential_seed_node.verify_node(self, accept_federated_only=accept_federated_only)
+            potential_seed_node.verify_node(self,
+                                            accept_federated_only=accept_federated_only,
+                                            certificate_filepath=filepath)
         except potential_seed_node.InvalidNode:
             raise  # TODO: What if our seed node fails verification?
 
         return potential_seed_node
 
-    def _get_certificate(self, hostname, port):
-        seednode_certificate = ssl.get_server_certificate(hostname, port)
+    def _get_certificate(self, checksum_address, certs_dir, hostname, port):
+        seednode_certificate = ssl.get_server_certificate(addr=(hostname, port))
         certificate = x509.load_pem_x509_certificate(seednode_certificate.encode(),
                                                      backend=default_backend())
         # Write certificate
-        filename = '{}.{}'.format(seednode.checksum_address, Encoding.PEM.name.lower())
-        certificate_filepath = os.path.join(self.known_certificates_dir, filename)
+        filename = '{}.{}'.format(checksum_address, Encoding.PEM.name.lower())
+        certificate_filepath = os.path.join(certs_dir, filename)
         _write_tls_certificate(certificate=certificate, full_filepath=certificate_filepath, force=True)
-        self.log.info("Saved seednode {} TLS certificate".format(seednode.checksum_address))
+        self.log.info("Saved seednode {} TLS certificate".format(checksum_address))
+        return certificate, certificate_filepath
 
     def enact_policy(self, ursula, id, payload):
         response = requests.post('https://{}/kFrag/{}'.format(ursula.rest_interface, id.hex()), payload,
