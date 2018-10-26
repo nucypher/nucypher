@@ -10,7 +10,7 @@ from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 def agent(testerchain):
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
-    token_deployer.arm()
+
     token_deployer.deploy()
     token_agent = token_deployer.make_agent()
     return token_agent

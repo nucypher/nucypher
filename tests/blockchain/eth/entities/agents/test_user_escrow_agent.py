@@ -4,6 +4,7 @@ import maya
 import pytest
 from eth_utils import is_checksum_address, to_wei
 
+from eth_tester.exceptions import TransactionFailed
 from nucypher.blockchain.eth.agents import UserEscrowAgent
 from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS, \
     DISPATCHER_SECRET_LENGTH
@@ -11,48 +12,56 @@ from nucypher.blockchain.eth.deployers import UserEscrowDeployer, UserEscrowProx
 from nucypher.blockchain.eth.registry import InMemoryAllocationRegistry
 
 TEST_ALLOCATION = MIN_ALLOWED_LOCKED*10
-registry = InMemoryAllocationRegistry()
+TEST_DURATION = 60*60
+TEST_ALLOCATION_REGISTRY = InMemoryAllocationRegistry()
 
 
 @pytest.mark.usefixtures("three_agents")
 @pytest.fixture(scope='module')
-def agent(three_agents, testerchain):
+def proxy_deployer(testerchain) -> UserEscrowAgent:
     deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
 
     # Proxy
     proxy_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     proxy_deployer = UserEscrowProxyDeployer(deployer_address=deployer_address,
                                              secret_hash=proxy_secret)
-    assert proxy_deployer.arm()
+
     proxy_deployer.deploy()
+    yield proxy_deployer
+
+
+@pytest.mark.usefixtures(["three_agents", "proxy_deployer"])
+@pytest.fixture(scope='function')
+def agent(testerchain, proxy_deployer) -> UserEscrowAgent:
+    deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
 
     # Escrow
     escrow_deployer = UserEscrowDeployer(deployer_address=deployer_address,
-                                         allocation_registry=registry)
-    assert escrow_deployer.arm()
+                                         allocation_registry=TEST_ALLOCATION_REGISTRY)
+
     _txhash = escrow_deployer.deploy()
 
-    escrow_deployer.initial_deposit(value=TEST_ALLOCATION, duration=MIN_LOCKED_PERIODS*10)
-    assert escrow_deployer.principal_contract.functions.getLockedTokens().call() == TEST_ALLOCATION
+    escrow_deployer.initial_deposit(value=TEST_ALLOCATION, duration=TEST_DURATION)
+    assert escrow_deployer.contract.functions.getLockedTokens().call() == TEST_ALLOCATION
     escrow_deployer.assign_beneficiary(beneficiary_address=beneficiary_address)
     escrow_deployer.enroll_principal_contract()
-    assert escrow_deployer.principal_contract.functions.getLockedTokens().call() == TEST_ALLOCATION
+    assert escrow_deployer.contract.functions.getLockedTokens().call() == TEST_ALLOCATION
     _agent = escrow_deployer.make_agent()
 
     _direct_agent = UserEscrowAgent(blockchain=testerchain,
-                                    allocation_registry=registry,
+                                    allocation_registry=TEST_ALLOCATION_REGISTRY,
                                     beneficiary=beneficiary_address)
 
     assert _direct_agent == _agent
     assert _direct_agent.contract.abi == _agent.contract.abi
     assert _direct_agent.contract.address == _agent.contract.address
-    assert _agent.principal_contract.address == escrow_deployer.principal_contract.address
-    assert _agent.principal_contract.abi == escrow_deployer.principal_contract.abi
-    assert _direct_agent.contract.abi == escrow_deployer.principal_contract.abi
-    assert _direct_agent.contract.address == escrow_deployer.principal_contract.address
+    assert _agent.principal_contract.address == escrow_deployer.contract.address
+    assert _agent.principal_contract.abi == escrow_deployer.contract.abi
+    assert _direct_agent.contract.abi == escrow_deployer.contract.abi
+    assert _direct_agent.contract.address == escrow_deployer.contract.address
 
     yield _agent
-    testerchain.interface.registry.clear()
+    TEST_ALLOCATION_REGISTRY.clear()
 
 
 def test_user_escrow_agent_represents_beneficiary(agent, three_agents):
@@ -84,7 +93,7 @@ def test_read_allocation(agent, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     balance = token_agent.get_balance(address=agent.principal_contract.address)
     assert balance == TEST_ALLOCATION
-    allocation = agent.allocation
+    allocation = agent.unvested_tokens
     assert allocation > 0
     assert allocation == TEST_ALLOCATION
 
@@ -105,7 +114,7 @@ def test_deposit_and_withdraw_as_miner(testerchain, agent, three_agents):
 
     assert miner_agent.get_locked_tokens(miner_address=agent.contract_address) == 0
     assert miner_agent.get_locked_tokens(miner_address=agent.contract_address, periods=1) == 0
-    assert agent.allocation == TEST_ALLOCATION
+    assert agent.unvested_tokens == TEST_ALLOCATION
     assert token_agent.get_balance(address=agent.contract_address) == TEST_ALLOCATION
 
     # Move the tokens to the MinerEscrow
@@ -113,7 +122,7 @@ def test_deposit_and_withdraw_as_miner(testerchain, agent, three_agents):
     assert txhash  # TODO
 
     assert token_agent.get_balance(address=agent.contract_address) == TEST_ALLOCATION - MIN_ALLOWED_LOCKED
-    assert agent.allocation == TEST_ALLOCATION
+    assert agent.unvested_tokens == TEST_ALLOCATION
     assert miner_agent.get_locked_tokens(miner_address=agent.contract_address) == 0
     assert miner_agent.get_locked_tokens(miner_address=agent.contract_address, periods=1) == MIN_ALLOWED_LOCKED
     assert miner_agent.get_locked_tokens(miner_address=agent.contract_address, periods=MIN_LOCKED_PERIODS) == MIN_ALLOWED_LOCKED
@@ -165,9 +174,12 @@ def test_withdraw_tokens(testerchain, agent, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     deployer_address, beneficiary_address, *everybody_else = testerchain.interface.w3.eth.accounts
 
-    old_balance = token_agent.get_balance(address=beneficiary_address)
-    testerchain.time_travel(periods=1)
+    assert token_agent.get_balance(address=agent.contract_address) == agent.unvested_tokens
+    with pytest.raises((TransactionFailed, ValueError)):
+        agent.withdraw_tokens(value=TEST_ALLOCATION)
+    testerchain.time_travel(seconds=TEST_DURATION)
 
-    agent.withdraw_tokens(value=agent.allocation)
-    new_balance = token_agent.get_balance(address=beneficiary_address)
-    assert new_balance > old_balance
+    txhash = agent.withdraw_tokens(value=TEST_ALLOCATION)
+    assert txhash  # TODO
+    assert token_agent.get_balance(address=agent.contract_address) == 0
+    assert token_agent.get_balance(address=beneficiary_address) == TEST_ALLOCATION

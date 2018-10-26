@@ -24,11 +24,7 @@ def test_deploy_ethereum_contracts(testerchain):
 
     with pytest.raises(ContractDeployer.ContractDeploymentError):
         assert token_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
-    assert not token_deployer.is_armed
     assert not token_deployer.is_deployed
-
-    token_deployer.arm()
-    assert token_deployer.is_armed
 
     token_deployer.deploy()
     assert token_deployer.is_deployed
@@ -54,11 +50,7 @@ def test_deploy_ethereum_contracts(testerchain):
 
     with pytest.raises(ContractDeployer.ContractDeploymentError):
         assert miner_escrow_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
-    assert not miner_escrow_deployer.is_armed
     assert not miner_escrow_deployer.is_deployed
-
-    miner_escrow_deployer.arm()
-    assert miner_escrow_deployer.is_armed
 
     miner_escrow_deployer.deploy()
     assert miner_escrow_deployer.is_deployed
@@ -85,11 +77,7 @@ def test_deploy_ethereum_contracts(testerchain):
 
     with pytest.raises(ContractDeployer.ContractDeploymentError):
         assert policy_manager_deployer.contract_address is constants.CONTRACT_NOT_DEPLOYED
-    assert not policy_manager_deployer.is_armed
     assert not policy_manager_deployer.is_deployed
-
-    policy_manager_deployer.arm()
-    assert policy_manager_deployer.is_armed
 
     policy_manager_deployer.deploy()
     assert policy_manager_deployer.is_deployed

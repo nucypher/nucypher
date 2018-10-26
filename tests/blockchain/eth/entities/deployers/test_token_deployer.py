@@ -15,12 +15,6 @@ def test_token_deployer_and_agent(testerchain):
     # The big day...
     deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
 
-    # It's not armed
-    with pytest.raises(NucypherTokenDeployer.ContractDeploymentError):
-        deployer.deploy()
-
-    # Token must be armed before deploying to the blockchain
-    assert deployer.arm()
     deployment_txhashes = deployer.deploy()
 
     for title, txhash in deployment_txhashes.items():

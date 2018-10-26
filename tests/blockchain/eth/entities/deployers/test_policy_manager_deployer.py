@@ -9,7 +9,7 @@ def test_policy_manager_deployer(testerchain):
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
-    token_deployer.arm()
+
     token_deployer.deploy()
 
     token_agent = token_deployer.make_agent()  # 1: Token
@@ -18,7 +18,7 @@ def test_policy_manager_deployer(testerchain):
     miner_escrow_deployer = MinerEscrowDeployer(
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
-    miner_escrow_deployer.arm()
+
     miner_escrow_deployer.deploy()
 
     miner_agent = miner_escrow_deployer.make_agent()  # 2 Miner Escrow
@@ -27,7 +27,7 @@ def test_policy_manager_deployer(testerchain):
     deployer = PolicyManagerDeployer(
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
-    deployer.arm()
+
     deployment_txhashes = deployer.deploy()
     assert len(deployment_txhashes) == 3
 

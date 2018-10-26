@@ -40,9 +40,9 @@ TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contr
 @pytest.fixture(scope="session", autouse=True)
 def cleanup():
     yield  # we've got a lot of men and women here...
-    with contextlib.suppress(FileNotFoundError):
-        for f in os.listdir(tempfile.tempdir):
-            if re.search(r'nucypher-*', f):
+    for f in os.listdir(tempfile.tempdir):
+        if re.search(r'nucypher-*', f):
+            with contextlib.suppress(FileNotFoundError, TypeError):
                 shutil.rmtree(os.path.join(tempfile.tempdir, f),
                               ignore_errors=True)
 
@@ -373,7 +373,7 @@ def three_agents(testerchain):
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
-    token_deployer.arm()
+
     token_deployer.deploy()
 
     token_agent = token_deployer.make_agent()              # 1: Token
@@ -382,7 +382,7 @@ def three_agents(testerchain):
     miner_escrow_deployer = MinerEscrowDeployer(
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
-    miner_escrow_deployer.arm()
+
     miner_escrow_deployer.deploy()
 
     miner_agent = miner_escrow_deployer.make_agent()       # 2 Miner Escrow
@@ -391,7 +391,7 @@ def three_agents(testerchain):
     policy_manager_deployer = PolicyManagerDeployer(
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
-    policy_manager_deployer.arm()
+
     policy_manager_deployer.deploy()
 
     policy_agent = policy_manager_deployer.make_agent()    # 3 Policy Agent

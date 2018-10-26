@@ -51,7 +51,8 @@ class UrsulaConfiguration(NodeConfiguration):
 
         # REST
         self.rest_host = rest_host or self.DEFAULT_REST_HOST
-        self.rest_port = rest_port or self. DEFAULT_REST_PORT
+        self.rest_port = rest_port or self.DEFAULT_REST_PORT
+
         self.db_name = db_name or self.__DB_TEMPLATE.format(port=self.rest_port)
         self.db_filepath = db_filepath or constants.UNINITIALIZED_CONFIGURATION
 
@@ -81,10 +82,11 @@ class UrsulaConfiguration(NodeConfiguration):
         return base_filepaths
 
     def initialize(self, tls: bool = True, *args, **kwargs):
-        return super().initialize(tls=tls,
-                                  host=self.rest_host,
-                                  curve=self.tls_curve,
-                                  *args, **kwargs)
+        super().initialize(tls=tls, host=self.rest_host, curve=self.tls_curve, *args, **kwargs)
+        if self.db_name is constants.UNINITIALIZED_CONFIGURATION:
+            self.db_name = self.__DB_TEMPLATE.format(self.rest_port)
+        if self.db_filepath is constants.UNINITIALIZED_CONFIGURATION:
+            self.db_filepath = os.path.join(self.config_root, self.db_name)
 
     @property
     def static_payload(self) -> dict:
