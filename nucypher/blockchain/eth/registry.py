@@ -265,7 +265,7 @@ class InMemoryAllocationRegistry(AllocationRegistry):
         self.__registry_data = None  # type: str
 
     def clear(self):
-        self.__registry_data = dict()
+        self.__registry_data = None
 
     def _swap_registry(self, filepath: str) -> bool:
         raise NotImplementedError

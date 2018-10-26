@@ -374,7 +374,7 @@ class UserEscrowAgent(EthereumContractAgent):
         return self.__principal_contract
 
     @property
-    def allocation(self) -> int:
+    def unvested_tokens(self) -> int:
         return self.principal_contract.functions.getLockedTokens().call()
 
     @property

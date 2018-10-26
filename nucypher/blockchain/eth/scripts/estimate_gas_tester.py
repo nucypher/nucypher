@@ -51,7 +51,7 @@ def estimate_gas():
     circumflex.deployer_address = origin  # Set the deployer address from a freshly created test account
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
-    token_deployer.arm()
+
     token_deployer.deploy()
     token_agent = token_deployer.make_agent()
 
@@ -60,7 +60,7 @@ def estimate_gas():
         token_agent=token_agent,
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
-    miner_escrow_deployer.arm()
+
     miner_escrow_deployer.deploy()
     miner_agent = miner_escrow_deployer.make_agent()
 
@@ -69,7 +69,7 @@ def estimate_gas():
         miner_agent=miner_agent,
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
-    policy_manager_deployer.arm()
+
     policy_manager_deployer.deploy()
     policy_agent = policy_manager_deployer.make_agent()
 
