@@ -143,21 +143,21 @@ class UrsulaCommandProtocol(LineReceiver):
         color_index = {
             'self': 'yellow',
             'known': 'white',
-            'bootnode': 'blue'
+            'seednode': 'blue'
         }
         for node_type, color in color_index.items():
             click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
         click.echo('\n')
 
-        bootnode_addresses = list(bn.checksum_address for bn in BOOTNODES)
+        seednode_addresses = list(bn.checksum_address for bn in BOOTNODES)
         for address, node in known_nodes.items():
             row_template = "{} | {} | {}"
             node_type = 'known'
             if node.checksum_public_address == self.ursula.checksum_public_address:
                 node_type = 'self'
                 row_template += ' ({})'.format(node_type)
-            if node.checksum_public_address in bootnode_addresses:
-                node_type = 'bootnode'
+            if node.checksum_public_address in seednode_addresses:
+                node_type = 'seednode'
                 row_template += ' ({})'.format(node_type)
             click.secho(row_template.format(node.checksum_public_address,
                                             node.rest_url(),
