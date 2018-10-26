@@ -1,23 +1,24 @@
 import random
+import time
 from collections import defaultdict
 from collections import deque
 from contextlib import suppress
 from logging import Logger
 from logging import getLogger
 from tempfile import TemporaryDirectory
+from typing import Dict, ClassVar, Set
+from typing import Tuple
+from typing import Union, List
 
 import maya
 import requests
-import time
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from requests.exceptions import SSLError
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 from twisted.internet import task
-from typing import Dict, ClassVar, Set
-from typing import Tuple
-from typing import Union, List
+from twisted.internet.threads import deferToThread
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -29,7 +30,6 @@ from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, N
 from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
-from nucypher.network.server import TLSHostingPower
 
 
 class Learner:
@@ -63,12 +63,12 @@ class Learner:
                  known_nodes: tuple = None,
                  seed_nodes: Tuple[tuple] = None,
                  known_certificates_dir: str = None,
-                 node_storage = None,
+                 node_storage=None,
                  save_metadata: bool = False,
                  abort_on_learning_error: bool = False
                  ) -> None:
 
-        self.log = getLogger("characters")                       # type: Logger
+        self.log = getLogger("characters")  # type: Logger
 
         self.__common_name = common_name
         self.network_middleware = network_middleware
@@ -85,7 +85,8 @@ class Learner:
 
         # Read
         if node_storage is None:
-            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only,    #TODO: remove federated_only
+            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only,
+                                                       # TODO: remove federated_only
                                                        character_class=self.__class__)
 
         self.node_storage = node_storage
@@ -101,9 +102,9 @@ class Learner:
                 self.unresponsive_startup_nodes.append(node)
 
         self.teacher_nodes = deque()
-        self._current_teacher_node = None   # type: Teacher
+        self._current_teacher_node = None  # type: Teacher
         self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
-        self._learning_round = 0            # type: int
+        self._learning_round = 0  # type: int
         self._rounds_without_new_nodes = 0  # type: int
         self._seed_nodes = seed_nodes or []
 
@@ -122,30 +123,38 @@ class Learner:
         """
         Engage known nodes from storages and pre-fetch hardcoded bootnode certificates for node learning.
         """
-        def __attempt_bootnode_learning(bootnode, current_attempt=1):
-            self.log.debug("Loading Bootnode {}|{}:{}".format(bootnode.checksum_address, bootnode.rest_host, bootnode.rest_port))
+
+        def __attempt_bootnode_learning(seednode_metadata, current_attempt=1):
+            self.log.debug(
+                "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_address,
+                                                seednode_metadata.rest_host,
+                                                seednode_metadata.rest_port))
 
             try:
-                seed_node = self.network_middleware.learn_from_seednode(seednode_metadata=bootnode,
-                                                            timeout=timeout,
-                                                            accept_federated_only=self.federated_only)  # TODO: 466
+                seed_node = self.network_middleware.learn_about_seednode(seednode_metadata=seednode_metadata,
+                                                                        known_certs_dir=self.known_certificates_dir,
+                                                                        timeout=timeout,
+                                                                        accept_federated_only=self.federated_only)  # TODO: 466
                 self.remember_node(seed_node)
             except RuntimeError:
                 if current_attempt == retry_attempts:
                     message = "No Response from Bootnode {} after {} attempts"
-                    self.log.info(message.format(bootnode.rest_url, retry_attempts))
+                    self.log.info(message.format(seednode_metadata.rest_url, retry_attempts))
                     return
-                unresponsive_seed_nodes.add(bootnode)
-                self.log.info("No Response from Bootnode {}. Retrying in {} seconds...".format(bootnode.rest_url, retry_rate))
+                unresponsive_seed_nodes.add(seednode_metadata)
+                self.log.info(
+                    "No Response from Bootnode {}. Retrying in {} seconds...".format(bootnode.rest_url, retry_rate))
                 time.sleep(retry_rate)
-                __attempt_bootnode_learning(bootnode=bootnode, current_attempt=current_attempt+1)
+                # __attempt_bootnode_learning(seednode_metadata=seednode_metadata, current_attempt=current_attempt + 1)
             else:
-                self.log.info("Successfully learned from {}|{}:{}".format(bootnode.checksum_address, bootnode.rest_host, bootnode.rest_port))
+                self.log.info("Successfully learned from {}|{}:{}".format(seednode_metadata.checksum_address,
+                                                                          seednode_metadata.rest_host,
+                                                                          seednode_metadata.rest_port))
                 if current_attempt > 1:
-                    unresponsive_seed_nodes.remove(bootnode)
+                    unresponsive_seed_nodes.remove(seednode_metadata)
 
-        for bootnode in self._seed_nodes:
-            __attempt_bootnode_learning(bootnode=bootnode)
+        for seednode_metadata in self._seed_nodes:
+            __attempt_bootnode_learning(seednode_metadata=seednode_metadata)
 
         unresponsive_seed_nodes = set()
 
