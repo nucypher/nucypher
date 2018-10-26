@@ -1,5 +1,7 @@
 import os
+import socket
 import ssl
+import time
 
 import requests
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
@@ -28,13 +30,17 @@ class RestMiddleware:
     def learn_about_seednode(self, seednode_metadata, known_certs_dir, timeout=3, accept_federated_only=False):
         from nucypher.characters.lawful import Ursula
         # Pre-fetch certificate
-        self.log.info("Fetching bootnode {} TLS certificate".format(seednode_metadata.checksum_address))
+        self.log.info("Fetching seednode {} TLS certificate".format(seednode_metadata.checksum_address))
 
         # TODO: Utilize timeout.
         certificate, filepath = self._get_certificate(checksum_address=seednode_metadata.checksum_address,
                                                       hostname=seednode_metadata.rest_host,
                                                       port=seednode_metadata.rest_port,
-                                                      certs_dir=known_certs_dir,)
+                                                      certs_dir=known_certs_dir,
+                                                      timeout=timeout)
+
+        if certificate is False:
+            return False
 
         potential_seed_node = Ursula.from_rest_url(self,
                                                    seednode_metadata.rest_host,
@@ -46,7 +52,7 @@ class RestMiddleware:
             raise potential_seed_node.SuspiciousActivity(
                 "This seed node has a different wallet address: {} (was hoping for {}).  Are you sure this is a seed node?".format(
                     potential_seed_node.checksum_public_address,
-                    bootnode.checksum_address))
+                    seednode_metadata.checksum_address))
         try:
             potential_seed_node.verify_node(self,
                                             accept_federated_only=accept_federated_only,
@@ -56,8 +62,21 @@ class RestMiddleware:
 
         return potential_seed_node
 
-    def _get_certificate(self, checksum_address, certs_dir, hostname, port):
-        seednode_certificate = ssl.get_server_certificate(addr=(hostname, port))
+    def _get_certificate(self, checksum_address, certs_dir, hostname, port,
+                         timeout=3, retry_attempts: int=3, retry_rate: int = 2,):
+        socket.setdefaulttimeout(timeout)  # Set Socket Timeout
+        current_attempt = 0
+        try:
+            seednode_certificate = ssl.get_server_certificate(addr=(hostname, port))
+        except socket.timeout:
+            if current_attempt == retry_attempts:
+                message = "No Response from seednode {} after {} attempts"
+                self.log.info(message.format(checksum_address, retry_attempts))
+                return False, False
+            self.log.info(
+                "No Response from seednode {}. Retrying in {} seconds...".format(checksum_address, retry_rate))
+            time.sleep(retry_rate)
+
         certificate = x509.load_pem_x509_certificate(seednode_certificate.encode(),
                                                      backend=default_backend())
         # Write certificate

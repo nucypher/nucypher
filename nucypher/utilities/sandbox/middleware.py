@@ -1,9 +1,4 @@
-from urllib.parse import urlparse
-
 from apistar import TestClient
-from cryptography import x509
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.serialization import Encoding
 
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import RestMiddleware
@@ -37,7 +32,8 @@ class MockRestMiddleware(RestMiddleware):
             raise RuntimeError(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
-    def _get_certificate(self, checksum_address, certs_dir, hostname, port):
+    def _get_certificate(self, checksum_address, certs_dir, hostname, port, timeout=3, retry_attempts: int = 3,
+                         retry_rate: int = 2, ):
         ursula = self._get_ursula_by_port(port)
         return ursula.certificate, ursula.certificate_filepath
 
