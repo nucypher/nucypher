@@ -1,6 +1,7 @@
 pragma solidity ^0.4.25;
 
 
+import "./lib/UmbralDeserializer.sol";
 import "./lib/SignatureVerifier.sol";
 import "./MinersEscrow.sol";
 
@@ -10,7 +11,9 @@ import "./MinersEscrow.sol";
 * @dev TODO move or integrate with MinersEscrow
 **/
 contract ChallengeOverseer {
+    using UmbralDeserializer for bytes;
 
+    // TODO events
     uint256 constant PENALTY = 100; // TODO
 
     MinersEscrow public escrow;
@@ -31,52 +34,93 @@ contract ChallengeOverseer {
     }
 
     /**
-    * @notice Submit proof that miner create wrong CFrag
+    * @notice Submit proof that miner created wrong CFrag
     * @param _capsuleBytes Serialized capsule
+    * @param _capsuleSignatureByRequester Signature of Capsule by requester
+    * @param _capsuleSignatureByRequesterAndMiner Signature of Capsule by requester and miner
     * @param _cFragBytes Serialized CFrag
-    * @param _signature Signature of Capsule and CFrag
+    * @param _cFragSignatureByMiner Signature of CFrag by miner
+    * @param _requesterPublicKey Requester's public key that was used to sign Capsule
     * @param _minerPublicKey Miner's public key that was used to sign Capsule and CFrag
     * @param _minerPublicKeySignature Signature of public key by miner's eth-key
+    * @param _preCalculatedData Pre calculated data for CFrag correctness verification
     **/
     function challengeCFrag(
         bytes _capsuleBytes,
+        bytes _capsuleSignatureByRequester,
+        bytes _capsuleSignatureByRequesterAndMiner,
         bytes _cFragBytes,
-        bytes _signature,
+        bytes _cFragSignatureByMiner,
+        bytes _requesterPublicKey,
         bytes _minerPublicKey,
-        bytes _minerPublicKeySignature
+        bytes _minerPublicKeySignature,
+        // TODO rename
+        bytes _preCalculatedData
     ) public {
-        require(_minerPublicKey.length == 65);
-        bytes memory signedData = abi.encodePacked(_capsuleBytes, _cFragBytes);
+        require(_minerPublicKey.length == 65 && _requesterPublicKey.length == 65);
 
-        // copy public key except first byte
+        // Check that CFrag is not challenged yet
+        bytes32 challengeHash = SignatureVerifier.hash(
+            abi.encodePacked(_capsuleBytes, _cFragBytes), hashAlgorithm);
+        require(!challengedCFrags[challengeHash]);
+
+        // Verify requester's signature of Capsule
         bytes memory preparedPublicKey = new bytes(64);
+        preparePublicKey(preparedPublicKey, _requesterPublicKey);
+        require(SignatureVerifier.verify(
+                _capsuleBytes, _capsuleSignatureByRequester, preparedPublicKey, hashAlgorithm));
+
+        // Verify miner's signatures of capsule and CFrag
+        preparePublicKey(preparedPublicKey, _minerPublicKey);
+        require(SignatureVerifier.verify(
+                _capsuleSignatureByRequester, _capsuleSignatureByRequesterAndMiner, preparedPublicKey, hashAlgorithm));
+        require(SignatureVerifier.verify(
+                _cFragBytes, _cFragSignatureByMiner, preparedPublicKey, hashAlgorithm));
+
+        // Extract miner's address and check that is real miner
+        address miner = SignatureVerifier.recover(
+            SignatureVerifier.hash(_minerPublicKey, hashAlgorithm), _minerPublicKeySignature);
+        require(escrow.getLockedTokens(miner) > 0); // TODO check that miner can be slashed
+
+        // Verify correctness of re-encryption
+        UmbralDeserializer.OriginalCapsule memory capsule = _capsuleBytes.toOriginalCapsule();
+        UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
+        // TODO rename
+        UmbralDeserializer.PreCalculatedData memory data = _preCalculatedData.toPreCalculatedData();
+        if (!isCapsuleFragCorrect(capsule, cFrag, data)) {
+            escrow.slashMiner(miner, PENALTY);
+        }
+        challengedCFrags[challengeHash] = true;
+    }
+
+    /**
+    * @notice Prepare public key before verification (cut the first byte)
+    **/
+    function preparePublicKey(bytes memory _preparedPublicKey, bytes memory _publicKey) public pure {
         assembly {
-            let destination := add(preparedPublicKey, 32)
-            let source := add(_minerPublicKey, 33)
+            let destination := add(_preparedPublicKey, 32) // skip array length
+            let source := add(_publicKey, 33) // skip array length and first byte in the array
             mstore(destination, mload(source))
             mstore(add(destination, 32), mload(add(source, 32)))
         }
-
-        bytes32 dataHash = SignatureVerifier.hash(signedData, hashAlgorithm);
-        require(SignatureVerifier.toAddress(preparedPublicKey) ==
-            SignatureVerifier.recover(dataHash, _signature));
-        require(!challengedCFrags[dataHash]); // CFrag is not challenged yet
-        bytes32 publicKeyHash = SignatureVerifier.hash(_minerPublicKey, hashAlgorithm);
-        address miner = SignatureVerifier.recover(publicKeyHash, _minerPublicKeySignature);
-
-        require(escrow.getLockedTokens(miner) > 0); // TODO check that miner can be slashed
-        if (!check(_capsuleBytes, _cFragBytes)) {
-            escrow.slashMiner(miner, PENALTY);
-        }
-        challengedCFrags[dataHash] = true;
     }
 
-    // TODO complete
-    function check(
-        bytes _capsuleBytes,
-        bytes _cFragBytes
-    ) public pure returns (bool) {
-        return _capsuleBytes.length == 100 && _cFragBytes.length == 100; // just for tests
+    /**
+    * @notice Check correctness of re-encryption
+    * @param _capsule Capsule
+    * @param _cFrag Capsule frag
+    * @param _data Additional data
+    **/
+    function isCapsuleFragCorrect(
+        UmbralDeserializer.OriginalCapsule memory _capsule,
+        UmbralDeserializer.CapsuleFrag memory _cFrag,
+        UmbralDeserializer.PreCalculatedData memory _data
+    // TODO make public when possible
+    ) internal pure returns (bool) {
+        // TODO use Numerology repo
+        return _capsule.pointE.length == 33 &&
+            _cFrag.proof.metadata.length == 33 &&
+            _data.data.length == 22; // just for tests
     }
 
 }
