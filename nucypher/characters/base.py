@@ -354,8 +354,9 @@ class Learner:
                 elif not self._learning_task.running:
                     raise self.NotEnoughTeachers("The learning loop is not running.  Start it with start_learning().")
                 else:
-                    raise self.NotEnoughTeachers("After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
-                        timeout, rounds_undertaken, len(still_unknown), still_unknown))
+                    raise self.NotEnoughTeachers(
+                        "After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
+                            timeout, rounds_undertaken, len(still_unknown), still_unknown))
 
             else:
                 time.sleep(.1)
@@ -431,7 +432,8 @@ class Learner:
         try:
 
             # TODO: Streamline path generation
-            certificate_filepath = current_teacher.get_certificate_filepath(certificates_dir=self.known_certificates_dir)
+            certificate_filepath = current_teacher.get_certificate_filepath(
+                certificates_dir=self.known_certificates_dir)
             response = self.network_middleware.get_nodes_via_rest(url=rest_url,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
@@ -462,7 +464,8 @@ class Learner:
 
             try:
                 if eager:
-                    certificate_filepath = current_teacher.get_certificate_filepath(certificates_dir=certificate_filepath)
+                    certificate_filepath = current_teacher.get_certificate_filepath(
+                        certificates_dir=certificate_filepath)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
@@ -548,7 +551,7 @@ class Character(Learner):
 
         """
 
-        self.federated_only = federated_only           # type: bool
+        self.federated_only = federated_only  # type: bool
 
         #
         # Powers
@@ -558,7 +561,7 @@ class Character(Learner):
         crypto_power_ups = crypto_power_ups or list()  # type: list
 
         if crypto_power:
-            self._crypto_power = crypto_power          # type: CryptoPower
+            self._crypto_power = crypto_power  # type: CryptoPower
         elif crypto_power_ups:
             self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
         else:
@@ -572,7 +575,7 @@ class Character(Learner):
                 self.blockchain = blockchain or Blockchain.connect()
 
             self.keyring_dir = keyring_dir  # type: str
-            self.treasure_maps = {}         # type: dict
+            self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
             #
@@ -580,7 +583,7 @@ class Character(Learner):
             #
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)  # type: SigningPower
-                self._stamp = signing_power.get_signature_stamp()           # type: SignatureStamp
+                self._stamp = signing_power.get_signature_stamp()  # type: SignatureStamp
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
 
