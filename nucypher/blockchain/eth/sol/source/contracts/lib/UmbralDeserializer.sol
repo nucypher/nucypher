@@ -8,9 +8,11 @@ library UmbralDeserializer {
 
     //bytes == 33 bytes
     struct OriginalCapsule {
+        byte pointESign;
+        bytes32 pointEXCoord;
         bytes pointE;
         bytes pointV;
-        bytes32 bnSig;
+        uint256 bnSig;
     }
 
     struct CorrectnessProof {
@@ -18,7 +20,7 @@ library UmbralDeserializer {
         bytes pointV2;
         bytes pointKFragCommitment;
         bytes pointKFragPok;
-        bytes32 bnSig;
+        uint256 bnSig;
         bytes kFragSignature; // 64 bytes
         bytes metadata; // any length
     }
@@ -27,9 +29,13 @@ library UmbralDeserializer {
         bytes pointE1;
         bytes pointV1;
         bytes32 kFragId;
-        bytes pointNonInteractive;
-        bytes pointXCoord;
+        bytes pointPrecursor;
         CorrectnessProof proof;
+    }
+
+    // TODO rename
+    struct PreCalculatedData {
+        bytes data;
     }
 
     uint8 constant BIG_NUM_SIZE = 32;
@@ -121,6 +127,16 @@ library UmbralDeserializer {
         cFrag.proof = toCorrectnessProof(pointer, cFragBytesLength - CAPSULE_FRAG_SIZE);
     }
 
+    /**
+    * @notice Deserialize to pre calculated data
+    **/
+    // TODO rename
+    function toPreCalculatedData(bytes memory _preCalculatedData)
+        internal pure returns (PreCalculatedData memory data)
+    {
+        data.data = _preCalculatedData;
+    }
+
     // TODO extract to external library if needed
     /**
     * @notice Get the memory pointer for start of array
@@ -146,7 +162,7 @@ library UmbralDeserializer {
     * @param _bytesPointer Source memory pointer
     * @param _target Target array
     **/
-    function copyPointBytes(uint _bytesPointer, bytes memory _target)
+    function copyPointBytes(uint256 _bytesPointer, bytes memory _target)
         internal
         pure
         returns (uint256 resultPointer)
@@ -168,7 +184,7 @@ library UmbralDeserializer {
     * @param _target Target array
     * @param _bytesLength Number of bytes to copy
     **/
-    function copyBytes(uint _bytesPointer, bytes memory _target, uint _bytesLength)
+    function copyBytes(uint256 _bytesPointer, bytes memory _target, uint256 _bytesLength)
         internal
         pure
         returns (uint256 resultPointer)
