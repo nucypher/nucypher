@@ -121,48 +121,33 @@ class Learner:
                        retry_rate: int = 2,
                        timeout=3):
         """
-        Engage known nodes from storages and pre-fetch hardcoded bootnode certificates for node learning.
+        Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
         """
+        unresponsive_seed_nodes = set()
 
-        def __attempt_bootnode_learning(seednode_metadata, current_attempt=1):
+        def __attempt_seednode_learning(seednode_metadata, current_attempt=1):
             self.log.debug(
                 "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_address,
                                                 seednode_metadata.rest_host,
                                                 seednode_metadata.rest_port))
-
-            try:
-                seed_node = self.network_middleware.learn_about_seednode(seednode_metadata=seednode_metadata,
-                                                                        known_certs_dir=self.known_certificates_dir,
-                                                                        timeout=timeout,
-                                                                        accept_federated_only=self.federated_only)  # TODO: 466
-                self.remember_node(seed_node)
-            except RuntimeError:
-                if current_attempt == retry_attempts:
-                    message = "No Response from Bootnode {} after {} attempts"
-                    self.log.info(message.format(seednode_metadata.rest_url, retry_attempts))
-                    return
+            seed_node = self.network_middleware.learn_about_seednode(seednode_metadata=seednode_metadata,
+                                                                    known_certs_dir=self.known_certificates_dir,
+                                                                    timeout=timeout,
+                                                                    accept_federated_only=self.federated_only)  # TODO: 466
+            if seed_node is False:
                 unresponsive_seed_nodes.add(seednode_metadata)
-                self.log.info(
-                    "No Response from Bootnode {}. Retrying in {} seconds...".format(bootnode.rest_url, retry_rate))
-                time.sleep(retry_rate)
-                # __attempt_bootnode_learning(seednode_metadata=seednode_metadata, current_attempt=current_attempt + 1)
             else:
-                self.log.info("Successfully learned from {}|{}:{}".format(seednode_metadata.checksum_address,
-                                                                          seednode_metadata.rest_host,
-                                                                          seednode_metadata.rest_port))
-                if current_attempt > 1:
-                    unresponsive_seed_nodes.remove(seednode_metadata)
+                self.remember_node(seed_node)
 
         for seednode_metadata in self._seed_nodes:
-            __attempt_bootnode_learning(seednode_metadata=seednode_metadata)
-
-        unresponsive_seed_nodes = set()
-
-        if len(unresponsive_seed_nodes) > 0:
-            self.log.info("No Bootnodes were availible after {} attempts".format(retry_attempts))
+            __attempt_seednode_learning(seednode_metadata=seednode_metadata)
 
         if read_storages is True:
             self.read_nodes_from_storage()
+
+        if not self.known_nodes:
+            self.log.warning("No seednodes were available after {} attempts".format(retry_attempts))
+            # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)
 
     def read_nodes_from_storage(self) -> set:
         stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: 466
