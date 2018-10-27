@@ -52,12 +52,12 @@ library UmbralDeserializer {
         uint256 pointV2yCoord;
     }
 
-    uint8 constant BIG_NUM_SIZE = 32;
+    uint8 constant BIGNUM_SIZE = 32;
     uint8 constant POINT_SIZE = 33;
     uint8 constant SIGNATURE_SIZE = 64;
-    uint8 constant ORIGINAL_CAPSULE_SIZE = 2 * POINT_SIZE + BIG_NUM_SIZE;
-    uint8 constant CORRECTNESS_PROOF_SIZE = 4 * POINT_SIZE + BIG_NUM_SIZE + SIGNATURE_SIZE;
-    uint8 constant CAPSULE_FRAG_SIZE = 3 * POINT_SIZE + BIG_NUM_SIZE;
+    uint8 constant CAPSULE_SIZE = 2 * POINT_SIZE + BIGNUM_SIZE;
+    uint8 constant CORRECTNESS_PROOF_SIZE = 4 * POINT_SIZE + BIGNUM_SIZE + SIGNATURE_SIZE;
+    uint8 constant CAPSULE_FRAG_SIZE = 3 * POINT_SIZE + BIGNUM_SIZE;
     uint8 constant FULL_CAPSULE_FRAG_SIZE = CAPSULE_FRAG_SIZE + CORRECTNESS_PROOF_SIZE;
 
     /**
@@ -66,7 +66,7 @@ library UmbralDeserializer {
     function toCapsule(bytes memory _capsuleBytes)
         internal pure returns (Capsule memory capsule)
     {
-        require(_capsuleBytes.length == ORIGINAL_CAPSULE_SIZE);
+        require(_capsuleBytes.length == CAPSULE_SIZE);
         uint256 pointer = getPointer(_capsuleBytes);
         pointer = copyPoint(pointer, capsule.pointE);
         pointer = copyPoint(pointer, capsule.pointV);
@@ -88,7 +88,7 @@ library UmbralDeserializer {
         _pointer = copyPoint(_pointer, proof.pointKFragCommitment);
         _pointer = copyPoint(_pointer, proof.pointKFragPok);
         proof.bnSig = uint256(getBytes32(_pointer));
-        _pointer += BIG_NUM_SIZE;
+        _pointer += BIGNUM_SIZE;
 
         proof.kFragSignature = new bytes(SIGNATURE_SIZE);
         // TODO optimize, just two mload->mstore
@@ -122,7 +122,7 @@ library UmbralDeserializer {
         pointer = copyPoint(pointer, cFrag.pointE1);
         pointer = copyPoint(pointer, cFrag.pointV1);
         cFrag.kFragId = getBytes32(pointer);
-        pointer += BIG_NUM_SIZE;
+        pointer += BIGNUM_SIZE;
         pointer = copyPoint(pointer, cFrag.pointPrecursor);
 
         cFrag.proof = toCorrectnessProof(pointer, cFragBytesLength - CAPSULE_FRAG_SIZE);
