@@ -250,7 +250,7 @@ class ProxyRESTRoutes:
             capsule.set_correctness_keys(verifying=alices_verifying_key)
             cfrag = pre.reencrypt(kfrag, capsule, metadata=capsule_signed_by_both)
             self.log.info("Re-encrypting for {}, made {}.".format(capsule, cfrag))
-            signature = self._stamp(bytes(cfrag))
+            signature = self._stamp(bytes(cfrag) + bytes(capsule))
             cfrag_byte_stream += VariableLengthBytestring(cfrag) + signature
 
         # TODO: Put this in Ursula's datastore

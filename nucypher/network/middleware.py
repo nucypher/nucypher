@@ -99,7 +99,7 @@ class RestMiddleware:
         cfrags_and_signatures = BytestringSplitter((CapsuleFrag, VariableLengthBytestring), Signature).repeat(
             ursula_rest_response.content)
         cfrags = work_order.complete(
-            cfrags_and_signatures)  # TODO: We'll do verification of Ursula's signature here.  #141
+            cfrags_and_signatures)
         return cfrags
 
     def get_competitive_rate(self):
