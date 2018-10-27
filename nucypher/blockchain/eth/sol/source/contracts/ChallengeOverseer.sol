@@ -115,20 +115,64 @@ contract ChallengeOverseer {
     * @notice Check correctness of re-encryption
     * @param _capsule Capsule
     * @param _cFrag Capsule frag
-    * @param _data Additional data
+    * @param _precomputed Additional precomputed data
     **/
     function isCapsuleFragCorrect(
         UmbralDeserializer.Capsule memory _capsule,
         UmbralDeserializer.CapsuleFrag memory _cFrag,
-        UmbralDeserializer.PreComputedData memory _data
+        UmbralDeserializer.PreComputedData memory _precomputed
     )
         // TODO make public when possible
         internal pure returns (bool)
     {
-        // TODO use Numerology repo
-        return _capsule.bnSig >= 0 &&
-            _cFrag.proof.metadata.length == 33 &&
-            _data.data.length == 22; // just for tests
+
+        uint256 h = _capsule.proof.bnSig; // TODO: compute hash
+
+        // Verifying equation: z*E + h*E_1 = E_2
+        require(Numerology.check_compressed_point(
+            _capsule.pointE.sign,
+            _capsule.pointE.xCoord,
+            _precomputed.pointEyCoord
+        ));
+
+        bool ez_is_correct = Numerology.ecmulVerify(
+            _capsule.pointE.xCoord,     // E_x
+            _precomputed.pointEyCoord,  // E_y
+            _cFrag.proof.bnSig,         // z
+            _precomputed.pointEZxCoord, // zE_x
+            _precomputed.pointEZyCoord  // zE_y
+        );
+
+        require(Numerology.check_compressed_point(
+            _cFrag.pointE1.sign,         // E_sign
+            _cFrag.pointE1.xCoord,      // E1_x
+            _precomputed.pointE1yCoord  // E1_y
+        ));
+
+        bool e1h_is_correct = Numerology.ecmulVerify(
+            _cFrag.pointE1.xCoord,          // E1_x
+            _precomputed.pointE1yCoord,     // E1_y
+            h,
+            _precomputed.pointE1HxCoord,    // hE1_x
+            _precomputed.pointE1HyCoord     // hE1_y
+        );
+
+        require(Numerology.check_compressed_point(
+            _cFrag.proof.pointE2.sign,        // E2_sign
+            _cFrag.proof.pointE2.xCoord,      // E2_x
+            _precomputed.pointE2yCoord        // E2_y
+        ));
+
+        bool sum_is_correct = Numerology.eqAffineJacobian(
+            [_cFrag.proof.pointE2.xCoord, _precomputed.pointE2yCoord],
+            Numerology.addAffineJacobian(
+                [_precomputed.pointEZxCoord,  _precomputed.pointEZyCoord],
+                [_precomputed.pointE1HxCoord, _precomputed.pointE1HyCoord]
+            )
+        );
+
+        // TODO: Repeat with v and u
+        return ez_is_correct && e1h_is_correct && sum_is_correct;
     }
 
 }
