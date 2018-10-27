@@ -10,7 +10,9 @@ from eth_keys.datatypes import Signature as EthSignature
 
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.keyring import _write_tls_certificate
+from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
+from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
 

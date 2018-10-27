@@ -219,6 +219,7 @@ class ProxyRESTRoutes:
                 kfrag,
                 session=session)
 
+        # TODO: Sign the arrangement here.  #495
         return  # TODO: Return A 200, with whatever policy metadata.
 
     def reencrypt_via_rest(self, id_as_hex, request: Request):
