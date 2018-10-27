@@ -494,11 +494,7 @@ class Character(Learner):
     _crashed = False
 
     from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
-
-    class InvalidSignature(Exception):
-        """
-        Raised when a signature doesn't pass validation/verification.
-        """
+    from nucypher.crypto.signing import InvalidSignature
 
     def __init__(self,
                  is_me: bool = True,

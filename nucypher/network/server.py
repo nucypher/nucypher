@@ -46,9 +46,6 @@ class ProxyRESTServer:
 class ProxyRESTRoutes:
     log = getLogger("characters")
 
-    class InvalidSignature(Exception):
-        """Raised when a received signature is not valid."""
-
     def __init__(self,
                  db_name,
                  db_filepath,

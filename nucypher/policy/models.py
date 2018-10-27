@@ -332,8 +332,7 @@ class TreasureMap:
                                   )
     node_id_splitter = BytestringSplitter((to_checksum_address, int(PUBLIC_ADDRESS_LENGTH)), Arrangement.ID_LENGTH)
 
-    class InvalidSignature(Exception):
-        """Raised when the public signature (typically intended for Ursula) is not valid."""
+    from nucypher.crypto.signing import InvalidSignature  # Raised when the public signature (typically intended for Ursula) is not valid.
 
     def __init__(self,
                  m: int = None,
@@ -547,7 +546,7 @@ class WorkOrder(object):
             if signature.verify(bytes(cfrag) + bytes(capsule), self.ursula.stamp.as_umbral_pubkey()):
                 good_cfrags.append(cfrag)
             else:
-                raise cfrag.NoProofProvided("This CFrag is not properly signed by Ursula.")
+                raise self.ursula.InvalidSignature("This CFrag is not properly signed by Ursula.")
         else:
             self.completed = maya.now()
             return good_cfrags
