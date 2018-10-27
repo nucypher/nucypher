@@ -152,7 +152,7 @@ class Alice(Character, PolicyAuthor):
         failed_revocations = list()
         for node_id, arrangement_id in policy.treasure_map:
             # TODO: What about nodes we don't know about?
-            ursula = self._known_nodes[node_id]
+            ursula = self.known_nodes[node_id]
             try:
                 self.network_middleware.revoke_arrangement(ursula, arrangement_id)
             except RuntimeError as e:
