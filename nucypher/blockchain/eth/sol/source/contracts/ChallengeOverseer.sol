@@ -118,9 +118,9 @@ contract ChallengeOverseer {
     // TODO make public when possible
     ) internal pure returns (bool) {
         // TODO use Numerology repo
-//        return _capsule.pointE.length == 33 &&
-//            _cFrag.proof.metadata.length == 33 &&
-//            _data.data.length == 22; // just for tests
+        return _capsule.bnSig >= 0 &&
+            _cFrag.proof.metadata.length == 33 &&
+            _data.data.length == 22; // just for tests
     }
 
 }
