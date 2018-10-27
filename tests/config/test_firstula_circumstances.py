@@ -38,8 +38,7 @@ def test_get_cert_from_running_seed_node(ursula_federated_test_config):
     node_deployer.catalogServers(node_deployer.hendrix)
     node_deployer.start()
 
-    cert = node_deployer.cert.to_cryptography()
-    cert_bytes = cert.public_bytes(serialization.Encoding.PEM)
+    certificate_as_deployed = node_deployer.cert.to_cryptography()
 
     firstula_as_seed_node = firstula.seed_node_metadata()
     any_other_ursula = lonely_ursula_maker(seed_nodes=[firstula_as_seed_node],
@@ -56,3 +55,6 @@ def test_get_cert_from_running_seed_node(ursula_federated_test_config):
 
     yield deferToThread(start_lonely_learning_loop)
     assert firstula in any_other_ursula.known_nodes.values()
+
+    certificate_as_learned = list(any_other_ursula.known_nodes.values())[0].certificate
+    assert certificate_as_learned == certificate_as_deployed
