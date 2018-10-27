@@ -1,0 +1,46 @@
+
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  user: root
+  pre_tasks:
+    - include_vars: variables.yml
+  tasks:
+    - name: Provision {{ ec2_count }} instances with tag {{ ec2_tag_Role }}
+      local_action:
+        module: ec2
+        key_name: "{{ ec2_keypair }}"
+        group_id: "{{ ec2_security_group_id }}"
+        instance_type: "{{ ec2_instance_type }}"
+        image: "{{ ec2_image }}"
+        vpc_subnet_id: "{{ ec2_subnet_id }}"
+        region: "{{ ec2_region }}"
+        instance_tags: '{"Type":"{{ec2_instance_type}}", "Role":"{{ec2_tag_Role}}"}'
+        assign_public_ip: yes
+        wait: true
+        exact_count: "{{ ec2_count }}"
+        count_tag:
+          Role: "{{ ec2_tag_Role }}"
+        volumes:
+          - device_name: /dev/xvda
+            volume_type: gp2
+            volume_size: "{{ ec2_volume_size }}"
+            delete_on_termination: true
+      register: ec2
+
+    - add_host:
+        name: "{{ item.public_ip }}"
+        groups: tag_Type_{{ec2_tag_Type}}
+        ec2_region: "{{ ec2_region }}"
+        ec2_tag_Type: "{{ ec2_tag_Type}}"
+        ec2_tag_Role: "{{ ec2_tag_Role }}"
+        ec2_ip_address: "{{ item.public_ip }}"
+      with_items: "{{ ec2.instances }}"
+
+    - name: Wait for the instances to boot by checking the ssh port
+      wait_for: host={{item.public_ip}} port=22 delay=15 timeout=300 state=started
+      with_items: "{{ ec2.instances }}"
+
+  post_tasks:
+    - name: refresh hosts inventory list
+      meta: refresh_inventory
