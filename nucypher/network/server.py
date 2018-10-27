@@ -241,7 +241,7 @@ class ProxyRESTRoutes:
         # TODO: Sign the arrangement here.  #495
         return  # TODO: Return A 200, with whatever policy metadata.
 
-    def revoke_arrangement(self, request: http.Request):
+    def revoke_arrangement(self, request: Request):
         """
         REST endpoint for revoking/deleting a KFrag from a node.
         TODO: How do we want to verify that this request comes from Alice?
@@ -257,7 +257,7 @@ class ProxyRESTRoutes:
             return 404  # TODO: Should we 404 or do something else?
         return 200
 
-    def reencrypt_via_rest(self, id_as_hex, request: http.Request):
+    def reencrypt_via_rest(self, id_as_hex, request: Request):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
         arrangement_id = binascii.unhexlify(id_as_hex)
         work_order = WorkOrder.from_rest_payload(arrangement_id, request.body)
