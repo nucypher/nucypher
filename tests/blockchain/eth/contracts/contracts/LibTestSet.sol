@@ -47,32 +47,48 @@ contract SignatureVerifierMock {
 contract UmbralDeserializerMock {
     using UmbralDeserializer for bytes;
 
-    function toOriginalCapsule(bytes memory _capsuleBytes)
-        public pure returns (bytes memory pointE, bytes memory pointV, bytes32 bnSig)
+    function toCapsule(bytes memory _capsuleBytes)
+        public pure returns (
+            byte pointESign,
+            bytes32 pointEXCoord,
+            byte pointVSign,
+            bytes32 pointVXCoord,
+            bytes32 bnSig
+        )
     {
-        UmbralDeserializer.OriginalCapsule memory capsule = _capsuleBytes.toOriginalCapsule();
-        pointE = capsule.pointE;
-        pointV = capsule.pointV;
-        bnSig = capsule.bnSig;
+        UmbralDeserializer.Capsule memory capsule = _capsuleBytes.toCapsule();
+        pointESign = byte(capsule.pointE.sign);
+        pointEXCoord = bytes32(capsule.pointE.xCoord);
+        pointVSign = byte(capsule.pointV.sign);
+        pointVXCoord = bytes32(capsule.pointV.xCoord);
+        bnSig = bytes32(capsule.bnSig);
     }
 
     function toCorrectnessProof(bytes memory _proofBytes)
         public pure returns (
-            bytes pointE2,
-            bytes pointV2,
-            bytes pointKFragCommitment,
-            bytes pointKFragPok,
+            byte pointE2Sign,
+            bytes32 pointE2XCoord,
+            byte pointV2Sign,
+            bytes32 pointV2XCoord,
+            byte pointKFragCommitmentSign,
+            bytes32 pointKFragCommitmentXCoord,
+            byte pointKFragPokSign,
+            bytes32 pointKFragPokXCoord,
             bytes32 bnSig,
             bytes kFragSignature,
             bytes metadata
         )
     {
         UmbralDeserializer.CorrectnessProof memory proof = _proofBytes.toCorrectnessProof();
-        pointE2 = proof.pointE2;
-        pointV2 = proof.pointV2;
-        pointKFragCommitment = proof.pointKFragCommitment;
-        pointKFragPok = proof.pointKFragPok;
-        bnSig = proof.bnSig;
+        pointE2Sign = byte(proof.pointE2.sign);
+        pointE2XCoord = bytes32(proof.pointE2.xCoord);
+        pointV2Sign = byte(proof.pointV2.sign);
+        pointV2XCoord = bytes32(proof.pointV2.xCoord);
+        pointKFragCommitmentSign = byte(proof.pointKFragCommitment.sign);
+        pointKFragCommitmentXCoord = bytes32(proof.pointKFragCommitment.xCoord);
+        pointKFragPokSign = byte(proof.pointKFragPok.sign);
+        pointKFragPokXCoord = bytes32(proof.pointKFragPok.xCoord);
+        bnSig = bytes32(proof.bnSig);
         kFragSignature = proof.kFragSignature;
         metadata = proof.metadata;
     }
@@ -80,10 +96,14 @@ contract UmbralDeserializerMock {
     // `toCapsuleFrag` is splitted into two methods because of EVM stack problems with many variables
     function toCorrectnessProofFromCapsuleFrag(bytes memory _cFragBytes)
         public pure returns (
-            bytes pointE2,
-            bytes pointV2,
-            bytes pointKFragCommitment,
-            bytes pointKFragPok,
+            byte pointE2Sign,
+            bytes32 pointE2XCoord,
+            byte pointV2Sign,
+            bytes32 pointV2XCoord,
+            byte pointKFragCommitmentSign,
+            bytes32 pointKFragCommitmentXCoord,
+            byte pointKFragPokSign,
+            bytes32 pointKFragPokXCoord,
             bytes32 bnSig,
             bytes kFragSignature,
             bytes metadata
@@ -91,29 +111,37 @@ contract UmbralDeserializerMock {
     {
         UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
         UmbralDeserializer.CorrectnessProof memory proof = cFrag.proof;
-        pointE2 = proof.pointE2;
-        pointV2 = proof.pointV2;
-        pointKFragCommitment = proof.pointKFragCommitment;
-        pointKFragPok = proof.pointKFragPok;
-        bnSig = proof.bnSig;
+        pointE2Sign = byte(proof.pointE2.sign);
+        pointE2XCoord = bytes32(proof.pointE2.xCoord);
+        pointV2Sign = byte(proof.pointV2.sign);
+        pointV2XCoord = bytes32(proof.pointV2.xCoord);
+        pointKFragCommitmentSign = byte(proof.pointKFragCommitment.sign);
+        pointKFragCommitmentXCoord = bytes32(proof.pointKFragCommitment.xCoord);
+        pointKFragPokSign = byte(proof.pointKFragPok.sign);
+        pointKFragPokXCoord = bytes32(proof.pointKFragPok.xCoord);
+        bnSig = bytes32(proof.bnSig);
         kFragSignature = proof.kFragSignature;
         metadata = proof.metadata;
     }
 
     function toCapsuleFrag(bytes memory _cFragBytes)
         public pure returns (
-            bytes pointE1,
-            bytes pointV1,
+            byte pointE1Sign,
+            bytes32 pointE1XCoord,
+            byte pointV1Sign,
+            bytes32 pointV1XCoord,
             bytes32 kFragId,
-            bytes pointNonInteractive,
-            bytes pointXCoord
+            byte pointPrecursorSign,
+            bytes32 pointPrecursorXCoord
         )
     {
         UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
-        pointE1 = cFrag.pointE1;
-        pointV1 = cFrag.pointV1;
+        pointE1Sign = byte(cFrag.pointE1.sign);
+        pointE1XCoord = bytes32(cFrag.pointE1.xCoord);
+        pointV1Sign = byte(cFrag.pointV1.sign);
+        pointV1XCoord = bytes32(cFrag.pointV1.xCoord);
         kFragId = cFrag.kFragId;
-        pointNonInteractive = cFrag.pointNonInteractive;
-        pointXCoord = cFrag.pointXCoord;
+        pointPrecursorSign = byte(cFrag.pointPrecursor.sign);
+        pointPrecursorXCoord = bytes32(cFrag.pointPrecursor.xCoord);
     }
 }
