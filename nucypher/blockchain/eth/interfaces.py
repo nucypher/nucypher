@@ -260,13 +260,16 @@ class BlockchainInterface:
                                             ContractFactoryClass=Contract)
             return contract
 
-    def _wrap_contract(self, dispatcher_contract: Contract,
+    def _wrap_contract(self, wrapper_contract: Contract,
                        target_contract: Contract, factory=Contract) -> Contract:
-        """Used for upgradeable contracts."""
+        """
+        Used for upgradeable contracts;
+        Returns a new contract object assembled with the address of one contract but the abi or another.
+        """
 
         # Wrap the contract
         wrapped_contract = self.w3.eth.contract(abi=target_contract.abi,
-                                                address=dispatcher_contract.address,
+                                                address=wrapper_contract.address,
                                                 ContractFactoryClass=factory)
         return wrapped_contract
 
@@ -281,54 +284,63 @@ class BlockchainInterface:
                 raise self.UnknownContract("No such contract with address {}".format(address))
             return contract_records[0]
 
-    def get_contract_by_name(self, name: str, upgradeable=False, factory=Contract) -> Contract:
+    def get_contract_by_name(self,
+                             name: str,
+                             proxy_name: str = None,
+                             use_proxy_address: bool = True,
+                             factory: Contract = Contract) -> Contract:
         """
-        Instantiate a deployed contract from registrar data,
-        and assemble it with it's dispatcher if it is upgradeable.
+        Instantiate a deployed contract from registry data,
+        and assimilate it with it's proxy if it is upgradeable.
         """
+
         target_contract_records = self.registry.search(contract_name=name)
 
         if not target_contract_records:
             raise self.UnknownContract("No such contract records with name {}".format(name))
 
-        if upgradeable:
-            # Lookup dispatchers; Search fot a published dispatcher that targets this contract record
-            dispatcher_records = self.registry.search(contract_name='Dispatcher')
+        if proxy_name:  # It's upgradeable
+            # Lookup proxies; Search fot a published proxy that targets this contract record
 
-            matching_pairs = list()
-            for dispatcher_name, dispatcher_addr, dispatcher_abi in dispatcher_records:
+            proxy_records = self.registry.search(contract_name=proxy_name)
 
-                dispatcher_contract = self.w3.eth.contract(abi=dispatcher_abi,
-                                                           address=dispatcher_addr,
-                                                           ContractFactoryClass=factory)
+            unified_pairs = list()
+            for proxy_name, proxy_addr, proxy_abi in proxy_records:
+                proxy_contract = self.w3.eth.contract(abi=proxy_abi,
+                                                      address=proxy_addr,
+                                                      ContractFactoryClass=factory)
 
                 # Read this dispatchers target address from the blockchain
-                live_target_address = dispatcher_contract.functions.target().call()
-
+                proxy_live_target_address = proxy_contract.functions.target().call()
                 for target_name, target_addr, target_abi in target_contract_records:
-                    if target_addr == live_target_address:
-                        pair = dispatcher_addr, target_abi
-                        matching_pairs.append(pair)
 
-            else:  # for/else
+                    if target_addr == proxy_live_target_address:
+                        if use_proxy_address:
+                            pair = (proxy_addr, target_abi)
+                        else:
+                            pair = (proxy_live_target_address, target_abi)
+                    else:
+                        continue
 
-                if len(matching_pairs) == 0:
-                    raise self.InterfaceError("No dispatcher targets known contract records for {}".format(name))
+                    unified_pairs.append(pair)
 
-                elif len(matching_pairs) > 1:
-                    raise self.InterfaceError("There is more than one dispatcher targeting {}".format(name))
+            if len(unified_pairs) > 1:
+                address, abi = unified_pairs[0]
+                message = "Multiple {} deployments are targeting {}".format(proxy_name, address)
+                raise self.InterfaceError(message.format(name))
 
-                selected_contract_address, selected_contract_abi = matching_pairs[0]
-        else:
-            if len(target_contract_records) != 1:  # TODO: Allow multiple non-upgradeable records (UserEscrow)
-                m = "Multiple records returned from the registry for non-upgradeable contract {}"
+            else:
+                selected_address, selected_abi = unified_pairs[0]
+
+        else:  # It's not upgradeable
+            if len(target_contract_records) != 1:
+                m = "Multiple records registered for non-upgradeable contract {}"
                 raise self.InterfaceError(m.format(name))
-
-            selected_contract_name, selected_contract_address, selected_contract_abi = target_contract_records[0]
+            _target_contract_name, selected_address, selected_abi = target_contract_records[0]
 
         # Create the contract from selected sources
-        unified_contract = self.w3.eth.contract(abi=selected_contract_abi,
-                                                address=selected_contract_address,
+        unified_contract = self.w3.eth.contract(abi=selected_abi,
+                                                address=selected_address,
                                                 ContractFactoryClass=factory)
 
         return unified_contract
@@ -380,31 +392,31 @@ class BlockchainDeployerInterface(BlockchainInterface):
     @deployer_address.setter
     def deployer_address(self, checksum_address: str) -> None:
         if self.deployer_address is not constants.NO_DEPLOYER_CONFIGURED:
-            raise RuntimeError("{} already has a deployer address set.".format(self.__class__.__name__))
+            raise RuntimeError("{} already has a deployer address set: {}.".format(self.__class__.__name__, self.deployer_address))
         self.__deployer_address = checksum_address
 
-    def deploy_contract(self, contract_name: str, *args, **kwargs) -> Tuple[Contract, str]:
+    def deploy_contract(self, contract_name: str, *constructor_args, enroll: bool = True, **kwargs) -> Tuple[Contract, str]:
         """
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract
         """
         if self.__deployer_address is constants.NO_DEPLOYER_CONFIGURED:
             raise self.NoDeployerAddress
+
         #
         # Build the deployment tx #
         #
-
         deploy_transaction = {'from': self.deployer_address, 'gasPrice': self.w3.eth.gasPrice}
         self.log.info("Deployer address is {}".format(deploy_transaction['from']))
 
         contract_factory = self.get_contract_factory(contract_name=contract_name)
-        deploy_bytecode = contract_factory.constructor(*args, **kwargs).buildTransaction(deploy_transaction)
+        deploy_bytecode = contract_factory.constructor(*constructor_args).buildTransaction(deploy_transaction)
         self.log.info("Deploying contract: {}: {} bytes".format(contract_name, len(deploy_bytecode['data'])))
 
         #
         # Transmit the deployment tx #
         #
-        txhash = contract_factory.constructor(*args, **kwargs).transact(transaction=deploy_transaction)
+        txhash = contract_factory.constructor(*constructor_args, **kwargs).transact(transaction=deploy_transaction)
         self.log.info("{} Deployment TX sent : txhash {}".format(contract_name, txhash.hex()))
 
         # Wait for receipt
@@ -413,12 +425,12 @@ class BlockchainDeployerInterface(BlockchainInterface):
         self.log.info("Confirmed {} deployment: address {}".format(contract_name, address))
 
         #
-        # Instantiate & enroll contract
+        # Instantiate & Enroll contract
         #
         contract = contract_factory(address=address)
 
-        self.registry.enroll(contract_name=contract_name,
-                             contract_address=contract.address,
-                             contract_abi=contract_factory.abi)
-
+        if enroll is True:
+            self.registry.enroll(contract_name=contract_name,
+                                 contract_address=contract.address,
+                                 contract_abi=contract_factory.abi)
         return contract, txhash

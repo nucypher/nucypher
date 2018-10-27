@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.agents import EthereumContractAgent, NucypherTokenAgent, MinerAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.node import NodeConfiguration
@@ -45,14 +45,14 @@ class UrsulaConfiguration(NodeConfiguration):
                  # Blockchain
                  poa: bool = False,
                  provider_uri: str = None,
-                 miner_agent: EthereumContractAgent = None,
 
                  *args, **kwargs
                  ) -> None:
 
         # REST
         self.rest_host = rest_host or self.DEFAULT_REST_HOST
-        self.rest_port = rest_port or self. DEFAULT_REST_PORT
+        self.rest_port = rest_port or self.DEFAULT_REST_PORT
+
         self.db_name = db_name or self.__DB_TEMPLATE.format(port=self.rest_port)
         self.db_filepath = db_filepath or constants.UNINITIALIZED_CONFIGURATION
 
@@ -71,23 +71,22 @@ class UrsulaConfiguration(NodeConfiguration):
         # Blockchain
         #
         self.poa = poa
-        self.blockchain_uri = provider_uri
-        self.miner_agent = miner_agent
+        self.provider_uri = provider_uri
 
         super().__init__(*args, **kwargs)
 
     def generate_runtime_filepaths(self, config_root: str) -> dict:
         base_filepaths = NodeConfiguration.generate_runtime_filepaths(config_root=config_root)
-        filepaths = dict(db_filepath=os.path.join(config_root, self.db_name),
-                         )
+        filepaths = dict(db_filepath=os.path.join(config_root, self.db_name))
         base_filepaths.update(filepaths)
         return base_filepaths
 
     def initialize(self, tls: bool = True, *args, **kwargs):
-        return super().initialize(tls=tls,
-                                  host=self.rest_host,
-                                  curve=self.tls_curve,
-                                  *args, **kwargs)
+        super().initialize(tls=tls, host=self.rest_host, curve=self.tls_curve, *args, **kwargs)
+        if self.db_name is constants.UNINITIALIZED_CONFIGURATION:
+            self.db_name = self.__DB_TEMPLATE.format(self.rest_port)
+        if self.db_filepath is constants.UNINITIALIZED_CONFIGURATION:
+            self.db_filepath = os.path.join(self.config_root, self.db_name)
 
     @property
     def static_payload(self) -> dict:
@@ -110,7 +109,6 @@ class UrsulaConfiguration(NodeConfiguration):
             certificate=self.certificate,
             interface_signature=self.interface_signature,
             timestamp=None,
-            miner_agent=self.miner_agent
         )
         return {**super().dynamic_payload, **payload}
 
@@ -125,15 +123,15 @@ class UrsulaConfiguration(NodeConfiguration):
 
         if self.federated_only is False:
 
+            self.blockchain = Blockchain.connect(provider_uri=self.provider_uri)
+
             if self.poa:               # TODO: move this..?
                 w3 = self.miner_agent.blockchain.interface.w3
                 w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
-            if not self.miner_agent:   # TODO: move this..?
-                self.blockchain = Blockchain.connect(provider_uri=self.blockchain_uri, registry_filepath=self.registry_filepath)
-                self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-                self.miner_agent = MinerAgent(token_agent=self.token_agent)
-                merged_parameters.update(miner_agent=self.miner_agent)
+            self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+            self.miner_agent = MinerAgent(blockchain=self.blockchain)
+            merged_parameters.update(blockchain=self.blockchain)
 
         ursula = self._Character(**merged_parameters)
 
@@ -151,15 +149,6 @@ class AliceConfiguration(NodeConfiguration):
 
     _Character = Alice
     _name = 'alice'
-
-    def __init__(self, policy_agent: EthereumContractAgent = None, *args, **kwargs) -> None:
-        self.policy_agent = policy_agent
-        super().__init__(*args, **kwargs)
-
-    @property
-    def static_payload(self) -> dict:
-        payload = dict(policy_agent=self.policy_agent)
-        return {**super().static_payload, **payload}
 
 
 class BobConfiguration(NodeConfiguration):

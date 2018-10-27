@@ -13,7 +13,7 @@ from sqlalchemy.engine import create_engine
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
+from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry, InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
@@ -40,9 +40,9 @@ TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contr
 @pytest.fixture(scope="session", autouse=True)
 def cleanup():
     yield  # we've got a lot of men and women here...
-    with contextlib.suppress(FileNotFoundError):
-        for f in os.listdir(tempfile.tempdir):
-            if re.search(r'nucypher-*', f):
+    for f in os.listdir(tempfile.tempdir):
+        if re.search(r'nucypher-*', f):
+            with contextlib.suppress(FileNotFoundError, TypeError):
                 shutil.rmtree(os.path.join(tempfile.tempdir, f),
                               ignore_errors=True)
 
@@ -116,7 +116,6 @@ def ursula_decentralized_test_config(three_agents):
                                         is_me=True,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
-                                        miner_agent=miner_agent,
                                         federated_only=False,
                                         network_middleware=MockRestMiddleware(),
                                         import_seed_registry=False,
@@ -155,7 +154,6 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
                                 checksum_address=alice_address,
                                 passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                 network_middleware=MockRestMiddleware(),
-                                policy_agent=policy_agent,
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
                                 import_seed_registry=False,
@@ -342,12 +340,12 @@ def testerchain(solidity_compiler):
     """
     https: // github.com / ethereum / eth - tester     # available-backends
     """
-    _temp_registry = TemporaryEthereumContractRegistry()
+    memory_registry = InMemoryEthereumContractRegistry()
 
     # Use the the custom provider and registrar to init an interface
 
     deployer_interface = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile if not None
-                                                     registry=_temp_registry,
+                                                     registry=memory_registry,
                                                      provider_uri='tester://pyevm')
 
     # Create the blockchain
@@ -375,27 +373,25 @@ def three_agents(testerchain):
     origin, *everybody_else = testerchain.interface.w3.eth.accounts
 
     token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
-    token_deployer.arm()
+
     token_deployer.deploy()
 
     token_agent = token_deployer.make_agent()              # 1: Token
 
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
-        token_agent=token_agent,
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
-    miner_escrow_deployer.arm()
+
     miner_escrow_deployer.deploy()
 
     miner_agent = miner_escrow_deployer.make_agent()       # 2 Miner Escrow
 
     policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
-        miner_agent=miner_agent,
         deployer_address=origin,
         secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
-    policy_manager_deployer.arm()
+
     policy_manager_deployer.deploy()
 
     policy_agent = policy_manager_deployer.make_agent()    # 3 Policy Agent

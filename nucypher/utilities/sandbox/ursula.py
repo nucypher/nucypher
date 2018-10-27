@@ -1,16 +1,25 @@
+import os
 import random
+import sys
 
+import maya
+import time
+from os import linesep
+
+import click
 from eth_utils import to_checksum_address
-from twisted.internet import protocol
+from twisted.internet import reactor
+from twisted.protocols.basic import LineReceiver
 from typing import Set, Union
 
 from nucypher.blockchain.eth import constants
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import BOOTNODES
 from nucypher.crypto.api import secure_random
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEST_URSULA_STARTING_PORT,
-                                                  TEST_KNOWN_URSULAS_CACHE, TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
+                                                  TEST_KNOWN_URSULAS_CACHE)
 
 
 def make_federated_ursulas(ursula_config: UrsulaConfiguration,
@@ -95,57 +104,112 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
     return ursulas
 
 
-def spawn_random_staking_ursulas(miner_agent, addresses: list) -> list:
-    """
-    Deposit and lock a random amount of tokens in the miner escrow
-    from each address, "spawning" new Miners.
-    """
-    from nucypher.blockchain.eth.actors import Miner
+class UrsulaCommandProtocol(LineReceiver):
 
-    miners = list()
-    for address in addresses:
-        miner = Miner(miner_agent=miner_agent, checksum_address=address)
-        miners.append(miner)
+    delimiter = linesep.encode("ascii")
+    encoding = 'utf-8'
 
-        # stake a random amount
-        min_stake, balance = constants.MIN_ALLOWED_LOCKED, miner.token_balance
-        amount = random.randint(min_stake, balance)
+    width = 80
+    height = 24
 
-        # for a random lock duration
-        min_locktime, max_locktime = constants.MIN_LOCKED_PERIODS, constants.MAX_MINTING_PERIODS
-        periods = random.randint(min_locktime, max_locktime)
+    commands = (
+        'status',
+        'stop',
 
-        miner.initialize_stake(amount=amount, lock_periods=periods)
+    )
 
-    return miners
+    def __init__(self, ursula):
+        self.ursula = ursula
+        self.start_time = maya.now()
+        super().__init__()
 
+    def _paint_known_nodes(self):
+        # Gather Data
+        known_nodes = self.ursula.known_nodes
+        known_certificate_files = os.listdir(self.ursula.known_certificates_dir)
+        number_of_known_nodes = len(known_nodes)
+        seen_nodes = len(known_certificate_files)
 
-class UrsulaProcessProtocol(protocol.ProcessProtocol):
+        # Operating Mode
+        federated_only = self.ursula.federated_only
+        if federated_only:
+            click.secho("Configured in Federated Only mode", fg='green')
 
-    def __init__(self, command, checksum_address):
-        self.command = command
-        self.checksum_address = checksum_address
+        # Heading
+        label = "Known Nodes (connected {} / seen {})".format(number_of_known_nodes, seen_nodes)
+        heading = '\n' + label + " " * (45 - len(label)) + "Last Seen    "
+        click.secho(heading, bold=True, nl=False)
+
+        # Legend
+        color_index = {
+            'self': 'yellow',
+            'known': 'white',
+            'bootnode': 'blue'
+        }
+        for node_type, color in color_index.items():
+            click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
+        click.echo('\n')
+
+        bootnode_addresses = list(bn.checksum_address for bn in BOOTNODES)
+        for address, node in known_nodes.items():
+            row_template = "{} | {} | {}"
+            node_type = 'known'
+            if node.checksum_public_address == self.ursula.checksum_public_address:
+                node_type = 'self'
+                row_template += ' ({})'.format(node_type)
+            if node.checksum_public_address in bootnode_addresses:
+                node_type = 'bootnode'
+                row_template += ' ({})'.format(node_type)
+            click.secho(row_template.format(node.checksum_public_address,
+                                            node.rest_url(),
+                                            node.timestamp), fg=color_index[node_type])
+
+    def paintStatus(self):
+        stats = ['Ursula {}'.format(self.ursula.checksum_public_address),
+                 '-'*50,
+                 'Uptime: {}'.format(maya.now() - self.start_time), # TODO
+                 'Learning Round: {}'.format(self.ursula._learning_round),
+                 'Operating Mode: {}'.format('Federated' if self.ursula.federated_only else 'Decentralized'),  # TODO
+                 'Rest Interface {}'.format(self.ursula.rest_url()),
+                 'Node Storage Type {}:'.format(self.ursula.node_storage._name.capitalize()),
+                 'Known Nodes: {}'.format(len(self.ursula.known_nodes)),
+                 'Work Orders: {}'.format(len(self.ursula._work_orders))]
+
+        if self.ursula._current_teacher_node:
+            teacher = 'Current Teacher: {}@{}'.format(self.ursula._current_teacher_node.checksum_public_address,
+                                                      self.ursula._current_teacher_node.rest_url())
+            stats.append(teacher)
+
+        click.echo('\n'+'\n'.join(stats))
 
     def connectionMade(self):
-        print("Started simulated Ursula {}".format(self.checksum_address))
+        message = '\nConnected to node console {}@{}'.format(self.ursula.checksum_public_address,
+                                                             self.ursula.rest_url())
+        click.secho(message, fg='yellow')
+        click.secho("Type 'help' or '?' for help")
+        self.transport.write(b'Ursula >>> ')
 
-    def outReceived(self, data):
-        print(data)
-        if b'passphrase' in data:
-            self.transport.__write(bytes(TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD, encoding='ascii'))
-            self.transport.closeStdin()  # tell them we're done
+    def lineReceived(self, line):
+        line = line.decode(encoding=self.encoding).strip().lower()
 
-    def errReceived(self, data):
-        print(data)
+        commands = {
+            'known_nodes': self._paint_known_nodes,
+            'status': self.paintStatus,
+            'stop': reactor.stop,
+            'cycle_teacher': self.ursula.cycle_teacher_node
+        }
 
-    def inConnectionLost(self):
-        print("Lost connection to simulated Ursula {}".format(self.checksum_address))
+        try:
+            commands[line]()
+        except KeyError:
+            click.secho("Invalid input. Options are {}".format(', '.join(commands)))
 
-    def outConnectionLost(self):
-        print("Lost connection to simulated Ursula {}".format(self.checksum_address))
+        self.transport.write(b'Ursula >>> ')
 
-    def errConnectionLost(self):
-        print("Simulated Ursula {} raised an Exception".format(self.checksum_address))
+    def terminalSize(self, width, height):
+        self.width = width
+        self.height = height
+        self.terminal.eraseDisplay()
+        self._redraw()
 
-    def processEnded(self, status_object):
-        print("Ursula {} stopped".format(self.checksum_address))
+

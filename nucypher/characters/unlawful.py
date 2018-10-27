@@ -40,8 +40,7 @@ class Vladimir(Ursula):
                        rest_port=target_ursula.rest_information()[0].port,
                        certificate=target_ursula.rest_server_certificate(),
                        network_middleware=cls.network_middleware,
-                       checksum_address = cls.fraud_address,
-                       miner_agent=target_ursula.miner_agent)
+                       checksum_address = cls.fraud_address)
 
         # Asshole.
         vladimir._interface_signature_object = target_ursula._interface_signature_object

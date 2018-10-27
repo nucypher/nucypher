@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-import collections
+
 import hashlib
 import json
 import logging
 import os
 import random
-import shutil
-import ssl
-import sys
-from typing import Tuple, ClassVar
 
 import click
+import collections
+import shutil
 from constant_sorrow import constants
 from eth_utils import is_checksum_address
-from twisted.internet import reactor
+from twisted.internet import reactor, stdio
+from typing import Tuple, ClassVar
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent, EthereumContractAgent
@@ -27,15 +26,14 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import BASE_DIR
+from nucypher.config.constants import BASE_DIR, BOOTNODES
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
                                                   DEVELOPMENT_ETH_AIRDROP_AMOUNT,
                                                   DEFAULT_SIMULATION_REGISTRY_FILEPATH)
-from nucypher.utilities.sandbox.ursula import UrsulaProcessProtocol
-
+from nucypher.utilities.sandbox.ursula import UrsulaCommandProtocol
 
 __version__ = '0.1.0-alpha.0'
 BANNER = """
@@ -61,14 +59,14 @@ def echo_version(ctx, param, value):
 
 
 # Setup Logging
-root = logging.getLogger()
-root.setLevel(logging.DEBUG)
-
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.DEBUG)  # TODO: set to INFO
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-root.addHandler(ch)
+# root = logging.getLogger()
+# root.setLevel(logging.DEBUG)
+#
+# ch = logging.StreamHandler(sys.stdout)
+# ch.setLevel(logging.DEBUG)  # TODO: set to INFO
+# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# ch.setFormatter(formatter)
+# root.addHandler(ch)
 
 
 #
@@ -114,19 +112,22 @@ class NucypherClickConfig:
         # Simulation
         self.sim_processes = constants.NO_SIMULATION_RUNNING
 
-    def get_node_configuration(self, configuration_class=NodeConfiguration):
-        if self.config_root:
-            node_configuration = configuration_class(temp=False,
-                                                     config_root=self.config_root,
-                                                     auto_initialize=False)
-        elif self.dev:
-            node_configuration = configuration_class(temp=self.dev, auto_initialize=False, federated_only=self.federated_only)
-        elif self.config_file:
-            click.echo("Using configuration file {}".format(self.config_file))
-            node_configuration = configuration_class.from_configuration_file(filepath=self.config_file)
+    def get_node_configuration(self, configuration_class=UrsulaConfiguration):
+        if self.dev:
+            node_configuration = configuration_class(temp=self.dev, auto_initialize=False,
+                                                     federated_only=self.federated_only)
         else:
-            node_configuration = configuration_class(federated_only=self.federated_only,
-                                                     auto_initialize=False)
+            try:
+                filepath = self.config_file or UrsulaConfiguration.DEFAULT_CONFIG_FILE_LOCATION
+                node_configuration = configuration_class.from_configuration_file(filepath=filepath)
+            except FileNotFoundError:
+                if self.config_root:
+                    node_configuration = configuration_class(temp=False, config_root=self.config_root, auto_initialize=False)
+                else:
+                    node_configuration = configuration_class(federated_only=self.federated_only,
+                                                             auto_initialize=False)
+            else:
+                click.secho("Reading Ursula node configuration file {}".format(filepath), fg='blue')
 
         self.node_configuration = node_configuration
 
@@ -138,7 +139,6 @@ class NucypherClickConfig:
         if self.compile:
             click.confirm("Compile solidity source?", abort=True)
         self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
-                                             registry_filepath=self.registry_filepath or self.node_configuration.registry_filepath,
                                              deployer=self.deployer,
                                              compile=self.compile)
         if self.poa:
@@ -150,8 +150,8 @@ class NucypherClickConfig:
     def connect_to_contracts(self) -> None:
         """Initialize contract agency and set them on config"""
         self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-        self.miner_agent = MinerAgent(token_agent=self.token_agent)
-        self.policy_agent = PolicyAgent(miner_agent=self.miner_agent)
+        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.policy_agent = PolicyAgent(blockchain=self.blockchain)
         self.log.debug("CLI established connection to nucypher contracts")
 
     def create_account(self, passphrase: str = None) -> str:
@@ -255,7 +255,7 @@ class NucypherClickConfig:
                 click.secho("Saved node configuration file {}".format(configuration_filepath), fg='green')
                 if ursula:
                     click.secho("\nTo run an Ursula node from the "
-                                "default configuration filepath run 'nucypher-cli ursula run'\n")
+                                "default configuration filepath run 'nucypher ursula run'\n")
 
     def destroy_configuration(self):
         if self.dev:
@@ -353,7 +353,6 @@ def cli(config,
 @click.option('--filesystem', is_flag=True, default=False)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--force', help="Ask confirm once; Do not generate wallet or certificate", is_flag=True)
-@click.option('--checksum-address', type=CHECKSUM_ADDRESS)
 @click.argument('action')
 @uses_config
 def configure(config,
@@ -361,7 +360,6 @@ def configure(config,
               ursula,
               filesystem,
               no_registry,
-              checksum_address,  # TODO: Clean by address
               force):
     """Manage local nucypher files and directories"""
     config.get_node_configuration(configuration_class=UrsulaConfiguration if ursula else NodeConfiguration)
@@ -585,18 +583,18 @@ def stake(config,
         #     raise NotImplementedError
         #
         # # Initialize the staged stake
-        # config.miner_agent.deposit_tokens(amount=value, lock_periods=duration, sender_address=address)
+        # config.__proxy_contract.deposit_tokens(amount=value, lock_periods=duration, sender_address=address)
         #
         # proc_params = ['run_ursula']
-        # processProtocol = UrsulaProcessProtocol(command=proc_params, checksum_address=checksum_address)
-        # ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
+        # processProtocol = UrsulaCommandProtocol(command=proc_params, checksum_address=checksum_address)
+        # ursula_proc = reactor.spawnProcess(processProtocol, "nucypher", proc_params)
         raise NotImplementedError
 
     elif action == 'resume':
         """Reconnect and resume an existing live stake"""
         # proc_params = ['run_ursula']
-        # processProtocol = UrsulaProcessProtocol(command=proc_params, checksum_address=checksum_address)
-        # ursula_proc = reactor.spawnProcess(processProtocol, "nucypher-cli", proc_params)
+        # processProtocol = UrsulaCommandProtocol(command=proc_params, checksum_address=checksum_address)
+        # ursula_proc = reactor.spawnProcess(processProtocol, "nucypher", proc_params)
         raise NotImplementedError
 
     elif action == 'confirm-activity':
@@ -778,7 +776,7 @@ def simulate(config,
 
             sim_db_name = 'sim-{}'.format(sim_port_number)
 
-            process_params = ['nucypher-cli', '--dev']
+            process_params = ['nucypher', '--dev']
             if geth is True:
                 process_params.append('--poa')
             if config.federated_only:
@@ -799,7 +797,7 @@ def simulate(config,
 
             # Spawn
             click.echo("Spawning node #{}".format(counter+1))
-            processProtocol = UrsulaProcessProtocol(command=process_params, checksum_address=sim_address)
+            processProtocol = UrsulaCommandProtocol(command=process_params, checksum_address=sim_address)
             cli_exec = os.path.join(BASE_DIR, 'cli', 'main.py')
             ursula_process = reactor.spawnProcess(processProtocol=processProtocol,
                                                   executable=cli_exec,
@@ -1012,7 +1010,7 @@ def deploy(config,
 
         if not force and click.confirm("Save transaction hashes to JSON file?"):
             file = click.prompt("Enter output filepath", type=click.File(mode='w'))   # TODO
-            file.__write(json.dumps(__deployment_transactions))
+            file.write(json.dumps(__deployment_transactions))
             click.secho("Successfully wrote transaction hashes file to {}".format(file.path), fg='green')
 
     else:
@@ -1033,81 +1031,106 @@ def status(config,
     # Initialize
     #
     config.get_node_configuration()
-    if not config.federated_only:
+    if not config.node_configuration.federated_only:
         config.connect_to_blockchain()
         config.connect_to_contracts()
 
-    contract_payload = """
-    
-    | NuCypher ETH Contracts |
-    
-    Provider URI ............. {provider_uri}
-    Registry Path ............ {registry_filepath}
-
-    NucypherToken ............ {token}
-    MinerEscrow .............. {escrow}
-    PolicyManager ............ {manager}
+        contract_payload = """
         
-    """.format(provider_uri=config.blockchain.interface.provider_uri,
-               registry_filepath=config.blockchain.interface.registry.filepath,
-               token=config.token_agent.contract_address,
-               escrow=config.miner_agent.contract_address,
-               manager=config.policy_agent.contract_address,
-               period=config.miner_agent.get_current_period())
-
-    network_payload = """
-    | Blockchain Network |
+        | NuCypher ETH Contracts |
+        
+        Provider URI ............. {provider_uri}
+        Registry Path ............ {registry_filepath}
     
-    Current Period ........... {period}
-    Gas Price ................ {gas_price}
-    Active Staking Ursulas ... {ursulas}
-    
-    """.format(period=config.miner_agent.get_current_period(),
-               gas_price=config.blockchain.interface.w3.eth.gasPrice,
-               ursulas=config.miner_agent.get_miner_population())
+        NucypherToken ............ {token}
+        MinerEscrow .............. {escrow}
+        PolicyManager ............ {manager}
+            
+        """.format(provider_uri=config.blockchain.interface.provider_uri,
+                   registry_filepath=config.blockchain.interface.registry.filepath,
+                   token=config.token_agent.contract_address,
+                   escrow=config.miner_agent.contract_address,
+                   manager=config.policy_agent.contract_address,
+                   period=config.miner_agent.get_current_period())
+        click.secho(contract_payload)
 
-    subpayloads = ((contracts, contract_payload),
-                   (network, network_payload),
-                   )
+        network_payload = """
+        | Blockchain Network |
+        
+        Current Period ........... {period}
+        Gas Price ................ {gas_price}
+        Active Staking Ursulas ... {ursulas}
+        
+        """.format(period=config.miner_agent.get_current_period(),
+                   gas_price=config.blockchain.interface.w3.eth.gasPrice,
+                   ursulas=config.miner_agent.get_miner_population())
+        click.secho(network_payload)
 
-    if not any(sp[0] for sp in subpayloads):
-        payload = ''.join(sp[1] for sp in subpayloads)
-    else:
-        payload = str()
-        for requested, subpayload in subpayloads:
-            if requested is True:
-                payload += subpayload
+    #
+    # Known Nodes
+    #
 
-    click.echo(payload)
+    # Gather Data
+    known_nodes = config.node_configuration.read_known_nodes()
+    known_certificate_files = os.listdir(config.node_configuration.known_certificates_dir)
+    number_of_known_nodes = len(known_nodes)
+    seen_nodes = len(known_certificate_files)
+
+    # Operating Mode
+    federated_only = config.node_configuration.federated_only
+    if federated_only:
+        click.secho("Configured in Federated Only mode", fg='green')
+
+    # Heading
+    label = "Known Nodes (connected {} / seen {})".format(number_of_known_nodes, seen_nodes)
+    heading = '\n'+label+" "*(45-len(label))+"Last Seen    "
+    click.secho(heading, bold=True, nl=False)
+
+    # Legend
+    color_index = {
+        'self': 'yellow',
+        'known': 'white',
+        'bootnode': 'blue'
+    }
+    for node_type, color in color_index.items():
+        click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
+    click.echo('\n')
+
+    bootnode_addresses = list(bn.checksum_address for bn in BOOTNODES)
+    for node in known_nodes:
+        row_template = "{} | {} | {}"
+        node_type = 'known'
+        if node.checksum_public_address == config.node_configuration.checksum_address:
+            node_type = 'self'
+            row_template += ' ({})'.format(node_type)
+        if node.checksum_public_address in bootnode_addresses:
+            node_type = 'bootnode'
+            row_template += ' ({})'.format(node_type)
+        click.secho(row_template.format(node.checksum_public_address,
+                                        node.rest_url(),
+                                        node.timestamp), fg=color_index[node_type])
 
 
 @cli.command()
 @click.option('--debug', is_flag=True)
 @click.option('--rest-host', type=click.STRING)
 @click.option('--rest-port', type=click.IntRange(min=49151, max=65535, clamp=False))
-@click.option('--additional-nodes', help="Custom known metadata directory", type=click.Path(exists=True, dir_okay=True, file_okay=False, writable=True))
 @click.option('--db-name', type=click.STRING)
 @click.option('--checksum-address', type=CHECKSUM_ADDRESS)
 @click.option('--stake-amount', type=click.IntRange(min=MIN_ALLOWED_LOCKED, max=MAX_ALLOWED_LOCKED, clamp=False))
 @click.option('--stake-periods', type=click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False))
 @click.option('--resume', help="Resume an existing stake", is_flag=True)
-@click.option('--no-reactor', help="Development feature", is_flag=True)
-@click.option('--password', help="Password to unlock Ursula's keyring",
-              prompt=True, hide_input=True, confirmation_prompt=True, envvar="NUCYPHER_KEYRING_PASSPHRASE")
 @click.argument('action')
 @uses_config
 def ursula(config,
            action,
            rest_port,
            rest_host,
-           additional_nodes,
            db_name,
            checksum_address,
            stake_amount,
            stake_periods,
            resume,  # TODO Implement stake resume
-           no_reactor,
-           password,
            debug
            ) -> None:
     """
@@ -1123,6 +1146,10 @@ def ursula(config,
 
     """
 
+    password = os.environ.get(KEYRING_PASSPHRASE_ENVVAR, None)
+    if not password:
+        password = click.prompt("Password to unlock Ursula's keyring", hide_input=True)
+
     def __make_ursula():
         if not checksum_address and not config.dev:
             raise click.BadArgumentUsage("No Configuration file found, and no --checksum address <addr> was provided.")
@@ -1131,9 +1158,9 @@ def ursula(config,
                                        "or use a configuration file with --config-file <path>")
         if not config.federated_only:
             if not all((stake_amount, stake_periods)) and not resume:
-                raise click.BadOptionUsage("Both the --stake-amount <amount> and --stake-periods <periods> options "
-                                           "or the --resume flag is required to run a non-federated Ursula."
-                                           "For federated run 'nucypher-cli --federated-only ursula <action>'")
+                raise click.BadOptionUsage(message="Both the --stake-amount <amount> and --stake-periods <periods> options "
+                                                   "or the --resume flag is required to run a non-federated Ursula."
+                                                   "For federated run 'nucypher --federated-only ursula <action>'")
 
         return UrsulaConfiguration(temp=config.dev,
                                    auto_initialize=config.dev,
@@ -1148,8 +1175,8 @@ def ursula(config,
                                    poa=config.poa,
                                    save_metadata=False,
                                    load_metadata=True,
-                                   known_metadata_dir=config.metadata_dir,
                                    start_learning_now=True,
+                                   learn_on_same_thread=False,
                                    abort_on_learning_error=config.dev)
 
     #
@@ -1188,9 +1215,13 @@ def ursula(config,
             if not ursula_config.federated_only:                      # 3
                 URSULA.stake(amount=stake_amount, lock_periods=stake_periods)
                 click.secho("Initialized Stake", fg='blue')
-            if not no_reactor:
-                click.secho("Running Ursula on {}".format(URSULA.rest_interface), fg='green', bold=True)
-                URSULA.get_deployer().run()                           # 4
+
+            # GO!
+            click.secho("Running Ursula on {}".format(URSULA.rest_interface), fg='green', bold=True)
+            stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
+            URSULA.get_deployer().addServices()                           # 4
+            reactor.run()
+
         except Exception as e:
             config.log.critical(str(e))
             click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')

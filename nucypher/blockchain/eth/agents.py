@@ -2,12 +2,13 @@ import random
 from abc import ABC
 from logging import getLogger
 
-from constant_sorrow.constants import NO_CONTRACT_AVAILABLE
+from constant_sorrow.constants import NO_CONTRACT_AVAILABLE, NO_BENEFICIARY, CONTRACT_NOT_DEPLOYED
 from typing import Generator, List, Tuple, Union
 from web3.contract import Contract
 
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.registry import AllocationRegistry
 
 
 class EthereumContractAgent(ABC):
@@ -15,36 +16,25 @@ class EthereumContractAgent(ABC):
     Base class for ethereum contract wrapper types that interact with blockchain contract instances
     """
 
-    principal_contract_name = NotImplemented
-
-    _upgradeable = NotImplemented
-
-    __contract_address = NotImplemented
-    __instance = NO_CONTRACT_AVAILABLE
+    registry_contract_name = NotImplemented
+    _forward_address = True
+    _proxy_name = None
 
     class ContractNotDeployed(Exception):
         pass
 
-    def __new__(cls, *args, **kwargs) -> 'EthereumContractAgent':
-        if cls.__instance is NO_CONTRACT_AVAILABLE:
-            cls.__instance = super(EthereumContractAgent, cls).__new__(cls)
-        return cls.__instance
+    def __init__(self, blockchain: Blockchain = None, contract: Contract = None) -> None:
 
-    def __init__(self,
-                 blockchain: Blockchain = None,
-                 contract: Contract = None
-                 ) -> None:
-
-        self.log = getLogger('agency')
+        self.log = getLogger(self.__class__.__name__)
 
         if blockchain is None:
             blockchain = Blockchain.connect()
         self.blockchain = blockchain
 
-        if contract is None:
-            # Fetch the contract by reading address and abi from the registry and blockchain
-            contract = self.blockchain.interface.get_contract_by_name(name=self.principal_contract_name,
-                                                                      upgradeable=self._upgradeable)
+        if contract is None:  # Fetch the contract
+            contract = self.blockchain.interface.get_contract_by_name(name=self.registry_contract_name,
+                                                                      proxy_name=self._proxy_name,
+                                                                      use_proxy_address=self._forward_address)
         self.__contract = contract
         super().__init__()
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
@@ -55,7 +45,7 @@ class EthereumContractAgent(ABC):
     def __repr__(self):
         class_name = self.__class__.__name__
         r = "{}(blockchain={}, contract={})"
-        return r.format(class_name, self.blockchain, self.principal_contract_name)
+        return r.format(class_name, self.blockchain, self.registry_contract_name)
 
     def __eq__(self, other):
         return bool(self.contract_address == other.contract_address)
@@ -70,18 +60,17 @@ class EthereumContractAgent(ABC):
 
     @property
     def contract_name(self) -> str:
-        return self.principal_contract_name
+        return self.registry_contract_name
+
+
+class NucypherTokenAgent(EthereumContractAgent):
+
+    registry_contract_name = "NuCypherToken"
 
     def get_balance(self, address: str=None) -> int:
         """Get the balance of a token address, or of this contract address"""
         address = address if address is not None else self.contract_address
         return self.contract.functions.balanceOf(address).call()
-
-
-class NucypherTokenAgent(EthereumContractAgent):
-    principal_contract_name = "NuCypherToken"
-    _upgradeable = False
-    __instance = NO_CONTRACT_AVAILABLE
 
     def approve_transfer(self, amount: int, target_address: str, sender_address: str) -> str:
         """Approve the transfer of token from the sender address to the target address."""
@@ -103,29 +92,12 @@ class NucypherTokenAgent(EthereumContractAgent):
 
 
 class MinerAgent(EthereumContractAgent):
-    """
-    Wraps NuCypher's Escrow solidity smart contract
 
-    In order to become a participant of the network,
-    a miner locks tokens by depositing to the Escrow contract address
-    for a duration measured in periods.
-    """
-
-    principal_contract_name = "MinersEscrow"
-    _upgradeable = True
-    __instance = NO_CONTRACT_AVAILABLE
+    registry_contract_name = "MinersEscrow"
+    _proxy_name = "Dispatcher"
 
     class NotEnoughMiners(Exception):
         pass
-
-    def __init__(self,
-                 token_agent: NucypherTokenAgent,
-                 *args, **kwargs
-                 ) -> None:
-        super().__init__(blockchain=token_agent.blockchain,
-                         *args, **kwargs)
-
-        self.token_agent = token_agent
 
     #
     # Miner Network Status
@@ -143,9 +115,16 @@ class MinerAgent(EthereumContractAgent):
     # MinersEscrow Contract API
     #
 
-    def get_locked_tokens(self, node_address):
-        """Returns the amount of tokens this miner has locked."""
-        return self.contract.functions.getLockedTokens(node_address).call()
+    def get_locked_tokens(self, miner_address: str, periods: int = 0) -> int:
+        """
+        Returns the amount of tokens this miner has locked.
+
+        TODO: Validate input (periods not less then 0)
+        """
+        return self.contract.functions.getLockedTokens(miner_address, periods).call()
+
+    def owned_tokens(self, address: str) -> int:
+        return self.contract.functions.minerInfo(address).call()[0]
 
     def get_stake_info(self, miner_address: str, stake_index: int):
         first_period, *others, locked_value = self.contract.functions.getStakeInfo(miner_address, stake_index).call()
@@ -180,7 +159,11 @@ class MinerAgent(EthereumContractAgent):
         return txhash
 
     def mint(self, node_address) -> Tuple[str, str]:
-        """Computes reward tokens for the miner's account"""
+        """
+        Computes reward tokens for the miner's account;
+        This is only used to calculate the reward for the final period of a stake,
+        when you intend to withdraw 100% of tokens.
+        """
 
         mint_txhash = self.contract.functions.mint().transact({'from': node_address})
         self.blockchain.wait_for_receipt(mint_txhash)
@@ -251,31 +234,20 @@ class MinerAgent(EthereumContractAgent):
 
 class PolicyAgent(EthereumContractAgent):
 
-    principal_contract_name = "PolicyManager"
-    _upgradeable = True
-    __instance = NO_CONTRACT_AVAILABLE
-
-    def __init__(self,
-                 miner_agent: MinerAgent,
-                 *args, **kwargs) -> None:
-
-        super().__init__(blockchain=miner_agent.blockchain,
-                         *args, **kwargs)
-
-        self.miner_agent = miner_agent
-        self.token_agent = miner_agent.token_agent
+    registry_contract_name = "PolicyManager"
+    _proxy_name = "Dispatcher"
 
     def create_policy(self,
                       policy_id: str,
                       author_address: str,
                       value: int,
                       periods: int,
-                      reward: int,
+                      initial_reward: int,
                       node_addresses: List[str]) -> str:
 
         txhash = self.contract.functions.createPolicy(policy_id,
                                                       periods,
-                                                      reward,
+                                                      initial_reward,
                                                       node_addresses).transact({'from': author_address,
                                                                                 'value': value})
         self.blockchain.wait_for_receipt(txhash)
@@ -288,7 +260,7 @@ class PolicyAgent(EthereumContractAgent):
 
     def revoke_policy(self, policy_id: bytes, author_address) -> str:
         """Revoke by arrangement ID; Only the policy's author_address can revoke the policy."""
-        txhash = self.contract.functions.revokePolicy(policy_id).transact({'from': author_address.address})
+        txhash = self.contract.functions.revokePolicy(policy_id).transact({'from': author_address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
@@ -299,13 +271,13 @@ class PolicyAgent(EthereumContractAgent):
         return policy_reward_txhash
 
     def fetch_policy_arrangements(self, policy_id):
-        records = self.contract.functions.getArrangementsLength(policy_id).call()
-        for records in range(records):
-            arrangement = self.contract.functions.getArrangementInfo(policy_id, 0).call()[records]
+        record_count = self.contract.functions.getArrangementsLength(policy_id).call()
+        for index in range(record_count):
+            arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
             yield arrangement
 
-    def revoke_arrangement(self, policy_id: str, node_address: str):
-        txhash = self.contract.functions.revokeArrangement(policy_id, node_address)
+    def revoke_arrangement(self, policy_id: str, node_address: str, author_address: str):
+        txhash = self.contract.functions.revokeArrangement(policy_id, node_address).transact({'from': author_address})
         self.blockchain.wait_for_receipt(txhash)
         return txhash
 
@@ -322,6 +294,134 @@ class PolicyAgent(EthereumContractAgent):
 
 class UserEscrowAgent(EthereumContractAgent):
 
-    principal_contract_name = "UserEscrow"
-    _upgradeable = True
-    __instance = NO_CONTRACT_AVAILABLE
+    registry_contract_name = "UserEscrow"
+    _proxy_name = NotImplemented
+    _forward_address = False
+    __allocation_registry = AllocationRegistry
+
+    class UserEscrowProxyAgent(EthereumContractAgent):
+        registry_contract_name = "UserEscrowProxy"
+        _proxy_name = "UserEscrowLibraryLinker"
+        _forward_address = False
+
+        def _generate_beneficiary_agency(self, principal_address: str):
+            contract = self.blockchain.interface.w3.eth.contract(address=principal_address, abi=self.contract.abi)
+            return contract
+
+    def __init__(self,
+                 beneficiary: str,
+                 blockchain: Blockchain = None,
+                 allocation_registry: AllocationRegistry = None,
+                 *args, **kwargs) -> None:
+
+        self.blockchain = blockchain or Blockchain.connect()
+
+        self.__allocation_registry = allocation_registry or self.__allocation_registry()
+        self.__beneficiary = beneficiary
+        self.__principal_contract = NO_CONTRACT_AVAILABLE
+        self.__proxy_contract = NO_CONTRACT_AVAILABLE
+
+        # Sets the above
+        self.__read_principal()
+        self.__read_proxy()
+        super().__init__(blockchain=self.blockchain, contract=self.principal_contract, *args, **kwargs)
+
+    def __read_proxy(self):
+        self.__proxy_agent = self.UserEscrowProxyAgent(blockchain=self.blockchain)
+        contract = self.__proxy_agent._generate_beneficiary_agency(principal_address=self.principal_contract.address)
+        self.__proxy_contract = contract
+
+    def __fetch_principal_contract(self, contract_address: str = None) -> None:
+        """Fetch the UserEscrow deployment directly from the AllocationRegistry."""
+        if contract_address is not None:
+            contract_data = self.__allocation_registry.search(contract_address=contract_address)
+        else:
+            contract_data = self.__allocation_registry.search(beneficiary_address=self.beneficiary)
+        address, abi = contract_data
+        principal_contract = self.blockchain.interface.w3.eth.contract(abi=abi,
+                                                                       address=address,
+                                                                       ContractFactoryClass=Contract)
+        self.__principal_contract = principal_contract
+
+    def __set_owner(self) -> None:
+        owner = self.owner
+        self.__beneficiary = owner
+
+    def __read_principal(self, contract_address: str = None) -> None:
+        self.__fetch_principal_contract(contract_address=contract_address)
+        self.__set_owner()
+
+    @property
+    def owner(self):
+        owner = self.principal_contract.functions.owner().call()
+        return owner
+
+    @property
+    def beneficiary(self):
+        return self.__beneficiary
+
+    @property
+    def proxy_contract(self):
+        if self.__proxy_contract is NO_CONTRACT_AVAILABLE:
+            raise RuntimeError("{} not available".format(self.registry_contract_name))
+        return self.__proxy_contract
+
+    @property
+    def principal_contract(self):
+        """Directly reference the beneficiary's deployed contract instead of the proxy contracts's interface"""
+        if self.__principal_contract is NO_CONTRACT_AVAILABLE:
+            raise RuntimeError("{} not available".format(self.registry_contract_name))
+        return self.__principal_contract
+
+    @property
+    def unvested_tokens(self) -> int:
+        return self.principal_contract.functions.getLockedTokens().call()
+
+    @property
+    def end_timestamp(self) -> int:
+        return self.principal_contract.functions.endLockTimestamp().call()
+
+    def lock(self, amount: int, periods: int) -> str:
+        txhash = self.__proxy_contract.functions.lock(amount, periods).transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def withdraw_tokens(self, value: int) -> str:
+        txhash = self.principal_contract.functions.withdrawTokens(value).transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def withdraw_eth(self) -> str:
+        txhash = self.principal_contract.functions.withdrawETH().transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def deposit_as_miner(self, value: int, periods: int) -> str:
+        txhash = self.__proxy_contract.functions.depositAsMiner(value, periods).transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def withdraw_as_miner(self, value: int) -> str:
+        txhash = self.__proxy_contract.functions.withdrawAsMiner(value).transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def confirm_activity(self) -> str:
+        txhash = self.__proxy_contract.functions.confirmActivity().transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def mint(self) -> str:
+        txhash = self.__proxy_contract.functions.mint().transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def collect_policy_reward(self) -> str:
+        txhash = self.__proxy_contract.functions.withdrawPolicyReward().transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
+
+    def set_min_reward_rate(self, rate: int) -> str:
+        txhash = self.__proxy_contract.functions.setMinRewardRate(rate).transact({'from': self.__beneficiary})
+        self.blockchain.wait_for_receipt(txhash)
+        return txhash
