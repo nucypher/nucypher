@@ -321,10 +321,7 @@ class Bob(Character):
 
     def get_reencrypted_cfrags(self, work_order):
         cfrags = self.network_middleware.reencrypt(work_order)
-        if not len(work_order) == len(cfrags):
-            raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
         for counter, capsule in enumerate(work_order.capsules):
-            # TODO: Ursula is actually supposed to sign this.  See #141.
             # TODO: Maybe just update the work order here instead of setting it anew.
             work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_public_address]
             work_orders_by_ursula[capsule] = work_order

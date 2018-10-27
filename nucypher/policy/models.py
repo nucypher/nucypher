@@ -540,8 +540,11 @@ class WorkOrder(object):
 
     def complete(self, cfrags_and_signatures):
         good_cfrags = []
-        for cfrag, signature in cfrags_and_signatures:
-            if signature.verify(bytes(cfrag), self.ursula.stamp.as_umbral_pubkey()):
+        if not len(self) == len(cfrags_and_signatures):
+            raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
+        for counter, capsule in enumerate(self.capsules):
+            cfrag, signature = cfrags_and_signatures[counter]
+            if signature.verify(bytes(cfrag) + bytes(capsule), self.ursula.stamp.as_umbral_pubkey()):
                 good_cfrags.append(cfrag)
             else:
                 raise cfrag.NoProofProvided("This CFrag is not properly signed by Ursula.")
