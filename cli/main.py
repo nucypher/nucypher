@@ -1090,21 +1090,21 @@ def status(config,
     color_index = {
         'self': 'yellow',
         'known': 'white',
-        'bootnode': 'blue'
+        'seednode': 'blue'
     }
     for node_type, color in color_index.items():
         click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
     click.echo('\n')
 
-    bootnode_addresses = list(bn.checksum_address for bn in BOOTNODES)
+    seednode_addresses = list(bn.checksum_address for bn in BOOTNODES)
     for node in known_nodes:
         row_template = "{} | {} | {}"
         node_type = 'known'
         if node.checksum_public_address == config.node_configuration.checksum_address:
             node_type = 'self'
             row_template += ' ({})'.format(node_type)
-        if node.checksum_public_address in bootnode_addresses:
-            node_type = 'bootnode'
+        if node.checksum_public_address in seednode_addresses:
+            node_type = 'seednode'
             row_template += ' ({})'.format(node_type)
         click.secho(row_template.format(node.checksum_public_address,
                                         node.rest_url(),
@@ -1196,8 +1196,8 @@ def ursula(config,
     config.operating_mode = "federated" if ursula_config.federated_only else "decentralized"
     click.secho("Running in {} mode".format(config.operating_mode), fg='blue')
 
-    # Bootnodes, Seeds, Known Nodes
-    ursula_config.load_bootnodes()
+    # seednodes, Seeds, Known Nodes
+    ursula_config.load_seednodes()
     quantity_known_nodes = len(ursula_config.known_nodes)
     if quantity_known_nodes > 0:
         click.secho("Loaded {} known nodes from storages".format(quantity_known_nodes, fg='blue'))

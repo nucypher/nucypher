@@ -1,23 +1,24 @@
 import random
+import time
 from collections import defaultdict
 from collections import deque
 from contextlib import suppress
 from logging import Logger
 from logging import getLogger
 from tempfile import TemporaryDirectory
+from typing import Dict, ClassVar, Set
+from typing import Tuple
+from typing import Union, List
 
 import maya
 import requests
-import time
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from requests.exceptions import SSLError
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 from twisted.internet import task
-from typing import Dict, ClassVar, Set
-from typing import Tuple
-from typing import Union, List
+from twisted.internet.threads import deferToThread
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -29,7 +30,6 @@ from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, N
 from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import VerifiableNode
-from nucypher.network.server import TLSHostingPower
 
 
 class Learner:
@@ -63,12 +63,12 @@ class Learner:
                  known_nodes: tuple = None,
                  seed_nodes: Tuple[tuple] = None,
                  known_certificates_dir: str = None,
-                 node_storage = None,
+                 node_storage=None,
                  save_metadata: bool = False,
                  abort_on_learning_error: bool = False
                  ) -> None:
 
-        self.log = getLogger("characters")                       # type: Logger
+        self.log = getLogger("characters")  # type: Logger
 
         self.__common_name = common_name
         self.network_middleware = network_middleware
@@ -85,7 +85,8 @@ class Learner:
 
         # Read
         if node_storage is None:
-            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only,    #TODO: remove federated_only
+            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only,
+                                                       # TODO: remove federated_only
                                                        character_class=self.__class__)
 
         self.node_storage = node_storage
@@ -101,9 +102,9 @@ class Learner:
                 self.unresponsive_startup_nodes.append(node)
 
         self.teacher_nodes = deque()
-        self._current_teacher_node = None   # type: Teacher
+        self._current_teacher_node = None  # type: Teacher
         self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
-        self._learning_round = 0            # type: int
+        self._learning_round = 0  # type: int
         self._rounds_without_new_nodes = 0  # type: int
         self._seed_nodes = seed_nodes or []
 
@@ -120,40 +121,38 @@ class Learner:
                        retry_rate: int = 2,
                        timeout=3):
         """
-        Engage known nodes from storages and pre-fetch hardcoded bootnode certificates for node learning.
+        Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
         """
-        def __attempt_bootnode_learning(bootnode, current_attempt=1):
-            self.log.debug("Loading Bootnode {}|{}:{}".format(bootnode.checksum_address, bootnode.rest_host, bootnode.rest_port))
-
-            try:
-                seed_node = self.network_middleware.learn_from_seednode(seednode_metadata=bootnode,
-                                                            timeout=timeout,
-                                                            accept_federated_only=self.federated_only)  # TODO: 466
-                self.remember_node(seed_node)
-            except RuntimeError:
-                if current_attempt == retry_attempts:
-                    message = "No Response from Bootnode {} after {} attempts"
-                    self.log.info(message.format(bootnode.rest_url, retry_attempts))
-                    return
-                unresponsive_seed_nodes.add(bootnode)
-                self.log.info("No Response from Bootnode {}. Retrying in {} seconds...".format(bootnode.rest_url, retry_rate))
-                time.sleep(retry_rate)
-                __attempt_bootnode_learning(bootnode=bootnode, current_attempt=current_attempt+1)
-            else:
-                self.log.info("Successfully learned from {}|{}:{}".format(bootnode.checksum_address, bootnode.rest_host, bootnode.rest_port))
-                if current_attempt > 1:
-                    unresponsive_seed_nodes.remove(bootnode)
-
-        for bootnode in self._seed_nodes:
-            __attempt_bootnode_learning(bootnode=bootnode)
-
         unresponsive_seed_nodes = set()
 
-        if len(unresponsive_seed_nodes) > 0:
-            self.log.info("No Bootnodes were availible after {} attempts".format(retry_attempts))
+        def __attempt_seednode_learning(seednode_metadata, current_attempt=1):
+            self.log.debug(
+                "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_address,
+                                                seednode_metadata.rest_host,
+                                                seednode_metadata.rest_port))
+            seed_node = self.network_middleware.learn_about_seednode(seednode_metadata=seednode_metadata,
+                                                                    known_certs_dir=self.known_certificates_dir,
+                                                                    timeout=timeout,
+                                                                    accept_federated_only=self.federated_only)  # TODO: 466
+            if seed_node is False:
+                unresponsive_seed_nodes.add(seednode_metadata)
+            else:
+                self.remember_node(seed_node)
 
-        # if read_storages is True:
-        #     self.read_known_nodes()
+        for seednode_metadata in self._seed_nodes:
+            __attempt_seednode_learning(seednode_metadata=seednode_metadata)
+
+        if read_storages is True:
+            self.read_nodes_from_storage()
+
+        if not self.known_nodes:
+            self.log.warning("No seednodes were available after {} attempts".format(retry_attempts))
+            # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)
+
+    def read_nodes_from_storage(self) -> set:
+        stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: 466
+        for node in stored_nodes:
+            self.remember_node(node)
 
     def remember_node(self, node, force_verification_check=False):
 
@@ -194,11 +193,17 @@ class Learner:
     def start_learning_loop(self, now=False):
         if self._learning_task.running:
             return False
-        else:
+        elif now:
             self.load_seednodes()
             d = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
             d.addErrback(self.handle_learning_errors)
             return d
+        else:
+            seeder_deferred = deferToThread(self.load_seednodes)
+            learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
+            seeder_deferred.addErrback(self.handle_learning_errors)
+            learner_deferred.addErrback(self.handle_learning_errors)
+            return defer.DeferredList([seeder_deferred, learner_deferred])
 
     def handle_learning_errors(self, *args, **kwargs):
         failure = args[0]
@@ -334,8 +339,9 @@ class Learner:
                 elif not self._learning_task.running:
                     raise self.NotEnoughTeachers("The learning loop is not running.  Start it with start_learning().")
                 else:
-                    raise self.NotEnoughTeachers("After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
-                        timeout, rounds_undertaken, len(still_unknown), still_unknown))
+                    raise self.NotEnoughTeachers(
+                        "After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
+                            timeout, rounds_undertaken, len(still_unknown), still_unknown))
 
             else:
                 time.sleep(.1)
@@ -411,7 +417,8 @@ class Learner:
         try:
 
             # TODO: Streamline path generation
-            certificate_filepath = current_teacher.get_certificate_filepath(certificates_dir=self.known_certificates_dir)
+            certificate_filepath = current_teacher.get_certificate_filepath(
+                certificates_dir=self.known_certificates_dir)
             response = self.network_middleware.get_nodes_via_rest(url=rest_url,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
@@ -442,7 +449,8 @@ class Learner:
 
             try:
                 if eager:
-                    certificate_filepath = current_teacher.get_certificate_filepath(certificates_dir=certificate_filepath)
+                    certificate_filepath = current_teacher.get_certificate_filepath(
+                        certificates_dir=certificate_filepath)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
@@ -528,7 +536,7 @@ class Character(Learner):
 
         """
 
-        self.federated_only = federated_only           # type: bool
+        self.federated_only = federated_only  # type: bool
 
         #
         # Powers
@@ -538,7 +546,7 @@ class Character(Learner):
         crypto_power_ups = crypto_power_ups or list()  # type: list
 
         if crypto_power:
-            self._crypto_power = crypto_power          # type: CryptoPower
+            self._crypto_power = crypto_power  # type: CryptoPower
         elif crypto_power_ups:
             self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
         else:
@@ -552,7 +560,7 @@ class Character(Learner):
                 self.blockchain = blockchain or Blockchain.connect()
 
             self.keyring_dir = keyring_dir  # type: str
-            self.treasure_maps = {}         # type: dict
+            self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
             #
@@ -560,7 +568,7 @@ class Character(Learner):
             #
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)  # type: SigningPower
-                self._stamp = signing_power.get_signature_stamp()           # type: SignatureStamp
+                self._stamp = signing_power.get_signature_stamp()  # type: SignatureStamp
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
 

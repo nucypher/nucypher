@@ -6,7 +6,7 @@ from moto import mock_s3
 from nucypher.characters.lawful import Ursula
 from nucypher.config.storages import S3NodeStorage, InMemoryNodeStorage, TemporaryFileBasedNodeStorage, NodeStorage
 
-MOCK_S3_BUCKET_NAME = 'mock-bootnodes'
+MOCK_S3_BUCKET_NAME = 'mock-seednodes'
 S3_DOMAIN_NAME = 's3.amazonaws.com'
 
 
