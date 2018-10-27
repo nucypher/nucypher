@@ -1,6 +1,5 @@
 import datetime
 import maya
-import pytest
 from apistar.test import TestClient
 from umbral.fragments import KFrag
 
