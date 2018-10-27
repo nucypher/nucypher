@@ -45,7 +45,14 @@ def fragments(metadata):
     signer = Signer(signing_privkey)
     priv_key_bob = UmbralPrivateKey.gen_key()
     pub_key_bob = priv_key_bob.get_pubkey()
-    kfrags = pre.split_rekey(delegating_privkey, signer, pub_key_bob, 1, 2)
+    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
+                                 signer=signer,
+                                 receiving_pubkey=pub_key_bob,
+                                 threshold=2,
+                                 N=4,
+                                 sign_delegating_key=True,
+                                 sign_receiving_key=True)
+    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_privkey.get_pubkey())
     cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
     return capsule, cfrag
 
@@ -135,40 +142,93 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
             some_data)
 
     assert not challenge_contract.functions.challengedCFrags(data_hash).call()
-    tx = challenge_contract.functions.challengeCFrag(args).transact()
+    tx = challenge_contract.functions.challengeCFrag(*args).transact()
     testerchain.wait_for_receipt(tx)
     # Hash of the data is saved and miner was slashed
     assert challenge_contract.functions.challengedCFrags(data_hash).call()
     assert 900 == escrow.functions.minerInfo(miner).call()
 
-    # # Prepare hash of the data
-    # capsule = os.urandom(100)
-    # cfrag = os.urandom(100)
-    # data = capsule + cfrag
-    # data_hash, recoverable_signature = sign_data(data, miner_umbral_private_key)
-    #
-    # # Can't challenge miner using broken signatures
-    # with pytest.raises((TransactionFailed, ValueError)):
-    #     tx = challenge_contract.functions.challengeCFrag(
-    #         capsule, cfrag, recoverable_signature[1:], miner_umbral_public_key_bytes, signed_miner_umbral_public_key).transact()
-    #     testerchain.wait_for_receipt(tx)
-    # with pytest.raises((TransactionFailed, ValueError)):
-    #     tx = challenge_contract.functions.challengeCFrag(
-    #         capsule, cfrag, recoverable_signature, miner_umbral_public_key_bytes, signed_miner_umbral_public_key[1:]).transact()
-    #     testerchain.wait_for_receipt(tx)
-    #
-    # # Can't use signature for another data
-    # wrong_capsule = os.urandom(100)
-    # with pytest.raises((TransactionFailed, ValueError)):
-    #     tx = challenge_contract.functions.challengeCFrag(
-    #         wrong_capsule, cfrag, recoverable_signature, miner_umbral_public_key_bytes, signed_miner_umbral_public_key).transact()
-    #     testerchain.wait_for_receipt(tx)
-    #
-    # # Can't challenge nonexistent miner
-    # address = to_canonical_address(wrong_miner)
-    # sig_key = provider.ethereum_tester.backend._key_lookup[address]
-    # signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
-    # with pytest.raises((TransactionFailed, ValueError)):
-    #     tx = challenge_contract.functions.challengeCFrag(
-    #         capsule, cfrag, recoverable_signature, miner_umbral_public_key_bytes, signed_miner_umbral_public_key).transact()
-    #     testerchain.wait_for_receipt(tx)
+    # Prepare hash of the data
+    metadata = os.urandom(34)
+    capsule, cfrag = fragments(metadata)
+    capsule_bytes = capsule.to_bytes()
+    cfrag_bytes = cfrag.to_bytes()
+    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
+    hash_ctx.update(capsule_bytes + cfrag_bytes)
+    data_hash = hash_ctx.finalize()
+    capsule_signature_by_requester = sign_data(capsule_bytes, requester_umbral_private_key)
+    capsule_signature_by_requester_and_miner = sign_data(capsule_signature_by_requester, miner_umbral_private_key)
+    cfrag_signature_by_miner = sign_data(cfrag_bytes, miner_umbral_private_key)
+    args = [capsule_bytes,
+            capsule_signature_by_requester,
+            capsule_signature_by_requester_and_miner,
+            cfrag_bytes,
+            cfrag_signature_by_miner,
+            requester_umbral_public_key_bytes,
+            miner_umbral_public_key_bytes,
+            signed_miner_umbral_public_key,
+            some_data]
+    assert not challenge_contract.functions.challengedCFrags(data_hash).call()
+
+    # Can't challenge miner using broken signatures
+    wrong_args = args[:]
+    wrong_args[1] = capsule_signature_by_requester[1:]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        testerchain.wait_for_receipt(tx)
+    wrong_args = args[:]
+    wrong_args[2] = capsule_signature_by_requester_and_miner[1:]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        testerchain.wait_for_receipt(tx)
+    wrong_args = args[:]
+    wrong_args[4] = cfrag_signature_by_miner[1:]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        testerchain.wait_for_receipt(tx)
+    wrong_args = args[:]
+    wrong_args[7] = signed_miner_umbral_public_key[1:]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        testerchain.wait_for_receipt(tx)
+
+    # Can't challenge miner using wrong keys
+    wrong_args = args[:]
+    wrong_args[5] = UmbralPrivateKey.gen_key().get_pubkey().to_bytes(is_compressed=False)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        testerchain.wait_for_receipt(tx)
+    wrong_args = args[:]
+    wrong_args[6] = UmbralPrivateKey.gen_key().get_pubkey().to_bytes(is_compressed=False)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        testerchain.wait_for_receipt(tx)
+
+    # Can't use signature for another data
+    wrong_args = args[:]
+    wrong_args[0] = bytes(args[0][0] + 1) + args[0][1:]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        testerchain.wait_for_receipt(tx)
+    wrong_args = args[:]
+    wrong_args[3] = bytes(args[3][0] + 1) + args[3][1:]
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        testerchain.wait_for_receipt(tx)
+
+    # Can't challenge nonexistent miner
+    address = to_canonical_address(wrong_miner)
+    sig_key = provider.ethereum_tester.backend._key_lookup[address]
+    signed_miner_umbral_public_key = bytes(sig_key.sign_msg_hash(miner_umbral_public_key_hash))
+    wrong_args = args[:]
+    wrong_args[7] = signed_miner_umbral_public_key
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        testerchain.wait_for_receipt(tx)
+
+    # Initial arguments were correct
+    assert not challenge_contract.functions.challengedCFrags(data_hash).call()
+    tx = challenge_contract.functions.challengeCFrag(*args).transact()
+    testerchain.wait_for_receipt(tx)
+    assert challenge_contract.functions.challengedCFrags(data_hash).call()
+    assert 800 == escrow.functions.minerInfo(miner).call()
