@@ -46,9 +46,6 @@ class ProxyRESTServer:
 class ProxyRESTRoutes:
     log = getLogger("characters")
 
-    class InvalidSignature(Exception):
-        """Raised when a received signature is not valid."""
-
     def __init__(self,
                  db_name,
                  db_filepath,
@@ -248,10 +245,10 @@ class ProxyRESTRoutes:
             capsule_signed_by_both = bytes(self._stamp(capsule_signature))
 
             capsule.set_correctness_keys(verifying=alices_verifying_key)
-            # TODO: Sign the result of this.  See #141.
             cfrag = pre.reencrypt(kfrag, capsule, metadata=capsule_signed_by_both)
             self.log.info("Re-encrypting for {}, made {}.".format(capsule, cfrag))
-            cfrag_byte_stream += VariableLengthBytestring(cfrag)
+            signature = self._stamp(bytes(cfrag) + bytes(capsule))
+            cfrag_byte_stream += VariableLengthBytestring(cfrag) + signature
 
         # TODO: Put this in Ursula's datastore
         self._work_order_tracker.append(work_order)

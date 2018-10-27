@@ -62,3 +62,7 @@ class StrangerStamp(SignatureStamp):
         from nucypher.crypto.powers import NoSigningPower
         message = "This isn't your SignatureStamp; it belongs to (a Stranger).  You can't sign with it."
         raise NoSigningPower(message)
+
+
+class InvalidSignature(Exception):
+    """Raised when a Signature is not valid."""
