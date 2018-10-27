@@ -6,35 +6,37 @@ pragma solidity ^0.4.25;
 **/
 library UmbralDeserializer {
 
-    //bytes == 33 bytes
-    struct OriginalCapsule {
-        byte pointESign;
-        bytes32 pointEXCoord;
-        bytes pointE;
-        bytes pointV;
+    struct Point {
+        uint8 sign;
+        uint256 xCoord;
+    }
+
+    struct Capsule {
+        Point pointE;
+        Point pointV;
         uint256 bnSig;
     }
 
     struct CorrectnessProof {
-        bytes pointE2;
-        bytes pointV2;
-        bytes pointKFragCommitment;
-        bytes pointKFragPok;
+        Point pointE2;
+        Point pointV2;
+        Point pointKFragCommitment;
+        Point pointKFragPok;
         uint256 bnSig;
         bytes kFragSignature; // 64 bytes
         bytes metadata; // any length
     }
 
     struct CapsuleFrag {
-        bytes pointE1;
-        bytes pointV1;
+        Point pointE1;
+        Point pointV1;
         bytes32 kFragId;
-        bytes pointPrecursor;
+        Point pointPrecursor;
         CorrectnessProof proof;
     }
 
     // TODO rename
-    struct PreCalculatedData {
+    struct PreComputedData {
         bytes data;
     }
 
@@ -43,23 +45,20 @@ library UmbralDeserializer {
     uint8 constant SIGNATURE_SIZE = 64;
     uint8 constant ORIGINAL_CAPSULE_SIZE = 2 * POINT_SIZE + BIG_NUM_SIZE;
     uint8 constant CORRECTNESS_PROOF_SIZE = 4 * POINT_SIZE + BIG_NUM_SIZE + SIGNATURE_SIZE;
-    uint8 constant CAPSULE_FRAG_SIZE = 4 * POINT_SIZE + BIG_NUM_SIZE;
+    uint8 constant CAPSULE_FRAG_SIZE = 3 * POINT_SIZE + BIG_NUM_SIZE;
     uint8 constant FULL_CAPSULE_FRAG_SIZE = CAPSULE_FRAG_SIZE + CORRECTNESS_PROOF_SIZE;
 
     /**
-    * @notice Deserialize to original capsule (not activated)
+    * @notice Deserialize to capsule (not activated)
     **/
-    function toOriginalCapsule(bytes memory _capsuleBytes)
-        internal pure returns (OriginalCapsule memory capsule)
+    function toCapsule(bytes memory _capsuleBytes)
+        internal pure returns (Capsule memory capsule)
     {
         require(_capsuleBytes.length == ORIGINAL_CAPSULE_SIZE);
-        capsule.pointE = new bytes(POINT_SIZE);
-        capsule.pointV = new bytes(POINT_SIZE);
-
         uint256 pointer = getPointer(_capsuleBytes);
-        pointer = copyPointBytes(pointer, capsule.pointE);
-        pointer = copyPointBytes(pointer, capsule.pointV);
-        capsule.bnSig = getBytes32(pointer);
+        pointer = copyPoint(pointer, capsule.pointE);
+        pointer = copyPoint(pointer, capsule.pointV);
+        capsule.bnSig = uint256(getBytes32(pointer));
     }
 
     /**
@@ -72,19 +71,15 @@ library UmbralDeserializer {
     {
         require(_proofBytesLength >= CORRECTNESS_PROOF_SIZE);
 
-        proof.pointE2 = new bytes(POINT_SIZE);
-        proof.pointV2 = new bytes(POINT_SIZE);
-        proof.pointKFragCommitment = new bytes(POINT_SIZE);
-        proof.pointKFragPok = new bytes(POINT_SIZE);
-        proof.kFragSignature = new bytes(SIGNATURE_SIZE);
-
-        _pointer = copyPointBytes(_pointer, proof.pointE2);
-        _pointer = copyPointBytes(_pointer, proof.pointV2);
-        _pointer = copyPointBytes(_pointer, proof.pointKFragCommitment);
-        _pointer = copyPointBytes(_pointer, proof.pointKFragPok);
-        proof.bnSig = getBytes32(_pointer);
+        _pointer = copyPoint(_pointer, proof.pointE2);
+        _pointer = copyPoint(_pointer, proof.pointV2);
+        _pointer = copyPoint(_pointer, proof.pointKFragCommitment);
+        _pointer = copyPoint(_pointer, proof.pointKFragPok);
+        proof.bnSig = uint256(getBytes32(_pointer));
         _pointer += BIG_NUM_SIZE;
-        // TODO optimize
+
+        proof.kFragSignature = new bytes(SIGNATURE_SIZE);
+        // TODO optimize, just two mload->mstore
         _pointer = copyBytes(_pointer, proof.kFragSignature, SIGNATURE_SIZE);
         if (_proofBytesLength > CORRECTNESS_PROOF_SIZE) {
             proof.metadata = new bytes(_proofBytesLength - CORRECTNESS_PROOF_SIZE);
@@ -111,18 +106,12 @@ library UmbralDeserializer {
         uint256 cFragBytesLength = _cFragBytes.length;
         require(cFragBytesLength >= FULL_CAPSULE_FRAG_SIZE);
 
-        cFrag.pointE1 = new bytes(POINT_SIZE);
-        cFrag.pointV1 = new bytes(POINT_SIZE);
-        cFrag.pointNonInteractive = new bytes(POINT_SIZE);
-        cFrag.pointXCoord = new bytes(POINT_SIZE);
-
         uint256 pointer = getPointer(_cFragBytes);
-        pointer = copyPointBytes(pointer, cFrag.pointE1);
-        pointer = copyPointBytes(pointer, cFrag.pointV1);
+        pointer = copyPoint(pointer, cFrag.pointE1);
+        pointer = copyPoint(pointer, cFrag.pointV1);
         cFrag.kFragId = getBytes32(pointer);
         pointer += BIG_NUM_SIZE;
-        pointer = copyPointBytes(pointer, cFrag.pointNonInteractive);
-        pointer = copyPointBytes(pointer, cFrag.pointXCoord);
+        pointer = copyPoint(pointer, cFrag.pointPrecursor);
 
         cFrag.proof = toCorrectnessProof(pointer, cFragBytesLength - CAPSULE_FRAG_SIZE);
     }
@@ -131,10 +120,10 @@ library UmbralDeserializer {
     * @notice Deserialize to pre calculated data
     **/
     // TODO rename
-    function toPreCalculatedData(bytes memory _preCalculatedData)
-        internal pure returns (PreCalculatedData memory data)
+    function toPreComputedData(bytes memory _preComputedData)
+        internal pure returns (PreComputedData memory data)
     {
-        data.data = _preCalculatedData;
+        data.data = _preComputedData;
     }
 
     // TODO extract to external library if needed
@@ -148,31 +137,38 @@ library UmbralDeserializer {
     }
 
     /**
-    * @notice Read 32 bytes from memory in pointer position
+    * @notice Copy point data from memory in the pointer position
     **/
-    function getBytes32(uint256 _pointer) internal pure returns (bytes32 result) {
+    function copyPoint(uint256 _pointer, Point memory _point)
+        internal pure returns (uint256 resultPointer)
+    {
+        // TODO optimize, copy to point memory directly
+        uint8 temp;
+        uint256 xCoord;
         assembly {
-            result := mload(_pointer)
+            temp := byte(0, mload(_pointer))
+            xCoord := mload(add(_pointer, 1))
+        }
+        _point.sign = temp;
+        _point.xCoord = xCoord;
+        resultPointer = _pointer + POINT_SIZE;
+    }
+
+    /**
+    * @notice Read 1 byte from memory in the pointer position
+    **/
+    function getByte(uint256 _pointer) internal pure returns (byte result) {
+        assembly {
+            result := byte(0, _pointer)
         }
     }
 
     /**
-    * @notice Copy 33 bytes (point size) from the source pointer to the target array
-    * @dev Assumes that enough memory has been allocated to store in target
-    * @param _bytesPointer Source memory pointer
-    * @param _target Target array
+    * @notice Read 32 bytes from memory in the pointer position
     **/
-    function copyPointBytes(uint256 _bytesPointer, bytes memory _target)
-        internal
-        pure
-        returns (uint256 resultPointer)
-    {
+    function getBytes32(uint256 _pointer) internal pure returns (bytes32 result) {
         assembly {
-            let destination := add(_target, 32) // skip array length value
-            mstore(destination, mload(_bytesPointer))
-            resultPointer := add(_bytesPointer, 1)
-            mstore8(add(destination, 32), mload(resultPointer)) // read one last byte
-            resultPointer := add(resultPointer, 32)
+            result := mload(_pointer)
         }
     }
 

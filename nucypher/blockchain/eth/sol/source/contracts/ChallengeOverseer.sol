@@ -43,7 +43,7 @@ contract ChallengeOverseer {
     * @param _requesterPublicKey Requester's public key that was used to sign Capsule
     * @param _minerPublicKey Miner's public key that was used to sign Capsule and CFrag
     * @param _minerPublicKeySignature Signature of public key by miner's eth-key
-    * @param _preCalculatedData Pre calculated data for CFrag correctness verification
+    * @param _preComputedData Pre computed data for CFrag correctness verification
     **/
     function challengeCFrag(
         bytes _capsuleBytes,
@@ -55,7 +55,7 @@ contract ChallengeOverseer {
         bytes _minerPublicKey,
         bytes _minerPublicKeySignature,
         // TODO rename
-        bytes _preCalculatedData
+        bytes _preComputedData
     ) public {
         require(_minerPublicKey.length == 65 && _requesterPublicKey.length == 65);
 
@@ -83,10 +83,10 @@ contract ChallengeOverseer {
         require(escrow.getLockedTokens(miner) > 0); // TODO check that miner can be slashed
 
         // Verify correctness of re-encryption
-        UmbralDeserializer.OriginalCapsule memory capsule = _capsuleBytes.toOriginalCapsule();
+        UmbralDeserializer.Capsule memory capsule = _capsuleBytes.toCapsule();
         UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
         // TODO rename
-        UmbralDeserializer.PreCalculatedData memory data = _preCalculatedData.toPreCalculatedData();
+        UmbralDeserializer.PreComputedData memory data = _preComputedData.toPreComputedData();
         if (!isCapsuleFragCorrect(capsule, cFrag, data)) {
             escrow.slashMiner(miner, PENALTY);
         }
@@ -112,15 +112,15 @@ contract ChallengeOverseer {
     * @param _data Additional data
     **/
     function isCapsuleFragCorrect(
-        UmbralDeserializer.OriginalCapsule memory _capsule,
+        UmbralDeserializer.Capsule memory _capsule,
         UmbralDeserializer.CapsuleFrag memory _cFrag,
-        UmbralDeserializer.PreCalculatedData memory _data
+        UmbralDeserializer.PreComputedData memory _data
     // TODO make public when possible
     ) internal pure returns (bool) {
         // TODO use Numerology repo
-        return _capsule.pointE.length == 33 &&
-            _cFrag.proof.metadata.length == 33 &&
-            _data.data.length == 22; // just for tests
+//        return _capsule.pointE.length == 33 &&
+//            _cFrag.proof.metadata.length == 33 &&
+//            _data.data.length == 22; // just for tests
     }
 
 }
