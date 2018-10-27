@@ -29,6 +29,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, NoSigningPower, CryptoPowerUp
 from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
 from nucypher.network.middleware import RestMiddleware
+from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import VerifiableNode
 
 
@@ -607,6 +608,7 @@ class Character(Learner):
                 if not checksum_address == self.checksum_public_address:
                     error = "Federated-only Characters derive their address from their Signing key; got {} instead."
                     raise self.SuspiciousActivity(error.format(checksum_address))
+        self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_public_address)
 
     def __eq__(self, other) -> bool:
         return bytes(self.stamp) == bytes(other.stamp)
@@ -616,8 +618,8 @@ class Character(Learner):
 
     def __repr__(self):
         class_name = self.__class__.__name__
-        r = "{} {}"
-        r = r.format(class_name, self.canonical_public_address)
+        r = "⇀{}↽ ({})"
+        r = r.format(self.nickname, self.checksum_public_address)
         return r
 
     @property
