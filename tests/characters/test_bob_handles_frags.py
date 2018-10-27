@@ -1,6 +1,5 @@
 from tempfile import TemporaryDirectory
 
-import maya
 import pytest
 import pytest_twisted
 from twisted.internet import threads
