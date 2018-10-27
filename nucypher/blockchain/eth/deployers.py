@@ -284,7 +284,7 @@ class PolicyManagerDeployer(ContractDeployer):
         self.secret_hash = secret_hash
 
     def deploy(self) -> Dict[str, str]:
-        self.check_deployment_readiness
+        self.check_deployment_readiness()
 
         # Creator deploys the policy manager
         policy_manager_contract, deploy_txhash = self.blockchain.interface.deploy_contract(
