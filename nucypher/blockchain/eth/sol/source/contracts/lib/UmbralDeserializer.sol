@@ -35,9 +35,21 @@ library UmbralDeserializer {
         CorrectnessProof proof;
     }
 
-    // TODO rename
     struct PreComputedData {
-        bytes data;
+        uint256 pointEyCoord;
+        uint256 pointEZxCoord;
+        uint256 pointEZyCoord;
+        uint256 pointE1yCoord;
+        uint256 pointE1HxCoord;
+        uint256 pointE1HyCoord;
+        uint256 pointE2yCoord;
+        uint256 pointVyCoord;
+        uint256 pointVZxCoord;
+        uint256 pointVZyCoord;
+        uint256 pointV1yCoord;
+        uint256 pointV1HxCoord;
+        uint256 pointV1HyCoord;
+        uint256 pointV2yCoord;
     }
 
     uint8 constant BIG_NUM_SIZE = 32;
