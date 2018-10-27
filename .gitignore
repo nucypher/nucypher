@@ -28,3 +28,4 @@ test-*
 *.sqlite3
 *ansible/variables.yml
 *ansible/*.retry
+*ansible/inventory/*
