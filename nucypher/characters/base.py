@@ -608,7 +608,14 @@ class Character(Learner):
                 if not checksum_address == self.checksum_public_address:
                     error = "Federated-only Characters derive their address from their Signing key; got {} instead."
                     raise self.SuspiciousActivity(error.format(checksum_address))
-        self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_public_address)
+        try:
+            self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_public_address)
+        except SigningPower.not_found_error:
+            if self.federated_only:
+                self.nickname = self.nickname_metadata = constants.NO_NICKNAME
+            else:
+                raise
+
 
     def __eq__(self, other) -> bool:
         return bytes(self.stamp) == bytes(other.stamp)
