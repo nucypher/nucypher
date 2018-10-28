@@ -271,3 +271,22 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
                                           decrypt=True,
                                           delegator_signing_key=federated_alice.stamp.as_umbral_pubkey())
     assert cleartext == b'Welcome to the flippering.'
+
+
+def test_bob_retrieves(federated_bob,
+                       federated_alice,
+                       capsule_side_channel,
+                       ):
+
+    # The side channel is represented as a single MessageKit, which is all that Bob really needs.
+    the_message_kit, the_data_source = capsule_side_channel
+
+    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
+
+    delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
+                                                  data_source=the_data_source,
+                                                  alice_verifying_key=alices_verifying_key)
+
+    # We show that indeed this is the passage originally encrypted by the DataSource.
+    assert b"Welcome to the flippering." == delivered_cleartexts[0]
+
