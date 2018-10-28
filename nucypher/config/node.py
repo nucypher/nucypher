@@ -8,6 +8,7 @@ from typing import List
 
 from constant_sorrow import constants
 
+from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, InMemoryNodeStorage, LocalFileBasedNodeStorage
@@ -16,8 +17,8 @@ from nucypher.network.middleware import RestMiddleware
 
 
 class NodeConfiguration:
-    _name = 'node'
-    _Character = NotImplemented
+    _name = 'ursula'  # TODO: un-hardcode Ursula
+    _character_class = Ursula
 
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
     DEFAULT_OPERATING_MODE = 'decentralized'
@@ -168,7 +169,13 @@ class NodeConfiguration:
             self.read_keyring()
             self.keyring.unlock(passphrase=passphrase)
         merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
-        return self._Character(**merged_parameters)
+        return self._character_class(**merged_parameters)
+
+    @staticmethod
+    def _read_configuration_file(filepath) -> dict:
+        with open(filepath, 'r') as file:
+            payload = NodeConfiguration.__CONFIG_FILE_DESERIALIZER(file.read())
+        return payload
 
     @classmethod
     def from_configuration_file(cls, filepath, **overrides) -> 'NodeConfiguration':
@@ -176,21 +183,20 @@ class NodeConfiguration:
         from nucypher.config.storages import NodeStorage  # TODO: move
         NODE_STORAGES = {storage_class._name: storage_class for storage_class in NodeStorage.__subclasses__()}
 
-        with open(filepath, 'r') as file:
-            payload = cls.__CONFIG_FILE_DESERIALIZER(file.read())
+        payload = cls._read_configuration_file(filepath=filepath)
 
         # Make NodeStorage
         storage_payload = payload['node_storage']
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
         storage_class = NODE_STORAGES[storage_type]
         node_storage = storage_class.from_payload(payload=storage_payload,
-                                                  character_class=cls._Character,
+                                                  character_class=cls._character_class,
                                                   federated_only=payload['federated_only'],
                                                   serializer=cls.NODE_SERIALIZER,
                                                   deserializer=cls.NODE_DESERIALIZER)
 
         payload.update(dict(node_storage=node_storage))
-        return cls(**{**payload, **overrides})
+        return cls(is_me=True, **{**payload, **overrides})
 
     def to_configuration_file(self, filepath: str = None) -> str:
         """Write the static_payload to a JSON file."""
@@ -199,6 +205,7 @@ class NodeConfiguration:
             filepath = os.path.join(self.config_root, filename)
 
         payload = self.static_payload
+        del payload['is_me']  # TODO
         # Save node connection data
         payload.update(dict(node_storage=self.node_storage.payload()))
 
@@ -284,7 +291,7 @@ class NodeConfiguration:
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
         power_ups = list()
         if self.is_me and not self.temp:
-            for power_class in self._Character._default_crypto_powerups:
+            for power_class in self._character_class._default_crypto_powerups:
                 power_up = self.keyring.derive_crypto_power(power_class)
                 power_ups.append(power_up)
         return power_ups

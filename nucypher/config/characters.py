@@ -16,7 +16,7 @@ from nucypher.crypto.powers import CryptoPower
 class UrsulaConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Ursula
 
-    _Character = Ursula
+    _character_class = Ursula
     _name = 'ursula'
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
     DEFAULT_REST_HOST = '127.0.0.1'
@@ -81,8 +81,8 @@ class UrsulaConfiguration(NodeConfiguration):
         base_filepaths.update(filepaths)
         return base_filepaths
 
-    def initialize(self, tls: bool = True, *args, **kwargs):
-        super().initialize(tls=tls, host=self.rest_host, curve=self.tls_curve, *args, **kwargs)
+    def initialize(self, tls: bool = True, host=None, *args, **kwargs):
+        super().initialize(tls=tls, host=host or self.rest_host, curve=self.tls_curve, *args, **kwargs)
         if self.db_name is constants.UNINITIALIZED_CONFIGURATION:
             self.db_name = self.__DB_TEMPLATE.format(self.rest_port)
         if self.db_filepath is constants.UNINITIALIZED_CONFIGURATION:
@@ -133,7 +133,7 @@ class UrsulaConfiguration(NodeConfiguration):
             self.miner_agent = MinerAgent(blockchain=self.blockchain)
             merged_parameters.update(blockchain=self.blockchain)
 
-        ursula = self._Character(**merged_parameters)
+        ursula = self._character_class(**merged_parameters)
 
         if self.temp:                  # TODO: Move this..?
             class MockDatastoreThreadPool(object):
@@ -147,11 +147,11 @@ class UrsulaConfiguration(NodeConfiguration):
 class AliceConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Alice
 
-    _Character = Alice
+    _character_class = Alice
     _name = 'alice'
 
 
 class BobConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Bob
-    _Character = Bob
+    _character_class = Bob
     _name = 'bob'
