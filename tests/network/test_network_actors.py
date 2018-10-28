@@ -43,7 +43,7 @@ def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_urs
 
 def test_alice_creates_policy_with_correct_hrac(idle_federated_policy):
     """
-    Alice creates a Policy.  It has the proper HRAC, unique per her, Bob, and the uri (resource_id).
+    Alice creates a Policy.  It has the proper HRAC, unique per her, Bob, and the label
     """
     alice = idle_federated_policy.alice
     bob = idle_federated_policy.bob

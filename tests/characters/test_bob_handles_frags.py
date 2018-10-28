@@ -119,8 +119,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     saves it and responds by re-encrypting and giving Bob a cFrag.
 
     This is a multipart test; it shows proper relations between the Characters Ursula and Bob and also proper
-    interchange between a KFrag, Capsule, and CFrag object in the cont
-    ext of REST-driven proxy re-encryption.
+    interchange between a KFrag, Capsule, and CFrag object in the context of REST-driven proxy re-encryption.
     """
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
@@ -269,7 +268,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
     # At long last.
     cleartext = federated_bob.verify_from(the_data_source, the_message_kit,
                                           decrypt=True,
-                                          delegator_signing_key=federated_alice.stamp.as_umbral_pubkey())
+                                          delegator_verifying_key=federated_alice.stamp.as_umbral_pubkey())
     assert cleartext == b'Welcome to the flippering.'
 
 

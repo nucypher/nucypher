@@ -208,7 +208,7 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
 @pytest.fixture(scope="module")
 def idle_federated_policy(federated_alice, federated_bob):
     """
-    Creates a Policy, in a manner typical of how Alice might do it, with a unique uri (soon to be "label" - see #183)
+    Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
     n = DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
     random_label = b'label://' + os.urandom(32)
@@ -236,7 +236,7 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
 @pytest.fixture(scope="module")
 def idle_blockchain_policy(blockchain_alice, blockchain_bob):
     """
-    Creates a Policy, in a manner typical of how Alice might do it, with a unique uri (soon to be "label" - see #183)
+    Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
     random_label = b'label://' + os.urandom(32)
     policy = blockchain_alice.create_policy(blockchain_bob, label=random_label, m=2, n=3)
