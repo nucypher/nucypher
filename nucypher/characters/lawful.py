@@ -41,6 +41,7 @@ from typing import Set
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 from typing import Tuple
+from umbral.pre import UmbralCorrectnessError
 
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
@@ -65,6 +66,7 @@ from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.utilities.decorators import validate_checksum_address
+from nucypher.policy.models import UnquestionableEvidence
 
 
 class Alice(Character, PolicyAuthor):
@@ -514,7 +516,8 @@ class Bob(Character):
 
     def retrieve(self, message_kit, data_source, alice_verifying_key, label):
 
-        message_kit.capsule.set_correctness_keys(
+        capsule = message_kit.capsule  # TODO: generalize for WorkOrders with more than one capsule
+        capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
             receiving=self.public_keys(DecryptingPower),
             verifying=alice_verifying_key)
@@ -524,18 +527,27 @@ class Bob(Character):
 
         # TODO: Consider blocking until map is done being followed.
 
-        work_orders = self.generate_work_orders(map_id, message_kit.capsule)
+        work_orders = self.generate_work_orders(map_id, capsule)
 
         cleartexts = []
-
         for work_order in work_orders.values():
             try:
                 cfrags = self.get_reencrypted_cfrags(work_order)
-                message_kit.capsule.attach_cfrag(cfrags[0])
-                if len(message_kit.capsule._attached_cfrags) >= m:
-                    break
             except requests.exceptions.ConnectTimeout:
                 continue
+
+            cfrag = cfrags[0]  # TODO: generalize for WorkOrders with more than one capsule
+            try:
+                message_kit.capsule.attach_cfrag(cfrag)
+                if len(message_kit.capsule._attached_cfrags) >= m:
+                    break
+            except UmbralCorrectnessError:
+                evidence = self.collect_evidence(capsule=capsule,
+                                                 cfrag=cfrag,
+                                                 )
+                # TODO: Here's the evidence of Ursula misbehavior. Now what? #500
+                raise
+
         else:
             raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
 
@@ -547,7 +559,10 @@ class Bob(Character):
         cleartexts.append(delivered_cleartext)
         return cleartexts
 
-    def make_wsgi_app(drone_bob, start_learning=True):
+    def collect_evidence(self, capsule, cfrag):
+        return UnquestionableEvidence(capsule, cfrag)
+
+def make_wsgi_app(drone_bob, start_learning=True):
         bob_control = Flask('bob-control')
         drone_bob.start_learning_loop(now=start_learning)
 
