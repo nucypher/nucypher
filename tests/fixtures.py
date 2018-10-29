@@ -4,7 +4,6 @@ import os
 import re
 import shutil
 import tempfile
-
 import maya
 import pytest
 from constant_sorrow import constants
@@ -81,6 +80,14 @@ def test_keystore():
     Base.metadata.create_all(engine)
     test_keystore = keystore.KeyStore(engine)
     yield test_keystore
+
+
+@pytest.fixture(scope='function')
+def certificates_tempdir():
+    custom_filepath = '/tmp/nucypher-test-certificates-'
+    cert_tmpdir = tempfile.TemporaryDirectory(prefix=custom_filepath)
+    yield cert_tmpdir.name
+    cert_tmpdir.cleanup()
 
 
 #
