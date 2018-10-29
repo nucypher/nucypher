@@ -1211,11 +1211,11 @@ def ursula(config,
     if trusted_teacher_uri:
         address, rest_uri = trusted_teacher_uri.split("@")
         host, port = rest_uri.split(":")
-        seed_metadata = SeednodeMetadata(address, host, port)  # TODO: Ensure seed injection works
+        seed_metadata = [SeednodeMetadata(address, host, port)]  # TODO: Ensure seed injection works
     else:
         seed_metadata = ()
 
-    URSULA = ursula_config.produce(passphrase=password, seed_nodes=[seed_metadata], **overrides)  # 2
+    URSULA = ursula_config.produce(passphrase=password, seed_nodes=seed_metadata, **overrides)  # 2
 
     click.secho("Initialized Ursula {}".format(URSULA.checksum_public_address), fg='green')
 
