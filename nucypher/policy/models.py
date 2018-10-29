@@ -484,7 +484,25 @@ class TreasureMap:
         return len(self.destinations)
 
 
-class WorkOrder(object):
+class RevocationNotice:
+    def __init__(self, arrangement_id):
+        self.arrangement_id = arrangement_id
+        self.notice = b"REVOKE-" + arrangement_id
+        self.signature = constants.NOT_SIGNED
+
+    def __bytes__(self):
+        if not self.signature is constants.NOT_SIGNED:
+            return self.notice + bytes(self.signature)
+        return constants.NOT_SIGNED
+
+    def __len__(self):
+        return len(b'REVOKE-') + len(arrangement_id)
+
+    def sign(self, signer):
+        self.signature = signer(self.notice)
+
+
+class WorkOrder:
     def __init__(self,
                  bob,
                  arrangement_id,

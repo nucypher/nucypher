@@ -125,7 +125,7 @@ class KeyStore(object):
 
     def get_policy_arrangement(self, arrangement_id: bytes, session=None) -> PolicyArrangement:
         """
-        Returns the PolicyArrangement by its HRAC.
+        Returns the PolicyArrangement by its arrangement_id.
 
         :return: The PolicyArrangement object
         """

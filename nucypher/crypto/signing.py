@@ -22,7 +22,7 @@ from nucypher.crypto.api import keccak_digest
 signature_splitter = BytestringSplitter(Signature)
 
 
-class SignatureStamp(object):
+class SignatureStamp:
     """
     Can be called to sign something or used to express the signing public
     key as bytes.

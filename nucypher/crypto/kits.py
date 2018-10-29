@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from constant_sorrow import constants
 
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
-from nucypher.policy.models import TreasureMap
 
 
 class CryptoKit:
@@ -77,10 +76,3 @@ class UmbralMessageKit(MessageKit):
     def from_bytes(cls, some_bytes):
         capsule, sender_pubkey_sig, ciphertext = cls.split_bytes(some_bytes)
         return cls(capsule=capsule, sender_pubkey_sig=sender_pubkey_sig, ciphertext=ciphertext)
-
-
-class RevocationKit(CryptoKit):
-    splitter = TreasureMap.splitter
-
-    def __init__(self, treasure_map):
-        pass
