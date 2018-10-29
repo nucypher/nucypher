@@ -102,24 +102,20 @@
         dest: ./code
         version: "{{ git_version }}"
 
-#    - name: "Pull Nucypher Docker Image"
-#      docker_image:
-#        name: nucypher/nucypher-demo
-
-#    - name: "Run Docker Container"
-#      docker_container:
-#        name: nucypher
-#        image: nucypher/nucypher-demo
-
     - name: "Install Python Dependencies via Pipenv"
-      shell: "pipenv install --verbose --three --dev --skip-lock --pre"
+      shell: "pipenv install --dev --skip-lock --pre"
       args:
         chdir: ./code
+      environment:
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
 
-    - name: "Install NuCypher CLI"
-      shell: "pipenv install . --skip-lock --verbose"
-      args:
-        chdir: ./code
+    - name: "Generate Ursula passphrase"
+      shell: head -c 32 /dev/urandom | sha256sum
+      register: ursula_passphrase
+
+    - debug:
+        msg: "Ursula passphrase output is {{ursula_passphrase}}"
 
     - name: "Configure Ursula"
       shell: "pipenv run nucypher --federated-only configure install --ursula --rest-host {{inventory_hostname}}"
@@ -128,14 +124,48 @@
       vars:
         ansible_python_interpreter: /usr/bin/python3
       environment:
-        NUCYPHER_KEYRING_PASSPHRASE: $(head -c 32 /dev/urandom | sha256sum)
+        NUCYPHER_KEYRING_PASSPHRASE: "{{ ursula_passphrase.stdout }}"
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
+      ignore_errors: yes
+      register: configure_ursula_output
 
-    - name: "Gather Ursula Facts"
-      setup:
+    - name: "Register Ursula Service"
+      become: yes
+      become_flags: "-H -S"
+      template:
+        src: ../services/ursula_node.j2
+        dest: /etc/systemd/system/ursula_node.service
+        mode: 0755
+      when: '"existing" not in configure_ursula_output.stdout'
 
-    - name: "Run Ursula"
-      shell: "pipenv run nucypher ursula run"
+    - name: "Get Ursula Seed Node Config (and more)"
+      shell: "pipenv run nucypher configure view"
       args:
         chdir: ./code
-      vars:
-        ansible_python_interpreter: /usr/bin/python3
+      register: ursula_seed_node_output
+      environment:
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
+
+    - name: "Set Ursula Seed Node Fact"
+      set_fact:
+        seed_node_metadata: ursula_seed_node_output
+
+    - name: "Get Ursula env dir"
+      shell: "pipenv --venv"
+      args:
+        chdir: ./code
+      environment:
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
+      register: env_dir
+
+    - name: "Enable and Start Ursula Service"
+      become: yes
+      become_flags: "-H -S"
+      systemd:
+        no_block: yes
+        enabled: yes
+        state: started
+        name: "ursula_node"
