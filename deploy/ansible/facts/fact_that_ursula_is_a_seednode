@@ -1,0 +1,4 @@
+#!/usr/bin/env
+
+URSULA_AS_SEEDNODE = $(pipenv run nucypher configure view)
+echo URSULA_AS_SEEDNODE
