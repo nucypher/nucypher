@@ -1,6 +1,7 @@
 import pytest
 import pytest_twisted
 from twisted.internet import threads
+
 from umbral import pre
 from umbral.fragments import KFrag, CapsuleFrag
 
@@ -262,10 +263,10 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
     assert cleartext == b'Welcome to the flippering.'
 
 
-def test_bob_retrieves(federated_bob,
-                       federated_alice,
-                       capsule_side_channel,
-                       ):
+def test_federated_bob_retrieves(federated_bob,
+                                 federated_alice,
+                                 capsule_side_channel,
+                                 ):
 
     # The side channel is represented as a single MessageKit, which is all that Bob really needs.
     the_message_kit, the_data_source = capsule_side_channel
