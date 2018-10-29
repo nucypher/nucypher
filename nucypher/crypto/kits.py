@@ -80,7 +80,7 @@ class UmbralMessageKit(MessageKit):
 
 class RevocationKit:
 
-    def __init__(self, revocation_notices=list()):
+    def __init__(self, revocation_notices):
         self.revocation_notices = revocation_notices
         self.revocations = dict()
 

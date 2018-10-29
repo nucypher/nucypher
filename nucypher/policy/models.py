@@ -34,7 +34,7 @@ from nucypher.characters.lawful import Alice
 from nucypher.characters.lawful import Bob, Ursula, Character
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, EncryptingPower
 from nucypher.crypto.signing import Signature
 from nucypher.crypto.splitters import key_splitter
@@ -99,13 +99,6 @@ class Arrangement:
     def publish(self):
         """
         Publish arrangement.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def revoke(self):
-        """
-        Revoke arrangement.
         """
         raise NotImplementedError
 
@@ -234,6 +227,7 @@ class Policy:
         Assign kfrags to ursulas_on_network, and distribute them via REST,
         populating enacted_arrangements
         """
+        revocation_notices = list()
         for arrangement in self.__assign_kfrags():
             policy_message_kit = arrangement.encrypt_payload_for_ursula()
 
@@ -246,8 +240,10 @@ class Policy:
 
             # Assuming response is what we hope for.
             self.treasure_map.add_arrangement(arrangement)
+            revocation_notices.append(RevocatonNotice(arrangement.id))
 
         else:  # ...After *all* the policies are enacted
+            self.revocation_kit = RevocationKit(revocation_notices)
             if publish is True:
                 return self.publish(network_middleware)
 
