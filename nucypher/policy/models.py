@@ -240,7 +240,7 @@ class Policy:
 
             # Assuming response is what we hope for.
             self.treasure_map.add_arrangement(arrangement)
-            revocation_notices.append(RevocatonNotice(arrangement.id))
+            revocation_notices.append(RevocationNotice(arrangement.id))
 
         else:  # ...After *all* the policies are enacted
             self.revocation_kit = RevocationKit(revocation_notices)

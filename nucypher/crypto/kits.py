@@ -84,6 +84,9 @@ class RevocationKit:
         self.revocation_notices = revocation_notices
         self.revocations = dict()
 
+    def __iter__(self):
+        return iter(self.revocations)
+
     @classmethod
     def from_bytes(cls, some_bytes):
         # TODO: Implement serialization
@@ -94,6 +97,13 @@ class RevocationKit:
         Signs all the revocation notices provided in the kit and adds them to
         the revocation dict ready for use.
         """
-        for notice in revocation_notices:
+        for notice in self.revocation_notices:
             notice.sign(signer)
             self.revocations[notice] = None
+
+    def add_receipt(self, revocation_notice, signed_receipt):
+        """
+        Adds a signed receipt of Ursula's ability to revoke the arrangement.
+        """
+        # TODO: Verify Ursula's signature
+        self.revocations[revocation_notice] = signed_receipt
