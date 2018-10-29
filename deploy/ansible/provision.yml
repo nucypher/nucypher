@@ -30,7 +30,7 @@
     - name: "Add Provisioned Servers as Hosts"
       add_host:
         name: "{{ item.public_ip }}"
-        groups: seednodes
+        groups: tag_Role_nu_seednodes
         ec2_region: "{{ ec2_region }}"
         ec2_tag_Type: "{{ ec2_tag_Type}}"
         ec2_tag_Role: "{{ ec2_tag_Role }}"
@@ -45,11 +45,13 @@
 #  Spin-Up Seednode Services
 #
 - name: "Start Ursulas"
-  hosts: seednodes
+  hosts: tag_Role_nu_seednodes
   user: ubuntu
   gather_facts: false
 
   pre_tasks:
+    - debug:
+        msg: "{{ hostvars }}"
     - name: "Install Python2.7 for Ansible Control"
       raw: sudo apt -y update && sudo apt install -y python2.7-minimal python2.7-setuptools
       register: output
@@ -91,7 +93,7 @@
       become: yes
       become_flags: "-H -S"
       copy:
-        src: /etc/ansible/facts.d/ursula.fact
+        src: ./facts/fact_that_ursula_is_a_seednode
         dest: /etc/ansible/facts.d/ursula.fact
         mode: 0755
 
