@@ -76,3 +76,24 @@ class UmbralMessageKit(MessageKit):
     def from_bytes(cls, some_bytes):
         capsule, sender_pubkey_sig, ciphertext = cls.split_bytes(some_bytes)
         return cls(capsule=capsule, sender_pubkey_sig=sender_pubkey_sig, ciphertext=ciphertext)
+
+
+class RevocationKit:
+
+    def __init__(self, revocation_notices=list()):
+        self.revocation_notices = revocation_notices
+        self.revocations = dict()
+
+    @classmethod
+    def from_bytes(cls, some_bytes):
+        # TODO: Implement serialization
+        pass
+
+    def sign(self, signer):
+        """
+        Signs all the revocation notices provided in the kit and adds them to
+        the revocation dict ready for use.
+        """
+        for notice in revocation_notices:
+            notice.sign(signer)
+            self.revocations[notice] = None
