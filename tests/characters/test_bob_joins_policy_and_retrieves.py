@@ -1,7 +1,6 @@
 import maya
 import datetime
 import os
-import pytest
 
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.characters.lawful import Bob
@@ -9,15 +8,19 @@ from nucypher.data_sources import DataSource
 from nucypher.utilities.sandbox.constants import DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from nucypher.keystore.keypairs import SigningKeypair
 
-@pytest.mark.skip()
-def test_federated_bob_retrieves(federated_bob,
+
+def test_federated_bob_retrieves(federated_ursulas,
+                                 federated_bob,
                                  federated_alice,
                                  capsule_side_channel,
-                                 federated_ursulas,
+                                 enacted_federated_policy
                                  ):
+    # Assume for the moment that Bob has already received a TreasureMap, perhaps via a side channel.
+    treasure_map = enacted_federated_policy.treasure_map
+    federated_bob.treasure_maps[treasure_map.public_id()] = treasure_map
 
-    # for ursula in federated_ursulas:
-    #     federated_bob.remember_node(ursula)
+    for ursula in federated_ursulas:
+        federated_bob.remember_node(ursula)
 
     # The side channel is represented as a single MessageKit, which is all that Bob really needs.
     the_message_kit, the_data_source = capsule_side_channel
