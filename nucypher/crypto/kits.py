@@ -106,4 +106,5 @@ class RevocationKit:
         Adds a signed receipt of Ursula's ability to revoke the arrangement.
         """
         # TODO: Verify Ursula's signature
-        self.revocations[revocation_notice] = signed_receipt
+        # TODO: Implement receipts
+        raise NotImplementedError
