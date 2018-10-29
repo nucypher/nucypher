@@ -1,7 +1,7 @@
 - hosts: localhost
   connection: local
   gather_facts: false
-  user: root
+  user: ubuntu
   pre_tasks:
     - include_vars: variables.yml
   tasks:
@@ -53,6 +53,7 @@
     - name: "Install Python2.7 for Ansible Control"
       raw: sudo apt -y update && sudo apt install -y python2.7-minimal python2.7-setuptools
       register: output
+    - include_vars: variables.yml
 
   tasks:
     - name: "Install System Dependencies"
@@ -95,9 +96,9 @@
         mode: 0755
 
     - git:
-        repo: https://github.com/nucypher/nucypher.git
+        repo: "{{ git_repo }}"
         dest: ./code
-        version: master
+        version: "{{ git_version }}"
 
 #    - name: "Pull Nucypher Docker Image"
 #      docker_image:
@@ -118,13 +119,14 @@
       args:
         chdir: ./code
 
-    - name: "Generate Random Ursula Password"
-      shell: "NUCYPHER_KEYRING_PASSPHRASE=$(head -c 32 /dev/urandom | sha256sum)"
-
     - name: "Configure Ursula"
-      shell: "pipenv run nucypher --federated-only configure install --ursula --rest-host {{ hostvars[inventory_hostname] }}"
+      shell: "pipenv run nucypher --federated-only configure install --ursula --rest-host {{inventory_hostname}}"
       args:
         chdir: ./code
+      vars:
+        ansible_python_interpreter: /usr/bin/python3
+      environment:
+        NUCYPHER_KEYRING_PASSPHRASE: $(head -c 32 /dev/urandom | sha256sum)
 
     - name: "Gather Ursula Facts"
       setup:
@@ -133,3 +135,5 @@
       shell: "pipenv run nucypher ursula run"
       args:
         chdir: ./code
+      vars:
+        ansible_python_interpreter: /usr/bin/python3
