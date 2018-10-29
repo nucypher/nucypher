@@ -12,6 +12,7 @@ import collections
 import shutil
 from constant_sorrow import constants
 from eth_utils import is_checksum_address
+from more_itertools import seekable
 from twisted.internet import reactor, stdio
 from typing import Tuple, ClassVar
 from web3.middleware import geth_poa_middleware
@@ -1211,6 +1212,8 @@ def ursula(config,
         address, rest_uri = trusted_teacher_uri.split("@")
         host, port = rest_uri.split(":")
         seed_metadata = SeednodeMetadata(address, host, port)  # TODO: Ensure seed injection works
+    else:
+        seed_metadata = ()
 
     URSULA = ursula_config.produce(passphrase=password, seed_nodes=[seed_metadata], **overrides)  # 2
 

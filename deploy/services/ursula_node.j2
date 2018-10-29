@@ -1,0 +1,6 @@
+[Unit]
+Description="Run 'Ursula', a NuCypher Staking Node."
+
+[Service]
+Type=forking
+ExecStart={{env_dir}}/bin/nucypher run ursula
