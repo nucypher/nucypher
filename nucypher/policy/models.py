@@ -227,7 +227,6 @@ class Policy:
         Assign kfrags to ursulas_on_network, and distribute them via REST,
         populating enacted_arrangements
         """
-        revocation_notices = list()
         for arrangement in self.__assign_kfrags():
             policy_message_kit = arrangement.encrypt_payload_for_ursula()
 
@@ -240,10 +239,14 @@ class Policy:
 
             # Assuming response is what we hope for.
             self.treasure_map.add_arrangement(arrangement)
-            revocation_notices.append(RevocationNotice(arrangement.id))
 
         else:  # ...After *all* the policies are enacted
+            # Create the revocation notices for Alice.
+            revocation_notices = list()
+            for node_id, arrangement_id in self.treasure_map:
+                revocation_notices.append(RevocationNotice(node_id, arrangement.id))
             self.revocation_kit = RevocationKit(revocation_notices)
+
             if publish is True:
                 return self.publish(network_middleware)
 

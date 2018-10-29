@@ -99,9 +99,9 @@ class RevocationKit:
         """
         for notice in self.revocation_notices:
             notice.sign(signer)
-            self.revocations[notice] = None
+            self.revocations[notice.node_id] = notice
 
-    def add_receipt(self, revocation_notice, signed_receipt):
+    def add_receipt(self, node_id, signed_receipt):
         """
         Adds a signed receipt of Ursula's ability to revoke the arrangement.
         """
