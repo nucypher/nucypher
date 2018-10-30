@@ -126,9 +126,25 @@ contract ChallengeOverseer {
         internal pure returns (bool)
     {
 
-        uint256 h = _capsule.proof.bnSig; // TODO: compute hash
+        // Compute h = hash_to_bignum(e, e1, e2, v, v1, v2, u, u1, u2)
+        uint256 h = Numerology.extended_keccak_to_bn(abi.encodePacked(
+            _capsule.pointE,                    // e
+            _cFrag.pointE1,                     // e1
+            _cFrag.proof.pointE2,               // e2
+            _capsule.pointV,                    // v
+            _cFrag.pointV1,                     // v1
+            _cFrag.proof.pointV2,               // v2
+            bytes1(0x02),                       // u (continues on next line)
+            bytes32(0xef62d276f6f311573b29790b970f2c4b4e44637c0c45f0838ffdc9167a05b999),
+            _cFrag.proof.pointKFragCommitment,  // u1
+            _cFrag.proof.pointKFragPok          // u2
+        ));
 
+        //////
         // Verifying equation: z*E + h*E_1 = E_2
+        //////
+
+        // Input validation: E
         require(Numerology.check_compressed_point(
             _capsule.pointE.sign,
             _capsule.pointE.xCoord,
