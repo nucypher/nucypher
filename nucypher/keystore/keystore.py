@@ -123,7 +123,7 @@ class KeyStore(object):
 
         return new_policy_arrangement
 
-    def get_policy_arrangement(self, arrangement_id: bytes, session=None) -> PolicyArrangement:
+    def get_policy_arrangement(self, arrangement_id_as_hex: bytes, session=None) -> PolicyArrangement:
         """
         Returns the PolicyArrangement by its arrangement_id.
 
@@ -131,10 +131,10 @@ class KeyStore(object):
         """
         session = session or self._session_on_init_thread
 
-        policy_arrangement = session.query(PolicyArrangement).filter_by(id=arrangement_id).first()
+        policy_arrangement = session.query(PolicyArrangement).filter_by(id=arrangement_id_as_hex).first()
 
         if not policy_arrangement:
-              raise NotFound("No PolicyArrangement {} found.".format(arrangement_id))
+              raise NotFound("No PolicyArrangement {} found.".format(arrangement_id_as_hex))
         return policy_arrangement
 
     def del_policy_arrangement(self, arrangement_id: bytes, session=None):

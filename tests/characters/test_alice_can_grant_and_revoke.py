@@ -90,5 +90,6 @@ def test_federated_grant(federated_alice, federated_bob):
         assert kfrag == retrieved_kfrag
 
     # Attempt to revoke the new policy
-    failed_revocations = federated_alice.revoke(policy)
-    assert len(failed_revocations) == 0
+    # TODO: Handle partial revokes
+    failed_revocation_notices = federated_alice.revoke(policy)
+    assert len(failed_revocation_notices) == 0

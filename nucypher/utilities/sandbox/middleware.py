@@ -109,7 +109,9 @@ class MockRestMiddleware(RestMiddleware):
 
     def revoke_arrangement(self, ursula, revocation_notice):
         mock_client = self._get_mock_client_by_ursula(ursula)
-        response = mock_client.post('http://localhost/kFrag/revoke', bytes(revocation_notice))
+        response = mock_client.delete('http://localhost/kFrag/{}'.format(
+                                      revocation_notice.arrangement_id.hex()),
+                                      data=bytes(revocation_notice))
         
         if not response.status_code == 200:
             if response.status_code == 404:

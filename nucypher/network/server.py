@@ -96,12 +96,12 @@ class ProxyRESTRoutes:
             Route('/kFrag/{id_as_hex}',
                   'POST',
                   self.set_policy),
+            Route('/kFrag/{id_as_hex}',
+                  'DELETE',
+                  self.revoke_arrangement),
             Route('/kFrag/{id_as_hex}/reencrypt',
                   'POST',
                   self.reencrypt_via_rest),
-            Route('/kFrag/revoke',
-                  'POST',
-                  self.revoke_arrangement),
             Route('/public_information', 'GET',
                   self.public_information),
             Route('/node_metadata', 'GET',
@@ -241,20 +241,30 @@ class ProxyRESTRoutes:
         # TODO: Sign the arrangement here.  #495
         return  # TODO: Return A 200, with whatever policy metadata.
 
-    def revoke_arrangement(self, request: Request):
+    def revoke_arrangement(self, id_as_hex, request: Request):
         """
         REST endpoint for revoking/deleting a KFrag from a node.
-        TODO: How do we want to verify that this request comes from Alice?
-              What/How is she going to sign?
+        TODO: Have Ursula return a signed receipt.
         """
         from nucypher.policy.models import RevocationNotice
+
         revocation_notice = RevocationNotice.from_bytes(request.body)
+
         try:
             with ThreadedSession(self.db_engine) as session:
-                self.datastore.del_policy_arrangement(
-                    revocation_notice.arrangement_id,
+                # Verify the Notice was signed by Alice
+                policy_arrangement = self.datastore.get_policy_arrangement(
+                    revocation_notice.arrangement_id.hex().encode(),
                     session=session)
-        except NotFound:
+                alice_pubkey = UmbralPublicKey.from_bytes(
+                    policy_arrangement.alice_pubkey_sig.key_data)
+                is_valid = revocation_notice.verify(alice_pubkey)
+
+                if is_valid:
+                    self.datastore.del_policy_arrangement(
+                        revocation_notice.arrangement_id.hex().encode(),
+                        session=session)
+        except:
             return 404
         return 200
 
@@ -264,7 +274,7 @@ class ProxyRESTRoutes:
         work_order = WorkOrder.from_rest_payload(arrangement_id, request.body)
         self.log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
         with ThreadedSession(self.db_engine) as session:
-            policy_arrangement = self.datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
+            policy_arrangement = self.datastore.get_policy_arrangement(id_as_hex.encode(),
                                                                        session=session)
 
         kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)

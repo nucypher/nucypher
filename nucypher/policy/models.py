@@ -484,6 +484,9 @@ class TreasureMap:
 
 
 class RevocationNotice:
+    splitter = BytestringSplitter((bytes, 7),
+                                  (bytes, constants.NOTICE_LENGTH(32)),
+                                  Signature)
     def __init__(self, node_id, arrangement_id, signature=None):
         self.node_id = node_id
         self.arrangement_id = arrangement_id
@@ -501,9 +504,8 @@ class RevocationNotice:
     @classmethod
     def from_bytes(cls, some_bytes):
         # TODO: Implement BytestringSplitter
-        arrangement_id = some_bytes[7:39]
-        signature = some_bytes[39:]
-        return cls(None, arrangement_id, signature)
+        _, arrangement_id, signature = cls.splitter(some_bytes)
+        return cls(None, arrangement_id, signature=signature)
 
     def sign(self, signer):
         """
@@ -518,6 +520,15 @@ class RevocationNotice:
         """
         # TODO: Implement receipts
         raise NotImplementedError
+
+    def verify(self, alice_pubkey):
+        """
+        Verifies the notice was from the provided pubkey.
+        """
+        from nucypher.crypto.signing import InvalidSignature
+        if not self.signature.verify(self.notice, alice_pubkey):
+            raise InvalidSignature("Notice has an invalid signature: {}".format(self.signature))
+        return True
 
 
 class WorkOrder:

@@ -78,7 +78,8 @@ class RestMiddleware:
 
     def revoke_arrangement(self, ursula, revocation_notice):
         # TODO: Implement revocation receipts
-        response = requests.post("https://{}/kFrag/revoke".format(ursula.rest_interface),
+        response = requests.delete("https://{}/kFrag/{}".format(ursula.rest_interface,
+                                                              revocation_notice.arrangement_id.hex()),
                                  bytes(revocation_notice), verify=ursula.certificate_filepath)
         if not response.status_code == 200:
             if response.status_code == 404:

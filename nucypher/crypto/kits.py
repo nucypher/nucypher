@@ -87,6 +87,9 @@ class RevocationKit:
     def __iter__(self):
         return iter(self.revocations.items())
 
+    def __len__(self):
+        return len(self.revocation_notices)
+
     @classmethod
     def from_bytes(cls, some_bytes):
         # TODO: Implement serialization
