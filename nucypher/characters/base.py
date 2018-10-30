@@ -200,7 +200,8 @@ class Learner:
             return False
         elif now:
             self.load_seednodes()
-            d = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
+            self._learning_task()  # Unhandled error might happen here.  TODO: Call this in a safer place.
+            d = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
             d.addErrback(self.handle_learning_errors)
             return d
         else:
@@ -216,7 +217,9 @@ class Learner:
             self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warning("Unhandled error during node learning: {}".format(failure.getTraceback()))
+            self.log.warn("Unhandled error during node learning: {}".format(failure.getTraceback()))
+            if not self._learning_task.running:
+                self.start_learning_loop()  # TODO: Consider a single entry point for this with more elegant pause and unpause.
 
     def _crash_gracefully(self, failure=None):
         """
