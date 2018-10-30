@@ -31,10 +31,10 @@ def deserializer(testerchain):
     return contract
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def fragments():
     delegating_privkey = keys.UmbralPrivateKey.gen_key()
-    _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
+    delegating_pubkey = delegating_privkey.get_pubkey()
     signing_privkey = keys.UmbralPrivateKey.gen_key()
     signer = Signer(signing_privkey)
     priv_key_bob = keys.UmbralPrivateKey.gen_key()
@@ -44,10 +44,15 @@ def fragments():
                                  receiving_pubkey=pub_key_bob,
                                  threshold=2,
                                  N=4,
-                                 sign_delegating_key=True,
-                                 sign_receiving_key=True)
+                                 sign_delegating_key=False,
+                                 sign_receiving_key=False)
+    # TODO: Use nucypher re-encryption metadata
     metadata = b"This is an example of metadata for re-encryption request"
-    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_privkey.get_pubkey())
+
+    _symmetric_key, capsule = pre._encapsulate(delegating_pubkey)
+    capsule.set_correctness_keys(delegating=delegating_pubkey,
+                                 receiving=pub_key_bob,
+                                 verifying=signing_privkey.get_pubkey())
     cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
     return capsule, cfrag
 
