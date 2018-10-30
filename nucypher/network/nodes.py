@@ -223,4 +223,3 @@ class VerifiableNode:
         _write_tls_certificate(self.certificate, full_filepath=certificate_filepath, force=force)
         self.certificate_filepath = certificate_filepath
         self.log.info("Saved new TLS certificate {}".format(certificate_filepath))
-        return self.certificate_filepath

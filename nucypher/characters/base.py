@@ -469,7 +469,7 @@ class Learner:
             try:
                 if eager:
                     certificate_filepath = current_teacher.get_certificate_filepath(
-                        certificates_dir=certificate_filepath)
+                        certificates_dir=self.known_certificates_dir)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
