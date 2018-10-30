@@ -3,6 +3,7 @@ pragma solidity ^0.4.25;
 
 import "./lib/UmbralDeserializer.sol";
 import "./lib/SignatureVerifier.sol";
+import "./lib/Numerology.sol";
 import "./MinersEscrow.sol";
 
 
