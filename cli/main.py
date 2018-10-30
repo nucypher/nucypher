@@ -1231,8 +1231,7 @@ def ursula(config,
             # GO!
             click.secho("Running Ursula on {}".format(URSULA.rest_interface), fg='green', bold=True)
             stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
-            URSULA.get_deployer().addServices()                           # 4
-            reactor.run()
+            URSULA.get_deployer().run()
 
         except Exception as e:
             config.log.critical(str(e))
