@@ -1,0 +1,10 @@
+- name: "Start Ursulas"
+  hosts: tag_Role_nu_seednodes
+  user: ubuntu
+  gather_facts: false
+
+  tasks:
+    - name: Delete config directory.
+      file:
+        state: absent
+        path: ".local/share/nucypher/"
