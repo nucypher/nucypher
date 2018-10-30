@@ -3,9 +3,9 @@ Description="Run 'Ursula', a NuCypher Staking Node."
 
 [Service]
 User=ubuntu
-Type=forking
+Type=simple
 Environment="NUCYPHER_KEYRING_PASSPHRASE={{ursula_passphrase.stdout}}"
-ExecStart={{env_dir.stdout}}/bin/nucypher ursula run
+ExecStart={{env_dir.stdout}}/bin/nucypher ursula run --trusted-teacher-uri {{ seed_node_metadata.checksum_address }}@{{ seed_node_metadata.rest_host }}:{{seed_node_metadata.rest_port}}
 
 [Install]
 WantedBy=multi-user.target
