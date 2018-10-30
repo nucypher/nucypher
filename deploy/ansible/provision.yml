@@ -50,11 +50,8 @@
   gather_facts: false
 
   pre_tasks:
-    - debug:
-        msg: "{{ hostvars }}"
     - name: "Install Python2.7 for Ansible Control"
       raw: sudo apt -y update && sudo apt install -y python2.7-minimal python2.7-setuptools
-      register: output
     - include_vars: variables.yml
 
   tasks:
@@ -87,14 +84,6 @@
       file:
         path: "/etc/ansible/facts.d"
         state: "directory"
-        mode: 0755
-
-    - name: "Insert Ursula Facts"
-      become: yes
-      become_flags: "-H -S"
-      copy:
-        src: ./facts/fact_that_ursula_is_a_seednode
-        dest: /etc/ansible/facts.d/ursula.fact
         mode: 0755
 
     - git:
@@ -130,7 +119,16 @@
       ignore_errors: yes
       register: configure_ursula_output
 
-    - name: "Register Ursula Service"
+    - name: "Register Firstula Service"
+      become: yes
+      become_flags: "-H -S"
+      template:
+        src: ../services/firstula_node.j2
+        dest: /etc/systemd/system/ursula_node.service
+        mode: 0755
+      when: '"existing" not in configure_ursula_output.stdout'
+
+    - name: "Register Subsequent Ursulas"
       become: yes
       become_flags: "-H -S"
       template:
@@ -150,7 +148,10 @@
 
     - name: "Set Ursula Seed Node Fact"
       set_fact:
-        seed_node_metadata: ursula_seed_node_output
+        seed_node_metadata: "{{ ursula_seed_node_output }}"
+
+    - debug:
+        msg: "{{ hostvars }}"
 
     - name: "Get Ursula env dir"
       shell: "pipenv --venv"
