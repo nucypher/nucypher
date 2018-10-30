@@ -178,7 +178,7 @@ class Learner:
                              certificate_filepath=certificate_filepath)
         except SSLError:
             raise  # TODO
-        except requests.exceptions.ConnectionError:
+        except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
             self.log.info("No Response from known node {}|{}".format(node.rest_interface, node.checksum_public_address))
             raise self.UnresponsiveTeacher
 
@@ -308,8 +308,13 @@ class Learner:
             if not self._learning_task.running:
                 self.log.warn("Blocking to learn about nodes, but learning loop isn't running.")
             if learn_on_this_thread:
-                self.learn_from_teacher_node(eager=True)
+                try:
+                    self.learn_from_teacher_node(eager=True)
+                except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
+                    # TODO: Even this "same thread" logic can be done off the main thread.
+                    self.log.warn("Teacher was unreachable.  No good way to handle this on the main thread.")
 
+            # The rest of the fucking owl
             if (maya.now() - start).seconds > timeout:
                 if not self._learning_task.running:
                     raise self.NotEnoughTeachers("Learning loop is not running.  Start it with start_learning().")
