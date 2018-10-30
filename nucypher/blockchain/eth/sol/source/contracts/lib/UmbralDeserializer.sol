@@ -59,6 +59,7 @@ library UmbralDeserializer {
     uint8 constant CORRECTNESS_PROOF_SIZE = 4 * POINT_SIZE + BIGNUM_SIZE + SIGNATURE_SIZE;
     uint8 constant CAPSULE_FRAG_SIZE = 3 * POINT_SIZE + BIGNUM_SIZE;
     uint8 constant FULL_CAPSULE_FRAG_SIZE = CAPSULE_FRAG_SIZE + CORRECTNESS_PROOF_SIZE;
+    uint8 constant PRECOMPUTED_DATA_SIZE = 14 * BIGNUM_SIZE;
 
     /**
     * @notice Deserialize to capsule (not activated)
@@ -110,7 +111,7 @@ library UmbralDeserializer {
     }
 
     /**
-    * @notice Deserialize to capsule frag
+    * @notice Deserialize to CapsuleFrag
     **/
     function toCapsuleFrag(bytes memory _cFragBytes)
         internal pure returns (CapsuleFrag memory cFrag)
@@ -135,7 +136,51 @@ library UmbralDeserializer {
     function toPreComputedData(bytes memory _preComputedData)
         internal pure returns (PreComputedData memory data)
     {
-        data.data = _preComputedData;
+        require(_preComputedData.length == PRECOMPUTED_DATA_SIZE);
+        uint256 pointer = getPointer(_preComputedData);
+
+        data.pointEyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointEZxCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointEZyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointE1yCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointE1HxCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointE1HyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointE2yCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointVyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointVZxCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointVZyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointV1yCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointV1HxCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointV1HyCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.pointV2yCoord = uint256(getBytes32(pointer));
+        //pointer += BIGNUM_SIZE;
+
     }
 
     // TODO extract to external library if needed
