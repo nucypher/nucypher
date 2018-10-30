@@ -128,18 +128,45 @@ contract ChallengeOverseer {
     {
 
         // Compute h = hash_to_bignum(e, e1, e2, v, v1, v2, u, u1, u2)
-        uint256 h = Numerology.extended_keccak_to_bn(abi.encodePacked(
-            _capsule.pointE,                    // e
-            _cFrag.pointE1,                     // e1
-            _cFrag.proof.pointE2,               // e2
-            _capsule.pointV,                    // v
-            _cFrag.pointV1,                     // v1
-            _cFrag.proof.pointV2,               // v2
-            bytes1(0x02),                       // u (continues on next line)
+        bytes memory hashInput = abi.encodePacked(
+            // Point E
+            _capsule.pointE.sign,
+            _capsule.pointE.xCoord,
+            // Point E1
+            _cFrag.pointE1.sign,
+            _cFrag.pointE1.xCoord,
+            // Point E2
+            _cFrag.proof.pointE2.sign,
+            _cFrag.proof.pointE2.xCoord
+        );
+
+        hashInput = abi.encodePacked(
+            hashInput,
+            // Point V
+            _capsule.pointV.sign,
+            _capsule.pointV.xCoord,
+            // Point V1
+            _cFrag.pointV1.sign,
+            _cFrag.pointV1.xCoord,
+            // Point V2
+            _cFrag.proof.pointV2.sign,
+            _cFrag.proof.pointV2.xCoord
+        );
+
+        hashInput = abi.encodePacked(
+            hashInput,
+            // Point U
+            bytes1(0x02),
             bytes32(0xef62d276f6f311573b29790b970f2c4b4e44637c0c45f0838ffdc9167a05b999),
-            _cFrag.proof.pointKFragCommitment,  // u1
-            _cFrag.proof.pointKFragPok          // u2
-        ));
+            // Point U1
+            _cFrag.proof.pointKFragCommitment.sign,
+            _cFrag.proof.pointKFragCommitment.xCoord,
+            // Point U2
+            _cFrag.proof.pointKFragPok.sign,
+            _cFrag.proof.pointKFragPok.xCoord
+        );
+
+        uint256 h = SignatureVerifier.extendedKeccakToBN(hashInput);
 
         //////
         // Verifying equation: z*E + h*E_1 = E_2
