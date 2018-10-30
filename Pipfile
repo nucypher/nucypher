@@ -39,7 +39,7 @@ click = "*"
 colorama = "*"
 moto = "*"
 boto3 = "*"
-nucypher = {path = "."}
+nucypher = {editable = true, path = "."}
 
 [dev-packages]
 #
