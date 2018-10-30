@@ -108,6 +108,7 @@ class Learner:
         self._learning_round = 0  # type: int
         self._rounds_without_new_nodes = 0  # type: int
         self._seed_nodes = seed_nodes or []
+        self.unresponsive_seed_nodes = set()
 
         if self.start_learning_now:
             self.start_learning_loop(now=self.learn_on_same_thread)
@@ -124,7 +125,6 @@ class Learner:
         """
         Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
         """
-        unresponsive_seed_nodes = set()
 
         def __attempt_seednode_learning(seednode_metadata, current_attempt=1):
             self.log.debug(
@@ -136,7 +136,7 @@ class Learner:
                                                                     timeout=timeout,
                                                                     accept_federated_only=self.federated_only)  # TODO: 466
             if seed_node is False:
-                unresponsive_seed_nodes.add(seednode_metadata)
+                self.unresponsive_seed_nodes.add(seednode_metadata)
             else:
                 self.remember_node(seed_node)
 
@@ -238,6 +238,12 @@ class Learner:
         self.teacher_nodes.extend(nodes_we_know_about)
 
     def cycle_teacher_node(self):
+        # To ensure that all the best teachers are availalble, first let's make sure
+        # that we have connected to all the seed nodes.
+        if self.unresponsive_seed_nodes:
+            self.log.info("Still have unresponsive seed nodes; trying again to connect.")
+            self.load_seednodes()  # Ideally, this is async and singular.
+
         if not self.teacher_nodes:
             self.select_teacher_nodes()
         try:

@@ -34,11 +34,14 @@ class RestMiddleware:
         self.log.info("Fetching seednode {} TLS certificate".format(seednode_metadata.checksum_address))
 
         # TODO: Utilize timeout.
-        certificate, filepath = self._get_certificate(checksum_address=seednode_metadata.checksum_address,
-                                                      hostname=seednode_metadata.rest_host,
-                                                      port=seednode_metadata.rest_port,
-                                                      certs_dir=known_certs_dir,
-                                                      timeout=timeout)
+        try:
+            certificate, filepath = self._get_certificate(checksum_address=seednode_metadata.checksum_address,
+                                                          hostname=seednode_metadata.rest_host,
+                                                          port=seednode_metadata.rest_port,
+                                                          certs_dir=known_certs_dir,
+                                                          timeout=timeout)
+        except ConnectionRefusedError:
+            return False  # For now.
 
         if certificate is False:
             return False
