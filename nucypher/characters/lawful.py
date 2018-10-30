@@ -160,15 +160,16 @@ class Alice(Character, PolicyAuthor):
 
     def revoke(self, policy):
         """
-        Goes through the TreasureMap and RevocationKit in Policy and revokes
-        re-encryption access to Bob from each arrangement.
+        Goes through the RevocationKit in Policy and revokes re-encryption
+        access to Bob from each arrangement.
         """
         # Sign the RevocationNotices in the RevocationKit in preparation for
         # sending to Ursula.
         policy.revocation_kit.sign(self.stamp)
 
-        for signed_revocation_note in policy.revocation_kit:
-            response = self.network_middleware.revoke_arrangement(ursula, revocation_note)
+        for node_id, notice in policy.revocation_kit:
+            ursula = self.known_nodes[node_id]
+            response = self.network_middleware.revoke_arrangement(ursula, notice)
 
         #failed_revocations = list()
         #for node_id, arrangement_id in policy.treasure_map:

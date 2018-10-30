@@ -85,7 +85,7 @@ class RevocationKit:
         self.revocations = dict()
 
     def __iter__(self):
-        return iter(self.revocations)
+        return iter(self.revocations.items())
 
     @classmethod
     def from_bytes(cls, some_bytes):

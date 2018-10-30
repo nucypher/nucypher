@@ -247,14 +247,15 @@ class ProxyRESTRoutes:
         TODO: How do we want to verify that this request comes from Alice?
               What/How is she going to sign?
         """
-        arrangement_id = request.body
+        from nucypher.policy.models import RevocationNotice
+        revocation_notice = RevocationNotice.from_bytes(request.body)
         try:
             with ThreadedSession(self.db_engine) as session:
                 self.datastore.del_policy_arrangement(
-                    arrangement_id,
+                    revocation_notice.arrangement_id,
                     session=session)
         except NotFound:
-            return 404  # TODO: Should we 404 or do something else?
+            return 404
         return 200
 
     def reencrypt_via_rest(self, id_as_hex, request: Request):

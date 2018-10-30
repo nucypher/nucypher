@@ -484,10 +484,11 @@ class TreasureMap:
 
 
 class RevocationNotice:
-    def __init__(self, arrangement_id):
+    def __init__(self, node_id, arrangement_id, signature=None):
+        self.node_id = node_id
         self.arrangement_id = arrangement_id
         self.notice = b"REVOKE-" + arrangement_id
-        self.signature = constants.NOT_SIGNED
+        self.signature = signature or constants.NOT_SIGNED
 
     def __bytes__(self):
         if not self.signature is constants.NOT_SIGNED:
@@ -495,10 +496,28 @@ class RevocationNotice:
         return constants.NOT_SIGNED
 
     def __len__(self):
-        return len(b'REVOKE-') + len(arrangement_id)
+        return len(b'REVOKE-') + len(self.arrangement_id)
+
+    @classmethod
+    def from_bytes(cls, some_bytes):
+        # TODO: Implement BytestringSplitter
+        arrangement_id = some_bytes[7:39]
+        signature = some_bytes[39:]
+        return cls(None, arrangement_id, signature)
 
     def sign(self, signer):
+        """
+        Signs the notice so Ursula can validate its authenticity.
+        """
         self.signature = signer(self.notice)
+
+    def sign_receipt(self, signer):
+        """
+        Signs the notice + Alice's signature to demonstrate that Ursula
+        agreed to perform the revocation.
+        """
+        # TODO: Implement receipts
+        raise NotImplementedError
 
 
 class WorkOrder:
