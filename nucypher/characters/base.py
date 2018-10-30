@@ -138,6 +138,7 @@ class Learner:
             if seed_node is False:
                 self.unresponsive_seed_nodes.add(seednode_metadata)
             else:
+                self.unresponsive_seed_nodes.discard(seednode_metadata)
                 self.remember_node(seed_node)
 
         for seednode_metadata in self._seed_nodes:
