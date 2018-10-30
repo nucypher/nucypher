@@ -119,39 +119,18 @@
       ignore_errors: yes
       register: configure_ursula_output
 
-    - name: "Register Firstula Service"
-      become: yes
-      become_flags: "-H -S"
-      template:
-        src: ../services/firstula_node.j2
-        dest: /etc/systemd/system/ursula_node.service
-        mode: 0755
-      when: '"existing" not in configure_ursula_output.stdout'
-
-    - name: "Register Subsequent Ursulas"
-      become: yes
-      become_flags: "-H -S"
-      template:
-        src: ../services/ursula_node.j2
-        dest: /etc/systemd/system/ursula_node.service
-        mode: 0755
-      when: '"existing" not in configure_ursula_output.stdout'
-
     - name: "Get Ursula Seed Node Config (and more)"
-      shell: "pipenv run nucypher configure view"
-      args:
-        chdir: ./code
-      register: ursula_seed_node_output
-      environment:
-        LC_ALL: C.UTF-8
-        LANG: C.UTF-8
+      slurp:
+        src: ".local/share/nucypher/ursula.config"
+      register: ursula_seed_node_config
+      run_once: true
 
     - name: "Set Ursula Seed Node Fact"
       set_fact:
-        seed_node_metadata: "{{ ursula_seed_node_output }}"
+        seed_node_metadata: "{{ ursula_seed_node_config['content'] | b64decode }}"
 
     - debug:
-        msg: "{{ hostvars }}"
+        msg: "{{seed_node_metadata}}"
 
     - name: "Get Ursula env dir"
       shell: "pipenv --venv"
@@ -162,11 +141,38 @@
         LANG: C.UTF-8
       register: env_dir
 
+    - name: "Open Ursula node port"
+      become: yes
+      become_flags: "-H -S"
+      shell: 'iptables -A INPUT -p tcp -m conntrack --dport {{ seed_node_metadata.rest_port }} --ctstate NEW,ESTABLISHED -j ACCEPT'
+
+    - name: "Register Firstula Service"
+      become: yes
+      become_flags: "-H -S"
+      template:
+        src: ../services/firstula_node.j2
+        dest: /etc/systemd/system/ursula_node.service
+        mode: 0755
+      when: '"existing" not in configure_ursula_output.stdout'
+      run_once: true
+
+    - name: "Register Subsequent Ursulas"
+      become: yes
+      become_flags: "-H -S"
+      template:
+        src: ../services/ursula_node.j2
+        dest: /etc/systemd/system/ursula_node.service
+        mode: 0755
+      when:
+        - '"existing" not in configure_ursula_output.stdout'
+        - inventory_hostname != seed_node_metadata.rest_host
+
     - name: "Enable and Start Ursula Service"
       become: yes
       become_flags: "-H -S"
       systemd:
+        daemon_reload: yes
         no_block: yes
         enabled: yes
-        state: started
+        state: restarted
         name: "ursula_node"
