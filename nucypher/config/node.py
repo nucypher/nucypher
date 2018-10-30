@@ -2,7 +2,7 @@ import binascii
 import json
 import os
 from json import JSONDecodeError
-from logging import getLogger
+from twisted.logger import Logger
 from tempfile import TemporaryDirectory
 from typing import List
 
@@ -77,7 +77,7 @@ class NodeConfiguration:
 
                  ) -> None:
 
-        self.log = getLogger(self.__class__.__name__)
+        self.log = Logger(self.__class__.__name__)
 
         # Known Nodes
         self.known_nodes_dir = constants.UNINITIALIZED_CONFIGURATION
@@ -422,7 +422,7 @@ class NodeConfiguration:
                     self.log.debug("Source registry {} is valid JSON".format(source))
 
         else:
-            self.log.warning("Writing blank registry")
+            self.log.warn("Writing blank registry")
             open(output_filepath, 'w').close()  # write blank
 
         self.log.info("Successfully wrote registry to {}".format(output_filepath))

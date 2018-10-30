@@ -1,5 +1,4 @@
 import os
-from logging import getLogger
 
 import OpenSSL
 import maya
@@ -15,7 +14,7 @@ from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPowe
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
-
+from twisted.logger import Logger
 
 class VerifiableNode:
     _evidence_of_decentralized_identity = constants.NOT_SIGNED
@@ -31,7 +30,7 @@ class VerifiableNode:
                  timestamp=constants.NOT_SIGNED,
                  ) -> None:
 
-        self.log = getLogger(self.__class__.__name__)
+        self.log = Logger(self.__class__.__name__)
 
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
@@ -150,9 +149,9 @@ class VerifiableNode:
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # TODO: Optional reporting.  355
             if not addresses_match:
-                self.log.warning("Wallet address swapped out.  It appears that someone is trying to defraud this node.")
+                self.log.warn("Wallet address swapped out.  It appears that someone is trying to defraud this node.")
             if not verifying_keys_match:
-                self.log.warning("Verifying key swapped out.  It appears that someone is impersonating this node.")
+                self.log.warn("Verifying key swapped out.  It appears that someone is impersonating this node.")
             raise self.InvalidNode("Wrong cryptographic material for this node - something fishy going on.")
         else:
             self._verified_node = True

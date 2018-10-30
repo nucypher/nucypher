@@ -2,7 +2,7 @@ import json
 import os
 import tempfile
 from json import JSONDecodeError
-from logging import getLogger
+from twisted.logger import Logger
 
 import shutil
 from constant_sorrow import constants
@@ -42,7 +42,7 @@ class EthereumContractRegistry:
         """Raised when invalid data is encountered in the registry"""
 
     def __init__(self, registry_filepath: str = None) -> None:
-        self.log = getLogger("registry")
+        self.log = Logger("registry")
         self.__filepath = registry_filepath or self._default_registry_filepath
 
     @property

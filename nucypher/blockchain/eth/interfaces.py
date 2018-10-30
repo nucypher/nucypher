@@ -1,4 +1,4 @@
-from logging import getLogger
+from twisted.logger import Logger
 from urllib.parse import urlparse
 
 from constant_sorrow import constants
@@ -108,7 +108,7 @@ class BlockchainInterface:
 
         """
 
-        self.log = getLogger("blockchain-interface")                       # type: Logger
+        self.log = Logger("blockchain-interface")                       # type: Logger
 
         #
         # Providers
@@ -129,7 +129,7 @@ class BlockchainInterface:
             for provider in providers:
                 self.add_provider(provider)
         else:
-            self.log.warning("No provider supplied for new blockchain interface; Using defaults")
+            self.log.warn("No provider supplied for new blockchain interface; Using defaults")
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
         recompile = True if compiler is not None else False

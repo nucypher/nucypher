@@ -1,6 +1,6 @@
 import random
 from abc import ABC
-from logging import getLogger
+from twisted.logger import Logger
 
 from constant_sorrow.constants import NO_CONTRACT_AVAILABLE, NO_BENEFICIARY, CONTRACT_NOT_DEPLOYED
 from typing import Generator, List, Tuple, Union
@@ -25,7 +25,7 @@ class EthereumContractAgent(ABC):
 
     def __init__(self, blockchain: Blockchain = None, contract: Contract = None) -> None:
 
-        self.log = getLogger(self.__class__.__name__)
+        self.log = Logger(self.__class__.__name__)
 
         if blockchain is None:
             blockchain = Blockchain.connect()

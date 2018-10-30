@@ -1,4 +1,4 @@
-from logging import getLogger
+from twisted.logger import Logger
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
 from typing import List
@@ -38,7 +38,7 @@ class TesterBlockchain(Blockchain):
     def __init__(self, test_accounts=None, poa=True, airdrop=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.log = getLogger("test-blockchain")  # type: Logger
+        self.log = Logger("test-blockchain")  # type: Logger
 
         # For use with Proof-Of-Authority test-blockchains
         if poa is True:

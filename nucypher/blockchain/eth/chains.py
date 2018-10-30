@@ -1,4 +1,4 @@
-from logging import getLogger
+from twisted.logger import Logger
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
 from typing import Union
@@ -20,7 +20,7 @@ class Blockchain:
 
     def __init__(self, interface: Union[BlockchainInterface, BlockchainDeployerInterface] = None) -> None:
 
-        self.log = getLogger("blockchain")                       # type: Logger
+        self.log = Logger("blockchain")                       # type: Logger
 
         # Default interface
         if interface is None:

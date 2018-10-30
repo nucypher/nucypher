@@ -14,7 +14,7 @@ import sys
 
 from nucypher.characters.lawful import Ursula
 
-root = logging.getLogger()
+root = logging.Logger()
 root.setLevel(logging.DEBUG)
 
 ch = logging.StreamHandler(sys.stdout)

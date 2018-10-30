@@ -4,7 +4,7 @@ from collections import defaultdict
 from collections import deque
 from contextlib import suppress
 from logging import Logger
-from logging import getLogger
+from twisted.logger import Logger
 from tempfile import TemporaryDirectory
 from typing import Dict, ClassVar, Set
 from typing import Tuple
@@ -69,7 +69,7 @@ class Learner:
                  abort_on_learning_error: bool = False
                  ) -> None:
 
-        self.log = getLogger("characters")  # type: Logger
+        self.log = Logger("characters")  # type: Logger
 
         self.__common_name = common_name
         self.network_middleware = network_middleware
@@ -143,11 +143,14 @@ class Learner:
         for seednode_metadata in self._seed_nodes:
             __attempt_seednode_learning(seednode_metadata=seednode_metadata)
 
+        if not self.unresponsive_seed_nodes:
+            self.log.info("Finished learning about all seednodes.")
+
         if read_storages is True:
             self.read_nodes_from_storage()
 
         if not self.known_nodes:
-            self.log.warning("No seednodes were available after {} attempts".format(retry_attempts))
+            self.log.warn("No seednodes were available after {} attempts".format(retry_attempts))
             # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)
 
     def read_nodes_from_storage(self) -> set:
@@ -269,7 +272,7 @@ class Learner:
             self._learning_task.reset()
             self._learning_task()
         elif not force:
-            self.log.warning(
+            self.log.warn(
                 "Learning loop isn't started; can't learn about nodes now.  You can override this with force=True.")
         elif force:
             self.log.info("Learning loop wasn't started; forcing start now.")
@@ -302,7 +305,7 @@ class Learner:
                 return True
 
             if not self._learning_task.running:
-                self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
+                self.log.warn("Blocking to learn about nodes, but learning loop isn't running.")
             if learn_on_this_thread:
                 self.learn_from_teacher_node(eager=True)
 
@@ -333,7 +336,7 @@ class Learner:
                 return True
 
             if not self._learning_task.running:
-                self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
+                self.log.warn("Blocking to learn about nodes, but learning loop isn't running.")
             if learn_on_this_thread:
                 self.learn_from_teacher_node(eager=True)
 
@@ -408,7 +411,7 @@ class Learner:
         try:
             current_teacher = self.current_teacher_node()
         except self.NotEnoughTeachers as e:
-            self.log.warning("Can't learn right now: {}".format(e.args[0]))
+            self.log.warn("Can't learn right now: {}".format(e.args[0]))
             return
 
         rest_url = current_teacher.rest_interface  # TODO: Name this..?
@@ -470,9 +473,7 @@ class Learner:
                 # TODO: Account for possibility that stamp, rather than interface, was bad.
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                           "Propagated by: {}".format(current_teacher.checksum_public_address, rest_url)
-                self.log.warning(message)
-            self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-
+                self.log.warn(message)
             self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
             self.remember_node(node)
             new_nodes.append(node)

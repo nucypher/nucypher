@@ -70,7 +70,7 @@ KEYRING_PASSPHRASE_ENVVAR = 'NUCYPHER_KEYRING_PASSPHRASE'
 
 # Setup Logging
 if DEBUG:
-    root = logging.getLogger()
+    root = logging.Logger("cli")
     root.setLevel(logging.DEBUG)
 
     ch = logging.StreamHandler(sys.stdout)
@@ -87,7 +87,7 @@ PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetail
 class NucypherClickConfig:
 
     def __init__(self):
-        self.log = logging.getLogger(self.__class__.__name__)
+        self.log = logging.Logger(self.__class__.__name__)
 
         # Node Configuration
         self.node_configuration = constants.NO_NODE_CONFIGURATION

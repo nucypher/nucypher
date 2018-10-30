@@ -1,7 +1,7 @@
 import json
 from collections import OrderedDict
 from json import JSONDecodeError
-from logging import getLogger
+from twisted.logger import Logger
 
 import maya
 from constant_sorrow import constants
@@ -219,7 +219,7 @@ class Miner(NucypherTokenActor):
 
     def __init__(self, is_me: bool, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.log = getLogger("miner")
+        self.log = Logger("miner")
         self.is_me = is_me
 
         if is_me:
@@ -311,7 +311,7 @@ class Miner(NucypherTokenActor):
             self.log.critical("Unhandled error during node staking.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warning("Unhandled error during node learning: {}".format(failure.getTraceback()))
+            self.log.warn("Unhandled error during node learning: {}".format(failure.getTraceback()))
 
     @only_me
     def start_staking_loop(self, now=True):
