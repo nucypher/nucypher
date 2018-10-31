@@ -52,14 +52,14 @@ library UmbralDeserializer {
         uint256 pointV2yCoord;
     }
 
-    uint8 constant BIGNUM_SIZE = 32;
-    uint8 constant POINT_SIZE = 33;
-    uint8 constant SIGNATURE_SIZE = 64;
-    uint8 constant CAPSULE_SIZE = 2 * POINT_SIZE + BIGNUM_SIZE;
-    uint8 constant CORRECTNESS_PROOF_SIZE = 4 * POINT_SIZE + BIGNUM_SIZE + SIGNATURE_SIZE;
-    uint8 constant CAPSULE_FRAG_SIZE = 3 * POINT_SIZE + BIGNUM_SIZE;
-    uint8 constant FULL_CAPSULE_FRAG_SIZE = CAPSULE_FRAG_SIZE + CORRECTNESS_PROOF_SIZE;
-    uint8 constant PRECOMPUTED_DATA_SIZE = 14 * BIGNUM_SIZE;
+    uint256 constant BIGNUM_SIZE = 32;
+    uint256 constant POINT_SIZE = 33;
+    uint256 constant SIGNATURE_SIZE = 64;
+    uint256 constant CAPSULE_SIZE = 2 * POINT_SIZE + BIGNUM_SIZE;
+    uint256 constant CORRECTNESS_PROOF_SIZE = 4 * POINT_SIZE + BIGNUM_SIZE + SIGNATURE_SIZE;
+    uint256 constant CAPSULE_FRAG_SIZE = 3 * POINT_SIZE + BIGNUM_SIZE;
+    uint256 constant FULL_CAPSULE_FRAG_SIZE = CAPSULE_FRAG_SIZE + CORRECTNESS_PROOF_SIZE;
+    uint256 constant PRECOMPUTED_DATA_SIZE = 14 * BIGNUM_SIZE;
 
     /**
     * @notice Deserialize to capsule (not activated)
@@ -130,9 +130,8 @@ library UmbralDeserializer {
     }
 
     /**
-    * @notice Deserialize to pre calculated data
+    * @notice Deserialize to precomputed data
     **/
-    // TODO rename
     function toPreComputedData(bytes memory _preComputedData)
         internal pure returns (PreComputedData memory data)
     {
