@@ -1,0 +1,22 @@
+- name: "Update Application Code on Seednodes"
+  hosts: tag_Role_nu_seednodes
+  user: ubuntu
+  gather_facts: false
+  tasks:
+
+    - git:
+        repo: "{{ git_repo }}"
+        version: "{{ git_version }}"
+        dest: ./code
+        clone: no
+        update: yes
+
+    - name: "Restart Ursula Service"
+      become: yes
+      become_flags: "-H -S"
+      systemd:
+        daemon_reload: yes
+        no_block: yes
+        enabled: yes
+        state: restarted
+        name: "ursula_node"
