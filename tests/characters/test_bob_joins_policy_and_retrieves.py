@@ -15,14 +15,17 @@ def test_federated_bob_retrieves(federated_ursulas,
                                  capsule_side_channel,
                                  enacted_federated_policy
                                  ):
-    # Assume for the moment that Bob has already received a TreasureMap, perhaps via a side channel.
+
+    # Assume for the moment that Bob has already received a TreasureMap.
     treasure_map = enacted_federated_policy.treasure_map
     federated_bob.treasure_maps[treasure_map.public_id()] = treasure_map
 
     for ursula in federated_ursulas:
         federated_bob.remember_node(ursula)
 
-    # The side channel is represented as a single MessageKit, which is all that Bob really needs.
+    # The side channel delivers all that Bob needs at this point:
+    # - A single MessageKit, containing a Capsule
+    # - A representation of the data source
     the_message_kit, the_data_source = capsule_side_channel
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
@@ -57,6 +60,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     assert len(bob.known_nodes) == 2
 
     # Alice creates a policy granting access to Bob
+    # Just for fun, let's assume she distributes KFrags among Ursulas unknown to Bob
     n = DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - 2
     label = b'label://' + os.urandom(32)
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
@@ -71,7 +75,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     assert bob == policy.bob
     assert label == policy.label
 
-    # Bob joins the policy
+    # Now, Bob joins the policy
     bob.join_policy(label=label,
                     alice_pubkey_sig=federated_alice.stamp,
                     )
@@ -90,7 +94,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
-    # Bob takes the message_kit a retrieves the message within
+    # Bob takes the message_kit and retrieves the message within
     delivered_cleartexts = bob.retrieve(message_kit=message_kit,
                                         data_source=data_source,
                                         alice_verifying_key=alices_verifying_key)

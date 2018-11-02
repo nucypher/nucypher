@@ -232,7 +232,9 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
 
 
 def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, federated_alice, capsule_side_channel):
-    # The side channel is represented as a single MessageKit, which is all that Bob really needs.
+    # The side channel delivers all that Bob needs at this point:
+    # - A single MessageKit, containing a Capsule
+    # - A representation of the data source
     the_message_kit, the_data_source = capsule_side_channel
 
     # Bob has saved two WorkOrders so far.
@@ -268,7 +270,9 @@ def test_federated_bob_retrieves(federated_bob,
                                  capsule_side_channel,
                                  ):
 
-    # The side channel is represented as a single MessageKit, which is all that Bob really needs.
+    # The side channel delivers all that Bob needs at this point:
+    # - A single MessageKit, containing a Capsule
+    # - A representation of the data source
     the_message_kit, the_data_source = capsule_side_channel
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
