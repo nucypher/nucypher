@@ -1,10 +1,8 @@
 import random
-import time
 from collections import defaultdict
 from collections import deque
 from contextlib import suppress
 from logging import Logger
-from twisted.logger import Logger
 from tempfile import TemporaryDirectory
 from typing import Dict, ClassVar, Set
 from typing import Tuple
@@ -12,6 +10,7 @@ from typing import Union, List
 
 import maya
 import requests
+import time
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
@@ -19,6 +18,7 @@ from requests.exceptions import SSLError
 from twisted.internet import reactor, defer
 from twisted.internet import task
 from twisted.internet.threads import deferToThread
+from twisted.logger import Logger
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -127,14 +127,17 @@ class Learner:
         """
 
         def __attempt_seednode_learning(seednode_metadata, current_attempt=1):
+            from nucypher.characters.lawful import Ursula
             self.log.debug(
                 "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_address,
                                                 seednode_metadata.rest_host,
                                                 seednode_metadata.rest_port))
-            seed_node = self.network_middleware.learn_about_seednode(seednode_metadata=seednode_metadata,
-                                                                    known_certs_dir=self.known_certificates_dir,
-                                                                    timeout=timeout,
-                                                                    accept_federated_only=self.federated_only)  # TODO: 466
+
+            seed_node = Ursula.from_seednode_metadata(seednode_metadata=seednode_metadata,
+                                                      network_middleware=self.network_middleware,
+                                                      certificates_directory=self.known_certificates_dir,
+                                                      timeout=timeout,
+                                                      federated_only=self.federated_only)  # TODO: 466
             if seed_node is False:
                 self.unresponsive_seed_nodes.add(seednode_metadata)
             else:
@@ -201,15 +204,22 @@ class Learner:
         elif now:
             self.load_seednodes()
             self._learning_task()  # Unhandled error might happen here.  TODO: Call this in a safer place.
-            d = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
-            d.addErrback(self.handle_learning_errors)
-            return d
+            self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
+            self.learning_deferred.addErrback(self.handle_learning_errors)
+            return self.learning_deferred
         else:
             seeder_deferred = deferToThread(self.load_seednodes)
             learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
             seeder_deferred.addErrback(self.handle_learning_errors)
             learner_deferred.addErrback(self.handle_learning_errors)
-            return defer.DeferredList([seeder_deferred, learner_deferred])
+            self.learning_deferred = defer.DeferredList([seeder_deferred, learner_deferred])
+            return self.learning_deferred
+
+    def stop_learning_loop(self):
+        """
+        Only for tests at this point.  Maybe some day for graceful shutdowns.
+        """
+
 
     def handle_learning_errors(self, *args, **kwargs):
         failure = args[0]
@@ -631,7 +641,6 @@ class Character(Learner):
                 self.nickname = self.nickname_metadata = constants.NO_NICKNAME
             else:
                 raise
-
 
     def __eq__(self, other) -> bool:
         return bytes(self.stamp) == bytes(other.stamp)
