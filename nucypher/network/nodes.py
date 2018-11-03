@@ -4,17 +4,17 @@ import OpenSSL
 import maya
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509 import Certificate
+from cryptography.x509 import Certificate, NameOID
 from eth_keys.datatypes import Signature as EthSignature
+from twisted.logger import Logger
 
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.keyring import _write_tls_certificate
-from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
-from nucypher.network.nicknames import nickname_from_seed
+from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
-from twisted.logger import Logger
+
 
 class VerifiableNode:
     _evidence_of_decentralized_identity = constants.NOT_SIGNED
@@ -22,6 +22,7 @@ class VerifiableNode:
     verified_interface = False
     _verified_node = False
     _interface_info_splitter = (int, 4, {'byteorder': 'big'})
+    log = Logger("network/nodes")
 
     def __init__(self,
                  certificate: Certificate,
@@ -29,8 +30,6 @@ class VerifiableNode:
                  interface_signature=constants.NOT_SIGNED.bool_value(False),
                  timestamp=constants.NOT_SIGNED,
                  ) -> None:
-
-        self.log = Logger(self.__class__.__name__)
 
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
@@ -223,3 +222,89 @@ class VerifiableNode:
         _write_tls_certificate(self.certificate, full_filepath=certificate_filepath, force=force)
         self.certificate_filepath = certificate_filepath
         self.log.info("Saved new TLS certificate {}".format(certificate_filepath))
+
+    @classmethod
+    def from_seednode_metadata(cls,
+                               seednode_metadata,
+                               *args,
+                               **kwargs):
+        """
+        Essentially another deserialization method, but this one doesn't reconstruct a complete
+        node from bytes; instead it's just enough to connect to and verify a node.
+        """
+
+        return cls.from_seed_and_stake_info(checksum_address=seednode_metadata.checksum_address,
+                                            host=seednode_metadata.rest_host,
+                                            port=seednode_metadata.rest_port,
+                                            *args, **kwargs)
+
+    @classmethod
+    def from_seed_and_stake_info(cls, host,
+                                 certificates_directory,
+                                 federated_only,
+                                 port=9151,
+                                 checksum_address=None,
+                                 timeout=2,
+                                 minimum_stake=0,
+                                 network_middleware=None,
+                                 *args,
+                                 **kwargs
+                                 ):
+        if network_middleware is None:
+            network_middleware = RestMiddleware()
+
+        certificate = network_middleware.get_certificate(host=host,
+                                                         port=port,
+                                                         )
+        real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+        # Write certificate; this is really only for temporary purposes.  Ideally, we'd use
+        # it in-memory here but there's no obvious way to do that.
+        filename = '{}.{}'.format(checksum_address, Encoding.PEM.name.lower())
+        certificate_filepath = os.path.join(certificates_directory, filename)
+        _write_tls_certificate(certificate=certificate, full_filepath=certificate_filepath, force=True)
+        cls.log.info("Saved seednode {} TLS certificate".format(checksum_address))
+
+        potential_seed_node = cls.from_rest_url(
+            host=real_host,
+            port=port,
+            network_middleware=network_middleware,
+            certificate_filepath=certificate_filepath,
+            federated_only=True,
+            *args,
+            **kwargs)  # TODO: 466
+
+        if checksum_address:
+            if not checksum_address == potential_seed_node.checksum_public_address:
+                raise potential_seed_node.SuspiciousActivity(
+                    "This seed node has a different wallet address: {} (was hoping for {}).  Are you sure this is a seed node?".format(
+                        potential_seed_node.checksum_public_address,
+                        checksum_address))
+        else:
+            if minimum_stake > 0:
+                # TODO: check the blockchain to verify that address has more then minimum_stake. #511
+                raise NotImplementedError("Stake checking is not implemented yet.")
+        try:
+            potential_seed_node.verify_node(
+                network_middleware=network_middleware,
+                accept_federated_only=federated_only,
+                certificate_filepath=certificate_filepath)
+        except potential_seed_node.InvalidNode:
+            raise  # TODO: What if our seed node fails verification?
+        return potential_seed_node
+
+    @classmethod
+    def from_rest_url(cls,
+                      network_middleware: RestMiddleware,
+                      host: str,
+                      port: int,
+                      certificate_filepath,
+                      federated_only: bool = False,
+                      *args,
+                      **kwargs):
+
+        response = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
+        if not response.status_code == 200:
+            raise RuntimeError("Got a bad response: {}".format(response))
+
+        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only)
+        return stranger_ursula_from_public_keys
