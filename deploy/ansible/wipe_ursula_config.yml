@@ -1,5 +1,5 @@
 - name: "Start Ursulas"
-  hosts: tag_Role_nu_seednodes
+  hosts: ec2
   user: ubuntu
   gather_facts: false
 

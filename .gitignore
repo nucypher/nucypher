@@ -26,6 +26,6 @@ mypy_reports/
 reports/
 test-*
 *.sqlite3
-*ansible/variables.yml
+*variables.yml
 *ansible/*.retry
 *ansible/inventory/*

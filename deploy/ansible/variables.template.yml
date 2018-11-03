@@ -1,3 +1,6 @@
+#
+# Nucypher Ansible Variables (EC2 Provisioning) Template
+#
 STATE_RES_NAME: "${STATE_RES_NAME}"
 ec2_region: "${EC2_REGION}"
 ec2_instance_type: "${EC2_INSTANCE_TYPE}"

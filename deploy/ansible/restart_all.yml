@@ -1,5 +1,5 @@
 - name: "Restart Ursulas"
-  hosts: tag_Role_nu_seednodes
+  hosts: seednodes
   user: ubuntu
   gather_facts: false
   tasks:

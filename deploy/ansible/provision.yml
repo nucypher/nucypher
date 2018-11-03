@@ -30,7 +30,7 @@
     - name: "Add Provisioned Servers as Hosts"
       add_host:
         name: "{{ item.public_ip }}"
-        groups: tag_Role_nu_seednodes
+        groups: seednodes
         ec2_region: "{{ ec2_region }}"
         ec2_tag_Type: "{{ ec2_tag_Type}}"
         ec2_tag_Role: "{{ ec2_tag_Role }}"
@@ -45,7 +45,7 @@
 #  Spin-Up Seednode Services
 #
 - name: "Start Ursulas"
-  hosts: tag_Role_nu_seednodes
+  hosts: seednodes
   user: ubuntu
   gather_facts: false
 
@@ -103,9 +103,6 @@
       shell: head -c 32 /dev/urandom | sha256sum
       register: ursula_passphrase
 
-    - debug:
-        msg: "Ursula passphrase output is {{ursula_passphrase}}"
-
     - name: "Configure Ursula"
       shell: "pipenv run nucypher --federated-only configure install --ursula --rest-host {{inventory_hostname}}"
       args:
@@ -128,9 +125,6 @@
     - name: "Set Ursula Seed Node Fact"
       set_fact:
         seed_node_metadata: "{{ ursula_seed_node_config['content'] | b64decode }}"
-
-    - debug:
-        msg: "{{seed_node_metadata}}"
 
     - name: "Get Ursula env dir"
       shell: "pipenv --venv"
