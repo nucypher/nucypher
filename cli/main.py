@@ -60,24 +60,31 @@ def echo_version(ctx, param, value):
     ctx.exit()
 
 
-#
-# CLI Configuration
-#
-
-# CLI Constants
+# Constants
 DEBUG = True
-KEYRING_PASSPHRASE_ENVVAR = 'NUCYPHER_KEYRING_PASSPHRASE'
+REPORT_TO_SENTRY = True
+KEYRING_PASSPHRASE_ENVVAR_KEY = 'NUCYPHER_KEYRING_PASSPHRASE'
 
-# Setup Logging
+# Setup Logging #
+################
 if DEBUG:
     root = logging.Logger("cli")
     root.setLevel(logging.DEBUG)
 
     ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.DEBUG)  # TODO: set to INFO
+    ch.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     ch.setFormatter(formatter)
     root.addHandler(ch)
+
+# Report to Sentry #
+####################
+
+if REPORT_TO_SENTRY:
+    import sentry_sdk
+    sentry_sdk.init("https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685")
+
+####################
 
 # Pending Configuration Named Tuple
 fields = 'passphrase wallet signing tls skip_keys save_file'.split()
@@ -208,8 +215,8 @@ class NucypherClickConfig:
                 skip_all_key_generation = click.confirm("Skip all key generation (Provide custom configuration file)?")
 
         if not skip_all_key_generation:
-            if os.environ.get(KEYRING_PASSPHRASE_ENVVAR):
-                passphrase = os.environ.get(KEYRING_PASSPHRASE_ENVVAR)
+            if os.environ.get(KEYRING_PASSPHRASE_ENVVAR_KEY):
+                passphrase = os.environ.get(KEYRING_PASSPHRASE_ENVVAR_KEY)
             else:
                 passphrase = click.prompt("Enter a passphrase to encrypt your keyring",
                                           hide_input=True, confirmation_prompt=True)
@@ -1106,7 +1113,7 @@ def status(config,
         click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
     click.echo('\n')
 
-    seednode_addresses = list(bn.checksum_address for bn in BOOTNODES)
+    seednode_addresses = list(bn.checksum_address for bn in SEEDNODES)
     for node in known_nodes:
         row_template = "{} | {} | {}"
         node_type = 'known'
@@ -1158,7 +1165,7 @@ def ursula(config,
 
     """
 
-    password = os.environ.get(KEYRING_PASSPHRASE_ENVVAR, None)
+    password = os.environ.get(KEYRING_PASSPHRASE_ENVVAR_KEY, None)
     if not password:
         password = click.prompt("Password to unlock Ursula's keyring", hide_input=True)
 

@@ -15,6 +15,7 @@ from typing import Set, Union
 from nucypher.blockchain.eth import constants
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import SEEDNODES
 from nucypher.crypto.api import secure_random
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEST_URSULA_STARTING_PORT,
@@ -149,7 +150,7 @@ class UrsulaCommandProtocol(LineReceiver):
             click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
         click.echo('\n')
 
-        seednode_addresses = list(bn.checksum_address for bn in BOOTNODES)
+        seednode_addresses = list(bn.checksum_address for bn in SEEDNODES)
         for address, node in known_nodes.items():
             row_template = "{} | {} | {}"
             node_type = 'known'

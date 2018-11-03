@@ -52,6 +52,9 @@ pytest-cov = "*"
 mypy = "*"
 codecov = "*"
 coverage = "*"
+boto3 = "*"
+sentry-sdk = "==0.5.2"
+ansible = "*"
 
 [pipenv]
 allow_prereleases = true
