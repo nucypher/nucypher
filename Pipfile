@@ -38,7 +38,6 @@ appdirs = "*"
 click = "*"
 colorama = "*"
 moto = "*"
-boto3 = "*"
 nucypher = {editable = true, path = "."}
 
 [dev-packages]

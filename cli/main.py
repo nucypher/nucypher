@@ -77,7 +77,7 @@ if DEBUG:
 
 if REPORT_TO_SENTRY:
     import sentry_sdk
-    sentry_sdk.init("https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685")
+    sentry_sdk.init(NUCYPHER_SENTRY_ENDPOINT, release=nucypher.__version__)
 
 ####################
 
