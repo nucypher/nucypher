@@ -16,9 +16,13 @@ if REPORT_TO_SENTRY:
     client = Client(dsn=NUCYPHER_SENTRY_ENDPOINT)
 
     def logToSentry(event):
+
+        # Handle Logs
         if not event.get('isError') or 'failure' not in event:
             add_breadcrumb(event)
             return
+
+        # Handle Failures
         f = event['failure']
         capture_exception((f.type, f.value, f.getTracebackObject()))
 
