@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 
+import collections
 import hashlib
 import json
 import logging
 import os
 import random
+import shutil
 import sys
+from typing import Tuple, ClassVar
 
 import click
-import collections
-import shutil
 from constant_sorrow import constants
 from eth_utils import is_checksum_address
-from more_itertools import seekable
 from twisted.internet import reactor, stdio
-from typing import Tuple, ClassVar
 from web3.middleware import geth_poa_middleware
 
+import nucypher
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent, EthereumContractAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.constants import (DISPATCHER_SECRET_LENGTH,
@@ -28,7 +28,8 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import BASE_DIR, SEEDNODES, SeednodeMetadata
+from nucypher.config.constants import BASE_DIR, SEEDNODES, SeednodeMetadata, NUCYPHER_SENTRY_ENDPOINT, REPORT_TO_SENTRY, \
+    DEBUG
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
@@ -37,7 +38,6 @@ from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOU
                                                   DEFAULT_SIMULATION_REGISTRY_FILEPATH)
 from nucypher.utilities.sandbox.ursula import UrsulaCommandProtocol
 
-__version__ = '0.1.0-alpha.0'
 BANNER = """
                                   _               
                                  | |              
@@ -50,7 +50,7 @@ BANNER = """
                                     
     version {}
 
-""".format(__version__)
+""".format(nucypher.__version__)
 
 
 def echo_version(ctx, param, value):
@@ -60,17 +60,12 @@ def echo_version(ctx, param, value):
     ctx.exit()
 
 
-# Constants
-DEBUG = True
-REPORT_TO_SENTRY = True
-KEYRING_PASSPHRASE_ENVVAR_KEY = 'NUCYPHER_KEYRING_PASSPHRASE'
-
 # Setup Logging #
 ################
-if DEBUG:
-    root = logging.Logger("cli")
-    root.setLevel(logging.DEBUG)
 
+root = logging.Logger("cli")
+if DEBUG:
+    root.setLevel(logging.DEBUG)
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
