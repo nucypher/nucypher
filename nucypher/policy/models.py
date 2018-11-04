@@ -155,7 +155,7 @@ class Policy:
         A hash of:
         * Alice's public key
         * Bob's public key
-        * the uri
+        * the label
 
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.
@@ -375,7 +375,7 @@ class TreasureMap:
         A hash of:
         * Alice's public key
         * Bob's public key
-        * the uri
+        * the label
 
         Alice and Bob have all the information they need to construct this.
         Ursula does not, so we share it with her.

@@ -11,9 +11,6 @@ from nucypher.utilities.sandbox.policy import MockPolicyCreation
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agents):
 
-    # Monkey patch KFrag repr for better debugging.
-    KFrag.__repr__ = lambda kfrag: "KFrag: {}".format(bytes(kfrag)[:10].hex())
-
     # Monkey patch Policy Creation
     _token_agent, _miner_agent, policy_agent = three_agents
     policy_agent.blockchain.wait_for_receipt = MockPolicyCreation.wait_for_receipt
@@ -48,9 +45,6 @@ def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agen
 
 @pytest.mark.usefixtures('federated_ursulas')
 def test_federated_grant(federated_alice, federated_bob):
-
-    # Monkey patch KFrag repr for better debugging.
-    KFrag.__repr__ = lambda kfrag: "KFrag: {}".format(bytes(kfrag)[:10].hex())
 
     # Setup the policy details
     n = 3

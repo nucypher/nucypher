@@ -725,7 +725,7 @@ class Character(Learner):
                     message_kit: Union[UmbralMessageKit, bytes],
                     signature: Signature = None,
                     decrypt=False,
-                    delegator_signing_key: UmbralPublicKey = None,
+                    delegator_verifying_key: UmbralPublicKey = None,
                     ) -> tuple:
         """
         Inverse of encrypt_for.
@@ -736,7 +736,7 @@ class Character(Learner):
         :param message_kit: the message to be (perhaps decrypted and) verified.
         :param signature: The signature to check.
         :param decrypt: Whether or not to decrypt the messages.
-        :param delegator_signing_key: A signing key from the original delegator.
+        :param delegator_verifying_key: A signing key from the original delegator.
             This is used only when decrypting a MessageKit with an activated Capsule
             to check that the KFrag used to create each attached CFrag is the
             authentic KFrag initially created by the delegator.
@@ -755,7 +755,7 @@ class Character(Learner):
 
         if decrypt:
             # We are decrypting the message; let's do that first and see what the sig header says.
-            cleartext_with_sig_header = self.decrypt(message_kit, verifying_key=delegator_signing_key)
+            cleartext_with_sig_header = self.decrypt(message_kit, verifying_key=delegator_verifying_key)
             sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
             if sig_header == constants.SIGNATURE_IS_ON_CIPHERTEXT:
                 # THe ciphertext is what is signed - note that for later.
