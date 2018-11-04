@@ -105,7 +105,7 @@ class Alice(Character, PolicyAuthor):
 
         return policy
 
-    def grant(self, bob, uri, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None):
+    def grant(self, bob, label, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None):
         if not m:
             # TODO: get m from config  #176
             raise NotImplementedError
@@ -124,7 +124,7 @@ class Alice(Character, PolicyAuthor):
         if handpicked_ursulas is None:
             handpicked_ursulas = set()
 
-        policy = self.create_policy(bob, uri, m, n)
+        policy = self.create_policy(bob, label, m, n)
 
         #
         # We'll find n Ursulas by default.  It's possible to "play the field" by trying different
@@ -381,7 +381,7 @@ class Bob(Character):
         delivered_cleartext = self.verify_from(data_source,
                                                message_kit,
                                                decrypt=True,
-                                               delegator_signing_key=alice_verifying_key)
+                                               delegator_verifying_key=alice_verifying_key)
 
         cleartexts.append(delivered_cleartext)
         return cleartexts
