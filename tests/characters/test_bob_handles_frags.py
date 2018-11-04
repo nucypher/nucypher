@@ -14,6 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from tempfile import TemporaryDirectory
 
 import pytest
@@ -24,14 +26,6 @@ from umbral.fragments import KFrag, CapsuleFrag
 
 from nucypher.crypto.powers import EncryptingPower
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-
-
-@pytest.fixture(scope='function')
-def certificates_tempdir():
-    custom_filepath = '/tmp/nucypher-test-certificates-'
-    cert_tmpdir = TemporaryDirectory(prefix=custom_filepath)
-    yield cert_tmpdir.name
-    cert_tmpdir.cleanup()
 
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_policy, federated_bob):
@@ -135,8 +129,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     saves it and responds by re-encrypting and giving Bob a cFrag.
 
     This is a multipart test; it shows proper relations between the Characters Ursula and Bob and also proper
-    interchange between a KFrag, Capsule, and CFrag object in the cont
-    ext of REST-driven proxy re-encryption.
+    interchange between a KFrag, Capsule, and CFrag object in the context of REST-driven proxy re-encryption.
     """
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
@@ -258,7 +251,9 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
 
 
 def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, federated_alice, capsule_side_channel):
-    # The side channel is represented as a single MessageKit, which is all that Bob really needs.
+    # The side channel delivers all that Bob needs at this point:
+    # - A single MessageKit, containing a Capsule
+    # - A representation of the data source
     the_message_kit, the_data_source = capsule_side_channel
 
     # Bob has saved two WorkOrders so far.
@@ -285,5 +280,26 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
     # At long last.
     cleartext = federated_bob.verify_from(the_data_source, the_message_kit,
                                           decrypt=True,
-                                          delegator_signing_key=federated_alice.stamp.as_umbral_pubkey())
+                                          delegator_verifying_key=federated_alice.stamp.as_umbral_pubkey())
     assert cleartext == b'Welcome to the flippering.'
+
+
+def test_federated_bob_retrieves(federated_bob,
+                                 federated_alice,
+                                 capsule_side_channel,
+                                 ):
+
+    # The side channel delivers all that Bob needs at this point:
+    # - A single MessageKit, containing a Capsule
+    # - A representation of the data source
+    the_message_kit, the_data_source = capsule_side_channel
+
+    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
+
+    delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
+                                                  data_source=the_data_source,
+                                                  alice_verifying_key=alices_verifying_key)
+
+    # We show that indeed this is the passage originally encrypted by the DataSource.
+    assert b"Welcome to the flippering." == delivered_cleartexts[0]
+
