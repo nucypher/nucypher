@@ -490,12 +490,12 @@ class RevocationNotice:
     def __init__(self, node_id, arrangement_id, signature=None):
         self.node_id = node_id
         self.arrangement_id = arrangement_id
-        self.notice = b"REVOKE-" + arrangement_id
+        self.content = b"REVOKE-" + arrangement_id
         self.signature = signature or constants.NOT_SIGNED
 
     def __bytes__(self):
         if not self.signature is constants.NOT_SIGNED:
-            return self.notice + bytes(self.signature)
+            return self.content + bytes(self.signature)
         return constants.NOT_SIGNED
 
     def __len__(self):
@@ -511,7 +511,7 @@ class RevocationNotice:
         """
         Signs the notice so Ursula can validate its authenticity.
         """
-        self.signature = signer(self.notice)
+        self.signature = signer(self.content)
 
     def sign_receipt(self, signer):
         """
@@ -526,7 +526,7 @@ class RevocationNotice:
         Verifies the notice was from the provided pubkey.
         """
         from nucypher.crypto.signing import InvalidSignature
-        if not self.signature.verify(self.notice, alice_pubkey):
+        if not self.signature.verify(self.content, alice_pubkey):
             raise InvalidSignature("Notice has an invalid signature: {}".format(self.signature))
         return True
 
