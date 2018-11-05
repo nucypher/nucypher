@@ -35,7 +35,6 @@ ABOUT = dict()
 with open(os.path.join(BASE_DIR, PACKAGE_NAME, "__about__.py")) as f:
     exec(f.read(), ABOUT)
 
-
 with open(os.path.join(BASE_DIR, "README.md")) as f:
     long_description = f.read()
 
@@ -82,7 +81,7 @@ INSTALL_REQUIRES = [
     'requests',
     'sqlalchemy',
     'apistar==0.5.42',
-    'tzlocal==2.0.0b1',
+    'tzlocal==1.5.1',
     'maya',
 
     # Third Party (Ethereum)
@@ -143,7 +142,7 @@ setup(name=ABOUT['__title__'],
       install_requires=INSTALL_REQUIRES,
       extras_require=EXTRAS_REQUIRE,
 
-      packages=[PACKAGE_NAME],
+      packages=[PACKAGE_NAME, 'cli'],
       package_data={PACKAGE_NAME: [
           'blockchain/eth/*', 'project/contracts/*',
           'blockchain/eth/sol_source/contracts/lib/*',
@@ -151,22 +150,18 @@ setup(name=ABOUT['__title__'],
           'blockchain/eth/sol_source/contracts/zepellin/ownership/*',
           'blockchain/eth/sol_source/contracts/zepellin/token/*']},
       include_package_data=True,
-      entry_points='''
-                   [console_scripts]
-                   {}=cli.main:cli
-                   '''.format(PACKAGE_NAME),
+      entry_points='[console_scripts]\n{}=cli.main:cli'.format(PACKAGE_NAME),
       cmdclass={'verify': VerifyVersionCommand},
       classifiers=[
           "Development Status :: 2 - Pre-Alpha",
           "Intended Audience :: Science/Research",
           "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
           "Natural Language :: English",
-          "Programming Language :: Python :: Implementation",
+          "Programming Language :: Python",
           "Programming Language :: Python :: 3 :: Only",
           "Programming Language :: Python :: 3.5",
           "Programming Language :: Python :: 3.6",
           "Programming Language :: Python :: 3.7",
-          "Topic :: Scientific/Engineering",
-      ],
+          "Topic:: Security"],
       python_requires='>=3'
       )
