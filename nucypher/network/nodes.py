@@ -324,3 +324,16 @@ class VerifiableNode:
 
         stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only)
         return stranger_ursula_from_public_keys
+
+    def nickname_icon(self):
+        icon_template = """
+        <div class="nucypher-nickname-icon" style="border-top-color:{first_color}; border-left-color:{first_color}; border-bottom-color:{second_color}; border-right-color:{second_color};">
+        <span class="symbol">{first_symbol}<span> {second_symbol}
+        </div>
+        """.replace("  ", "").replace('\n', "")
+        return icon_template.format(
+            first_color=self.nickname_metadata[0]['hex'],
+            first_symbol=self.nickname_metadata[1]['unicode_symbol'],
+            second_color=self.nickname_metadata[2]['hex'],
+            second_symbol=self.nickname_metadata[3]['unicode_symbol'],
+        )
