@@ -50,8 +50,6 @@ def nickname_from_seed(seed):
     symbol1 = random.choice(symbols)
     symbols.remove(symbol1)
     symbol2 = random.choice(symbols)
-    symbol1_name = unicodedata.name(symbol1).split()[-1].capitalize()
-    symbol2_name = unicodedata.name(symbol2).split()[-1].capitalize()
-    nickname = "{} {} {} {}".format(color1['color'], symbol1_name, color2['color'], symbol2_name)
+    nickname = "{} {} {} {}".format(color1['color'], nicename(symbol1), color2['color'], nicename(symbol2))
     nickname_metadata = (color1, symbol1, color2, symbol2)
     return nickname, nickname_metadata
