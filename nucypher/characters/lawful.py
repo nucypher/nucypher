@@ -167,13 +167,21 @@ class Alice(Character, PolicyAuthor):
         # sending to Ursula.
         policy.revocation_kit.sign(self.stamp)
 
-        failed_revocations = list()
-        for node_id, notice in policy.revocation_kit:
-            ursula = self.known_nodes[node_id]
-            response = self.network_middleware.revoke_arrangement(ursula, notice)
-            if response.status_code != 200:
-                failed_revocations.append(notice)
-
+        try:
+            # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
+            revocation_threshold = ((policy.n - policy.treasure_map.m) + 1)
+            self.block_until_specific_nodes_are_known(
+                    policy.revocation_kit.revokable_addresses,
+                    allow_missing=revocation_threshold)
+        except self.NotEnoughTeachers as e:
+            raise e
+        else:
+            failed_revocations = list()
+            for node_id, notice in policy.revocation_kit:
+                ursula = self.known_nodes[node_id]
+                response = self.network_middleware.revoke_arrangement(ursula, notice)
+                if response.status_code != 200:
+                    failed_revocations.append(notice)
         return failed_revocations
 
 class Bob(Character):

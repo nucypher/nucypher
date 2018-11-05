@@ -90,10 +90,12 @@ class RevocationKit:
     def __len__(self):
         return len(self.revocation_notices)
 
-    @classmethod
-    def from_bytes(cls, some_bytes):
-        # TODO: Implement serialization
-        pass
+    @property
+    def revokable_addresses(self):
+        """
+        Returns a Set of revokable addresses in the checksum address formatting
+        """
+        return set(self.revocations.keys())
 
     def sign(self, signer):
         """

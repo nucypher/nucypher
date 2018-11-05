@@ -354,7 +354,7 @@ class Learner:
                 time.sleep(.1)
 
     def block_until_specific_nodes_are_known(self,
-                                             canonical_addresses: Set,
+                                             checksum_addresses: Set,
                                              timeout=LEARNING_TIMEOUT,
                                              allow_missing=0,
                                              learn_on_this_thread=False):
@@ -365,7 +365,7 @@ class Learner:
             if self._crashed:
                 return self._crashed
             rounds_undertaken = self._learning_round - starting_round
-            if canonical_addresses.issubset(self.__known_nodes):
+            if checksum_addresses.issubset(self.__known_nodes):
                 if rounds_undertaken:
                     self.log.info("Learned about all nodes after {} rounds.".format(rounds_undertaken))
                 return True
@@ -377,7 +377,7 @@ class Learner:
 
             if (maya.now() - start).seconds > timeout:
 
-                still_unknown = canonical_addresses.difference(self.__known_nodes)
+                still_unknown = checksum_addresses.difference(self.__known_nodes)
 
                 if len(still_unknown) <= allow_missing:
                     return False
