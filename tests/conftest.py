@@ -18,6 +18,10 @@ from twisted.logger import ILogObserver
 from twisted.logger import globalLogPublisher
 from zope.interface import provider
 
+from cli.main import NucypherClickConfig
+
+NucypherClickConfig.log_to_sentry = False
+
 @provider(ILogObserver)
 def simpleObserver(event):
     print(event)
