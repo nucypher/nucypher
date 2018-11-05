@@ -5,23 +5,12 @@
 
 # WIP w/ hendrix@tags/3.3.0rc1
 
-import asyncio
 import binascii
-import logging
 import os
 import shutil
 import sys
 
 from nucypher.characters.lawful import Ursula
-
-root = logging.Logger()
-root.setLevel(logging.DEBUG)
-
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-root.addHandler(ch)
 
 MY_REST_PORT = sys.argv[1]
 # TODO: Use real path tooling here.
