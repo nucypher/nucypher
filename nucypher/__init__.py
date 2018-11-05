@@ -14,9 +14,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-import sys
-
 from nucypher.__about__ import (
     __author__,  __license__, __summary__, __title__, __version__, __copyright__, __email__, __url__
 )
@@ -38,25 +35,6 @@ set_default_curve()
 ####################
 
 from nucypher.config.constants import REPORT_TO_SENTRY, NUCYPHER_SENTRY_ENDPOINT, PACKAGE_NAME
-
-if not hasattr(sys, '_pytest_is_running'):
-    try:
-        import sentry_sdk
-        from sentry_sdk.integrations.logging import LoggingIntegration
-    except ImportError:
-        if REPORT_TO_SENTRY is True:
-            raise ImportError("Sentry")
-    else:
-        import logging
-        sentry_logging = LoggingIntegration(
-            level=logging.INFO,        # Capture info and above as breadcrumbs
-            event_level=logging.DEBUG  # Send debug logs as events
-        )
-        sentry_sdk.init(
-            dsn=NUCYPHER_SENTRY_ENDPOINT,
-            integrations=[sentry_logging],
-            release='{}@{}'.format(PACKAGE_NAME, __version__)
-        )
 
 # Twisted Log Observer #
 ########################
