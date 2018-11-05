@@ -328,12 +328,13 @@ class VerifiableNode:
     def nickname_icon(self):
         icon_template = """
         <div class="nucypher-nickname-icon" style="border-top-color:{first_color}; border-left-color:{first_color}; border-bottom-color:{second_color}; border-right-color:{second_color};">
-        <span class="symbol">{first_symbol}<span> {second_symbol}
+        <span class="symbol" style="color: {first_color}">{first_symbol}</span>
+        <span class="symbol" style="color: {second_color}">{second_symbol}</span>
         </div>
         """.replace("  ", "").replace('\n', "")
         return icon_template.format(
             first_color=self.nickname_metadata[0]['hex'],
-            first_symbol=self.nickname_metadata[1]['unicode_symbol'],
+            first_symbol=self.nickname_metadata[1],
             second_color=self.nickname_metadata[2]['hex'],
-            second_symbol=self.nickname_metadata[3]['unicode_symbol'],
+            second_symbol=self.nickname_metadata[3],
         )
