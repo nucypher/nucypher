@@ -21,7 +21,7 @@ from nucypher.config.constants import REPORT_TO_SENTRY
 
 @provider(ILogObserver)
 def simpleObserver(event):
-    print(event)
+    print(event.get('log_format'))
 
 
 if REPORT_TO_SENTRY:
