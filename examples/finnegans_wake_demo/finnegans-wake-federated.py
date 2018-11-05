@@ -44,17 +44,6 @@ from nucypher.network.middleware import RestMiddleware
 def simpleObserver(event):
     print(event)
 
-
-# Setup logging
-# root = Logger()
-# root.setLevel(LogLevel.debug)
-#
-# ch = logging.StreamHandler(sys.stdout)
-# ch.setLevel(logging.INFO)
-# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-# ch.setFormatter(formatter)
-# root.addHandler(ch)
-
 globalLogPublisher.addObserver(simpleObserver)
 
 # Temporary storage area for demo

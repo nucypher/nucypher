@@ -19,7 +19,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import collections
 import hashlib
 import json
-import logging
 import os
 import shutil
 import sys
@@ -29,6 +28,7 @@ import click
 from constant_sorrow import constants
 from eth_utils import is_checksum_address
 from twisted.internet import stdio
+from twisted.logger import Logger
 from web3.middleware import geth_poa_middleware
 
 import nucypher
@@ -78,28 +78,6 @@ def echo_version(ctx, param, value):
     click.secho(BANNER, bold=True)
     ctx.exit()
 
-
-# Setup Logging #
-################
-
-root = logging.Logger("cli")
-if DEBUG:
-    root.setLevel(logging.DEBUG)
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ch.setFormatter(formatter)
-    root.addHandler(ch)
-
-# Report to Sentry #
-####################
-
-if not hasattr(sys, '_pytest_is_running') and REPORT_TO_SENTRY:
-    import sentry_sdk
-    sentry_sdk.init(NUCYPHER_SENTRY_ENDPOINT, release=nucypher.__version__)
-
-####################
-
 # Pending Configuration Named Tuple
 fields = 'passphrase wallet signing tls skip_keys save_file'.split()
 PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetails', fields)
@@ -107,8 +85,23 @@ PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetail
 
 class NucypherClickConfig:
 
+    log_to_sentry = True
+
     def __init__(self):
-        self.log = logging.Logger(self.__class__.__name__)
+        if self.log_to_sentry:
+            import sentry_sdk
+            import logging
+            sentry_logging = LoggingIntegration(
+                level=logging.INFO,  # Capture info and above as breadcrumbs
+                event_level=logging.DEBUG  # Send debug logs as events
+            )
+            sentry_sdk.init(
+                dsn=NUCYPHER_SENTRY_ENDPOINT,
+                integrations=[sentry_logging],
+                release=nucypher.__version__
+            )
+
+        self.log = Logger(self.__class__.__name__)
 
         # Node Configuration
         self.node_configuration = constants.NO_NODE_CONFIGURATION
