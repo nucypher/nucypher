@@ -1,4 +1,13 @@
-"""Set default curve for tests"""
+from twisted.logger import ILogObserver
+from twisted.logger import globalLogPublisher
+from zope.interface import provider
+
+@provider(ILogObserver)
+def simpleObserver(event):
+    print(event)
+
+globalLogPublisher.addObserver(simpleObserver)
+
 
 """NOTICE:  Depends on fixture modules; do not delete"""
 from .fixtures import *

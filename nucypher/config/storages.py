@@ -2,7 +2,7 @@ import binascii
 import os
 import tempfile
 from abc import abstractmethod, ABC
-from logging import getLogger
+from twisted.logger import Logger
 
 import boto3 as boto3
 import shutil
@@ -33,7 +33,7 @@ class NodeStorage(ABC):
                  deserializer: Callable = NODE_DESERIALIZER,
                  ) -> None:
 
-        self.log = getLogger(self.__class__.__name__)
+        self.log = Logger(self.__class__.__name__)
         self.serializer = serializer
         self.deserializer = deserializer
         self.federated_only = federated_only
@@ -135,7 +135,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
                  ) -> None:
 
         super().__init__(*args, **kwargs)
-        self.log = getLogger(self.__class__.__name__)
+        self.log = Logger(self.__class__.__name__)
         self.known_metadata_dir = known_metadata_dir
 
     def __generate_filepath(self, checksum_address: str) -> str:

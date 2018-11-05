@@ -1,10 +1,8 @@
 import random
-import time
 from collections import defaultdict
 from collections import deque
 from contextlib import suppress
 from logging import Logger
-from logging import getLogger
 from tempfile import TemporaryDirectory
 from typing import Dict, ClassVar, Set
 from typing import Tuple
@@ -12,6 +10,7 @@ from typing import Union, List
 
 import maya
 import requests
+import time
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
@@ -19,6 +18,7 @@ from requests.exceptions import SSLError
 from twisted.internet import reactor, defer
 from twisted.internet import task
 from twisted.internet.threads import deferToThread
+from twisted.logger import Logger
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -69,7 +69,7 @@ class Learner:
                  abort_on_learning_error: bool = False
                  ) -> None:
 
-        self.log = getLogger("characters")  # type: Logger
+        self.log = Logger("characters")  # type: Logger
 
         self.__common_name = common_name
         self.network_middleware = network_middleware
@@ -108,6 +108,7 @@ class Learner:
         self._learning_round = 0  # type: int
         self._rounds_without_new_nodes = 0  # type: int
         self._seed_nodes = seed_nodes or []
+        self.unresponsive_seed_nodes = set()
 
         if self.start_learning_now:
             self.start_learning_loop(now=self.learn_on_same_thread)
@@ -124,30 +125,36 @@ class Learner:
         """
         Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
         """
-        unresponsive_seed_nodes = set()
 
         def __attempt_seednode_learning(seednode_metadata, current_attempt=1):
+            from nucypher.characters.lawful import Ursula
             self.log.debug(
                 "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_address,
                                                 seednode_metadata.rest_host,
                                                 seednode_metadata.rest_port))
-            seed_node = self.network_middleware.learn_about_seednode(seednode_metadata=seednode_metadata,
-                                                                    known_certs_dir=self.known_certificates_dir,
-                                                                    timeout=timeout,
-                                                                    accept_federated_only=self.federated_only)  # TODO: 466
+
+            seed_node = Ursula.from_seednode_metadata(seednode_metadata=seednode_metadata,
+                                                      network_middleware=self.network_middleware,
+                                                      certificates_directory=self.known_certificates_dir,
+                                                      timeout=timeout,
+                                                      federated_only=self.federated_only)  # TODO: 466
             if seed_node is False:
-                unresponsive_seed_nodes.add(seednode_metadata)
+                self.unresponsive_seed_nodes.add(seednode_metadata)
             else:
+                self.unresponsive_seed_nodes.discard(seednode_metadata)
                 self.remember_node(seed_node)
 
         for seednode_metadata in self._seed_nodes:
             __attempt_seednode_learning(seednode_metadata=seednode_metadata)
 
+        if not self.unresponsive_seed_nodes:
+            self.log.info("Finished learning about all seednodes.")
+
         if read_storages is True:
             self.read_nodes_from_storage()
 
         if not self.known_nodes:
-            self.log.warning("No seednodes were available after {} attempts".format(retry_attempts))
+            self.log.warn("No seednodes were available after {} attempts".format(retry_attempts))
             # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)
 
     def read_nodes_from_storage(self) -> set:
@@ -174,7 +181,7 @@ class Learner:
                              certificate_filepath=certificate_filepath)
         except SSLError:
             raise  # TODO
-        except requests.exceptions.ConnectionError:
+        except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
             self.log.info("No Response from known node {}|{}".format(node.rest_interface, node.checksum_public_address))
             raise self.UnresponsiveTeacher
 
@@ -196,15 +203,23 @@ class Learner:
             return False
         elif now:
             self.load_seednodes()
-            d = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
-            d.addErrback(self.handle_learning_errors)
-            return d
+            self._learning_task()  # Unhandled error might happen here.  TODO: Call this in a safer place.
+            self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
+            self.learning_deferred.addErrback(self.handle_learning_errors)
+            return self.learning_deferred
         else:
             seeder_deferred = deferToThread(self.load_seednodes)
             learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
             seeder_deferred.addErrback(self.handle_learning_errors)
             learner_deferred.addErrback(self.handle_learning_errors)
-            return defer.DeferredList([seeder_deferred, learner_deferred])
+            self.learning_deferred = defer.DeferredList([seeder_deferred, learner_deferred])
+            return self.learning_deferred
+
+    def stop_learning_loop(self):
+        """
+        Only for tests at this point.  Maybe some day for graceful shutdowns.
+        """
+
 
     def handle_learning_errors(self, *args, **kwargs):
         failure = args[0]
@@ -212,7 +227,9 @@ class Learner:
             self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warning("Unhandled error during node learning: {}".format(failure.getTraceback()))
+            self.log.warn("Unhandled error during node learning: {}".format(failure.getTraceback()))
+            if not self._learning_task.running:
+                self.start_learning_loop()  # TODO: Consider a single entry point for this with more elegant pause and unpause.
 
     def _crash_gracefully(self, failure=None):
         """
@@ -238,6 +255,12 @@ class Learner:
         self.teacher_nodes.extend(nodes_we_know_about)
 
     def cycle_teacher_node(self):
+        # To ensure that all the best teachers are availalble, first let's make sure
+        # that we have connected to all the seed nodes.
+        if self.unresponsive_seed_nodes:
+            self.log.info("Still have unresponsive seed nodes; trying again to connect.")
+            self.load_seednodes()  # Ideally, this is async and singular.
+
         if not self.teacher_nodes:
             self.select_teacher_nodes()
         try:
@@ -263,7 +286,7 @@ class Learner:
             self._learning_task.reset()
             self._learning_task()
         elif not force:
-            self.log.warning(
+            self.log.warn(
                 "Learning loop isn't started; can't learn about nodes now.  You can override this with force=True.")
         elif force:
             self.log.info("Learning loop wasn't started; forcing start now.")
@@ -296,10 +319,15 @@ class Learner:
                 return True
 
             if not self._learning_task.running:
-                self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
+                self.log.warn("Blocking to learn about nodes, but learning loop isn't running.")
             if learn_on_this_thread:
-                self.learn_from_teacher_node(eager=True)
+                try:
+                    self.learn_from_teacher_node(eager=True)
+                except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
+                    # TODO: Even this "same thread" logic can be done off the main thread.
+                    self.log.warn("Teacher was unreachable.  No good way to handle this on the main thread.")
 
+            # The rest of the fucking owl
             if (maya.now() - start).seconds > timeout:
                 if not self._learning_task.running:
                     raise self.NotEnoughTeachers("Learning loop is not running.  Start it with start_learning().")
@@ -327,7 +355,7 @@ class Learner:
                 return True
 
             if not self._learning_task.running:
-                self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
+                self.log.warn("Blocking to learn about nodes, but learning loop isn't running.")
             if learn_on_this_thread:
                 self.learn_from_teacher_node(eager=True)
 
@@ -402,7 +430,7 @@ class Learner:
         try:
             current_teacher = self.current_teacher_node()
         except self.NotEnoughTeachers as e:
-            self.log.warning("Can't learn right now: {}".format(e.args[0]))
+            self.log.warn("Can't learn right now: {}".format(e.args[0]))
             return
 
         rest_url = current_teacher.rest_interface  # TODO: Name this..?
@@ -451,7 +479,7 @@ class Learner:
             try:
                 if eager:
                     certificate_filepath = current_teacher.get_certificate_filepath(
-                        certificates_dir=certificate_filepath)
+                        certificates_dir=self.known_certificates_dir)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
@@ -464,9 +492,7 @@ class Learner:
                 # TODO: Account for possibility that stamp, rather than interface, was bad.
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                           "Propagated by: {}".format(current_teacher.checksum_public_address, rest_url)
-                self.log.warning(message)
-            self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-
+                self.log.warn(message)
             self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
             self.remember_node(node)
             new_nodes.append(node)
@@ -615,7 +641,6 @@ class Character(Learner):
                 self.nickname = self.nickname_metadata = constants.NO_NICKNAME
             else:
                 raise
-
 
     def __eq__(self, other) -> bool:
         return bytes(self.stamp) == bytes(other.stamp)

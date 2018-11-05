@@ -1,5 +1,5 @@
 import os
-from logging import getLogger
+from twisted.logger import Logger
 from os.path import abspath, dirname
 
 import itertools
@@ -31,7 +31,7 @@ class SolidityCompiler:
                  test_contract_dir: str= None
                  ) -> None:
 
-        self.log = getLogger('solidity-compiler')
+        self.log = Logger('solidity-compiler')
         # Compiler binary and root solidity source code directory
         self.__sol_binary_path = solc_binary_path if solc_binary_path is not None else self.__default_sol_binary_path
         self.source_dir = source_dir if source_dir is not None else self.__default_contract_dir

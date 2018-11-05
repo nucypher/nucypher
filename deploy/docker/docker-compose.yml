@@ -1,0 +1,9 @@
+version: '3'
+
+services:
+  nucypher:
+    container_name: nucypher-prometheus
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: nucypher-prometheus

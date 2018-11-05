@@ -32,10 +32,10 @@ class MockRestMiddleware(RestMiddleware):
             raise RuntimeError(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
-    def _get_certificate(self, checksum_address, certs_dir, hostname, port, timeout=3, retry_attempts: int = 3,
+    def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3,
                          retry_rate: int = 2, ):
         ursula = self._get_ursula_by_port(port)
-        return ursula.certificate, ursula.certificate_filepath
+        return ursula.certificate
 
     def consider_arrangement(self, arrangement):
         mock_client = self._get_mock_client_by_ursula(arrangement.ursula)

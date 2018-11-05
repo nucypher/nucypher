@@ -5,12 +5,14 @@ import json
 import logging
 import os
 import random
+import sys
 
 import click
 import collections
 import shutil
 from constant_sorrow import constants
 from eth_utils import is_checksum_address
+from more_itertools import seekable
 from twisted.internet import reactor, stdio
 from typing import Tuple, ClassVar
 from web3.middleware import geth_poa_middleware
@@ -26,7 +28,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import BASE_DIR, SEEDNODES
+from nucypher.config.constants import BASE_DIR, SEEDNODES, SeednodeMetadata
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
@@ -58,25 +60,31 @@ def echo_version(ctx, param, value):
     ctx.exit()
 
 
-# Setup Logging
-# root = logging.getLogger()
-# root.setLevel(logging.DEBUG)
-#
-# ch = logging.StreamHandler(sys.stdout)
-# ch.setLevel(logging.DEBUG)  # TODO: set to INFO
-# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-# ch.setFormatter(formatter)
-# root.addHandler(ch)
-
-
-#
-# CLI Configuration
-#
-
-# CLI Constants
+# Constants
 DEBUG = True
-KEYRING_PASSPHRASE_ENVVAR = 'NUCYPHER_KEYRING_PASSPHRASE'
+REPORT_TO_SENTRY = True
+KEYRING_PASSPHRASE_ENVVAR_KEY = 'NUCYPHER_KEYRING_PASSPHRASE'
 
+# Setup Logging #
+################
+if DEBUG:
+    root = logging.Logger("cli")
+    root.setLevel(logging.DEBUG)
+
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    root.addHandler(ch)
+
+# Report to Sentry #
+####################
+
+if REPORT_TO_SENTRY:
+    import sentry_sdk
+    sentry_sdk.init("https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685")
+
+####################
 
 # Pending Configuration Named Tuple
 fields = 'passphrase wallet signing tls skip_keys save_file'.split()
@@ -86,7 +94,7 @@ PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetail
 class NucypherClickConfig:
 
     def __init__(self):
-        self.log = logging.getLogger(self.__class__.__name__)
+        self.log = logging.Logger(self.__class__.__name__)
 
         # Node Configuration
         self.node_configuration = constants.NO_NODE_CONFIGURATION
@@ -112,7 +120,7 @@ class NucypherClickConfig:
         # Simulation
         self.sim_processes = constants.NO_SIMULATION_RUNNING
 
-    def get_node_configuration(self, configuration_class=UrsulaConfiguration):
+    def get_node_configuration(self, configuration_class=UrsulaConfiguration, **overrides):
         if self.dev:
             node_configuration = configuration_class(temp=self.dev, auto_initialize=False,
                                                      federated_only=self.federated_only)
@@ -125,7 +133,8 @@ class NucypherClickConfig:
                     node_configuration = configuration_class(temp=False, config_root=self.config_root, auto_initialize=False)
                 else:
                     node_configuration = configuration_class(federated_only=self.federated_only,
-                                                             auto_initialize=False)
+                                                             auto_initialize=False,
+                                                             **overrides)
             else:
                 click.secho("Reading Ursula node configuration file {}".format(filepath), fg='blue')
 
@@ -177,53 +186,57 @@ class NucypherClickConfig:
             raise click.BadParameter("Invalid choice; Options are hosted or local.")
         return new_address
 
-    def _collect_pending_configuration_details(self, ursula: bool=False, force: bool = False) -> PendingConfigurationDetails:
+    def _collect_pending_configuration_details(self, ursula: bool=False, force: bool = False, rest_host=None) -> PendingConfigurationDetails:
 
         # Defaults
         passphrase = None
         host = UrsulaConfiguration.DEFAULT_REST_HOST
         skip_all_key_generation, generate_wallet = False, False
-        generate_encrypting_keys, generate_tls_keys, save_node_configuration_file = force, force, force
+        generate_encrypting_keys, generate_tls_keys, save_node_configuration_file = True, True, True
 
         if ursula:
             if not self.federated_only:  # Wallet
                 generate_wallet = click.confirm("Do you need to generate a new wallet to use for staking?",
                                                 default=False)
+
                 if not generate_wallet:  # I'll take that as a no...
                     self.federated_only = True  # TODO: Without a wallet, let's assume this is a "federated configuration"
-            if not force:  # TLS
-                generate_tls_keys = click.confirm("Do you need to generate a new TLS certificate (Ursula)?",
-                                                  default=False)
+
             if generate_tls_keys or force:
-                if not force:
-                    host = click.prompt("Enter the node's hostname", default=UrsulaConfiguration.DEFAULT_REST_HOST,
-                                        type=click.STRING)
-                self.node_configuration.rest_host = host
+                if not force and not rest_host:
+                    rest_host = click.prompt("Enter node IPv4 Address",
+                                             default=UrsulaConfiguration.DEFAULT_REST_HOST,
+                                             type=click.STRING)
+
+                self.node_configuration.rest_host = rest_host
+
         if not force:  # Signing / Encrypting
-            generate_encrypting_keys = click.confirm("Do you need to generate a new signing keypair?", default=False)
             if not any((generate_wallet, generate_tls_keys, generate_encrypting_keys)):
                 skip_all_key_generation = click.confirm("Skip all key generation (Provide custom configuration file)?")
+
         if not skip_all_key_generation:
-            if os.environ.get(KEYRING_PASSPHRASE_ENVVAR):
-                passphrase = os.environ.get(KEYRING_PASSPHRASE_ENVVAR)
+            if os.environ.get(KEYRING_PASSPHRASE_ENVVAR_KEY):
+                passphrase = os.environ.get(KEYRING_PASSPHRASE_ENVVAR_KEY)
             else:
                 passphrase = click.prompt("Enter a passphrase to encrypt your keyring",
                                           hide_input=True, confirmation_prompt=True)
-        if not force:
-            save_node_configuration_file = click.confirm("Generate node configuration file?")
 
         details = PendingConfigurationDetails(passphrase=passphrase, wallet=generate_wallet,
                                               signing=generate_encrypting_keys, tls=generate_tls_keys,
                                               skip_keys=skip_all_key_generation, save_file=save_node_configuration_file)
         return details
 
-    def create_new_configuration(self, ursula: bool=False, force: bool = False, no_registry: bool = False):
+    def create_new_configuration(self,
+                                 ursula: bool=False,
+                                 force: bool = False,
+                                 rest_host: str = None,
+                                 no_registry: bool = False):
+
         if force:
             click.secho("Force is enabled - Using defaults", fg='yellow')
         if self.dev:
             click.secho("Using temporary storage area", fg='blue')
-        if not force:
-            click.confirm("Initialize new nucypher {} configuration?".format('ursula' if ursula else ''), abort=True)
+
         if not no_registry and not self.federated_only:
             registry_source = self.node_configuration.REGISTRY_SOURCE
             if not os.path.isfile(registry_source):
@@ -236,13 +249,14 @@ class NucypherClickConfig:
         self.node_configuration.federated_only = self.federated_only
 
         try:
-            pending_config = self._collect_pending_configuration_details(force=force, ursula=ursula)
+            pending_config = self._collect_pending_configuration_details(force=force, ursula=ursula, rest_host=rest_host)
             new_installation_path = self.node_configuration.initialize(passphrase=pending_config.passphrase,
                                                                        wallet=pending_config.wallet,
                                                                        encrypting=pending_config.signing,
                                                                        tls=pending_config.tls,
                                                                        no_registry=no_registry,
-                                                                       no_keys=pending_config.skip_keys)
+                                                                       no_keys=pending_config.skip_keys,
+                                                                       host=rest_host)
             if not pending_config.skip_keys:
                 click.secho("Generated new keys at {}".format(self.node_configuration.keyring_dir), fg='blue')
         except NodeConfiguration.ConfigurationError as e:
@@ -351,6 +365,7 @@ def cli(config,
 @cli.command()
 @click.option('--ursula', help="Configure ursula",  is_flag=True, default=False)
 @click.option('--filesystem', is_flag=True, default=False)
+@click.option('--rest-host', type=click.STRING)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--force', help="Ask confirm once; Do not generate wallet or certificate", is_flag=True)
 @click.argument('action')
@@ -358,20 +373,22 @@ def cli(config,
 def configure(config,
               action,
               ursula,
+              rest_host,
               filesystem,
               no_registry,
               force):
     """Manage local nucypher files and directories"""
-    config.get_node_configuration(configuration_class=UrsulaConfiguration if ursula else NodeConfiguration)
+    config.get_node_configuration(configuration_class=UrsulaConfiguration,  rest_host=rest_host)  # TODO: Un-hardcode Ursula
     if action == "install":
-        config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry)
-    elif action == "destroy":
-        config.destroy_configuration()
+        config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry, rest_host=rest_host)
+    elif action == "view":
+        json_config = NodeConfiguration._read_configuration_file(filepath=config.node_configuration.config_file_location)
+        click.echo(json_config)
     elif action == "reset":
         config.destroy_configuration()
-        config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry)
-    elif action == "cleanup":
-        pass  # TODO: Clean by address
+        config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry, rest_host=rest_host)
+    elif action == "destroy":
+        config.destroy_configuration()
     elif action == "validate":
         is_valid = True      # Until there is a reason to believe otherwise...
         try:
@@ -1096,7 +1113,7 @@ def status(config,
         click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
     click.echo('\n')
 
-    seednode_addresses = list(bn.checksum_address for bn in BOOTNODES)
+    seednode_addresses = list(bn.checksum_address for bn in SEEDNODES)
     for node in known_nodes:
         row_template = "{} | {} | {}"
         node_type = 'known'
@@ -1113,6 +1130,7 @@ def status(config,
 
 @cli.command()
 @click.option('--debug', is_flag=True)
+@click.option('--trusted-teacher-uri', type=click.STRING)
 @click.option('--rest-host', type=click.STRING)
 @click.option('--rest-port', type=click.IntRange(min=49151, max=65535, clamp=False))
 @click.option('--db-name', type=click.STRING)
@@ -1131,7 +1149,8 @@ def ursula(config,
            stake_amount,
            stake_periods,
            resume,  # TODO Implement stake resume
-           debug
+           debug,
+           trusted_teacher_uri
            ) -> None:
     """
     Manage and run an Ursula node
@@ -1146,7 +1165,7 @@ def ursula(config,
 
     """
 
-    password = os.environ.get(KEYRING_PASSPHRASE_ENVVAR, None)
+    password = os.environ.get(KEYRING_PASSPHRASE_ENVVAR_KEY, None)
     if not password:
         password = click.prompt("Password to unlock Ursula's keyring", hide_input=True)
 
@@ -1186,7 +1205,7 @@ def ursula(config,
     if config.dev:
         ursula_config = __make_ursula()
     else:
-        try:        # TODO: inline overrides for file-based configurations
+        try:
             filepath = config.config_file or UrsulaConfiguration.DEFAULT_CONFIG_FILE_LOCATION
             click.secho("Reading Ursula node configuration file {}".format(filepath), fg='blue')
             ursula_config = UrsulaConfiguration.from_configuration_file(filepath=filepath)
@@ -1196,15 +1215,15 @@ def ursula(config,
     config.operating_mode = "federated" if ursula_config.federated_only else "decentralized"
     click.secho("Running in {} mode".format(config.operating_mode), fg='blue')
 
-    # seednodes, Seeds, Known Nodes
-    ursula_config.load_seednodes()
-    quantity_known_nodes = len(ursula_config.known_nodes)
-    if quantity_known_nodes > 0:
-        click.secho("Loaded {} known nodes from storages".format(quantity_known_nodes, fg='blue'))
+    if trusted_teacher_uri:
+        address, rest_uri = trusted_teacher_uri.split("@")
+        host, port = rest_uri.split(":")
+        seed_metadata = [SeednodeMetadata(address, host, port)]  # TODO: Ensure seed injection works
     else:
-        click.secho("WARNING: No seed nodes available", fg='red', bold=True)
+        seed_metadata = ()
 
-    URSULA = ursula_config.produce(passphrase=password, **overrides)  # 2
+    URSULA = ursula_config.produce(passphrase=password, seed_nodes=seed_metadata, **overrides)  # 2
+
     click.secho("Initialized Ursula {}".format(URSULA.checksum_public_address), fg='green')
 
     #
@@ -1219,8 +1238,7 @@ def ursula(config,
             # GO!
             click.secho("Running Ursula on {}".format(URSULA.rest_interface), fg='green', bold=True)
             stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
-            URSULA.get_deployer().addServices()                           # 4
-            reactor.run()
+            URSULA.get_deployer().run()
 
         except Exception as e:
             config.log.critical(str(e))

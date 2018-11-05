@@ -1,0 +1,32 @@
+- name: "Update Application Code on Seednodes"
+  hosts: seednodes
+  user: ubuntu
+  gather_facts: false
+  pre_tasks:
+    - include_vars: variables.yml
+  tasks:
+
+    - git:
+        repo: "{{ git_repo }}"
+        version: "{{ git_version }}"
+        dest: ./code
+        clone: no
+        update: yes
+
+    - name: "Install Python Dependencies via Pipenv"
+      shell: "pipenv install --dev --skip-lock --pre"
+      args:
+        chdir: ./code
+      environment:
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
+
+    - name: "Restart Ursula Service"
+      become: yes
+      become_flags: "-H -S"
+      systemd:
+        daemon_reload: yes
+        no_block: yes
+        enabled: yes
+        state: restarted
+        name: "ursula_node"

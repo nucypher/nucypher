@@ -1,6 +1,6 @@
 import binascii
 import os
-from logging import getLogger
+from twisted.logger import Logger
 
 from apistar import Route, App
 from apistar.http import Response, Request, QueryParams
@@ -20,7 +20,7 @@ from nucypher.network.protocols import InterfaceInfo
 
 
 class ProxyRESTServer:
-    log = getLogger("characters")
+    log = Logger("characters")
 
     def __init__(self,
                  rest_host: str,
@@ -44,7 +44,7 @@ class ProxyRESTServer:
 
 
 class ProxyRESTRoutes:
-    log = getLogger("characters")
+    log = Logger("characters")
 
     def __init__(self,
                  db_name,
@@ -158,7 +158,7 @@ class ProxyRESTRoutes:
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                               " Announced via REST."  # TODO: Include data about caller?
-                    self.log.warning(message)
+                    self.log.warn(message)
                     self._suspicious_activity_tracker['vladimirs'].append(node)  # TODO: Maybe also record the bytes representation separately to disk?
                 except Exception as e:
                     self.log.critical(str(e))

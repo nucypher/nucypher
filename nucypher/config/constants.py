@@ -15,7 +15,4 @@ DEFAULT_CONFIG_ROOT = APP_DIR.user_data_dir
 # seednodes
 #
 SeednodeMetadata = namedtuple('seednode', ['checksum_address', 'rest_host', 'rest_port'])
-SEEDNODES = (
-    SeednodeMetadata('0xDbf2Bc4b81eB46CdDfa52348Ecf3c142841267E0', 'https://18.223.117.103', '9151'),
-)
-
+SEEDNODES = tuple()

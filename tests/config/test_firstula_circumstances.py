@@ -58,3 +58,4 @@ def test_get_cert_from_running_seed_node(ursula_federated_test_config):
 
     certificate_as_learned = list(any_other_ursula.known_nodes.values())[0].certificate
     assert certificate_as_learned == certificate_as_deployed
+    any_other_ursula.stop_learning_loop()

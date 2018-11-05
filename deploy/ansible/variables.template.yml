@@ -1,0 +1,17 @@
+#
+# Nucypher Ansible Variables (EC2 Provisioning) Template
+#
+STATE_RES_NAME: "${STATE_RES_NAME}"
+ec2_region: "${EC2_REGION}"
+ec2_instance_type: "${EC2_INSTANCE_TYPE}"
+ec2_image: "${EC2_IMAGE_ID}"
+ec2_keypair: "${EC2_KEYPAIR_NAME}"
+ec2_volume_size: "${EC2_VOLUME_SIZE_GB}"
+ec2_count: '${EC2_PROVISION_QUANTITY}'
+ec2_security_group_id: "${EC2_SECURITY_GROUP_ID}"
+ec2_subnet_id: "${EC2_SUBNET_ID}"
+ec2_tag_Type: "${EC2_TAG_TYPE}"
+ec2_tag_Role: "${EC2_TAG_ROLE}"
+aws_pem_path: "${AWS_PEM_PATH}"
+git_repo: "${GIT_REPOSITORY_URL}"
+git_version: "${GIT_VERSION}"

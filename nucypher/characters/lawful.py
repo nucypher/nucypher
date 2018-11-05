@@ -6,6 +6,7 @@ from typing import Iterable, Callable
 from typing import List
 
 import maya
+import requests
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
 from cryptography.hazmat.backends import default_backend
@@ -227,7 +228,7 @@ class Bob(Character):
                                                           allow_missing=allow_missing,
                                                           learn_on_this_thread=True)
 
-        return unknown_ursulas, known_ursulas
+        return unknown_ursulas, known_ursulas, treasure_map.m
 
     def get_treasure_map(self, alice_verifying_key, label):
         _hrac, map_id = self.construct_hrac_and_map_id(verifying_key=alice_verifying_key, label=label)
@@ -344,15 +345,22 @@ class Bob(Character):
             verifying=alice_verifying_key)
 
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, data_source.label)
-        self.follow_treasure_map(map_id=map_id, block=True)
+        _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
         work_orders = self.generate_work_orders(map_id, message_kit.capsule)
 
         cleartexts = []
 
         for work_order in work_orders.values():
-            cfrags = self.get_reencrypted_cfrags(work_order)
-            message_kit.capsule.attach_cfrag(cfrags[0])
+            try:
+                cfrags = self.get_reencrypted_cfrags(work_order)
+                message_kit.capsule.attach_cfrag(cfrags[0])
+                if len(message_kit.capsule._attached_cfrags) > m:
+                    break
+            except requests.exceptions.ConnectTimeout:
+                continue
+        else:
+            raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
 
         delivered_cleartext = self.verify_from(data_source,
                                                message_kit,
@@ -575,21 +583,6 @@ class Ursula(Character, VerifiableNode, Miner):
     #
     # Alternate Constructors
     #
-
-    @classmethod
-    def from_rest_url(cls,
-                      network_middleware: RestMiddleware,
-                      host: str,
-                      port: int,
-                      certificate_filepath,
-                      federated_only: bool = False) -> 'Ursula':
-
-        response = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
-        if not response.status_code == 200:
-            raise RuntimeError("Got a bad response: {}".format(response))
-
-        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only)
-        return stranger_ursula_from_public_keys
 
     @classmethod
     def from_bytes(cls,

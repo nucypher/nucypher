@@ -1,0 +1,14 @@
+- name: "Restart Ursulas"
+  hosts: seednodes
+  user: ubuntu
+  gather_facts: false
+  tasks:
+    - name: "Restart Ursula Service"
+      become: yes
+      become_flags: "-H -S"
+      systemd:
+        daemon_reload: yes
+        no_block: yes
+        enabled: yes
+        state: restarted
+        name: "ursula_node"
