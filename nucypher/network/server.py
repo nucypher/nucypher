@@ -33,7 +33,11 @@ from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import InterfaceInfo
+from jinja2 import Template
 
+
+HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+TEMPLATES_DIR = os.path.join(HERE, "templates")
 
 class ProxyRESTServer:
     log = Logger("characters")
@@ -54,6 +58,7 @@ class ProxyRESTServer:
             self.rest_app = constants.PUBLIC_ONLY
 
         self.__hosting_power = hosting_power
+
 
     def rest_url(self):
         return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
@@ -111,6 +116,9 @@ class ProxyRESTRoutes:
             Route('/treasure_map/{treasure_map_id}',
                   'GET',
                   self.provide_treasure_map),
+            Route('/status',
+                  'GET',
+                  self.status),
             Route('/treasure_map/{treasure_map_id}',
                   'POST',
                   self.receive_treasure_map),
@@ -133,6 +141,10 @@ class ProxyRESTRoutes:
         from nucypher.characters.lawful import Alice, Ursula
         self._alice_class = Alice
         self._node_class = Ursula
+
+        with open(os.path.join(TEMPLATES_DIR, "basic_status.j2"), "r") as f:
+            _status_template_content = f.read()
+        self._status_template = Template(_status_template_content)
 
     def public_information(self):
         """
@@ -317,6 +329,11 @@ class ProxyRESTRoutes:
             # TODO: Make this a proper 500 or whatever.
             self.log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
+
+    def status(self, request: Request):
+        headers = {"Content-Type": "text/html", "charset":"utf-8"}
+        content = self._status_template.render(known_nodes=self._node_tracker.values())
+        return Response(content=content, headers=headers)
 
 
 class TLSHostingPower(KeyPairBasedPower):
