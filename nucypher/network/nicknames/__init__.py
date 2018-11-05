@@ -30,7 +30,16 @@ pairs = []
 symbols_tuple = ("♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓",
                  "♚", "♛", "♜", "♝", "♞", "♟", "⚓", "⚔", "⚖", "⚗", "⚑", "⚘",
                  "⚪", "⚵", "⚿", "⛇", "⛈", "⛰", "⛸", "⛴", "⛨", "✈", "☤",
-                 "★", "☠", "☸", "☿", "☾", "♁", "♃", "♄", "☄", "☘", "⚜", "⚚")
+                 "⏚", "☠", "☸", "☿", "☾", "♁", "♃", "♄", "☄", "☘", "⚜", "⚚",
+                 "⏲", "☣", "☥", "♣", "♥", "♦", "♠", "♫", "⚝", "⚛", "⚙", "⎈",
+                 "☮", "☕", "☈", "♯", "♭")
+
+def nicename(symbol):
+    unicode_name = unicodedata.name(symbol)
+    final_word = unicode_name.split()[-1]
+    if final_word in ("SYMBOL", "SUIT", "SIGN"):
+        final_word = unicode_name.split()[-2]
+    return final_word.capitalize()
 
 
 def nickname_from_seed(seed):
