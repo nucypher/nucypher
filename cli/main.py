@@ -91,7 +91,7 @@ if DEBUG:
 # Report to Sentry #
 ####################
 
-if REPORT_TO_SENTRY:
+if not hasattr(sys, '_pytest_is_running') and REPORT_TO_SENTRY:
     import sentry_sdk
     sentry_sdk.init(NUCYPHER_SENTRY_ENDPOINT, release=nucypher.__version__)
 
