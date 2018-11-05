@@ -933,14 +933,12 @@ def status(config,
 
 @cli.command()
 @click.option('--debug', is_flag=True)
-@click.option('--trusted-teacher-uri', type=click.STRING)
+@click.option('--teacher-uri', type=click.STRING)
+@click.option('--min-stake', type=click.INT, default=0)
 @click.option('--rest-host', type=click.STRING)
 @click.option('--rest-port', type=click.IntRange(min=49151, max=65535, clamp=False))
 @click.option('--db-name', type=click.STRING)
 @click.option('--checksum-address', type=CHECKSUM_ADDRESS)
-@click.option('--stake-amount', type=click.IntRange(min=MIN_ALLOWED_LOCKED, max=MAX_ALLOWED_LOCKED, clamp=False))
-@click.option('--stake-periods', type=click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False))
-@click.option('--resume', help="Resume an existing stake", is_flag=True)
 @click.argument('action')
 @uses_config
 def ursula(config,
@@ -949,11 +947,9 @@ def ursula(config,
            rest_host,
            db_name,
            checksum_address,
-           stake_amount,
-           stake_periods,
-           resume,  # TODO Implement stake resume
            debug,
-           trusted_teacher_uri
+           teacher_uri,
+           min_stake
            ) -> None:
     """
     Manage and run an Ursula node
@@ -976,13 +972,8 @@ def ursula(config,
         if not checksum_address and not config.dev:
             raise click.BadArgumentUsage("No Configuration file found, and no --checksum address <addr> was provided.")
         if not checksum_address and not config.dev:
-            raise click.BadOptionUsage("No account specified. pass --checksum-address or --dev, "
+            raise click.BadOptionUsage(message="No account specified. pass --checksum-address, --dev, "
                                        "or use a configuration file with --config-file <path>")
-        if not config.federated_only:
-            if not all((stake_amount, stake_periods)) and not resume:
-                raise click.BadOptionUsage(message="Both the --stake-amount <amount> and --stake-periods <periods> options "
-                                                   "or the --resume flag is required to run a non-federated Ursula."
-                                                   "For federated run 'nucypher --federated-only ursula <action>'")
 
         return UrsulaConfiguration(temp=config.dev,
                                    auto_initialize=config.dev,
@@ -1002,7 +993,7 @@ def ursula(config,
                                    abort_on_learning_error=config.dev)
 
     #
-    # Produce
+    # Configure
     #
     overrides = dict()
     if config.dev:
@@ -1018,14 +1009,31 @@ def ursula(config,
     config.operating_mode = "federated" if ursula_config.federated_only else "decentralized"
     click.secho("Running in {} mode".format(config.operating_mode), fg='blue')
 
-    if trusted_teacher_uri:
-        address, rest_uri = trusted_teacher_uri.split("@")
-        host, port = rest_uri.split(":")
-        seed_metadata = [SeednodeMetadata(address, host, port)]  # TODO: Ensure seed injection works
-    else:
-        seed_metadata = ()
+    #
+    # Seed
+    #
+    seed_metadata, teacher_nodes = list(), list()
+    if teacher_uri:
 
-    URSULA = ursula_config.produce(passphrase=password, seed_nodes=seed_metadata, **overrides)  # 2
+        if all(('@' in teacher_uri, ':' in teacher_uri)):
+            address, rest_uri = teacher_uri.split("@")
+            host, port = rest_uri.split(":")
+            seed_metadata.append(SeednodeMetadata(address, host, port))
+
+        else:
+            teacher = Ursula.from_seed_and_stake_info(host=teacher_uri,
+                                                      federated_only=ursula_config.federated_only,
+                                                      minimum_stake=min_stake,
+                                                      certificates_directory=ursula_config.known_certificates_dir)
+            teacher_nodes.append(teacher)
+
+    #
+    # Produce
+    #
+    URSULA = ursula_config.produce(passphrase=password,
+                                   seed_nodes=seed_metadata,
+                                   known_nodes=teacher_nodes,
+                                   **overrides)  # 2
 
     click.secho("Initialized Ursula {}".format(URSULA.checksum_public_address), fg='green')
 
@@ -1034,9 +1042,6 @@ def ursula(config,
     #
     if action == 'run':
         try:
-            if not ursula_config.federated_only:                      # 3
-                URSULA.stake(amount=stake_amount, lock_periods=stake_periods)
-                click.secho("Initialized Stake", fg='blue')
 
             # GO!
             click.secho("Running Ursula on {}".format(URSULA.rest_interface), fg='green', bold=True)
