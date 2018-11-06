@@ -4,32 +4,62 @@ workflows:
   version: 2
   test:
     jobs:
-      - bundle_dependencies-36
+      - bundle_dependencies-36:
+          filters:
+            tags:
+              only: /.*/
       - eth_contract_unit:
+          filters:
+            tags:
+              only: /.*/
           requires:
             - bundle_dependencies-36
       - config_unit:
+          filters:
+            tags:
+              only: /.*/
           requires:
             - bundle_dependencies-36
       - crypto_unit:
+          filters:
+            tags:
+              only: /.*/
           requires:
             - bundle_dependencies-36
       - network_unit:
+          filters:
+            tags:
+              only: /.*/
           requires:
             - bundle_dependencies-36
       - keystore_unit:
+          filters:
+            tags:
+              only: /.*/
           requires:
             - bundle_dependencies-36
       - blockchain_interface_unit:
+          filters:
+            tags:
+              only: /.*/
           requires:
             - bundle_dependencies-36
       - character:
+          filters:
+            tags:
+              only: /.*/
           requires:
             - bundle_dependencies-36
       - intercontract_integration:
+          filters:
+            tags:
+              only: /.*/
           requires:
             - eth_contract_unit
       - mypy_type_check:
+          filters:
+            tags:
+              only: /.*/
           requires:
             - config_unit
             - crypto_unit
@@ -37,6 +67,9 @@ workflows:
             - keystore_unit
             - character
       - cli_tests:
+          filters:
+            tags:
+              only: /.*/
           requires:
             - blockchain_interface_unit
             - config_unit
@@ -44,6 +77,34 @@ workflows:
             - network_unit
             - keystore_unit
             - character
+      - test_deploy:
+          context: "NuCypher PyPI"
+          requires:
+            - mypy_type_check
+            - cli_tests
+          filters:
+            tags:
+              only: /v[0-9]+.*/
+            branches:
+              ignore: /.*/
+      - request_publication_approval:
+          type: approval
+          requires:
+            - test_deploy
+          filters:
+            tags:
+              only: /v[0-9]+.*/
+            branches:
+              ignore: /.*/
+      - deploy:
+          context: "NuCypher PyPI"
+          requires:
+            - request_publication_approval
+          filters:
+            tags:
+              only: /v[0-9]+.*/
+            branches:
+              ignore: /.*/
 
 python_36_base: &python_36_base
     working_directory: ~/nucypher-depends
@@ -59,7 +120,7 @@ jobs:
           name: Install Python Dependencies with Pipenv
           command: |
             pip3 install --user pip==18.0
-            pipenv install --three --dev --skip-lock --verbose
+            pipenv install --three --dev --skip-lock --pre
       - run:
           name: Install Solidity Compiler
           command: pipenv run ./scripts/install_solc.sh
@@ -200,3 +261,77 @@ jobs:
           path: ./mypy_reports
       - store_test_results:
           path: ./mypy_results
+
+  test_deploy:
+    <<: *python_36_base
+    steps:
+      - checkout
+      - run:
+          name: Install Dependencies (Test Deploy)
+          command: |
+              pipenv install --three --dev --skip-lock --pre
+              pipenv install --dev --skip-lock twine
+      - run:
+          name: Verify git tag == __version__ (Test Deploy)
+          command: pipenv run python setup.py verify
+      - run:
+          name: Initialize .pypirc (Test Deploy)
+          command: |
+            echo -e "[distutils]" >> ~/.pypirc
+            echo -e "index-servers = " >> ~/.pypirc
+            echo -e "    pypi" >> ~/.pypirc
+            echo -e "    testpypi" >> ~/.pypirc
+            echo -e "" >> ~/.pypirc
+            echo -e "[testpypi]" >> ~/.pypirc
+            echo -e "repository: https://test.pypi.org/legacy/" >> ~/.pypirc
+            echo -e "username: $TEST_PYPI_USERNAME" >> ~/.pypirc
+            echo -e "password: $TEST_PYPI_PASSWORD" >> ~/.pypirc
+      - run:
+          name: Build Python Wheel (Test Deploy)
+          command: |
+            pipenv run python setup.py sdist
+            pipenv run python setup.py bdist_wheel
+      - run:
+          name: upload to TestPyPI
+          command: pipenv run twine upload --repository testpypi dist/* --verbose
+      - run:
+          name: pip install from TestPyPI
+          command: |
+            pip install --user --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple nucypher --verbose
+            python -c "import nucypher; print(nucypher.__version__)"
+
+  deploy:
+    <<: *python_36_base
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+              pipenv install --three --dev --skip-lock --pre
+              pipenv install --dev --skip-lock twine
+      - run:
+          name: Verify git tag == __version__
+          command: pipenv run python setup.py verify
+      - run:
+          name: Initialize .pypirc
+          command: |
+            echo -e "[distutils]" >> ~/.pypirc
+            echo -e "index-servers = " >> ~/.pypirc
+            echo -e "    pypi" >> ~/.pypirc
+            echo -e "" >> ~/.pypirc
+            echo -e "[pypi]" >> ~/.pypirc
+            echo -e "username = $PYPI_USERNAME" >> ~/.pypirc
+            echo -e "password = $PYPI_PASSWORD" >> ~/.pypirc
+      - run:
+          name: Build Python Wheel
+          command: |
+            pipenv run python setup.py sdist
+            pipenv run python setup.py bdist_wheel
+      - run:
+          name: Upload to PyPI
+          command: pipenv run twine upload dist/*  --verbose
+      - run:
+          name: pip install from PyPI
+          command: |
+            pip install --user nucypher --verbose
+            python -c "import nucypher; print(nucypher.__version__)"
