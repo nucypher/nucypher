@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 # Test Logger Configuration
 from twisted.logger import globalLogPublisher
 from cli.main import NucypherClickConfig
-from nucypher import simpleObserver
+from nucypher.utilities.logging import simpleObserver
 
 NucypherClickConfig.log_to_sentry = False
 globalLogPublisher.addObserver(simpleObserver)
