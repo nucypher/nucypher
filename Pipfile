@@ -19,7 +19,7 @@ pysha3="*"
 requests = "*"
 sqlalchemy = "*"
 apistar = "==0.5.42"
-tzlocal = "==2.0.0b1"
+tzlocal = "==1.5.1"
 maya = "*"
 #
 # Third-Party Ethereum
@@ -37,8 +37,7 @@ web3 = "*"
 appdirs = "*"
 click = "*"
 colorama = "*"
-moto = "*"
-nucypher = {editable = true, path = "."}
+boto3 = "*"
 
 [dev-packages]
 #
@@ -51,9 +50,10 @@ pytest-cov = "*"
 mypy = "*"
 codecov = "*"
 coverage = "*"
-boto3 = "*"
 sentry-sdk = "==0.5.2"
 ansible = "*"
+nucypher = {editable = true, path = "."}
+moto = "*"
 
 [pipenv]
 allow_prereleases = true

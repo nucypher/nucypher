@@ -21,7 +21,6 @@ import hashlib
 import json
 import logging
 import os
-import random
 import shutil
 import sys
 from typing import Tuple, ClassVar
@@ -29,29 +28,33 @@ from typing import Tuple, ClassVar
 import click
 from constant_sorrow import constants
 from eth_utils import is_checksum_address
-from twisted.internet import reactor, stdio
+from twisted.internet import stdio
 from web3.middleware import geth_poa_middleware
 
 import nucypher
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent, EthereumContractAgent
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.blockchain.eth.constants import (DISPATCHER_SECRET_LENGTH,
-                                               MIN_ALLOWED_LOCKED,
+
+from nucypher.blockchain.eth.constants import (MIN_ALLOWED_LOCKED,
                                                MIN_LOCKED_PERIODS,
-                                               MAX_MINTING_PERIODS, MAX_ALLOWED_LOCKED)
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+                                               MAX_MINTING_PERIODS)
+
+from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
+                                               MinerEscrowDeployer,
+                                               PolicyManagerDeployer)
+
+from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import BASE_DIR, SEEDNODES, SeednodeMetadata, NUCYPHER_SENTRY_ENDPOINT, REPORT_TO_SENTRY, \
-    DEBUG
+
+from nucypher.config.constants import (SEEDNODES,
+                                       SeednodeMetadata,
+                                       NUCYPHER_SENTRY_ENDPOINT,
+                                       REPORT_TO_SENTRY,
+                                       DEBUG,
+                                       KEYRING_PASSPHRASE_ENVVAR_KEY)
+
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
-from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
-from nucypher.utilities.sandbox.constants import (DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
-                                                  DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-                                                  DEFAULT_SIMULATION_REGISTRY_FILEPATH)
 from nucypher.utilities.sandbox.ursula import UrsulaCommandProtocol
 
 BANNER = """
@@ -580,8 +583,8 @@ def stake(config,
         value = click.prompt("Enter stake value", type=click.INT)
 
         # Duration
-        message = "Minimum duration: {} | Maximum Duration: {}".format(constants.MIN_LOCKED_PERIODS,
-                                                                       constants.MAX_REWARD_PERIODS)
+        message = "Minimum duration: {} | Maximum Duration: {}".format(MIN_LOCKED_PERIODS,
+                                                                       MAX_MINTING_PERIODS)
         click.echo(message)
         duration = click.prompt("Enter stake duration in days", type=click.INT)
 
@@ -673,217 +676,6 @@ def stake(config,
         click.confirm("Are you sure you want to abort the staking process?", abort=True)
         # os.kill(pid=NotImplemented)
         raise NotImplementedError
-
-    else:
-        raise click.BadArgumentUsage
-
-
-@cli.command()
-@click.option('--geth', help="Simulate with geth dev-mode", is_flag=True)
-@click.option('--pyevm', help="Simulate with PyEVM", is_flag=True)
-@click.option('--nodes', help="The number of nodes to simulate", type=click.INT, default=10)
-@click.argument('action')
-@uses_config
-def simulate(config,
-             action,
-             nodes,
-             geth,
-             pyevm):
-    """
-    Locally simulate the nucypher network
-
-    action - Which action to perform; The choices are:
-           - start: Start a multi-process nucypher network simulation
-           - stop: Stop a running simulation gracefully
-
-
-    --nodes - The quantity of nodes (processes) to execute during the simulation
-    --duration = The number of periods to run the simulation before termination
-
-    """
-
-    if action == 'start':
-
-        #
-        # Blockchain Connection
-        #
-        if config.sim_processes is constants.NO_SIMULATION_RUNNING:
-            config.sim_processes = list()
-        elif len(config.sim_processes) != 0:
-            for process in config.sim_processes:
-                config.sim_processes.remove(process)
-                os.kill(process.pid, 9)
-
-        if not config.federated_only:
-            if geth:
-                config.provider_uri = "ipc:///tmp/geth.ipc"
-            elif pyevm:
-                config.provider_uri = "tester://pyevm"
-            sim_provider_uri = config.provider_uri
-
-            # Sanity check
-            supported_sim_uris = ("tester://geth", "tester://pyevm", "ipc:///tmp/geth.ipc")
-            if config.provider_uri not in supported_sim_uris:
-                message = "{} is not a supported simulation node backend. Supported URIs are {}"
-                click.echo(message.format(config.provider_uri, supported_sim_uris))
-                raise click.Abort()
-
-            simulation_registry = TemporaryEthereumContractRegistry()
-            simulation_interface = BlockchainDeployerInterface(provider_uri=sim_provider_uri,
-                                                               registry=simulation_registry,
-                                                               compiler=SolidityCompiler())
-
-            sim_blockchain = TesterBlockchain(interface=simulation_interface, test_accounts=nodes, airdrop=False)
-
-            accounts = sim_blockchain.interface.w3.eth.accounts
-            origin, *everyone_else = accounts
-
-            # Set the deployer address from the freshly created test account
-            simulation_interface.deployer_address = origin
-
-            #
-            # Blockchain Action
-            #
-            sim_blockchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
-
-            click.confirm("Deploy all nucypher contracts to {}?".format(config.provider_uri), abort=True)
-            click.echo("Bootstrapping simulated blockchain network")
-
-            # Deploy contracts
-            token_deployer = NucypherTokenDeployer(blockchain=sim_blockchain, deployer_address=origin)
-            token_deployer.arm()
-            token_deployer.deploy()
-            sim_token_agent = token_deployer.make_agent()
-
-            miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
-            miner_escrow_deployer = MinerEscrowDeployer(token_agent=sim_token_agent,
-                                                        deployer_address=origin,
-                                                        secret_hash=miners_escrow_secret)
-            miner_escrow_deployer.arm()
-            miner_escrow_deployer.deploy()
-            sim_miner_agent = miner_escrow_deployer.make_agent()
-
-            policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
-            policy_manager_deployer = PolicyManagerDeployer(miner_agent=sim_miner_agent,
-                                                            deployer_address=origin,
-                                                            secret_hash=policy_manager_secret)
-            policy_manager_deployer.arm()
-            policy_manager_deployer.deploy()
-            policy_agent = policy_manager_deployer.make_agent()
-
-            airdrop_amount = DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
-            click.echo("Airdropping tokens {} to {} addresses".format(airdrop_amount, len(everyone_else)))
-            _receipts = token_airdrop(token_agent=sim_token_agent,
-                                      origin=origin,
-                                      addresses=everyone_else,
-                                      amount=airdrop_amount)
-
-            # Commit the current state of deployment to a registry file.
-            click.echo("Writing filesystem registry")
-            _sim_registry_name = sim_blockchain.interface.registry.commit(filepath=DEFAULT_SIMULATION_REGISTRY_FILEPATH)
-
-        click.echo("Ready to run swarm.")
-
-        #
-        # Swarm
-        #
-
-        # Select a port range to use on localhost for sim servers
-
-        if not config.federated_only:
-            sim_addresses = everyone_else
-        else:
-            sim_addresses = NotImplemented
-
-        start_port, counter = 8787, 0
-        for sim_port_number, sim_address in enumerate(sim_addresses, start=start_port):
-
-            #
-            # Parse sim-ursula parameters
-            #
-
-            sim_db_name = 'sim-{}'.format(sim_port_number)
-
-            process_params = ['nucypher', '--dev']
-            if geth is True:
-                process_params.append('--poa')
-            if config.federated_only:
-                process_params.append('--federated-only')
-            else:
-                process_params.extend('--registry-filepath {} --provider-uri {}'.format(simulation_registry.filepath,
-                                                                                        sim_provider_uri).split())
-            ursula_params = '''ursula run --rest-port {} --db-name {}'''.format(sim_port_number, sim_db_name).split()
-            process_params.extend(ursula_params)
-
-            if not config.federated_only:
-                min_stake, balance = MIN_ALLOWED_LOCKED, DEVELOPMENT_TOKEN_AIRDROP_AMOUNT
-                value = random.randint(min_stake, balance)                            # stake a random amount...
-                min_locktime, max_locktime = MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS  # ...for a random lock duration
-                periods = random.randint(min_locktime, max_locktime)
-                process_params.extend('--checksum-address {}'.format(sim_address).split())
-                process_params.extend('--stake-amount {} --stake-periods {}'.format(value, periods).split())
-
-            # Spawn
-            click.echo("Spawning node #{}".format(counter+1))
-            processProtocol = UrsulaCommandProtocol(command=process_params, checksum_address=sim_address)
-            cli_exec = os.path.join(BASE_DIR, 'cli', 'main.py')
-            ursula_process = reactor.spawnProcess(processProtocol=processProtocol,
-                                                  executable=cli_exec,
-                                                  args=process_params,
-                                                  env=os.environ)
-
-            config.sim_processes.append(ursula_process)
-
-            #
-            # post-spawnProcess
-            #
-
-            # Start with some basic status data, then build on it
-
-            rest_uri = "https://{}:{}".format('localhost', sim_port_number)
-
-            sim_data = "prepared simulated Ursula | ReST {}".format(rest_uri)
-            rest_uri = "{host}:{port}".format(host='localhost', port=str(sim_port_number))
-            sim_data.format(rest_uri)
-
-            if not config.federated_only:
-                sim_data += '| ETH address {}'.format(sim_address)
-
-            click.echo(sim_data)
-            counter += 1
-
-        click.echo("Starting the reactor")
-        click.confirm("Start the reactor?", abort=True)
-        try:
-            reactor.run()
-        finally:
-            if not config.federated_only:
-                click.echo("Removing simulation registry")
-                os.remove(DEFAULT_SIMULATION_REGISTRY_FILEPATH)
-            click.echo("Stopping simulated Ursula processes")
-            for process in config.sim_processes:
-                os.kill(process.pid, 9)
-                click.echo("Killed {}".format(process))
-            click.echo("Simulation Stopped")
-
-    elif action == 'stop':
-        # Kill the simulated ursulas
-        for process in config.ursula_processes:
-            process.transport.signalProcess('KILL')
-
-    elif action == 'status':
-        if not config.simulation_running:
-            status_message = "Simulation not running."
-        else:
-            ursula_processes = len(config.ursula_processes)
-            status_message = """
-            
-            | Node Swarm Simulation Status |
-            
-            Simulation processes .............. {}
-            
-            """.format(ursula_processes)
-        click.echo(status_message)
 
     else:
         raise click.BadArgumentUsage
@@ -1141,14 +933,12 @@ def status(config,
 
 @cli.command()
 @click.option('--debug', is_flag=True)
-@click.option('--trusted-teacher-uri', type=click.STRING)
+@click.option('--teacher-uri', type=click.STRING)
+@click.option('--min-stake', type=click.INT, default=0)
 @click.option('--rest-host', type=click.STRING)
 @click.option('--rest-port', type=click.IntRange(min=49151, max=65535, clamp=False))
 @click.option('--db-name', type=click.STRING)
 @click.option('--checksum-address', type=CHECKSUM_ADDRESS)
-@click.option('--stake-amount', type=click.IntRange(min=MIN_ALLOWED_LOCKED, max=MAX_ALLOWED_LOCKED, clamp=False))
-@click.option('--stake-periods', type=click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False))
-@click.option('--resume', help="Resume an existing stake", is_flag=True)
 @click.argument('action')
 @uses_config
 def ursula(config,
@@ -1157,11 +947,9 @@ def ursula(config,
            rest_host,
            db_name,
            checksum_address,
-           stake_amount,
-           stake_periods,
-           resume,  # TODO Implement stake resume
            debug,
-           trusted_teacher_uri
+           teacher_uri,
+           min_stake
            ) -> None:
     """
     Manage and run an Ursula node
@@ -1184,13 +972,8 @@ def ursula(config,
         if not checksum_address and not config.dev:
             raise click.BadArgumentUsage("No Configuration file found, and no --checksum address <addr> was provided.")
         if not checksum_address and not config.dev:
-            raise click.BadOptionUsage("No account specified. pass --checksum-address or --dev, "
+            raise click.BadOptionUsage(message="No account specified. pass --checksum-address, --dev, "
                                        "or use a configuration file with --config-file <path>")
-        if not config.federated_only:
-            if not all((stake_amount, stake_periods)) and not resume:
-                raise click.BadOptionUsage(message="Both the --stake-amount <amount> and --stake-periods <periods> options "
-                                                   "or the --resume flag is required to run a non-federated Ursula."
-                                                   "For federated run 'nucypher --federated-only ursula <action>'")
 
         return UrsulaConfiguration(temp=config.dev,
                                    auto_initialize=config.dev,
@@ -1210,7 +993,7 @@ def ursula(config,
                                    abort_on_learning_error=config.dev)
 
     #
-    # Produce
+    # Configure
     #
     overrides = dict()
     if config.dev:
@@ -1226,14 +1009,31 @@ def ursula(config,
     config.operating_mode = "federated" if ursula_config.federated_only else "decentralized"
     click.secho("Running in {} mode".format(config.operating_mode), fg='blue')
 
-    if trusted_teacher_uri:
-        address, rest_uri = trusted_teacher_uri.split("@")
-        host, port = rest_uri.split(":")
-        seed_metadata = [SeednodeMetadata(address, host, port)]  # TODO: Ensure seed injection works
-    else:
-        seed_metadata = ()
+    #
+    # Seed
+    #
+    seed_metadata, teacher_nodes = list(), list()
+    if teacher_uri:
 
-    URSULA = ursula_config.produce(passphrase=password, seed_nodes=seed_metadata, **overrides)  # 2
+        if all(('@' in teacher_uri, ':' in teacher_uri)):
+            address, rest_uri = teacher_uri.split("@")
+            host, port = rest_uri.split(":")
+            seed_metadata.append(SeednodeMetadata(address, host, port))
+
+        else:
+            teacher = Ursula.from_seed_and_stake_info(host=teacher_uri,
+                                                      federated_only=ursula_config.federated_only,
+                                                      minimum_stake=min_stake,
+                                                      certificates_directory=ursula_config.known_certificates_dir)
+            teacher_nodes.append(teacher)
+
+    #
+    # Produce
+    #
+    URSULA = ursula_config.produce(passphrase=password,
+                                   seed_nodes=seed_metadata,
+                                   known_nodes=teacher_nodes,
+                                   **overrides)  # 2
 
     click.secho("Initialized Ursula {}".format(URSULA.checksum_public_address), fg='green')
 
@@ -1242,9 +1042,6 @@ def ursula(config,
     #
     if action == 'run':
         try:
-            if not ursula_config.federated_only:                      # 3
-                URSULA.stake(amount=stake_amount, lock_periods=stake_periods)
-                click.secho("Initialized Stake", fg='blue')
 
             # GO!
             click.secho("Running Ursula on {}".format(URSULA.rest_interface), fg='green', bold=True)

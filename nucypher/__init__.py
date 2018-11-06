@@ -58,7 +58,6 @@ if not hasattr(sys, '_pytest_is_running'):
             release='{}@{}'.format(PACKAGE_NAME, __version__)
         )
 
-
 # Twisted Log Observer #
 ########################
 
