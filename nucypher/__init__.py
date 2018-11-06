@@ -29,17 +29,3 @@ __all__ = [
 
 from umbral.config import set_default_curve
 set_default_curve()
-
-
-# Report to Sentry #
-####################
-
-from nucypher.config.constants import REPORT_TO_SENTRY, NUCYPHER_SENTRY_ENDPOINT, PACKAGE_NAME
-
-# Twisted Log Observer #
-########################
-
-from nucypher.utilities.logging import simpleObserver
-from twisted.logger import globalLogPublisher
-
-globalLogPublisher.addObserver(simpleObserver)
