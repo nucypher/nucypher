@@ -40,6 +40,16 @@ def pytest_addoption(parser):
                      help="run tests even if they are marked as slow")
 
 
+def pytest_configure(config):
+    import sys
+    sys._pytest_is_running = True
+
+
+def pytest_unconfigure(config):
+    import sys
+    del sys._pytest_is_running
+
+
 def pytest_collection_modifyitems(config, items):
     if config.getoption("--runslow"):
         # --runslow given in cli: do not skip slow tests
