@@ -16,11 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from tempfile import TemporaryDirectory
-
 import pytest
 import pytest_twisted
+from tempfile import TemporaryDirectory
 from twisted.internet import threads
+
 from umbral import pre
 from umbral.fragments import KFrag, CapsuleFrag
 
