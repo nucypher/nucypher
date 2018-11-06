@@ -37,7 +37,7 @@ web3 = "*"
 appdirs = "*"
 click = "*"
 colorama = "*"
-moto = "*"
+boto3 = "*"
 
 [dev-packages]
 #
@@ -50,10 +50,10 @@ pytest-cov = "*"
 mypy = "*"
 codecov = "*"
 coverage = "*"
-boto3 = "*"
 sentry-sdk = "==0.5.2"
 ansible = "*"
 nucypher = {editable = true, path = "."}
+moto = "*"
 
 [pipenv]
 allow_prereleases = true
