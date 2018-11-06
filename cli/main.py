@@ -27,6 +27,7 @@ from typing import Tuple, ClassVar
 import click
 from constant_sorrow import constants
 from eth_utils import is_checksum_address
+from sentry_sdk.integrations.logging import LoggingIntegration
 from twisted.internet import stdio
 from twisted.logger import Logger
 from web3.middleware import geth_poa_middleware
@@ -77,6 +78,7 @@ def echo_version(ctx, param, value):
         return
     click.secho(BANNER, bold=True)
     ctx.exit()
+
 
 # Pending Configuration Named Tuple
 fields = 'passphrase wallet signing tls skip_keys save_file'.split()

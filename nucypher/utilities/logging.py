@@ -21,7 +21,10 @@ from nucypher.config.constants import REPORT_TO_SENTRY
 
 @provider(ILogObserver)
 def simpleObserver(event):
-    print(event.get('log_format'))
+    message = '{} ({}): {}'.format(event.get('log_level').name.upper(),
+                                   event.get('log_namespace'),
+                                   event.get('log_format'))
+    print(message)
 
 
 if REPORT_TO_SENTRY:
@@ -35,7 +38,9 @@ if REPORT_TO_SENTRY:
 
         # Handle Logs
         if not event.get('isError') or 'failure' not in event:
-            add_breadcrumb(event)
+            add_breadcrumb(level=event.get('log_level').name,
+                           message=event.get('log_format'),
+                           category=event.get('log_namespace'))
             return
 
         # Handle Failures
