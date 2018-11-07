@@ -30,7 +30,7 @@ contract IssuerMock is Issuer {
     }
 
     function testMint(
-        uint16 _period,
+        uint16 _currentPeriod,
         uint256 _lockedValue,
         uint256 _totalLockedValue,
         uint16 _allLockedPeriods
@@ -38,7 +38,7 @@ contract IssuerMock is Issuer {
         public returns (uint256 amount)
     {
         amount = mint(
-            _period,
+            _currentPeriod,
             _lockedValue,
             _totalLockedValue,
             _allLockedPeriods);

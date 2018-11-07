@@ -7,7 +7,7 @@ import "zeppelin/ownership/Ownable.sol";
 /**
 * @notice Base contract for upgradeable contract
 * @dev Inherited contract should implement verifyState(address) method by checking storage variables
-* (see verifyState(address) in Dispatcher). Also contract  should implement finishUpgrade(address)
+* (see verifyState(address) in Dispatcher). Also contract should implement finishUpgrade(address)
 * if it is using constructor parameters by coping this parameters to the dispatcher storage
 **/
 contract Upgradeable is Ownable {

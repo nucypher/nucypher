@@ -24,7 +24,7 @@ contract Issuer is Upgradeable {
     uint32 public secondsPerPeriod;
     uint16 public rewardedPeriods;
 
-    uint16 public lastMintedPeriod;
+    uint16 public currentMintingPeriod;
     uint256 public totalSupply;
     /**
     * Current supply is used in the mining formula and is stored to prevent different calculation
@@ -89,7 +89,7 @@ contract Issuer is Upgradeable {
     **/
     function initialize() public onlyOwner {
         require(currentSupply1 == 0);
-        lastMintedPeriod = getCurrentPeriod();
+        currentMintingPeriod = getCurrentPeriod();
         totalSupply = token.totalSupply();
         uint256 reservedReward = token.balanceOf(address(this));
         uint256 currentTotalSupply = totalSupply.sub(reservedReward);
@@ -100,21 +100,21 @@ contract Issuer is Upgradeable {
 
     /**
     * @notice Function to mint tokens for one period.
-    * @param _period Period number.
+    * @param _currentPeriod Current period number.
     * @param _lockedValue The amount of tokens that were locked by user in specified period.
     * @param _totalLockedValue The amount of tokens that were locked by all users in specified period.
     * @param _allLockedPeriods The max amount of periods during which tokens will be locked after specified period.
     * @return Amount of minted tokens.
     */
     function mint(
-        uint16 _period,
+        uint16 _currentPeriod,
         uint256 _lockedValue,
         uint256 _totalLockedValue,
         uint16 _allLockedPeriods
     )
         internal returns (uint256 amount)
     {
-        uint256 currentSupply = _period <= lastMintedPeriod ?
+        uint256 currentSupply = _currentPeriod <= currentMintingPeriod ?
             Math.min(currentSupply1, currentSupply2) :
             Math.max(currentSupply1, currentSupply2);
         if (currentSupply == totalSupply) {
@@ -141,14 +141,14 @@ contract Issuer is Upgradeable {
             amount = 1;
         }
 
-        if (_period <= lastMintedPeriod) {
+        if (_currentPeriod <= currentMintingPeriod) {
             if (currentSupply1 > currentSupply2) {
                 currentSupply1 = currentSupply1.add(amount);
             } else {
                 currentSupply2 = currentSupply2.add(amount);
             }
         } else {
-            lastMintedPeriod = _period;
+            currentMintingPeriod = _currentPeriod;
             if (currentSupply1 > currentSupply2) {
                 currentSupply2 = currentSupply1.add(amount);
             } else {
@@ -163,7 +163,7 @@ contract Issuer is Upgradeable {
         require(delegateGet(_testTarget, "lockedPeriodsCoefficient()") == lockedPeriodsCoefficient);
         require(uint32(delegateGet(_testTarget, "secondsPerPeriod()")) == secondsPerPeriod);
         require(uint16(delegateGet(_testTarget, "rewardedPeriods()")) == rewardedPeriods);
-        require(uint16(delegateGet(_testTarget, "lastMintedPeriod()")) == lastMintedPeriod);
+        require(uint16(delegateGet(_testTarget, "currentMintingPeriod()")) == currentMintingPeriod);
         require(delegateGet(_testTarget, "currentSupply1()") == currentSupply1);
         require(delegateGet(_testTarget, "currentSupply2()") == currentSupply2);
         require(delegateGet(_testTarget, "totalSupply()") == totalSupply);
