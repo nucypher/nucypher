@@ -8,10 +8,10 @@ import "zeppelin/token/ERC20/DetailedERC20.sol";
 
 /**
 * @title NuCypher token
-* @notice ERC20 token which can be burned by their owners
+* @notice ERC20 token
 * @dev Optional approveAndCall() functionality to notify a contract if an approve() has occurred.
 **/
-contract NuCypherToken is StandardToken, DetailedERC20('NuCypher', 'NU', 18), BurnableToken {
+contract NuCypherToken is StandardToken, DetailedERC20('NuCypher', 'NU', 18) {
 
     /**
     * @notice Set amount of tokens

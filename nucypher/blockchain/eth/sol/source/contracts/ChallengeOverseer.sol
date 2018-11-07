@@ -27,7 +27,9 @@ contract ChallengeOverseer {
     constructor(
         MinersEscrow _escrow,
         SignatureVerifier.HashAlgorithm _hashAlgorithm
-    ) public {
+    )
+        public
+    {
         require(address(_escrow) != 0x0);
         escrow = _escrow;
         hashAlgorithm = _hashAlgorithm;
@@ -56,7 +58,9 @@ contract ChallengeOverseer {
         bytes _minerPublicKeySignature,
         // TODO rename
         bytes _preComputedData
-    ) public {
+    )
+        public
+    {
         require(_minerPublicKey.length == 65 && _requesterPublicKey.length == 65);
 
         // Check that CFrag is not challenged yet
@@ -85,10 +89,10 @@ contract ChallengeOverseer {
         // Verify correctness of re-encryption
         UmbralDeserializer.Capsule memory capsule = _capsuleBytes.toCapsule();
         UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
-        // TODO rename
         UmbralDeserializer.PreComputedData memory data = _preComputedData.toPreComputedData();
         if (!isCapsuleFragCorrect(capsule, cFrag, data)) {
-            escrow.slashMiner(miner, PENALTY);
+            //TODO calculate penalty - depends on how many time was slashed
+//            escrow.slashMiner(miner, PENALTY);
         }
         challengedCFrags[challengeHash] = true;
     }
@@ -96,7 +100,9 @@ contract ChallengeOverseer {
     /**
     * @notice Prepare public key before verification (cut the first byte)
     **/
-    function preparePublicKey(bytes memory _preparedPublicKey, bytes memory _publicKey) public pure {
+    function preparePublicKey(bytes memory _preparedPublicKey, bytes memory _publicKey)
+        public pure
+    {
         assembly {
             let destination := add(_preparedPublicKey, 32) // skip array length
             let source := add(_publicKey, 33) // skip array length and first byte in the array
@@ -115,8 +121,10 @@ contract ChallengeOverseer {
         UmbralDeserializer.Capsule memory _capsule,
         UmbralDeserializer.CapsuleFrag memory _cFrag,
         UmbralDeserializer.PreComputedData memory _data
-    // TODO make public when possible
-    ) internal pure returns (bool) {
+    )
+        // TODO make public when possible
+        internal pure returns (bool)
+    {
         // TODO use Numerology repo
         return _capsule.bnSig >= 0 &&
             _cFrag.proof.metadata.length == 33 &&

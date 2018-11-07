@@ -23,6 +23,8 @@ CONFIRMED_PERIOD_1_FIELD = 2
 CONFIRMED_PERIOD_2_FIELD = 3
 LAST_ACTIVE_PERIOD_FIELD = 4
 
+MAX_SUB_STAKES = 30
+
 
 @pytest.mark.slow
 def test_staking(testerchain, token, escrow_contract):
@@ -310,8 +312,8 @@ def test_staking(testerchain, token, escrow_contract):
 
     # And increases locked time by dividing stake into two parts
     period = escrow.functions.getCurrentPeriod().call()
-    assert 2 == escrow.functions.getStakesLength(ursula2).call()
-    assert period + 1 == escrow.functions.getLastPeriodOfStake(ursula2, 1).call()
+    assert 2 == escrow.functions.getSubStakesLength(ursula2).call()
+    assert period + 1 == escrow.functions.getLastPeriodOfSubStake(ursula2, 1).call()
     tx = escrow.functions.divideStake(1, 200, 1).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     assert 1000 == escrow.functions.getLockedTokens(ursula2).call()
@@ -340,8 +342,8 @@ def test_staking(testerchain, token, escrow_contract):
     testerchain.time_travel(hours=1)
     # Check number of stakes and last stake parameters
     period = escrow.functions.getCurrentPeriod().call()
-    assert 3 == escrow.functions.getStakesLength(ursula2).call()
-    assert period == escrow.functions.getLastPeriodOfStake(ursula2, 1).call()
+    assert 3 == escrow.functions.getSubStakesLength(ursula2).call()
+    assert period == escrow.functions.getLastPeriodOfSubStake(ursula2, 1).call()
 
     # Divide stake again
     tx = escrow.functions.divideStake(1, 200, 2).transact({'from': ursula2})
@@ -361,8 +363,8 @@ def test_staking(testerchain, token, escrow_contract):
     assert 2 == event_args['periods']
 
     # Check number of stakes and last stake parameters
-    assert 4 == escrow.functions.getStakesLength(ursula2).call()
-    assert period + 1 == escrow.functions.getLastPeriodOfStake(ursula2, 2).call()
+    assert 4 == escrow.functions.getSubStakesLength(ursula2).call()
+    assert period + 1 == escrow.functions.getLastPeriodOfSubStake(ursula2, 2).call()
 
     # Divide stake again
     tx = escrow.functions.divideStake(2, 100, 2).transact({'from': ursula2})
@@ -398,8 +400,8 @@ def test_staking(testerchain, token, escrow_contract):
         tx = escrow.functions.divideStake(0, 200, 10).transact({'from': ursula2})
         testerchain.wait_for_receipt(tx)
 
-    assert 5 == escrow.functions.getStakesLength(ursula2).call()
-    assert period == escrow.functions.getLastPeriodOfStake(ursula2, 3).call()
+    assert 5 == escrow.functions.getSubStakesLength(ursula2).call()
+    assert period == escrow.functions.getLastPeriodOfSubStake(ursula2, 3).call()
     tx = escrow.functions.divideStake(3, 100, 1).transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
 
@@ -430,3 +432,60 @@ def test_staking(testerchain, token, escrow_contract):
     assert 5 == len(deposit_log.get_all_entries())
     assert 11 == len(lock_log.get_all_entries())
     assert 1 == len(withdraw_log.get_all_entries())
+
+
+@pytest.mark.slow
+def test_max_sub_stakes(testerchain, token, escrow_contract):
+    escrow = escrow_contract(10000)
+    creator = testerchain.interface.w3.eth.accounts[0]
+    ursula = testerchain.interface.w3.eth.accounts[1]
+
+    # Initialize Escrow contract
+    tx = escrow.functions.initialize().transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+
+    # Prepare before deposit
+    tx = token.functions.transfer(ursula, 4000).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    tx = token.functions.approve(escrow.address, 4000).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+
+    # Lock one sub stake from current period and others from next one
+    tx = escrow.functions.deposit(100, 2).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    assert 1 == escrow.functions.getSubStakesLength(ursula).call()
+
+    testerchain.time_travel(hours=1)
+    for index in range(MAX_SUB_STAKES - 1):
+        tx = escrow.functions.deposit(100, 2).transact({'from': ursula})
+        testerchain.wait_for_receipt(tx)
+    assert MAX_SUB_STAKES == escrow.functions.getSubStakesLength(ursula).call()
+    assert 3000 == escrow.functions.getLockedTokens(ursula, 1).call()
+
+    # Can't lock more because of reaching the maximum number of active sub stakes
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.deposit(100, 2).transact({'from': ursula})
+        testerchain.wait_for_receipt(tx)
+
+    # After two periods first sub stake will be unlocked and we can lock again
+    testerchain.time_travel(hours=1)
+    tx = escrow.functions.confirmActivity().transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    # Before sub stake will be inactive it must be mined
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.deposit(100, 2).transact({'from': ursula})
+        testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=1)
+    assert 2900 == escrow.functions.getLockedTokens(ursula).call()
+    assert 0 == escrow.functions.getLockedTokens(ursula, 1).call()
+    assert MAX_SUB_STAKES == escrow.functions.getSubStakesLength(ursula).call()
+    tx = escrow.functions.deposit(100, 2).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    assert 2900 == escrow.functions.getLockedTokens(ursula).call()
+    assert 100 == escrow.functions.getLockedTokens(ursula, 1).call()
+    assert MAX_SUB_STAKES == escrow.functions.getSubStakesLength(ursula).call()
+
+    # Can't lock more because of reaching the maximum number of active sub stakes and they are not mined yet
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = escrow.functions.deposit(100, 2).transact({'from': ursula})
+        testerchain.wait_for_receipt(tx)
