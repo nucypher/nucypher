@@ -161,7 +161,7 @@ def test_upgrading(testerchain, token):
     testerchain.wait_for_receipt(tx)
 
     # Upgrade to the second version, check new and old values of variables
-    period = contract.functions.lastMintedPeriod().call()
+    period = contract.functions.currentMintingPeriod().call()
     assert 1 == contract.functions.miningCoefficient().call()
     tx = dispatcher.functions.upgrade(contract_library_v2.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -170,7 +170,7 @@ def test_upgrading(testerchain, token):
     assert 2 * 3600 == contract.functions.secondsPerPeriod().call()
     assert 2 == contract.functions.lockedPeriodsCoefficient().call()
     assert 2 == contract.functions.rewardedPeriods().call()
-    assert period == contract.functions.lastMintedPeriod().call()
+    assert period == contract.functions.currentMintingPeriod().call()
     assert 2 * 10 ** 40 == contract.functions.totalSupply().call()
     # Check method from new ABI
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
@@ -197,7 +197,7 @@ def test_upgrading(testerchain, token):
     assert 3600 == contract.functions.secondsPerPeriod().call()
     assert 1 == contract.functions.lockedPeriodsCoefficient().call()
     assert 1 == contract.functions.rewardedPeriods().call()
-    assert period == contract.functions.lastMintedPeriod().call()
+    assert period == contract.functions.currentMintingPeriod().call()
     assert 2 * 10 ** 40 == contract.functions.totalSupply().call()
     # After rollback can't use new ABI
     with pytest.raises((TransactionFailed, ValueError)):

@@ -62,12 +62,6 @@ def test_create_token(testerchain):
     testerchain.wait_for_receipt(tx)
     assert 10 == token.functions.balanceOf(token.address).call()
 
-    # Can burn own tokens
-    tx = token.functions.burn(1).transact({'from': account2})
-    testerchain.wait_for_receipt(tx)
-    assert 9 == token.functions.balanceOf(account2).call()
-    assert 10 ** 9 - 1 == token.functions.totalSupply().call()
-
 
 @pytest.mark.slow()
 def test_approve_and_call(testerchain):
