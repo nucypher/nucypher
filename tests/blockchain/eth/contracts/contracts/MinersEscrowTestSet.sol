@@ -34,7 +34,7 @@ contract MinersEscrowBad is MinersEscrow {
     {
     }
 
-    function getStakeInfo(address, uint256) public view returns (uint16, uint16, uint16, uint256)
+    function getSubStakeInfo(address, uint256) public view returns (uint16, uint16, uint16, uint256)
     {
     }
 
