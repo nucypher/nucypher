@@ -14,16 +14,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from twisted.logger import ILogObserver
+
+# Test Logger Configuration
 from twisted.logger import globalLogPublisher
-from zope.interface import provider
+from cli.main import NucypherClickConfig
+from nucypher.utilities.logging import simpleObserver
 
-@provider(ILogObserver)
-def simpleObserver(event):
-    print(event)
-
+NucypherClickConfig.log_to_sentry = False
 globalLogPublisher.addObserver(simpleObserver)
-
 
 """NOTICE:  Depends on fixture modules; do not delete"""
 from .fixtures import *
@@ -38,16 +36,6 @@ def pytest_addoption(parser):
                      action="store_true",
                      default=False,
                      help="run tests even if they are marked as slow")
-
-
-def pytest_configure(config):
-    import sys
-    sys._pytest_is_running = True
-
-
-def pytest_unconfigure(config):
-    import sys
-    del sys._pytest_is_running
 
 
 def pytest_collection_modifyitems(config, items):

@@ -33,10 +33,7 @@ DEFAULT_CONFIG_ROOT = APP_DIR.user_data_dir
 SeednodeMetadata = namedtuple('seednode', ['checksum_address', 'rest_host', 'rest_port'])
 SEEDNODES = tuple()
 
-# Sentry (Set to False to disable sending Errors and Logs to NuCypher's Sentry.)
-REPORT_TO_SENTRY = True
-NUCYPHER_SENTRY_ENDPOINT = "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685"
 
 # CLI
-DEBUG = True
+NUCYPHER_SENTRY_ENDPOINT = "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685"
 KEYRING_PASSPHRASE_ENVVAR_KEY = 'NUCYPHER_KEYRING_PASSPHRASE'

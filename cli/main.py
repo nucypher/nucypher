@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 """
 This file is part of nucypher.
 
@@ -14,47 +15,43 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 
 import collections
 import hashlib
 import json
-import logging
 import os
 import shutil
-import sys
 from typing import Tuple, ClassVar
 
 import click
-from constant_sorrow import constants
+from constant_sorrow.constants import NO_NODE_CONFIGURATION, NO_BLOCKCHAIN_CONNECTION
 from eth_utils import is_checksum_address
+from sentry_sdk.integrations.logging import LoggingIntegration
 from twisted.internet import stdio
+from twisted.logger import Logger
+from twisted.logger import globalLogPublisher
 from web3.middleware import geth_poa_middleware
 
 import nucypher
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent, EthereumContractAgent
 from nucypher.blockchain.eth.chains import Blockchain
-
 from nucypher.blockchain.eth.constants import (MIN_ALLOWED_LOCKED,
                                                MIN_LOCKED_PERIODS,
                                                MAX_MINTING_PERIODS)
-
 from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                MinerEscrowDeployer,
                                                PolicyManagerDeployer)
-
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-
 from nucypher.config.constants import (SEEDNODES,
                                        SeednodeMetadata,
                                        NUCYPHER_SENTRY_ENDPOINT,
-                                       REPORT_TO_SENTRY,
-                                       DEBUG,
                                        KEYRING_PASSPHRASE_ENVVAR_KEY)
-
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
+from nucypher.utilities.logging import logToSentry
 from nucypher.utilities.sandbox.ursula import UrsulaCommandProtocol
 
 BANNER = """
@@ -71,68 +68,53 @@ BANNER = """
 
 """.format(nucypher.__version__)
 
-
-def echo_version(ctx, param, value):
-    if not value or ctx.resilient_parsing:
-        return
-    click.secho(BANNER, bold=True)
-    ctx.exit()
-
-
-# Setup Logging #
-################
-
-root = logging.Logger("cli")
-if DEBUG:
-    root.setLevel(logging.DEBUG)
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ch.setFormatter(formatter)
-    root.addHandler(ch)
-
-# Report to Sentry #
-####################
-
-if not hasattr(sys, '_pytest_is_running') and REPORT_TO_SENTRY:
-    import sentry_sdk
-    sentry_sdk.init(NUCYPHER_SENTRY_ENDPOINT, release=nucypher.__version__)
-
-####################
-
 # Pending Configuration Named Tuple
-fields = 'passphrase wallet signing tls skip_keys save_file'.split()
-PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetails', fields)
+PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetails',
+                                                     'passphrase wallet signing tls skip_keys save_file')
 
 
 class NucypherClickConfig:
 
+    log_to_sentry = True
+
     def __init__(self):
-        self.log = logging.Logger(self.__class__.__name__)
+        if self.log_to_sentry:
+            import sentry_sdk
+            import logging
+            sentry_logging = LoggingIntegration(
+                level=logging.INFO,        # Capture info and above as breadcrumbs
+                event_level=logging.DEBUG  # Send debug logs as events
+            )
+            sentry_sdk.init(
+                dsn=NUCYPHER_SENTRY_ENDPOINT,
+                integrations=[sentry_logging],
+                release=nucypher.__version__
+            )
+
+            globalLogPublisher.addObserver(logToSentry)
+
+        self.log = Logger(self.__class__.__name__)
 
         # Node Configuration
-        self.node_configuration = constants.NO_NODE_CONFIGURATION
-        self.dev = constants.NO_NODE_CONFIGURATION
-        self.federated_only = constants.NO_NODE_CONFIGURATION
-        self.config_root = constants.NO_NODE_CONFIGURATION
-        self.config_file = constants.NO_NODE_CONFIGURATION
+        self.node_configuration = NO_NODE_CONFIGURATION
+        self.dev = NO_NODE_CONFIGURATION
+        self.federated_only = NO_NODE_CONFIGURATION
+        self.config_root = NO_NODE_CONFIGURATION
+        self.config_file = NO_NODE_CONFIGURATION
 
         # Blockchain
-        self.deployer = constants.NO_BLOCKCHAIN_CONNECTION
-        self.compile = constants.NO_BLOCKCHAIN_CONNECTION
-        self.poa = constants.NO_BLOCKCHAIN_CONNECTION
-        self.blockchain = constants.NO_BLOCKCHAIN_CONNECTION
-        self.provider_uri = constants.NO_BLOCKCHAIN_CONNECTION
-        self.registry_filepath = constants.NO_BLOCKCHAIN_CONNECTION
-        self.accounts = constants.NO_BLOCKCHAIN_CONNECTION
+        self.deployer = NO_BLOCKCHAIN_CONNECTION
+        self.compile = NO_BLOCKCHAIN_CONNECTION
+        self.poa = NO_BLOCKCHAIN_CONNECTION
+        self.blockchain = NO_BLOCKCHAIN_CONNECTION
+        self.provider_uri = NO_BLOCKCHAIN_CONNECTION
+        self.registry_filepath = NO_BLOCKCHAIN_CONNECTION
+        self.accounts = NO_BLOCKCHAIN_CONNECTION
 
         # Agency
-        self.token_agent = constants.NO_BLOCKCHAIN_CONNECTION
-        self.miner_agent = constants.NO_BLOCKCHAIN_CONNECTION
-        self.policy_agent = constants.NO_BLOCKCHAIN_CONNECTION
-
-        # Simulation
-        self.sim_processes = constants.NO_SIMULATION_RUNNING
+        self.token_agent = NO_BLOCKCHAIN_CONNECTION
+        self.miner_agent = NO_BLOCKCHAIN_CONNECTION
+        self.policy_agent = NO_BLOCKCHAIN_CONNECTION
 
     def get_node_configuration(self, configuration_class=UrsulaConfiguration, **overrides):
         if self.dev:
@@ -204,7 +186,6 @@ class NucypherClickConfig:
 
         # Defaults
         passphrase = None
-        host = UrsulaConfiguration.DEFAULT_REST_HOST
         skip_all_key_generation, generate_wallet = False, False
         generate_encrypting_keys, generate_tls_keys, save_node_configuration_file = True, True, True
 
@@ -218,7 +199,7 @@ class NucypherClickConfig:
 
             if generate_tls_keys or force:
                 if not force and not rest_host:
-                    rest_host = click.prompt("Enter node IPv4 Address",
+                    rest_host = click.prompt("Enter Node's Public IPv4 Address",
                                              default=UrsulaConfiguration.DEFAULT_REST_HOST,
                                              type=click.STRING)
 
@@ -299,8 +280,17 @@ Located at {}?'''.format(self.node_configuration.config_root), abort=True)
         click.secho("Deleted configuration files at {}".format(self.node_configuration.config_root), fg='blue')
 
 
+#########################################
+
 # Register the above class as a decorator
 uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
+
+
+def echo_version(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.secho(BANNER, bold=True)
+    ctx.exit()
 
 
 # Custom input type
@@ -315,6 +305,12 @@ class ChecksumAddress(click.ParamType):
 
 CHECKSUM_ADDRESS = ChecksumAddress()
 
+########################################
+
+
+#
+# CLI Commands
+#
 
 @click.group()
 @click.option('--version', help="Echo the CLI version", is_flag=True, callback=echo_version, expose_value=False, is_eager=True)
@@ -348,6 +344,7 @@ def cli(config,
     # Store config data
     config.verbose = verbose
 
+    # CLI Node View
     config.dev = dev
     config.federated_only = federated_only
     config.config_root = config_root
@@ -358,14 +355,6 @@ def cli(config,
     config.registry_filepath = registry_filepath
     config.deployer = deployer
     config.poa = poa
-
-    # TODO: Create NodeConfiguration from these values
-    # node_configuration = NodeConfiguration(temp=dev,
-    #                                        federated_only=federated_only,
-    #                                        config_root=config_root,
-    #                                        known_metadata_dir=metadata_dir,
-    #                                        registry_filepath=registry_filepath,
-    #                                        )
 
     if config.verbose:
         click.secho("Verbose mode is enabled", fg='blue')
@@ -378,7 +367,6 @@ def cli(config,
 
 @cli.command()
 @click.option('--ursula', help="Configure ursula",  is_flag=True, default=False)
-@click.option('--filesystem', is_flag=True, default=False)
 @click.option('--rest-host', type=click.STRING)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--force', help="Ask confirm once; Do not generate wallet or certificate", is_flag=True)
@@ -388,32 +376,22 @@ def configure(config,
               action,
               ursula,
               rest_host,
-              filesystem,
               no_registry,
               force):
-    """Manage local nucypher files and directories"""
-    config.get_node_configuration(configuration_class=UrsulaConfiguration,  rest_host=rest_host)  # TODO: Un-hardcode Ursula
+
+    # Fetch Existing Configuration
+    config.get_node_configuration(configuration_class=UrsulaConfiguration,  rest_host=rest_host)
+
     if action == "install":
         config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry, rest_host=rest_host)
     elif action == "view":
-        json_config = NodeConfiguration._read_configuration_file(filepath=config.node_configuration.config_file_location)
+        json_config = UrsulaConfiguration._read_configuration_file(filepath=config.node_configuration.config_file_location)
         click.echo(json_config)
     elif action == "reset":
         config.destroy_configuration()
         config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry, rest_host=rest_host)
     elif action == "destroy":
         config.destroy_configuration()
-    elif action == "validate":
-        is_valid = True      # Until there is a reason to believe otherwise...
-        try:
-            if filesystem:   # Check runtime directory
-                is_valid = NodeConfiguration.validate(config_root=config.node_configuration.config_root,
-                                                      no_registry=no_registry)
-        except NodeConfiguration.InvalidConfiguration:
-            is_valid = False
-        finally:
-            result = 'Valid' if is_valid else 'Invalid'
-            click.echo('{} is {}'.format(config.node_configuration.config_root, result))
     else:
         raise click.BadArgumentUsage("No such argument {}".format(action))
 
@@ -439,13 +417,13 @@ def accounts(config,
             checksum_address = config.blockchain.interface.w3.eth.coinbase
             click.echo("WARNING: No checksum address specified - Using the node's default account.")
 
-        def __collect_transfer_details(denomination: str):
-            destination = click.prompt("Enter destination checksum_address")
-            if not is_checksum_address(destination):
-                click.secho("{} is not a valid checksum checksum_address".format(destination), fg='red', bold=True)
-                raise click.Abort()
-            amount = click.prompt("Enter amount of {} to transfer".format(denomination), type=click.INT)
-            return destination, amount
+    def __collect_transfer_details(denomination: str):
+        destination = click.prompt("Enter destination checksum_address")
+        if not is_checksum_address(destination):
+            click.secho("{} is not a valid checksum checksum_address".format(destination), fg='red', bold=True)
+            raise click.Abort()
+        amount = click.prompt("Enter amount of {} to transfer".format(denomination), type=click.INT)
+        return destination, amount
 
     #
     # Action Switch
@@ -565,7 +543,7 @@ def stake(config,
         address = config.accounts[account_selection]
 
     if action == 'list':
-        live_stakes = config.miner_agent.get_all_stakes(miner_address=address)
+        live_stakes = config.miner_agent.get_all_stakes(miner_address=checksum_address)
         for index, stake_info in enumerate(live_stakes):
             row = '{} | {}'.format(index, stake_info)
             click.echo(row)
@@ -573,12 +551,12 @@ def stake(config,
     elif action == 'init':
         click.confirm("Stage a new stake?", abort=True)
 
-        live_stakes = config.miner_agent.get_all_stakes(miner_address=address)
+        live_stakes = config.miner_agent.get_all_stakes(miner_address=checksum_address)
         if len(live_stakes) > 0:
-            raise RuntimeError("There is an existing stake for {}".format(address))
+            raise RuntimeError("There is an existing stake for {}".format(checksum_address))
 
         # Value
-        balance = config.token_agent.get_balance(address=address)
+        balance = config.token_agent.get_balance(address=checksum_address)
         click.echo("Current balance: {}".format(balance))
         value = click.prompt("Enter stake value", type=click.INT)
 
@@ -586,7 +564,7 @@ def stake(config,
         message = "Minimum duration: {} | Maximum Duration: {}".format(MIN_LOCKED_PERIODS,
                                                                        MAX_MINTING_PERIODS)
         click.echo(message)
-        duration = click.prompt("Enter stake duration in days", type=click.INT)
+        duration = click.prompt("Enter stake duration in periods (1 Period = 24 Hours)", type=click.INT)
 
         start_period = config.miner_agent.get_current_period()
         end_period = start_period + duration
@@ -602,45 +580,28 @@ def stake(config,
         Start Period: {start_period}
         End Period: {end_period}
         
-        """.format(address=address,
+        """.format(address=checksum_address,
                    value=value,
                    duration=duration,
                    start_period=start_period,
                    end_period=end_period))
 
         # TODO: Ursula Process management
-        # if not click.confirm("Is this correct?"):
-        #     # field = click.prompt("Which stake field do you want to edit?")
-        #     raise NotImplementedError
-        #
-        # # Initialize the staged stake
-        # config.__proxy_contract.deposit_tokens(amount=value, lock_periods=duration, sender_address=address)
-        #
-        # proc_params = ['run_ursula']
-        # processProtocol = UrsulaCommandProtocol(command=proc_params, checksum_address=checksum_address)
-        # ursula_proc = reactor.spawnProcess(processProtocol, "nucypher", proc_params)
-        raise NotImplementedError
-
-    elif action == 'resume':
-        """Reconnect and resume an existing live stake"""
-        # proc_params = ['run_ursula']
-        # processProtocol = UrsulaCommandProtocol(command=proc_params, checksum_address=checksum_address)
-        # ursula_proc = reactor.spawnProcess(processProtocol, "nucypher", proc_params)
         raise NotImplementedError
 
     elif action == 'confirm-activity':
         """Manually confirm activity for the active period"""
-        stakes = config.miner_agent.get_all_stakes(miner_address=address)
+        stakes = config.miner_agent.get_all_stakes(miner_address=checksum_address)
         if len(stakes) == 0:
-            raise RuntimeError("There are no active stakes for {}".format(address))
-        config.miner_agent.confirm_activity(node_address=address)
+            raise RuntimeError("There are no active stakes for {}".format(checksum_address))
+        config.miner_agent.confirm_activity(node_address=checksum_address)
 
     elif action == 'divide':
         """Divide an existing stake by specifying the new target value and end period"""
 
-        stakes = config.miner_agent.get_all_stakes(miner_address=address)
+        stakes = config.miner_agent.get_all_stakes(miner_address=checksum_address)
         if len(stakes) == 0:
-            raise RuntimeError("There are no active stakes for {}".format(address))
+            raise RuntimeError("There are no active stakes for {}".format(checksum_address))
 
         if not index:
             for selection_index, stake_info in enumerate(stakes):
@@ -661,7 +622,7 @@ def stake(config,
                    target_value+extension))
 
         click.confirm("Is this correct?", abort=True)
-        config.miner_agent.divide_stake(miner_address=address,
+        config.miner_agent.divide_stake(miner_address=checksum_address,
                                         stake_index=index,
                                         value=value,
                                         periods=extension)
@@ -723,12 +684,7 @@ def deploy(config,
                                                                upgradeable=True,
                                                                agent_name='policy_agent',
                                                                dependant='miner_agent'
-                                                               ),
-
-            # UserEscrowDeployer._contract_name: DeployerInfo(deployer_class=UserEscrowDeployer,
-            #                                                 upgradeable=True,
-            #                                                 agent_name='user_agent',
-            #                                                 dependant='policy_agent'),  # TODO: User Escrow CLI Deployment
+                                                               )
         })
 
         click.confirm("Continue?", abort=True)
@@ -829,7 +785,7 @@ def deploy(config,
                     click.echo("{}:{}".format(tx_name, txhash))
 
         if not force and click.confirm("Save transaction hashes to JSON file?"):
-            file = click.prompt("Enter output filepath", type=click.File(mode='w'))   # TODO
+            file = click.prompt("Enter output filepath", type=click.File(mode='w'))   # TODO: Save Txhashes
             file.write(json.dumps(__deployment_transactions))
             click.secho("Successfully wrote transaction hashes file to {}".format(file.path), fg='green')
 
@@ -838,12 +794,8 @@ def deploy(config,
 
 
 @cli.command()
-@click.option('--contracts', help="Echo nucypher smart contract info", is_flag=True)
-@click.option('--network', help="Echo the network status", is_flag=True)
 @uses_config
-def status(config,
-           contracts,
-           network):
+def status(config):
     """
     Echo a snapshot of live network metadata.
     """
