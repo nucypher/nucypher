@@ -143,12 +143,12 @@ class MinerAgent(EthereumContractAgent):
         return self.contract.functions.minerInfo(address).call()[0]
 
     def get_stake_info(self, miner_address: str, stake_index: int):
-        first_period, *others, locked_value = self.contract.functions.getStakeInfo(miner_address, stake_index).call()
-        last_period = self.contract.functions.getLastPeriodOfStake(miner_address, stake_index).call()
+        first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(miner_address, stake_index).call()
+        last_period = self.contract.functions.getLastPeriodOfSubStake(miner_address, stake_index).call()
         return first_period, last_period, locked_value
 
     def get_all_stakes(self, miner_address: str):
-        stakes_length = self.contract.functions.getStakesLength(miner_address).call()
+        stakes_length = self.contract.functions.getSubStakesLength(miner_address).call()
         for stake_index in range(stakes_length):
             yield self.get_stake_info(miner_address=miner_address, stake_index=stake_index)
 
