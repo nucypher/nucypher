@@ -212,7 +212,7 @@ class EncryptingPower(KeyPairBasedPower):
 class DelegatingPower(DerivedKeyBasedPower):
 
     def __init__(self) -> None:
-        self.umbral_keying_material = UmbralKeyingMaterial()
+        self.__umbral_keying_material = UmbralKeyingMaterial()
 
     def generate_kfrags(self, bob_pubkey_enc, signer, label, m, n) -> Tuple[UmbralPublicKey, List]:
         """
@@ -222,11 +222,11 @@ class DelegatingPower(DerivedKeyBasedPower):
         that he can activate the Capsule.
         :param bob_pubkey_enc: Bob's public key
         :param m: Minimum number of KFrags needed to rebuild ciphertext
-        :param n: Total number of rekey shares to generate
+        :param n: Total number of KFrags to generate
         """
         # TODO: salt?  #265
 
-        __private_key = self.umbral_keying_material.derive_privkey_by_label(label)
+        __private_key = self.__umbral_keying_material.derive_privkey_by_label(label)
         kfrags = pre.generate_kfrags(delegating_privkey=__private_key,
                                      receiving_pubkey=bob_pubkey_enc,
                                      threshold=m,
