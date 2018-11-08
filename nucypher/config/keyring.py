@@ -36,7 +36,7 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
-from umbral.keys import UmbralPrivateKey, UmbralPublicKey
+from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
@@ -260,6 +260,10 @@ def _generate_encryption_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
     return privkey, pubkey
 
 
+def _generate_umbral_keying_material() -> UmbralKeyingMaterial:
+    return UmbralKeyingMaterial()
+
+
 def _generate_signing_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
     """
     TODO: Do we really want to use Umbral keys for signing? Perhaps we can use Curve25519/EdDSA for signatures?
@@ -363,6 +367,7 @@ class NucypherKeyring:
                  pub_root_key_path: str = None,
                  signing_key_path: str = None,
                  pub_signing_key_path: str = None,
+                 delegating_key_path: str = None,
                  wallet_path: str = None,
                  tls_key_path: str = None,
                  tls_certificate_path: str = None,
@@ -388,6 +393,7 @@ class NucypherKeyring:
         # Private
         self.__root_keypath = root_key_path or __default_key_filepaths['root']
         self.__signing_keypath = signing_key_path or __default_key_filepaths['signing']
+        self.__delegating_keypath = delegating_key_path or __default_key_filepaths['delegating']
         self.__wallet_path = wallet_path or __default_key_filepaths['wallet']
         self.__tls_keypath = tls_key_path or __default_key_filepaths['tls']
 
@@ -454,6 +460,7 @@ class NucypherKeyring:
             'root': os.path.join(private_key_dir, 'root-{}.priv'.format(account)),
             'root_pub': os.path.join(public_key_dir, 'root-{}.pub'.format(account)),
             'signing': os.path.join(private_key_dir, 'signing-{}.priv'.format(account)),
+            'delegating': os.path.join(private_key_dir, 'delegating-{}.priv'.format(account)),
             'signing_pub': os.path.join(public_key_dir, 'signing-{}.pub'.format(account)),
             'wallet': os.path.join(private_key_dir, 'wallet-{}.json'.format(account)),
             'tls': os.path.join(private_key_dir, '{}.priv.pem'.format(account)),
@@ -536,7 +543,12 @@ class NucypherKeyring:
 
         # Derived
         elif issubclass(power_class, DerivedKeyBasedPower):
-            new_cryptopower = power_class()
+            # TODO
+            key_data = _read_keyfile(self.__delegating_keypath, deserializer=self._private_key_serializer)
+            wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
+                                                              key_material=self.__derived_key_material)
+            keying_material = SecretBox(wrap_key).decrypt(key_data['key'])
+            new_cryptopower = power_class(keying_material=keying_material)
 
         else:
             failure_message = "{} is an invalid type for deriving a CryptoPower.".format(power_class.__name__)
@@ -605,24 +617,48 @@ class NucypherKeyring:
                                                       public_key_dir=_public_key_dir)
         if encrypting is True:
             encrypting_private_key, encrypting_public_key = _generate_encryption_keys()
+            delegating_keying_material = _generate_umbral_keying_material().to_bytes()
 
             # Derive Wrapping Keys
-            passphrase_salt, encrypting_salt, signing_salt = os.urandom(32), os.urandom(32), os.urandom(32)
-            derived_key_material = _derive_key_material_from_passphrase(salt=passphrase_salt, passphrase=passphrase)
-            encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt, key_material=derived_key_material)
-            signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt, key_material=derived_key_material)
+            passphrase_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))
+            derived_key_material = _derive_key_material_from_passphrase(salt=passphrase_salt,
+                                                                        passphrase=passphrase)
+            encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt,
+                                                                         key_material=derived_key_material)
+            signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt,
+                                                                        key_material=derived_key_material)
+            delegating_wrap_key = _derive_wrapping_key_from_key_material(salt=delegating_salt,
+                                                                         key_material=derived_key_material)
 
+            # TODO: Deprecate _encrypt_umbral_key with new pyumbral release
             # Encapsulate Private Keys
-            encrypting_key_data = _encrypt_umbral_key(umbral_key=encrypting_private_key, wrapping_key=encrypting_wrap_key)
-            signing_key_data = _encrypt_umbral_key(umbral_key=signing_private_key, wrapping_key=signature_wrap_key)
+            encrypting_key_data = _encrypt_umbral_key(umbral_key=encrypting_private_key,
+                                                      wrapping_key=encrypting_wrap_key)
+            signing_key_data = _encrypt_umbral_key(umbral_key=signing_private_key,
+                                                   wrapping_key=signature_wrap_key)
+            delegating_key_data = bytes(SecretBox(delegating_wrap_key).encrypt(delegating_keying_material))
 
             # Assemble Private Keys
-            encrypting_key_metadata = _assemble_key_data(key_data=encrypting_key_data, master_salt=passphrase_salt, wrap_salt=encrypting_salt)
-            signing_key_metadata = _assemble_key_data(key_data=signing_key_data, master_salt=passphrase_salt, wrap_salt=signing_salt)
+            encrypting_key_metadata = _assemble_key_data(key_data=encrypting_key_data,
+                                                         master_salt=passphrase_salt,
+                                                         wrap_salt=encrypting_salt)
+            signing_key_metadata = _assemble_key_data(key_data=signing_key_data,
+                                                      master_salt=passphrase_salt,
+                                                      wrap_salt=signing_salt)
+            delegating_key_metadata = _assemble_key_data(key_data=delegating_key_data,
+                                                         master_salt=passphrase_salt,
+                                                         wrap_salt=delegating_salt)
 
             # Write Private Keys
-            rootkey_path = _write_private_keyfile(__key_filepaths['root'], encrypting_key_metadata, serializer=cls._private_key_serializer)
-            sigkey_path = _write_private_keyfile(__key_filepaths['signing'], signing_key_metadata, serializer=cls._private_key_serializer)
+            rootkey_path = _write_private_keyfile(keypath=__key_filepaths['root'],
+                                                  key_data=encrypting_key_metadata,
+                                                  serializer=cls._private_key_serializer)
+            sigkey_path = _write_private_keyfile(keypath=__key_filepaths['signing'],
+                                                 key_data=signing_key_metadata,
+                                                 serializer=cls._private_key_serializer)
+            delegating_key_path = _write_private_keyfile(keypath=__key_filepaths['delegating'],
+                                                         key_data=delegating_key_metadata,
+                                                         serializer=cls._private_key_serializer)
 
             # Write Public Keys
             root_keypath = _write_public_keyfile(__key_filepaths['root_pub'], encrypting_public_key.to_bytes())
@@ -635,6 +671,7 @@ class NucypherKeyring:
                 pub_root_key_path=root_keypath,
                 signing_key_path=sigkey_path,
                 pub_signing_key_path=signing_keypath,
+                delegating_key_path=delegating_key_path,
             )
 
         if tls is True:
