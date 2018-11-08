@@ -16,10 +16,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import datetime
 import maya
+import os
 import pytest
 from umbral.fragments import KFrag
 
+from nucypher.characters.lawful import Alice, Bob
+from nucypher.config.characters import AliceConfiguration
+from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.crypto.api import keccak_digest
+from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import MockPolicyCreation
 
 
@@ -87,3 +93,86 @@ def test_federated_grant(federated_alice, federated_bob):
         retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
 
         assert kfrag == retrieved_kfrag
+
+
+def test_alice_delegation_power_is_persistent(federated_ursulas, tmpdir):
+
+    passphrase = TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+
+    # Let's create an Alice from a Configuration.
+    # This requires creating a local storage for her first.
+    node_storage = LocalFileBasedNodeStorage(
+        federated_only=True,
+        character_class=Alice,
+        known_metadata_dir=os.path.join(tmpdir, "known_metadata"),
+    )
+
+    alice_config = AliceConfiguration(
+        config_root=os.path.join(tmpdir, "config_root"),
+        node_storage=node_storage,
+        auto_initialize=True,
+        auto_generate_keys=True,
+        passphrase=passphrase,
+        is_me=True,
+        network_middleware=MockRestMiddleware(),
+        known_nodes=federated_ursulas,
+        start_learning_now=False,
+        federated_only=True,
+        # abort_on_learning_error=True,
+        save_metadata=False,
+        load_metadata=False
+    )
+    alice = alice_config(passphrase=passphrase)
+
+    # We will save Alice's config to a file for later use
+    alice_config_file = alice_config.to_configuration_file()
+
+    # Now, let's create a policy for some Bob
+    m, n = 3, 4
+    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    label = b"this_is_the_path_to_which_access_is_being_granted"
+
+    bob = Bob(federated_only=True,
+              start_learning_now=False,
+              network_middleware=MockRestMiddleware(),
+              )
+
+    bob_policy = alice.grant(bob, label, m=m, n=n, expiration=policy_end_datetime)
+
+    # ... and Alice and her configuration disappear.
+    del alice
+    del alice_config
+
+    ###################################
+    #        Some time passes.        #
+    #               ...               #
+    # (jmyles plays the Song of Time) #
+    #               ...               #
+    #       Alice appears again.      #
+    ###################################
+
+    new_alice_config = AliceConfiguration.from_configuration_file(
+        filepath=alice_config_file,
+        network_middleware=MockRestMiddleware(),
+        known_nodes=federated_ursulas,
+        start_learning_now=False,
+    )
+
+    new_alice = new_alice_config(passphrase=passphrase)
+
+    # Bob's eldest brother, Roberto, appears too
+    roberto = Bob(federated_only=True,
+                  start_learning_now=False,
+                  network_middleware=MockRestMiddleware(),
+                  )
+
+    # Alice creates a new policy for Roberto. Note how all the parameters
+    # except for the label (i.e., recipient, m, n, policy_end) are different
+    # from previous policy
+    m, n = 2, 5
+    policy_end_datetime = maya.now() + datetime.timedelta(days=3)
+    roberto_policy = new_alice.grant(roberto, label, m=m, n=n, expiration=policy_end_datetime)
+
+    # Both policies must share the same delegation public key
+    assert bob_policy.public_key == roberto_policy.public_key
+
