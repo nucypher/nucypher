@@ -15,8 +15,6 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from bytestring_splitter import VariableLengthBytestring
-from constant_sorrow import default_constant_splitter, constants
-from nucypher.crypto.api import keccak_digest
 
 
 class SuspiciousActivity(RuntimeError):
