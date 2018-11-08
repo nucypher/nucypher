@@ -15,8 +15,6 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from bytestring_splitter import VariableLengthBytestring
-from constant_sorrow import default_constant_splitter, constants
-from nucypher.crypto.api import keccak_digest
 
 
 class SuspiciousActivity(RuntimeError):
@@ -33,7 +31,7 @@ class InterfaceInfo:
 
     @classmethod
     def from_bytes(cls, url_string):
-        host_bytes, port_bytes = url_string.split(b":")
+        host_bytes, port_bytes = url_string.split(b':', 1)
         port = int.from_bytes(port_bytes, "big")
         host = host_bytes.decode("utf-8")
         return cls(host=host, port=port)
