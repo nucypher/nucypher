@@ -14,6 +14,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import base64
 import sha3
 from constant_sorrow.constants import PUBLIC_ONLY
 from umbral.keys import UmbralPrivateKey
@@ -54,7 +55,7 @@ def test_keypair_serialization():
     assert pubkey_bytes == bytes(umbral_pubkey)
 
     pubkey_b64 = new_keypair.serialize_pubkey(as_b64=True)
-    assert pubkey_b64 == umbral_pubkey.to_bytes()
+    assert pubkey_b64 == base64.urlsafe_b64encode(umbral_pubkey.to_bytes())
 
 
 def test_keypair_fingerprint():
