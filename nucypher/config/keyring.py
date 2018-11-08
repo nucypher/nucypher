@@ -193,7 +193,7 @@ def _derive_key_material_from_passphrase(salt: bytes,
                                          passphrase: str
                                          ) -> bytes:
     """
-    Uses Scrypt derivation to derive a  key for encrypting key material.
+    Uses Scrypt derivation to derive a key for encrypting key material.
     See RFC 7914 for n, r, and p value selections.
     This takes around ~5 seconds to perform.
     """
@@ -515,7 +515,7 @@ class NucypherKeyring:
     def derive_crypto_power(self, power_class: ClassVar) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
         """
         Takes either a SigningPower or an EncryptingPower and returns
-        a either a SigningPower or EncryptingPower with the coinciding
+        either a SigningPower or EncryptingPower with the coinciding
         private key.
 
         TODO: Derive a key from the root_key.
@@ -630,7 +630,7 @@ class NucypherKeyring:
 
             # Write Public Keys
             root_keypath = _write_public_keyfile(__key_filepaths['root_pub'], encrypting_public_key.to_bytes())
-            siging_keypath = _write_public_keyfile(__key_filepaths['signing_pub'], signing_public_key.to_bytes())
+            signing_keypath = _write_public_keyfile(__key_filepaths['signing_pub'], signing_public_key.to_bytes())
 
             # Commit
             keyring_args.update(
@@ -638,7 +638,7 @@ class NucypherKeyring:
                 root_key_path=rootkey_path,
                 pub_root_key_path=root_keypath,
                 signing_key_path=sigkey_path,
-                pub_signing_key_path=siging_keypath
+                pub_signing_key_path=signing_keypath,
             )
 
         if tls is True:

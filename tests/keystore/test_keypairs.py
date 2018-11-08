@@ -23,12 +23,14 @@ from nucypher.keystore import keypairs
 
 def test_gen_keypair_if_needed():
     new_enc_keypair = keypairs.EncryptingKeypair()
-    assert new_enc_keypair._privkey != None
-    assert new_enc_keypair.pubkey != None
+    assert new_enc_keypair._privkey is not None
+    assert new_enc_keypair.pubkey is not None
+    assert new_enc_keypair.pubkey == new_enc_keypair._privkey.get_pubkey()
 
     new_sig_keypair = keypairs.SigningKeypair()
-    assert new_sig_keypair._privkey != None
-    assert new_sig_keypair.pubkey != None
+    assert new_sig_keypair._privkey is not None
+    assert new_sig_keypair.pubkey is not None
+    assert new_sig_keypair.pubkey == new_sig_keypair._privkey.get_pubkey()
 
 
 def test_keypair_with_umbral_keys():
@@ -60,7 +62,7 @@ def test_keypair_fingerprint():
     new_keypair = keypairs.Keypair(public_key=umbral_pubkey)
 
     fingerprint = new_keypair.fingerprint()
-    assert fingerprint != None
+    assert fingerprint is not None
 
     umbral_fingerprint = sha3.keccak_256(bytes(umbral_pubkey)).hexdigest().encode()
     assert fingerprint == umbral_fingerprint
@@ -70,12 +72,12 @@ def test_signing():
     umbral_privkey = UmbralPrivateKey.gen_key()
     sig_keypair = keypairs.SigningKeypair(umbral_privkey)
 
-    msg = b'attack at dawn'
+    msg = b'peace at dawn'
     signature = sig_keypair.sign(msg)
-    assert signature.verify(msg, sig_keypair.pubkey) == True
+    assert signature.verify(msg, sig_keypair.pubkey)
 
     bad_msg = b'bad message'
-    assert signature.verify(bad_msg, sig_keypair.pubkey) == False
+    assert not signature.verify(bad_msg, sig_keypair.pubkey)
 
 
 # TODO: Add test for EncryptingKeypair.decrypt

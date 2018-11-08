@@ -665,7 +665,6 @@ class Character(Learner):
         return int.from_bytes(bytes(self.stamp), byteorder="big")
 
     def __repr__(self):
-        class_name = self.__class__.__name__
         r = "⇀{}↽ ({})"
         r = r.format(self.nickname, self.checksum_public_address)
         return r

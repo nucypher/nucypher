@@ -63,12 +63,12 @@ def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agen
 def test_federated_grant(federated_alice, federated_bob):
 
     # Setup the policy details
-    n = 3
+    m, n = 2, 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     label = b"this_is_the_path_to_which_access_is_being_granted"
 
-    # Create the Policy, Grating access to Bob
-    policy = federated_alice.grant(federated_bob, label, m=2, n=n, expiration=policy_end_datetime)
+    # Create the Policy, granting access to Bob
+    policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
 
     # The number of accepted arrangements at least the number of Ursulas we're using (n)
     assert len(policy._accepted_arrangements) >= n
