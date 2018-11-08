@@ -61,7 +61,6 @@ __WRAPPING_KEY_LENGTH = 32
 __WRAPPING_KEY_INFO = b'NuCypher-KeyWrap'
 __HKDF_HASH_ALGORITHM = hashes.BLAKE2b
 __HKDF_HASH_LENGTH = 64
-__NONCE_LENGTH = 24
 
 
 def unlock_required(func):
@@ -73,12 +72,11 @@ def unlock_required(func):
     return wrapped
 
 
-def _assemble_key_data(key_data: Dict[str, bytes],
+def _assemble_key_data(key_data: bytes,
                        master_salt: bytes,
                        wrap_salt: bytes) -> Dict[str, bytes]:
     encoded_key_data = {
-        'nonce': key_data['nonce'],
-        'key': key_data['key'],
+        'key': key_data,
         'master_salt': master_salt,
         'wrap_salt': wrap_salt,
     }
@@ -227,26 +225,24 @@ def _derive_wrapping_key_from_key_material(salt: bytes,
 
 def _encrypt_umbral_key(wrapping_key: bytes,
                         umbral_key: UmbralPrivateKey
-                        ) -> Dict[str, bytes]:
+                        ) -> bytes:
     """
     Encrypts a key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
     Returns an encrypted key as bytes with the nonce appended.
     """
-    nonce = os.urandom(__NONCE_LENGTH)
-    ciphertext = SecretBox(wrapping_key).encrypt(umbral_key.to_bytes(), nonce).ciphertext
-    return {'nonce': nonce, 'key': ciphertext}
+    # TODO: Deprecate this method once key wrapping is refined in pyumbral
+    return bytes(SecretBox(wrapping_key).encrypt(umbral_key.to_bytes()))
 
 
 def _decrypt_umbral_key(wrapping_key: bytes,
-                        nonce: bytes,
-                        encrypting_key_material: bytes
+                        encrypted_key_material: bytes,
                         ) -> UmbralPrivateKey:
     """
     Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
     Returns a decrypted key as an UmbralPrivateKey.
     """
     try:
-        decrypted_key = SecretBox(wrapping_key).decrypt(encrypting_key_material, nonce)
+        decrypted_key = SecretBox(wrapping_key).decrypt(encrypted_key_material)
     except CryptoError:
         raise
     umbral_key = UmbralPrivateKey.from_bytes(decrypted_key)
@@ -480,8 +476,7 @@ class NucypherKeyring:
         wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
                                                           key_material=self.__derived_key_material)
         plain_umbral_key = _decrypt_umbral_key(wrap_key,
-                                               nonce=key_data['nonce'],
-                                               encrypting_key_material=key_data['key'])
+                                               encrypted_key_material=key_data['key'])
         return plain_umbral_key
 
     #
