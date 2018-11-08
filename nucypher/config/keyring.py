@@ -209,19 +209,20 @@ def _derive_key_material_from_passphrase(salt: bytes,
 
 
 def _derive_wrapping_key_from_key_material(salt: bytes,
-                                           key_material: bytes
+                                           key_material: bytes,
                                            ) -> bytes:
     """
     Uses HKDF to derive a 32 byte wrapping key to encrypt key material with.
     """
+
     wrapping_key = HKDF(
         algorithm=__HKDF_HASH_ALGORITHM(__HKDF_HASH_LENGTH),
-        length=__HKDF_HASH_LENGTH,
+        length=__WRAPPING_KEY_LENGTH,
         salt=salt,
         info=__WRAPPING_KEY_INFO,
         backend=default_backend()
     ).derive(key_material)
-    return wrapping_key[:__WRAPPING_KEY_LENGTH]
+    return wrapping_key
 
 
 def _encrypt_umbral_key(wrapping_key: bytes,
