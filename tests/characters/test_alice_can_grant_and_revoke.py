@@ -20,10 +20,11 @@ import os
 import pytest
 from umbral.fragments import KFrag
 
-from nucypher.characters.lawful import Alice, Bob
+from nucypher.characters.lawful import Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.powers import SigningPower, DelegatingPower, EncryptingPower
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import MockPolicyCreation
@@ -95,7 +96,7 @@ def test_federated_grant(federated_alice, federated_bob):
         assert kfrag == retrieved_kfrag
 
 
-def test_alice_delegation_power_is_persistent(federated_ursulas, tmpdir):
+def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
 
     passphrase = TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
@@ -103,7 +104,7 @@ def test_alice_delegation_power_is_persistent(federated_ursulas, tmpdir):
     # This requires creating a local storage for her first.
     node_storage = LocalFileBasedNodeStorage(
         federated_only=True,
-        character_class=Alice,
+        character_class=Ursula, # Alice needs to store some info about Ursula
         known_metadata_dir=os.path.join(tmpdir, "known_metadata"),
     )
 
@@ -118,7 +119,6 @@ def test_alice_delegation_power_is_persistent(federated_ursulas, tmpdir):
         known_nodes=federated_ursulas,
         start_learning_now=False,
         federated_only=True,
-        # abort_on_learning_error=True,
         save_metadata=False,
         load_metadata=False
     )
@@ -127,10 +127,20 @@ def test_alice_delegation_power_is_persistent(federated_ursulas, tmpdir):
     # We will save Alice's config to a file for later use
     alice_config_file = alice_config.to_configuration_file()
 
-    # Now, let's create a policy for some Bob
+    # Let's save Alice's public keys too to check they are correctly restored later
+    alices_verifying_key = alice.public_keys(SigningPower)
+    alices_receiving_key = alice.public_keys(EncryptingPower)
+
+    # Next, let's fix a label for all the policies we will create later.
+    label = b"this_is_the_path_to_which_access_is_being_granted"
+
+    # Even before creating the policies, we can know what will be its public key.
+    # This can be used by DataSources to encrypt messages before Alice grants access to Bobs
+    policy_pubkey = alice.get_policy_pubkey_from_label(label)
+
+    # Now, let's create a policy for some Bob.
     m, n = 3, 4
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
-    label = b"this_is_the_path_to_which_access_is_being_granted"
 
     bob = Bob(federated_only=True,
               start_learning_now=False,
@@ -138,6 +148,8 @@ def test_alice_delegation_power_is_persistent(federated_ursulas, tmpdir):
               )
 
     bob_policy = alice.grant(bob, label, m=m, n=n, expiration=policy_end_datetime)
+
+    assert policy_pubkey == bob_policy.public_key
 
     # ... and Alice and her configuration disappear.
     del alice
@@ -151,6 +163,7 @@ def test_alice_delegation_power_is_persistent(federated_ursulas, tmpdir):
     #       Alice appears again.      #
     ###################################
 
+    # A new Alice is restored from the configuration file
     new_alice_config = AliceConfiguration.from_configuration_file(
         filepath=alice_config_file,
         network_middleware=MockRestMiddleware(),
@@ -159,6 +172,10 @@ def test_alice_delegation_power_is_persistent(federated_ursulas, tmpdir):
     )
 
     new_alice = new_alice_config(passphrase=passphrase)
+
+    # First, we check that her public keys are correctly restored
+    assert alices_verifying_key == new_alice.public_keys(SigningPower)
+    assert alices_receiving_key == new_alice.public_keys(EncryptingPower)
 
     # Bob's eldest brother, Roberto, appears too
     roberto = Bob(federated_only=True,
@@ -173,6 +190,6 @@ def test_alice_delegation_power_is_persistent(federated_ursulas, tmpdir):
     policy_end_datetime = maya.now() + datetime.timedelta(days=3)
     roberto_policy = new_alice.grant(roberto, label, m=m, n=n, expiration=policy_end_datetime)
 
-    # Both policies must share the same delegation public key
-    assert bob_policy.public_key == roberto_policy.public_key
+    # Both policies must share the same public key (i.e., the policy public key)
+    assert policy_pubkey == roberto_policy.public_key
 
