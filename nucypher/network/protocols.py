@@ -31,9 +31,7 @@ class InterfaceInfo:
 
     @classmethod
     def from_bytes(cls, url_string):
-        pos = url_string.find(b":")
-        host_bytes = url_string[:pos]
-        port_bytes = url_string[pos + 1:]
+        host_bytes, port_bytes = url_string.split(b':', 1)
         port = int.from_bytes(port_bytes, "big")
         host = host_bytes.decode("utf-8")
         return cls(host=host, port=port)
