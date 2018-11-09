@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from click.testing import CliRunner
 
-from scripts.cli import cli
+from nucypher.cli import cli
 
 
 @pytest.mark.usefixtures("three_agents")

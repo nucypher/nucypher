@@ -155,7 +155,7 @@ setup(name=ABOUT['__title__'],
           'blockchain/eth/sol/source/zepellin/token/*']},
       include_package_data=True,
 
-      entry_points={'console_scripts': ['{0}=scripts.cli:cli'.format(PACKAGE_NAME)]},
+      entry_points={'console_scripts': ['{0}={0}.cli:cli'.format(PACKAGE_NAME)]},
       cmdclass={'verify': VerifyVersionCommand},
 
       classifiers=[
