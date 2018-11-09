@@ -359,6 +359,9 @@ class NucypherKeyring:
     class KeyringLocked(KeyringError):
         pass
 
+    class InvalidPassphrase(KeyringError):
+        pass
+
     def __init__(self,
                  account: str,
                  keyring_root: str = None,
@@ -567,7 +570,10 @@ class NucypherKeyring:
         returning the corresponding Keyring instance.
         """
 
-        cls.validate_passphrase(passphrase)
+        failures = cls.validate_passphrase(passphrase)
+        if failures:
+            raise cls.InvalidPassphrase(", ".join(failures))  # TODO: Ensure this scope is seperable from the scope containing the passphrase
+
         if not any((wallet, encrypting, tls)):
             raise ValueError('Either "encrypting", "wallet", or "tls" must be True '
                              'to generate new keys, or set "no_keys" to True to skip generation.')
@@ -662,12 +668,18 @@ class NucypherKeyring:
 
     @staticmethod
     def validate_passphrase(passphrase: str) -> bool:
-        """Validate a passphrase and return True or raise an error with a failure reason"""
+        """
+        Validate a passphrase and return True or raise an error with a failure reason.
+
+        NOTICE: Do not raise inside this function.
+        """
         rules = (
             (bool(passphrase), 'Passphrase must not be blank.'),
             (len(passphrase) >= 16, 'Passphrase is too short, must be >= 16 chars.'),
         )
+
+        failures = list()
         for rule, failure_message in rules:
             if not rule:
-                raise ValueError(failure_message)
-        return True
+                failures.append(failure_message)
+        return True if not failures else failures
