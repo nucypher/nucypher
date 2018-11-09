@@ -74,8 +74,8 @@ BANNER = """
 class NucypherClickConfig:
 
     __LOG_TO_SENTRY_ENVVAR = "NUCYPHER_SENTRY_LOGS"
-    __KEYRING_PASSPHRASE_ENVVAR = "NUCYPHER_KEYRING_PASSPHRASE"
     __NUCYPHER_SENTRY_ENDPOINT = "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685"
+    _KEYRING_PASSPHRASE_ENVVAR = "NUCYPHER_KEYRING_PASSPHRASE"
 
     # Set to False to completely opt-out of sentry reporting
     log_to_sentry = os.environ.get(__LOG_TO_SENTRY_ENVVAR, True)
@@ -216,8 +216,8 @@ class NucypherClickConfig:
                 skip_all_key_generation = click.confirm("Skip all key generation (Provide custom configuration file)?")
 
         if not skip_all_key_generation:
-            if os.environ.get(self.__KEYRING_PASSPHRASE_ENVVAR):
-                passphrase = os.environ.get(self.__KEYRING_PASSPHRASE_ENVVAR)
+            if os.environ.get(self._KEYRING_PASSPHRASE_ENVVAR):
+                passphrase = os.environ.get(self._KEYRING_PASSPHRASE_ENVVAR)
             else:
                 passphrase = click.prompt("Enter a passphrase to encrypt your keyring",
                                           hide_input=True, confirmation_prompt=True)
@@ -342,7 +342,7 @@ CHECKSUM_ADDRESS = ChecksumAddress()
 @click.option('--version', help="Echo the CLI version", is_flag=True, callback=echo_version, expose_value=False, is_eager=True)
 @click.option('-v', '--verbose', help="Specify verbosity level", count=True)
 @click.option('--dev', help="Run in development mode", is_flag=True)
-@click.option('--federated-only', help="Connect only to federated nodes", is_flag=True)
+@click.option('--federated-only', help="Connect only to federated nodes", is_flag=True, default=True)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True))
 @click.option('--metadata-dir', help="Custom known metadata directory", type=click.Path(exists=True, dir_okay=True, file_okay=False, writable=True))
@@ -407,11 +407,11 @@ def configure(config,
 
     # Fetch Existing Configuration
 
+    config.get_node_configuration(configuration_class=UrsulaConfiguration,  rest_host=rest_host)
+
     if action == "destroy":
         config.destroy_configuration()
         return
-
-    config.get_node_configuration(configuration_class=UrsulaConfiguration,  rest_host=rest_host)
 
     if action == "install":
         config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry, rest_host=rest_host)
@@ -946,7 +946,7 @@ def ursula(config,
 
     """
 
-    password = os.environ.get(config.__KEYRING_PASSPHRASE_ENVVAR, None)
+    password = os.environ.get(config._KEYRING_PASSPHRASE_ENVVAR, None)
     if not password:
         password = click.prompt("Password to unlock Ursula's keyring", hide_input=True)
 

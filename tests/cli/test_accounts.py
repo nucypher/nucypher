@@ -24,7 +24,7 @@ from scripts.cli import cli
 def test_list(testerchain):
     runner = CliRunner()
     account = testerchain.interface.w3.eth.accounts[0]
-    args = '--dev --provider-uri tester://pyevm accounts list'.split()
+    args = '--dev --federated-only --provider-uri tester://pyevm accounts list'.split()
     result = runner.invoke(cli, args, catch_exceptions=False)
     assert result.exit_code == 0
     assert account in result.output
@@ -34,7 +34,7 @@ def test_list(testerchain):
 def test_balance(testerchain):
     runner = CliRunner()
     account = testerchain.interface.w3.eth.accounts[0]
-    args = '--dev --provider-uri tester://pyevm accounts balance'.split()
+    args = '--dev --federated-only --provider-uri tester://pyevm accounts balance'.split()
     result = runner.invoke(cli, args, catch_exceptions=False)
     assert result.exit_code == 0
     assert 'Tokens:' in result.output
@@ -46,7 +46,7 @@ def test_balance(testerchain):
 def test_transfer_eth(testerchain):
     runner = CliRunner()
     account = testerchain.interface.w3.eth.accounts[1]
-    args = '--dev --provider-uri tester://pyevm accounts transfer-eth'.split()
+    args = '--dev --federated-only --provider-uri tester://pyevm accounts transfer-eth'.split()
     result = runner.invoke(cli, args, catch_exceptions=False, input=account+'\n100\nY\n')
     assert result.exit_code == 0
 
@@ -55,6 +55,6 @@ def test_transfer_eth(testerchain):
 def test_transfer_tokens(testerchain):
     runner = CliRunner()
     account = testerchain.interface.w3.eth.accounts[2]
-    args = '--dev --provider-uri tester://pyevm accounts transfer-tokens'.split()
+    args = '--dev --federated-only --provider-uri tester://pyevm accounts transfer-tokens'.split()
     result = runner.invoke(cli, args, catch_exceptions=False, input=account+'\n100\nY\n')
     assert result.exit_code == 0
