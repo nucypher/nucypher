@@ -260,10 +260,6 @@ def _generate_encryption_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
     return privkey, pubkey
 
 
-def _generate_umbral_keying_material() -> UmbralKeyingMaterial:
-    return UmbralKeyingMaterial()
-
-
 def _generate_signing_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
     """
     TODO: Do we really want to use Umbral keys for signing? Perhaps we can use Curve25519/EdDSA for signatures?
@@ -543,7 +539,6 @@ class NucypherKeyring:
 
         # Derived
         elif issubclass(power_class, DerivedKeyBasedPower):
-            # TODO
             key_data = _read_keyfile(self.__delegating_keypath, deserializer=self._private_key_serializer)
             wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
                                                               key_material=self.__derived_key_material)
@@ -617,7 +612,7 @@ class NucypherKeyring:
                                                       public_key_dir=_public_key_dir)
         if encrypting is True:
             encrypting_private_key, encrypting_public_key = _generate_encryption_keys()
-            delegating_keying_material = _generate_umbral_keying_material().to_bytes()
+            delegating_keying_material = UmbralKeyingMaterial().to_bytes()
 
             # Derive Wrapping Keys
             passphrase_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))

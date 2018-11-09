@@ -207,7 +207,6 @@ class DerivedKeyBasedPower(CryptoPowerUp):
     Rather than rely on an established KeyPair, this type of power
     derives a key at moments defined by the user.
     """
-    pass
 
 
 class DelegatingPower(DerivedKeyBasedPower):
