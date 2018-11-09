@@ -146,6 +146,7 @@ setup(name=ABOUT['__title__'],
 
       packages=find_packages(exclude=["tests"]),
       package_data={PACKAGE_NAME: [
+          'network/nicknames/web_colors.json',
           'blockchain/eth/sol/source/contracts/*',
           'blockchain/eth/sol/source/contracts/lib/*',
           'blockchain/eth/sol/source/contracts/proxy/*',
