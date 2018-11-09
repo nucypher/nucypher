@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from click.testing import CliRunner
 
-from cli.main import cli
+from scripts.cli import cli
 
 
 @pytest.mark.skip

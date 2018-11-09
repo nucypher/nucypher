@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from click.testing import CliRunner
 
-from cli.main import cli
+from scripts.cli import cli
 
 
 @pytest.mark.usefixtures("three_agents")
@@ -55,6 +55,6 @@ def test_transfer_eth(testerchain):
 def test_transfer_tokens(testerchain):
     runner = CliRunner()
     account = testerchain.interface.w3.eth.accounts[2]
-    args = '--provider-uri tester://pyevm accounts transfer-tokens'.split()
+    args = '--dev --provider-uri tester://pyevm accounts transfer-tokens'.split()
     result = runner.invoke(cli, args, catch_exceptions=False, input=account+'\n100\nY\n')
     assert result.exit_code == 0

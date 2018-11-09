@@ -21,7 +21,7 @@ import pytest
 import shutil
 from click.testing import CliRunner
 
-from cli.main import cli
+from scripts.cli import cli
 from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 

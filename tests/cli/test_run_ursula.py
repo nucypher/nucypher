@@ -22,7 +22,7 @@ from click.testing import CliRunner
 from twisted.internet import threads
 from twisted.internet.error import CannotListenError
 
-from cli.main import cli
+from scripts.cli import cli
 from nucypher.characters.base import Learner
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 

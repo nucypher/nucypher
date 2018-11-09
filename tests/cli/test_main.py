@@ -16,7 +16,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from click.testing import CliRunner
 
-from cli.main import cli
+from scripts.cli import cli
 
 
 def test_help_message():
