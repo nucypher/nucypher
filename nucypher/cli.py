@@ -418,22 +418,28 @@ def configure(config,
               rest_host,
               no_registry,
               force):
+    """Manage Ursula node system configuration"""
 
     # Fetch Existing Configuration
-
     config.get_node_configuration(configuration_class=UrsulaConfiguration,  rest_host=rest_host)
 
     if action == "destroy":
         config.destroy_configuration()
-        return
 
-    if action == "install":
+    elif action == "install":
         config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry, rest_host=rest_host)
+
     elif action == "view":
-        json_config = UrsulaConfiguration._read_configuration_file(filepath=config.node_configuration.config_file_location)
-        click.echo(json_config)
+        config_filepath = config.node_configuration.config_file_location
+        json_config = UrsulaConfiguration._read_configuration_file(filepath=config_filepath)
+
+        click.secho("\n======== Ursula Configuration ======== \n", bold=True)
+        for key, value in json_config.items():
+            click.secho("{} = {}".format(key, value))
+
     elif action == "forget":
         config.forget_nodes()
+
     elif action == "reset":
         config.destroy_configuration()
         config.create_new_configuration(ursula=True, force=force, no_registry=no_registry, rest_host=rest_host)
