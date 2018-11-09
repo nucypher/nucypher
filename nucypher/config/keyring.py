@@ -682,4 +682,4 @@ class NucypherKeyring:
         for rule, failure_message in rules:
             if not rule:
                 failures.append(failure_message)
-        return True if not failures else failures
+        return failures
