@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+
 """
 This file is part of nucypher.
 
@@ -18,6 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
 
+
+from ipaddress import ip_address
+
 import collections
 import hashlib
 import json
@@ -33,6 +37,7 @@ from twisted.internet import stdio
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 from web3.middleware import geth_poa_middleware
+from nacl.exceptions import CryptoError
 
 import nucypher
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent, EthereumContractAgent
@@ -45,10 +50,7 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                PolicyManagerDeployer)
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import (SEEDNODES,
-                                       SeednodeMetadata,
-                                       NUCYPHER_SENTRY_ENDPOINT,
-                                       KEYRING_PASSPHRASE_ENVVAR_KEY)
+from nucypher.config.constants import SEEDNODES, SeednodeMetadata
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.logging import logToSentry
@@ -68,14 +70,19 @@ BANNER = """
 
 """.format(nucypher.__version__)
 
-# Pending Configuration Named Tuple
-PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetails',
-                                                     'passphrase wallet signing tls skip_keys save_file')
-
 
 class NucypherClickConfig:
 
-    log_to_sentry = True
+    __LOG_TO_SENTRY_ENVVAR = "NUCYPHER_SENTRY_LOGS"
+    __NUCYPHER_SENTRY_ENDPOINT = "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685"
+    _KEYRING_PASSPHRASE_ENVVAR = "NUCYPHER_KEYRING_PASSPHRASE"
+
+    # Set to False to completely opt-out of sentry reporting
+    log_to_sentry = os.environ.get(__LOG_TO_SENTRY_ENVVAR, True)
+
+    # Pending Configuration Named Tuple
+    PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetails',
+                                                         'passphrase wallet signing tls skip_keys save_file')
 
     def __init__(self):
         if self.log_to_sentry:
@@ -86,7 +93,7 @@ class NucypherClickConfig:
                 event_level=logging.DEBUG  # Send debug logs as events
             )
             sentry_sdk.init(
-                dsn=NUCYPHER_SENTRY_ENDPOINT,
+                dsn=self.__NUCYPHER_SENTRY_ENDPOINT,
                 integrations=[sentry_logging],
                 release=nucypher.__version__
             )
@@ -195,13 +202,12 @@ class NucypherClickConfig:
                                                 default=False)
 
                 if not generate_wallet:  # I'll take that as a no...
-                    self.federated_only = True  # TODO: Without a wallet, let's assume this is a "federated configuration"
+                    self.federated_only = True  # TODO: Without a wallet...
+                    #  let's understand this to be a "federated configuration"
 
             if generate_tls_keys or force:
                 if not force and not rest_host:
-                    rest_host = click.prompt("Enter Node's Public IPv4 Address",
-                                             default=UrsulaConfiguration.DEFAULT_REST_HOST,
-                                             type=click.STRING)
+                    rest_host = click.prompt("Enter Node's Public IPv4 Address", type=IPV4_ADDRESS)
 
                 self.node_configuration.rest_host = rest_host
 
@@ -210,15 +216,15 @@ class NucypherClickConfig:
                 skip_all_key_generation = click.confirm("Skip all key generation (Provide custom configuration file)?")
 
         if not skip_all_key_generation:
-            if os.environ.get(KEYRING_PASSPHRASE_ENVVAR_KEY):
-                passphrase = os.environ.get(KEYRING_PASSPHRASE_ENVVAR_KEY)
+            if os.environ.get(self._KEYRING_PASSPHRASE_ENVVAR):
+                passphrase = os.environ.get(self._KEYRING_PASSPHRASE_ENVVAR)
             else:
                 passphrase = click.prompt("Enter a passphrase to encrypt your keyring",
                                           hide_input=True, confirmation_prompt=True)
 
-        details = PendingConfigurationDetails(passphrase=passphrase, wallet=generate_wallet,
-                                              signing=generate_encrypting_keys, tls=generate_tls_keys,
-                                              skip_keys=skip_all_key_generation, save_file=save_node_configuration_file)
+        details = self.PendingConfigurationDetails(passphrase=passphrase, wallet=generate_wallet,
+                                                   signing=generate_encrypting_keys, tls=generate_tls_keys,
+                                                   skip_keys=skip_all_key_generation, save_file=save_node_configuration_file)
         return details
 
     def create_new_configuration(self,
@@ -266,7 +272,23 @@ class NucypherClickConfig:
                     click.secho("\nTo run an Ursula node from the "
                                 "default configuration filepath run 'nucypher ursula run'\n")
 
-    def destroy_configuration(self):
+    def forget_nodes(self) -> None:
+
+        def __destroy_dir_contents(path):
+            for file in os.listdir(path):
+                file_path = os.path.join(path, file)
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+
+        click.confirm("Remove all known node data?", abort=True)
+        certificates_dir = self.node_configuration.known_certificates_dir
+        metadata_dir = os.path.join(self.node_configuration.known_nodes_dir, 'metadata')
+
+        __destroy_dir_contents(certificates_dir)
+        __destroy_dir_contents(metadata_dir)
+        click.secho("Removed all stored node node metadata and certificates")
+
+    def destroy_configuration(self) -> None:
         if self.dev:
             raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
         click.confirm('''
@@ -286,6 +308,10 @@ Located at {}?'''.format(self.node_configuration.config_root), abort=True)
 uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 
 
+#
+# Click Eager Functions
+#
+
 def echo_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
@@ -293,7 +319,10 @@ def echo_version(ctx, param, value):
     ctx.exit()
 
 
-# Custom input type
+#
+# Custom Click Input Types
+#
+
 class ChecksumAddress(click.ParamType):
     name = 'checksum_address'
 
@@ -303,6 +332,19 @@ class ChecksumAddress(click.ParamType):
         self.fail('{} is not a valid EIP-55 checksum address'.format(value, param, ctx))
 
 
+class IPv4Address(click.ParamType):
+    name = 'ipv4_address'
+
+    def convert(self, value, param, ctx):
+        try:
+            _address = ip_address(value)
+        except ValueError as e:
+            self.fail(str(e))
+        else:
+            return value
+
+
+IPV4_ADDRESS = IPv4Address()
 CHECKSUM_ADDRESS = ChecksumAddress()
 
 ########################################
@@ -316,7 +358,7 @@ CHECKSUM_ADDRESS = ChecksumAddress()
 @click.option('--version', help="Echo the CLI version", is_flag=True, callback=echo_version, expose_value=False, is_eager=True)
 @click.option('-v', '--verbose', help="Specify verbosity level", count=True)
 @click.option('--dev', help="Run in development mode", is_flag=True)
-@click.option('--federated-only', help="Connect only to federated nodes", is_flag=True)
+@click.option('--federated-only', help="Connect only to federated nodes", is_flag=True, default=True)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True))
 @click.option('--metadata-dir', help="Custom known metadata directory", type=click.Path(exists=True, dir_okay=True, file_okay=False, writable=True))
@@ -366,7 +408,6 @@ def cli(config,
 
 
 @cli.command()
-@click.option('--ursula', help="Configure ursula",  is_flag=True, default=False)
 @click.option('--rest-host', type=click.STRING)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--force', help="Ask confirm once; Do not generate wallet or certificate", is_flag=True)
@@ -374,24 +415,35 @@ def cli(config,
 @uses_config
 def configure(config,
               action,
-              ursula,
               rest_host,
               no_registry,
               force):
+    """Manage Ursula node system configuration"""
 
     # Fetch Existing Configuration
     config.get_node_configuration(configuration_class=UrsulaConfiguration,  rest_host=rest_host)
 
-    if action == "install":
+    if action == "destroy":
+        config.destroy_configuration()
+
+    elif action == "install":
         config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry, rest_host=rest_host)
+
     elif action == "view":
-        json_config = UrsulaConfiguration._read_configuration_file(filepath=config.node_configuration.config_file_location)
-        click.echo(json_config)
+        config_filepath = config.node_configuration.config_file_location
+        json_config = UrsulaConfiguration._read_configuration_file(filepath=config_filepath)
+
+        click.secho("\n======== Ursula Configuration ======== \n", bold=True)
+        for key, value in json_config.items():
+            click.secho("{} = {}".format(key, value))
+
+    elif action == "forget":
+        config.forget_nodes()
+
     elif action == "reset":
         config.destroy_configuration()
-        config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry, rest_host=rest_host)
-    elif action == "destroy":
-        config.destroy_configuration()
+        config.create_new_configuration(ursula=True, force=force, no_registry=no_registry, rest_host=rest_host)
+
     else:
         raise click.BadArgumentUsage("No such argument {}".format(action))
 
@@ -916,7 +968,7 @@ def ursula(config,
 
     """
 
-    password = os.environ.get(KEYRING_PASSPHRASE_ENVVAR_KEY, None)
+    password = os.environ.get(config._KEYRING_PASSPHRASE_ENVVAR, None)
     if not password:
         password = click.prompt("Password to unlock Ursula's keyring", hide_input=True)
 
@@ -982,10 +1034,15 @@ def ursula(config,
     #
     # Produce
     #
-    URSULA = ursula_config.produce(passphrase=password,
-                                   seed_nodes=seed_metadata,
-                                   known_nodes=teacher_nodes,
-                                   **overrides)  # 2
+
+    try:
+        URSULA = ursula_config.produce(passphrase=password,
+                                       seed_nodes=seed_metadata,
+                                       known_nodes=teacher_nodes,
+                                       **overrides)  # 2
+    except CryptoError:
+        click.secho("Invalid keyring passphrase")
+        return
 
     click.secho("Initialized Ursula {}".format(URSULA.checksum_public_address), fg='green')
 

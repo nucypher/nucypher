@@ -14,6 +14,9 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import contextlib
+import os
+
 import boto3
 import pytest
 import requests
@@ -28,10 +31,16 @@ S3_DOMAIN_NAME = 's3.amazonaws.com'
 
 @pytest.fixture(scope='function')
 def light_ursula(temp_dir_path):
+    db_name = 'ursula-{}.db'.format(10151)
+
     node = Ursula(rest_host='127.0.0.1',
                   rest_port=10151,
+                  db_filepath=db_name,  # TODO: Needs cleanup
+                  db_name=db_name,
                   federated_only=True)
-    return node
+    yield node
+    with contextlib.suppress(Exception):
+        os.remove(db_name)
 
 
 @pytest.fixture(scope='function')

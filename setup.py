@@ -20,7 +20,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import sys
 
-from setuptools import setup
+from setuptools import setup, find_packages
 from setuptools.command.install import install
 
 
@@ -80,12 +80,11 @@ INSTALL_REQUIRES = [
     'pysha3',
     'requests',
     'sqlalchemy',
-    'apistar==0.5.42',
-    'tzlocal==1.5.1',
+    'apistar<0.6.0',
+    'tzlocal<2.0.0',
     'maya',
 
     # Third Party (Ethereum)
-    'coincurve>=8.0.2',
     'eth-utils',
     'eth-keys',
     'eth-tester>=0.1.0b33',
@@ -95,13 +94,16 @@ INSTALL_REQUIRES = [
 
     # Third Party (Configuration + CLI)
     'appdirs',
-    'click',
+    'click>=7.0',
     'colorama',
-    'sentry-sdk'
+    'sentry-sdk==0.5.2',
+    'boto3',
+
 ]
 
 TESTS_REQUIRE = [
     'pytest',
+    'pytest-xdist'
     'pytest-mypy',
     'pytest-twisted',
     'pytest-cov',
@@ -113,7 +115,6 @@ TESTS_REQUIRE = [
 
 DEPLOY_REQUIRES = [
     'bumpversion',
-    'boto3',
     'ansible',
 ]
 
@@ -137,31 +138,38 @@ setup(name=ABOUT['__title__'],
       author=ABOUT['__author__'],
       author_email=ABOUT['__email__'],
       description=ABOUT['__summary__'],
+      license=ABOUT['__license__'],
       long_description=long_description,
 
       install_requires=INSTALL_REQUIRES,
       extras_require=EXTRAS_REQUIRE,
 
-      packages=[PACKAGE_NAME, 'cli'],
+      packages=find_packages(exclude=["tests"]),
       package_data={PACKAGE_NAME: [
-          'blockchain/eth/*', 'project/contracts/*',
-          'blockchain/eth/sol_source/contracts/lib/*',
-          'blockchain/eth/sol_source/contracts/zepellin/math/*',
-          'blockchain/eth/sol_source/contracts/zepellin/ownership/*',
-          'blockchain/eth/sol_source/contracts/zepellin/token/*']},
+          'network/nicknames/web_colors.json',
+          'blockchain/eth/sol/source/contracts/*',
+          'blockchain/eth/sol/source/contracts/lib/*',
+          'blockchain/eth/sol/source/contracts/proxy/*',
+          'blockchain/eth/sol/source/zepellin/math/*',
+          'blockchain/eth/sol/source/zepellin/ownership/*',
+          'blockchain/eth/sol/source/zepellin/token/*']},
       include_package_data=True,
-      entry_points='[console_scripts]\n{}=cli.main:cli'.format(PACKAGE_NAME),
+
+      entry_points={'console_scripts': ['{0}={0}.cli:cli'.format(PACKAGE_NAME)]},
       cmdclass={'verify': VerifyVersionCommand},
+
       classifiers=[
           "Development Status :: 2 - Pre-Alpha",
-          "Intended Audience :: Science/Research",
+          "Intended Audience :: Developers",
           "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
           "Natural Language :: English",
+          "Operating System :: OS Independent",
           "Programming Language :: Python",
           "Programming Language :: Python :: 3 :: Only",
           "Programming Language :: Python :: 3.5",
           "Programming Language :: Python :: 3.6",
           "Programming Language :: Python :: 3.7",
+          "Programming Language :: Python :: 3.8",
           "Topic:: Security"],
       python_requires='>=3'
       )

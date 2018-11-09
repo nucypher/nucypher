@@ -30,6 +30,7 @@ class Vladimir(Ursula):
     network_middleware = EvilMiddleWare()
     fraud_address = '0xbad022A87Df21E4c787C7B1effD5077014b8CC45'
     fraud_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
+    db_name = 'vladimir.db'
 
     @classmethod
     def from_target_ursula(cls,
@@ -52,6 +53,8 @@ class Vladimir(Ursula):
 
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
+                       db_name=cls.db_name,
+                       db_filepath=cls.db_name,
                        rest_host=target_ursula.rest_information()[0].host,
                        rest_port=target_ursula.rest_information()[0].port,
                        certificate=target_ursula.rest_server_certificate(),

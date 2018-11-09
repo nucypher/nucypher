@@ -15,20 +15,22 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-# Test Logger Configuration
+import pytest
 from twisted.logger import globalLogPublisher
-from cli.main import NucypherClickConfig
+
+from nucypher.cli import NucypherClickConfig
 from nucypher.utilities.logging import simpleObserver
 
+
+# Logger Configuration
 NucypherClickConfig.log_to_sentry = False
 globalLogPublisher.addObserver(simpleObserver)
 
-"""NOTICE:  Depends on fixture modules; do not delete"""
-from .fixtures import *
 
-
-"""Pytest configuration"""
-import pytest
+# Pytest configuration
+pytest_plugins = [
+   'tests.fixtures',
+]
 
 
 def pytest_addoption(parser):
@@ -39,8 +41,7 @@ def pytest_addoption(parser):
 
 
 def pytest_collection_modifyitems(config, items):
-    if config.getoption("--runslow"):
-        # --runslow given in cli: do not skip slow tests
+    if config.getoption("--runslow"):   # --runslow given in cli: do not skip slow tests
         return
     skip_slow = pytest.mark.skip(reason="need --runslow option to run")
     for item in items:

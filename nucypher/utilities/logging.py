@@ -20,8 +20,6 @@ from sentry_sdk import Client, capture_exception, add_breadcrumb
 from twisted.logger import ILogObserver
 from zope.interface import provider
 
-from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
-
 
 @provider(ILogObserver)
 def simpleObserver(event):
@@ -32,7 +30,6 @@ def simpleObserver(event):
 
 
 def logToSentry(event):
-    client = Client(dsn=NUCYPHER_SENTRY_ENDPOINT)
 
     # Handle Logs
     if not event.get('isError') or 'failure' not in event:

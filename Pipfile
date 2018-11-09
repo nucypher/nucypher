@@ -3,6 +3,9 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
+[requires]
+python_version = "3"
+
 [packages]
 #
 # NuCypher
@@ -18,13 +21,12 @@ cryptography = ">=2.3"
 pysha3="*"
 requests = "*"
 sqlalchemy = "*"
-apistar = "==0.5.42"
-tzlocal = "==1.5.1"
+apistar = "<0.6.0"
+tzlocal = "<2.0.0"
 maya = "*"
 #
 # Third-Party Ethereum
 #
-coincurve = ">=8.0.2"
 eth-utils="*"
 eth-keys="*"
 eth-tester = ">=0.1.0b33"
@@ -32,18 +34,20 @@ py-evm = ">=0.2.0a33"
 py-solc = "*"
 web3 = "*"
 #
-# CLI / Config
+# CLI / Configuration
 #
 appdirs = "*"
-click = "*"
+click = ">=7.0"
 colorama = "*"
 boto3 = "*"
+pytest = "*"
 
 [dev-packages]
 #
 # Pytest
 #
 pytest = "*"
+pytest-xdist = "*"
 pytest-mypy = "*"
 pytest-twisted = "*"
 pytest-cov = "*"
@@ -52,11 +56,12 @@ codecov = "*"
 coverage = "*"
 sentry-sdk = "==0.5.2"
 ansible = "*"
-nucypher = {editable = true, path = "."}
 moto = "*"
-
-[pipenv]
-allow_prereleases = true
+nucypher = {editable = true, path = "."}
 
 [scripts]
 install-solc = "./scripts/install_solc.sh"
+nucypher = "python3 scripts/cli.py"
+
+[pipenv]
+allow_prereleases = true
