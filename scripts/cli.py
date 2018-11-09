@@ -272,7 +272,23 @@ class NucypherClickConfig:
                     click.secho("\nTo run an Ursula node from the "
                                 "default configuration filepath run 'nucypher ursula run'\n")
 
-    def destroy_configuration(self):
+    def forget_nodes(self) -> None:
+
+        def __destroy_dir_contents(path):
+            for file in os.listdir(path):
+                file_path = os.path.join(path, file)
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+
+        click.confirm("Remove all known node data?", abort=True)
+        certificates_dir = self.node_configuration.known_certificates_dir
+        metadata_dir = os.path.join(self.node_configuration.known_nodes_dir, 'metadata')
+
+        __destroy_dir_contents(certificates_dir)
+        __destroy_dir_contents(metadata_dir)
+        click.secho("Removed all stored node node metadata and certificates")
+
+    def destroy_configuration(self) -> None:
         if self.dev:
             raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
         click.confirm('''
@@ -418,6 +434,8 @@ def configure(config,
     elif action == "view":
         json_config = UrsulaConfiguration._read_configuration_file(filepath=config.node_configuration.config_file_location)
         click.echo(json_config)
+    elif action == "forget":
+        config.forget_nodes()
     elif action == "reset":
         config.destroy_configuration()
         config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry, rest_host=rest_host)
