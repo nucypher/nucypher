@@ -408,7 +408,6 @@ def cli(config,
 
 
 @cli.command()
-@click.option('--ursula', help="Configure ursula",  is_flag=True, default=False)
 @click.option('--rest-host', type=click.STRING)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--force', help="Ask confirm once; Do not generate wallet or certificate", is_flag=True)
@@ -416,7 +415,6 @@ def cli(config,
 @uses_config
 def configure(config,
               action,
-              ursula,
               rest_host,
               no_registry,
               force):
@@ -438,7 +436,7 @@ def configure(config,
         config.forget_nodes()
     elif action == "reset":
         config.destroy_configuration()
-        config.create_new_configuration(ursula=ursula, force=force, no_registry=no_registry, rest_host=rest_host)
+        config.create_new_configuration(ursula=True, force=force, no_registry=no_registry, rest_host=rest_host)
 
     else:
         raise click.BadArgumentUsage("No such argument {}".format(action))
