@@ -20,7 +20,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import sys
 
-from setuptools import setup
+from setuptools import setup, find_packages
 from setuptools.command.install import install
 
 
@@ -81,7 +81,7 @@ INSTALL_REQUIRES = [
     'requests',
     'sqlalchemy',
     'apistar==0.5.42',
-    'tzlocal==1.5.1',
+    'tzlocal<=2.0.0',
     'maya',
 
     # Third Party (Ethereum)
@@ -142,7 +142,7 @@ setup(name=ABOUT['__title__'],
       install_requires=INSTALL_REQUIRES,
       extras_require=EXTRAS_REQUIRE,
 
-      packages=[PACKAGE_NAME, 'cli'],
+      packages=find_packages(),
       package_data={PACKAGE_NAME: [
           'blockchain/eth/*', 'project/contracts/*',
           'blockchain/eth/sol_source/contracts/lib/*',
