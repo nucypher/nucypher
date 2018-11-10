@@ -1,10 +1,27 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import contextlib
+import glob
+
 import datetime
 import os
 import re
 import shutil
 import tempfile
-
 import maya
 import pytest
 from constant_sorrow import constants
@@ -40,6 +57,12 @@ TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contr
 @pytest.fixture(scope="session", autouse=True)
 def cleanup():
     yield  # we've got a lot of men and women here...
+
+    # Database teardown
+    for f in glob.glob("./**/*.db"):  # TODO: Needs cleanup
+        os.remove(f)
+
+    # Temp Storage Teardown
     for f in os.listdir(tempfile.tempdir):
         if re.search(r'nucypher-*', f):
             with contextlib.suppress(FileNotFoundError, TypeError):
@@ -81,6 +104,14 @@ def test_keystore():
     Base.metadata.create_all(engine)
     test_keystore = keystore.KeyStore(engine)
     yield test_keystore
+
+
+@pytest.fixture(scope='function')
+def certificates_tempdir():
+    custom_filepath = '/tmp/nucypher-test-certificates-'
+    cert_tmpdir = tempfile.TemporaryDirectory(prefix=custom_filepath)
+    yield cert_tmpdir.name
+    cert_tmpdir.cleanup()
 
 
 #
@@ -208,7 +239,7 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
 @pytest.fixture(scope="module")
 def idle_federated_policy(federated_alice, federated_bob):
     """
-    Creates a Policy, in a manner typical of how Alice might do it, with a unique uri (soon to be "label" - see #183)
+    Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
     n = DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
     random_label = b'label://' + os.urandom(32)
@@ -236,7 +267,7 @@ def enacted_federated_policy(idle_federated_policy, federated_ursulas):
 @pytest.fixture(scope="module")
 def idle_blockchain_policy(blockchain_alice, blockchain_bob):
     """
-    Creates a Policy, in a manner typical of how Alice might do it, with a unique uri (soon to be "label" - see #183)
+    Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
     random_label = b'label://' + os.urandom(32)
     policy = blockchain_alice.create_policy(blockchain_bob, label=random_label, m=2, n=3)
@@ -261,9 +292,10 @@ def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
 
 @pytest.fixture(scope="module")
 def capsule_side_channel(enacted_federated_policy):
-    signing_keypair = SigningKeypair()
     data_source = DataSource(policy_pubkey_enc=enacted_federated_policy.public_key,
-                             signing_keypair=signing_keypair)
+                             signing_keypair=SigningKeypair(),
+                             label=enacted_federated_policy.label
+                             )
     message_kit, _signature = data_source.encapsulate_single_message(b"Welcome to the flippering.")
     return message_kit, data_source
 

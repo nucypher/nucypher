@@ -1,8 +1,24 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import binascii
 import os
 import tempfile
 from abc import abstractmethod, ABC
-from logging import getLogger
+from twisted.logger import Logger
 
 import boto3 as boto3
 import shutil
@@ -33,7 +49,7 @@ class NodeStorage(ABC):
                  deserializer: Callable = NODE_DESERIALIZER,
                  ) -> None:
 
-        self.log = getLogger(self.__class__.__name__)
+        self.log = Logger(self.__class__.__name__)
         self.serializer = serializer
         self.deserializer = deserializer
         self.federated_only = federated_only
@@ -53,18 +69,27 @@ class NodeStorage(ABC):
 
     @abstractmethod
     def all(self, federated_only: bool) -> set:
+        """Return s set of all stored nodes"""
         raise NotImplementedError
 
     @abstractmethod
     def get(self, checksum_address: str, federated_only: bool):
+        """Retrieve a single stored node"""
         raise NotImplementedError
 
     @abstractmethod
     def save(self, node):
+        """Save a single node"""
         raise NotImplementedError
 
     @abstractmethod
     def remove(self, checksum_address: str) -> bool:
+        """Remove a single stored node"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def clear(self) -> bool:
+        """Remove all stored nodes"""
         raise NotImplementedError
 
     @abstractmethod
@@ -74,10 +99,12 @@ class NodeStorage(ABC):
     @classmethod
     @abstractmethod
     def from_payload(self, data: str, *args, **kwargs) -> 'NodeStorage':
+        """Instantiate a storage object from a dictionary"""
         raise NotImplementedError
 
     @abstractmethod
     def initialize(self):
+        """One-time initialization steps to establish a node storage backend"""
         raise NotImplementedError
 
 
@@ -105,6 +132,9 @@ class InMemoryNodeStorage(NodeStorage):
     def remove(self, checksum_address: str) -> bool:
         del self.__known_nodes[checksum_address]
         return True
+
+    def clear(self):
+        self.__known_nodes = dict()
 
     def payload(self) -> dict:
         payload = {self._TYPE_LABEL: self._name}
@@ -135,7 +165,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
                  ) -> None:
 
         super().__init__(*args, **kwargs)
-        self.log = getLogger(self.__class__.__name__)
+        self.log = Logger(self.__class__.__name__)
         self.known_metadata_dir = known_metadata_dir
 
     def __generate_filepath(self, checksum_address: str) -> str:
@@ -186,6 +216,9 @@ class LocalFileBasedNodeStorage(NodeStorage):
         self.log.debug("Delted {} from the filesystem".format(checksum_address))
         return os.remove(filepath)
 
+    def clear(self):
+        self.__known_nodes = dict()
+
     def payload(self) -> str:
         payload = {
             'storage_type': self._name,
@@ -194,7 +227,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return payload
 
     @classmethod
-    def from_payload(cls, payload: str, *args, **kwargs) -> 'LocalFileBasedNodeStorage':
+    def from_payload(cls, payload: dict, *args, **kwargs) -> 'LocalFileBasedNodeStorage':
         storage_type = payload[cls._TYPE_LABEL]
         if not storage_type == cls._name:
             raise cls.NodeStorageError("Wrong storage type. got {}".format(storage_type))

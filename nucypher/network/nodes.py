@@ -1,26 +1,44 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
-from logging import getLogger
 
 import OpenSSL
 import maya
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509 import Certificate
+from cryptography.x509 import Certificate, NameOID
 from eth_keys.datatypes import Signature as EthSignature
+from twisted.logger import Logger
 
+from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.keyring import _write_tls_certificate
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
+from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
 
 
 class VerifiableNode:
-
     _evidence_of_decentralized_identity = constants.NOT_SIGNED
     verified_stamp = False
     verified_interface = False
     _verified_node = False
     _interface_info_splitter = (int, 4, {'byteorder': 'big'})
+    log = Logger("network/nodes")
 
     def __init__(self,
                  certificate: Certificate,
@@ -28,8 +46,6 @@ class VerifiableNode:
                  interface_signature=constants.NOT_SIGNED.bool_value(False),
                  timestamp=constants.NOT_SIGNED,
                  ) -> None:
-
-        self.log = getLogger(self.__class__.__name__)
 
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
@@ -45,6 +61,11 @@ class VerifiableNode:
         """
         Raise when a Character tries to use another Character as decentralized when the latter is federated_only.
         """
+
+    def seed_node_metadata(self):
+        return SeednodeMetadata(self.checksum_public_address,
+                                self.rest_server.rest_interface.host,
+                                self.rest_server.rest_interface.port)
 
     @classmethod
     def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs) -> 'VerifiableNode':
@@ -72,7 +93,7 @@ class VerifiableNode:
             return True
         elif self.federated_only and signature is constants.NOT_SIGNED:
             message = "This node can't be verified in this manner, " \
-                      "but is OK to use in federated mode if you"    \
+                      "but is OK to use in federated mode if you" \
                       " have reason to believe it is trustworthy."
             raise self.WrongMode(message)
         else:
@@ -131,9 +152,9 @@ class VerifiableNode:
                                                        certificate_filepath=certificate_filepath)
         if not response.status_code == 200:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
-        timestamp, signature, identity_evidence,  \
-            verifying_key, encrypting_key,        \
-            public_address, certificate_vbytes, rest_info = self._internal_splitter(response.content)
+        timestamp, signature, identity_evidence, \
+        verifying_key, encrypting_key, \
+        public_address, certificate_vbytes, rest_info = self._internal_splitter(response.content)
 
         verifying_keys_match = verifying_key == self.public_keys(SigningPower)
         encrypting_keys_match = encrypting_key == self.public_keys(EncryptingPower)
@@ -143,9 +164,9 @@ class VerifiableNode:
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # TODO: Optional reporting.  355
             if not addresses_match:
-                self.log.warning("Wallet address swapped out.  It appears that someone is trying to defraud this node.")
+                self.log.warn("Wallet address swapped out.  It appears that someone is trying to defraud this node.")
             if not verifying_keys_match:
-                self.log.warning("Verifying key swapped out.  It appears that someone is impersonating this node.")
+                self.log.warn("Verifying key swapped out.  It appears that someone is impersonating this node.")
             raise self.InvalidNode("Wrong cryptographic material for this node - something fishy going on.")
         else:
             self._verified_node = True
@@ -217,4 +238,104 @@ class VerifiableNode:
         _write_tls_certificate(self.certificate, full_filepath=certificate_filepath, force=force)
         self.certificate_filepath = certificate_filepath
         self.log.info("Saved new TLS certificate {}".format(certificate_filepath))
-        return self.certificate_filepath
+
+    @classmethod
+    def from_seednode_metadata(cls,
+                               seednode_metadata,
+                               *args,
+                               **kwargs):
+        """
+        Essentially another deserialization method, but this one doesn't reconstruct a complete
+        node from bytes; instead it's just enough to connect to and verify a node.
+        """
+
+        return cls.from_seed_and_stake_info(checksum_address=seednode_metadata.checksum_address,
+                                            host=seednode_metadata.rest_host,
+                                            port=seednode_metadata.rest_port,
+                                            *args, **kwargs)
+
+    @classmethod
+    def from_seed_and_stake_info(cls, host,
+                                 certificates_directory,
+                                 federated_only,
+                                 port=9151,
+                                 checksum_address=None,
+                                 minimum_stake=0,
+                                 network_middleware=None,
+                                 *args,
+                                 **kwargs
+                                 ):
+        if network_middleware is None:
+            network_middleware = RestMiddleware()
+
+        certificate = network_middleware.get_certificate(host=host, port=port)
+
+        real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+        # Write certificate; this is really only for temporary purposes.  Ideally, we'd use
+        # it in-memory here but there's no obvious way to do that.
+        filename = '{}.{}'.format(checksum_address, Encoding.PEM.name.lower())
+        certificate_filepath = os.path.join(certificates_directory, filename)
+        _write_tls_certificate(certificate=certificate, full_filepath=certificate_filepath, force=True)
+        cls.log.info("Saved seednode {} TLS certificate".format(checksum_address))
+
+        potential_seed_node = cls.from_rest_url(
+            host=real_host,
+            port=port,
+            network_middleware=network_middleware,
+            certificate_filepath=certificate_filepath,
+            federated_only=True,
+            *args,
+            **kwargs)  # TODO: 466
+
+        if checksum_address:
+            if not checksum_address == potential_seed_node.checksum_public_address:
+                raise potential_seed_node.SuspiciousActivity(
+                    "This seed node has a different wallet address: {} (was hoping for {}).  Are you sure this is a seed node?".format(
+                        potential_seed_node.checksum_public_address,
+                        checksum_address))
+        else:
+            if minimum_stake > 0:
+                # TODO: check the blockchain to verify that address has more then minimum_stake. #511
+                raise NotImplementedError("Stake checking is not implemented yet.")
+        try:
+            potential_seed_node.verify_node(
+                network_middleware=network_middleware,
+                accept_federated_only=federated_only,
+                certificate_filepath=certificate_filepath)
+        except potential_seed_node.InvalidNode:
+            raise  # TODO: What if our seed node fails verification?
+        return potential_seed_node
+
+    @classmethod
+    def from_rest_url(cls,
+                      network_middleware: RestMiddleware,
+                      host: str,
+                      port: int,
+                      certificate_filepath,
+                      federated_only: bool = False,
+                      *args,
+                      **kwargs):
+
+        response = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
+        if not response.status_code == 200:
+            raise RuntimeError("Got a bad response: {}".format(response))
+
+        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only)
+        return stranger_ursula_from_public_keys
+
+    def nickname_icon(self):
+        icon_template = """
+        <div class="nucypher-nickname-icon" style="border-top-color:{first_color}; border-left-color:{first_color}; border-bottom-color:{second_color}; border-right-color:{second_color};">
+        <span class="symbol" style="color: {first_color}">{first_symbol}</span>
+        <span class="symbol" style="color: {second_color}">{second_symbol}</span>
+        <br/>
+        <span class="small-address">{address_first6}</span>
+        </div>
+        """.replace("  ", "").replace('\n', "")
+        return icon_template.format(
+            first_color=self.nickname_metadata[0]['hex'],
+            first_symbol=self.nickname_metadata[1],
+            second_color=self.nickname_metadata[2]['hex'],
+            second_symbol=self.nickname_metadata[3],
+            address_first6=self.checksum_public_address[2:8]
+        )

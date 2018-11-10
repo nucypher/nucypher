@@ -1,3 +1,19 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
 
 import pytest
@@ -13,6 +29,7 @@ from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMEN
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
+@pytest.mark.slow()
 def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas, three_agents):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
@@ -24,6 +41,7 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
                                                                                                 address)
 
 
+@pytest.mark.slow()
 @pytest.mark.skip("What do we want this test to do now?")
 def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_ursulas):
     # Imagine alice knows of nobody.
@@ -41,7 +59,7 @@ def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_urs
 
 def test_alice_creates_policy_with_correct_hrac(idle_federated_policy):
     """
-    Alice creates a Policy.  It has the proper HRAC, unique per her, Bob, and the uri (resource_id).
+    Alice creates a Policy.  It has the proper HRAC, unique per her, Bob, and the label
     """
     alice = idle_federated_policy.alice
     bob = idle_federated_policy.bob

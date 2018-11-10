@@ -1,6 +1,20 @@
-import os
+"""
+This file is part of nucypher.
 
-import pytest
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+import os
 import pytest_twisted
 import requests
 from cryptography.hazmat.primitives import serialization
@@ -40,13 +54,7 @@ def test_federated_nodes_connect_via_tls_and_verify(ursula_federated_test_config
 
     try:
         with open("test-cert", "wb") as f:
-            # f.write(cert.tbs_certificate_bytes.hex())
             f.write(cert_bytes)
         yield threads.deferToThread(check_node_with_cert, node, "test-cert")
     finally:
         os.remove("test-cert")
-
-
-@pytest.mark.skip(reason="To be implemented")
-def test_node_metadata_contains_proper_cert():
-    pass

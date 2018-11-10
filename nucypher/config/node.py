@@ -1,33 +1,41 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import binascii
 import json
 import os
-import socket
-import ssl
-import time
 from json import JSONDecodeError
-from logging import getLogger
+from twisted.logger import Logger
 from tempfile import TemporaryDirectory
 from typing import List
-from urllib.parse import urlparse
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 
 from constant_sorrow import constants
-from cryptography import x509
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.serialization import Encoding
 
 from nucypher.characters.lawful import Ursula
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, BOOTNODES
-from nucypher.config.keyring import NucypherKeyring, _write_tls_certificate
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
+from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, InMemoryNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp
-from nucypher.crypto.signing import signature_splitter
 from nucypher.network.middleware import RestMiddleware
 
 
 class NodeConfiguration:
-
-    _name = 'node'
-    _Character = NotImplemented
+    _name = 'ursula'  # TODO: un-hardcode Ursula
+    _character_class = Ursula
 
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
     DEFAULT_OPERATING_MODE = 'decentralized'
@@ -86,7 +94,7 @@ class NodeConfiguration:
 
                  ) -> None:
 
-        self.log = getLogger(self.__class__.__name__)
+        self.log = Logger(self.__class__.__name__)
 
         # Known Nodes
         self.known_nodes_dir = constants.UNINITIALIZED_CONFIGURATION
@@ -178,7 +186,13 @@ class NodeConfiguration:
             self.read_keyring()
             self.keyring.unlock(passphrase=passphrase)
         merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
-        return self._Character(**merged_parameters)
+        return self._character_class(**merged_parameters)
+
+    @staticmethod
+    def _read_configuration_file(filepath) -> dict:
+        with open(filepath, 'r') as file:
+            payload = NodeConfiguration.__CONFIG_FILE_DESERIALIZER(file.read())
+        return payload
 
     @classmethod
     def from_configuration_file(cls, filepath, **overrides) -> 'NodeConfiguration':
@@ -186,21 +200,20 @@ class NodeConfiguration:
         from nucypher.config.storages import NodeStorage  # TODO: move
         NODE_STORAGES = {storage_class._name: storage_class for storage_class in NodeStorage.__subclasses__()}
 
-        with open(filepath, 'r') as file:
-            payload = cls.__CONFIG_FILE_DESERIALIZER(file.read())
+        payload = cls._read_configuration_file(filepath=filepath)
 
         # Make NodeStorage
         storage_payload = payload['node_storage']
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
         storage_class = NODE_STORAGES[storage_type]
         node_storage = storage_class.from_payload(payload=storage_payload,
-                                                  character_class=cls._Character,
+                                                  character_class=cls._character_class,
                                                   federated_only=payload['federated_only'],
                                                   serializer=cls.NODE_SERIALIZER,
                                                   deserializer=cls.NODE_DESERIALIZER)
 
         payload.update(dict(node_storage=node_storage))
-        return cls(**{**payload, **overrides})
+        return cls(is_me=True, **{**payload, **overrides})
 
     def to_configuration_file(self, filepath: str = None) -> str:
         """Write the static_payload to a JSON file."""
@@ -209,6 +222,7 @@ class NodeConfiguration:
             filepath = os.path.join(self.config_root, filename)
 
         payload = self.static_payload
+        del payload['is_me']  # TODO
         # Save node connection data
         payload.update(dict(node_storage=self.node_storage.payload()))
 
@@ -236,19 +250,19 @@ class NodeConfiguration:
     def static_payload(self) -> dict:
         """Exported static configuration values for initializing Ursula"""
         payload = dict(
-                    # Identity
-                    is_me=self.is_me,
-                    federated_only=self.federated_only,  # TODO: 466
-                    checksum_address=self.checksum_address,
-                    keyring_dir=self.keyring_dir,
-                    known_certificates_dir=self.known_certificates_dir,
+            # Identity
+            is_me=self.is_me,
+            federated_only=self.federated_only,  # TODO: 466
+            checksum_address=self.checksum_address,
+            keyring_dir=self.keyring_dir,
+            known_certificates_dir=self.known_certificates_dir,
 
-                    # Behavior
-                    learn_on_same_thread=self.learn_on_same_thread,
-                    abort_on_learning_error=self.abort_on_learning_error,
-                    start_learning_now=self.start_learning_now,
-                    save_metadata=self.save_metadata
-                )
+            # Behavior
+            learn_on_same_thread=self.learn_on_same_thread,
+            abort_on_learning_error=self.abort_on_learning_error,
+            start_learning_now=self.start_learning_now,
+            save_metadata=self.save_metadata
+        )
         return payload
 
     @property
@@ -294,7 +308,7 @@ class NodeConfiguration:
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
         power_ups = list()
         if self.is_me and not self.temp:
-            for power_class in self._Character._default_crypto_powerups:
+            for power_class in self._character_class._default_crypto_powerups:
                 power_up = self.keyring.derive_crypto_power(power_class)
                 power_ups.append(power_up)
         return power_ups
@@ -334,9 +348,9 @@ class NodeConfiguration:
         try:
 
             # Directories
-            os.mkdir(self.keyring_dir, mode=0o700)               # keyring
-            os.mkdir(self.known_nodes_dir, mode=0o755)           # known_nodes
-            os.mkdir(self.known_certificates_dir, mode=0o755)    # known_certs
+            os.mkdir(self.keyring_dir, mode=0o700)  # keyring
+            os.mkdir(self.known_nodes_dir, mode=0o755)  # known_nodes
+            os.mkdir(self.known_certificates_dir, mode=0o755)  # known_certs
             self.node_storage.initialize()  # TODO: default know dir
 
             if not self.temp and not no_keys:
@@ -356,7 +370,8 @@ class NodeConfiguration:
 
         except FileExistsError:
             existing_paths = [os.path.join(self.config_root, f) for f in os.listdir(self.config_root)]
-            message = "There are pre-existing nucypher installation files at {}: {}".format(self.config_root, existing_paths)
+            message = "There are pre-existing nucypher installation files at {}: {}".format(self.config_root,
+                                                                                            existing_paths)
             self.log.critical(message)
             raise NodeConfiguration.ConfigurationError(message)
 
@@ -364,17 +379,16 @@ class NodeConfiguration:
             self.validate(config_root=self.config_root, no_registry=no_registry or self.federated_only)
         return self.config_root
 
-    def read_known_nodes(self) -> set:
-        """Read known nodes from metadata, and use them when producing a character"""
-        known_nodes = self.node_storage.all(federated_only=self.federated_only)
-        return known_nodes
+    def read_known_nodes(self):
+        self.known_nodes.update(self.node_storage.all(federated_only=self.federated_only))
+        return self.known_nodes
 
     def read_keyring(self, *args, **kwargs):
         if self.checksum_address is None:
             raise self.ConfigurationError("No account specified to unlock keyring")
         self.keyring = NucypherKeyring(keyring_root=self.keyring_dir,
                                        account=self.checksum_address,
-                                       *args, ** kwargs)
+                                       *args, **kwargs)
 
     def write_keyring(self,
                       passphrase: str,
@@ -382,7 +396,7 @@ class NodeConfiguration:
                       wallet: bool,
                       tls: bool,
                       host: str,
-                      tls_curve,
+                      tls_curve: EllipticCurve = None,
                       ) -> NucypherKeyring:
 
         self.keyring = NucypherKeyring.generate(passphrase=passphrase,
@@ -410,7 +424,8 @@ class NodeConfiguration:
                        blank=False) -> str:
 
         if force and os.path.isfile(output_filepath):
-            raise self.ConfigurationError('There is an existing file at the registry output_filepath {}'.format(output_filepath))
+            raise self.ConfigurationError(
+                'There is an existing file at the registry output_filepath {}'.format(output_filepath))
 
         output_filepath = output_filepath or self.registry_filepath
         source = source or self.REGISTRY_SOURCE
@@ -428,81 +443,8 @@ class NodeConfiguration:
                     self.log.debug("Source registry {} is valid JSON".format(source))
 
         else:
-            self.log.warning("Writing blank registry")
+            self.log.warn("Writing blank registry")
             open(output_filepath, 'w').close()  # write blank
 
         self.log.info("Successfully wrote registry to {}".format(output_filepath))
         return output_filepath
-
-    def __learn_from_bootnode(self, bootnode):
-        parsed_url = urlparse(bootnode.rest_url)
-
-        # Pre-fetch certificate
-        self.log.info("Fetching bootnode {} TLS certificate".format(bootnode.checksum_address))
-        bootnode_certificate = ssl.get_server_certificate((parsed_url.hostname, parsed_url.port))
-        certificate = x509.load_pem_x509_certificate(bootnode_certificate.encode(),
-                                                     backend=default_backend())
-
-        # Write certificate
-        filename = '{}.{}'.format(bootnode.checksum_address, Encoding.PEM.name.lower())
-        certificate_filepath = os.path.join(self.known_certificates_dir, filename)
-        _write_tls_certificate(certificate=certificate, full_filepath=certificate_filepath, force=True)
-        self.log.info("Saved bootnode {} TLS certificate".format(bootnode.checksum_address))
-
-        # Learn from Bootnode
-        response = self.network_middleware.get_nodes_via_rest(url=parsed_url.netloc,
-                                                              certificate_filepath=certificate_filepath)
-        self.log.info("Retrieved bootnode data from {}".format(bootnode.checksum_address))
-
-        if response.status_code != 200:
-            raise RuntimeError("Bad response from bootnode {}".format(bootnode.rest_url))
-
-        signature, nodes = signature_splitter(response.content, return_remainder=True)
-        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)  # TODO: 466
-        self.log.debug("Learned from Bootnode {}|{}".format(bootnode.checksum_address, parsed_url.geturl()))
-
-        for node in node_list:
-            self.known_nodes.add(node)
-
-        return node_list
-
-    def load_bootnodes(self,
-                       read_storages: bool = True,
-                       load_seed_nodes: bool = True,
-                       retry_attempts: int = 3,
-                       retry_rate: int = 2,
-                       timeout=3):
-        """
-        Engage known nodes from storages and pre-fetch hardcoded bootnode certificates for node learning.
-        """
-        if load_seed_nodes is True:
-            socket.setdefaulttimeout(timeout)  # Set Socket Timeout
-
-            unresponsive_seed_nodes = set()
-
-            def __attempt_bootnode_learning(bootnode, current_attempt=1):
-                self.log.debug("Loading Bootnode {}|{}".format(bootnode.checksum_address, bootnode.rest_url))
-
-                try:
-                    self.__learn_from_bootnode(bootnode=bootnode)
-                except socket.timeout:
-                    if current_attempt == retry_attempts:
-                        message = "No Response from Bootnode {} after {} attempts"
-                        self.log.info(message.format(bootnode.rest_url, retry_attempts))
-                        return
-                    unresponsive_seed_nodes.add(bootnode)
-                    self.log.info("No Response from Bootnode {}. Retrying in {} seconds...".format(bootnode.rest_url, retry_rate))
-                    time.sleep(retry_rate)
-                    __attempt_bootnode_learning(bootnode=bootnode, current_attempt=current_attempt+1)
-                else:
-                    self.log.info("Successfully learned from bootnode {}".format(bootnode.rest_url))
-                    if current_attempt > 1:
-                        unresponsive_seed_nodes.remove(bootnode)
-
-            for bootnode in BOOTNODES:
-                __attempt_bootnode_learning(bootnode=bootnode)
-            if len(unresponsive_seed_nodes) > 0:
-                self.log.info("No Bootnodes were availible after {} attempts".format(retry_attempts))
-
-        if read_storages is True:
-            self.read_known_nodes()

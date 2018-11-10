@@ -1,3 +1,20 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+import base64
 import sha3
 from constant_sorrow.constants import PUBLIC_ONLY
 from umbral.keys import UmbralPrivateKey
@@ -7,12 +24,14 @@ from nucypher.keystore import keypairs
 
 def test_gen_keypair_if_needed():
     new_enc_keypair = keypairs.EncryptingKeypair()
-    assert new_enc_keypair._privkey != None
-    assert new_enc_keypair.pubkey != None
+    assert new_enc_keypair._privkey is not None
+    assert new_enc_keypair.pubkey is not None
+    assert new_enc_keypair.pubkey == new_enc_keypair._privkey.get_pubkey()
 
     new_sig_keypair = keypairs.SigningKeypair()
-    assert new_sig_keypair._privkey != None
-    assert new_sig_keypair.pubkey != None
+    assert new_sig_keypair._privkey is not None
+    assert new_sig_keypair.pubkey is not None
+    assert new_sig_keypair.pubkey == new_sig_keypair._privkey.get_pubkey()
 
 
 def test_keypair_with_umbral_keys():
@@ -36,7 +55,7 @@ def test_keypair_serialization():
     assert pubkey_bytes == bytes(umbral_pubkey)
 
     pubkey_b64 = new_keypair.serialize_pubkey(as_b64=True)
-    assert pubkey_b64 == umbral_pubkey.to_bytes()
+    assert pubkey_b64 == base64.urlsafe_b64encode(umbral_pubkey.to_bytes())
 
 
 def test_keypair_fingerprint():
@@ -44,7 +63,7 @@ def test_keypair_fingerprint():
     new_keypair = keypairs.Keypair(public_key=umbral_pubkey)
 
     fingerprint = new_keypair.fingerprint()
-    assert fingerprint != None
+    assert fingerprint is not None
 
     umbral_fingerprint = sha3.keccak_256(bytes(umbral_pubkey)).hexdigest().encode()
     assert fingerprint == umbral_fingerprint
@@ -54,12 +73,12 @@ def test_signing():
     umbral_privkey = UmbralPrivateKey.gen_key()
     sig_keypair = keypairs.SigningKeypair(umbral_privkey)
 
-    msg = b'attack at dawn'
+    msg = b'peace at dawn'
     signature = sig_keypair.sign(msg)
-    assert signature.verify(msg, sig_keypair.pubkey) == True
+    assert signature.verify(msg, sig_keypair.pubkey)
 
     bad_msg = b'bad message'
-    assert signature.verify(bad_msg, sig_keypair.pubkey) == False
+    assert not signature.verify(bad_msg, sig_keypair.pubkey)
 
 
 # TODO: Add test for EncryptingKeypair.decrypt

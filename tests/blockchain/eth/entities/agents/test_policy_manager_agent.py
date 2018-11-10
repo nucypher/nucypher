@@ -1,3 +1,19 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
 
 import collections
@@ -49,6 +65,7 @@ def test_create_policy(testerchain, three_agents):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
+@pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_fetch_policy_arrangements(three_agents, policy_meta):
     token_agent, miner_agent, policy_agent = three_agents
@@ -61,6 +78,7 @@ def test_fetch_policy_arrangements(three_agents, policy_meta):
     assert list(record[0] for record in arrangements) == policy_meta.addresses
 
 
+@pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_revoke_arrangement(three_agents, policy_meta):
     token_agent, miner_agent, policy_agent = three_agents
@@ -75,6 +93,7 @@ def test_revoke_arrangement(three_agents, policy_meta):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
+@pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_revoke_policy(three_agents, policy_meta):
     token_agent, miner_agent, policy_agent = three_agents
@@ -114,6 +133,7 @@ def test_collect_refund(testerchain, three_agents, policy_meta):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
+@pytest.mark.slow()
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_collect_policy_reward(testerchain, three_agents, policy_meta):
     token_agent, miner_agent, policy_agent = three_agents

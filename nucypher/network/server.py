@@ -1,6 +1,22 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import binascii
 import os
-from logging import getLogger
+from twisted.logger import Logger
 
 from apistar import Route, App
 from apistar.http import Response, Request, QueryParams
@@ -17,10 +33,14 @@ from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import InterfaceInfo
+from jinja2 import Template
 
+
+HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+TEMPLATES_DIR = os.path.join(HERE, "templates")
 
 class ProxyRESTServer:
-    log = getLogger("characters")
+    log = Logger("characters")
 
     def __init__(self,
                  rest_host: str,
@@ -39,15 +59,13 @@ class ProxyRESTServer:
 
         self.__hosting_power = hosting_power
 
+
     def rest_url(self):
         return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
 
 
 class ProxyRESTRoutes:
-    log = getLogger("characters")
-
-    class InvalidSignature(Exception):
-        """Raised when a received signature is not valid."""
+    log = Logger("characters")
 
     def __init__(self,
                  db_name,
@@ -98,6 +116,9 @@ class ProxyRESTRoutes:
             Route('/treasure_map/{treasure_map_id}',
                   'GET',
                   self.provide_treasure_map),
+            Route('/status',
+                  'GET',
+                  self.status),
             Route('/treasure_map/{treasure_map_id}',
                   'POST',
                   self.receive_treasure_map),
@@ -120,6 +141,10 @@ class ProxyRESTRoutes:
         from nucypher.characters.lawful import Alice, Ursula
         self._alice_class = Alice
         self._node_class = Ursula
+
+        with open(os.path.join(TEMPLATES_DIR, "basic_status.j2"), "r") as f:
+            _status_template_content = f.read()
+        self._status_template = Template(_status_template_content)
 
     def public_information(self):
         """
@@ -161,7 +186,7 @@ class ProxyRESTRoutes:
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                               " Announced via REST."  # TODO: Include data about caller?
-                    self.log.warning(message)
+                    self.log.warn(message)
                     self._suspicious_activity_tracker['vladimirs'].append(node)  # TODO: Maybe also record the bytes representation separately to disk?
                 except Exception as e:
                     self.log.critical(str(e))
@@ -222,6 +247,7 @@ class ProxyRESTRoutes:
                 kfrag,
                 session=session)
 
+        # TODO: Sign the arrangement here.  #495
         return  # TODO: Return A 200, with whatever policy metadata.
 
     def reencrypt_via_rest(self, id_as_hex, request: Request):
@@ -248,10 +274,10 @@ class ProxyRESTRoutes:
             capsule_signed_by_both = bytes(self._stamp(capsule_signature))
 
             capsule.set_correctness_keys(verifying=alices_verifying_key)
-            # TODO: Sign the result of this.  See #141.
             cfrag = pre.reencrypt(kfrag, capsule, metadata=capsule_signed_by_both)
             self.log.info("Re-encrypting for {}, made {}.".format(capsule, cfrag))
-            cfrag_byte_stream += VariableLengthBytestring(cfrag)
+            signature = self._stamp(bytes(cfrag) + bytes(capsule))
+            cfrag_byte_stream += VariableLengthBytestring(cfrag) + signature
 
         # TODO: Put this in Ursula's datastore
         self._work_order_tracker.append(work_order)
@@ -303,6 +329,11 @@ class ProxyRESTRoutes:
             # TODO: Make this a proper 500 or whatever.
             self.log.info("Bad TreasureMap ID; not storing {}".format(treasure_map_id))
             assert False
+
+    def status(self, request: Request):
+        headers = {"Content-Type": "text/html", "charset":"utf-8"}
+        content = self._status_template.render(known_nodes=self._node_tracker.values())
+        return Response(content=content, headers=headers)
 
 
 class TLSHostingPower(KeyPairBasedPower):

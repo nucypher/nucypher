@@ -1,8 +1,24 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import inspect
 
 from eth_keys.datatypes import PublicKey, Signature as EthSignature
 from eth_utils import keccak
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
@@ -174,13 +190,6 @@ class KeyPairBasedPower(CryptoPowerUp):
         return self.keypair.pubkey
 
 
-class DerivedKeyBasedPower(CryptoPowerUp):
-    """
-    Rather than rely on an established KeyPair, this type of power
-    derives a key at moments defined by the user.
-    """
-
-
 class SigningPower(KeyPairBasedPower):
     _keypair_class = SigningKeypair
     not_found_error = NoSigningPower
@@ -193,10 +202,29 @@ class EncryptingPower(KeyPairBasedPower):
     provides = ("decrypt",)
 
 
+class DerivedKeyBasedPower(CryptoPowerUp):
+    """
+    Rather than rely on an established KeyPair, this type of power
+    derives a key at moments defined by the user.
+    """
+
+
 class DelegatingPower(DerivedKeyBasedPower):
 
-    def __init__(self) -> None:
-        self.umbral_keying_material = UmbralKeyingMaterial()
+    def __init__(self,
+                 keying_material: Optional[bytes] = None,
+                 password: Optional[bytes] = None) -> None:
+        if keying_material is None:
+            self.__umbral_keying_material = UmbralKeyingMaterial()
+        else:
+            self.__umbral_keying_material = UmbralKeyingMaterial.from_bytes(key_bytes=keying_material,
+                                                                            password=password)
+
+    def _get_privkey_from_label(self, label):
+        return self.__umbral_keying_material.derive_privkey_by_label(label)
+
+    def get_pubkey_from_label(self, label):
+        return self._get_privkey_from_label(label).get_pubkey()
 
     def generate_kfrags(self, bob_pubkey_enc, signer, label, m, n) -> Tuple[UmbralPublicKey, List]:
         """
@@ -206,11 +234,11 @@ class DelegatingPower(DerivedKeyBasedPower):
         that he can activate the Capsule.
         :param bob_pubkey_enc: Bob's public key
         :param m: Minimum number of KFrags needed to rebuild ciphertext
-        :param n: Total number of rekey shares to generate
+        :param n: Total number of KFrags to generate
         """
         # TODO: salt?  #265
 
-        __private_key = self.umbral_keying_material.derive_privkey_by_label(label)
+        __private_key = self._get_privkey_from_label(label)
         kfrags = pre.generate_kfrags(delegating_privkey=__private_key,
                                      receiving_pubkey=bob_pubkey_enc,
                                      threshold=m,

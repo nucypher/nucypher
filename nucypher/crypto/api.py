@@ -1,8 +1,24 @@
-import os
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+import datetime
 from ipaddress import IPv4Address
 from random import SystemRandom
+from typing import Tuple
 
-import datetime
 import sha3
 from constant_sorrow import constants
 from cryptography import x509
@@ -12,10 +28,8 @@ from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
-from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
-from typing import Tuple
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
@@ -120,7 +134,6 @@ def generate_self_signed_certificate(host: str,
                                      private_key: _EllipticCurvePrivateKey = None,
                                      days_valid: int = 365
                                      ) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
-
     if not private_key:
         private_key = ec.generate_private_key(curve, default_backend())
 
@@ -128,8 +141,8 @@ def generate_self_signed_certificate(host: str,
 
     now = datetime.datetime.utcnow()
     subject = issuer = x509.Name([
-             x509.NameAttribute(NameOID.COMMON_NAME, host),
-        ])
+        x509.NameAttribute(NameOID.COMMON_NAME, host),
+    ])
     cert = x509.CertificateBuilder().subject_name(subject)
     cert = cert.issuer_name(issuer)
     cert = cert.public_key(public_key)
@@ -148,7 +161,6 @@ def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
                      signer: 'SignatureStamp',
                      sign_plaintext: bool = True
                      ) -> Tuple[UmbralMessageKit, 'SignatureStamp']:
-
     if signer is not constants.DO_NOT_SIGN:
         # The caller didn't expressly tell us not to sign; we'll sign.
         if sign_plaintext:

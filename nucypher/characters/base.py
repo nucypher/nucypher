@@ -1,10 +1,30 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+
 import random
 from collections import defaultdict
 from collections import deque
 from contextlib import suppress
 from logging import Logger
-from logging import getLogger
 from tempfile import TemporaryDirectory
+from typing import Dict, ClassVar, Set
+from typing import Tuple
+from typing import Union, List
 
 import maya
 import requests
@@ -13,11 +33,10 @@ from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from requests.exceptions import SSLError
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 from twisted.internet import task
-from typing import Dict, ClassVar, Set
-from typing import Tuple
-from typing import Union, List
+from twisted.internet.threads import deferToThread
+from twisted.logger import Logger
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -28,8 +47,8 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, NoSigningPower, CryptoPowerUp
 from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
 from nucypher.network.middleware import RestMiddleware
+from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import VerifiableNode
-from nucypher.network.server import TLSHostingPower
 
 
 class Learner:
@@ -61,13 +80,14 @@ class Learner:
                  start_learning_now: bool = False,
                  learn_on_same_thread: bool = False,
                  known_nodes: tuple = None,
+                 seed_nodes: Tuple[tuple] = None,
                  known_certificates_dir: str = None,
-                 node_storage = None,
+                 node_storage=None,
                  save_metadata: bool = False,
                  abort_on_learning_error: bool = False
                  ) -> None:
 
-        self.log = getLogger("characters")                       # type: Logger
+        self.log = Logger("characters")  # type: Logger
 
         self.__common_name = common_name
         self.network_middleware = network_middleware
@@ -84,7 +104,8 @@ class Learner:
 
         # Read
         if node_storage is None:
-            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only,    #TODO: remove federated_only
+            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only,
+                                                       # TODO: remove federated_only
                                                        character_class=self.__class__)
 
         self.node_storage = node_storage
@@ -100,10 +121,12 @@ class Learner:
                 self.unresponsive_startup_nodes.append(node)
 
         self.teacher_nodes = deque()
-        self._current_teacher_node = None   # type: Teacher
+        self._current_teacher_node = None  # type: Teacher
         self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
-        self._learning_round = 0            # type: int
+        self._learning_round = 0  # type: int
         self._rounds_without_new_nodes = 0  # type: int
+        self._seed_nodes = seed_nodes or []
+        self.unresponsive_seed_nodes = set()
 
         if self.start_learning_now:
             self.start_learning_loop(now=self.learn_on_same_thread)
@@ -111,6 +134,51 @@ class Learner:
     @property
     def known_nodes(self):
         return self.__known_nodes
+
+    def load_seednodes(self,
+                       read_storages: bool = True,
+                       retry_attempts: int = 3,
+                       retry_rate: int = 2,
+                       timeout=3):
+        """
+        Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
+        """
+
+        def __attempt_seednode_learning(seednode_metadata, current_attempt=1):
+            from nucypher.characters.lawful import Ursula
+            self.log.debug(
+                "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_address,
+                                                seednode_metadata.rest_host,
+                                                seednode_metadata.rest_port))
+
+            seed_node = Ursula.from_seednode_metadata(seednode_metadata=seednode_metadata,
+                                                      network_middleware=self.network_middleware,
+                                                      certificates_directory=self.known_certificates_dir,
+                                                      timeout=timeout,
+                                                      federated_only=self.federated_only)  # TODO: 466
+            if seed_node is False:
+                self.unresponsive_seed_nodes.add(seednode_metadata)
+            else:
+                self.unresponsive_seed_nodes.discard(seednode_metadata)
+                self.remember_node(seed_node)
+
+        for seednode_metadata in self._seed_nodes:
+            __attempt_seednode_learning(seednode_metadata=seednode_metadata)
+
+        if not self.unresponsive_seed_nodes:
+            self.log.info("Finished learning about all seednodes.")
+
+        if read_storages is True:
+            self.read_nodes_from_storage()
+
+        if not self.known_nodes:
+            self.log.warn("No seednodes were available after {} attempts".format(retry_attempts))
+            # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)
+
+    def read_nodes_from_storage(self) -> set:
+        stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: 466
+        for node in stored_nodes:
+            self.remember_node(node)
 
     def remember_node(self, node, force_verification_check=False):
 
@@ -131,7 +199,7 @@ class Learner:
                              certificate_filepath=certificate_filepath)
         except SSLError:
             raise  # TODO
-        except requests.exceptions.ConnectionError:
+        except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
             self.log.info("No Response from known node {}|{}".format(node.rest_interface, node.checksum_public_address))
             raise self.UnresponsiveTeacher
 
@@ -151,10 +219,25 @@ class Learner:
     def start_learning_loop(self, now=False):
         if self._learning_task.running:
             return False
+        elif now:
+            self.load_seednodes()
+            self._learning_task()  # Unhandled error might happen here.  TODO: Call this in a safer place.
+            self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
+            self.learning_deferred.addErrback(self.handle_learning_errors)
+            return self.learning_deferred
         else:
-            d = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
-            d.addErrback(self.handle_learning_errors)
-            return d
+            seeder_deferred = deferToThread(self.load_seednodes)
+            learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
+            seeder_deferred.addErrback(self.handle_learning_errors)
+            learner_deferred.addErrback(self.handle_learning_errors)
+            self.learning_deferred = defer.DeferredList([seeder_deferred, learner_deferred])
+            return self.learning_deferred
+
+    def stop_learning_loop(self):
+        """
+        Only for tests at this point.  Maybe some day for graceful shutdowns.
+        """
+
 
     def handle_learning_errors(self, *args, **kwargs):
         failure = args[0]
@@ -162,7 +245,9 @@ class Learner:
             self.log.critical("Unhandled error during node learning.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warning("Unhandled error during node learning: {}".format(failure.getTraceback()))
+            self.log.warn("Unhandled error during node learning: {}".format(failure.getTraceback()))
+            if not self._learning_task.running:
+                self.start_learning_loop()  # TODO: Consider a single entry point for this with more elegant pause and unpause.
 
     def _crash_gracefully(self, failure=None):
         """
@@ -188,6 +273,12 @@ class Learner:
         self.teacher_nodes.extend(nodes_we_know_about)
 
     def cycle_teacher_node(self):
+        # To ensure that all the best teachers are availalble, first let's make sure
+        # that we have connected to all the seed nodes.
+        if self.unresponsive_seed_nodes:
+            self.log.info("Still have unresponsive seed nodes; trying again to connect.")
+            self.load_seednodes()  # Ideally, this is async and singular.
+
         if not self.teacher_nodes:
             self.select_teacher_nodes()
         try:
@@ -213,7 +304,7 @@ class Learner:
             self._learning_task.reset()
             self._learning_task()
         elif not force:
-            self.log.warning(
+            self.log.warn(
                 "Learning loop isn't started; can't learn about nodes now.  You can override this with force=True.")
         elif force:
             self.log.info("Learning loop wasn't started; forcing start now.")
@@ -246,10 +337,15 @@ class Learner:
                 return True
 
             if not self._learning_task.running:
-                self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
+                self.log.warn("Blocking to learn about nodes, but learning loop isn't running.")
             if learn_on_this_thread:
-                self.learn_from_teacher_node(eager=True)
+                try:
+                    self.learn_from_teacher_node(eager=True)
+                except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
+                    # TODO: Even this "same thread" logic can be done off the main thread.
+                    self.log.warn("Teacher was unreachable.  No good way to handle this on the main thread.")
 
+            # The rest of the fucking owl
             if (maya.now() - start).seconds > timeout:
                 if not self._learning_task.running:
                     raise self.NotEnoughTeachers("Learning loop is not running.  Start it with start_learning().")
@@ -277,7 +373,7 @@ class Learner:
                 return True
 
             if not self._learning_task.running:
-                self.log.warning("Blocking to learn about nodes, but learning loop isn't running.")
+                self.log.warn("Blocking to learn about nodes, but learning loop isn't running.")
             if learn_on_this_thread:
                 self.learn_from_teacher_node(eager=True)
 
@@ -290,8 +386,9 @@ class Learner:
                 elif not self._learning_task.running:
                     raise self.NotEnoughTeachers("The learning loop is not running.  Start it with start_learning().")
                 else:
-                    raise self.NotEnoughTeachers("After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
-                        timeout, rounds_undertaken, len(still_unknown), still_unknown))
+                    raise self.NotEnoughTeachers(
+                        "After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
+                            timeout, rounds_undertaken, len(still_unknown), still_unknown))
 
             else:
                 time.sleep(.1)
@@ -351,7 +448,7 @@ class Learner:
         try:
             current_teacher = self.current_teacher_node()
         except self.NotEnoughTeachers as e:
-            self.log.warning("Can't learn right now: {}".format(e.args[0]))
+            self.log.warn("Can't learn right now: {}".format(e.args[0]))
             return
 
         rest_url = current_teacher.rest_interface  # TODO: Name this..?
@@ -367,7 +464,8 @@ class Learner:
         try:
 
             # TODO: Streamline path generation
-            certificate_filepath = current_teacher.get_certificate_filepath(certificates_dir=self.known_certificates_dir)
+            certificate_filepath = current_teacher.get_certificate_filepath(
+                certificates_dir=self.known_certificates_dir)
             response = self.network_middleware.get_nodes_via_rest(url=rest_url,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
@@ -398,7 +496,8 @@ class Learner:
 
             try:
                 if eager:
-                    certificate_filepath = current_teacher.get_certificate_filepath(certificates_dir=certificate_filepath)
+                    certificate_filepath = current_teacher.get_certificate_filepath(
+                        certificates_dir=self.known_certificates_dir)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
@@ -411,9 +510,7 @@ class Learner:
                 # TODO: Account for possibility that stamp, rather than interface, was bad.
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                           "Propagated by: {}".format(current_teacher.checksum_public_address, rest_url)
-                self.log.warning(message)
-            self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-
+                self.log.warn(message)
             self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
             self.remember_node(node)
             new_nodes.append(node)
@@ -442,11 +539,7 @@ class Character(Learner):
     _crashed = False
 
     from nucypher.network.protocols import SuspiciousActivity  # Ship this exception with every Character.
-
-    class InvalidSignature(Exception):
-        """
-        Raised when a signature doesn't pass validation/verification.
-        """
+    from nucypher.crypto.signing import InvalidSignature
 
     def __init__(self,
                  is_me: bool = True,
@@ -484,7 +577,7 @@ class Character(Learner):
 
         """
 
-        self.federated_only = federated_only           # type: bool
+        self.federated_only = federated_only  # type: bool
 
         #
         # Powers
@@ -494,7 +587,7 @@ class Character(Learner):
         crypto_power_ups = crypto_power_ups or list()  # type: list
 
         if crypto_power:
-            self._crypto_power = crypto_power          # type: CryptoPower
+            self._crypto_power = crypto_power  # type: CryptoPower
         elif crypto_power_ups:
             self._crypto_power = CryptoPower(power_ups=crypto_power_ups)
         else:
@@ -508,7 +601,7 @@ class Character(Learner):
                 self.blockchain = blockchain or Blockchain.connect()
 
             self.keyring_dir = keyring_dir  # type: str
-            self.treasure_maps = {}         # type: dict
+            self.treasure_maps = {}  # type: dict
             self.network_middleware = network_middleware or RestMiddleware()
 
             #
@@ -516,7 +609,7 @@ class Character(Learner):
             #
             try:
                 signing_power = self._crypto_power.power_ups(SigningPower)  # type: SigningPower
-                self._stamp = signing_power.get_signature_stamp()           # type: SignatureStamp
+                self._stamp = signing_power.get_signature_stamp()  # type: SignatureStamp
             except NoSigningPower:
                 self._stamp = constants.NO_SIGNING_POWER
 
@@ -559,6 +652,13 @@ class Character(Learner):
                 if not checksum_address == self.checksum_public_address:
                     error = "Federated-only Characters derive their address from their Signing key; got {} instead."
                     raise self.SuspiciousActivity(error.format(checksum_address))
+        try:
+            self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_public_address)
+        except SigningPower.not_found_error:
+            if self.federated_only:
+                self.nickname = self.nickname_metadata = constants.NO_NICKNAME
+            else:
+                raise
 
     def __eq__(self, other) -> bool:
         return bytes(self.stamp) == bytes(other.stamp)
@@ -567,9 +667,8 @@ class Character(Learner):
         return int.from_bytes(bytes(self.stamp), byteorder="big")
 
     def __repr__(self):
-        class_name = self.__class__.__name__
-        r = "{} {}"
-        r = r.format(class_name, self.canonical_public_address)
+        r = "⇀{}↽ ({})"
+        r = r.format(self.nickname, self.checksum_public_address)
         return r
 
     @property
@@ -668,7 +767,7 @@ class Character(Learner):
                     message_kit: Union[UmbralMessageKit, bytes],
                     signature: Signature = None,
                     decrypt=False,
-                    delegator_signing_key: UmbralPublicKey = None,
+                    delegator_verifying_key: UmbralPublicKey = None,
                     ) -> tuple:
         """
         Inverse of encrypt_for.
@@ -679,7 +778,7 @@ class Character(Learner):
         :param message_kit: the message to be (perhaps decrypted and) verified.
         :param signature: The signature to check.
         :param decrypt: Whether or not to decrypt the messages.
-        :param delegator_signing_key: A signing key from the original delegator.
+        :param delegator_verifying_key: A signing key from the original delegator.
             This is used only when decrypting a MessageKit with an activated Capsule
             to check that the KFrag used to create each attached CFrag is the
             authentic KFrag initially created by the delegator.
@@ -698,7 +797,7 @@ class Character(Learner):
 
         if decrypt:
             # We are decrypting the message; let's do that first and see what the sig header says.
-            cleartext_with_sig_header = self.decrypt(message_kit, verifying_key=delegator_signing_key)
+            cleartext_with_sig_header = self.decrypt(message_kit, verifying_key=delegator_verifying_key)
             sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
             if sig_header == constants.SIGNATURE_IS_ON_CIPHERTEXT:
                 # THe ciphertext is what is signed - note that for later.

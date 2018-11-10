@@ -1,21 +1,31 @@
-from tempfile import TemporaryDirectory
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 
 import pytest
 import pytest_twisted
+from tempfile import TemporaryDirectory
 from twisted.internet import threads
+
 from umbral import pre
 from umbral.fragments import KFrag, CapsuleFrag
 
 from nucypher.crypto.powers import EncryptingPower
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-
-
-@pytest.fixture(scope='function')
-def certificates_tempdir():
-    custom_filepath = '/tmp/nucypher-test-certificates-'
-    cert_tmpdir = TemporaryDirectory(prefix=custom_filepath)
-    yield cert_tmpdir.name
-    cert_tmpdir.cleanup()
 
 
 def test_bob_cannot_follow_the_treasure_map_in_isolation(enacted_federated_policy, federated_bob):
@@ -119,8 +129,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     saves it and responds by re-encrypting and giving Bob a cFrag.
 
     This is a multipart test; it shows proper relations between the Characters Ursula and Bob and also proper
-    interchange between a KFrag, Capsule, and CFrag object in the cont
-    ext of REST-driven proxy re-encryption.
+    interchange between a KFrag, Capsule, and CFrag object in the context of REST-driven proxy re-encryption.
     """
 
     # We pick up our story with Bob already having followed the treasure map above, ie:
@@ -152,12 +161,18 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
 
     ursula_id, work_order = list(work_orders.items())[0]
 
+    # The work order is not yet complete, of course.
+    assert work_order.completed is False
+
     # **** RE-ENCRYPTION HAPPENS HERE! ****
     cfrags = federated_bob.get_reencrypted_cfrags(work_order)
 
     # We only gave one Capsule, so we only got one cFrag.
     assert len(cfrags) == 1
     the_cfrag = cfrags[0]
+
+    # ...and the work order is complete.
+    assert work_order.completed
 
     # Attach the CFrag to the Capsule.
     capsule = capsule_side_channel[0].capsule
@@ -236,7 +251,9 @@ def test_bob_remembers_that_he_has_cfrags_for_a_particular_capsule(enacted_feder
 
 
 def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, federated_alice, capsule_side_channel):
-    # The side channel is represented as a single MessageKit, which is all that Bob really needs.
+    # The side channel delivers all that Bob needs at this point:
+    # - A single MessageKit, containing a Capsule
+    # - A representation of the data source
     the_message_kit, the_data_source = capsule_side_channel
 
     # Bob has saved two WorkOrders so far.
@@ -263,5 +280,26 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
     # At long last.
     cleartext = federated_bob.verify_from(the_data_source, the_message_kit,
                                           decrypt=True,
-                                          delegator_signing_key=federated_alice.stamp.as_umbral_pubkey())
+                                          delegator_verifying_key=federated_alice.stamp.as_umbral_pubkey())
     assert cleartext == b'Welcome to the flippering.'
+
+
+def test_federated_bob_retrieves(federated_bob,
+                                 federated_alice,
+                                 capsule_side_channel,
+                                 ):
+
+    # The side channel delivers all that Bob needs at this point:
+    # - A single MessageKit, containing a Capsule
+    # - A representation of the data source
+    the_message_kit, the_data_source = capsule_side_channel
+
+    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
+
+    delivered_cleartexts = federated_bob.retrieve(message_kit=the_message_kit,
+                                                  data_source=the_data_source,
+                                                  alice_verifying_key=alices_verifying_key)
+
+    # We show that indeed this is the passage originally encrypted by the DataSource.
+    assert b"Welcome to the flippering." == delivered_cleartexts[0]
+

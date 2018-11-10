@@ -1,3 +1,19 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import binascii
 import random
 from collections import OrderedDict
@@ -6,6 +22,7 @@ from typing import Iterable, Callable
 from typing import List
 
 import maya
+import requests
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
 from cryptography.hazmat.backends import default_backend
@@ -88,7 +105,7 @@ class Alice(Character, PolicyAuthor):
 
         return policy
 
-    def grant(self, bob, uri, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None):
+    def grant(self, bob: "Bob", label: bytes, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None):
         if not m:
             # TODO: get m from config  #176
             raise NotImplementedError
@@ -107,7 +124,7 @@ class Alice(Character, PolicyAuthor):
         if handpicked_ursulas is None:
             handpicked_ursulas = set()
 
-        policy = self.create_policy(bob, uri, m, n)
+        policy = self.create_policy(bob, label, m, n)
 
         #
         # We'll find n Ursulas by default.  It's possible to "play the field" by trying different
@@ -140,6 +157,11 @@ class Alice(Character, PolicyAuthor):
         # REST call happens here, as does population of TreasureMap.
         policy.enact(network_middleware=self.network_middleware)
         return policy  # Now with TreasureMap affixed!
+
+    def get_policy_pubkey_from_label(self, label: bytes) -> UmbralPublicKey:
+        alice_delegating_power = self._crypto_power.power_ups(DelegatingPower)
+        policy_pubkey = alice_delegating_power.get_pubkey_from_label(label)
+        return policy_pubkey
 
 
 class Bob(Character):
@@ -227,7 +249,7 @@ class Bob(Character):
                                                           allow_missing=allow_missing,
                                                           learn_on_this_thread=True)
 
-        return unknown_ursulas, known_ursulas
+        return unknown_ursulas, known_ursulas, treasure_map.m
 
     def get_treasure_map(self, alice_verifying_key, label):
         _hrac, map_id = self.construct_hrac_and_map_id(verifying_key=alice_verifying_key, label=label)
@@ -321,10 +343,7 @@ class Bob(Character):
 
     def get_reencrypted_cfrags(self, work_order):
         cfrags = self.network_middleware.reencrypt(work_order)
-        if not len(work_order) == len(cfrags):
-            raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
         for counter, capsule in enumerate(work_order.capsules):
-            # TODO: Ursula is actually supposed to sign this.  See #141.
             # TODO: Maybe just update the work order here instead of setting it anew.
             work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_public_address]
             work_orders_by_ursula[capsule] = work_order
@@ -347,20 +366,27 @@ class Bob(Character):
             verifying=alice_verifying_key)
 
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, data_source.label)
-        self.follow_treasure_map(map_id=map_id, block=True)
+        _unknown_ursulas, _known_ursulas, m = self.follow_treasure_map(map_id=map_id, block=True)
 
         work_orders = self.generate_work_orders(map_id, message_kit.capsule)
 
         cleartexts = []
 
         for work_order in work_orders.values():
-            cfrags = self.get_reencrypted_cfrags(work_order)
-            message_kit.capsule.attach_cfrag(cfrags[0])
+            try:
+                cfrags = self.get_reencrypted_cfrags(work_order)
+                message_kit.capsule.attach_cfrag(cfrags[0])
+                if len(message_kit.capsule._attached_cfrags) > m:
+                    break
+            except requests.exceptions.ConnectTimeout:
+                continue
+        else:
+            raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
 
         delivered_cleartext = self.verify_from(data_source,
                                                message_kit,
                                                decrypt=True,
-                                               delegator_signing_key=alice_verifying_key)
+                                               delegator_verifying_key=alice_verifying_key)
 
         cleartexts.append(delivered_cleartext)
         return cleartexts
@@ -578,20 +604,6 @@ class Ursula(Character, VerifiableNode, Miner):
     #
     # Alternate Constructors
     #
-
-    @classmethod
-    def from_rest_url(cls,
-                      network_middleware: RestMiddleware,
-                      host: str,
-                      port: int,
-                      federated_only: bool = False) -> 'Ursula':
-
-        response = network_middleware.node_information(host, port)  # TODO: pre-load certificates here?
-        if not response.status_code == 200:
-            raise RuntimeError("Got a bad response: {}".format(response))
-
-        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only)
-        return stranger_ursula_from_public_keys
 
     @classmethod
     def from_bytes(cls,

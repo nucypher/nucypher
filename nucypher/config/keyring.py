@@ -1,3 +1,19 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import base64
 import json
 import os
@@ -20,7 +36,7 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
-from umbral.keys import UmbralPrivateKey, UmbralPublicKey
+from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
@@ -45,7 +61,6 @@ __WRAPPING_KEY_LENGTH = 32
 __WRAPPING_KEY_INFO = b'NuCypher-KeyWrap'
 __HKDF_HASH_ALGORITHM = hashes.BLAKE2b
 __HKDF_HASH_LENGTH = 64
-__NONCE_LENGTH = 24
 
 
 def unlock_required(func):
@@ -57,12 +72,11 @@ def unlock_required(func):
     return wrapped
 
 
-def _assemble_key_data(key_data: Dict[str, bytes],
+def _assemble_key_data(key_data: bytes,
                        master_salt: bytes,
                        wrap_salt: bytes) -> Dict[str, bytes]:
     encoded_key_data = {
-        'nonce': key_data['nonce'],
-        'key': key_data['key'],
+        'key': key_data,
         'master_salt': master_salt,
         'wrap_salt': wrap_salt,
     }
@@ -177,7 +191,7 @@ def _derive_key_material_from_passphrase(salt: bytes,
                                          passphrase: str
                                          ) -> bytes:
     """
-    Uses Scrypt derivation to derive a  key for encrypting key material.
+    Uses Scrypt derivation to derive a key for encrypting key material.
     See RFC 7914 for n, r, and p value selections.
     This takes around ~5 seconds to perform.
     """
@@ -193,43 +207,42 @@ def _derive_key_material_from_passphrase(salt: bytes,
 
 
 def _derive_wrapping_key_from_key_material(salt: bytes,
-                                           key_material: bytes
+                                           key_material: bytes,
                                            ) -> bytes:
     """
     Uses HKDF to derive a 32 byte wrapping key to encrypt key material with.
     """
+
     wrapping_key = HKDF(
         algorithm=__HKDF_HASH_ALGORITHM(__HKDF_HASH_LENGTH),
-        length=__HKDF_HASH_LENGTH,
+        length=__WRAPPING_KEY_LENGTH,
         salt=salt,
         info=__WRAPPING_KEY_INFO,
         backend=default_backend()
     ).derive(key_material)
-    return wrapping_key[:__WRAPPING_KEY_LENGTH]
+    return wrapping_key
 
 
 def _encrypt_umbral_key(wrapping_key: bytes,
                         umbral_key: UmbralPrivateKey
-                        ) -> Dict[str, bytes]:
+                        ) -> bytes:
     """
     Encrypts a key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
     Returns an encrypted key as bytes with the nonce appended.
     """
-    nonce = os.urandom(__NONCE_LENGTH)
-    ciphertext = SecretBox(wrapping_key).encrypt(umbral_key.to_bytes(), nonce).ciphertext
-    return {'nonce': nonce, 'key': ciphertext}
+    # TODO: Deprecate this method once key wrapping is refined in pyumbral
+    return bytes(SecretBox(wrapping_key).encrypt(umbral_key.to_bytes()))
 
 
 def _decrypt_umbral_key(wrapping_key: bytes,
-                        nonce: bytes,
-                        encrypting_key_material: bytes
+                        encrypted_key_material: bytes,
                         ) -> UmbralPrivateKey:
     """
     Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
     Returns a decrypted key as an UmbralPrivateKey.
     """
     try:
-        decrypted_key = SecretBox(wrapping_key).decrypt(encrypting_key_material, nonce)
+        decrypted_key = SecretBox(wrapping_key).decrypt(encrypted_key_material)
     except CryptoError:
         raise
     umbral_key = UmbralPrivateKey.from_bytes(decrypted_key)
@@ -343,6 +356,9 @@ class NucypherKeyring:
     class KeyringLocked(KeyringError):
         pass
 
+    class InvalidPassphrase(KeyringError):
+        pass
+
     def __init__(self,
                  account: str,
                  keyring_root: str = None,
@@ -350,6 +366,7 @@ class NucypherKeyring:
                  pub_root_key_path: str = None,
                  signing_key_path: str = None,
                  pub_signing_key_path: str = None,
+                 delegating_key_path: str = None,
                  wallet_path: str = None,
                  tls_key_path: str = None,
                  tls_certificate_path: str = None,
@@ -375,6 +392,7 @@ class NucypherKeyring:
         # Private
         self.__root_keypath = root_key_path or __default_key_filepaths['root']
         self.__signing_keypath = signing_key_path or __default_key_filepaths['signing']
+        self.__delegating_keypath = delegating_key_path or __default_key_filepaths['delegating']
         self.__wallet_path = wallet_path or __default_key_filepaths['wallet']
         self.__tls_keypath = tls_key_path or __default_key_filepaths['tls']
 
@@ -441,6 +459,7 @@ class NucypherKeyring:
             'root': os.path.join(private_key_dir, 'root-{}.priv'.format(account)),
             'root_pub': os.path.join(public_key_dir, 'root-{}.pub'.format(account)),
             'signing': os.path.join(private_key_dir, 'signing-{}.priv'.format(account)),
+            'delegating': os.path.join(private_key_dir, 'delegating-{}.priv'.format(account)),
             'signing_pub': os.path.join(public_key_dir, 'signing-{}.pub'.format(account)),
             'wallet': os.path.join(private_key_dir, 'wallet-{}.json'.format(account)),
             'tls': os.path.join(private_key_dir, '{}.priv.pem'.format(account)),
@@ -463,8 +482,7 @@ class NucypherKeyring:
         wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
                                                           key_material=self.__derived_key_material)
         plain_umbral_key = _decrypt_umbral_key(wrap_key,
-                                               nonce=key_data['nonce'],
-                                               encrypting_key_material=key_data['key'])
+                                               encrypted_key_material=key_data['key'])
         return plain_umbral_key
 
     #
@@ -499,7 +517,7 @@ class NucypherKeyring:
     def derive_crypto_power(self, power_class: ClassVar) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
         """
         Takes either a SigningPower or an EncryptingPower and returns
-        a either a SigningPower or EncryptingPower with the coinciding
+        either a SigningPower or EncryptingPower with the coinciding
         private key.
 
         TODO: Derive a key from the root_key.
@@ -524,7 +542,11 @@ class NucypherKeyring:
 
         # Derived
         elif issubclass(power_class, DerivedKeyBasedPower):
-            new_cryptopower = power_class()
+            key_data = _read_keyfile(self.__delegating_keypath, deserializer=self._private_key_serializer)
+            wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
+                                                              key_material=self.__derived_key_material)
+            keying_material = SecretBox(wrap_key).decrypt(key_data['key'])
+            new_cryptopower = power_class(keying_material=keying_material)
 
         else:
             failure_message = "{} is an invalid type for deriving a CryptoPower.".format(power_class.__name__)
@@ -551,7 +573,10 @@ class NucypherKeyring:
         returning the corresponding Keyring instance.
         """
 
-        cls.validate_passphrase(passphrase)
+        failures = cls.validate_passphrase(passphrase)
+        if failures:
+            raise cls.InvalidPassphrase(", ".join(failures))  # TODO: Ensure this scope is seperable from the scope containing the passphrase
+
         if not any((wallet, encrypting, tls)):
             raise ValueError('Either "encrypting", "wallet", or "tls" must be True '
                              'to generate new keys, or set "no_keys" to True to skip generation.')
@@ -593,28 +618,52 @@ class NucypherKeyring:
                                                       public_key_dir=_public_key_dir)
         if encrypting is True:
             encrypting_private_key, encrypting_public_key = _generate_encryption_keys()
+            delegating_keying_material = UmbralKeyingMaterial().to_bytes()
 
             # Derive Wrapping Keys
-            passphrase_salt, encrypting_salt, signing_salt = os.urandom(32), os.urandom(32), os.urandom(32)
-            derived_key_material = _derive_key_material_from_passphrase(salt=passphrase_salt, passphrase=passphrase)
-            encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt, key_material=derived_key_material)
-            signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt, key_material=derived_key_material)
+            passphrase_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))
+            derived_key_material = _derive_key_material_from_passphrase(salt=passphrase_salt,
+                                                                        passphrase=passphrase)
+            encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt,
+                                                                         key_material=derived_key_material)
+            signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt,
+                                                                        key_material=derived_key_material)
+            delegating_wrap_key = _derive_wrapping_key_from_key_material(salt=delegating_salt,
+                                                                         key_material=derived_key_material)
 
+            # TODO: Deprecate _encrypt_umbral_key with new pyumbral release
             # Encapsulate Private Keys
-            encrypting_key_data = _encrypt_umbral_key(umbral_key=encrypting_private_key, wrapping_key=encrypting_wrap_key)
-            signing_key_data = _encrypt_umbral_key(umbral_key=signing_private_key, wrapping_key=signature_wrap_key)
+            encrypting_key_data = _encrypt_umbral_key(umbral_key=encrypting_private_key,
+                                                      wrapping_key=encrypting_wrap_key)
+            signing_key_data = _encrypt_umbral_key(umbral_key=signing_private_key,
+                                                   wrapping_key=signature_wrap_key)
+            delegating_key_data = bytes(SecretBox(delegating_wrap_key).encrypt(delegating_keying_material))
 
             # Assemble Private Keys
-            encrypting_key_metadata = _assemble_key_data(key_data=encrypting_key_data, master_salt=passphrase_salt, wrap_salt=encrypting_salt)
-            signing_key_metadata = _assemble_key_data(key_data=signing_key_data, master_salt=passphrase_salt, wrap_salt=signing_salt)
+            encrypting_key_metadata = _assemble_key_data(key_data=encrypting_key_data,
+                                                         master_salt=passphrase_salt,
+                                                         wrap_salt=encrypting_salt)
+            signing_key_metadata = _assemble_key_data(key_data=signing_key_data,
+                                                      master_salt=passphrase_salt,
+                                                      wrap_salt=signing_salt)
+            delegating_key_metadata = _assemble_key_data(key_data=delegating_key_data,
+                                                         master_salt=passphrase_salt,
+                                                         wrap_salt=delegating_salt)
 
             # Write Private Keys
-            rootkey_path = _write_private_keyfile(__key_filepaths['root'], encrypting_key_metadata, serializer=cls._private_key_serializer)
-            sigkey_path = _write_private_keyfile(__key_filepaths['signing'], signing_key_metadata, serializer=cls._private_key_serializer)
+            rootkey_path = _write_private_keyfile(keypath=__key_filepaths['root'],
+                                                  key_data=encrypting_key_metadata,
+                                                  serializer=cls._private_key_serializer)
+            sigkey_path = _write_private_keyfile(keypath=__key_filepaths['signing'],
+                                                 key_data=signing_key_metadata,
+                                                 serializer=cls._private_key_serializer)
+            delegating_key_path = _write_private_keyfile(keypath=__key_filepaths['delegating'],
+                                                         key_data=delegating_key_metadata,
+                                                         serializer=cls._private_key_serializer)
 
             # Write Public Keys
             root_keypath = _write_public_keyfile(__key_filepaths['root_pub'], encrypting_public_key.to_bytes())
-            siging_keypath = _write_public_keyfile(__key_filepaths['signing_pub'], signing_public_key.to_bytes())
+            signing_keypath = _write_public_keyfile(__key_filepaths['signing_pub'], signing_public_key.to_bytes())
 
             # Commit
             keyring_args.update(
@@ -622,7 +671,8 @@ class NucypherKeyring:
                 root_key_path=rootkey_path,
                 pub_root_key_path=root_keypath,
                 signing_key_path=sigkey_path,
-                pub_signing_key_path=siging_keypath
+                pub_signing_key_path=signing_keypath,
+                delegating_key_path=delegating_key_path,
             )
 
         if tls is True:
@@ -646,12 +696,18 @@ class NucypherKeyring:
 
     @staticmethod
     def validate_passphrase(passphrase: str) -> bool:
-        """Validate a passphrase and return True or raise an error with a failure reason"""
+        """
+        Validate a passphrase and return True or raise an error with a failure reason.
+
+        NOTICE: Do not raise inside this function.
+        """
         rules = (
             (bool(passphrase), 'Passphrase must not be blank.'),
             (len(passphrase) >= 16, 'Passphrase is too short, must be >= 16 chars.'),
         )
+
+        failures = list()
         for rule, failure_message in rules:
             if not rule:
-                raise ValueError(failure_message)
-        return True
+                failures.append(failure_message)
+        return failures

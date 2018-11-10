@@ -1,4 +1,20 @@
-from logging import getLogger
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+from twisted.logger import Logger
 from urllib.parse import urlparse
 
 from constant_sorrow import constants
@@ -108,7 +124,7 @@ class BlockchainInterface:
 
         """
 
-        self.log = getLogger("blockchain-interface")                       # type: Logger
+        self.log = Logger("blockchain-interface")                       # type: Logger
 
         #
         # Providers
@@ -129,7 +145,7 @@ class BlockchainInterface:
             for provider in providers:
                 self.add_provider(provider)
         else:
-            self.log.warning("No provider supplied for new blockchain interface; Using defaults")
+            self.log.warn("No provider supplied for new blockchain interface; Using defaults")
 
         # if a SolidityCompiler class instance was passed, compile from solidity source code
         recompile = True if compiler is not None else False

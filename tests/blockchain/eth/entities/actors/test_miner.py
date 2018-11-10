@@ -1,3 +1,19 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import maya
 import pytest
 
@@ -16,6 +32,7 @@ def miner(testerchain, three_agents):
     return miner
 
 
+@pytest.mark.slow()
 def test_miner_locking_tokens(testerchain, three_agents, miner):
     token_agent, miner_agent, policy_agent = three_agents
     # testerchain.ether_airdrop(amount=10000)
@@ -42,6 +59,7 @@ def test_miner_locking_tokens(testerchain, three_agents, miner):
     assert constants.MIN_ALLOWED_LOCKED == locked_tokens
 
 
+@pytest.mark.slow()
 @pytest.mark.usefixtures("three_agents")
 def test_miner_divides_stake(miner):
     current_period = miner.miner_agent.get_current_period()

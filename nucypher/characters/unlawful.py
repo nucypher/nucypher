@@ -1,3 +1,19 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 from eth_tester.exceptions import ValidationError
 
 from nucypher.characters.lawful import Ursula
@@ -14,6 +30,7 @@ class Vladimir(Ursula):
     network_middleware = EvilMiddleWare()
     fraud_address = '0xbad022A87Df21E4c787C7B1effD5077014b8CC45'
     fraud_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
+    db_name = 'vladimir.db'
 
     @classmethod
     def from_target_ursula(cls,
@@ -36,6 +53,8 @@ class Vladimir(Ursula):
 
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
+                       db_name=cls.db_name,
+                       db_filepath=cls.db_name,
                        rest_host=target_ursula.rest_information()[0].host,
                        rest_port=target_ursula.rest_information()[0].port,
                        certificate=target_ursula.rest_server_certificate(),

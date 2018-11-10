@@ -3,34 +3,32 @@
 
 # WIP w/ hendrix@3.1.0
 
-import binascii
 import datetime
-import logging
+import os
 import shutil
 import sys
-import os
+
 import maya
-
-from nucypher.characters.lawful import Alice, Bob, Ursula
-from nucypher.config.characters import AliceConfiguration
-from nucypher.data_sources import DataSource
-# This is already running in another process.
-from nucypher.network.middleware import RestMiddleware
+from twisted.logger import ILogObserver
+from twisted.logger import globalLogPublisher
 from umbral.keys import UmbralPublicKey
-
 ######################
 # Boring setup stuff #
 ######################
+from zope.interface import provider
 
-# Setup logging
-root = logging.getLogger()
-root.setLevel(logging.DEBUG)
+from nucypher.characters.lawful import Alice, Bob
+from nucypher.config.constants import SeednodeMetadata
+from nucypher.data_sources import DataSource
+# This is already running in another process.
+from nucypher.network.middleware import RestMiddleware
 
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-root.addHandler(ch)
+
+@provider(ILogObserver)
+def simpleObserver(event):
+    print(event)
+
+globalLogPublisher.addObserver(simpleObserver)
 
 # Temporary storage area for demo
 SHARED_CRUFTSPACE = "{}/examples-runtime-cruft".format(os.path.dirname(os.path.abspath(__file__)))
@@ -40,19 +38,9 @@ shutil.rmtree(CRUFTSPACE, ignore_errors=True)
 os.mkdir(CRUFTSPACE)
 os.mkdir(CERTIFICATE_DIR)
 
-# Read seed node metadata file
-try:
-    teacher_metadata_path = sys.argv[2]
-except IndexError:
-    raise ValueError("Missing path to seed node metadata file")
-else:
-    with open(teacher_metadata_path, "r") as f:
-        f.seek(0)
-        teacher_bytes = binascii.unhexlify(f.read())
-    URSULA = Ursula.from_bytes(teacher_bytes, federated_only=True)
-    print("Will learn from {}".format(URSULA))
-    URSULA.save_certificate_to_disk(CERTIFICATE_DIR)
-
+ursula_seed_node = SeednodeMetadata(checksum_address="0x154d9c2062a2Fd6f1a4eE827308634547ce84810",
+                                    rest_host="18.184.168.218",
+                                    rest_port=9151)
 
 #########
 # Alice #
@@ -60,9 +48,9 @@ else:
 
 
 ALICE = Alice(network_middleware=RestMiddleware(),
-              known_nodes=(URSULA,),
+              seed_nodes=[ursula_seed_node],
+              learn_on_same_thread=True,
               federated_only=True,
-              always_be_learning=True,
               known_certificates_dir=CERTIFICATE_DIR,
               )
 
@@ -73,11 +61,15 @@ n = 3
 label = b"secret/files/and/stuff"
 
 # Alice grants to Bob.
-BOB = Bob(known_nodes=(URSULA,),
-          federated_only=True,
-          always_be_learning=True,
-          known_certificates_dir=CERTIFICATE_DIR)
+BOB = Bob(
+    seed_nodes=[ursula_seed_node],
+    network_middleware=RestMiddleware(),
+    federated_only=True,
+    start_learning_now=True,
+    learn_on_same_thread=True,
+    known_certificates_dir=CERTIFICATE_DIR)
 ALICE.start_learning_loop(now=True)
+
 policy = ALICE.grant(BOB, label, m=m, n=n,
                      expiration=policy_end_datetime)
 
@@ -102,9 +94,6 @@ del ALICE
 # He needs a few pieces of knowledge to do that.
 BOB.join_policy(label,  # The label - he needs to know what data he's after.
                 alices_pubkey_bytes_saved_for_posterity,  # To verify the signature, he'll need Alice's public key.
-                # He can also bootstrap himself onto the network more quickly
-                # by providing a list of known nodes at this time.
-                node_list=[("localhost", 3601)]
                 )
 
 # Now that Bob has joined the Policy, let's show how DataSources
@@ -147,7 +136,9 @@ for counter, plaintext in enumerate(finnegans_wake):
 
     # Here's how we generate a MessageKit for the Policy.  We also get a signature
     # here, which can be passed via a side-channel (or posted somewhere public as
-    # testimony) and verified if desired.  In this case, the plaintext is a
+    # testimony) and verified if desired.
+    #
+    # In this case, the plaintext is a
     # single passage from James Joyce's Finnegan's Wake.
     # The matter of whether encryption makes the passage more or less readable
     # is left to the reader to determine.

@@ -1,0 +1,172 @@
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  user: ubuntu
+  pre_tasks:
+    - include_vars: variables.yml
+  tasks:
+    - name: Provision {{ ec2_count }} instances with tag {{ ec2_tag_Role }}
+      local_action:
+        module: ec2
+        key_name: "{{ ec2_keypair }}"
+        group_id: "{{ ec2_security_group_id }}"
+        instance_type: "{{ ec2_instance_type }}"
+        image: "{{ ec2_image }}"
+        vpc_subnet_id: "{{ ec2_subnet_id }}"
+        region: "{{ ec2_region }}"
+        instance_tags: '{"Type":"{{ec2_instance_type}}", "Role":"{{ec2_tag_Role}}"}'
+        assign_public_ip: yes
+        wait: true
+        exact_count: "{{ ec2_count }}"
+        count_tag:
+          Role: "{{ ec2_tag_Role }}"
+        volumes:
+          - device_name: /dev/xvda
+            volume_type: gp2
+            volume_size: "{{ ec2_volume_size }}"
+            delete_on_termination: true
+      register: ec2
+
+    - name: "Add Provisioned Servers as Hosts"
+      add_host:
+        name: "{{ item.public_ip }}"
+        groups: seednodes
+        ec2_region: "{{ ec2_region }}"
+        ec2_tag_Type: "{{ ec2_tag_Type}}"
+        ec2_tag_Role: "{{ ec2_tag_Role }}"
+        ec2_ip_address: "{{ item.public_ip }}"
+      with_items: "{{ ec2.instances }}"
+
+    - name: Wait for the instances to boot by checking the ssh port
+      wait_for: host={{item.public_ip}} port=22 delay=15 timeout=300 state=started
+      with_items: "{{ ec2.instances }}"
+
+#
+#  Spin-Up Seednode Services
+#
+- name: "Start Ursulas"
+  hosts: seednodes
+  user: ubuntu
+  gather_facts: false
+
+  pre_tasks:
+    - name: "Install Python2.7 for Ansible Control"
+      raw: sudo apt -y update && sudo apt install -y python2.7-minimal python2.7-setuptools
+    - include_vars: variables.yml
+
+  tasks:
+    - name: "Install System Dependencies"
+      become: yes
+      become_flags: "-H -S"
+      apt:
+        name: "{{ packages }}"
+        update_cache: yes
+      vars:
+        packages:
+        - python-pip
+        - python3
+        - python3-pip
+        - python3-dev
+        - python3-setuptools
+        - libffi-dev
+
+    - pip:
+        name: docker
+
+    - name: "Install Pipenv"
+      become: yes
+      become_flags: "-H -S"
+      shell: pip3 install pipenv
+
+    - name: "Create custom fact directory"
+      become: yes
+      become_flags: "-H -S"
+      file:
+        path: "/etc/ansible/facts.d"
+        state: "directory"
+        mode: 0755
+
+    - git:
+        repo: "{{ git_repo }}"
+        dest: ./code
+        version: "{{ git_version }}"
+
+    - name: "Install Python Dependencies via Pipenv"
+      shell: "pipenv install --dev --skip-lock --pre"
+      args:
+        chdir: ./code
+      environment:
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
+
+    - name: "Generate Ursula passphrase"
+      shell: head -c 32 /dev/urandom | sha256sum
+      register: ursula_passphrase
+
+    - name: "Configure Ursula"
+      shell: "pipenv run nucypher configure install --rest-host {{inventory_hostname}}"
+      args:
+        chdir: ./code
+      vars:
+        ansible_python_interpreter: /usr/bin/python3
+      environment:
+        NUCYPHER_KEYRING_PASSPHRASE: "{{ ursula_passphrase.stdout }}"
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
+      ignore_errors: yes
+      register: configure_ursula_output
+
+    - name: "Get Ursula Seed Node Config (and more)"
+      slurp:
+        src: "~/.local/share/nucypher/ursula.config"
+      register: ursula_seed_node_config
+      run_once: true
+
+    - name: "Set Ursula Seed Node Fact"
+      set_fact:
+        seed_node_metadata: "{{ ursula_seed_node_config['content'] | b64decode }}"
+
+    - name: "Get Ursula env dir"
+      shell: "pipenv --venv"
+      args:
+        chdir: ./code
+      environment:
+        LC_ALL: C.UTF-8
+        LANG: C.UTF-8
+      register: env_dir
+
+    - name: "Open Ursula node port"
+      become: yes
+      become_flags: "-H -S"
+      shell: 'iptables -A INPUT -p tcp -m conntrack --dport {{ seed_node_metadata.rest_port }} --ctstate NEW,ESTABLISHED -j ACCEPT'
+
+    - name: "Register Firstula Service"
+      become: yes
+      become_flags: "-H -S"
+      template:
+        src: ../services/firstula_node.j2
+        dest: /etc/systemd/system/ursula_node.service
+        mode: 0755
+      when: '"existing" not in configure_ursula_output.stdout'
+      run_once: true
+
+    - name: "Register Subsequent Ursulas"
+      become: yes
+      become_flags: "-H -S"
+      template:
+        src: ../services/ursula_node.j2
+        dest: /etc/systemd/system/ursula_node.service
+        mode: 0755
+      when:
+        - '"existing" not in configure_ursula_output.stdout'
+        - inventory_hostname != seed_node_metadata.rest_host
+
+    - name: "Enable and Start Ursula Service"
+      become: yes
+      become_flags: "-H -S"
+      systemd:
+        daemon_reload: yes
+        no_block: yes
+        enabled: yes
+        state: restarted
+        name: "ursula_node"

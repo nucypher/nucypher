@@ -1,7 +1,24 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
 
+@pytest.mark.slow()
 def test_create_token(testerchain):
     """
     These are tests for standard tokens taken from Consensys github:
@@ -52,6 +69,7 @@ def test_create_token(testerchain):
     assert 10 ** 9 - 1 == token.functions.totalSupply().call()
 
 
+@pytest.mark.slow()
 def test_approve_and_call(testerchain):
     creator = testerchain.interface.w3.eth.accounts[0]
     account1 = testerchain.interface.w3.eth.accounts[1]

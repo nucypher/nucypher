@@ -1,3 +1,19 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import os
 import random
 import sys
@@ -15,7 +31,7 @@ from typing import Set, Union
 from nucypher.blockchain.eth import constants
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import BOOTNODES
+from nucypher.config.constants import SEEDNODES
 from nucypher.crypto.api import secure_random
 from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                                   TEST_URSULA_STARTING_PORT,
@@ -144,21 +160,21 @@ class UrsulaCommandProtocol(LineReceiver):
         color_index = {
             'self': 'yellow',
             'known': 'white',
-            'bootnode': 'blue'
+            'seednode': 'blue'
         }
         for node_type, color in color_index.items():
             click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
         click.echo('\n')
 
-        bootnode_addresses = list(bn.checksum_address for bn in BOOTNODES)
+        seednode_addresses = list(bn.checksum_address for bn in SEEDNODES)
         for address, node in known_nodes.items():
             row_template = "{} | {} | {}"
             node_type = 'known'
             if node.checksum_public_address == self.ursula.checksum_public_address:
                 node_type = 'self'
                 row_template += ' ({})'.format(node_type)
-            if node.checksum_public_address in bootnode_addresses:
-                node_type = 'bootnode'
+            if node.checksum_public_address in seednode_addresses:
+                node_type = 'seednode'
                 row_template += ' ({})'.format(node_type)
             click.secho(row_template.format(node.checksum_public_address,
                                             node.rest_url(),

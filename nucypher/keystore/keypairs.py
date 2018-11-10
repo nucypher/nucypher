@@ -1,3 +1,19 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
@@ -6,6 +22,8 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from typing import Union
+import base64
+
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature, Signer
@@ -52,12 +70,11 @@ class Keypair(object):
         Serializes the pubkey for storage/transport in either urlsafe base64
         or as a bytestring.
 
-        :param as_bytes: Return the pubkey as bytes?
+        :param as_b64: Return the pubkey as urlsafe base64 byte string
         :return: The serialized pubkey in bytes
         """
-        if as_b64:
-            return self.pubkey.to_bytes()
-        return bytes(self.pubkey)
+        encoder = base64.urlsafe_b64encode if as_b64 else None
+        return self.pubkey.to_bytes(encoder=encoder)
 
     def fingerprint(self):
         """

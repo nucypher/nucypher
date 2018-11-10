@@ -1,7 +1,23 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
 import json
 from collections import OrderedDict
 from json import JSONDecodeError
-from logging import getLogger
+from twisted.logger import Logger
 
 import maya
 from constant_sorrow import constants
@@ -219,7 +235,7 @@ class Miner(NucypherTokenActor):
 
     def __init__(self, is_me: bool, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.log = getLogger("miner")
+        self.log = Logger("miner")
         self.is_me = is_me
 
         if is_me:
@@ -311,7 +327,7 @@ class Miner(NucypherTokenActor):
             self.log.critical("Unhandled error during node staking.  Attempting graceful crash.")
             reactor.callFromThread(self._crash_gracefully, failure=failure)
         else:
-            self.log.warning("Unhandled error during node learning: {}".format(failure.getTraceback()))
+            self.log.warn("Unhandled error during node learning: {}".format(failure.getTraceback()))
 
     @only_me
     def start_staking_loop(self, now=True):
