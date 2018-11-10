@@ -7,6 +7,7 @@ from nucypher.config.keyring import NucypherKeyring
 from nucypher.crypto.powers import DelegatingPower, EncryptingPower
 
 
+@pytest.mark.skip("Redacted and refactored for sensitive info leakage")
 def test_validate_passphrase():
     # Passphrase too short
     passphrase = 'x' * 5
