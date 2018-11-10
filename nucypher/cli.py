@@ -1027,6 +1027,7 @@ def ursula(config,
         else:
             checksum_address = None  # federated
 
+        # HTTPS Explicit Required
         parsed_teacher_uri = urlparse(teacher_uri)
         if not parsed_teacher_uri.scheme == "https":
             raise click.BadParameter("Invalid teacher URI. Is the hostname prefixed with 'https://' ?")
