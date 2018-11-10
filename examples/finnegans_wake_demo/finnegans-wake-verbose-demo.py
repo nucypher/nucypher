@@ -68,6 +68,7 @@ BOB = Bob(
     start_learning_now=True,
     learn_on_same_thread=True,
     known_certificates_dir=CERTIFICATE_DIR)
+
 ALICE.start_learning_loop(now=True)
 
 policy = ALICE.grant(BOB, label, m=m, n=n,
