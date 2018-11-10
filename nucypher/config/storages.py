@@ -69,18 +69,27 @@ class NodeStorage(ABC):
 
     @abstractmethod
     def all(self, federated_only: bool) -> set:
+        """Return s set of all stored nodes"""
         raise NotImplementedError
 
     @abstractmethod
     def get(self, checksum_address: str, federated_only: bool):
+        """Retrieve a single stored node"""
         raise NotImplementedError
 
     @abstractmethod
     def save(self, node):
+        """Save a single node"""
         raise NotImplementedError
 
     @abstractmethod
     def remove(self, checksum_address: str) -> bool:
+        """Remove a single stored node"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def clear(self) -> bool:
+        """Remove all stored nodes"""
         raise NotImplementedError
 
     @abstractmethod
@@ -90,10 +99,12 @@ class NodeStorage(ABC):
     @classmethod
     @abstractmethod
     def from_payload(self, data: str, *args, **kwargs) -> 'NodeStorage':
+        """Instantiate a storage object from a dictionary"""
         raise NotImplementedError
 
     @abstractmethod
     def initialize(self):
+        """One-time initialization steps to establish a node storage backend"""
         raise NotImplementedError
 
 
@@ -121,6 +132,9 @@ class InMemoryNodeStorage(NodeStorage):
     def remove(self, checksum_address: str) -> bool:
         del self.__known_nodes[checksum_address]
         return True
+
+    def clear(self):
+        self.__known_nodes = dict()
 
     def payload(self) -> dict:
         payload = {self._TYPE_LABEL: self._name}
@@ -202,7 +216,10 @@ class LocalFileBasedNodeStorage(NodeStorage):
         self.log.debug("Delted {} from the filesystem".format(checksum_address))
         return os.remove(filepath)
 
-    def payload(self) -> dict:
+    def clear(self):
+        self.__known_nodes = dict()
+
+    def payload(self) -> str:
         payload = {
             'storage_type': self._name,
             'known_metadata_dir': self.known_metadata_dir

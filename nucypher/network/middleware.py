@@ -40,26 +40,27 @@ class RestMiddleware:
             raise RuntimeError("Bad response: {}".format(response.content))
         return response
 
-    def get_certificate(self, host, port,
-                         timeout=3, retry_attempts: int = 3, retry_rate: int = 2, ):
+    def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2, current_attempt: int = 0):
 
         socket.setdefaulttimeout(timeout)  # Set Socket Timeout
-        current_attempt = 0
+
         try:
             self.log.info("Fetching seednode {}:{} TLS certificate".format(host, port))
             seednode_certificate = ssl.get_server_certificate(addr=(host, port))
+
         except socket.timeout:
             if current_attempt == retry_attempts:
                 message = "No Response from seednode {}:{} after {} attempts"
                 self.log.info(message.format(host, port, retry_attempts))
-                return False
-            self.log.info(
-                "No Response from seednode {}. Retrying in {} seconds...".format(checksum_address, retry_rate))
+                raise RuntimeError("No response from {}:{}".format(host, port))
+            self.log.info("No Response from seednode {}. Retrying in {} seconds...".format(host, retry_rate))
             time.sleep(retry_rate)
+            return self.get_certificate(host, port, timeout, retry_attempts, retry_rate, current_attempt+1)
 
-        certificate = x509.load_pem_x509_certificate(seednode_certificate.encode(),
-                                                     backend=default_backend())
-        return certificate
+        else:
+            certificate = x509.load_pem_x509_certificate(seednode_certificate.encode(),
+                                                         backend=default_backend())
+            return certificate
 
     def enact_policy(self, ursula, id, payload):
         response = requests.post('https://{}/kFrag/{}'.format(ursula.rest_interface, id.hex()), payload,

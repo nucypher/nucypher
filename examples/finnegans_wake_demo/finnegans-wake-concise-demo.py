@@ -1,22 +1,21 @@
 import datetime
 import os
 import shutil
-from os.path import abspath, dirname
 
 import maya
 from twisted.logger import globalLogPublisher
 
-from nucypher.utilities.logging import simpleObserver
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.data_sources import DataSource as Enrico
 from nucypher.network.middleware import RestMiddleware
+from nucypher.utilities.logging import simpleObserver
 from umbral.keys import UmbralPublicKey
-
 
 ######################
 # Boring setup stuff #
 ######################
 
+# Execute the download script (download_finnegans_wake.sh) to retrieve the book
 BOOK_PATH = os.path.join('.', 'finnegans-wake.txt')
 
 # Twisted Logger

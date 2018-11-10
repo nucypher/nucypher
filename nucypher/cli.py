@@ -28,6 +28,7 @@ import json
 import os
 import shutil
 from typing import Tuple, ClassVar
+from urllib.parse import urlparse
 
 import click
 from constant_sorrow.constants import NO_NODE_CONFIGURATION, NO_BLOCKCHAIN_CONNECTION
@@ -50,7 +51,7 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                PolicyManagerDeployer)
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import SEEDNODES, SeednodeMetadata
+from nucypher.config.constants import SEEDNODES
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.logging import logToSentry
@@ -1016,28 +1017,35 @@ def ursula(config,
     #
     # Seed
     #
-    seed_metadata, teacher_nodes = list(), list()
+    teacher_nodes = list()
     if teacher_uri:
 
-        if all(('@' in teacher_uri, ':' in teacher_uri)):
-            address, rest_uri = teacher_uri.split("@")
-            host, port = rest_uri.split(":")
-            seed_metadata.append(SeednodeMetadata(address, host, port))
-
+        if '@' in teacher_uri:
+            checksum_address, teacher_uri = teacher_uri.split("@")
+            if not is_checksum_address(checksum_address):
+                raise click.BadParameter("{} is not a valid checksum address.".format(checksum_address))
         else:
-            teacher = Ursula.from_seed_and_stake_info(host=teacher_uri,
-                                                      federated_only=ursula_config.federated_only,
-                                                      minimum_stake=min_stake,
-                                                      certificates_directory=ursula_config.known_certificates_dir)
-            teacher_nodes.append(teacher)
+            checksum_address = None  # federated
+
+        # HTTPS Explicit Required
+        parsed_teacher_uri = urlparse(teacher_uri)
+        if not parsed_teacher_uri.scheme == "https":
+            raise click.BadParameter("Invalid teacher URI. Is the hostname prefixed with 'https://' ?")
+
+        port = parsed_teacher_uri.port or UrsulaConfiguration.DEFAULT_REST_PORT
+        teacher = Ursula.from_seed_and_stake_info(host=parsed_teacher_uri.hostname,
+                                                  port=port,
+                                                  federated_only=ursula_config.federated_only,
+                                                  checksum_address=checksum_address,
+                                                  minimum_stake=min_stake,
+                                                  certificates_directory=ursula_config.known_certificates_dir)
+        teacher_nodes.append(teacher)
 
     #
     # Produce
     #
-
     try:
         URSULA = ursula_config.produce(passphrase=password,
-                                       seed_nodes=seed_metadata,
                                        known_nodes=teacher_nodes,
                                        **overrides)  # 2
     except CryptoError:

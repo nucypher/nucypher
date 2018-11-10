@@ -104,7 +104,7 @@
       register: ursula_passphrase
 
     - name: "Configure Ursula"
-      shell: "pipenv run nucypher --federated-only configure install --ursula --rest-host {{inventory_hostname}}"
+      shell: "pipenv run nucypher configure install --rest-host {{inventory_hostname}}"
       args:
         chdir: ./code
       vars:
@@ -118,7 +118,7 @@
 
     - name: "Get Ursula Seed Node Config (and more)"
       slurp:
-        src: ".local/share/nucypher/ursula.config"
+        src: "~/.local/share/nucypher/ursula.config"
       register: ursula_seed_node_config
       run_once: true
 

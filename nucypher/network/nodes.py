@@ -260,7 +260,6 @@ class VerifiableNode:
                                  federated_only,
                                  port=9151,
                                  checksum_address=None,
-                                 timeout=2,
                                  minimum_stake=0,
                                  network_middleware=None,
                                  *args,
@@ -269,9 +268,8 @@ class VerifiableNode:
         if network_middleware is None:
             network_middleware = RestMiddleware()
 
-        certificate = network_middleware.get_certificate(host=host,
-                                                         port=port,
-                                                         )
+        certificate = network_middleware.get_certificate(host=host, port=port)
+
         real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
         # Write certificate; this is really only for temporary purposes.  Ideally, we'd use
         # it in-memory here but there's no obvious way to do that.

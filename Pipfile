@@ -61,7 +61,7 @@ nucypher = {editable = true, path = "."}
 
 [scripts]
 install-solc = "./scripts/install_solc.sh"
-nucypher = "python3 scripts/cli.py"
+nucypher = "python3 nucypher/cli.py"
 
 [pipenv]
 allow_prereleases = true
