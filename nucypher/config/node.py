@@ -21,6 +21,7 @@ from json import JSONDecodeError
 from twisted.logger import Logger
 from tempfile import TemporaryDirectory
 from typing import List
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 
 from constant_sorrow import constants
 
@@ -395,7 +396,7 @@ class NodeConfiguration:
                       wallet: bool,
                       tls: bool,
                       host: str,
-                      tls_curve,
+                      tls_curve: EllipticCurve = None,
                       ) -> NucypherKeyring:
 
         self.keyring = NucypherKeyring.generate(passphrase=passphrase,

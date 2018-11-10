@@ -105,7 +105,7 @@ class Alice(Character, PolicyAuthor):
 
         return policy
 
-    def grant(self, bob, label, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None):
+    def grant(self, bob: "Bob", label: bytes, m=None, n=None, expiration=None, deposit=None, handpicked_ursulas=None):
         if not m:
             # TODO: get m from config  #176
             raise NotImplementedError
@@ -157,6 +157,11 @@ class Alice(Character, PolicyAuthor):
         # REST call happens here, as does population of TreasureMap.
         policy.enact(network_middleware=self.network_middleware)
         return policy  # Now with TreasureMap affixed!
+
+    def get_policy_pubkey_from_label(self, label: bytes) -> UmbralPublicKey:
+        alice_delegating_power = self._crypto_power.power_ups(DelegatingPower)
+        policy_pubkey = alice_delegating_power.get_pubkey_from_label(label)
+        return policy_pubkey
 
 
 class Bob(Character):

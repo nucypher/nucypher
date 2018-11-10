@@ -23,7 +23,6 @@ from twisted.internet.threads import deferToThread
 
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
-from cryptography.hazmat.primitives import serialization
 
 
 def test_proper_seed_node_instantiation(ursula_federated_test_config):

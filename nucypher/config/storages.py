@@ -202,7 +202,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         self.log.debug("Delted {} from the filesystem".format(checksum_address))
         return os.remove(filepath)
 
-    def payload(self) -> str:
+    def payload(self) -> dict:
         payload = {
             'storage_type': self._name,
             'known_metadata_dir': self.known_metadata_dir
@@ -210,7 +210,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return payload
 
     @classmethod
-    def from_payload(cls, payload: str, *args, **kwargs) -> 'LocalFileBasedNodeStorage':
+    def from_payload(cls, payload: dict, *args, **kwargs) -> 'LocalFileBasedNodeStorage':
         storage_type = payload[cls._TYPE_LABEL]
         if not storage_type == cls._name:
             raise cls.NodeStorageError("Wrong storage type. got {}".format(storage_type))
