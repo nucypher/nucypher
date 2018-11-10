@@ -85,7 +85,7 @@ INSTALL_REQUIRES = [
     'maya',
 
     # Third Party (Ethereum)
-    'eth-utils',
+    'eth-utils==1.2.2',
     'eth-keys',
     'eth-tester>=0.1.0b33',
     'py-evm>=0.2.0a33',
