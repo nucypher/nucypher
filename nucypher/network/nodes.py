@@ -158,7 +158,7 @@ class Learner:
         self.unresponsive_startup_nodes = list()  # TODO: Attempt to use these again later
         for node in known_nodes:
             try:
-                self.remember_node(node)
+                self.remember_node(node, update_fleet_state=False)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
 
@@ -226,7 +226,7 @@ class Learner:
         nodes_to_consider = list(self.known_nodes.values())
         return sorted(nodes_to_consider, key=lambda n: n.checksum_public_address)
 
-    def remember_node(self, node, force_verification_check=False):
+    def remember_node(self, node, force_verification_check=False, update_fleet_state=True):
 
         if node == self:  # No need to remember self.
             return
@@ -265,14 +265,10 @@ class Learner:
             listener.add(address)
         self._node_ids_to_learn_about_immediately.discard(address)
 
-        nodes_to_consider = list(self.known_nodes.values()) + [self]
-        sorted_nodes = sorted(nodes_to_consider, key=lambda n: n.checksum_public_address, reverse=True)
-        self.known_nodes.checksum = keccak_digest(b"".join(bytes(n) for n in sorted_nodes)).hex()
-
-        # TODO: Probably not mutate all these foreign attrs - ideally maybe move this whole method up to FleetState.
-        latest_node = sorted_nodes[0]
-        self.known_nodes.most_recent_node_change = latest_node.timestamp
-        self.known_nodes.updated = maya.now()
+        if update_fleet_state:
+            # TODO: Probably not mutate these foreign attrs - ideally maybe move quite a bit of this method up to FleetState (maybe in __setitem__).
+            self.known_nodes.checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted_nodes())).hex()
+            self.known_nodes.updated = maya.now()
 
     def start_learning_loop(self, now=False):
         if self._learning_task.running:
