@@ -1052,7 +1052,7 @@ def ursula(config,
         click.secho("Invalid keyring passphrase")
         return
 
-    click.secho("Initialized Ursula {}".format(URSULA.checksum_public_address), fg='green')
+    click.secho("Initialized Ursula {}".format(URSULA), fg='green')
 
     #
     # Run

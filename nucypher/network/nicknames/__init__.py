@@ -42,14 +42,15 @@ def nicename(symbol):
     return final_word.capitalize()
 
 
-def nickname_from_seed(seed):
-    random.seed(seed)
-    color1 = random.choice(colors)
-    color2 = random.choice(colors)
+def nickname_from_seed(seed, number_of_pairs=2):
     symbols = list(symbols_tuple)
-    symbol1 = random.choice(symbols)
-    symbols.remove(symbol1)
-    symbol2 = random.choice(symbols)
-    nickname = "{} {} {} {}".format(color1['color'], nicename(symbol1), color2['color'], nicename(symbol2))
-    nickname_metadata = (color1, symbol1, color2, symbol2)
-    return nickname, nickname_metadata
+
+    random.seed(seed)
+    pairs = []
+    for pair in range(number_of_pairs):
+        color = random.choice(colors)
+        symbol = random.choice(symbols)
+        symbols.remove(symbol)
+        pairs.append((color, symbol))
+    nickname = " ".join(("{} {}".format(c['color'], nicename(s)) for c, s in pairs))
+    return nickname, pairs
