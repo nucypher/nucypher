@@ -25,6 +25,7 @@ from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
+from nucypher.network.nicknames import nickname_from_seed
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
@@ -37,8 +38,11 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
     token_agent, miner_agent, policy_agent = three_agents
     for address in miner_agent.swarm():
         for propagating_ursula in blockchain_ursulas:
-            assert address in propagating_ursula.known_nodes, "{} did not know about {}".format(propagating_ursula.checksum_public_address,
-                                                                                                address)
+            if address == propagating_ursula.checksum_public_address:
+                continue
+            else:
+                assert address in propagating_ursula.known_nodes, "{} did not know about {}".format(propagating_ursula,
+                                                                                                nickname_from_seed(address))
 
 
 @pytest.mark.slow()
