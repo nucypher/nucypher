@@ -600,6 +600,7 @@ class VerifiableNode:
         self.certificate_filepath = certificate_filepath
         self._interface_signature_object = interface_signature
         self._timestamp = timestamp
+        self.last_seen = constants.NEVER_SEEN("Haven't connected to this node yet.")
 
     class InvalidNode(SuspiciousActivity):
         """
