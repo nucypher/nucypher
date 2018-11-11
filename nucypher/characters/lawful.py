@@ -556,13 +556,14 @@ class Ursula(VerifiableNode, Character, Miner):
                                 timestamp=timestamp)
 
         #
-        # Logging
+        # Logging / Updating
         #
         if is_me:
+            self.update_fleet_state()  # To account for nodes loaded from NodeStorage.
             message = "Initialized Self {} | {}".format(self.__class__.__name__, self.checksum_public_address)
             self.log.info(message)
         else:
-            message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self.checksum_public_address)
+            message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
             self.log.debug(message)
 
     def rest_information(self):

@@ -266,9 +266,12 @@ class Learner:
         self._node_ids_to_learn_about_immediately.discard(address)
 
         if update_fleet_state:
-            # TODO: Probably not mutate these foreign attrs - ideally maybe move quite a bit of this method up to FleetState (maybe in __setitem__).
-            self.known_nodes.checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted_nodes())).hex()
-            self.known_nodes.updated = maya.now()
+            self.update_fleet_state()
+
+    def update_fleet_state(self):
+        # TODO: Probably not mutate these foreign attrs - ideally maybe move quite a bit of this method up to FleetState (maybe in __setitem__).
+        self.known_nodes.checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted_nodes())).hex()
+        self.known_nodes.updated = maya.now()
 
     def start_learning_loop(self, now=False):
         if self._learning_task.running:
