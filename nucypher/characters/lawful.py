@@ -392,7 +392,7 @@ class Bob(Character):
         return cleartexts
 
 
-class Ursula(Character, VerifiableNode, Miner):
+class Ursula(VerifiableNode, Character, Miner):
     _internal_splitter = BytestringSplitter((int, 4, {'byteorder': 'big'}),
                                             Signature,
                                             VariableLengthBytestring,

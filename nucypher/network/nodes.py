@@ -222,6 +222,10 @@ class Learner:
         for node in stored_nodes:
             self.remember_node(node)
 
+    def sorted_nodes(self):
+        nodes_to_consider = list(self.known_nodes.values())
+        return sorted(nodes_to_consider, key=lambda n: n.checksum_public_address)
+
     def remember_node(self, node, force_verification_check=False):
 
         if node == self:  # No need to remember self.
@@ -622,6 +626,10 @@ class VerifiableNode:
         certificate_filepath = tls_hosting_power.keypair.certificate_filepath
         certificate = tls_hosting_power.keypair.certificate
         return cls(certificate=certificate, certificate_filepath=certificate_filepath, *args, **kwargs)
+
+    def sorted_nodes(self):
+        nodes_to_consider = list(self.known_nodes.values()) + [self]
+        return sorted(nodes_to_consider, key=lambda n: n.checksum_public_address)
 
     def _stamp_has_valid_wallet_signature(self):
         signature_bytes = self._evidence_of_decentralized_identity
