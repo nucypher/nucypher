@@ -52,7 +52,7 @@ class Character(Learner):
                  is_me: bool = True,
                  federated_only: bool = False,
                  blockchain: Blockchain = None,
-                 checksum_address: bytes = None,
+                 checksum_address: bytes = constants.NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
                  keyring_dir: str = None,
                  crypto_power: CryptoPower = None,
@@ -100,6 +100,28 @@ class Character(Learner):
         else:
             self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
 
+
+        #### Checksum Address
+        self._checksum_address = checksum_address
+        #
+        # Decentralized
+        #
+        if not federated_only:
+            if not checksum_address:
+                raise ValueError("No checksum_address provided while running in a non-federated mode.")
+            else:
+                self._checksum_address = checksum_address  # TODO: Check that this matches BlockchainPower
+        #
+        # Federated
+        #
+        elif federated_only:
+            self._set_checksum_address()  # type: str
+            if checksum_address:
+                # We'll take a checksum address, as long as it matches their singing key
+                if not checksum_address == self.checksum_public_address:
+                    error = "Federated-only Characters derive their address from their Signing key; got {} instead."
+                    raise self.SuspiciousActivity(error.format(checksum_address))
+
         #
         # Self-Character
         #
@@ -124,7 +146,6 @@ class Character(Learner):
             # Learner
             #
             Learner.__init__(self,
-                             common_name=checksum_address,
                              network_middleware=network_middleware,
                              *args, **kwargs)
 
@@ -138,27 +159,6 @@ class Character(Learner):
             self.keyring_dir = constants.STRANGER
             self.network_middleware = constants.STRANGER
 
-        #
-        # Decentralized
-        #
-        if not federated_only:
-            if not checksum_address:
-                raise ValueError("No checksum_address provided while running in a non-federated mode.")
-            else:
-                self._checksum_address = checksum_address  # type: str
-
-        #
-        # Federated
-        #
-        elif federated_only:
-            self._checksum_address = constants.NO_BLOCKCHAIN_CONNECTION
-
-            if checksum_address:
-                # We'll take a checksum address, as long as it matches their singing key
-                self._set_checksum_address()  # type: str
-                if not checksum_address == self.checksum_public_address:
-                    error = "Federated-only Characters derive their address from their Signing key; got {} instead."
-                    raise self.SuspiciousActivity(error.format(checksum_address))
         try:
             self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_public_address)
         except SigningPower.not_found_error:

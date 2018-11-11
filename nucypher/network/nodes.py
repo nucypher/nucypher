@@ -120,7 +120,6 @@ class Learner:
         pass
 
     def __init__(self,
-                 common_name: str,
                  network_middleware: RestMiddleware = __DEFAULT_MIDDLEWARE_CLASS(),
                  start_learning_now: bool = False,
                  learn_on_same_thread: bool = False,
@@ -133,8 +132,6 @@ class Learner:
                  ) -> None:
 
         self.log = Logger("characters")  # type: Logger
-
-        self.__common_name = common_name
         self.network_middleware = network_middleware
         self.save_metadata = save_metadata
         self.start_learning_now = start_learning_now
@@ -312,7 +309,8 @@ class Learner:
         """
         self._crashed = failure
         failure.raiseException()
-        self.log.critical("{} crashed with {}".format(self.__common_name, failure))
+        # TODO: We don't actually have checksum_public_address at this level - maybe only Characters can crash gracefully :-)
+        self.log.critical("{} crashed with {}".format(self.checksum_public_address, failure))
 
     def shuffled_known_nodes(self):
         nodes_we_know_about = list(self.__known_nodes.values())
@@ -546,10 +544,6 @@ class Learner:
 
         new_nodes = []
         for node in node_list:
-
-            if node.checksum_public_address in self.known_nodes or node.checksum_public_address == self.__common_name:
-                continue  # TODO: 168 Check version and update if required.
-
             try:
                 if eager:
                     certificate_filepath = current_teacher.get_certificate_filepath(
