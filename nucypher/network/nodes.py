@@ -49,6 +49,53 @@ from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
 
 
+class FleetState(dict):
+    """
+    A representation of a fleet of NuCypher nodes.
+    """
+    _checksum = constants.NO_KNOWN_NODES.bool_value(False)
+    _nickname = constants.NO_KNOWN_NODES
+    _nickname_metadata = constants.NO_KNOWN_NODES
+    most_recent_node_change = constants.NO_KNOWN_NODES
+
+    def __init__(self, *args, **kwargs):
+        dict.__init__(self, *args, **kwargs)
+        self.updated = maya.now()
+
+    @property
+    def checksum(self):
+        return self._checksum
+
+    @checksum.setter
+    def checksum(self, checksum_value):
+        self._checksum = checksum_value
+        self._nickname, self._nickname_metadata = nickname_from_seed(checksum_value, number_of_pairs=1)
+
+    @property
+    def nickname(self):
+        return self._nickname
+
+    @property
+    def nickname_metadata(self):
+        return self._nickname_metadata
+
+    def icon(self):
+        if self.checksum is constants.NO_KNOWN_NODES:
+            return "NO FLEET STATE AVAILABLE"
+        icon_template = """
+        <div class="nucypher-nickname-icon" style="border-color:{color};">
+        <span class="symbol" style="color: {color}">{symbol}</span>
+        <br/>
+        <span class="small-address">{fleet_state_checksum}</span>
+        </div>
+        """.replace("  ", "").replace('\n', "")
+        return icon_template.format(
+            color=self.nickname_metadata[0][0]['hex'],
+            symbol=self.nickname_metadata[0][1],
+            fleet_state_checksum=self.checksum[0:8]
+        )
+
+
 class Learner:
     """
     Any participant in the "learning loop" - a class inheriting from
