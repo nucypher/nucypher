@@ -17,19 +17,35 @@
         text-shadow: 1px 1px black, -1px -1px black;
         box-shadow: 1px 1px black, -1px -1px black;
     }
+    #this-nide.nucypher-nickname-icon {
+        width: 80px;
+    }
     .symbol {
         font-size: 3em;
         color: black;
     }
 </style>
 
+<div id="this-node">
+    <h2>{{ this_node.nickname}}</h2>
+    {{ this_node.nickname_icon() }}
+
+    <h3>Fleet State: {{ known_nodes.nickname }}</h3>
+    {{ known_nodes.icon() }}
+    <ul>
+        <li>Updated: {{ known_nodes.updated }}</li>
+    </ul>
+</div>
+
+<h4>Known Nodes:</h4>
 <table>
     <thead>
         <td>Icon</td>
         <td>Nickname / Checksum</td>
         <td>Launched</td>
+        <td>Last Seen</td>
     </thead>
-    {% for node in known_nodes -%}
+    {% for node in known_nodes.values() -%}
         <tr>
             <td>{{ node.nickname_icon() }}</td>
             <td>
@@ -37,6 +53,7 @@
                 <br/>{{ node.checksum_public_address }}
             </td>
             <td>{{ node.timestamp }}</td>
+            <td>{{ node.last_seen }}</td>
         </tr>
     {%- endfor %}
 </table>

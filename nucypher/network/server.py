@@ -332,7 +332,9 @@ class ProxyRESTRoutes:
 
     def status(self, request: Request):
         headers = {"Content-Type": "text/html", "charset":"utf-8"}
-        content = self._status_template.render(known_nodes=self._node_tracker.values())
+        # TODO: Seems very strange to deserialize *this node* when we can just pass it in.  Might be a sign that we need to rethnk this composition.
+        this_node = self._node_class.from_bytes(self._node_bytes_caster(), federated_only=self.federated_only)
+        content = self._status_template.render(known_nodes=self._node_tracker, this_node=this_node)
         return Response(content=content, headers=headers)
 
 

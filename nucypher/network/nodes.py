@@ -883,9 +883,9 @@ class VerifiableNode:
         </div>
         """.replace("  ", "").replace('\n', "")
         return icon_template.format(
-            first_color=self.nickname_metadata[0]['hex'],
-            first_symbol=self.nickname_metadata[1],
-            second_color=self.nickname_metadata[2]['hex'],
-            second_symbol=self.nickname_metadata[3],
+            first_color=self.nickname_metadata[0][0]['hex'],  # TODO: These index lookups are awful.
+            first_symbol=self.nickname_metadata[0][1],
+            second_color=self.nickname_metadata[1][0]['hex'],
+            second_symbol=self.nickname_metadata[1][1],
             address_first6=self.checksum_public_address[2:8]
         )
