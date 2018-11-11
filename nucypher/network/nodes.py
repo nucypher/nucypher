@@ -235,7 +235,7 @@ class Learner:
     def remember_node(self, node, force_verification_check=False, update_fleet_state=True):
 
         if node == self:  # No need to remember self.
-            return
+            return False
 
         # First, determine if this is an outdated representation of an already known node.
         with suppress(KeyError):
@@ -243,7 +243,7 @@ class Learner:
             if not node.timestamp > already_known_node.timestamp:
                 self.log.debug("Skipping already known node {}".format(already_known_node))
                 # This node is already known.  We can safely return.
-                return
+                return False
 
         node.save_certificate_to_disk(directory=self.known_certificates_dir, force=True)  # TODO: Verify before force?
         certificate_filepath = node.get_certificate_filepath(certificates_dir=self.known_certificates_dir)
@@ -253,10 +253,10 @@ class Learner:
                              accept_federated_only=self.federated_only,  # TODO: 466
                              certificate_filepath=certificate_filepath)
         except SSLError:
-            raise  # TODO
+            return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
         except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
-            self.log.info("No Response from known node {}|{}".format(node.rest_interface, node.checksum_public_address))
-            raise self.UnresponsiveTeacher
+            self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
+            return False  # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.
 
         listeners = self._learning_listeners.pop(node.checksum_public_address, tuple())
         address = node.checksum_public_address
@@ -273,6 +273,8 @@ class Learner:
 
         if update_fleet_state:
             self.update_fleet_state()
+
+        return True
 
     def update_fleet_state(self):
         # TODO: Probably not mutate these foreign attrs - ideally maybe move quite a bit of this method up to FleetState (maybe in __setitem__).
