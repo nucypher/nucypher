@@ -168,17 +168,20 @@ class UrsulaCommandProtocol(LineReceiver):
 
         seednode_addresses = list(bn.checksum_address for bn in SEEDNODES)
         for address, node in known_nodes.items():
-            row_template = "{} | {} | {}"
+            row_template = "{} | {} | {} | {} | {}"
             node_type = 'known'
             if node.checksum_public_address == self.ursula.checksum_public_address:
                 node_type = 'self'
                 row_template += ' ({})'.format(node_type)
-            if node.checksum_public_address in seednode_addresses:
+            elif node.checksum_public_address in seednode_addresses:
                 node_type = 'seednode'
                 row_template += ' ({})'.format(node_type)
             click.secho(row_template.format(node.checksum_public_address,
-                                            node.rest_url(),
-                                            node.timestamp), fg=color_index[node_type])
+                                            node.rest_url().ljust(20),  # TODO: Maybe put this 20 somewhere
+                                            node.nickname.ljust(50),
+                                            node.timestamp,
+                                            node.last_seen,
+                                            ), fg=color_index[node_type])
 
     def paintStatus(self):
         stats = ['Ursula {}'.format(self.ursula.checksum_public_address),
@@ -192,7 +195,7 @@ class UrsulaCommandProtocol(LineReceiver):
                  'Work Orders: {}'.format(len(self.ursula._work_orders))]
 
         if self.ursula._current_teacher_node:
-            teacher = 'Current Teacher: {}@{}'.format(self.ursula._current_teacher_node.checksum_public_address,
+            teacher = 'Current Teacher: {}: ({})'.format(self.ursula._current_teacher_node,
                                                       self.ursula._current_teacher_node.rest_url())
             stats.append(teacher)
 
