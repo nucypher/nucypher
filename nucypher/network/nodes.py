@@ -582,7 +582,7 @@ class Learner:
         current_teacher.last_seen = maya.now()
         self.cycle_teacher_node()
         self.log.info(learning_round_log_message.format(self._learning_round,
-                                                        current_teacher.checksum_public_address,
+                                                        current_teacher,
                                                         len(node_list),
                                                         len(new_nodes)), )
         if new_nodes and self.known_certificates_dir:
@@ -715,6 +715,7 @@ class VerifiableNode:
         response = network_middleware.node_information(host=self.rest_information()[0].host,
                                                        port=self.rest_information()[0].port,
                                                        certificate_filepath=certificate_filepath)
+
         if not response.status_code == 200:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
         timestamp, signature, identity_evidence, \
@@ -802,7 +803,7 @@ class VerifiableNode:
         certificate_filepath = self.get_certificate_filepath(certificates_dir=directory)
         _write_tls_certificate(self.certificate, full_filepath=certificate_filepath, force=force)
         self.certificate_filepath = certificate_filepath
-        self.log.info("Saved new TLS certificate {}".format(certificate_filepath))
+        self.log.info("Saved TLS certificate for {}: {}".format(self, certificate_filepath))
 
     @classmethod
     def from_seednode_metadata(cls,
