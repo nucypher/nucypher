@@ -265,7 +265,7 @@ class Learner:
         self._node_ids_to_learn_about_immediately.discard(address)
 
         nodes_to_consider = list(self.known_nodes.values()) + [self]
-        sorted_nodes = sorted(nodes_to_consider , key=lambda n: n.timestamp, reverse=True)
+        sorted_nodes = sorted(nodes_to_consider, key=lambda n: n.checksum_public_address, reverse=True)
         self.known_nodes.checksum = keccak_digest(b"".join(bytes(n) for n in sorted_nodes)).hex()
 
         # TODO: Probably not mutate all these foreign attrs - ideally maybe move this whole method up to FleetState.
