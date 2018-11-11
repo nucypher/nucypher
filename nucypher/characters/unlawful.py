@@ -59,11 +59,12 @@ class Vladimir(Ursula):
                        rest_port=target_ursula.rest_information()[0].port,
                        certificate=target_ursula.rest_server_certificate(),
                        network_middleware=cls.network_middleware,
-                       checksum_address = cls.fraud_address)
-
-        # Asshole.
-        vladimir._interface_signature_object = target_ursula._interface_signature_object
-        vladimir._timestamp = target_ursula._timestamp
+                       checksum_address = cls.fraud_address,
+                       ######### Asshole.
+                       timestamp=target_ursula._timestamp,
+                       interface_signature=target_ursula._interface_signature_object,
+                       ######### 
+                       )
 
         cls.attach_transacting_key(blockchain=target_ursula.blockchain)
 
