@@ -144,6 +144,8 @@ class Learner:
         self.known_certificates_dir = known_certificates_dir or TemporaryDirectory("nucypher-tmp-certs-").name
         self.__known_nodes = FleetState()
 
+        self.done_seeding = False
+
         # Read
         if node_storage is None:
             node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only,
@@ -185,6 +187,9 @@ class Learner:
         """
         Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
         """
+        if self.done_seeding:
+            self.log.debug("Already done seeding; won't try again.")
+            return
 
         def __attempt_seednode_learning(seednode_metadata, current_attempt=1):
             from nucypher.characters.lawful import Ursula
@@ -209,6 +214,7 @@ class Learner:
 
         if not self.unresponsive_seed_nodes:
             self.log.info("Finished learning about all seednodes.")
+        self.done_seeding = True
 
         if read_storages is True:
             self.read_nodes_from_storage()
