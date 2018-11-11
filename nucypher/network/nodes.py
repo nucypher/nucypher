@@ -84,7 +84,7 @@ class FleetState(dict):
             return "NO FLEET STATE AVAILABLE"
         icon_template = """
         <div class="nucypher-nickname-icon" style="border-color:{color};">
-        <span class="symbol" style="color: {color}">{symbol}</span>
+        <span class="symbol" style="color: {color}">{symbol}&#xFE0E;</span>
         <br/>
         <span class="small-address">{fleet_state_checksum}</span>
         </div>
@@ -892,8 +892,8 @@ class VerifiableNode:
     def nickname_icon(self):
         icon_template = """
         <div class="nucypher-nickname-icon" style="border-top-color:{first_color}; border-left-color:{first_color}; border-bottom-color:{second_color}; border-right-color:{second_color};">
-        <span class="symbol" style="color: {first_color}">{first_symbol}</span>
-        <span class="symbol" style="color: {second_color}">{second_symbol}</span>
+        <span class="symbol" style="color: {first_color}">{first_symbol}&#xFE0E;</span>
+        <span class="symbol" style="color: {second_color}">{second_symbol}&#xFE0E;</span>
         <br/>
         <span class="small-address">{address_first6}</span>
         </div>
