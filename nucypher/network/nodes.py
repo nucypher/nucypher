@@ -572,9 +572,9 @@ class Learner:
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                           "Propagated by: {}".format(current_teacher.checksum_public_address, rest_url)
                 self.log.warn(message)
-            self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-            self.remember_node(node)
-            new_nodes.append(node)
+            new = self.remember_node(node)
+            if new:
+                new_nodes.append(node)
 
         self._adjust_learning(new_nodes)
 
