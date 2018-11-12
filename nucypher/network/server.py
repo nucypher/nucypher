@@ -159,10 +159,14 @@ class ProxyRESTRoutes:
 
     def all_known_nodes(self, request: Request):
         headers = {'Content-Type': 'application/octet-stream'}
+        payload = self._node_tracker.snapshot()
         ursulas_as_bytes = bytes().join(bytes(n) for n in self._node_tracker.values())
         ursulas_as_bytes += self._node_bytes_caster()
-        signature = self._stamp(ursulas_as_bytes)
-        return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
+
+        payload += ursulas_as_bytes
+
+        signature = self._stamp(payload)
+        return Response(bytes(signature) + payload, headers=headers)
 
     def node_metadata_exchange(self, request: Request, query_params: QueryParams):
         nodes = self._node_class.batch_from_bytes(request.body,

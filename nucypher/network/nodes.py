@@ -631,6 +631,8 @@ class VerifiableNode:
         self._interface_signature_object = interface_signature
         self._timestamp = timestamp
         self.last_seen = constants.NEVER_SEEN("Haven't connected to this node yet.")
+        self.fleet_state_checksum = None
+        self.fleet_state_updated = None
 
     class InvalidNode(SuspiciousActivity):
         """
@@ -666,6 +668,13 @@ class VerifiableNode:
         proper_pubkey = signature.recover_public_key_from_msg(bytes(self.stamp))
         proper_address = proper_pubkey.to_checksum_address()
         return proper_address == self.checksum_public_address
+
+    def update_snapshot(self, checksum, updated):
+        # TODO: Kind of an interesting pattern here - with VerifiableNode increasingly looking like it will be Teacher.
+        # We update the simple snapshot here, but of course if we're dealing with an instance that is also a Learner, it has
+        # its own notion of its FleetState, so we probably need a reckoning of sorts here to manage that.  In time.
+        self.fleet_state_checksum = checksum
+        self.fleet_state_updated = updated
 
     def stamp_is_valid(self):
         """
