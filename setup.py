@@ -146,6 +146,7 @@ setup(name=ABOUT['__title__'],
 
       packages=find_packages(exclude=["tests"]),
       package_data={PACKAGE_NAME: [
+          'network/nicknames/templates/basic_status.j2'
           'network/nicknames/web_colors.json',
           'blockchain/eth/sol/source/contracts/*',
           'blockchain/eth/sol/source/contracts/lib/*',

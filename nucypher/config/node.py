@@ -338,7 +338,7 @@ class NodeConfiguration:
                 message = "There are existing configuration files at {}".format(self.config_root)
                 raise self.ConfigurationError(message)
             except FileNotFoundError:
-                message = "Cannot write configuration files because the directory {} does not exist."
+                message = "Cannot write configuration files because the directory {} does not exist.".format(self.config_root)
                 raise self.ConfigurationError(message)
 
         #
