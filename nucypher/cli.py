@@ -432,6 +432,7 @@ def configure(config,
 
 Actions:
 
+\b
 install     Create a new Ursula node configuration
 view        View the configuration of Ursula node
 forget      Remove all stored known nodes' metadata and certificates
@@ -583,7 +584,7 @@ def stake(config,
 
 Actions:
 
-    action - Which action to perform; The choices are:
+\b
 list              List all stakes for this node
 init              Stage a new stake
 start             Start the staking daemon
@@ -987,6 +988,7 @@ def ursula(config,
 
     Here is the procedure to "spin-up" an Ursula node.
 
+    \b
         0. Validate CLI Input
         1. Initialize UrsulaConfiguration (from configuration file or inline)
         2. Initialize Ursula with Passphrase
