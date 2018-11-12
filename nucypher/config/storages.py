@@ -93,12 +93,12 @@ class NodeStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def payload(self) -> str:
+    def payload(self) -> dict:
         raise NotImplementedError
 
     @classmethod
     @abstractmethod
-    def from_payload(self, data: str, *args, **kwargs) -> 'NodeStorage':
+    def from_payload(self, data: dict, *args, **kwargs) -> 'NodeStorage':
         """Instantiate a storage object from a dictionary"""
         raise NotImplementedError
 
@@ -141,7 +141,7 @@ class InMemoryNodeStorage(NodeStorage):
         return payload
 
     @classmethod
-    def from_payload(cls, payload: str, *args, **kwargs) -> 'InMemoryNodeStorage':
+    def from_payload(cls, payload: dict, *args, **kwargs) -> 'InMemoryNodeStorage':
         if payload[cls._TYPE_LABEL] != cls._name:
             raise cls.NodeStorageError
         return cls(*args, **kwargs)
@@ -219,7 +219,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
     def clear(self):
         self.__known_nodes = dict()
 
-    def payload(self) -> str:
+    def payload(self) -> dict:
         payload = {
             'storage_type': self._name,
             'known_metadata_dir': self.known_metadata_dir
@@ -321,7 +321,7 @@ class S3NodeStorage(NodeStorage):
             raise self.NodeStorageError("S3 Storage failed to delete node {}".format(checksum_address))
         return True
 
-    def payload(self) -> str:
+    def payload(self) -> dict:
         payload = {
             self._TYPE_LABEL: self._name,
             'bucket_name': self.__bucket_name
@@ -329,7 +329,7 @@ class S3NodeStorage(NodeStorage):
         return payload
 
     @classmethod
-    def from_payload(cls, payload: str, *args, **kwargs):
+    def from_payload(cls, payload: dict, *args, **kwargs):
         return cls(bucket_name=payload['bucket_name'], *args, **kwargs)
 
     def initialize(self):
