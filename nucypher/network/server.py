@@ -169,10 +169,20 @@ class ProxyRESTRoutes:
         return Response(bytes(signature) + payload, headers=headers)
 
     def node_metadata_exchange(self, request: Request, query_params: QueryParams):
+        # If these nodes already have the same fleet state, no exchange is necessary.
+        learner_fleet_state = query_params.get('fleet')
+        if learner_fleet_state == self._node_tracker.checksum:
+            self.log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))
+            headers = {'Content-Type': 'application/octet-stream'}
+            payload = self._node_tracker.snapshot()
+            signature = self._stamp(payload)
+            return Response(bytes(signature) + payload, headers=headers, status_code=204)
+
         nodes = self._node_class.batch_from_bytes(request.body,
                                                   federated_only=self.federated_only,  # TODO: 466
                                                   )
-        # TODO: This logic is basically repeated in learn_from_teacher_node.  Let's find a better way.
+
+        # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.  Let's find a better way.  555
         for node in nodes:
 
             if node.checksum_public_address in self._node_tracker:

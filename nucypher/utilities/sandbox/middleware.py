@@ -80,24 +80,8 @@ class MockRestMiddleware(RestMiddleware):
         response = mock_client.get("http://localhost/public_information")
         return response
 
-    def get_nodes_via_rest(self, url, certificate_filepath, announce_nodes=None, nodes_i_need=None):
-
-        mock_client = self._get_mock_client_by_url(url)
-
-        if nodes_i_need:
-            # TODO: This needs to actually do something.
-            # Include node_ids in the request; if the teacher node doesn't know about the
-            # nodes matching these ids, then it will ask other nodes.
-            pass
-
-        if announce_nodes:
-            response = mock_client.post("https://{}/node_metadata".format(url),
-                                        verify=certificate_filepath,
-                                        data=bytes().join(bytes(n) for n in announce_nodes))
-        else:
-            response = mock_client.get("https://{}/node_metadata".format(url),
-                                       verify=certificate_filepath)
-        return response
+    def get_nodes_via_rest(self, url, *args, **kwargs):
+        return super().get_nodes_via_rest(url, client=self._get_mock_client_by_url(url), *args, **kwargs)
 
     def put_treasure_map_on_node(self, node, map_id, map_payload):
         mock_client = self._get_mock_client_by_ursula(node)

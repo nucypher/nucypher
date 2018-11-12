@@ -542,7 +542,8 @@ class Learner:
             response = self.network_middleware.get_nodes_via_rest(url=rest_url,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
-                                                                  certificate_filepath=certificate_filepath)
+                                                                  certificate_filepath=certificate_filepath,
+                                                                  fleet_checksum=self.known_nodes.checksum)
         except requests.exceptions.ConnectionError as e:
             unresponsive_nodes.add(current_teacher)
             teacher_rest_info = current_teacher.rest_information()[0]
@@ -550,9 +551,9 @@ class Learner:
             # TODO: This error isn't necessarily "no repsonse" - let's maybe pass on the text of the exception here.
             self.log.info("No Response from teacher: {}:{}.".format(teacher_rest_info.host, teacher_rest_info.port))
             self.cycle_teacher_node()
-            return
+            raise False
 
-        if response.status_code != 200:
+        if response.status_code not in (200, 204):
             raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content))
 
         signature, node_payload = signature_splitter(response.content, return_remainder=True)
@@ -561,12 +562,20 @@ class Learner:
             self.verify_from(current_teacher, node_payload, signature=signature)
         except current_teacher.InvalidSignature:
             # TODO: What to do if the teacher improperly signed the node payload?
-            raise
+            raise False
 
         fleet_state_checksum_bytes, fleet_state_updated_bytes, nodes = FleetState.snapshot_splitter(node_payload, return_remainder=True)
+        current_teacher.last_seen = maya.now()
+        current_teacher.update_snapshot(checksum=fleet_state_checksum_bytes.hex(),
+                                        updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")))
+
+        self.cycle_teacher_node()
 
         # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
         from nucypher.characters.lawful import Ursula
+        if response.status_code == 204:
+            return constants.FLEET_STATES_MATCH
+
         node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)  # TODO: 466
 
         new_nodes = []
@@ -595,11 +604,6 @@ class Learner:
         self._adjust_learning(new_nodes)
 
         learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
-        current_teacher.last_seen = maya.now()
-        current_teacher.update_snapshot(checksum=fleet_state_checksum_bytes.hex(),
-                                        updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")))
-
-        self.cycle_teacher_node()
         self.log.info(learning_round_log_message.format(self._learning_round,
                                                         current_teacher,
                                                         len(node_list),
