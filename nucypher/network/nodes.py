@@ -555,7 +555,15 @@ class Learner:
         if response.status_code != 200:
             raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content))
 
-        signature, nodes = signature_splitter(response.content, return_remainder=True)
+        signature, node_payload = signature_splitter(response.content, return_remainder=True)
+
+        try:
+            self.verify_from(current_teacher, node_payload, signature=signature)
+        except current_teacher.InvalidSignature:
+            # TODO: What to do if the teacher improperly signed the node payload?
+            raise
+
+        fleet_state_checksum_bytes, fleet_state_updated_bytes, nodes = FleetState.snapshot_splitter(node_payload, return_remainder=True)
 
         # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
         from nucypher.characters.lawful import Ursula
@@ -588,6 +596,9 @@ class Learner:
 
         learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
         current_teacher.last_seen = maya.now()
+        current_teacher.update_snapshot(checksum=fleet_state_checksum_bytes.hex(),
+                                        updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")))
+
         self.cycle_teacher_node()
         self.log.info(learning_round_log_message.format(self._learning_round,
                                                         current_teacher,
