@@ -23,6 +23,7 @@ from typing import ClassVar, Tuple, Callable, Union, Dict
 
 from constant_sorrow import constants
 from cryptography import x509
+from cryptography.exceptions import InternalError
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import hashes, serialization
@@ -195,15 +196,23 @@ def _derive_key_material_from_passphrase(salt: bytes,
     See RFC 7914 for n, r, and p value selections.
     This takes around ~5 seconds to perform.
     """
-    key_material = Scrypt(
-        salt=salt,
-        length=__WRAPPING_KEY_LENGTH,
-        n=2**20,
-        r=8,
-        p=1,
-        backend=default_backend()
-    ).derive(passphrase.encode())
-    return key_material
+    try:
+        key_material = Scrypt(
+            salt=salt,
+            length=__WRAPPING_KEY_LENGTH,
+                n=2**20,
+            r=8,
+            p=1,
+            backend=default_backend()
+        ).derive(passphrase.encode())
+    except InternalError as e:
+        # OpenSSL Attempts to malloc 1 GB of mem for scrypt key derivation
+        if e.err_code[0].reason == 65:
+            raise RuntimeError("Key Derivation requires 1GB of memory: Please free up some memory and try again.")
+        else:
+            raise e
+    else:
+        return key_material
 
 
 def _derive_wrapping_key_from_key_material(salt: bytes,
