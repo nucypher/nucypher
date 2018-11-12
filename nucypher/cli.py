@@ -511,6 +511,10 @@ def accounts(config,
         keyring._export_wallet_to_node(blockchain=config.blockchain, passphrase=passphrase)
 
     elif action == 'list':
+        if config.accounts == NO_BLOCKCHAIN_CONNECTION:
+            click.echo('No account found.')
+            return
+
         for index, checksum_address in enumerate(config.accounts):
             token_balance = config.token_agent.get_balance(address=checksum_address)
             eth_balance = config.blockchain.interface.w3.eth.getBalance(checksum_address)
@@ -599,6 +603,10 @@ def stake(config,
         config.connect_to_contracts()
 
     if not checksum_address:
+
+        if config.accounts == NO_BLOCKCHAIN_CONNECTION:
+            click.echo('No account found.')
+            return
 
         for index, address in enumerate(config.accounts):
             if index == 0:
