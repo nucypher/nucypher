@@ -24,9 +24,11 @@ from tempfile import TemporaryDirectory
 from typing import Set, Tuple
 
 import OpenSSL
+import binascii
 import maya
 import requests
 import time
+from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
@@ -57,6 +59,7 @@ class FleetState(dict):
     _nickname = constants.NO_KNOWN_NODES
     _nickname_metadata = constants.NO_KNOWN_NODES
     most_recent_node_change = constants.NO_KNOWN_NODES
+    snapshot_splitter = BytestringSplitter(32, 4)
 
     def __init__(self, *args, **kwargs):
         dict.__init__(self, *args, **kwargs)
@@ -94,6 +97,11 @@ class FleetState(dict):
             symbol=self.nickname_metadata[0][1],
             fleet_state_checksum=self.checksum[0:8]
         )
+
+    def snapshot(self):
+        fleet_state_checksum_bytes = binascii.unhexlify(self.checksum)
+        fleet_state_updated_bytes = self.updated.epoch.to_bytes(4, byteorder="big")
+        return fleet_state_checksum_bytes + fleet_state_updated_bytes
 
 
 class Learner:
