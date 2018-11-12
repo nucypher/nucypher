@@ -49,7 +49,7 @@ class MockRestMiddleware(RestMiddleware):
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
     def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3,
-                         retry_rate: int = 2, ):
+                        retry_rate: int = 2, ):
         ursula = self._get_ursula_by_port(port)
         return ursula.certificate
 

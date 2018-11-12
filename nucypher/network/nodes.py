@@ -87,12 +87,16 @@ class FleetState(dict):
             return "NO FLEET STATE AVAILABLE"
         icon_template = """
         <div class="nucypher-nickname-icon" style="border-color:{color};">
-        <span class="symbol" style="color: {color}">{symbol}&#xFE0E;</span>
+        <div class="small">{number_of_nodes} nodes</div>
+        <div class="symbols">
+            <span class="single-symbol" style="color: {color}">{symbol}&#xFE0E;</span>
+        </div>
         <br/>
         <span class="small-address">{fleet_state_checksum}</span>
         </div>
         """.replace("  ", "").replace('\n', "")
         return icon_template.format(
+            number_of_nodes=len(self),
             color=self.nickname_metadata[0][0]['hex'],
             symbol=self.nickname_metadata[0][1],
             fleet_state_checksum=self.checksum[0:8]
@@ -924,13 +928,17 @@ class VerifiableNode:
     def nickname_icon(self):
         icon_template = """
         <div class="nucypher-nickname-icon" style="border-top-color:{first_color}; border-left-color:{first_color}; border-bottom-color:{second_color}; border-right-color:{second_color};">
-        <span class="symbol" style="color: {first_color}">{first_symbol}&#xFE0E;</span>
-        <span class="symbol" style="color: {second_color}">{second_symbol}&#xFE0E;</span>
+        <span class="small">{node_class}</span>
+        <div class="symbols">
+            <span class="single-symbol" style="color: {first_color}">{first_symbol}&#xFE0E;</span>
+            <span class="single-symbol" style="color: {second_color}">{second_symbol}&#xFE0E;</span>
+        </div>
         <br/>
         <span class="small-address">{address_first6}</span>
         </div>
         """.replace("  ", "").replace('\n', "")
         return icon_template.format(
+            node_class=self.__class__.__name__,
             first_color=self.nickname_metadata[0][0]['hex'],  # TODO: These index lookups are awful.
             first_symbol=self.nickname_metadata[0][1],
             second_color=self.nickname_metadata[1][0]['hex'],
