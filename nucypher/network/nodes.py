@@ -14,17 +14,18 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import binascii
 import os
 import random
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from collections import deque
+from collections import namedtuple
 from contextlib import suppress
 from logging import Logger
 from tempfile import TemporaryDirectory
 from typing import Set, Tuple
 
 import OpenSSL
-import binascii
 import maya
 import requests
 import time
@@ -51,7 +52,31 @@ from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
 
 
-class FleetState:
+def icon_from_checksum(checksum,
+                       nickname_metadata,
+                       number_of_nodes="Unknown number of "):
+
+    if checksum is constants.NO_KNOWN_NODES:
+            return "NO FLEET STATE AVAILABLE"
+    icon_template = """
+    <div class="nucypher-nickname-icon" style="border-color:{color};">
+    <div class="small">{number_of_nodes} nodes</div>
+    <div class="symbols">
+        <span class="single-symbol" style="color: {color}">{symbol}&#xFE0E;</span>
+    </div>
+    <br/>
+    <span class="small-address">{fleet_state_checksum}</span>
+    </div>
+    """.replace("  ", "").replace('\n', "")
+    return icon_template.format(
+        number_of_nodes=number_of_nodes,
+        color=nickname_metadata[0][0]['hex'],
+        symbol=nickname_metadata[0][1],
+        fleet_state_checksum=checksum[0:8]
+    )
+
+
+class FleetStateTracker:
     """
     A representation of a fleet of NuCypher nodes.
     """
@@ -62,18 +87,15 @@ class FleetState:
     most_recent_node_change = constants.NO_KNOWN_NODES
     snapshot_splitter = BytestringSplitter(32, 4)
     log = Logger("Learning")
+    state_template = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated"))
 
-    def __init__(self, do_not_track):
-        self.dnt = do_not_track
+    def __init__(self):
         self.additional_nodes_to_track = []
         self.updated = maya.now()
         self._nodes = {}
-        self.states = {}
+        self.states = OrderedDict()
 
     def __setitem__(self, key, value):
-        if value == self.dnt:
-            print(value)
-
         self._nodes[key] = value
 
         if self._tracking:
@@ -121,24 +143,9 @@ class FleetState:
         return self._nodes.keys()
 
     def icon(self):
-        if self.checksum is constants.NO_KNOWN_NODES:
-            return "NO FLEET STATE AVAILABLE"
-        icon_template = """
-        <div class="nucypher-nickname-icon" style="border-color:{color};">
-        <div class="small">{number_of_nodes} nodes</div>
-        <div class="symbols">
-            <span class="single-symbol" style="color: {color}">{symbol}&#xFE0E;</span>
-        </div>
-        <br/>
-        <span class="small-address">{fleet_state_checksum}</span>
-        </div>
-        """.replace("  ", "").replace('\n', "")
-        return icon_template.format(
-            number_of_nodes=len(self),
-            color=self.nickname_metadata[0][0]['hex'],
-            symbol=self.nickname_metadata[0][1],
-            fleet_state_checksum=self.checksum[0:8]
-        )
+        return icon_from_checksum(checksum=self.checksum,
+                                  number_of_nodes=len(self),
+                                  nickname_metadata=self.nickname_metadata)
 
     def snapshot(self):
         fleet_state_checksum_bytes = binascii.unhexlify(self.checksum)
@@ -146,8 +153,17 @@ class FleetState:
         return fleet_state_checksum_bytes + fleet_state_updated_bytes
 
     def update_fleet_state(self):
-        self.checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted())).hex()
-        self.updated = maya.now()
+        checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted())).hex()
+        if checksum != self.checksum:
+            self.checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted())).hex()
+            self.updated = maya.now()
+            # For now we store the sorted node list.  Someday we probably spin this out into
+            # its own class, FleetState, and use it as the basis for partial updates.
+            self.states[checksum] = self.state_template(nickname=self.nickname,
+                                                        icon=self.icon(),
+                                                        nodes=self.sorted(),
+                                                        updated=self.updated,
+                                                        )
 
     def start_tracking_state(self, additional_nodes_to_track=[]):
         self.additional_nodes_to_track.extend(additional_nodes_to_track)
@@ -210,7 +226,7 @@ class Learner:
         self._node_ids_to_learn_about_immediately = set()
 
         self.known_certificates_dir = known_certificates_dir or TemporaryDirectory("nucypher-tmp-certs-").name
-        self.__known_nodes = FleetState(self)
+        self.__known_nodes = FleetStateTracker()
 
         self.done_seeding = False
 
