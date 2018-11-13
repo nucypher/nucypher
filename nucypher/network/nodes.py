@@ -51,19 +51,43 @@ from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
 
 
-class FleetState(dict):
+class FleetState:
     """
     A representation of a fleet of NuCypher nodes.
     """
     _checksum = constants.NO_KNOWN_NODES.bool_value(False)
     _nickname = constants.NO_KNOWN_NODES
     _nickname_metadata = constants.NO_KNOWN_NODES
+    _tracking = False
     most_recent_node_change = constants.NO_KNOWN_NODES
     snapshot_splitter = BytestringSplitter(32, 4)
+    log = Logger("Learning")
 
-    def __init__(self, *args, **kwargs):
-        dict.__init__(self, *args, **kwargs)
+    def __init__(self, do_not_track):
+        self.dnt = do_not_track
+        self.additional_nodes_to_track = []
         self.updated = maya.now()
+        self._nodes = {}
+        self.states = {}
+
+    def __setitem__(self, key, value):
+        if value == self.dnt:
+            print(value)
+
+        self._nodes[key] = value
+
+        if self._tracking:
+            self.log.info("Updating fleet state after saving node {}".format(value))
+            self.update_fleet_state()
+        else:
+            self.log.debug("Not updating fleet state.")
+
+    def __getitem__(self, item):
+        if item == 0:
+            # So that instances can easily be cast to lists.
+            return list(self._nodes.values())
+        else:
+            return self._nodes[item]
 
     @property
     def checksum(self):
@@ -106,6 +130,24 @@ class FleetState(dict):
         fleet_state_checksum_bytes = binascii.unhexlify(self.checksum)
         fleet_state_updated_bytes = self.updated.epoch.to_bytes(4, byteorder="big")
         return fleet_state_checksum_bytes + fleet_state_updated_bytes
+
+    def update_fleet_state(self):
+        self.checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted())).hex()
+        self.updated = maya.now()
+
+    def start_tracking_state(self, additional_nodes_to_track=[]):
+        self.additional_nodes_to_track.extend(additional_nodes_to_track)
+        self._tracking = True
+        self.update_fleet_state()
+
+    def sorted(self):
+        nodes_to_consider = list(self._nodes.values()) + self.additional_nodes_to_track
+        return sorted(nodes_to_consider, key=lambda n: n.checksum_public_address)
+
+    def shuffled(self):
+        nodes_we_know_about = list(self._nodes.values())
+        random.shuffle(nodes_we_know_about)
+        return nodes_we_know_about
 
 
 class Learner:
@@ -154,7 +196,7 @@ class Learner:
         self._node_ids_to_learn_about_immediately = set()
 
         self.known_certificates_dir = known_certificates_dir or TemporaryDirectory("nucypher-tmp-certs-").name
-        self.__known_nodes = FleetState()
+        self.__known_nodes = FleetState(self)
 
         self.done_seeding = False
 
@@ -172,7 +214,7 @@ class Learner:
         self.unresponsive_startup_nodes = list()  # TODO: Attempt to use these again later
         for node in known_nodes:
             try:
-                self.remember_node(node, update_fleet_state=False)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
+                self.remember_node(node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
 
@@ -240,11 +282,7 @@ class Learner:
         for node in stored_nodes:
             self.remember_node(node)
 
-    def sorted_nodes(self):
-        nodes_to_consider = list(self.known_nodes.values())
-        return sorted(nodes_to_consider, key=lambda n: n.checksum_public_address)
-
-    def remember_node(self, node, force_verification_check=False, update_fleet_state=True):
+    def remember_node(self, node, force_verification_check=False):
 
         if node == self:  # No need to remember self.
             return False
@@ -274,6 +312,8 @@ class Learner:
         address = node.checksum_public_address
 
         self.__known_nodes[address] = node
+        if self in self.known_nodes._nodes.values():
+            raise RuntimeError
 
         if self.save_metadata:
             self.write_node_metadata(node=node)
@@ -283,15 +323,7 @@ class Learner:
             listener.add(address)
         self._node_ids_to_learn_about_immediately.discard(address)
 
-        if update_fleet_state:
-            self.update_fleet_state()
-
         return True
-
-    def update_fleet_state(self):
-        # TODO: Probably not mutate these foreign attrs - ideally maybe move quite a bit of this method up to FleetState (maybe in __setitem__).
-        self.known_nodes.checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted_nodes())).hex()
-        self.known_nodes.updated = maya.now()
 
     def start_learning_loop(self, now=False):
         if self._learning_task.running:
@@ -335,14 +367,8 @@ class Learner:
         # TODO: We don't actually have checksum_public_address at this level - maybe only Characters can crash gracefully :-)
         self.log.critical("{} crashed with {}".format(self.checksum_public_address, failure))
 
-    def shuffled_known_nodes(self):
-        nodes_we_know_about = list(self.__known_nodes.values())
-        random.shuffle(nodes_we_know_about)
-        self.log.info("Shuffled {} known nodes".format(len(nodes_we_know_about)))
-        return nodes_we_know_about
-
     def select_teacher_nodes(self):
-        nodes_we_know_about = self.shuffled_known_nodes()
+        nodes_we_know_about = self.known_nodes.shuffled()
 
         if not nodes_we_know_about:
             raise self.NotEnoughTeachers("Need some nodes to start learning from.")

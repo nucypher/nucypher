@@ -169,6 +169,9 @@ class Character(Learner):
             else:
                 raise
 
+        if is_me is True:
+            self.known_nodes.start_tracking_state()
+
     def __eq__(self, other) -> bool:
         return bytes(self.stamp) == bytes(other.stamp)
 

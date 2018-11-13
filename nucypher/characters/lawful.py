@@ -559,7 +559,7 @@ class Ursula(VerifiableNode, Character, Miner):
         # Logging / Updating
         #
         if is_me:
-            self.update_fleet_state()  # To account for nodes loaded from NodeStorage.
+            self.known_nodes.start_tracking_state(additional_nodes_to_track=[self])  # To account for nodes loaded from NodeStorage.
             message = "Initialized Self {} | {}".format(self.__class__.__name__, self.checksum_public_address)
             self.log.info(message)
         else:
