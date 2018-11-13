@@ -94,6 +94,12 @@ class FleetState:
     def __iter__(self):
         yield from self._nodes.values()
 
+    def __len__(self):
+        return len(self._nodes)
+
+    def __eq__(self, other):
+        return self._nodes == other._nodes
+
     @property
     def checksum(self):
         return self._checksum
