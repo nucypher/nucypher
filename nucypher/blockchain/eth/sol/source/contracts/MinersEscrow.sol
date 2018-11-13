@@ -710,6 +710,8 @@ contract MinersEscrow is Issuer {
         }
     }
 
+
+    uint16 constant MAX_PERIOD = 65535;
     // TODO complete
     function slashMiner(
         address _miner,
@@ -720,10 +722,13 @@ contract MinersEscrow is Issuer {
         public
     {
         require(msg.sender == address(challengeOverseer));
+        require(_penalty > 0);
         MinerInfo storage info = minerInfo[_miner];
         //TODO maybe raise error
         if (info.value < _penalty) {
             _penalty = info.value;
+            //clear or remove all sub stakes
+            info.subStakes.length = 0;
         }
         info.value -= _penalty;
         //TODO maybe raise error
@@ -731,10 +736,71 @@ contract MinersEscrow is Issuer {
             _reward = _penalty;
         }
 
-        //choose short stake
-        //decrease stake(s)
-        //refresh values in Issuer
-        token.safeTransfer(_investigator, _reward);
+        // decrease sub stakes
+        if (info.subStakes.length > 0) {
+            uint16 currentPeriod = getCurrentPeriod();
+            uint16 startPeriod = getStartPeriod(info, startPeriod);
+            uint256 lockedTokens = getLockedTokens(_miner);
+            if (info.value < lockedTokens) {
+               slashMiner(info, lockedTokens - info.value, currentPeriod, startPeriod, false);
+            }
+            lockedTokens = getLockedTokens(_miner, 1);
+            if (info.value < lockedTokens) {
+               slashMiner(info, lockedTokens - info.value, currentPeriod.add16(1), startPeriod, false);
+            }
+        }
+
+        unMint(_penalty - _reward);
+        if (_reward > 0) {
+            token.safeTransfer(_investigator, _reward);
+        }
+    }
+
+    // TODO complete
+    function slashMiner(
+        MinerInfo storage _info,
+        uint256 _penalty,
+        uint16 _period,
+        uint16 _startPeriod,
+        bool _strict
+    )
+        internal
+    {
+        while(_penalty > 0) {
+            uint16 minSubStakeLastPeriod = MAX_PERIOD; //TODO
+            for (uint256 i = 0; i < _info.subStakes.length; i++) {
+                SubStakeInfo storage subStake = _info.subStakes[i];
+                uint16 lastPeriod = getLastPeriodOfSubStake(subStake, _startPeriod);
+                if ((_strict && subStake.firstPeriod == _period ||
+                    !_strict && subStake.firstPeriod <= _period) &&
+                    lastPeriod >= _period &&
+                    lastPeriod < minSubStakeLastPeriod)
+                {
+                    SubStakeInfo storage shortestSubStake = subStake;
+                    minSubStakeLastPeriod = lastPeriod;
+                }
+            }
+            if (minSubStakeLastPeriod == MAX_PERIOD) {
+                break;
+            }
+            uint256 appliedPenalty = _penalty;
+            if (_penalty < shortestSubStake.lockedValue) {
+                shortestSubStake.lockedValue -= _penalty;
+                _penalty = 0;
+            } else {
+                shortestSubStake.lastPeriod = 1;
+                _penalty -= shortestSubStake.lockedValue;
+                appliedPenalty = shortestSubStake.lockedValue;
+            }
+            if (_info.confirmedPeriod1 >= _period &&
+                _info.confirmedPeriod1 <= lastPeriod) {
+                lockedPerPeriod[_info.confirmedPeriod1] -= appliedPenalty;
+            }
+            if (_info.confirmedPeriod2 >= _period &&
+                _info.confirmedPeriod2 <= lastPeriod) {
+                lockedPerPeriod[_info.confirmedPeriod2] -= appliedPenalty;
+            }
+        }
     }
 
     //-------------Additional getters for miners info-------------
