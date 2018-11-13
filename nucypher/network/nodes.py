@@ -244,7 +244,8 @@ class Learner:
         self.unresponsive_startup_nodes = list()  # TODO: Attempt to use these again later
         for node in known_nodes:
             try:
-                self.remember_node(node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
+                self.remember_node(
+                    node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
 
@@ -624,9 +625,12 @@ class Learner:
             # TODO: What to do if the teacher improperly signed the node payload?
             raise False
 
-        fleet_state_checksum_bytes, fleet_state_updated_bytes, nodes = FleetState.snapshot_splitter(node_payload, return_remainder=True)
+        fleet_state_checksum_bytes, fleet_state_updated_bytes, nodes = FleetStateTracker.snapshot_splitter(node_payload,
+                                                                                                           return_remainder=True)
         current_teacher.last_seen = maya.now()
-        current_teacher.update_snapshot(checksum=fleet_state_checksum_bytes.hex(),
+        # TODO: This is weird - let's get a stranger FleetState going.
+        checksum = fleet_state_checksum_bytes.hex()
+        current_teacher.update_snapshot(checksum=checksum,
                                         updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")))
 
         self.cycle_teacher_node()
@@ -737,8 +741,11 @@ class VerifiableNode:
         # TODO: Kind of an interesting pattern here - with VerifiableNode increasingly looking like it will be Teacher.
         # We update the simple snapshot here, but of course if we're dealing with an instance that is also a Learner, it has
         # its own notion of its FleetState, so we probably need a reckoning of sorts here to manage that.  In time.
+        self.fleet_state_nickname, self.fleet_state_nickname_metadata = nickname_from_seed(checksum, number_of_pairs=1)
         self.fleet_state_checksum = checksum
         self.fleet_state_updated = updated
+        self.fleet_state_icon = icon_from_checksum(self.fleet_state_checksum,
+                                                   nickname_metadata=self.fleet_state_nickname_metadata)
 
     def stamp_is_valid(self):
         """

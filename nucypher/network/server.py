@@ -348,7 +348,9 @@ class ProxyRESTRoutes:
         headers = {"Content-Type": "text/html", "charset":"utf-8"}
         # TODO: Seems very strange to deserialize *this node* when we can just pass it in.  Might be a sign that we need to rethnk this composition.
         this_node = self._node_class.from_bytes(self._node_bytes_caster(), federated_only=self.federated_only)
-        content = self._status_template.render(known_nodes=self._node_tracker, this_node=this_node)
+        content = self._status_template.render(known_nodes=self._node_tracker,
+                                               this_node=this_node,
+                                               previous_states=list(reversed(self._node_tracker.states.values()))[:5])
         return Response(content=content, headers=headers)
 
 
