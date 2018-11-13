@@ -83,11 +83,16 @@ class FleetState:
             self.log.debug("Not updating fleet state.")
 
     def __getitem__(self, item):
-        if item == 0:
-            # So that instances can easily be cast to lists.
-            return list(self._nodes.values())
-        else:
-            return self._nodes[item]
+        return self._nodes[item]
+
+    def __bool__(self):
+        return bool(self._nodes)
+
+    def __contains__(self, item):
+        return item in self._nodes.values()
+
+    def __iter__(self):
+        yield from self._nodes.values()
 
     @property
     def checksum(self):
