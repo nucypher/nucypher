@@ -84,15 +84,17 @@ contract ChallengeOverseer {
         // Extract miner's address and check that is real miner
         address miner = SignatureVerifier.recover(
             SignatureVerifier.hash(_minerPublicKey, hashAlgorithm), _minerPublicKeySignature);
-        require(escrow.getLockedTokens(miner) > 0); // TODO check that miner can be slashed
+        // Check that miner can be slashed
+        uint256 minerValue;
+        (minerValue,,,) = escrow.minerInfo(miner);
+        require(minerValue > 0);
 
         // Verify correctness of re-encryption
-        UmbralDeserializer.Capsule memory capsule = _capsuleBytes.toCapsule();
-        UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
-        UmbralDeserializer.PreComputedData memory data = _preComputedData.toPreComputedData();
-        if (!isCapsuleFragCorrect(capsule, cFrag, data)) {
-            //TODO calculate penalty - depends on how many time was slashed
-//            escrow.slashMiner(miner, PENALTY);
+        if (!isCapsuleFragCorrect(
+            _capsuleBytes.toCapsule(), _cFragBytes.toCapsuleFrag(), _preComputedData.toPreComputedData())) {
+            // TODO calculate penalty - depends on how many time was slashed
+            // TODO set reward
+            escrow.slashMiner(miner, PENALTY, msg.sender, PENALTY);
         }
         challengedCFrags[challengeHash] = true;
     }
