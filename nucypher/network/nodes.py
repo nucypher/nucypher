@@ -117,6 +117,9 @@ class FleetState:
     def nickname_metadata(self):
         return self._nickname_metadata
 
+    def addresses(self):
+        return self._nodes.keys()
+
     def icon(self):
         if self.checksum is constants.NO_KNOWN_NODES:
             return "NO FLEET STATE AVAILABLE"
