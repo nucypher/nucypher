@@ -114,12 +114,12 @@ contract Issuer is Upgradeable {
     )
         internal returns (uint256 amount)
     {
+        if (currentSupply1 == totalSupply || currentSupply2 == totalSupply) {
+            return;
+        }
         uint256 currentSupply = _currentPeriod <= currentMintingPeriod ?
             Math.min(currentSupply1, currentSupply2) :
             Math.max(currentSupply1, currentSupply2);
-        if (currentSupply == totalSupply) {
-            return 0;
-        }
 
         //totalSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2) -
         //currentSupply * lockedValue * (k1 + allLockedPeriods) / (totalLockedValue * k2)
@@ -155,6 +155,15 @@ contract Issuer is Upgradeable {
                 currentSupply1 = currentSupply2.add(amount);
             }
         }
+    }
+
+    /**
+    * @notice Return tokens for future minting
+    * @param _amount Amount of tokens
+    **/
+    function unMint(uint256 _amount) internal {
+        currentSupply1 = currentSupply1.sub(_amount);
+        currentSupply2 = currentSupply2.sub(_amount);
     }
 
     function verifyState(address _testTarget) public onlyOwner {
