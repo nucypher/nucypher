@@ -63,14 +63,14 @@ def test_get_cert_from_running_seed_node(ursula_federated_test_config):
     def start_lonely_learning_loop():
         any_other_ursula.start_learning_loop()
         start = maya.now()
-        while not firstula in any_other_ursula.known_nodes.values():
+        while not firstula in any_other_ursula.known_nodes:
             passed = maya.now() - start
             if passed.seconds > 2:
                 pytest.fail("Didn't find the seed node.")
 
     yield deferToThread(start_lonely_learning_loop)
-    assert firstula in any_other_ursula.known_nodes.values()
+    assert firstula in any_other_ursula.known_nodes
 
-    certificate_as_learned = list(any_other_ursula.known_nodes.values())[0].certificate
+    certificate_as_learned = list(any_other_ursula.known_nodes)[0].certificate
     assert certificate_as_learned == certificate_as_deployed
     any_other_ursula.stop_learning_loop()
