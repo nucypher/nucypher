@@ -330,7 +330,7 @@ class Learner:
             return False
         elif now:
             self.load_seednodes()
-            self._learning_task()  # Unhandled error might happen here.  TODO: Call this in a safer place.
+            self.learn_from_teacher_node()
             self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
             self.learning_deferred.addErrback(self.handle_learning_errors)
             return self.learning_deferred
