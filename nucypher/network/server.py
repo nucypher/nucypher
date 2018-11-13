@@ -160,7 +160,7 @@ class ProxyRESTRoutes:
     def all_known_nodes(self, request: Request):
         headers = {'Content-Type': 'application/octet-stream'}
         payload = self._node_tracker.snapshot()
-        ursulas_as_bytes = bytes().join(bytes(n) for n in self._node_tracker.values())
+        ursulas_as_bytes = bytes().join(bytes(n) for n in self._node_tracker)
         ursulas_as_bytes += self._node_bytes_caster()
 
         payload += ursulas_as_bytes

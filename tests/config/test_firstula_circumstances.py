@@ -37,7 +37,7 @@ def test_proper_seed_node_instantiation(ursula_federated_test_config):
 
     assert not any_other_ursula.known_nodes
     any_other_ursula.start_learning_loop(now=True)
-    assert firstula in any_other_ursula.known_nodes.values()
+    assert firstula in any_other_ursula.known_nodes
 
 
 @pytest_twisted.inlineCallbacks
