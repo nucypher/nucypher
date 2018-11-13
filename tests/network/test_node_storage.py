@@ -47,4 +47,4 @@ def test_one_node_stores_a_bunch_of_others(federated_ursulas, ursula_federated_t
     yield deferToThread(start_lonely_learning_loop)
 
     # The known_nodes are all saved in storage (and no others have been saved)
-    assert list(newcomer.known_nodes.values()) == list(newcomer.node_storage.all(True))
+    assert list(newcomer.known_nodes) == list(newcomer.node_storage.all(True))

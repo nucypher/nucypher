@@ -185,7 +185,7 @@ class ProxyRESTRoutes:
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.  Let's find a better way.  555
         for node in nodes:
 
-            if node.checksum_public_address in self._node_tracker:
+            if node in self._node_tracker:
                 continue  # TODO: 168 Check version and update if required.
 
             @crosstown_traffic()

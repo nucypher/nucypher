@@ -64,7 +64,7 @@
         <td>Launched</td>
         <td>Last Seen</td>
     </thead>
-    {% for node in known_nodes.values() -%}
+    {% for node in known_nodes -%}
         <tr>
             <td>{{ node.nickname_icon() }}</td>
             <td>

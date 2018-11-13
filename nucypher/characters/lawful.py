@@ -97,7 +97,7 @@ class Alice(Character, PolicyAuthor):
         if self.federated_only is True or federated is True:
             from nucypher.policy.models import FederatedPolicy
             # We can't sample; we can only use known nodes.
-            known_nodes = self.shuffled_known_nodes()
+            known_nodes = self.known_nodes.shuffled()
             policy = FederatedPolicy(alice=self, ursulas=known_nodes, **payload)
         else:
             from nucypher.blockchain.eth.policies import BlockchainPolicy
@@ -193,10 +193,10 @@ class Bob(Character):
                 raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
 
         # The intersection of the map and our known nodes will be the known Ursulas...
-        known_treasure_ursulas = treasure_map.destinations.keys() & self.known_nodes.keys()
+        known_treasure_ursulas = treasure_map.destinations.keys() & self.known_nodes.addresses()
 
         # while the difference will be the unknown Ursulas.
-        unknown_treasure_ursulas = treasure_map.destinations.keys() - self.known_nodes.keys()
+        unknown_treasure_ursulas = treasure_map.destinations.keys() - self.known_nodes.addresses()
 
         return unknown_treasure_ursulas, known_treasure_ursulas
 
@@ -290,7 +290,7 @@ class Bob(Character):
         Return the first one who has it.
         TODO: What if a node gives a bunk TreasureMap?
         """
-        for node in self.known_nodes.values():
+        for node in self.known_nodes:
             response = networky_stuff.get_treasure_map_from_node(node, map_id)
 
             if response.status_code == 200 and response.content:
