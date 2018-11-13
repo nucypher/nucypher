@@ -156,6 +156,7 @@ contract ChallengeOverseer {
         hashInput = abi.encodePacked(
             hashInput,
             // Point U
+            // TODO: MAKE SURE IT IS UPDATED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             bytes1(0x02),
             bytes32(0xef62d276f6f311573b29790b970f2c4b4e44637c0c45f0838ffdc9167a05b999),
             // Point U1
@@ -166,7 +167,7 @@ contract ChallengeOverseer {
             _cFrag.proof.pointKFragPok.xCoord
         );
 
-        uint256 h = SignatureVerifier.extendedKeccakToBN(hashInput);
+        uint256 h = extendedKeccakToBN(hashInput);
 
         //////
         // Verifying equation: z*E + h*E_1 = E_2
@@ -219,4 +220,23 @@ contract ChallengeOverseer {
         return ez_is_correct && e1h_is_correct && sum_is_correct;
     }
 
+    function extendedKeccak (bytes _data) internal pure returns (bytes32, bytes32) {
+        return (keccak256(abi.encodePacked(uint8(0x01), _data)),
+                keccak256(abi.encodePacked(uint8(0x02), _data)));
+    }
+
+    function extendedKeccakToBN (bytes _data) internal pure returns (uint256) {
+
+        bytes32 upper;
+        bytes32 lower;
+
+        (upper, lower) = (keccak256(abi.encodePacked(uint8(0x01), _data)),
+                          keccak256(abi.encodePacked(uint8(0x02), _data)));
+
+        uint256 delta = 0x14551231950b75fc4402da1732fc9bec0;
+        uint256 n_minus_1 = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140;
+
+        uint256 upper_half = mulmod(uint256(upper), delta, n_minus_1);
+        return 1 + addmod(upper_half, uint256(lower), n_minus_1);
+    }
 }
