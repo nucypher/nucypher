@@ -45,6 +45,10 @@ contract IssuerMock is Issuer {
         token.transfer(msg.sender, amount);
     }
 
+    function testUnMint(uint256 _amount) public {
+        unMint(_amount);
+    }
+
 }
 
 
