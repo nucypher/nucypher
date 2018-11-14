@@ -208,7 +208,7 @@ def _derive_key_material_from_passphrase(salt: bytes,
     except InternalError as e:
         # OpenSSL Attempts to malloc 1 GB of mem for scrypt key derivation
         if e.err_code[0].reason == 65:
-            raise RuntimeError("Key Derivation requires 1GB of memory: Please free up some memory and try again.")
+            raise MemoryError("Key Derivation requires 1GB of memory: Please free up some memory and try again.")
         else:
             raise e
     else:
