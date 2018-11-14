@@ -14,16 +14,18 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import binascii
 import json
 import os
 from json import JSONDecodeError
-from twisted.logger import Logger
 from tempfile import TemporaryDirectory
 from typing import List
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 
-from constant_sorrow import constants
+from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION, STRANGER_CONFIGURATION, LIVE_CONFIGURATION
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
+from twisted.logger import Logger
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR

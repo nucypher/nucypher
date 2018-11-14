@@ -309,12 +309,17 @@ class NucypherClickConfig:
         if self.dev:
             raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
         click.confirm('''
+        
 *Permanently and irreversibly delete all* nucypher files including:
   - Private and Public Keys
   - Known Nodes
   - TLS certificates
   - Node Configurations
-Located at {}?'''.format(self.node_configuration.config_root), abort=True)
+  - Log Files
+  
+  Continue?'''.format(self.node_configuration.config_root), abort=True)
+
+        shutil.rmtree(USER_LOG_DIR)
         shutil.rmtree(self.node_configuration.config_root, ignore_errors=True)
         click.secho("Deleted configuration files at {}".format(self.node_configuration.config_root), fg='blue')
 
