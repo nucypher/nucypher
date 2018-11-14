@@ -200,7 +200,7 @@ def _derive_key_material_from_passphrase(salt: bytes,
         key_material = Scrypt(
             salt=salt,
             length=__WRAPPING_KEY_LENGTH,
-                n=2**20,
+            n=2**20,
             r=8,
             p=1,
             backend=default_backend()
