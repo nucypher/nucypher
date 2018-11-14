@@ -133,6 +133,16 @@ def test_inflation_rate(testerchain, token):
     testerchain.wait_for_receipt(tx)
     assert 2 * one_period + 3 * minted_amount > token.functions.balanceOf(ursula).call()
 
+    # Return some tokens as a reward
+    balance = token.functions.balanceOf(ursula).call()
+    tx = issuer.functions.testUnMint(2 * one_period + 2 * minted_amount).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # Rate will be increased because some tokens were returned
+    tx = issuer.functions.testMint(period + 3, 1, 1, 0).transact({'from': ursula})
+    testerchain.wait_for_receipt(tx)
+    assert balance + one_period == token.functions.balanceOf(ursula).call()
+
 
 @pytest.mark.slow
 def test_upgrading(testerchain, token):
