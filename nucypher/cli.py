@@ -18,19 +18,21 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+
+
 import collections
 import hashlib
 import json
 import os
 import shutil
 import socket
+import time
 from ipaddress import ip_address
 from typing import Tuple, ClassVar
 from urllib.parse import urlparse
 
 import click
 import requests
-import time
 from constant_sorrow.constants import NO_NODE_CONFIGURATION, NO_BLOCKCHAIN_CONNECTION
 from eth_utils import is_checksum_address
 from nacl.exceptions import CryptoError
@@ -54,7 +56,7 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import SEEDNODES
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
-from nucypher.utilities.logging import logToSentry
+from nucypher.utilities.logging import logToSentry, getTextFileObserver
 from nucypher.utilities.sandbox.ursula import UrsulaCommandProtocol
 
 BANNER = """
@@ -78,16 +80,23 @@ class NucypherClickConfig:
     _KEYRING_PASSPHRASE_ENVVAR = "NUCYPHER_KEYRING_PASSPHRASE"
 
     # Set to False to completely opt-out of sentry reporting
-    log_to_sentry = os.environ.get(__LOG_TO_SENTRY_ENVVAR, True)
+    log_to_sentry = True  # TODO: Use envvar
+    log_to_file = True    # TODO: Use envvar
 
     # Pending Configuration Named Tuple
     PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetails',
                                                          'passphrase wallet signing tls skip_keys save_file')
 
     def __init__(self):
+
+        #
+        # Logging
+        #
+
         if self.log_to_sentry:
             import sentry_sdk
             import logging
+
             sentry_logging = LoggingIntegration(
                 level=logging.INFO,  # Capture info and above as breadcrumbs
                 event_level=logging.DEBUG  # Send debug logs as events
@@ -99,6 +108,9 @@ class NucypherClickConfig:
             )
 
             globalLogPublisher.addObserver(logToSentry)
+
+        if self.log_to_file is True:
+            globalLogPublisher.addObserver(getTextFileObserver())
 
         self.log = Logger(self.__class__.__name__)
 
