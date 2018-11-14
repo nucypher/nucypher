@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from click.testing import CliRunner
 
-from nucypher.cli import cli
+from nucypher.cli.main import cli
 
 
 def test_help_message():
