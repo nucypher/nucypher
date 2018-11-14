@@ -36,7 +36,8 @@ from nucypher.network.middleware import RestMiddleware
 
 
 class NodeConfiguration:
-    _name = 'ursula'  # TODO: un-hardcode Ursula
+
+    _name = 'ursula'
     _character_class = Ursula
 
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
