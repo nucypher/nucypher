@@ -97,9 +97,12 @@ def test_mining(testerchain, token, escrow_contract):
     tx = escrow.functions.divideStake(0, 500, 1).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
-    # Ursula can't use method from Issuer contract directly, only from mint() method
+    # Can't use methods from Issuer contract directly
     with pytest.raises(Exception):
         tx = escrow.functions.mint(1, 1, 1, 1).transact({'from': ursula1})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises(Exception):
+        tx = escrow.functions.unMint(1).transact({'from': ursula1})
         testerchain.wait_for_receipt(tx)
 
     # Only Ursula confirms next period
