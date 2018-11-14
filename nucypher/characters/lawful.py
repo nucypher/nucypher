@@ -376,7 +376,7 @@ class Bob(Character):
             try:
                 cfrags = self.get_reencrypted_cfrags(work_order)
                 message_kit.capsule.attach_cfrag(cfrags[0])
-                if len(message_kit.capsule._attached_cfrags) > m:
+                if len(message_kit.capsule._attached_cfrags) >= m:
                     break
             except requests.exceptions.ConnectTimeout:
                 continue

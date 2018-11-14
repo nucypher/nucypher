@@ -427,7 +427,18 @@ def configure(config,
               rest_host,
               no_registry,
               force):
-    """Manage Ursula node system configuration"""
+    """Manage Ursula node system configuration
+
+
+Actions:
+
+\b
+install     Create a new Ursula node configuration
+view        View the configuration of Ursula node
+forget      Remove all stored known nodes' metadata and certificates
+reset       Delete current Ursula node configuration and create a new one
+destroy     Delete current Ursula node configuration
+    """
 
     # Fetch Existing Configuration
     config.get_node_configuration(configuration_class=UrsulaConfiguration, rest_host=rest_host)
@@ -511,6 +522,10 @@ def accounts(config,
         keyring._export_wallet_to_node(blockchain=config.blockchain, passphrase=passphrase)
 
     elif action == 'list':
+        if config.accounts == NO_BLOCKCHAIN_CONNECTION:
+            click.echo('No account found.')
+            raise click.Abort()
+
         for index, checksum_address in enumerate(config.accounts):
             token_balance = config.token_agent.get_balance(address=checksum_address)
             eth_balance = config.blockchain.interface.w3.eth.getBalance(checksum_address)
@@ -567,26 +582,15 @@ def stake(config,
     Manage token staking.
 
 
-    Arguments
-    ==========
+Actions:
 
-    action - Which action to perform; The choices are:
-
-        - list: List all stakes for this node
-        - info: Display info about a specific stake
-        - start: Start the staking daemon
-        - confirm-activity: Manually confirm-activity for the current period
-        - divide-stake: Divide an existing stake
-
-    value - The quantity of tokens to stake.
-
-    periods - The duration (in periods) of the stake.
-
-    Options
-    ========
-
-    --wallet-address - A valid ethereum checksum address to use instead of the default
-    --stake-index - The zero-based stake index, or stake tag for this wallet-address
+\b
+list              List all stakes for this node
+init              Stage a new stake
+start             Start the staking daemon
+confirm-activity  Manually confirm-activity for the current period
+divide            Divide an existing stake
+collect-reward    Withdraw staking reward
 
     """
 
@@ -599,6 +603,10 @@ def stake(config,
         config.connect_to_contracts()
 
     if not checksum_address:
+
+        if config.accounts == NO_BLOCKCHAIN_CONNECTION:
+            click.echo('No account found.')
+            raise click.Abort()
 
         for index, address in enumerate(config.accounts):
             if index == 0:
@@ -980,6 +988,7 @@ def ursula(config,
 
     Here is the procedure to "spin-up" an Ursula node.
 
+    \b
         0. Validate CLI Input
         1. Initialize UrsulaConfiguration (from configuration file or inline)
         2. Initialize Ursula with Passphrase
