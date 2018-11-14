@@ -524,7 +524,7 @@ def accounts(config,
     elif action == 'list':
         if config.accounts == NO_BLOCKCHAIN_CONNECTION:
             click.echo('No account found.')
-            return
+            raise click.Abort()
 
         for index, checksum_address in enumerate(config.accounts):
             token_balance = config.token_agent.get_balance(address=checksum_address)
@@ -606,7 +606,7 @@ collect-reward    Withdraw staking reward
 
         if config.accounts == NO_BLOCKCHAIN_CONNECTION:
             click.echo('No account found.')
-            return
+            raise click.Abort()
 
         for index, address in enumerate(config.accounts):
             if index == 0:
