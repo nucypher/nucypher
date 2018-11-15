@@ -484,7 +484,7 @@ class TreasureMap:
         return len(self.destinations)
 
 
-class WorkOrder(object):
+class WorkOrder:
     def __init__(self,
                  bob,
                  arrangement_id,
