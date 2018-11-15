@@ -145,8 +145,8 @@ class RevocationKit:
         for node_id, revocation in self.revocations.items():
             signature = signer(revocation.prefix + revocation.arrangement_id)
             self.revocations[node_id] = Revocation(revocation.prefix,
-                                                        revocation.arrangement_id,
-                                                        signature)
+                                                   revocation.arrangement_id,
+                                                   signature)
 
     def add_receipt(self, node_id, signed_receipt):
         """

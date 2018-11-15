@@ -117,9 +117,8 @@ class MockRestMiddleware(RestMiddleware):
                                       data=RevocationKit.revocation_to_bytes(revocation))
         
         if response.status_code != 200:
-            if response.status_code == 404:
-                raise RuntimeError("KFrag doesn't exist to revoke with id {}".format(arrangement_id))
-            raise RuntimeError("Bad response: {}".format(response.status_code))
+            if response.status_code != 404:
+                raise RuntimeError("Bad response: {}".format(response.status_code))
         return response
 
 

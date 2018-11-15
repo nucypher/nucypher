@@ -136,6 +136,10 @@ def test_revocation(federated_alice, federated_bob):
     failed_revocations = federated_alice.revoke(policy)
     assert len(failed_revocations) == 0
 
+    # Try to revoke the already revoked policy
+    already_revoked = federated_alice.revoke(policy)
+    assert len(already_revoked) == 3
+
 
 def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
 

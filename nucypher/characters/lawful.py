@@ -168,8 +168,9 @@ class Alice(Character, PolicyAuthor):
     def revoke(self, policy):
         """
         Parses the treasure map and revokes arrangements in it.
-        If any arrangements can't be revoked (other than a 404 status), then
-        the node_id and arrangement_id are added to a list and returned.
+        If any arrangements can't be revoked, then the node_id and
+        arrangement_id are added to a list and returned. If a node returns a
+        404 status code, then it will add a tuple of the Revocation and `None`.
         """
         # Sign the revocations in the RevocationKit in preparation for
         # sending to Ursula.
@@ -190,7 +191,10 @@ class Alice(Character, PolicyAuthor):
                 revocation = policy.revocation_kit[node_id]
                 response = self.network_middleware.revoke_arrangement(ursula, revocation)
                 if response.status_code != 200:
-                    failed_revocations.append(notice)
+                    if response.status_code == 404:
+                        failed_revocations.append((revocation, None))
+                    else:
+                        failed_revocations.append(revocation)
         return failed_revocations
 
 

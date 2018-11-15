@@ -32,7 +32,9 @@ from umbral.keys import UmbralPublicKey
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
+from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore.keypairs import HostingKeypair
+from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import InterfaceInfo
 from jinja2 import Template
@@ -273,15 +275,15 @@ class ProxyRESTRoutes:
                     policy_arrangement.alice_pubkey_sig.key_data)
 
                 # Check that the request is the same for the provided revocation
-                if not id_as_hex.encode() == revocation.arrangement_id:
-                    return 400
+                if id_as_hex != revocation.arrangement_id.hex():
+                    return Response(status_code=400)
                 elif RevocationKit.verify_revocation(revocation, alice_pubkey):
                     self.datastore.del_policy_arrangement(
                         id_as_hex.encode(), session=session)
         except (NotFound, InvalidSignature):
-            return 404
+            return Response(content='KFrag not found or revocation signature is invalid.', status_code=404)
         else:
-            return 200
+            return Response(content='KFrag deleted!', status_code=200)
 
     def reencrypt_via_rest(self, id_as_hex, request: Request):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
