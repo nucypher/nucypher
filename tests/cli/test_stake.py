@@ -17,22 +17,22 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from click.testing import CliRunner
 
-from nucypher.cli.main import cli
+from nucypher.cli.main import nucypher_cli
 
 
 @pytest.mark.skip
 def test_stake_init():
     runner = CliRunner()
-    result = runner.invoke(cli, ['stake', 'init'], catch_exceptions=False)
+    result = runner.invoke(nucypher_cli, ['stake', 'init'], catch_exceptions=False)
 
 
 @pytest.mark.skip
 def test_stake_info():
     runner = CliRunner()
-    result = runner.invoke(cli, ['stake', 'info'], catch_exceptions=False)
+    result = runner.invoke(nucypher_cli, ['stake', 'info'], catch_exceptions=False)
 
 
 @pytest.mark.skip
 def test_stake_confirm():
     runner = CliRunner()
-    result = runner.invoke(cli, ['stake', 'confirm-activity'], catch_exceptions=False)
+    result = runner.invoke(nucypher_cli, ['stake', 'confirm-activity'], catch_exceptions=False)

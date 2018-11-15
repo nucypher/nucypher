@@ -24,7 +24,7 @@ from click.testing import CliRunner
 from twisted.internet import threads
 from twisted.internet.error import CannotListenError
 
-from nucypher.cli.main import cli
+from nucypher.cli.main import nucypher_cli
 from nucypher.characters.base import Learner
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
@@ -41,7 +41,7 @@ def test_run_lone_federated_default_ursula():
             ]
 
     runner = CliRunner()
-    result = yield threads.deferToThread(runner.invoke, cli, args, catch_exceptions=False, input=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD+'\n')
+    result = yield threads.deferToThread(runner.invoke, nucypher_cli, args, catch_exceptions=False, input=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD + '\n')
 
     alone = "WARNING - Can't learn right now: Need some nodes to start learning from."
     time.sleep(Learner._SHORT_LEARNING_DELAY)
@@ -50,4 +50,4 @@ def test_run_lone_federated_default_ursula():
 
     # Cannot start another Ursula on the same REST port
     with pytest.raises(CannotListenError):
-        _result = runner.invoke(cli, args, catch_exceptions=False, input=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
+        _result = runner.invoke(nucypher_cli, args, catch_exceptions=False, input=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)

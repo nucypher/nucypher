@@ -18,12 +18,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from click.testing import CliRunner
 
-from nucypher.cli.main import cli
+from nucypher.cli.main import nucypher_cli
 
 
 def test_help_message():
     runner = CliRunner()
-    result = runner.invoke(cli, ['--help'], catch_exceptions=False)
+    result = runner.invoke(nucypher_cli, ['--help'], catch_exceptions=False)
 
     assert result.exit_code == 0
     assert 'Usage: cli [OPTIONS] COMMAND [ARGS]' in result.output, 'Missing or invalid help text was produced.'

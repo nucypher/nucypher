@@ -90,7 +90,7 @@ def temp_config_root(temp_dir_path):
     """
     User is responsible for closing the file given at the path.
     """
-    default_node_config = NodeConfiguration(temp=True,
+    default_node_config = NodeConfiguration(dev=True,
                                             auto_initialize=False,
                                             config_root=temp_dir_path,
                                             import_seed_registry=False)
@@ -121,7 +121,7 @@ def certificates_tempdir():
 @pytest.fixture(scope="module")
 def ursula_federated_test_config():
 
-    ursula_config = UrsulaConfiguration(temp=True,
+    ursula_config = UrsulaConfiguration(dev=True,
                                         auto_initialize=True,
                                         auto_generate_keys=True,
                                         passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
@@ -140,7 +140,7 @@ def ursula_federated_test_config():
 def ursula_decentralized_test_config(three_agents):
     token_agent, miner_agent, policy_agent = three_agents
 
-    ursula_config = UrsulaConfiguration(temp=True,
+    ursula_config = UrsulaConfiguration(dev=True,
                                         auto_initialize=True,
                                         auto_generate_keys=True,
                                         passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
@@ -158,7 +158,7 @@ def ursula_decentralized_test_config(three_agents):
 
 @pytest.fixture(scope="module")
 def alice_federated_test_config(federated_ursulas):
-    config = AliceConfiguration(temp=True,
+    config = AliceConfiguration(dev=True,
                                 auto_initialize=True,
                                 auto_generate_keys=True,
                                 passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
@@ -178,7 +178,7 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
 
-    config = AliceConfiguration(temp=True,
+    config = AliceConfiguration(dev=True,
                                 is_me=True,
                                 auto_initialize=True,
                                 auto_generate_keys=True,
@@ -196,7 +196,7 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
 
 @pytest.fixture(scope="module")
 def bob_federated_test_config():
-    config = BobConfiguration(temp=True,
+    config = BobConfiguration(dev=True,
                               auto_initialize=True,
                               auto_generate_keys=True,
                               passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
@@ -215,7 +215,7 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
 
-    config = BobConfiguration(temp=True,
+    config = BobConfiguration(dev=True,
                               auto_initialize=True,
                               auto_generate_keys=True,
                               checksum_address=bob_address,

@@ -21,7 +21,7 @@ import pytest
 import shutil
 from click.testing import CliRunner
 
-from nucypher.cli.main import cli
+from nucypher.cli.main import nucypher_cli
 from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
@@ -43,7 +43,7 @@ def test_initialize_configuration_files_and_directories(custom_filepath):
 
     # Use the system temporary storage area
     args = ['--dev', '--federated-only', 'configure', 'install', '--ursula', '--force']
-    result = runner.invoke(cli, args,
+    result = runner.invoke(nucypher_cli, args,
                            input='{}\n{}'''.format(TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                                    TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD),
                            catch_exceptions=False)
@@ -53,7 +53,7 @@ def test_initialize_configuration_files_and_directories(custom_filepath):
 
     # Use a custom local filepath
     args = ['--config-root', custom_filepath, '--federated-only', 'configure', 'install', '--ursula', '--force']
-    result = runner.invoke(cli, args,
+    result = runner.invoke(nucypher_cli, args,
                            input='{}\n{}'''.format(TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                                    TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD),
                            catch_exceptions=False)
@@ -65,15 +65,15 @@ def test_initialize_configuration_files_and_directories(custom_filepath):
     assert os.path.isdir(custom_filepath)
 
     # Ensure that there are not pre-existing configuration files at config_root
-    _result = runner.invoke(cli, args,
-                           input='{}\n{}'''.format(TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+    _result = runner.invoke(nucypher_cli, args,
+                            input='{}\n{}'''.format(TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                                    TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD),
-                           catch_exceptions=False)
+                            catch_exceptions=False)
     assert "There are existing configuration files" in _result.output
 
     # Destroy / Uninstall
     args = ['--config-root', custom_filepath, 'configure', 'destroy']
-    result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
+    result = runner.invoke(nucypher_cli, args, input='Y', catch_exceptions=False)
     assert '[y/N]' in result.output
     assert TEST_CUSTOM_INSTALLATION_PATH in result.output, "Configuration not in system temporary directory"
     assert 'Deleted' in result.output
@@ -89,8 +89,8 @@ def test_validate_runtime_filepaths(custom_filepath):
     runner = CliRunner()
 
     args = ['--config-root', custom_filepath, 'configure', 'install', '--no-registry']
-    result = runner.invoke(cli, args, input='Y', catch_exceptions=False)
-    result = runner.invoke(cli, ['--config-root', custom_filepath,
+    result = runner.invoke(nucypher_cli, args, input='Y', catch_exceptions=False)
+    result = runner.invoke(nucypher_cli, ['--config-root', custom_filepath,
                                  'configure', 'validate',
                                  '--filesystem',
                                  '--no-registry'], catch_exceptions=False)
@@ -100,7 +100,7 @@ def test_validate_runtime_filepaths(custom_filepath):
 
     # Remove the known nodes dir to "corrupt" the tree
     shutil.rmtree(os.path.join(custom_filepath, 'known_nodes'))
-    result = runner.invoke(cli, ['--config-root', custom_filepath,
+    result = runner.invoke(nucypher_cli, ['--config-root', custom_filepath,
                                  'configure', 'validate',
                                  '--filesystem',
                                  '--no-registry'], catch_exceptions=False)
