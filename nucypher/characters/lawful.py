@@ -15,27 +15,24 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import binascii
 import random
 from collections import OrderedDict
-from functools import partial
-from typing import Iterable, Callable
-from typing import List, Dict
 
 import maya
 import requests
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate
 from eth_utils import to_checksum_address
+from functools import partial
 from twisted.internet import threads
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
+from typing import Dict
+from typing import Iterable
+from typing import List
 
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow import constants
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
@@ -44,10 +41,11 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
 from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower
 from nucypher.keystore.keypairs import HostingKeypair
-from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
 
 class Alice(Character, PolicyAuthor):

@@ -62,7 +62,7 @@ class NodeConfiguration:
 
     def __init__(self,
 
-                 temp: bool = False,
+                 dev: bool = False,
                  config_root: str = DEFAULT_CONFIG_ROOT,
 
                  passphrase: str = None,
@@ -75,7 +75,7 @@ class NodeConfiguration:
                  checksum_address: str = None,
                  is_me: bool = True,
                  federated_only: bool = False,
-                 network_middleware: RestMiddleware = None,
+                 network_middleware: __DEFAULT_NETWORK_MIDDLEWARE_CLASS = None,
 
                  registry_source: str = REGISTRY_SOURCE,
                  registry_filepath: str = None,
@@ -114,8 +114,8 @@ class NodeConfiguration:
 
         # Configuration Root Directory
         self.config_root = UNINITIALIZED_CONFIGURATION
-        self.__temp = temp
-        if self.__temp:
+        self.__dev = dev
+        if self.__dev:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
             self.node_storage = InMemoryNodeStorage(federated_only=federated_only,
                                                     character_class=self.__class__)
@@ -138,7 +138,7 @@ class NodeConfiguration:
             #
             # Self
             #
-            if checksum_address and not self.__temp:
+            if checksum_address and not self.__dev:
                 self.read_keyring()
             self.network_middleware = network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS()
         else:
@@ -177,16 +177,16 @@ class NodeConfiguration:
         return self.produce(*args, **kwargs)
 
     def cleanup(self) -> None:
-        if self.__temp:
+        if self.__dev:
             self.__temp_dir.cleanup()
 
     @property
-    def temp(self):
-        return self.__temp
+    def dev(self):
+        return self.__dev
 
     def produce(self, passphrase: str = None, **overrides):
         """Initialize a new character instance and return it"""
-        if not self.temp:
+        if not self.dev:
             self.read_keyring()
             self.keyring.unlock(passphrase=passphrase)
         merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
@@ -311,7 +311,7 @@ class NodeConfiguration:
 
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
         power_ups = list()
-        if self.is_me and not self.temp:
+        if self.is_me and not self.dev:
             for power_class in self._character_class._default_crypto_powerups:
                 power_up = self.keyring.derive_crypto_power(power_class)
                 power_ups.append(power_up)
@@ -332,7 +332,7 @@ class NodeConfiguration:
         #
         # Create Config Root
         #
-        if self.__temp:
+        if self.__dev:
             self.__temp_dir = TemporaryDirectory(prefix=self.__TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
         else:
@@ -357,7 +357,7 @@ class NodeConfiguration:
             os.mkdir(self.known_certificates_dir, mode=0o755)  # known_certs
             self.node_storage.initialize()  # TODO: default known dir
 
-            if not self.temp and not no_keys:
+            if not self.dev and not no_keys:
                 # Keyring
                 self.write_keyring(passphrase=passphrase,
                                    wallet=wallet,
@@ -379,7 +379,7 @@ class NodeConfiguration:
             self.log.critical(message)
             raise NodeConfiguration.ConfigurationError(message)
 
-        if not self.__temp:
+        if not self.__dev:
             self.validate(config_root=self.config_root, no_registry=no_registry or self.federated_only)
         return self.config_root
 
@@ -434,7 +434,7 @@ class NodeConfiguration:
         output_filepath = output_filepath or self.registry_filepath
         source = source or self.REGISTRY_SOURCE
 
-        if not blank and not self.temp:
+        if not blank and not self.dev:
             # Validate Registry
             with open(source, 'r') as registry_file:
                 try:

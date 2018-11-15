@@ -14,6 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
 
 from constant_sorrow import constants
@@ -98,11 +100,12 @@ class UrsulaConfiguration(NodeConfiguration):
         return base_filepaths
 
     def initialize(self, tls: bool = True, host=None, *args, **kwargs):
-        super().initialize(tls=tls, host=host or self.rest_host, curve=self.tls_curve, *args, **kwargs)
+        install_path = super().initialize(tls=tls, host=host or self.rest_host, curve=self.tls_curve, *args, **kwargs)
         if self.db_name is constants.UNINITIALIZED_CONFIGURATION:
             self.db_name = self.__DB_TEMPLATE.format(self.rest_port)
         if self.db_filepath is constants.UNINITIALIZED_CONFIGURATION:
             self.db_filepath = os.path.join(self.config_root, self.db_name)
+        return install_path
 
     @property
     def static_payload(self) -> dict:
@@ -112,7 +115,7 @@ class UrsulaConfiguration(NodeConfiguration):
          db_name=self.db_name,
          db_filepath=self.db_filepath,
         )
-        if not self.temp:
+        if not self.dev:
             certificate_filepath = self.certificate_filepath or self.keyring.certificate_filepath
             payload.update(dict(certificate_filepath=certificate_filepath))
         return {**super().static_payload, **payload}
@@ -131,7 +134,7 @@ class UrsulaConfiguration(NodeConfiguration):
     def produce(self, passphrase: str = None, **overrides):
         """Produce a new Ursula from configuration"""
 
-        if not self.temp:
+        if not self.dev:
             self.read_keyring()
             self.keyring.unlock(passphrase=passphrase)
 
@@ -151,7 +154,7 @@ class UrsulaConfiguration(NodeConfiguration):
 
         ursula = self._character_class(**merged_parameters)
 
-        if self.temp:                  # TODO: Move this..?
+        if self.dev:                  # TODO: Move this..?
             class MockDatastoreThreadPool(object):
                 def callInThread(self, f, *args, **kwargs):
                     return f(*args, **kwargs)
