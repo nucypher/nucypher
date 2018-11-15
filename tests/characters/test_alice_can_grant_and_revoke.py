@@ -99,7 +99,40 @@ def test_federated_grant(federated_alice, federated_bob):
 
         assert kfrag == retrieved_kfrag
 
-    failed_revocations = alice.revoke(policy)
+
+@pytest.mark.usefixtures('federated_ursulas')
+def test_revocation(federated_alice, federated_bob):
+    m, n = 2, 3
+    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    label = b"revocation test"
+
+    policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
+
+    # Test that all arrangements are included in the RevocationKit
+    for node_id, arrangement_id in policy.treasure_map:
+        assert policy.revocation_kit[node_id].arrangement_id == arrangement_id
+
+    # Test that RevocationKits are deterministic from the TreasureMap
+    new_kit = RevocationKit(policy.treasure_map)
+    assert new_kit == policy.revocation_kit
+
+    # Test RevocationKit is unsigned by default
+    for revocation in policy.revocation_kit:
+        assert revocation.signature == constants.NOT_SIGNED
+
+    # Test RevocationKit signing and verification
+    policy.revocation_kit.sign_revocations(federated_alice.stamp)
+    for revocation in policy.revocation_kit:
+        assert RevocationKit.verify_revocation(revocation, federated_alice.stamp.as_umbral_pubkey())
+
+    # Test Revocation deserialization
+    revocation = policy.revocation_kit[node_id]
+    revocation_bytes = RevocationKit.revocation_to_bytes(revocation)
+    deserialized_revocation = RevocationKit.revocation_from_bytes(revocation_bytes)
+    assert deserialized_revocation == revocation
+
+    # Attempt to revoke the new policy
+    failed_revocations = federated_alice.revoke(policy)
     assert len(failed_revocations) == 0
 
 
