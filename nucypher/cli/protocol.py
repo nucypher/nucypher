@@ -91,23 +91,24 @@ class UrsulaCommandProtocol(LineReceiver):
         else:
             learning_status = "Unknown"
 
+        if self.ursula._current_teacher_node:
+            teacher = 'Current Teacher ..... {}'.format(self.ursula._current_teacher_node)
+        else:
+            teacher = 'Current Teacher ..... No Teacher Connection'
+
         stats = ['⇀URSULA {}↽'.format(self.ursula.nickname_icon),
                  '{}'.format(self.ursula),
-                 'Uptime ............ {}'.format(maya.now() - self.start_time),
-                 'Start Time ........ {}'.format(self.start_time.slang_time()),
-                 'Fleet State ....... {}'.format(self.ursula.known_nodes.checksum[:7]),
-                 'Learning Status ... {}'.format(learning_status),
-                 'Learning Round .... Round #{}'.format(self.ursula._learning_round),
-                 'Operating Mode .... {}'.format('Federated' if self.ursula.federated_only else 'Decentralized'),
-                 'Rest Interface .... {}'.format(self.ursula.rest_url()),
-                 'Node Storage Type . {}'.format(self.ursula.node_storage._name.capitalize()),
-                 'Known Nodes ....... {}'.format(len(self.ursula.known_nodes)),
-                 'Work Orders ....... {}'.format(len(self.ursula._work_orders))]
-
-        if self.ursula._current_teacher_node:
-            teacher = 'Current Teacher: {}: ({})'.format(self.ursula._current_teacher_node,
-                                                         self.ursula._current_teacher_node.rest_url())
-            stats.append(teacher)
+                 'Uptime .............. {}'.format(maya.now() - self.start_time),
+                 'Start Time .......... {}'.format(self.start_time.slang_time()),
+                 'Fleet State ......... {2} {1} ({0})'.format(self.ursula.known_nodes.checksum[:7], self.ursula.known_nodes.nickname, self.ursula.known_nodes.icon),
+                 'Learning Status ..... {}'.format(learning_status),
+                 'Learning Round ...... Round #{}'.format(self.ursula._learning_round),
+                 'Operating Mode ...... {}'.format('Federated' if self.ursula.federated_only else 'Decentralized'),
+                 'Rest Interface ...... {}'.format(self.ursula.rest_url()),
+                 'Node Storage Type ... {}'.format(self.ursula.node_storage._name.capitalize()),
+                 'Known Nodes ......... {}'.format(len(self.ursula.known_nodes)),
+                 'Work Orders ......... {}'.format(len(self.ursula._work_orders)),
+                 teacher]
 
         click.echo('\n' + '\n'.join(stats) + '\n')
 

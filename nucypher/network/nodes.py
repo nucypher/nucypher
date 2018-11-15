@@ -144,28 +144,17 @@ class FleetStateTracker:
     def nickname_metadata(self):
         return self._nickname_metadata
 
+    @property
+    def icon(self) -> str:
+        return self.nickname_metadata[0][1]
+
     def addresses(self):
         return self._nodes.keys()
 
-    def icon(self):
-        if self.checksum is constants.NO_KNOWN_NODES:
-            return "NO FLEET STATE AVAILABLE"
-        icon_template = """
-        <div class="nucypher-nickname-icon" style="border-color:{color};">
-        <div class="small">{number_of_nodes} nodes</div>
-        <div class="symbols">
-            <span class="single-symbol" style="color: {color}">{symbol}&#xFE0E;</span>
-        </div>
-        <br/>
-        <span class="small-address">{fleet_state_checksum}</span>
-        </div>
-        """.replace("  ", "").replace('\n', "")
-        return icon_template.format(
-            number_of_nodes=len(self),
-            color=self.nickname_metadata[0][0]['hex'],
-            symbol=self.nickname_metadata[0][1],
-            fleet_state_checksum=self.checksum[0:8]
-        )
+    def icon_html(self):
+        return icon_from_checksum(checksum=self.checksum,
+                                  number_of_nodes=len(self),
+                                  nickname_metadata=self.nickname_metadata)
 
     def snapshot(self):
         fleet_state_checksum_bytes = binascii.unhexlify(self.checksum)
@@ -187,8 +176,8 @@ class FleetStateTracker:
             # For now we store the sorted node list.  Someday we probably spin this out into
             # its own class, FleetState, and use it as the basis for partial updates.
             self.states[checksum] = self.state_template(nickname=self.nickname,
-                                                        icon=self.icon(),
                                                         nodes=sorted_nodes,
+                                                        icon=self.icon_html(),
                                                         updated=self.updated,
                                                         )
 
