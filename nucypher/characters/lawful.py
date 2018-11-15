@@ -170,22 +170,27 @@ class Alice(Character, PolicyAuthor):
         Parses the treasure map and revokes arrangements in it.
         If any arrangements can't be revoked (other than a 404 status), then
         the node_id and arrangement_id are added to a list and returned.
-
-        TODO: How do we tell the user that a revocation was successful or not?
         """
-        failed_revocations = list()
-        for node_id, arrangement_id in policy.treasure_map:
-            # TODO: What about nodes we don't know about?
-            ursula = self._known_nodes[node_id]
-            try:
-                self.network_middleware.revoke_arrangement(ursula, arrangement_id)
-            except RuntimeError as e:
-                # Check the status code of the response to determine what to do
-                # TODO: What do we do in the event of a 404? Is there are way
-                # to check if it's a real 404 and not SuspiciousActivity?
-                if e[1] != 404:
-                    failed_revocations.append((node_id, arrangement_id))
-                continue
+        # Sign the revocations in the RevocationKit in preparation for
+        # sending to Ursula.
+        policy.revocation_kit.sign_revocations(self.stamp)
+
+        try:
+            # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
+            revocation_threshold = ((policy.n - policy.treasure_map.m) + 1)
+            self.block_until_specific_nodes_are_known(
+                    policy.revocation_kit.revokable_addresses,
+                    allow_missing=revocation_threshold)
+        except self.NotEnoughTeachers as e:
+            raise e
+        else:
+            failed_revocations = list()
+            for node_id in policy.revocation_kit.revokable_addresses:
+                ursula = self.known_nodes[node_id]
+                revocation = policy.revocation_kit[node_id]
+                response = self.network_middleware.revoke_arrangement(ursula, revocation)
+                if response.status_code != 200:
+                    failed_revocations.append(notice)
         return failed_revocations
 
 

@@ -27,6 +27,7 @@ from nucypher.characters.lawful import Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import SigningPower, DelegatingPower, EncryptingPower
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware

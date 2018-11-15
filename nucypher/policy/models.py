@@ -248,6 +248,9 @@ class Policy:
             self.treasure_map.add_arrangement(arrangement)
 
         else:  # ...After *all* the policies are enacted
+            # Create Alice's revocation kit
+            self.revocation_kit = RevocationKit(self.treasure_map)
+
             if publish is True:
                 return self.publish(network_middleware)
 

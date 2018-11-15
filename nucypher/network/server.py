@@ -261,15 +261,27 @@ class ProxyRESTRoutes:
         TODO: How do we want to verify that this request comes from Alice?
               What/How is she going to sign?
         """
-        arrangement_id = request.body
+        from nucypher.crypto.kits import RevocationKit
+
+        revocation = RevocationKit.revocation_from_bytes(request.body)
         try:
             with ThreadedSession(self.db_engine) as session:
-                self.datastore.del_policy_arrangement(
-                    arrangement_id,
-                    session=session)
-        except NotFound:
-            return 404  # TODO: Should we 404 or do something else?
-        return 200
+                # Verify the Notice was signed by Alice
+                policy_arrangement = self.datastore.get_policy_arrangement(
+                    id_as_hex.encode(), session=session)
+                alice_pubkey = UmbralPublicKey.from_bytes(
+                    policy_arrangement.alice_pubkey_sig.key_data)
+
+                # Check that the request is the same for the provided revocation
+                if not id_as_hex.encode() == revocation.arrangement_id:
+                    return 400
+                elif RevocationKit.verify_revocation(revocation, alice_pubkey):
+                    self.datastore.del_policy_arrangement(
+                        id_as_hex.encode(), session=session)
+        except (NotFound, InvalidSignature):
+            return 404
+        else:
+            return 200
 
     def reencrypt_via_rest(self, id_as_hex, request: http.Request):
         from nucypher.policy.models import WorkOrder  # Avoid circular import
