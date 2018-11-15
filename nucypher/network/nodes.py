@@ -950,7 +950,7 @@ class Teacher:
     def from_seed_and_stake_info(cls, host,
                                  certificates_directory,
                                  federated_only,
-                                 port=9151,
+                                 port,
                                  checksum_address=None,
                                  minimum_stake=0,
                                  network_middleware=None,
@@ -1004,9 +1004,8 @@ class Teacher:
                       host: str,
                       port: int,
                       certificate_filepath,
-                      federated_only: bool = False,
-                      *args,
-                      **kwargs):
+                      federated_only: bool = False
+                      ):
 
         response = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
         if not response.status_code == 200:
@@ -1015,7 +1014,11 @@ class Teacher:
         stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only)
         return stranger_ursula_from_public_keys
 
+    @property
     def nickname_icon(self):
+        return '{} {}'.format(self.nickname_metadata[0][1], self.nickname_metadata[1][1])
+
+    def nickname_icon_html(self):
         icon_template = """
         <div class="nucypher-nickname-icon" style="border-top-color:{first_color}; border-left-color:{first_color}; border-bottom-color:{second_color}; border-right-color:{second_color};">
         <span class="small">{node_class}</span>
