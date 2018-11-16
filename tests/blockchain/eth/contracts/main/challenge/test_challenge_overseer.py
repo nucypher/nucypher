@@ -25,11 +25,13 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
-from umbral import pre
 
+from umbral import pre
 from umbral.config import default_params
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signature, Signer
+
+from nucypher.policy.models import UnquestionableEvidence
 
 
 def sign_data(data, umbral_privkey):
@@ -85,8 +87,7 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     u_xcoord, u_ycoord = umbral_params.u.to_affine()
     u_sign = 2 + (u_ycoord % 2)
     assert u_sign == challenge_contract.functions.UMBRAL_PARAMETER_U_SIGN().call()
-    # TODO: Needs to wait until new umbral release
-    #assert u_xcoord == challenge_contract.functions.UMBRAL_PARAMETER_U_XCOORD().call()
+    assert u_xcoord == challenge_contract.functions.UMBRAL_PARAMETER_U_XCOORD().call()
 
     # Prepare one miner
     tx = escrow.functions.setMinerInfo(miner, 1000).transact()
@@ -107,10 +108,13 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
 
     # Prepare hash of the data
     metadata = os.urandom(33)
-    some_data = os.urandom(22)
     capsule, cfrag = fragments(metadata)
     capsule_bytes = capsule.to_bytes()
     cfrag_bytes = cfrag.to_bytes()
+
+    some_data = UnquestionableEvidence(capsule, cfrag).precompute_values()
+    assert len(some_data) == 14 * 32
+
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
     hash_ctx.update(capsule_bytes + cfrag_bytes)
     data_hash = hash_ctx.finalize()
