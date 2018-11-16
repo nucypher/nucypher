@@ -14,6 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import contextlib
 import os
 
@@ -23,41 +25,38 @@ import requests
 from moto import mock_s3
 
 from nucypher.characters.lawful import Ursula
-from nucypher.config.storages import S3NodeStorage, InMemoryNodeStorage, TemporaryFileBasedNodeStorage, NodeStorage
+from nucypher.config.storages import (
+    S3NodeStorage,
+    InMemoryNodeStorage,
+    TemporaryFileBasedNodeStorage,
+    NodeStorage,
+    LocalFileBasedNodeStorage
+)
 
 MOCK_S3_BUCKET_NAME = 'mock-seednodes'
 S3_DOMAIN_NAME = 's3.amazonaws.com'
 
 
-@pytest.fixture(scope='function')
-def light_ursula(temp_dir_path):
-    db_name = 'ursula-{}.db'.format(10151)
+class BaseTestNodeStorageBackends:
 
-    node = Ursula(rest_host='127.0.0.1',
-                  rest_port=10151,
-                  db_filepath=db_name,  # TODO: Needs cleanup
-                  db_name=db_name,
-                  federated_only=True)
-    yield node
-    with contextlib.suppress(Exception):
-        os.remove(db_name)
+    @pytest.fixture(scope='class')
+    def light_ursula(temp_dir_path):
+        db_name = 'ursula-{}.db'.format(10151)
+        try:
+            node = Ursula(rest_host='127.0.0.1',
+                          rest_port=10151,
+                          db_filepath=db_name,
+                          db_name=db_name,
+                          federated_only=True)
 
+            yield node
+        finally:
+            with contextlib.suppress(Exception):
+                os.remove(db_name)
 
-@pytest.fixture(scope='function')
-def memory_node_storage():
-    _node_storage = InMemoryNodeStorage(character_class=Ursula, federated_only=True)
-    _node_storage.initialize()
-    return _node_storage
-
-
-@pytest.fixture(scope='function')
-def local_node_storage():
-    _node_storage = TemporaryFileBasedNodeStorage(character_class=Ursula, federated_only=True)
-    _node_storage.initialize()
-    return _node_storage
-
-
-class TestNodeStorageBackends:
+    character_class = Ursula
+    federated_only = True
+    storage_backend = NotImplemented
 
     def _read_and_write_to_storage(self, ursula, node_storage):
         # Write Node
@@ -111,35 +110,41 @@ class TestNodeStorageBackends:
     #
     # Storage Backed Tests
     #
-    @pytest.mark.parametrize("storage_factory", [
-        memory_node_storage,
-        local_node_storage,
-    ])
-    def test_delete_node_in_storage(self, light_ursula, storage_factory):
-        assert self._write_and_delete_nodes_in_storage(ursula=light_ursula, node_storage=storage_factory())
 
-    @pytest.mark.parametrize("storage_factory", [
-        memory_node_storage,
-        local_node_storage,
-    ])
-    def test_read_and_write_to_storage(self, light_ursula, storage_factory):
-        assert self._read_and_write_to_storage(ursula=light_ursula, node_storage=storage_factory())
+    def test_delete_node_in_storage(self, light_ursula):
+        assert self._write_and_delete_nodes_in_storage(ursula=light_ursula, node_storage=self.storage_backend)
+
+    def test_read_and_write_to_storage(self, light_ursula):
+        assert self._read_and_write_to_storage(ursula=light_ursula, node_storage=self.storage_backend)
 
 
-@pytest.mark.skip('New version of boto, moto, or subdependency breaks S3 mocking. Needs Investigation')
-class TestS3NodeStorageDirect:
+class TestInMemoryNodeStorage(BaseTestNodeStorageBackends):
+    storage_backend = InMemoryNodeStorage(character_class=BaseTestNodeStorageBackends.character_class,
+                                          federated_only=BaseTestNodeStorageBackends.federated_only)
+    storage_backend.initialize()
+
+
+class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
+    storage_backend = TemporaryFileBasedNodeStorage(character_class=BaseTestNodeStorageBackends.character_class,
+                                                    federated_only=BaseTestNodeStorageBackends.federated_only)
+    storage_backend.initialize()
+
+
+@pytest.mark.skip("Fails after moto / boto update: Needs investigation")
+class TestS3NodeStorageDirect(BaseTestNodeStorageBackends):
 
     @mock_s3
-    def s3_node_storage_factory(self):
+    def setup_class(self):
         conn = boto3.resource('s3')
         # We need to create the __bucket since this is all in Moto's 'virtual' AWS account
         conn.create_bucket(Bucket=MOCK_S3_BUCKET_NAME, ACL=S3NodeStorage.S3_ACL)
-        _mock_storage = S3NodeStorage(bucket_name=MOCK_S3_BUCKET_NAME,
-                                      s3_resource=conn,
-                                      character_class=Ursula,
-                                      federated_only=True)
-        _mock_storage.initialize()
-        return _mock_storage
+
+        storage_backend = S3NodeStorage(character_class=BaseTestNodeStorageBackends.character_class,
+                                        federated_only=BaseTestNodeStorageBackends.federated_only,
+                                        bucket_name=MOCK_S3_BUCKET_NAME,
+                                        s3_resource=conn
+                                        )
+        storage_backend.initialize()
 
     @mock_s3
     def test_generate_presigned_url(self, light_ursula):
