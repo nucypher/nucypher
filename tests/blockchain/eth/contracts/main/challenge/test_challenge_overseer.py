@@ -27,6 +27,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from umbral import pre
 
+from umbral.config import default_params
 from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signature, Signer
 
@@ -78,6 +79,14 @@ def fragments(metadata):
 @pytest.mark.slow
 def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     creator, miner, wrong_miner, *everyone_else = testerchain.interface.w3.eth.accounts
+
+    # TODO: Move this to an integration test
+    umbral_params = default_params()
+    u_xcoord, u_ycoord = umbral_params.u.to_affine()
+    u_sign = 2 + (u_ycoord % 2)
+    assert u_sign == challenge_contract.functions.UMBRAL_PARAMETER_U_SIGN().call()
+    # TODO: Needs to wait until new umbral release
+    #assert u_xcoord == challenge_contract.functions.UMBRAL_PARAMETER_U_XCOORD().call()
 
     # Prepare one miner
     tx = escrow.functions.setMinerInfo(miner, 1000).transact()
