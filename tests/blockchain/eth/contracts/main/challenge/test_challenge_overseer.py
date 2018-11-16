@@ -69,8 +69,8 @@ def fragments(metadata):
                                  receiving_pubkey=pub_key_bob,
                                  threshold=2,
                                  N=4,
-                                 sign_delegating_key=True,
-                                 sign_receiving_key=True)
+                                 sign_delegating_key=False,
+                                 sign_receiving_key=False)
     capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_privkey.get_pubkey())
     cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
     return capsule, cfrag
