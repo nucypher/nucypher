@@ -687,25 +687,34 @@ class UnquestionableEvidence:
 
     def precompute_values(self) -> bytes:
 
-        point_e, point_v, _ = self.capsule.components()
+        umbral_params = default_params()
+        e, v, _ = self.capsule.components()
 
         # TODO: Change this with new umbral release
-        point_e1 = self.cfrag.point_e1
-        point_v1 = self.cfrag.point_v1
-        point_e2 = self.cfrag.proof.point_e2
-        point_v2 = self.cfrag.proof.point_v2
-        point_u1 = self.cfrag.proof.point_kfrag_commitment
-        point_u2 = self.cfrag.proof.point_kfrag_pok
+        e1 = self.cfrag.point_e1
+        v1 = self.cfrag.point_v1
+        e2 = self.cfrag.proof.point_e2
+        v2 = self.cfrag.proof.point_v2
+        u = umbral_params.u
+        u1 = self.cfrag.proof.point_kfrag_commitment
+        u2 = self.cfrag.proof.point_kfrag_pok
+        metadata = self.cfrag.proof.metadata
 
-        # TODO: Placeholder until new umbral release
-        h = CurveBN.from_int(42)
-        point_e1h = h * point_e1
-        point_v1h = h * point_v1
+        from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
+
+        hash_input = (e, e1, e2, v, v1, v2, u, u1, u2, metadata)
+
+        h = hash_to_curvebn(*hash_input,
+                            params=umbral_params,
+                            hash_class=ExtendedKeccak)
+
+        e1h = h * e1
+        v1h = h * v1
 
         z = self.cfrag.proof.bn_sig
-        point_ez = z * point_e
-        point_vz = z * point_v
-        point_uz = z * default_params().u
+        ez = z * e
+        vz = z * v
+        uz = z * u
 
         def raw_bytes_from_point(point: Point, only_y_coord=False) -> bytes:
             if only_y_coord:
@@ -714,16 +723,16 @@ class UnquestionableEvidence:
             else:
                 return point.to_bytes(is_compressed=False)[1:]
 
-        e_y = raw_bytes_from_point(point_e, only_y_coord=True)
-        ez_xy = raw_bytes_from_point(point_ez)
-        e1_y = raw_bytes_from_point(point_e1, only_y_coord=True)
-        e1h_xy = raw_bytes_from_point(point_e1h)
-        e2_y = raw_bytes_from_point(point_e2, only_y_coord=True)
-        v_y = raw_bytes_from_point(point_v, only_y_coord=True)
-        vz_xy = raw_bytes_from_point(point_vz)
-        v1_y = raw_bytes_from_point(point_v1, only_y_coord=True)
-        v1h_xy = raw_bytes_from_point(point_v1h)
-        v2_y = raw_bytes_from_point(point_v2, only_y_coord=True)
+        e_y = raw_bytes_from_point(e, only_y_coord=True)
+        ez_xy = raw_bytes_from_point(ez)
+        e1_y = raw_bytes_from_point(e1, only_y_coord=True)
+        e1h_xy = raw_bytes_from_point(e1h)
+        e2_y = raw_bytes_from_point(e2, only_y_coord=True)
+        v_y = raw_bytes_from_point(v, only_y_coord=True)
+        vz_xy = raw_bytes_from_point(vz)
+        v1_y = raw_bytes_from_point(v1, only_y_coord=True)
+        v1h_xy = raw_bytes_from_point(v1h)
+        v2_y = raw_bytes_from_point(v2, only_y_coord=True)
 
         pieces = (
             e_y, ez_xy, e1_y, e1h_xy, e2_y, v_y, vz_xy, v1_y, v1h_xy, v2_y
