@@ -130,7 +130,7 @@ setup(name=ABOUT['__title__'],
       # Entry Points
       entry_points={'console_scripts': [
           '{0} = {0}.cli.main:nucypher_cli'.format(PACKAGE_NAME),
-          '{0}-deploy = {0}.cli.deploy:cli'.format(PACKAGE_NAME)
+          '{0}-deploy = {0}.cli.deploy:deploy'.format(PACKAGE_NAME)
       ]},
       cmdclass={'verify': VerifyVersionCommand},
 

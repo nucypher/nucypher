@@ -26,4 +26,4 @@ def test_help_message():
     result = runner.invoke(nucypher_cli, ['--help'], catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert 'Usage: cli [OPTIONS] COMMAND [ARGS]' in result.output, 'Missing or invalid help text was produced.'
+    assert '[OPTIONS] COMMAND [ARGS]'.format('nucypher') in result.output, 'Missing or invalid help text was produced.'

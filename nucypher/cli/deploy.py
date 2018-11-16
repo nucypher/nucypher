@@ -44,7 +44,6 @@ class NucypherDeployerClickConfig:
 uses_deployer_config = click.make_pass_decorator(NucypherDeployerClickConfig, ensure=True)
 
 
-@uses_deployer_config
 @click.command()
 @click.argument('action')
 @click.option('--contract-name',
@@ -58,6 +57,7 @@ uses_deployer_config = click.make_pass_decorator(NucypherDeployerClickConfig, en
               help="Output path for new registry",
               type=click.Path(),
               default=NodeConfiguration.REGISTRY_SOURCE)
+@uses_deployer_config
 def deploy(config,
            action,
            deployer_address,
