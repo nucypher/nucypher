@@ -89,6 +89,16 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     assert u_sign == challenge_contract.functions.UMBRAL_PARAMETER_U_SIGN().call()
     assert u_xcoord == challenge_contract.functions.UMBRAL_PARAMETER_U_XCOORD().call()
 
+    # TODO: Move this to an integration test
+    test_data = b"test"
+    from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
+    h = hash_to_curvebn(test_data,
+                        params=umbral_params,
+                        hash_class=ExtendedKeccak)
+    h = int(h)
+    h2 = challenge_contract.functions.extendedKeccakToBN(test_data).call()
+    assert h == h2
+
     # Prepare one miner
     tx = escrow.functions.setMinerInfo(miner, 1000).transact()
     testerchain.wait_for_receipt(tx)
