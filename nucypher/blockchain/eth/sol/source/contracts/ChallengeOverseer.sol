@@ -60,7 +60,6 @@ contract ChallengeOverseer {
         bytes _requesterPublicKey,
         bytes _minerPublicKey,
         bytes _minerPublicKeySignature,
-        // TODO rename
         bytes _preComputedData
     )
         public
@@ -93,9 +92,11 @@ contract ChallengeOverseer {
         require(minerValue > 0);
 
         // Verify correctness of re-encryption
+        UmbralDeserializer.Capsule memory capsule = _capsuleBytes.toCapsule();
+        UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
+        UmbralDeserializer.PreComputedData memory data = _preComputedData.toPreComputedData();
         challengedCFrags[challengeHash] = true;
-        if (!isCapsuleFragCorrect(
-            _capsuleBytes.toCapsule(), _cFragBytes.toCapsuleFrag(), _preComputedData.toPreComputedData())) {
+        if (!isCapsuleFragCorrect(capsule, cFrag, data)) {
             // TODO calculate penalty - depends on how many time was slashed
             // TODO set reward
             escrow.slashMiner(miner, PENALTY, msg.sender, PENALTY);
@@ -223,18 +224,22 @@ contract ChallengeOverseer {
         return ez_is_correct && e1h_is_correct && sum_is_correct;
     }
 
-    function extendedKeccak (bytes _data) internal pure returns (bytes32, bytes32) {
-        return (keccak256(abi.encodePacked(uint8(0x01), _data)),
-                keccak256(abi.encodePacked(uint8(0x02), _data)));
-    }
+//    function extendedKeccak (bytes _data) internal pure returns (bytes32, bytes32) {
+//        return (keccak256(abi.encodePacked(uint8(0x00), _data)),
+//                keccak256(abi.encodePacked(uint8(0x01), _data)));
+//    }
 
     function extendedKeccakToBN (bytes _data) internal pure returns (uint256) {
 
         bytes32 upper;
         bytes32 lower;
 
-        (upper, lower) = (keccak256(abi.encodePacked(uint8(0x01), _data)),
-                          keccak256(abi.encodePacked(uint8(0x02), _data)));
+        // Umbral prepends to the data a customization string of 64-bytes.
+        // In the case of hash_to_curvebn is 'hash_to_curvebn', padded with zeroes.
+        bytes memory input = abi.encodePacked(bytes32("hash_to_curvebn"), bytes32(0x00), _data);
+
+        (upper, lower) = (keccak256(abi.encodePacked(uint8(0x00), input)),
+                          keccak256(abi.encodePacked(uint8(0x01), input)));
 
         uint256 delta = 0x14551231950b75fc4402da1732fc9bec0;
         uint256 n_minus_1 = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140;
