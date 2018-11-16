@@ -11,6 +11,10 @@ import "./MinersEscrow.sol";
 * @notice Challenges for NuCypher net characters
 **/
 contract ChallengeOverseer {
+
+    uint8 public constant UMBRAL_PARAMETER_U_SIGN = 0x02;
+    uint256 public constant UMBRAL_PARAMETER_U_XCOORD = 0x03c98795773ff1c241fc0b1cced85e80f8366581dda5c9452175ebd41385fa1f;
+
     using UmbralDeserializer for bytes;
 
     // TODO events
@@ -156,9 +160,8 @@ contract ChallengeOverseer {
         hashInput = abi.encodePacked(
             hashInput,
             // Point U
-            // TODO: MAKE SURE IT IS UPDATED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            bytes1(0x02),
-            bytes32(0xef62d276f6f311573b29790b970f2c4b4e44637c0c45f0838ffdc9167a05b999),
+            bytes1(UMBRAL_PARAMETER_U_SIGN),
+            bytes32(UMBRAL_PARAMETER_U_XCOORD),
             // Point U1
             _cFrag.proof.pointKFragCommitment.sign,
             _cFrag.proof.pointKFragCommitment.xCoord,
