@@ -66,7 +66,8 @@ from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.utilities.decorators import validate_checksum_address
-from nucypher.policy.models import UnquestionableEvidence
+# TODO: Fix circular import issue
+#from nucypher.policy.models import UnquestionableEvidence
 
 
 class Alice(Character, PolicyAuthor):
@@ -560,7 +561,9 @@ class Bob(Character):
         return cleartexts
 
     def collect_evidence(self, capsule, cfrag):
-        return UnquestionableEvidence(capsule, cfrag)
+        pass
+        # TODO: Fix circular import problem
+        # return UnquestionableEvidence(capsule, cfrag)
 
 def make_wsgi_app(drone_bob, start_learning=True):
         bob_control = Flask('bob-control')
