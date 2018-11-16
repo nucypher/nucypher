@@ -111,7 +111,7 @@ class FleetStateTracker:
         return bool(self._nodes)
 
     def __contains__(self, item):
-        return item in self._nodes.values()
+        return item in self._nodes.keys() or item in self._nodes.values()
 
     def __iter__(self):
         yield from self._nodes.values()
