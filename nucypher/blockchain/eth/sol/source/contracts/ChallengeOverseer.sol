@@ -229,7 +229,8 @@ contract ChallengeOverseer {
 //                keccak256(abi.encodePacked(uint8(0x01), _data)));
 //    }
 
-    function extendedKeccakToBN (bytes _data) internal pure returns (uint256) {
+    // TODO: Consider changing to internal
+    function extendedKeccakToBN (bytes _data) public pure returns (uint256) {
 
         bytes32 upper;
         bytes32 lower;
