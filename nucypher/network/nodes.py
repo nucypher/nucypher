@@ -297,7 +297,7 @@ class Learner:
             seed_node = Ursula.from_seednode_metadata(seednode_metadata=seednode_metadata,
                                                       network_middleware=self.network_middleware,
                                                       certificates_directory=self.known_certificates_dir,
-                                                      timeout=timeout,
+                                                      # timeout=timeout,
                                                       federated_only=self.federated_only)  # TODO: 466
             if seed_node is False:
                 self.unresponsive_seed_nodes.add(seednode_metadata)

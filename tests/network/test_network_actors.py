@@ -41,8 +41,8 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
             if address == propagating_ursula.checksum_public_address:
                 continue
             else:
-                assert address in propagating_ursula.known_nodes, "{} did not know about {}".format(propagating_ursula,
-                                                                                                nickname_from_seed(address))
+                assert address in propagating_ursula.known_nodes.addresses(), "{} did not know about {}".format(propagating_ursula,
+                                                                                                                nickname_from_seed(address))
 
 
 @pytest.mark.slow()

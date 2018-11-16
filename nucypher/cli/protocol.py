@@ -135,7 +135,7 @@ class UrsulaCommandProtocol(LineReceiver):
             'status': self.paintStatus,
             'stop': reactor.stop,
             'cycle_teacher': self.ursula.cycle_teacher_node,
-            'update_fleet_state': self.ursula.update_fleet_state,
+            'update_snapshot': self.ursula.update_snapshot,
             'start_learning': self.ursula.start_learning_loop,
             'stop_learning': self.ursula.stop_learning_loop
         }
