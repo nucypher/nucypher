@@ -8,7 +8,6 @@ import "./MinersEscrow.sol";
 
 /**
 * @notice Challenges for NuCypher net characters
-* @dev TODO move or integrate with MinersEscrow
 **/
 contract ChallengeOverseer {
     using UmbralDeserializer for bytes;
