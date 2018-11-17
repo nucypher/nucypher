@@ -16,16 +16,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-from twisted.logger import globalLogPublisher
+from twisted.logger import globalLogPublisher, LogLevel
 
 from nucypher.cli import NucypherClickConfig
-from nucypher.utilities.logging import simpleObserver
-
+from nucypher.utilities.logging import SimpleObserver
 
 # Logger Configuration
 NucypherClickConfig.log_to_sentry = False
-globalLogPublisher.addObserver(simpleObserver)
-
 
 # Pytest configuration
 pytest_plugins = [
@@ -41,9 +38,12 @@ def pytest_addoption(parser):
 
 
 def pytest_collection_modifyitems(config, items):
-    if config.getoption("--runslow"):   # --runslow given in cli: do not skip slow tests
-        return
-    skip_slow = pytest.mark.skip(reason="need --runslow option to run")
-    for item in items:
-        if "slow" in item.keywords:
-            item.add_marker(skip_slow)
+
+    if not config.getoption("--runslow"):   # --runslow given in cli: do not skip slow tests
+        skip_slow = pytest.mark.skip(reason="need --runslow option to run")
+        for item in items:
+            if "slow" in item.keywords:
+                item.add_marker(skip_slow)
+    log_level_name = config.getoption("--log-level", "info", skip=True)
+    observer = SimpleObserver(log_level_name)
+    globalLogPublisher.addObserver(observer)
