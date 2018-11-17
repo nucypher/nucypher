@@ -15,13 +15,13 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import datetime
 import pathlib
 
 from sentry_sdk import capture_exception, add_breadcrumb
 from twisted.logger import FileLogObserver, jsonFileLogObserver
-from twisted.python.log import ILogObserver
+from twisted.logger import ILogObserver
+from twisted.logger import LogLevel
 from twisted.python.logfile import DailyLogFile
 from zope.interface import provider
 
@@ -59,21 +59,21 @@ def getTextFileObserver():
     return observer
 
 
-@provider(ILogObserver)
-def simpleObserver(event):
-    message = '{level} ({source}): {message}'.format(level=event.get('log_level').name.upper(),
-                                                     source=event.get('log_namespace'),
-                                                     message=event.get('log_format'))
-    print(message)
+class SimpleObserver:
+
+    def __init__(self, log_level_name="info"):
+        self.log_level = LogLevel.levelWithName(log_level_name)
+
+    @provider(ILogObserver)
+    def __call__(self, event):
+        if event['log_level'] >= self.log_level:
+            message = '{} ({}): {}'.format(event.get('log_level').name.upper(),
+                                           event.get('log_namespace'),
+                                           event.get('log_format'))
+            print(message)
 
 
-@provider(ILogObserver)
 def logToSentry(event):
-    """
-    Twisted observer for Sentry...
-    Capture tracebacks and leave a trail of breadcrumbs.
-    """
-
     # Handle Logs
     if not event.get('isError') or 'failure' not in event:
         add_breadcrumb(level=event.get('log_level').name,
