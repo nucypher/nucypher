@@ -92,7 +92,7 @@ class FleetStateTracker:
     def __init__(self):
         self.additional_nodes_to_track = []
         self.updated = maya.now()
-        self._nodes = {}
+        self._nodes = OrderedDict()
         self.states = OrderedDict()
 
     def __setitem__(self, key, value):
@@ -100,7 +100,7 @@ class FleetStateTracker:
 
         if self._tracking:
             self.log.info("Updating fleet state after saving node {}".format(value))
-            self.update_fleet_state()
+            self.record_fleet_state()
         else:
             self.log.debug("Not updating fleet state.")
 
@@ -121,6 +121,9 @@ class FleetStateTracker:
 
     def __eq__(self, other):
         return self._nodes == other._nodes
+
+    def __repr__(self):
+        return self._nodes.__repr__()
 
     @property
     def checksum(self):
@@ -152,8 +155,15 @@ class FleetStateTracker:
         fleet_state_updated_bytes = self.updated.epoch.to_bytes(4, byteorder="big")
         return fleet_state_checksum_bytes + fleet_state_updated_bytes
 
-    def update_fleet_state(self):
-        checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted())).hex()
+    def record_fleet_state(self, additional_nodes_to_track=None):
+        if not self._nodes:
+            # No news here.
+            return
+        if additional_nodes_to_track:
+            self.additional_nodes_to_track.extend(additional_nodes_to_track)
+        sorted_nodes = self.sorted()
+        sorted_nodes_joined = b"".join(bytes(n) for n in sorted_nodes)
+        checksum = keccak_digest(sorted_nodes_joined).hex()
         if checksum != self.checksum:
             self.checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted())).hex()
             self.updated = maya.now()
@@ -161,14 +171,9 @@ class FleetStateTracker:
             # its own class, FleetState, and use it as the basis for partial updates.
             self.states[checksum] = self.state_template(nickname=self.nickname,
                                                         icon=self.icon(),
-                                                        nodes=self.sorted(),
+                                                        nodes=sorted_nodes,
                                                         updated=self.updated,
                                                         )
-
-    def start_tracking_state(self, additional_nodes_to_track=[]):
-        self.additional_nodes_to_track.extend(additional_nodes_to_track)
-        self._tracking = True
-        self.update_fleet_state()
 
     def sorted(self):
         nodes_to_consider = list(self._nodes.values()) + self.additional_nodes_to_track
@@ -313,7 +318,7 @@ class Learner:
         for node in stored_nodes:
             self.remember_node(node)
 
-    def remember_node(self, node, force_verification_check=False):
+    def remember_node(self, node, force_verification_check=False, record_fleet_state=True):
 
         if node == self:  # No need to remember self.
             return False
@@ -342,8 +347,8 @@ class Learner:
         listeners = self._learning_listeners.pop(node.checksum_public_address, tuple())
         address = node.checksum_public_address
 
-        self.__known_nodes[address] = node
-        if self in self.known_nodes._nodes.values():
+        self.known_nodes[address] = node
+        if self in self.known_nodes:
             raise RuntimeError
 
         if self.save_metadata:
@@ -353,6 +358,9 @@ class Learner:
         for listener in listeners:
             listener.add(address)
         self._node_ids_to_learn_about_immediately.discard(address)
+
+        if record_fleet_state:
+            self.known_nodes.record_fleet_state()
 
         return True
 
@@ -660,7 +668,7 @@ class Learner:
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                           "Propagated by: {}".format(current_teacher.checksum_public_address, rest_url)
                 self.log.warn(message)
-            new = self.remember_node(node)
+            new = self.remember_node(node, record_fleet_state=False)
             if new:
                 new_nodes.append(node)
 
@@ -671,9 +679,11 @@ class Learner:
                                                         current_teacher,
                                                         len(node_list),
                                                         len(new_nodes)), )
-        if new_nodes and self.known_certificates_dir:
-            for node in new_nodes:
-                node.save_certificate_to_disk(self.known_certificates_dir, force=True)
+        if new_nodes:
+            self.known_nodes.record_fleet_state()
+            if self.known_certificates_dir:
+                for node in new_nodes:
+                    node.save_certificate_to_disk(self.known_certificates_dir, force=True)
 
         return new_nodes
 

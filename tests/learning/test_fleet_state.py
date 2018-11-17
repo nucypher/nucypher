@@ -41,20 +41,50 @@ def test_old_state_is_preserved(federated_ursulas, ursula_federated_test_config)
                                   ursula_config=ursula_federated_test_config,
                                   quantity=1,
                                   know_each_other=False)
-    another_ursula = lonely_ursula_maker().pop()
+    lonely_learner = lonely_ursula_maker().pop()
 
     # This Ursula doesn't know about any nodes.
-    assert len(another_ursula.known_nodes) == 0
+    assert len(lonely_learner.known_nodes) == 0
 
     some_ursula_in_the_fleet = list(federated_ursulas)[0]
-    another_ursula.remember_node(some_ursula_in_the_fleet)
-    checksum_after_learning_one = another_ursula.known_nodes.checksum
+    lonely_learner.remember_node(some_ursula_in_the_fleet)
+    checksum_after_learning_one = lonely_learner.known_nodes.checksum
 
     another_ursula_in_the_fleet = list(federated_ursulas)[1]
-    another_ursula.remember_node(another_ursula_in_the_fleet)
-    checksum_after_learning_two = another_ursula.known_nodes.checksum
+    lonely_learner.remember_node(another_ursula_in_the_fleet)
+    checksum_after_learning_two = lonely_learner.known_nodes.checksum
 
     assert checksum_after_learning_one != checksum_after_learning_two
 
-    assert another_ursula.known_nodes.states[checksum_after_learning_one].nodes == [some_ursula_in_the_fleet, another_ursula]
-    assert another_ursula.known_nodes.states[checksum_after_learning_two].nodes == [some_ursula_in_the_fleet, another_ursula_in_the_fleet, another_ursula]
+    proper_first_state = sorted([some_ursula_in_the_fleet, lonely_learner], key=lambda n: n.checksum_public_address)
+    assert lonely_learner.known_nodes.states[checksum_after_learning_one].nodes == proper_first_state
+
+    proper_second_state = sorted([some_ursula_in_the_fleet, another_ursula_in_the_fleet, lonely_learner], key=lambda n: n.checksum_public_address)
+    assert lonely_learner.known_nodes.states[checksum_after_learning_two].nodes == proper_second_state
+
+
+def test_state_is_recorded_after_learning(federated_ursulas, ursula_federated_test_config):
+    """
+    Similar to above, but this time we show that the Learner records a new state only once after learning
+    about a bunch of nodes.
+    """
+    lonely_ursula_maker = partial(make_federated_ursulas,
+                                  ursula_config=ursula_federated_test_config,
+                                  quantity=1,
+                                  know_each_other=False)
+    lonely_learner = lonely_ursula_maker().pop()
+
+    # This Ursula doesn't know about any nodes.
+    assert len(lonely_learner.known_nodes) == 0
+
+    some_ursula_in_the_fleet = list(federated_ursulas)[0]
+    lonely_learner.remember_node(some_ursula_in_the_fleet)
+
+    # The rest of the fucking owl.
+    lonely_learner.learn_from_teacher_node()
+
+    states = list(lonely_learner.known_nodes.states.values())
+    assert len(states) == 2
+
+    assert len(states[0].nodes) == 1
+    assert len(states[1].nodes) == len(federated_ursulas)
