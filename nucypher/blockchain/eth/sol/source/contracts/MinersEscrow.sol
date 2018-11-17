@@ -711,6 +711,7 @@ contract MinersEscrow is Issuer {
     }
 
 
+    // TODO events
     uint16 constant MAX_PERIOD = 65535;
     // TODO complete
     function slashMiner(
@@ -725,10 +726,8 @@ contract MinersEscrow is Issuer {
         require(_penalty > 0);
         MinerInfo storage info = minerInfo[_miner];
         //TODO maybe raise error
-        if (info.value < _penalty) {
+        if (info.value <= _penalty) {
             _penalty = info.value;
-            //clear or remove all sub stakes
-            info.subStakes.length = 0;
         }
         info.value -= _penalty;
         //TODO maybe raise error
@@ -739,14 +738,14 @@ contract MinersEscrow is Issuer {
         // decrease sub stakes
         if (info.subStakes.length > 0) {
             uint16 currentPeriod = getCurrentPeriod();
-            uint16 startPeriod = getStartPeriod(info, startPeriod);
+            uint16 startPeriod = getStartPeriod(info, currentPeriod);
             uint256 lockedTokens = getLockedTokens(_miner);
             if (info.value < lockedTokens) {
                slashMiner(info, lockedTokens - info.value, currentPeriod, startPeriod, false);
             }
             lockedTokens = getLockedTokens(_miner, 1);
             if (info.value < lockedTokens) {
-               slashMiner(info, lockedTokens - info.value, currentPeriod.add16(1), startPeriod, false);
+               slashMiner(info, lockedTokens - info.value, currentPeriod.add16(1), startPeriod, true);
             }
         }
 
@@ -793,11 +792,11 @@ contract MinersEscrow is Issuer {
                 appliedPenalty = shortestSubStake.lockedValue;
             }
             if (_info.confirmedPeriod1 >= _period &&
-                _info.confirmedPeriod1 <= lastPeriod) {
+                _info.confirmedPeriod1 <= minSubStakeLastPeriod) {
                 lockedPerPeriod[_info.confirmedPeriod1] -= appliedPenalty;
             }
             if (_info.confirmedPeriod2 >= _period &&
-                _info.confirmedPeriod2 <= lastPeriod) {
+                _info.confirmedPeriod2 <= minSubStakeLastPeriod) {
                 lockedPerPeriod[_info.confirmedPeriod2] -= appliedPenalty;
             }
         }

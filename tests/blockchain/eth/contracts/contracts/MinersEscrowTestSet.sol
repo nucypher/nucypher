@@ -128,3 +128,27 @@ contract PolicyManagerForMinersEscrowMock {
     }
 
 }
+
+
+/**
+* @notice Contract for testing miners escrow contract
+**/
+contract ChallengeOverseerForMinersEscrowMock {
+
+    MinersEscrow public escrow;
+
+    constructor(address, MinersEscrow _escrow) public {
+        escrow = _escrow;
+    }
+
+    function slashMiner(
+        address _miner,
+        uint256 _penalty,
+        address _investigator,
+        uint256 _reward
+    )
+        public
+    {
+        escrow.slashMiner(_miner, _penalty, _investigator, _reward);
+    }
+}
