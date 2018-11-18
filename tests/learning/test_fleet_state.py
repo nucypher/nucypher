@@ -86,5 +86,5 @@ def test_state_is_recorded_after_learning(federated_ursulas, ursula_federated_te
     states = list(lonely_learner.known_nodes.states.values())
     assert len(states) == 2
 
-    assert len(states[0].nodes) == 1
-    assert len(states[1].nodes) == len(federated_ursulas)
+    assert len(states[0].nodes) == 2  # This and one other.
+    assert len(states[1].nodes) == len(federated_ursulas) + 1  # Again, accounting for this Learner.
