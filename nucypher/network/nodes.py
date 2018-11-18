@@ -597,7 +597,7 @@ class Learner:
 
         # TODO: Do we really want to try to learn about all these nodes instantly?
         # Hearing this traffic might give insight to an attacker.
-        if VerifiableNode in self.__class__.__bases__:
+        if Teacher in self.__class__.__bases__:
             announce_nodes = [self]
         else:
             announce_nodes = None
@@ -688,7 +688,8 @@ class Learner:
         return new_nodes
 
 
-class VerifiableNode:
+class Teacher:
+    TEACHER_VERSION = 1
     _evidence_of_decentralized_identity = constants.NOT_SIGNED
     verified_stamp = False
     verified_interface = False
@@ -727,7 +728,7 @@ class VerifiableNode:
                                 self.rest_server.rest_interface.port)
 
     @classmethod
-    def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs) -> 'VerifiableNode':
+    def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs) -> 'Teacher':
         certificate_filepath = tls_hosting_power.keypair.certificate_filepath
         certificate = tls_hosting_power.keypair.certificate
         return cls(certificate=certificate, certificate_filepath=certificate_filepath, *args, **kwargs)
