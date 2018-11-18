@@ -156,15 +156,15 @@ class FleetStateTracker:
         return fleet_state_checksum_bytes + fleet_state_updated_bytes
 
     def record_fleet_state(self, additional_nodes_to_track=None):
+        if additional_nodes_to_track:
+            self.additional_nodes_to_track.extend(additional_nodes_to_track)
         if not self._nodes:
             # No news here.
             return
-        if additional_nodes_to_track:
-            self.additional_nodes_to_track.extend(additional_nodes_to_track)
         sorted_nodes = self.sorted()
         sorted_nodes_joined = b"".join(bytes(n) for n in sorted_nodes)
         checksum = keccak_digest(sorted_nodes_joined).hex()
-        if checksum != self.checksum:
+        if checksum not in self.states:
             self.checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted())).hex()
             self.updated = maya.now()
             # For now we store the sorted node list.  Someday we probably spin this out into
