@@ -205,15 +205,16 @@ contract MinersEscrow is Issuer {
     }
 
     /**
-    * @notice Get the value of locked tokens for a miner in a future period
+    * @notice Get the value of locked tokens for a miner in a specified period
+    * @dev Information may be incorrect for mined or unconfirmed surpassed period
     * @param _miner Miner
-    * @param _periods Amount of periods to calculate locked tokens
+    * @param _periods Amount of periods that will be added to the current period
     **/
-    function getLockedTokens(address _miner, uint16 _periods)
+    function getLockedTokens(address _miner, int16 _periods)
         public view returns (uint256 lockedValue)
     {
         uint16 startPeriod = getCurrentPeriod();
-        uint16 nextPeriod = startPeriod.add16(_periods);
+        uint16 nextPeriod = startPeriod.addSigned16(_periods);
         MinerInfo storage info = minerInfo[_miner];
         startPeriod = getStartPeriod(info, startPeriod);
 
@@ -265,7 +266,7 @@ contract MinersEscrow is Issuer {
                 info.confirmedPeriod2 != currentPeriod) {
                 continue;
             }
-            lockedTokens = lockedTokens.add(getLockedTokens(miner, _periods));
+            lockedTokens = lockedTokens.add(getLockedTokens(miner, int16(_periods)));
         }
     }
 
@@ -696,7 +697,7 @@ contract MinersEscrow is Issuer {
                 continue;
             }
             if (addMoreTokens) {
-                sumOfLockedTokens = sumOfLockedTokens.add(getLockedTokens(currentMiner, _periods));
+                sumOfLockedTokens = sumOfLockedTokens.add(getLockedTokens(currentMiner, int16(_periods)));
             }
             if (sumOfLockedTokens > point) {
                 result[pointIndex] = currentMiner;
@@ -725,12 +726,10 @@ contract MinersEscrow is Issuer {
         require(msg.sender == address(challengeOverseer));
         require(_penalty > 0);
         MinerInfo storage info = minerInfo[_miner];
-        //TODO maybe raise error
         if (info.value <= _penalty) {
             _penalty = info.value;
         }
         info.value -= _penalty;
-        //TODO maybe raise error
         if (_reward > _penalty) {
             _reward = _penalty;
         }
