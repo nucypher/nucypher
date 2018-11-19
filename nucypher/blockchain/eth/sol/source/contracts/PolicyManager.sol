@@ -193,7 +193,7 @@ contract PolicyManager is Upgradeable {
             return;
         }
         for (uint16 i = node.lastMinedPeriod + 1; i <= _period; i++) {
-            node.rewardRate = node.rewardRate.add(node.rewardDelta[i]);
+            node.rewardRate = node.rewardRate.addSigned(node.rewardDelta[i]);
         }
         node.lastMinedPeriod = _period;
         node.reward = node.reward.add(node.rewardRate);
