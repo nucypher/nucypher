@@ -70,7 +70,7 @@ class VerifyVersionCommand(install):
 INSTALL_REQUIRES = [
 
     # NuCypher
-    'umbral',
+    'umbral==0.1.1a3',
     'constant-sorrow',
     'bytestringSplitter',
     'hendrix>=3.1.0',
