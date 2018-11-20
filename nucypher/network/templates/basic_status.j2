@@ -19,11 +19,20 @@
         padding: 3px;
         text-align: center;
         box-shadow: 1px 1px black, -1px -1px black;
+        width: 100px;
     }
-    #this-node .nucypher-nickname-icon {
-        width: 80px;
+    .small {
+        float:left;
+        width: 100%;
+        text-shadow: none;
+        font-family: sans;
+        font-size: 10px;
     }
-    .symbol {
+    .symbols {
+        float:left;
+        width: 100%;
+    }
+    .single-symbol {
         font-size: 3em;
         color: black;
         text-shadow: 1px 1px black, -1px -1px black;
@@ -31,38 +40,85 @@
     .address, .small-address {
         font-family: monospace;
     }
+    .small-address {
+        text-shadow: none;
+    }
+
+    .state {
+        float:left;
+    }
+    #previous-states {
+        float:left;
+        clear:left;
+    }
+
+    #previous-states .state {
+        margin:left: 10px;
+        border-right: 3px solid black;
+    }
+
+    #previous-states .nucypher-nickname-icon {
+        height:75px;
+        width: 75px;
+    }
+
+    #previous-states .single-symbol {
+        font-size: 2em;
+    }
+
+    #known-nodes {
+        float:left;
+        clear:left;
+    }
 </style>
 
 <div id="this-node">
     <h2>{{ this_node.nickname}}</h2>
     {{ this_node.nickname_icon() }}
 
-    <h3>Fleet State: {{ known_nodes.nickname }}</h3>
-    {{ known_nodes.icon() }}
-    <ul>
-        <li>Updated: {{ known_nodes.updated }}</li>
-    </ul>
-</div>
+    <h3>Fleet State</h3>
+    <div class="state">
+        <h4>{{ known_nodes.nickname }}</h4>
+        {{ known_nodes.icon() }}
+        <br/>
+        <span class="small">{{ known_nodes.updated }}</span>
+        </ul>
+    </div>
 
-<h4>Known Nodes:</h4>
-<table>
-    <thead>
-        <td>Icon</td>
-        <td>Nickname / Checksum</td>
-        <td>Launched</td>
-        <td>Last Seen</td>
-    </thead>
-    {% for node in known_nodes.values() -%}
-        <tr>
-            <td>{{ node.nickname_icon() }}</td>
-            <td>
-                <a href="https://{{ node.rest_url()}}/status">{{ node.nickname }}</a>
+    <div id="previous-states">
+        <h3>Previous States</h3>
+        {% for state in previous_states %}
+            <div class="state">
+                <h5>{{ state.nickname }}</h5>
+                {{ state.icon }}
                 <br/>
-                <span class="address">{{ node.checksum_public_address }}</span>
-            </td>
-            <td>{{ node.timestamp }}</td>
-            <td>{{ node.last_seen }}</td>
-        </tr>
-    {%- endfor %}
-</table>
+                <span class="small">{{ state.updated }}</span>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+<div id="known-nodes">
+    <h4>Known Nodes:</h4>
+    <table>
+        <thead>
+            <td>Icon</td>
+            <td>Nickname / Checksum</td>
+            <td>Launched</td>
+            <td>Last Seen</td>
+            <td>Fleet State</td>
+        </thead>
+        {% for node in known_nodes -%}
+            <tr>
+                <td>{{ node.nickname_icon() }}</td>
+                <td>
+                    <a href="https://{{ node.rest_url()}}/status">{{ node.nickname }}</a>
+                    <br/><span class="small">{{ node.checksum_public_address }}</span>
+                </td>
+                <td>{{ node.timestamp }}</td>
+                <td>{{ node.last_seen }}</td>
+                <td>{{ node.fleet_state_icon }}</td>
+            </tr>
+        {%- endfor %}
+    </table>
+</div>
 </html>

@@ -189,7 +189,7 @@ class Policy:
             raise RuntimeError("Alice hasn't learned of any nodes.  Thus, she can't push the TreasureMap.")
 
         responses = dict()
-        for node in self.alice.known_nodes.values():
+        for node in self.alice.known_nodes:
             # TODO: It's way overkill to push this to every node we know about.  Come up with a system.  342
             response = network_middleware.put_treasure_map_on_node(node,
                                                                    self.treasure_map.public_id(),

@@ -104,19 +104,26 @@ class RestMiddleware:
                            url,
                            certificate_filepath,
                            announce_nodes=None,
-                           nodes_i_need=None):
+                           nodes_i_need=None,
+                           client=requests,
+                           fleet_checksum=None):
         if nodes_i_need:
             # TODO: This needs to actually do something.
             # Include node_ids in the request; if the teacher node doesn't know about the
             # nodes matching these ids, then it will ask other nodes.
             pass
 
+        if fleet_checksum:
+            params = {'fleet': fleet_checksum}
+        else:
+            params = {}
+
         if announce_nodes:
             payload = bytes().join(bytes(n) for n in announce_nodes)
-            response = requests.post("https://{}/node_metadata".format(url),
+            response = client.post("https://{}/node_metadata".format(url),
                                      verify=certificate_filepath,
-                                     data=payload, timeout=2)
+                                     data=payload, timeout=2, params=params)
         else:
-            response = requests.get("https://{}/node_metadata".format(url),
-                                    verify=certificate_filepath, timeout=2)
+            response = client.get("https://{}/node_metadata".format(url),
+                                    verify=certificate_filepath, timeout=2, params=params)
         return response

@@ -14,10 +14,12 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import binascii
 import os
 import random
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from collections import deque
+from collections import namedtuple
 from contextlib import suppress
 from logging import Logger
 from tempfile import TemporaryDirectory
@@ -27,6 +29,7 @@ import OpenSSL
 import maya
 import requests
 import time
+from bytestring_splitter import BytestringSplitter
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
@@ -49,18 +52,75 @@ from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
 
 
-class FleetState(dict):
+def icon_from_checksum(checksum,
+                       nickname_metadata,
+                       number_of_nodes="Unknown number of "):
+
+    if checksum is constants.NO_KNOWN_NODES:
+            return "NO FLEET STATE AVAILABLE"
+    icon_template = """
+    <div class="nucypher-nickname-icon" style="border-color:{color};">
+    <div class="small">{number_of_nodes} nodes</div>
+    <div class="symbols">
+        <span class="single-symbol" style="color: {color}">{symbol}&#xFE0E;</span>
+    </div>
+    <br/>
+    <span class="small-address">{fleet_state_checksum}</span>
+    </div>
+    """.replace("  ", "").replace('\n', "")
+    return icon_template.format(
+        number_of_nodes=number_of_nodes,
+        color=nickname_metadata[0][0]['hex'],
+        symbol=nickname_metadata[0][1],
+        fleet_state_checksum=checksum[0:8]
+    )
+
+
+class FleetStateTracker:
     """
     A representation of a fleet of NuCypher nodes.
     """
     _checksum = constants.NO_KNOWN_NODES.bool_value(False)
     _nickname = constants.NO_KNOWN_NODES
     _nickname_metadata = constants.NO_KNOWN_NODES
+    _tracking = False
     most_recent_node_change = constants.NO_KNOWN_NODES
+    snapshot_splitter = BytestringSplitter(32, 4)
+    log = Logger("Learning")
+    state_template = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated"))
 
-    def __init__(self, *args, **kwargs):
-        dict.__init__(self, *args, **kwargs)
+    def __init__(self):
+        self.additional_nodes_to_track = []
         self.updated = maya.now()
+        self._nodes = {}
+        self.states = OrderedDict()
+
+    def __setitem__(self, key, value):
+        self._nodes[key] = value
+
+        if self._tracking:
+            self.log.info("Updating fleet state after saving node {}".format(value))
+            self.update_fleet_state()
+        else:
+            self.log.debug("Not updating fleet state.")
+
+    def __getitem__(self, item):
+        return self._nodes[item]
+
+    def __bool__(self):
+        return bool(self._nodes)
+
+    def __contains__(self, item):
+        return item in self._nodes.keys() or item in self._nodes.values()
+
+    def __iter__(self):
+        yield from self._nodes.values()
+
+    def __len__(self):
+        return len(self._nodes)
+
+    def __eq__(self, other):
+        return self._nodes == other._nodes
 
     @property
     def checksum(self):
@@ -79,21 +139,45 @@ class FleetState(dict):
     def nickname_metadata(self):
         return self._nickname_metadata
 
+    def addresses(self):
+        return self._nodes.keys()
+
     def icon(self):
-        if self.checksum is constants.NO_KNOWN_NODES:
-            return "NO FLEET STATE AVAILABLE"
-        icon_template = """
-        <div class="nucypher-nickname-icon" style="border-color:{color};">
-        <span class="symbol" style="color: {color}">{symbol}</span>
-        <br/>
-        <span class="small-address">{fleet_state_checksum}</span>
-        </div>
-        """.replace("  ", "").replace('\n', "")
-        return icon_template.format(
-            color=self.nickname_metadata[0][0]['hex'],
-            symbol=self.nickname_metadata[0][1],
-            fleet_state_checksum=self.checksum[0:8]
-        )
+        return icon_from_checksum(checksum=self.checksum,
+                                  number_of_nodes=len(self),
+                                  nickname_metadata=self.nickname_metadata)
+
+    def snapshot(self):
+        fleet_state_checksum_bytes = binascii.unhexlify(self.checksum)
+        fleet_state_updated_bytes = self.updated.epoch.to_bytes(4, byteorder="big")
+        return fleet_state_checksum_bytes + fleet_state_updated_bytes
+
+    def update_fleet_state(self):
+        checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted())).hex()
+        if checksum != self.checksum:
+            self.checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted())).hex()
+            self.updated = maya.now()
+            # For now we store the sorted node list.  Someday we probably spin this out into
+            # its own class, FleetState, and use it as the basis for partial updates.
+            self.states[checksum] = self.state_template(nickname=self.nickname,
+                                                        icon=self.icon(),
+                                                        nodes=self.sorted(),
+                                                        updated=self.updated,
+                                                        )
+
+    def start_tracking_state(self, additional_nodes_to_track=[]):
+        self.additional_nodes_to_track.extend(additional_nodes_to_track)
+        self._tracking = True
+        self.update_fleet_state()
+
+    def sorted(self):
+        nodes_to_consider = list(self._nodes.values()) + self.additional_nodes_to_track
+        return sorted(nodes_to_consider, key=lambda n: n.checksum_public_address)
+
+    def shuffled(self):
+        nodes_we_know_about = list(self._nodes.values())
+        random.shuffle(nodes_we_know_about)
+        return nodes_we_know_about
 
 
 class Learner:
@@ -142,7 +226,7 @@ class Learner:
         self._node_ids_to_learn_about_immediately = set()
 
         self.known_certificates_dir = known_certificates_dir or TemporaryDirectory("nucypher-tmp-certs-").name
-        self.__known_nodes = FleetState()
+        self.__known_nodes = FleetStateTracker()
 
         self.done_seeding = False
 
@@ -160,7 +244,8 @@ class Learner:
         self.unresponsive_startup_nodes = list()  # TODO: Attempt to use these again later
         for node in known_nodes:
             try:
-                self.remember_node(node, update_fleet_state=False)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
+                self.remember_node(
+                    node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
 
@@ -228,11 +313,7 @@ class Learner:
         for node in stored_nodes:
             self.remember_node(node)
 
-    def sorted_nodes(self):
-        nodes_to_consider = list(self.known_nodes.values())
-        return sorted(nodes_to_consider, key=lambda n: n.checksum_public_address)
-
-    def remember_node(self, node, force_verification_check=False, update_fleet_state=True):
+    def remember_node(self, node, force_verification_check=False):
 
         if node == self:  # No need to remember self.
             return False
@@ -262,6 +343,8 @@ class Learner:
         address = node.checksum_public_address
 
         self.__known_nodes[address] = node
+        if self in self.known_nodes._nodes.values():
+            raise RuntimeError
 
         if self.save_metadata:
             self.write_node_metadata(node=node)
@@ -271,22 +354,14 @@ class Learner:
             listener.add(address)
         self._node_ids_to_learn_about_immediately.discard(address)
 
-        if update_fleet_state:
-            self.update_fleet_state()
-
         return True
-
-    def update_fleet_state(self):
-        # TODO: Probably not mutate these foreign attrs - ideally maybe move quite a bit of this method up to FleetState (maybe in __setitem__).
-        self.known_nodes.checksum = keccak_digest(b"".join(bytes(n) for n in self.sorted_nodes())).hex()
-        self.known_nodes.updated = maya.now()
 
     def start_learning_loop(self, now=False):
         if self._learning_task.running:
             return False
         elif now:
             self.load_seednodes()
-            self._learning_task()  # Unhandled error might happen here.  TODO: Call this in a safer place.
+            self.learn_from_teacher_node()
             self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
             self.learning_deferred.addErrback(self.handle_learning_errors)
             return self.learning_deferred
@@ -323,14 +398,8 @@ class Learner:
         # TODO: We don't actually have checksum_public_address at this level - maybe only Characters can crash gracefully :-)
         self.log.critical("{} crashed with {}".format(self.checksum_public_address, failure))
 
-    def shuffled_known_nodes(self):
-        nodes_we_know_about = list(self.__known_nodes.values())
-        random.shuffle(nodes_we_know_about)
-        self.log.info("Shuffled {} known nodes".format(len(nodes_we_know_about)))
-        return nodes_we_know_about
-
     def select_teacher_nodes(self):
-        nodes_we_know_about = self.shuffled_known_nodes()
+        nodes_we_know_about = self.known_nodes.shuffled()
 
         if not nodes_we_know_about:
             raise self.NotEnoughTeachers("Need some nodes to start learning from.")
@@ -381,8 +450,8 @@ class Learner:
         """
         self.learn_from_teacher_node(eager=False)  # TODO: Allow the user to set eagerness?
 
-    def learn_about_specific_nodes(self, canonical_addresses: Set):
-        self._node_ids_to_learn_about_immediately.update(canonical_addresses)  # hmmmm
+    def learn_about_specific_nodes(self, addresses: Set):
+        self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
         self.learn_about_nodes_now()
 
     # TODO: Dehydrate these next two methods.
@@ -421,7 +490,7 @@ class Learner:
                 time.sleep(.1)
 
     def block_until_specific_nodes_are_known(self,
-                                             canonical_addresses: Set,
+                                             addresses: Set,
                                              timeout=LEARNING_TIMEOUT,
                                              allow_missing=0,
                                              learn_on_this_thread=False):
@@ -432,7 +501,7 @@ class Learner:
             if self._crashed:
                 return self._crashed
             rounds_undertaken = self._learning_round - starting_round
-            if canonical_addresses.issubset(self.__known_nodes):
+            if addresses.issubset(self.__known_nodes):
                 if rounds_undertaken:
                     self.log.info("Learned about all nodes after {} rounds.".format(rounds_undertaken))
                 return True
@@ -444,7 +513,7 @@ class Learner:
 
             if (maya.now() - start).seconds > timeout:
 
-                still_unknown = canonical_addresses.difference(self.__known_nodes)
+                still_unknown = addresses.difference(self.known_nodes.addresses())
 
                 if len(still_unknown) <= allow_missing:
                     return False
@@ -534,7 +603,8 @@ class Learner:
             response = self.network_middleware.get_nodes_via_rest(url=rest_url,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
-                                                                  certificate_filepath=certificate_filepath)
+                                                                  certificate_filepath=certificate_filepath,
+                                                                  fleet_checksum=self.known_nodes.checksum)
         except requests.exceptions.ConnectionError as e:
             unresponsive_nodes.add(current_teacher)
             teacher_rest_info = current_teacher.rest_information()[0]
@@ -542,15 +612,33 @@ class Learner:
             # TODO: This error isn't necessarily "no repsonse" - let's maybe pass on the text of the exception here.
             self.log.info("No Response from teacher: {}:{}.".format(teacher_rest_info.host, teacher_rest_info.port))
             self.cycle_teacher_node()
-            return
 
-        if response.status_code != 200:
+        if response.status_code not in (200, 204):
             raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content))
 
-        signature, nodes = signature_splitter(response.content, return_remainder=True)
+        signature, node_payload = signature_splitter(response.content, return_remainder=True)
+
+        try:
+            self.verify_from(current_teacher, node_payload, signature=signature)
+        except current_teacher.InvalidSignature:
+            # TODO: What to do if the teacher improperly signed the node payload?
+            raise
+
+        fleet_state_checksum_bytes, fleet_state_updated_bytes, nodes = FleetStateTracker.snapshot_splitter(node_payload,
+                                                                                                           return_remainder=True)
+        current_teacher.last_seen = maya.now()
+        # TODO: This is weird - let's get a stranger FleetState going.
+        checksum = fleet_state_checksum_bytes.hex()
+        current_teacher.update_snapshot(checksum=checksum,
+                                        updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")))
+
+        self.cycle_teacher_node()
 
         # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
         from nucypher.characters.lawful import Ursula
+        if response.status_code == 204:
+            return constants.FLEET_STATES_MATCH
+
         node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)  # TODO: 466
 
         new_nodes = []
@@ -579,8 +667,6 @@ class Learner:
         self._adjust_learning(new_nodes)
 
         learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
-        current_teacher.last_seen = maya.now()
-        self.cycle_teacher_node()
         self.log.info(learning_round_log_message.format(self._learning_round,
                                                         current_teacher,
                                                         len(node_list),
@@ -612,6 +698,8 @@ class VerifiableNode:
         self._interface_signature_object = interface_signature
         self._timestamp = timestamp
         self.last_seen = constants.NEVER_SEEN("Haven't connected to this node yet.")
+        self.fleet_state_checksum = None
+        self.fleet_state_updated = None
 
     class InvalidNode(SuspiciousActivity):
         """
@@ -647,6 +735,16 @@ class VerifiableNode:
         proper_pubkey = signature.recover_public_key_from_msg(bytes(self.stamp))
         proper_address = proper_pubkey.to_checksum_address()
         return proper_address == self.checksum_public_address
+
+    def update_snapshot(self, checksum, updated):
+        # TODO: Kind of an interesting pattern here - with VerifiableNode increasingly looking like it will be Teacher.
+        # We update the simple snapshot here, but of course if we're dealing with an instance that is also a Learner, it has
+        # its own notion of its FleetState, so we probably need a reckoning of sorts here to manage that.  In time.
+        self.fleet_state_nickname, self.fleet_state_nickname_metadata = nickname_from_seed(checksum, number_of_pairs=1)
+        self.fleet_state_checksum = checksum
+        self.fleet_state_updated = updated
+        self.fleet_state_icon = icon_from_checksum(self.fleet_state_checksum,
+                                                   nickname_metadata=self.fleet_state_nickname_metadata)
 
     def stamp_is_valid(self):
         """
@@ -892,13 +990,17 @@ class VerifiableNode:
     def nickname_icon(self):
         icon_template = """
         <div class="nucypher-nickname-icon" style="border-top-color:{first_color}; border-left-color:{first_color}; border-bottom-color:{second_color}; border-right-color:{second_color};">
-        <span class="symbol" style="color: {first_color}">{first_symbol}</span>
-        <span class="symbol" style="color: {second_color}">{second_symbol}</span>
+        <span class="small">{node_class}</span>
+        <div class="symbols">
+            <span class="single-symbol" style="color: {first_color}">{first_symbol}&#xFE0E;</span>
+            <span class="single-symbol" style="color: {second_color}">{second_symbol}&#xFE0E;</span>
+        </div>
         <br/>
         <span class="small-address">{address_first6}</span>
         </div>
         """.replace("  ", "").replace('\n', "")
         return icon_template.format(
+            node_class=self.__class__.__name__,
             first_color=self.nickname_metadata[0][0]['hex'],  # TODO: These index lookups are awful.
             first_symbol=self.nickname_metadata[0][1],
             second_color=self.nickname_metadata[1][0]['hex'],

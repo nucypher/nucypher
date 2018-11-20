@@ -159,19 +159,33 @@ class ProxyRESTRoutes:
 
     def all_known_nodes(self, request: Request):
         headers = {'Content-Type': 'application/octet-stream'}
-        ursulas_as_bytes = bytes().join(bytes(n) for n in self._node_tracker.values())
+        payload = self._node_tracker.snapshot()
+        ursulas_as_bytes = bytes().join(bytes(n) for n in self._node_tracker)
         ursulas_as_bytes += self._node_bytes_caster()
-        signature = self._stamp(ursulas_as_bytes)
-        return Response(bytes(signature) + ursulas_as_bytes, headers=headers)
+
+        payload += ursulas_as_bytes
+
+        signature = self._stamp(payload)
+        return Response(bytes(signature) + payload, headers=headers)
 
     def node_metadata_exchange(self, request: Request, query_params: QueryParams):
+        # If these nodes already have the same fleet state, no exchange is necessary.
+        learner_fleet_state = query_params.get('fleet')
+        if learner_fleet_state == self._node_tracker.checksum:
+            self.log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))
+            headers = {'Content-Type': 'application/octet-stream'}
+            payload = self._node_tracker.snapshot()
+            signature = self._stamp(payload)
+            return Response(bytes(signature) + payload, headers=headers, status_code=204)
+
         nodes = self._node_class.batch_from_bytes(request.body,
                                                   federated_only=self.federated_only,  # TODO: 466
                                                   )
-        # TODO: This logic is basically repeated in learn_from_teacher_node.  Let's find a better way.
+
+        # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.  Let's find a better way.  555
         for node in nodes:
 
-            if node.checksum_public_address in self._node_tracker:
+            if node in self._node_tracker:
                 continue  # TODO: 168 Check version and update if required.
 
             @crosstown_traffic()
@@ -334,7 +348,9 @@ class ProxyRESTRoutes:
         headers = {"Content-Type": "text/html", "charset":"utf-8"}
         # TODO: Seems very strange to deserialize *this node* when we can just pass it in.  Might be a sign that we need to rethnk this composition.
         this_node = self._node_class.from_bytes(self._node_bytes_caster(), federated_only=self.federated_only)
-        content = self._status_template.render(known_nodes=self._node_tracker, this_node=this_node)
+        content = self._status_template.render(known_nodes=self._node_tracker,
+                                               this_node=this_node,
+                                               previous_states=list(reversed(self._node_tracker.states.values()))[:5])
         return Response(content=content, headers=headers)
 
 

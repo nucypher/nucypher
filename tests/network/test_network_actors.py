@@ -131,7 +131,7 @@ def test_treasure_map_is_legit(enacted_federated_policy):
     Sure, the TreasureMap can get to Bob, but we also need to know that each Ursula in the TreasureMap is on the network.
     """
     for ursula_address, _node_id in enacted_federated_policy.treasure_map:
-        assert ursula_address in enacted_federated_policy.bob.known_nodes
+        assert ursula_address in enacted_federated_policy.bob.known_nodes.addresses()
 
 
 def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
@@ -172,10 +172,10 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
 
     # And indeed, Ursula noticed the situation.
     # She didn't record Vladimir's address.
-    assert vladimir.checksum_public_address not in other_ursula.known_nodes
+    assert vladimir not in other_ursula.known_nodes
 
     # But she *did* record the actual Ursula's address.
-    assert ursula_whom_vladimir_will_imitate.checksum_public_address in other_ursula.known_nodes
+    assert ursula_whom_vladimir_will_imitate in other_ursula.known_nodes
 
     # Furthermore, she properly marked Vladimir as suspicious.
     assert vladimir in other_ursula.suspicious_activities_witnessed['vladimirs']
