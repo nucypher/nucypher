@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import random
 
+from eth_utils import to_checksum_address
 from typing import Union, Set
 
 from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
@@ -44,7 +45,7 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
     for port in range(starting_port, starting_port+quantity):
 
         ursula = ursula_config.produce(rest_port=port + 100,
-                                       db_name="test-{}".format(port),
+                                       db_filepath="test-ursula-{}.db".format(port),
                                        **ursula_overrides)
 
         federated_ursulas.add(ursula)
@@ -83,7 +84,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
     for port, checksum_address in enumerate(ether_addresses, start=starting_port):
 
         ursula = ursula_config.produce(checksum_address=checksum_address,
-                                       db_name="test-{}".format(port),
+                                       db_filepath="test-{}.db".format(port),
                                        rest_port=port + 100,
                                        **ursula_overrides)
         if stake is True:
