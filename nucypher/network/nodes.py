@@ -612,7 +612,6 @@ class Learner:
             # TODO: This error isn't necessarily "no repsonse" - let's maybe pass on the text of the exception here.
             self.log.info("No Response from teacher: {}:{}.".format(teacher_rest_info.host, teacher_rest_info.port))
             self.cycle_teacher_node()
-            raise False
 
         if response.status_code not in (200, 204):
             raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content))
@@ -623,7 +622,7 @@ class Learner:
             self.verify_from(current_teacher, node_payload, signature=signature)
         except current_teacher.InvalidSignature:
             # TODO: What to do if the teacher improperly signed the node payload?
-            raise False
+            raise
 
         fleet_state_checksum_bytes, fleet_state_updated_bytes, nodes = FleetStateTracker.snapshot_splitter(node_payload,
                                                                                                            return_remainder=True)
