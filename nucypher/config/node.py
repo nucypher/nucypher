@@ -22,15 +22,18 @@ import os
 from json import JSONDecodeError
 from tempfile import TemporaryDirectory
 from typing import List
+from web3.middleware import geth_poa_middleware
 
 from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION, STRANGER_CONFIGURATION, LIVE_CONFIGURATION
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from twisted.logger import Logger
 
+from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherTokenAgent
+from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.config.storages import NodeStorage, InMemoryNodeStorage, LocalFileBasedNodeStorage
+from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp
 from nucypher.network.middleware import RestMiddleware
 
@@ -40,7 +43,8 @@ class NodeConfiguration:
     _name = 'ursula'
     _character_class = Ursula
 
-    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
+    CONFIG_FILENAME = '{}.config'.format(_name)
+    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
     DEFAULT_OPERATING_MODE = 'decentralized'
     NODE_SERIALIZER = binascii.hexlify
     NODE_DESERIALIZER = binascii.unhexlify
@@ -49,7 +53,6 @@ class NodeConfiguration:
     __CONFIG_FILE_DESERIALIZER = json.loads
     __TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
     __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
-    __DEFAULT_NODE_STORAGE = LocalFileBasedNodeStorage
 
     __REGISTRY_NAME = 'contract_registry.json'
     REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO: #461 Where will this be hosted?
@@ -63,21 +66,22 @@ class NodeConfiguration:
     def __init__(self,
 
                  dev: bool = False,
-                 config_root: str = DEFAULT_CONFIG_ROOT,
+                 config_root: str = None,
 
-                 passphrase: str = None,
+                 password: str = None,
                  auto_initialize: bool = False,
                  auto_generate_keys: bool = False,
 
-                 config_file_location: str = DEFAULT_CONFIG_FILE_LOCATION,
+                 config_file_location: str = None,
+                 keyring: NucypherKeyring = None,
                  keyring_dir: str = None,
 
                  checksum_address: str = None,
                  is_me: bool = True,
                  federated_only: bool = False,
-                 network_middleware: __DEFAULT_NETWORK_MIDDLEWARE_CLASS = None,
+                 network_middleware: RestMiddleware = None,
 
-                 registry_source: str = REGISTRY_SOURCE,
+                 registry_source: str = None,
                  registry_filepath: str = None,
                  import_seed_registry: bool = False,
 
@@ -86,47 +90,41 @@ class NodeConfiguration:
                  abort_on_learning_error: bool = False,
                  start_learning_now: bool = True,
 
-                 # TLS
-                 known_certificates_dir: str = None,
-
-                 # Metadata
+                 # Node Storage
                  known_nodes: set = None,
                  node_storage: NodeStorage = None,
                  load_metadata: bool = True,
-                 save_metadata: bool = True
-
+                 save_metadata: bool = True,
                  ) -> None:
 
         # Logs
         self.log = Logger(self.__class__.__name__)
 
-        # Known Nodes
-        self.known_nodes_dir = UNINITIALIZED_CONFIGURATION
-        self.known_certificates_dir = known_certificates_dir or UNINITIALIZED_CONFIGURATION
-
         # Keyring
-        self.keyring = UNINITIALIZED_CONFIGURATION
+        self.keyring = keyring or UNINITIALIZED_CONFIGURATION
         self.keyring_dir = keyring_dir or UNINITIALIZED_CONFIGURATION
 
         # Contract Registry
-        self.__registry_source = registry_source
+        self.__registry_source = registry_source or self.REGISTRY_SOURCE
         self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
 
-        # Configuration Root Directory
+        # Configuration File and Root Directory
+        self.config_file_location = config_file_location or UNINITIALIZED_CONFIGURATION
         self.config_root = UNINITIALIZED_CONFIGURATION
         self.__dev = dev
         if self.__dev:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
-            self.node_storage = InMemoryNodeStorage(federated_only=federated_only,
-                                                    character_class=self.__class__)
+            self.node_storage = ForgetfulNodeStorage(federated_only=federated_only, character_class=self.__class__)
         else:
-            self.config_root = config_root
-            self.__temp_dir = LIVE_CONFIGURATION
             from nucypher.characters.lawful import Ursula  # TODO : Needs cleanup
-            self.node_storage = node_storage or self.__DEFAULT_NODE_STORAGE(federated_only=federated_only,
-                                                                            character_class=Ursula)
+
+            self.__temp_dir = LIVE_CONFIGURATION
+            self.config_root = config_root or DEFAULT_CONFIG_ROOT
             self.__cache_runtime_filepaths()
-        self.config_file_location = config_file_location
+
+            self.node_storage = node_storage or LocalFileBasedNodeStorage(federated_only=federated_only,
+                                                                          config_root=self.config_root)
+
 
         #
         # Identity
@@ -145,8 +143,6 @@ class NodeConfiguration:
             #
             # Stranger
             #
-            self.known_nodes_dir = STRANGER_CONFIGURATION
-            self.known_certificates_dir = STRANGER_CONFIGURATION
             self.node_storage = STRANGER_CONFIGURATION
             self.keyring_dir = STRANGER_CONFIGURATION
             self.keyring = STRANGER_CONFIGURATION
@@ -168,10 +164,10 @@ class NodeConfiguration:
         # Auto-Initialization
         #
         if auto_initialize:
-            self.initialize(no_registry=not import_seed_registry or federated_only,
+            self.initialize(no_registry=not import_seed_registry or federated_only,  # TODO: needs cleanup
                             wallet=auto_generate_keys and not federated_only,
                             encrypting=auto_generate_keys,
-                            passphrase=passphrase)
+                            password=password)
 
     def __call__(self, *args, **kwargs):
         return self.produce(*args, **kwargs)
