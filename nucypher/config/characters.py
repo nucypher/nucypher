@@ -18,12 +18,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 
-from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 from web3.middleware import geth_poa_middleware
 
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, CONTRACT_NOT_AVAILABLE
 from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -36,12 +36,10 @@ class UrsulaConfiguration(NodeConfiguration):
 
     _character_class = Ursula
     _name = 'ursula'
-    DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
+
+    DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, '{}.db'.format(_name))
     DEFAULT_REST_HOST = '127.0.0.1'
     DEFAULT_REST_PORT = 9151
-
-    __DB_TEMPLATE = "ursula.{port}.db"
-    DEFAULT_DB_NAME = __DB_TEMPLATE.format(port=DEFAULT_REST_PORT)
 
     __DEFAULT_TLS_CURVE = ec.SECP384R1
 
@@ -55,7 +53,6 @@ class UrsulaConfiguration(NodeConfiguration):
                  certificate_filepath: str = None,
 
                  # Ursula
-                 db_name: str = None,
                  db_filepath: str = None,
                  interface_signature=None,
                  crypto_power: CryptoPower = None,
@@ -71,8 +68,7 @@ class UrsulaConfiguration(NodeConfiguration):
         self.rest_host = rest_host or self.DEFAULT_REST_HOST
         self.rest_port = rest_port or self.DEFAULT_REST_PORT
 
-        self.db_name = db_name or self.__DB_TEMPLATE.format(port=self.rest_port)
-        self.db_filepath = db_filepath or constants.UNINITIALIZED_CONFIGURATION
+        self.db_filepath = db_filepath or self.DEFAULT_DB_FILEPATH
 
         #
         # TLS
@@ -95,24 +91,15 @@ class UrsulaConfiguration(NodeConfiguration):
 
     def generate_runtime_filepaths(self, config_root: str) -> dict:
         base_filepaths = NodeConfiguration.generate_runtime_filepaths(config_root=config_root)
-        filepaths = dict(db_filepath=os.path.join(config_root, self.db_name))
+        filepaths = dict(db_filepath=os.path.join(config_root, self.db_filepath))
         base_filepaths.update(filepaths)
         return base_filepaths
-
-    def initialize(self, tls: bool = True, host=None, *args, **kwargs):
-        install_path = super().initialize(tls=tls, host=host or self.rest_host, curve=self.tls_curve, *args, **kwargs)
-        if self.db_name is constants.UNINITIALIZED_CONFIGURATION:
-            self.db_name = self.__DB_TEMPLATE.format(self.rest_port)
-        if self.db_filepath is constants.UNINITIALIZED_CONFIGURATION:
-            self.db_filepath = os.path.join(self.config_root, self.db_name)
-        return install_path
 
     @property
     def static_payload(self) -> dict:
         payload = dict(
          rest_host=self.rest_host,
          rest_port=self.rest_port,
-         db_name=self.db_name,
          db_filepath=self.db_filepath,
         )
         if not self.dev:
