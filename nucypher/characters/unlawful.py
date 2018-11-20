@@ -30,7 +30,7 @@ class Vladimir(Ursula):
     network_middleware = EvilMiddleWare()
     fraud_address = '0xbad022A87Df21E4c787C7B1effD5077014b8CC45'
     fraud_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
-    db_name = 'vladimir.db'
+    db_filepath = 'vladimir.db'
 
     @classmethod
     def from_target_ursula(cls,
@@ -53,8 +53,7 @@ class Vladimir(Ursula):
 
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
-                       db_name=cls.db_name,
-                       db_filepath=cls.db_name,
+                       db_filepath=cls.db_filepath,
                        rest_host=target_ursula.rest_information()[0].host,
                        rest_port=target_ursula.rest_information()[0].port,
                        certificate=target_ursula.rest_server_certificate(),
@@ -76,8 +75,8 @@ class Vladimir(Ursula):
         Upload Vladimir's ETH keys to the keychain via web3 / RPC.
         """
         try:
-            passphrase = TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
-            blockchain.interface.w3.personal.importRawKey(private_key=cls.fraud_key, passphrase=passphrase)
+            password = TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+            blockchain.interface.w3.personal.importRawKey(private_key=cls.fraud_key, passphrase=password)
         except (ValidationError, ):
             # check if Vlad's key is already on the keyring...
             if cls.fraud_address in blockchain.interface.w3.personal.listAccounts:

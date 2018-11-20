@@ -449,8 +449,6 @@ class Ursula(Teacher, Character, Miner):
                  rest_port: int,
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
-
-                 db_name: str = None,
                  db_filepath: str = None,
                  is_me: bool = True,
                  interface_signature=None,
@@ -460,7 +458,7 @@ class Ursula(Teacher, Character, Miner):
                  checksum_address: str = None,
 
                  # Character
-                 passphrase: str = None,
+                 password: str = None,
                  abort_on_learning_error: bool = False,
                  federated_only: bool = False,
                  start_learning_now: bool = None,
@@ -502,7 +500,7 @@ class Ursula(Teacher, Character, Miner):
                 self._crypto_power.consume_power_up(blockchain_power)
 
                 # Use blockchain power to substantiate stamp, instead of signing key
-                self.substantiate_stamp(passphrase=passphrase)  # TODO: Derive from keyring
+                self.substantiate_stamp(password=password)  # TODO: Derive from keyring
 
         #
         # ProxyRESTServer and TLSHostingPower # TODO: Maybe we want _power_ups to be public after all?
@@ -513,13 +511,12 @@ class Ursula(Teacher, Character, Miner):
             # Ephemeral Self-Ursula
             #
             if is_me:
-                self.suspicious_activities_witnessed = {'vladimirs': [], 'bad_treasure_maps': []}
+                self.suspicious_activities_witnessed = {'vladimirs': list(), 'bad_treasure_maps': list()}
 
                 #
                 # REST Server (Ephemeral Self-Ursula)
                 #
                 rest_routes = ProxyRESTRoutes(
-                    db_name=db_name,
                     db_filepath=db_filepath,
                     network_middleware=self.network_middleware,
                     federated_only=self.federated_only,   # TODO: 466

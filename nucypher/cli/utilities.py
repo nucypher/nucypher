@@ -61,7 +61,7 @@ def echo_version(ctx, param, value):
 
 PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetails',
                                                      ('rest_host',    # type: str
-                                                      'passphrase',   # type: str
+                                                      'password',   # type: str
                                                       'wallet',       # type: bool
                                                       'signing',      # type: bool
                                                       'tls',          # type: bool
@@ -151,7 +151,7 @@ def get_ursula_configuration(dev_mode: bool = False,
                              checksum_address: str = None,
                              rest_host: str = None,
                              rest_port: str = None,
-                             db_name: str = None,
+                             db_filepath: str = None,
                              config_file: str= None,
                              registry_filepath: str = None,
                              provider_uri: str = None,
@@ -173,7 +173,7 @@ def get_ursula_configuration(dev_mode: bool = False,
                                             is_me=True,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
-                                            db_name=db_name,
+                                            db_filepath=db_filepath,
                                             federated_only=federated_only,
                                             registry_filepath=registry_filepath,
                                             provider_uri=provider_uri,
@@ -248,18 +248,18 @@ def create_account(click_config, passphrase: str = None) -> str:
         click.echo("Invalid Input")
         raise click.Abort()
 
-    if not passphrase:
-        message = "Enter a passphrase to encrypt your wallet's private key"
-        passphrase = click.prompt(message, hide_input=True, confirmation_prompt=True)
+    if not password:
+        message = "Enter a password to encrypt your wallet's private key"
+        password = click.prompt(message, hide_input=True, confirmation_prompt=True)
 
     if choice == 'local':
-        keyring = NucypherKeyring.generate(passphrase=passphrase,
+        keyring = NucypherKeyring.generate(password=password,
                                            keyring_root=click_config.node_configuration.keyring_dir,
                                            encrypting=False,
                                            wallet=True)
         new_address = keyring.checksum_address
     elif choice == 'hosted':
-        new_address = click_config.blockchain.interface.w3.personal.newAccount(passphrase)
+        new_address = click_config.blockchain.interface.w3.personal.newAccount(password)
     else:
         raise click.BadParameter("Invalid choice; Options are hosted or local.")
     return new_address
@@ -277,10 +277,10 @@ def _collect_pending_configuration_details(ursula: bool = True, rest_host=None) 
     if os.environ.get(KEYRING_PASSPHRASE_ENVVAR):
         passphrase = os.environ.get(KEYRING_PASSPHRASE_ENVVAR)
     else:
-        passphrase = click.prompt("Enter a passphrase to encrypt your keyring",
+        password = click.prompt("Enter a password to encrypt your keyring",
                                   hide_input=True, confirmation_prompt=True)
 
-    details = PendingConfigurationDetails(passphrase=passphrase,
+    details = PendingConfigurationDetails(password=password,
                                           rest_host=rest_host,
                                           wallet=generate_wallet,
                                           signing=generate_encrypting_keys,
@@ -311,7 +311,7 @@ def write_configuration(ursula_config: UrsulaConfiguration,
 
     try:
         pending_config = _collect_pending_configuration_details(rest_host=rest_host)
-        new_installation_path = ursula_config.initialize(passphrase=pending_config.passphrase,
+        new_installation_path = ursula_config.initialize(password=pending_config.password,
                                                          wallet=pending_config.wallet,
                                                          encrypting=pending_config.signing,
                                                          tls=pending_config.tls,

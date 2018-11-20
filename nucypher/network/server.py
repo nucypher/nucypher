@@ -72,7 +72,6 @@ class ProxyRESTRoutes:
     log = Logger("characters")
 
     def __init__(self,
-                 db_name,
                  db_filepath,
                  network_middleware,
                  federated_only,
@@ -132,7 +131,6 @@ class ProxyRESTRoutes:
         ]
 
         self.rest_app = App(routes=routes)
-        self.db_name = db_name
         self.db_filepath = db_filepath
 
         from nucypher.keystore import keystore
