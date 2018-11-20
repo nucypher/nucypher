@@ -59,7 +59,7 @@ def cleanup():
     yield  # we've got a lot of men and women here...
 
     # Database teardown
-    for f in glob.glob("./**/*.db"):  # TODO: Needs cleanup
+    for f in glob.glob("**/*.db"):  # TODO: Needs cleanup
         os.remove(f)
 
     # Temp Storage Teardown
@@ -124,7 +124,7 @@ def ursula_federated_test_config():
     ursula_config = UrsulaConfiguration(dev=True,
                                         auto_initialize=True,
                                         auto_generate_keys=True,
-                                        passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+                                        password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                         is_me=True,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
@@ -143,7 +143,7 @@ def ursula_decentralized_test_config(three_agents):
     ursula_config = UrsulaConfiguration(dev=True,
                                         auto_initialize=True,
                                         auto_generate_keys=True,
-                                        passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+                                        password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                         is_me=True,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
@@ -161,7 +161,7 @@ def alice_federated_test_config(federated_ursulas):
     config = AliceConfiguration(dev=True,
                                 auto_initialize=True,
                                 auto_generate_keys=True,
-                                passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+                                password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                 is_me=True,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=federated_ursulas,
@@ -183,7 +183,7 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
                                 auto_initialize=True,
                                 auto_generate_keys=True,
                                 checksum_address=alice_address,
-                                passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+                                password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
@@ -199,7 +199,7 @@ def bob_federated_test_config():
     config = BobConfiguration(dev=True,
                               auto_initialize=True,
                               auto_generate_keys=True,
-                              passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+                              password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                               network_middleware=MockRestMiddleware(),
                               start_learning_now=False,
                               abort_on_learning_error=True,
@@ -219,7 +219,7 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
                               auto_initialize=True,
                               auto_generate_keys=True,
                               checksum_address=bob_address,
-                              passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+                              password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas,
                               start_learning_now=False,

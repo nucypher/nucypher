@@ -191,11 +191,14 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
 
-    vladimir.substantiate_stamp(passphrase=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
+    vladimir.substantiate_stamp(password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
     vladimir._interface_signature_object = signature
 
     class FakeArrangement:
         federated = False
+        ursula = target
+
+    vladimir.node_storage.store_node_certificate(node=target)
 
     with pytest.raises(vladimir.InvalidNode):
         idle_blockchain_policy.consider_arrangement(network_middleware=blockchain_alice.network_middleware,

@@ -39,8 +39,12 @@ from nucypher.cli.utilities import (
     paint_configuration, get_ursula_configuration, run_ursula)
 from nucypher.config.constants import SEEDNODES, DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.utilities.logging import logToSentry, getTextFileObserver, simpleObserver, initialize_sentry, \
+from nucypher.utilities.logging import (
+    logToSentry,
+    getTextFileObserver,
+    initialize_sentry,
     getJsonFileObserver
+)
 
 #
 # Logging

@@ -25,7 +25,7 @@ from apistar.test import TestClient
 from constant_sorrow import constants
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
-from nucypher.config.storages import LocalFileBasedNodeStorage
+from nucypher.config.storages import LocalFileBasedNodeStorage, TemporaryFileBasedNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import SigningPower, DelegatingPower, EncryptingPower
@@ -135,22 +135,13 @@ def test_revocation(federated_alice, federated_bob):
 
 def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
 
-    passphrase = TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
-
-    # Let's create an Alice from a Configuration.
-    # This requires creating a local storage for her first.
-    node_storage = LocalFileBasedNodeStorage(
-        federated_only=True,
-        character_class=Ursula, # Alice needs to store some info about Ursula
-        known_metadata_dir=os.path.join(tmpdir, "known_metadata"),
-    )
+    password = TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 
     alice_config = AliceConfiguration(
-        config_root=os.path.join(tmpdir, "config_root"),
-        node_storage=node_storage,
+        config_root=os.path.join(tmpdir, 'llamas'),
         auto_initialize=True,
         auto_generate_keys=True,
-        passphrase=passphrase,
+        password=password,
         is_me=True,
         network_middleware=MockRestMiddleware(),
         known_nodes=federated_ursulas,
@@ -159,7 +150,8 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
         save_metadata=False,
         load_metadata=False
     )
-    alice = alice_config(passphrase=passphrase)
+
+    alice = alice_config(password=password)
 
     # We will save Alice's config to a file for later use
     alice_config_file = alice_config.to_configuration_file()
@@ -208,7 +200,7 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
         start_learning_now=False,
     )
 
-    new_alice = new_alice_config(passphrase=passphrase)
+    new_alice = new_alice_config(password=password)
 
     # First, we check that her public keys are correctly restored
     assert alices_verifying_key == new_alice.public_keys(SigningPower)

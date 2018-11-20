@@ -52,7 +52,6 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     bob = Bob(federated_only=True,
               start_learning_now=True,
               network_middleware=MockRestMiddleware(),
-              known_certificates_dir=certificates_tempdir,
               abort_on_learning_error=True,
               known_nodes=a_couple_of_ursulas,
               )
