@@ -84,14 +84,14 @@ class TesterBlockchain(Blockchain):
         Generate additional unlocked accounts transferring a balance to each account on creation.
         """
         addresses = list()
-        insecure_passphrase = TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+        insecure_password = TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
         for _ in range(quantity):
 
             umbral_priv_key = UmbralPrivateKey.gen_key()
             address = self.interface.w3.personal.importRawKey(private_key=umbral_priv_key.to_bytes(),
-                                                              passphrase=insecure_passphrase)
+                                                              password=insecure_password)
 
-            assert self.interface.unlock_account(address, password=insecure_passphrase, duration=None), 'Failed to unlock {}'.format(address)
+            assert self.interface.unlock_account(address, password=insecure_password, duration=None), 'Failed to unlock {}'.format(address)
             addresses.append(address)
             self._test_account_cache.append(address)
             self.log.info('Generated new insecure account {}'.format(address))
