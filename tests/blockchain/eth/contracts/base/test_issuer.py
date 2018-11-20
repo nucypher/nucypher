@@ -104,6 +104,7 @@ def test_inflation_rate(testerchain, token):
     testerchain.wait_for_receipt(tx)
     tx = issuer.functions.initialize().transact({'from': creator})
     testerchain.wait_for_receipt(tx)
+    reward = issuer.functions.getReservedReward().call()
 
     # Mint some tokens and save result of minting
     period = issuer.functions.getCurrentPeriod().call()
@@ -115,11 +116,13 @@ def test_inflation_rate(testerchain, token):
     tx = issuer.functions.testMint(period + 1, 1, 1, 0).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert 2 * one_period == token.functions.balanceOf(ursula).call()
+    assert reward - token.functions.balanceOf(ursula).call() == issuer.functions.getReservedReward().call()
 
     # Mint tokens in the next period, inflation rate must be lower than in previous minting
     tx = issuer.functions.testMint(period + 2, 1, 1, 0).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert 3 * one_period > token.functions.balanceOf(ursula).call()
+    assert reward - token.functions.balanceOf(ursula).call() == issuer.functions.getReservedReward().call()
     minted_amount = token.functions.balanceOf(ursula).call() - 2 * one_period
 
     # Mint tokens in the first period again, inflation rate must be the same as in previous minting
@@ -127,21 +130,26 @@ def test_inflation_rate(testerchain, token):
     tx = issuer.functions.testMint(period + 1, 1, 1, 0).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert 2 * one_period + 2 * minted_amount == token.functions.balanceOf(ursula).call()
+    assert reward - token.functions.balanceOf(ursula).call() == issuer.functions.getReservedReward().call()
 
     # Mint tokens in the next period, inflation rate must be lower than in previous minting
     tx = issuer.functions.testMint(period + 3, 1, 1, 0).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert 2 * one_period + 3 * minted_amount > token.functions.balanceOf(ursula).call()
+    assert reward - token.functions.balanceOf(ursula).call() == issuer.functions.getReservedReward().call()
 
     # Return some tokens as a reward
     balance = token.functions.balanceOf(ursula).call()
+    reward = issuer.functions.getReservedReward().call()
     tx = issuer.functions.testUnMint(2 * one_period + 2 * minted_amount).transact()
     testerchain.wait_for_receipt(tx)
+    assert reward + 2 * one_period + 2 * minted_amount == issuer.functions.getReservedReward().call()
 
     # Rate will be increased because some tokens were returned
     tx = issuer.functions.testMint(period + 3, 1, 1, 0).transact({'from': ursula})
     testerchain.wait_for_receipt(tx)
     assert balance + one_period == token.functions.balanceOf(ursula).call()
+    assert reward + one_period + 2 * minted_amount == issuer.functions.getReservedReward().call()
 
 
 @pytest.mark.slow
