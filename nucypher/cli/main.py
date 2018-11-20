@@ -20,75 +20,52 @@ import os
 
 import click
 from eth_utils import is_checksum_address
-from sentry_sdk.integrations.logging import LoggingIntegration
-from twisted.internet import stdio
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
-import nucypher
-from constant_sorrow.constants import NO_NODE_CONFIGURATION, NO_BLOCKCHAIN_CONNECTION
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from nucypher.blockchain.eth.constants import (MIN_ALLOWED_LOCKED,
                                                MIN_LOCKED_PERIODS,
                                                MAX_MINTING_PERIODS)
-from nucypher.cli.constants import NUCYPHER_SENTRY_ENDPOINT, BANNER
-from nucypher.cli.protocol import UrsulaCommandProtocol
+from nucypher.cli.constants import BANNER, LOG_TO_SENTRY, LOG_TO_FILE
 from nucypher.cli.utilities import (
-    connect_to_contracts,
-    connect_to_blockchain,
     create_account,
     destroy_configuration,
     forget_nodes,
-    attempt_seednode_learning,
     echo_version,
     CHECKSUM_ADDRESS,
-    write_configuration,
+    write_new_ursula_configuration,
     unlock_and_produce,
-    paint_configuration, get_ursula_configuration)
-from nucypher.config.constants import SEEDNODES
+    paint_configuration, get_ursula_configuration, run_ursula)
+from nucypher.config.constants import SEEDNODES, DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.utilities.logging import logToSentry, getTextFileObserver, simpleObserver
+from nucypher.utilities.logging import logToSentry, getTextFileObserver, simpleObserver, initialize_sentry, \
+    getJsonFileObserver
 
+#
+# Logging
+#
+
+# Sentry
+if LOG_TO_SENTRY is True:
+    initialize_sentry()
+    globalLogPublisher.addObserver(logToSentry)
+
+# Files
+if LOG_TO_FILE is True:
+    globalLogPublisher.addObserver(getTextFileObserver())
+    globalLogPublisher.addObserver(getJsonFileObserver())
+
+
+#
+# Click CLI Config
+#
 
 class NucypherClickConfig:
-
-    # Set to False to completely opt-out of sentry reporting
-    log_to_sentry = True   # TODO: Use envvar
-    log_to_file = True     # TODO: Use envvar
-
     def __init__(self):
-
-        #
-        # Logging
-        #
-
-        # Sentry
-        if self.log_to_sentry:
-            import sentry_sdk
-            import logging
-
-            sentry_logging = LoggingIntegration(
-                level=logging.INFO,        # Capture info and above as breadcrumbs
-                event_level=logging.DEBUG  # Send debug logs as events
-            )
-            sentry_sdk.init(
-                dsn=NUCYPHER_SENTRY_ENDPOINT,
-                integrations=[sentry_logging],
-                release=nucypher.__version__
-            )
-
-            globalLogPublisher.addObserver(logToSentry)
-
-        # Files
-        if self.log_to_file is True:
-            globalLogPublisher.addObserver(getTextFileObserver())
-
-        # Emission
         self.log = Logger(self.__class__.__name__)
 
 
-#
-# Register the above class as a decorator
-#
 uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 
 
