@@ -18,19 +18,21 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+
+
 import collections
 import hashlib
 import json
 import os
 import shutil
 import socket
+import time
 from ipaddress import ip_address
 from typing import Tuple, ClassVar
 from urllib.parse import urlparse
 
 import click
 import requests
-import time
 from constant_sorrow.constants import NO_NODE_CONFIGURATION, NO_BLOCKCHAIN_CONNECTION
 from eth_utils import is_checksum_address
 from nacl.exceptions import CryptoError
@@ -51,10 +53,10 @@ from nucypher.blockchain.eth.deployers import (NucypherTokenDeployer,
                                                PolicyManagerDeployer)
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import SEEDNODES
+from nucypher.config.constants import SEEDNODES, USER_LOG_DIR
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
-from nucypher.utilities.logging import logToSentry
+from nucypher.utilities.logging import logToSentry, getTextFileObserver, simpleObserver
 from nucypher.utilities.sandbox.ursula import UrsulaCommandProtocol
 
 BANNER = """
@@ -78,16 +80,23 @@ class NucypherClickConfig:
     _KEYRING_PASSPHRASE_ENVVAR = "NUCYPHER_KEYRING_PASSPHRASE"
 
     # Set to False to completely opt-out of sentry reporting
-    log_to_sentry = os.environ.get(__LOG_TO_SENTRY_ENVVAR, True)
+    log_to_sentry = True  # TODO: Use envvar
+    log_to_file = True    # TODO: Use envvar
 
     # Pending Configuration Named Tuple
     PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetails',
                                                          'passphrase wallet signing tls skip_keys save_file')
 
     def __init__(self):
+
+        #
+        # Logging
+        #
+
         if self.log_to_sentry:
             import sentry_sdk
             import logging
+
             sentry_logging = LoggingIntegration(
                 level=logging.INFO,  # Capture info and above as breadcrumbs
                 event_level=logging.DEBUG  # Send debug logs as events
@@ -99,6 +108,9 @@ class NucypherClickConfig:
             )
 
             globalLogPublisher.addObserver(logToSentry)
+
+        if self.log_to_file is True:
+            globalLogPublisher.addObserver(getTextFileObserver())
 
         self.log = Logger(self.__class__.__name__)
 
@@ -297,12 +309,17 @@ class NucypherClickConfig:
         if self.dev:
             raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
         click.confirm('''
+        
 *Permanently and irreversibly delete all* nucypher files including:
   - Private and Public Keys
   - Known Nodes
   - TLS certificates
   - Node Configurations
-Located at {}?'''.format(self.node_configuration.config_root), abort=True)
+  - Log Files
+  
+  Continue?'''.format(self.node_configuration.config_root), abort=True)
+
+        shutil.rmtree(USER_LOG_DIR)
         shutil.rmtree(self.node_configuration.config_root, ignore_errors=True)
         click.secho("Deleted configuration files at {}".format(self.node_configuration.config_root), fg='blue')
 
@@ -998,16 +1015,26 @@ def ursula(config,
     """
     log = Logger("ursula/launch")
 
+    # NOTE: Requires ~1GB free memory
     password = os.environ.get(config._KEYRING_PASSPHRASE_ENVVAR, None)
     if not password:
         password = click.prompt("Password to unlock Ursula's keyring", hide_input=True)
+
+    if debug:
+
+        # Sentry
+        globalLogPublisher.removeObserver(logToSentry)
+        config.log_to_sentry = False
+
+        # Print
+        globalLogPublisher.addObserver(simpleObserver)
 
     def __make_ursula():
         if not checksum_address and not config.dev:
             raise click.BadArgumentUsage("No Configuration file found, and no --checksum address <addr> was provided.")
         if not checksum_address and not config.dev:
-            raise click.BadOptionUsage(message="No account specified. pass --checksum-address, --dev, "
-                                               "or use a configuration file with --config-file <path>")
+            raise click.BadParameter(message="No account specified. pass --checksum-address, --dev, "
+                                             "or use a configuration file with --config-file <path>")
 
         return UrsulaConfiguration(temp=config.dev,
                                    auto_initialize=config.dev,
@@ -1037,7 +1064,10 @@ def ursula(config,
             filepath = config.config_file or UrsulaConfiguration.DEFAULT_CONFIG_FILE_LOCATION
             click.secho("Reading Ursula node configuration file {}".format(filepath), fg='blue')
             ursula_config = UrsulaConfiguration.from_configuration_file(filepath=filepath)
+
         except FileNotFoundError:
+
+            # Continue without a configuration file
             ursula_config = __make_ursula()
 
     config.operating_mode = "federated" if ursula_config.federated_only else "decentralized"
@@ -1096,14 +1126,15 @@ def ursula(config,
 
             # GO!
             click.secho("Running Ursula on {}".format(URSULA.rest_interface), fg='green', bold=True)
-            stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
+            if not debug:
+                stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
             URSULA.get_deployer().run()
 
         except Exception as e:
             config.log.critical(str(e))
             click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')
-            if debug: raise
-            raise click.Abort()
+            raise  # Crash
+
         finally:
             click.secho("Stopping Ursula")
             ursula_config.cleanup()

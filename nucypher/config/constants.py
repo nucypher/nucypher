@@ -14,6 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from collections import namedtuple
 from os.path import abspath, dirname
 
@@ -21,13 +23,15 @@ from appdirs import AppDirs
 
 import nucypher
 
-PACKAGE_NAME = 'nucypher'
 
 # Base Filepaths
 BASE_DIR = abspath(dirname(dirname(nucypher.__file__)))
 PROJECT_ROOT = abspath(dirname(nucypher.__file__))
-APP_DIR = AppDirs(PACKAGE_NAME, "NuCypher")
+
+# User Application Filepaths
+APP_DIR = AppDirs(nucypher.__title__, nucypher.__author__)
 DEFAULT_CONFIG_ROOT = APP_DIR.user_data_dir
+USER_LOG_DIR = APP_DIR.user_log_dir
 
 # Static Seednodes
 SeednodeMetadata = namedtuple('seednode', ['checksum_address', 'rest_host', 'rest_port'])

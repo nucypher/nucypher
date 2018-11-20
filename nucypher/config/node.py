@@ -14,16 +14,18 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import binascii
 import json
 import os
 from json import JSONDecodeError
-from twisted.logger import Logger
 from tempfile import TemporaryDirectory
 from typing import List
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 
-from constant_sorrow import constants
+from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION, STRANGER_CONFIGURATION, LIVE_CONFIGURATION
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
+from twisted.logger import Logger
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR
@@ -34,7 +36,8 @@ from nucypher.network.middleware import RestMiddleware
 
 
 class NodeConfiguration:
-    _name = 'ursula'  # TODO: un-hardcode Ursula
+
+    _name = 'ursula'
     _character_class = Ursula
 
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, '{}.config'.format(_name))
@@ -94,30 +97,31 @@ class NodeConfiguration:
 
                  ) -> None:
 
+        # Logs
         self.log = Logger(self.__class__.__name__)
 
         # Known Nodes
-        self.known_nodes_dir = constants.UNINITIALIZED_CONFIGURATION
-        self.known_certificates_dir = known_certificates_dir or constants.UNINITIALIZED_CONFIGURATION
+        self.known_nodes_dir = UNINITIALIZED_CONFIGURATION
+        self.known_certificates_dir = known_certificates_dir or UNINITIALIZED_CONFIGURATION
 
         # Keyring
-        self.keyring = constants.UNINITIALIZED_CONFIGURATION
-        self.keyring_dir = keyring_dir or constants.UNINITIALIZED_CONFIGURATION
+        self.keyring = UNINITIALIZED_CONFIGURATION
+        self.keyring_dir = keyring_dir or UNINITIALIZED_CONFIGURATION
 
         # Contract Registry
         self.__registry_source = registry_source
-        self.registry_filepath = registry_filepath or constants.UNINITIALIZED_CONFIGURATION
+        self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
 
         # Configuration Root Directory
-        self.config_root = constants.UNINITIALIZED_CONFIGURATION
+        self.config_root = UNINITIALIZED_CONFIGURATION
         self.__temp = temp
         if self.__temp:
-            self.__temp_dir = constants.UNINITIALIZED_CONFIGURATION
+            self.__temp_dir = UNINITIALIZED_CONFIGURATION
             self.node_storage = InMemoryNodeStorage(federated_only=federated_only,
                                                     character_class=self.__class__)
         else:
             self.config_root = config_root
-            self.__temp_dir = constants.LIVE_CONFIGURATION
+            self.__temp_dir = LIVE_CONFIGURATION
             from nucypher.characters.lawful import Ursula  # TODO : Needs cleanup
             self.node_storage = node_storage or self.__DEFAULT_NODE_STORAGE(federated_only=federated_only,
                                                                             character_class=Ursula)
@@ -141,12 +145,12 @@ class NodeConfiguration:
             #
             # Stranger
             #
-            self.known_nodes_dir = constants.STRANGER_CONFIGURATION
-            self.known_certificates_dir = constants.STRANGER_CONFIGURATION
-            self.node_storage = constants.STRANGER_CONFIGURATION
-            self.keyring_dir = constants.STRANGER_CONFIGURATION
-            self.keyring = constants.STRANGER_CONFIGURATION
-            self.network_middleware = constants.STRANGER_CONFIGURATION
+            self.known_nodes_dir = STRANGER_CONFIGURATION
+            self.known_certificates_dir = STRANGER_CONFIGURATION
+            self.node_storage = STRANGER_CONFIGURATION
+            self.keyring_dir = STRANGER_CONFIGURATION
+            self.keyring = STRANGER_CONFIGURATION
+            self.network_middleware = STRANGER_CONFIGURATION
             if network_middleware:
                 raise self.ConfigurationError("Cannot configure a stranger to use network middleware")
 
@@ -302,7 +306,7 @@ class NodeConfiguration:
         """Generate runtime filepaths and cache them on the config object"""
         filepaths = self.generate_runtime_filepaths(config_root=self.config_root)
         for field, filepath in filepaths.items():
-            if getattr(self, field) is constants.UNINITIALIZED_CONFIGURATION:
+            if getattr(self, field) is UNINITIALIZED_CONFIGURATION:
                 setattr(self, field, filepath)
 
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
@@ -348,10 +352,10 @@ class NodeConfiguration:
         try:
 
             # Directories
-            os.mkdir(self.keyring_dir, mode=0o700)  # keyring
-            os.mkdir(self.known_nodes_dir, mode=0o755)  # known_nodes
+            os.mkdir(self.keyring_dir, mode=0o700)             # keyring
+            os.mkdir(self.known_nodes_dir, mode=0o755)         # known_nodes
             os.mkdir(self.known_certificates_dir, mode=0o755)  # known_certs
-            self.node_storage.initialize()  # TODO: default know dir
+            self.node_storage.initialize()  # TODO: default known dir
 
             if not self.temp and not no_keys:
                 # Keyring
