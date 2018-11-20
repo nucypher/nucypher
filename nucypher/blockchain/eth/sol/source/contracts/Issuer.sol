@@ -166,6 +166,13 @@ contract Issuer is Upgradeable {
         currentSupply2 = currentSupply2.sub(_amount);
     }
 
+    /**
+    * @notice Returns the number of tokens that can be mined
+    **/
+    function getReservedReward() public view returns (uint256) {
+        return totalSupply - Math.max256(currentSupply1, currentSupply2);
+    }
+
     function verifyState(address _testTarget) public onlyOwner {
         require(address(delegateGet(_testTarget, "token()")) == address(token));
         require(uint256(delegateGet(_testTarget, "miningCoefficient()")) == miningCoefficient);
