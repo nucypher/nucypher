@@ -87,6 +87,11 @@ class UrsulaConfiguration(NodeConfiguration):
         self.poa = poa
         self.provider_uri = provider_uri
 
+        self.blockchain = NO_BLOCKCHAIN_CONNECTION
+        self.token_agent = CONTRACT_NOT_AVAILABLE
+        self.miner_agent = CONTRACT_NOT_AVAILABLE
+        self.policy_agent = CONTRACT_NOT_AVAILABLE
+
         super().__init__(*args, **kwargs)
 
     def generate_runtime_filepaths(self, config_root: str) -> dict:
@@ -118,12 +123,12 @@ class UrsulaConfiguration(NodeConfiguration):
         )
         return {**super().dynamic_payload, **payload}
 
-    def produce(self, passphrase: str = None, **overrides):
+    def produce(self, password: str = None, **overrides):
         """Produce a new Ursula from configuration"""
 
         if not self.dev:
             self.read_keyring()
-            self.keyring.unlock(passphrase=passphrase)
+            self.keyring.unlock(password=password)
 
         merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
 

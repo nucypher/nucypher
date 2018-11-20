@@ -19,6 +19,8 @@ import json
 import os
 import stat
 from json import JSONDecodeError
+
+from cryptography.hazmat.primitives.asymmetric import ec
 from typing import ClassVar, Tuple, Callable, Union, Dict
 
 from constant_sorrow import constants
@@ -188,9 +190,7 @@ def _read_tls_public_certificate(filepath: str) -> Certificate:
 # Encrypt and Decrypt
 #
 
-def _derive_key_material_from_passphrase(salt: bytes,
-                                         passphrase: str
-                                         ) -> bytes:
+def _derive_key_material_from_password(salt: bytes, password: str) -> bytes:
     """
     Uses Scrypt derivation to derive a key for encrypting key material.
     See RFC 7914 for n, r, and p value selections.
@@ -204,7 +204,7 @@ def _derive_key_material_from_passphrase(salt: bytes,
             r=8,
             p=1,
             backend=default_backend()
-        ).derive(passphrase.encode())
+        ).derive(password.encode())
     except InternalError as e:
         # OpenSSL Attempts to malloc 1 GB of mem for scrypt key derivation
         if e.err_code[0].reason == 65:
@@ -278,10 +278,10 @@ def _generate_signing_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
     return privkey, pubkey
 
 
-def _generate_wallet(passphrase: str) -> Tuple[str, dict]:
-    """Create a new wallet address and private "transacting" key encrypted with the passphrase"""
+def _generate_wallet(password: str) -> Tuple[str, dict]:
+    """Create a new wallet address and private "transacting" key encrypted with the password"""
     account = Account.create(extra_entropy=os.urandom(32))  # max out entropy for keccak256
-    encrypted_wallet_data = Account.encrypt(private_key=account.privateKey, password=passphrase)
+    encrypted_wallet_data = Account.encrypt(private_key=account.privateKey, password=password)
     return account.address, encrypted_wallet_data
 
 
@@ -358,6 +358,7 @@ class NucypherKeyring:
 
     __default_keyring_root = os.path.join(DEFAULT_CONFIG_ROOT, 'keyring')
     _private_key_serializer = _PrivateKeySerializer()
+    __DEFAULT_TLS_CURVE = ec.SECP384R1
 
     class KeyringError(Exception):
         pass
@@ -365,7 +366,7 @@ class NucypherKeyring:
     class KeyringLocked(KeyringError):
         pass
 
-    class InvalidPassphrase(KeyringError):
+    class InvalidPassword(KeyringError):
         pass
 
     def __init__(self,
@@ -477,12 +478,12 @@ class NucypherKeyring:
 
         return __key_filepaths
 
-    def _export_wallet_to_node(self, blockchain, passphrase):  # TODO: Deprecate with geth.parity signing EIPs
-        """Decrypt the wallet with a passphrase, then import the key to the nodes's keyring over RPC"""
+    def _export_wallet_to_node(self, blockchain, password):  # TODO: Deprecate with geth.parity signing EIPs
+        """Decrypt the wallet with a password, then import the key to the nodes's keyring over RPC"""
         with open(self.__wallet_path, 'rb') as wallet:
             data = wallet.read().decode(FILE_ENCODING)
-            account = Account.decrypt(keyfile_json=data, password=passphrase)
-            blockchain.interface.w3.personal.importRawKey(private_key=account, passphrase=passphrase)
+            account = Account.decrypt(keyfile_json=data, password=password)
+            blockchain.interface.w3.personal.importRawKey(private_key=account, password=password)
 
     @unlock_required
     def __decrypt_keyfile(self, key_path: str) -> UmbralPrivateKey:
@@ -510,12 +511,12 @@ class NucypherKeyring:
         self.__derived_key_material = constants.KEYRING_LOCKED
         return self.is_unlocked
 
-    def unlock(self, passphrase: str) -> bool:
+    def unlock(self, password: str) -> bool:
         if self.is_unlocked:
             return self.is_unlocked
         key_data = _read_keyfile(keypath=self.__root_keypath, deserializer=self._private_key_serializer)
         try:
-            derived_key = _derive_key_material_from_passphrase(passphrase=passphrase, salt=key_data['master_salt'])
+            derived_key = _derive_key_material_from_password(password=password, salt=key_data['master_salt'])
         except CryptoError:
             raise
         else:
@@ -568,7 +569,7 @@ class NucypherKeyring:
     #
     @classmethod
     def generate(cls,
-                 passphrase: str,
+                 password: str,
                  encrypting: bool = True,
                  wallet: bool = True,
                  tls: bool = True,
@@ -577,18 +578,21 @@ class NucypherKeyring:
                  keyring_root: str = None,
                  ) -> 'NucypherKeyring':
         """
-        Generates new encrypting, signing, and wallet keys encrypted with the passphrase,
+        Generates new encrypting, signing, and wallet keys encrypted with the password,
         respectively saving keyfiles on the local filesystem from *default* paths,
         returning the corresponding Keyring instance.
         """
 
-        failures = cls.validate_passphrase(passphrase)
+        failures = cls.validate_password(password)
         if failures:
-            raise cls.InvalidPassphrase(", ".join(failures))  # TODO: Ensure this scope is seperable from the scope containing the passphrase
+            raise cls.InvalidPassword(", ".join(failures))  # TODO: Ensure this scope is seperable from the scope containing the password
 
         if not any((wallet, encrypting, tls)):
             raise ValueError('Either "encrypting", "wallet", or "tls" must be True '
                              'to generate new keys, or set "no_keys" to True to skip generation.')
+
+        if curve is None:
+            curve = cls.__DEFAULT_TLS_CURVE
 
         _base_filepaths = cls._generate_base_filepaths(keyring_root=keyring_root)
         _public_key_dir = _base_filepaths['public_key_dir']
@@ -608,7 +612,7 @@ class NucypherKeyring:
         keyring_args = dict()
 
         if wallet is True:
-            new_address, new_wallet = _generate_wallet(passphrase)
+            new_address, new_wallet = _generate_wallet(password)
             new_wallet_path = os.path.join(_private_key_dir, 'wallet-{}.json'.format(new_address))
             saved_wallet_path = _write_private_keyfile(new_wallet_path, json.dumps(new_wallet), serializer=None)
             keyring_args.update(wallet_path=saved_wallet_path)
@@ -630,9 +634,9 @@ class NucypherKeyring:
             delegating_keying_material = UmbralKeyingMaterial().to_bytes()
 
             # Derive Wrapping Keys
-            passphrase_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))
-            derived_key_material = _derive_key_material_from_passphrase(salt=passphrase_salt,
-                                                                        passphrase=passphrase)
+            password_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))
+            derived_key_material = _derive_key_material_from_password(salt=password_salt,
+                                                                        password=password)
             encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt,
                                                                          key_material=derived_key_material)
             signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt,
@@ -650,13 +654,13 @@ class NucypherKeyring:
 
             # Assemble Private Keys
             encrypting_key_metadata = _assemble_key_data(key_data=encrypting_key_data,
-                                                         master_salt=passphrase_salt,
+                                                         master_salt=password_salt,
                                                          wrap_salt=encrypting_salt)
             signing_key_metadata = _assemble_key_data(key_data=signing_key_data,
-                                                      master_salt=passphrase_salt,
+                                                      master_salt=password_salt,
                                                       wrap_salt=signing_salt)
             delegating_key_metadata = _assemble_key_data(key_data=delegating_key_data,
-                                                         master_salt=passphrase_salt,
+                                                         master_salt=password_salt,
                                                          wrap_salt=delegating_salt)
 
             # Write Private Keys
@@ -704,15 +708,15 @@ class NucypherKeyring:
         return keyring_instance
 
     @staticmethod
-    def validate_passphrase(passphrase: str) -> bool:
+    def validate_password(password: str) -> bool:
         """
-        Validate a passphrase and return True or raise an error with a failure reason.
+        Validate a password and return True or raise an error with a failure reason.
 
         NOTICE: Do not raise inside this function.
         """
         rules = (
-            (bool(passphrase), 'Passphrase must not be blank.'),
-            (len(passphrase) >= 16, 'Passphrase is too short, must be >= 16 chars.'),
+            (bool(password), 'Password must not be blank.'),
+            (len(password) >= 16, 'Password is too short, must be >= 16 chars.'),
         )
 
         failures = list()
