@@ -83,7 +83,6 @@ class ProxyRESTRoutes:
                  stamp,
                  verifier,
                  suspicious_activity_tracker,
-                 certificate_dir,
                  ) -> None:
 
         self.network_middleware = network_middleware
@@ -97,7 +96,6 @@ class ProxyRESTRoutes:
         self._stamp = stamp
         self._verifier = verifier
         self._suspicious_activity_tracker = suspicious_activity_tracker
-        self._certificate_dir = certificate_dir
         self.datastore = None
 
         routes = [
@@ -184,10 +182,10 @@ class ProxyRESTRoutes:
             return Response(bytes(signature) + payload, headers=headers, status_code=204)
 
         nodes = self._node_class.batch_from_bytes(request.body,
-                                                  federated_only=self.federated_only,  # TODO: 466
-                                                  )
+                                                  federated_only=self.federated_only)  # TODO: 466
 
-        # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.  Let's find a better way.  555
+        # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
+        # Let's find a better way.  #555
         for node in nodes:
 
             if node in self._node_tracker:
@@ -196,23 +194,26 @@ class ProxyRESTRoutes:
             @crosstown_traffic()
             def learn_about_announced_nodes():
                 try:
-                    certificate_filepath = node.get_certificate_filepath(certificates_dir=self._certificate_dir)  # TODO: integrate with recorder?
-                    node.save_certificate_to_disk(directory=self._certificate_dir, force=True)
+                    certificate_filepath = self._node_recorder.store_node_certificate(node)
+
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
                 except node.SuspiciousActivity:
+                    # TODO: Include data about caller?
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
-                    message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
-                              " Announced via REST."  # TODO: Include data about caller?
+                    message = "Suspicious Activity: Discovered node with bad signature: {}.  Announced via REST."
                     self.log.warn(message)
-                    self._suspicious_activity_tracker['vladimirs'].append(node)  # TODO: Maybe also record the bytes representation separately to disk?
+
+                    # TODO: Maybe also record the bytes representation separately to disk?
+                    self._suspicious_activity_tracker['vladimirs'].append(node)
                 except Exception as e:
                     self.log.critical(str(e))
-                    raise  # TODO
+                    raise
                 else:
                     self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-                    self._node_recorder(node)
+                    self._node_recorder.store_node_metadata(node)
+                    # TODO: Record new fleet state
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
         return self.all_known_nodes(request)

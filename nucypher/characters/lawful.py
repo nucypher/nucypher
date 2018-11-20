@@ -524,11 +524,10 @@ class Ursula(Teacher, Character, Miner):
                     node_tracker=self.known_nodes,
                     node_bytes_caster=self.__bytes__,
                     work_order_tracker=self._work_orders,
-                    node_recorder=self.remember_node,
+                    node_recorder=self.node_storage,
                     stamp=self.stamp,
                     verifier=self.verify_from,
-                    suspicious_activity_tracker=self.suspicious_activities_witnessed,
-                    certificate_dir=self.known_certificates_dir,
+                    suspicious_activity_tracker=self.suspicious_activities_witnessed
                 )
 
                 #

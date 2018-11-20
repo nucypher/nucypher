@@ -44,7 +44,7 @@ from twisted.logger import Logger
 
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.keyring import _write_tls_certificate
-from nucypher.config.storages import InMemoryNodeStorage
+from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
@@ -52,6 +52,7 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
+from nucypher.utilities.decorators import validate_checksum_address
 
 
 def icon_from_checksum(checksum,
@@ -205,7 +206,7 @@ class Learner:
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 10
 
     # For Keeps
-    __DEFAULT_NODE_STORAGE = InMemoryNodeStorage
+    __DEFAULT_NODE_STORAGE = ForgetfulNodeStorage
     __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
 
     class NotEnoughTeachers(RuntimeError):
@@ -220,7 +221,6 @@ class Learner:
                  learn_on_same_thread: bool = False,
                  known_nodes: tuple = None,
                  seed_nodes: Tuple[tuple] = None,
-                 known_certificates_dir: str = None,
                  node_storage=None,
                  save_metadata: bool = False,
                  abort_on_learning_error: bool = False
@@ -236,7 +236,6 @@ class Learner:
         self._learning_listeners = defaultdict(list)
         self._node_ids_to_learn_about_immediately = set()
 
-        self.known_certificates_dir = known_certificates_dir or TemporaryDirectory("nucypher-tmp-certs-").name
         self.__known_nodes = FleetStateTracker()
 
         self.done_seeding = False
@@ -296,8 +295,7 @@ class Learner:
 
             seed_node = Ursula.from_seednode_metadata(seednode_metadata=seednode_metadata,
                                                       network_middleware=self.network_middleware,
-                                                      certificates_directory=self.known_certificates_dir,
-                                                      # timeout=timeout,
+                                                      node_storage=self.node_storage,
                                                       federated_only=self.federated_only)  # TODO: 466
             if seed_node is False:
                 self.unresponsive_seed_nodes.add(seednode_metadata)
@@ -337,8 +335,11 @@ class Learner:
                 # This node is already known.  We can safely return.
                 return False
 
-        node.save_certificate_to_disk(directory=self.known_certificates_dir, force=True)  # TODO: Verify before force?
-        certificate_filepath = node.get_certificate_filepath(certificates_dir=self.known_certificates_dir)
+        # Store node's certificate - It has been seen.
+        certificate_filepath = self.node_storage.store_node_certificate(checksum_address=node.checksum_public_address,
+                                                                        certificate=node.certificate,
+                                                                        host=node.rest_information()[0].host)
+
         try:
             node.verify_node(force=force_verification_check,
                              network_middleware=self.network_middleware,
@@ -358,7 +359,7 @@ class Learner:
             raise RuntimeError
 
         if self.save_metadata:
-            self.write_node_metadata(node=node)
+            self.node_storage.store_node_metadata(node=node)
 
         self.log.info("Remembering {}, popping {} listeners.".format(node.checksum_public_address, len(listeners)))
         for listener in listeners:
@@ -585,7 +586,7 @@ class Learner:
         # Scenario 3: We don't know about this node, and neither does our friend.
 
     def write_node_metadata(self, node, serializer=bytes) -> str:
-        return self.node_storage.save(node=node)
+        return self.node_storage.store_node_metadata(node=node)
 
     def learn_from_teacher_node(self, eager=True):
         """
@@ -612,8 +613,7 @@ class Learner:
         try:
 
             # TODO: Streamline path generation
-            certificate_filepath = current_teacher.get_certificate_filepath(
-                certificates_dir=self.known_certificates_dir)
+            certificate_filepath = self.node_storage.generate_certificate_filepath(checksum_address=current_teacher.checksum_public_address)
             response = self.network_middleware.get_nodes_via_rest(url=rest_url,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
@@ -659,8 +659,7 @@ class Learner:
         for node in node_list:
             try:
                 if eager:
-                    certificate_filepath = current_teacher.get_certificate_filepath(
-                        certificates_dir=self.known_certificates_dir)
+                    certificate_filepath = self.node_storage.generate_certificate_filepath(checksum_address=current_teacher.checksum_public_address)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
@@ -687,10 +686,11 @@ class Learner:
                                                         len(new_nodes)), )
         if new_nodes:
             self.known_nodes.record_fleet_state()
-            if self.known_certificates_dir:
-                for node in new_nodes:
-                    node.save_certificate_to_disk(self.known_certificates_dir, force=True)
-
+            for node in new_nodes:
+                self.node_storage.store_node_certificate(checksum_address=node.checksum_public_address,
+                                                         certificate=node.certificate,
+                                                         host=node.rest_information()[0].host,
+                                                         force=True)
         return new_nodes
 
 
@@ -702,6 +702,7 @@ class Teacher:
     _verified_node = False
     _interface_info_splitter = (int, 4, {'byteorder': 'big'})
     log = Logger("network/nodes")
+    __DEFAULT_MIN_SEED_STAKE = 0
 
     def __init__(self,
                  certificate: Certificate,
@@ -852,9 +853,9 @@ class Teacher:
         else:
             self._verified_node = True
 
-    def substantiate_stamp(self, passphrase: str):
+    def substantiate_stamp(self, password: str):
         blockchain_power = self._crypto_power.power_ups(BlockchainPower)
-        blockchain_power.unlock_account(password=passphrase)  # TODO: 349
+        blockchain_power.unlock_account(password=password)  # TODO: 349
         signature = blockchain_power.sign_message(bytes(self.stamp))
         self._evidence_of_decentralized_identity = signature
 
@@ -888,41 +889,10 @@ class Teacher:
     def timestamp_bytes(self):
         return self.timestamp.epoch.to_bytes(4, 'big')
 
-    @property
-    def common_name(self):
-        x509 = OpenSSL.crypto.X509.from_cryptography(self.certificate)
-        subject_components = x509.get_subject().get_components()
-        common_name_as_bytes = subject_components[0][1]
-        common_name_from_cert = common_name_as_bytes.decode()
-        return common_name_from_cert
-
-    @property
-    def certificate_filename(self):
-        return '{}.{}'.format(self.checksum_public_address, Encoding.PEM.name.lower())  # TODO: use cert's encoding..?
-
-    def get_certificate_filepath(self, certificates_dir: str) -> str:
-        return os.path.join(certificates_dir, self.certificate_filename)
-
-    def save_certificate_to_disk(self, directory, force=False):
-        x509 = OpenSSL.crypto.X509.from_cryptography(self.certificate)
-        subject_components = x509.get_subject().get_components()
-        common_name_as_bytes = subject_components[0][1]
-        common_name_from_cert = common_name_as_bytes.decode()
-
-        if not self.rest_information()[0].host == common_name_from_cert:
-            # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
-            raise ValueError("You passed a common_name that is not the same one as the cert. "
-                             "Common name is optional; the cert will be saved according to "
-                             "the name on the cert itself.")
-
-        certificate_filepath = self.get_certificate_filepath(certificates_dir=directory)
-        _write_tls_certificate(self.certificate, full_filepath=certificate_filepath, force=force)
-        self.certificate_filepath = certificate_filepath
-        self.log.info("Saved TLS certificate for {}: {}".format(self, certificate_filepath))
-
     @classmethod
     def from_seednode_metadata(cls,
                                seednode_metadata,
+                               node_storage=None,
                                *args,
                                **kwargs):
         """
@@ -933,32 +903,37 @@ class Teacher:
         return cls.from_seed_and_stake_info(checksum_address=seednode_metadata.checksum_address,
                                             host=seednode_metadata.rest_host,
                                             port=seednode_metadata.rest_port,
+                                            node_storage=node_storage,
                                             *args, **kwargs)
 
     @classmethod
-    def from_seed_and_stake_info(cls, host,
-                                 certificates_directory,
-                                 federated_only,
+    @validate_checksum_address
+    def from_seed_and_stake_info(cls,
+                                 host,
                                  port,
+                                 federated_only,
+                                 minimum_stake=__DEFAULT_MIN_SEED_STAKE,
                                  checksum_address=None,
-                                 minimum_stake=0,
                                  network_middleware=None,
                                  *args,
                                  **kwargs
                                  ):
+
+        #
+        # WARNING: xxx Poison xxx
+        # Let's learn what we can about the ... "seednode".
+        #
+
         if network_middleware is None:
             network_middleware = RestMiddleware()
 
+        # Fetch the hosts TLS certificate and read the common name
         certificate = network_middleware.get_certificate(host=host, port=port)
-
         real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
-        # Write certificate; this is really only for temporary purposes.  Ideally, we'd use
-        # it in-memory here but there's no obvious way to do that.
-        filename = '{}.{}'.format(checksum_address, Encoding.PEM.name.lower())
-        certificate_filepath = os.path.join(certificates_directory, filename)
-        _write_tls_certificate(certificate=certificate, full_filepath=certificate_filepath, force=True)
-        cls.log.info("Saved seednode {} TLS certificate".format(checksum_address))
-
+        temp_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
+        certificate_filepath = temp_node_storage.store_host_certificate(host=real_host,
+                                                                        certificate=certificate)
+        # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
             host=real_host,
             port=port,
@@ -969,22 +944,29 @@ class Teacher:
             **kwargs)  # TODO: 466
 
         if checksum_address:
+            # Ensure this is the specific node we expected
             if not checksum_address == potential_seed_node.checksum_public_address:
                 raise potential_seed_node.SuspiciousActivity(
-                    "This seed node has a different wallet address: {} (was hoping for {}).  Are you sure this is a seed node?".format(
-                        potential_seed_node.checksum_public_address,
-                        checksum_address))
-        else:
-            if minimum_stake > 0:
-                # TODO: check the blockchain to verify that address has more then minimum_stake. #511
-                raise NotImplementedError("Stake checking is not implemented yet.")
+                    "This seed node has a different wallet address: {} (expected {}).  Are you sure this is a seednode?"
+                    .format(potential_seed_node.checksum_public_address, checksum_address))
+
+        # Check the node's stake (optional)
+        if minimum_stake > 0:
+            # TODO: check the blockchain to verify that address has more then minimum_stake. #511
+            raise NotImplementedError("Stake checking is not implemented yet.")
+
+        # Verify the node's TLS certificate
         try:
             potential_seed_node.verify_node(
                 network_middleware=network_middleware,
                 accept_federated_only=federated_only,
                 certificate_filepath=certificate_filepath)
+
         except potential_seed_node.InvalidNode:
             raise  # TODO: What if our seed node fails verification?
+
+        # OK - everyone get out
+        temp_node_storage.forget()
         return potential_seed_node
 
     @classmethod
@@ -993,14 +975,15 @@ class Teacher:
                       host: str,
                       port: int,
                       certificate_filepath,
-                      federated_only: bool = False
+                      federated_only: bool = False,
+                      *args, **kwargs
                       ):
 
         response = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 
-        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only)
+        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only, *args, **kwargs)
         return stranger_ursula_from_public_keys
 
     @property
