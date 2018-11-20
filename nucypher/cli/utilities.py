@@ -28,17 +28,29 @@ import socket
 import time
 from eth_utils import is_checksum_address
 from nacl.exceptions import CryptoError
+from twisted.internet import stdio
 from twisted.logger import Logger
 from web3.middleware import geth_poa_middleware
 
 from nucypher.blockchain.eth.agents import MinerAgent, PolicyAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.characters.lawful import Ursula
-from nucypher.cli.constants import BANNER, KEYRING_PASSPHRASE_ENVVAR
+from nucypher.cli.constants import BANNER, KEYRING_PASSWORD_ENVVAR
+from nucypher.cli.protocol import UrsulaCommandProtocol
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import USER_LOG_DIR
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
+
+
+#
+#
+#
+#  True CLI Utils
+#
+#
+#
+from nucypher.config.storages import NodeStorage
 
 UTILITY_LOG = Logger('nucypher-cli.utilities')
 
@@ -97,18 +109,59 @@ CHECKSUM_ADDRESS = ChecksumAddress()
 def unlock_and_produce(ursula_config, teacher_nodes=None, **overrides) -> Ursula:
     try:
         # Unlock Keyring - NOTE: Requires ~1GB free memory
-        password = os.environ.get(KEYRING_PASSPHRASE_ENVVAR, None)
+        password = os.environ.get(KEYRING_PASSWORD_ENVVAR)
         if not password:
             password = click.prompt("Password to unlock Ursula's keyring", hide_input=True)
 
-        ursula = ursula_config.produce(passphrase=password,
+        ursula = ursula_config.produce(password=password,
                                        known_nodes=teacher_nodes,
                                        **overrides)
     except CryptoError:
-        click.secho("Invalid keyring passphrase")
+        click.secho("Invalid keyring password")
         return
 
     return ursula
+
+
+def run_ursula(ursula_config: UrsulaConfiguration,
+               teacher_uri: str,
+               min_stake: int,
+               interactive: bool):
+    #
+    # Seed - Step 1
+    #
+    teacher_nodes = list()
+    if teacher_uri:
+        node = attempt_seednode_learning(federated_only=ursula_config.federated_only,
+                                         teacher_uri=teacher_uri,
+                                         min_stake=min_stake)
+        teacher_nodes.append(node)
+    #
+    # Produce - Step 2
+    #
+    ursula = unlock_and_produce(ursula_config=ursula_config, teacher_nodes=teacher_nodes)
+    ursula_config.log.debug("Initialized Ursula {}".format(ursula), fg='green')
+
+    # GO!
+    try:
+
+        #
+        # Run - Step 3
+        #
+        click.secho("Running Ursula on {}".format(ursula.rest_interface), fg='green', bold=True)
+        if interactive:
+            stdio.StandardIO(UrsulaCommandProtocol(ursula=ursula))
+        ursula.get_deployer().run()
+
+    except Exception as e:
+        ursula_config.log.critical(str(e))
+        click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')
+        raise  # Crash :-(
+
+    finally:
+        click.secho("Stopping Ursula")
+        ursula_config.cleanup()
+        click.secho("Ursula Stopped", fg='red')
 
 
 def parse_node_uri(uri: str):
@@ -129,21 +182,25 @@ def parse_node_uri(uri: str):
     return hostname, port, checksum_address
 
 
-def attempt_seednode_learning(cli_config, teacher_uri, min_stake) -> Ursula:
+def attempt_seednode_learning(federated_only: bool,
+                              teacher_uri: str,
+                              min_stake: int,
+                              ) -> Ursula:
+
     hostname, port, checksum_address = parse_node_uri(uri=teacher_uri)
     try:
         teacher = Ursula.from_seed_and_stake_info(host=hostname,
                                                   port=port,
-                                                  federated_only=cli_config.federated_only,
+                                                  federated_only=federated_only,
                                                   checksum_address=checksum_address,
-                                                  minimum_stake=min_stake,
-                                                  certificates_directory=cli_config.known_certificates_dir)
+                                                  minimum_stake=min_stake)
 
     except (socket.gaierror, requests.exceptions.ConnectionError, ConnectionRefusedError):
         UTILITY_LOG.warn("Can't connect to seed node.  Will retry.")
         time.sleep(5)  # TODO: Move this 5
 
-    return teacher
+    else:
+        return teacher
 
 
 def get_ursula_configuration(dev_mode: bool = False,
@@ -193,54 +250,12 @@ def get_ursula_configuration(dev_mode: bool = False,
             ursula_config = UrsulaConfiguration.from_configuration_file(filepath=filepath)
 
         except FileNotFoundError:
-
-            # Hook-up a new partial configuration (Initial Installation)
-            ursula_config = UrsulaConfiguration(dev=False,
-                                                auto_initialize=False,
-                                                is_me=True,
-                                                rest_host=rest_host,
-                                                rest_port=rest_port,
-                                                db_name=db_name,
-                                                federated_only=federated_only,
-                                                registry_filepath=registry_filepath,
-                                                provider_uri=provider_uri,
-                                                checksum_address=checksum_address,
-                                                poa=poa,
-                                                save_metadata=True,
-                                                load_metadata=True,
-                                                start_learning_now=True,
-                                                learn_on_same_thread=False,
-                                                abort_on_learning_error=True)
+            raise
 
     return ursula_config
 
 
-def connect_to_blockchain(click_config):
-    if click_config.federated_only:
-        raise NodeConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
-    if click_config.deployer:
-        click_config.registry_filepath = NodeConfiguration.REGISTRY_SOURCE
-    if click_config.compile:
-        click.confirm("Compile solidity source?", abort=True)
-    click_config.blockchain = Blockchain.connect(provider_uri=click_config.provider_uri,
-                                                 deployer=click_config.deployer,
-                                                 compile=click_config.compile)
-    if click_config.poa:
-        w3 = click_config.blockchain.interface.w3
-        w3.middleware_stack.inject(geth_poa_middleware, layer=0)
-    click_config.accounts = click_config.blockchain.interface.w3.eth.accounts
-    click_config.log.debug("CLI established connection to provider {}".format(click_config.blockchain.interface.provider_uri))
-
-
-def connect_to_contracts(click_config) -> None:
-    """Initialize contract agency and set them on config"""
-    click_config.token_agent = NucypherTokenAgent(blockchain=click_config.blockchain)
-    click_config.miner_agent = MinerAgent(blockchain=click_config.blockchain)
-    click_config.policy_agent = PolicyAgent(blockchain=click_config.blockchain)
-    click_config.log.debug("CLI established connection to nucypher contracts")
-
-
-def create_account(click_config, passphrase: str = None) -> str:
+def create_account(click_config, password: str = None) -> str:
     """Creates a new local or hosted ethereum wallet"""
     choice = click.prompt("Create a new Hosted or Local account?", default='hosted',
                           type=click.STRING).strip().lower()
@@ -274,8 +289,8 @@ def _collect_pending_configuration_details(ursula: bool = True, rest_host=None) 
     if ursula and not rest_host:
         rest_host = click.prompt("Enter Node's Public IPv4 Address", type=IPV4_ADDRESS)
 
-    if os.environ.get(KEYRING_PASSPHRASE_ENVVAR):
-        passphrase = os.environ.get(KEYRING_PASSPHRASE_ENVVAR)
+    if os.environ.get(KEYRING_PASSWORD_ENVVAR):
+        password = os.environ.get(KEYRING_PASSWORD_ENVVAR)
     else:
         password = click.prompt("Enter a password to encrypt your keyring",
                                   hide_input=True, confirmation_prompt=True)
@@ -290,13 +305,34 @@ def _collect_pending_configuration_details(ursula: bool = True, rest_host=None) 
     return details
 
 
-def write_configuration(ursula_config: UrsulaConfiguration,
-                        rest_host: str = None,
-                        no_registry: bool = False
-                        ) -> None:
+def write_new_ursula_configuration(rest_host,
+                                   rest_port,
+                                   config_root,
+                                   db_filepath,
+                                   federated_only,
+                                   registry_filepath,
+                                   provider_uri,
+                                   checksum_address,
+                                   no_registry
+                                   ) -> None:
 
-    if ursula_config.dev:
-        click.secho("Using temporary storage area", fg='blue', bold=True)
+    # Hook-up a new partial configuration (Initial Installation)
+    ursula_config = UrsulaConfiguration(dev=False,
+                                        auto_initialize=False,
+                                        is_me=True,
+                                        rest_host=rest_host,
+                                        rest_port=rest_port,
+                                        config_root=config_root,
+                                        db_filepath=db_filepath,
+                                        federated_only=federated_only,
+                                        registry_filepath=registry_filepath,
+                                        provider_uri=provider_uri,
+                                        checksum_address=checksum_address,
+                                        save_metadata=True,
+                                        load_metadata=True,
+                                        start_learning_now=True,
+                                        learn_on_same_thread=False,
+                                        abort_on_learning_error=True)
 
     if not no_registry and not ursula_config.federated_only:
         registry_source = ursula_config.REGISTRY_SOURCE
@@ -357,9 +393,9 @@ def forget_nodes(click_config) -> None:
     UTILITY_LOG.debug(message)
 
 
-def destroy_configuration(ursula_config, force: bool = False) -> None:
-    if ursula_config.dev:
-        raise NodeConfiguration.ConfigurationError("Cannot destroy a temporary node configuration")
+def destroy_configuration(config_root: str, force: bool = False) -> None:
+
+    # TODO: Confirm this is a nucypher dir first!
 
     if not force:
         click.confirm('''
@@ -371,25 +407,25 @@ def destroy_configuration(ursula_config, force: bool = False) -> None:
     - Node Configurations
     - Log Files
     
-Continue?'''.format(ursula_config.config_root), abort=True)
+Delete {}?'''.format(config_root), abort=True)
 
     shutil.rmtree(USER_LOG_DIR)
 
     try:
-        shutil.rmtree(ursula_config.config_root)
+        shutil.rmtree(config_root)
     except FileNotFoundError:
-        message = 'Failed: No nucypher files found at {}'.format(ursula_config.config_root)
+        message = 'Failed: No nucypher files found at {}'.format(config_root)
         click.secho(message, fg='red')
         UTILITY_LOG.debug(message)
         raise click.Abort()
 
-    message = "Deleted configuration files at {}".format(ursula_config.config_root)
+    message = "Deleted configuration files at {}".format(config_root)
     click.secho(message, fg='green')
     UTILITY_LOG.debug(message)
 
 
-def paint_configuration(ursula_config):
-    json_config = UrsulaConfiguration._read_configuration_file(filepath=ursula_config.config_file_location)
+def paint_configuration(config_filepath: str) -> None:
+    json_config = UrsulaConfiguration._read_configuration_file(filepath=config_filepath)
     click.secho("\n======== Ursula Configuration ======== \n", bold=True)
     for key, value in json_config.items():
         click.secho("{} = {}".format(key, value))

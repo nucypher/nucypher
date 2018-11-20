@@ -41,9 +41,8 @@ class UrsulaCommandProtocol(LineReceiver):
     def _paint_known_nodes(self):
         # Gather Data
         known_nodes = self.ursula.known_nodes
-        known_certificate_files = os.listdir(self.ursula.known_certificates_dir)
-        number_of_known_nodes = len(known_nodes)
-        seen_nodes = len(known_certificate_files)
+        number_of_known_nodes = len(self.ursula.node_storage.all(federated_only=self.ursula.federated_only))
+        seen_nodes = len(self.ursula.node_storage.all(federated_only=self.ursula.federated_only, certificates_only=True))
 
         # Operating Mode
         federated_only = self.ursula.federated_only
@@ -66,7 +65,8 @@ class UrsulaCommandProtocol(LineReceiver):
         click.echo('\n')
 
         seednode_addresses = list(bn.checksum_address for bn in SEEDNODES)
-        for address, node in known_nodes.items():
+
+        for node in known_nodes:
             row_template = "{} | {} | {} | {} | {}"
             node_type = 'known'
             if node.checksum_public_address == self.ursula.checksum_public_address:
