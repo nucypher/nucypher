@@ -175,18 +175,28 @@ def status(config):
 
 
 @nucypher_cli.command()
+@click.option('--dev', '-d', help="Enable development mode", is_flag=True)
+@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--federated-only', help="Connect only to federated nodes", is_flag=True, default=True)
 @click.option('--checksum-address', help="The account to lock/unlock instead of the default", type=CHECKSUM_ADDRESS)
 @click.argument('action', default='list', required=False)
 @uses_config
 def accounts(config,
              action,
+             dev,
+             provider_uri,
+             federated_only,
              checksum_address):
     """Manage local and hosted node accounts"""
 
     #
     # Initialize
     #
-    ursula_config = get_ursula_configuration(checksum_address=checksum_address)
+    ursula_config = get_ursula_configuration(dev_mode=dev,
+                                             federated_only=federated_only,
+                                             checksum_address=checksum_address,
+                                             provider_uri=provider_uri)
+
     if not ursula_config.federated_only:
         connect_to_blockchain(config)
         connect_to_contracts(config)
@@ -210,35 +220,36 @@ def accounts(config,
         new_address = create_account(config)
         click.secho("Created new ETH address {}".format(new_address), fg='blue')
         if click.confirm("Set new address as the node's keying default account?".format(new_address)):
-            config.blockchain.interface.w3.eth.defaultAccount = new_address
+            ursula_config.blockchain.interface.w3.eth.defaultAccount = new_address
             click.echo(
-                "{} is now the node's default account.".format(config.blockchain.interface.w3.eth.defaultAccount))
+                "{} is now the node's default account.".format(ursula_config.blockchain.interface.w3.eth.defaultAccount))
 
     if action == 'set-default':
-        config.blockchain.interface.w3.eth.defaultAccount = checksum_address  # TODO: is there a better way to do this?
-        click.echo("{} is now the node's default account.".format(config.blockchain.interface.w3.eth.defaultAccount))
+        ursula_config.blockchain.interface.w3.eth.defaultAccount = checksum_address  # TODO: is there a better way to do this?
+        click.echo("{} is now the node's default account.".format(ursula_config.blockchain.interface.w3.eth.defaultAccount))
 
     elif action == 'export':
         keyring = NucypherKeyring(account=checksum_address)
         click.confirm(
-            "Export local private key for {} to node's keyring: {}?".format(checksum_address, config.provider_uri),
+            "Export local private key for {} to node's keyring: {}?".format(checksum_address, ursula_config.provider_uri),
             abort=True)
 
-        passphrase = click.prompt("Enter passphrase to decrypt account",
-                                  type=click.STRING,
-                                  hide_input=True,
-                                  confirmation_prompt=True)
+        password = click.prompt("Enter password to decrypt account",
+                                type=click.STRING,
+                                hide_input=True,
+                                confirmation_prompt=True)
 
-        keyring._export_wallet_to_node(blockchain=config.blockchain, passphrase=passphrase)
+        keyring._export_wallet_to_node(blockchain=ursula_config.blockchain, password=password)
 
     elif action == 'list':
-        if config.accounts == NO_BLOCKCHAIN_CONNECTION:
+        accounts = ursula_config.blockchain.interface.w3.eth.accounts
+        if not accounts:
             click.echo('No account found.')
             raise click.Abort()
 
-        for index, checksum_address in enumerate(config.accounts):
-            token_balance = config.token_agent.get_balance(address=checksum_address)
-            eth_balance = config.blockchain.interface.w3.eth.getBalance(checksum_address)
+        for index, checksum_address in enumerate(accounts):
+            token_balance = ursula_config.token_agent.get_balance(address=checksum_address)
+            eth_balance = ursula_config.blockchain.interface.w3.eth.getBalance(checksum_address)
             base_row_template = ' {address}\n    Tokens: {tokens}\n    ETH: {eth}\n '
             row_template = (
                     '\netherbase |' + base_row_template) if not index else '{index} ....... |' + base_row_template
@@ -247,30 +258,30 @@ def accounts(config,
 
     elif action == 'balance':
         if not checksum_address:
-            checksum_address = config.blockchain.interface.w3.eth.etherbase
+            checksum_address = ursula_config.blockchain.interface.w3.eth.etherbase
             click.echo('No checksum_address supplied, Using the default {}'.format(checksum_address))
-        token_balance = config.token_agent.get_balance(address=checksum_address)
-        eth_balance = config.token_agent.blockchain.interface.w3.eth.getBalance(checksum_address)
+        token_balance = ursula_config.token_agent.get_balance(address=checksum_address)
+        eth_balance = ursula_config.token_agent.blockchain.interface.w3.eth.getBalance(checksum_address)
         click.secho("Balance of {} | Tokens: {} | ETH: {}".format(checksum_address, token_balance, eth_balance),
                     fg='blue')
 
     elif action == "transfer-tokens":
         destination, amount = __collect_transfer_details(denomination='tokens')
         click.confirm("Are you sure you want to send {} tokens to {}?".format(amount, destination), abort=True)
-        txhash = config.token_agent.transfer(amount=amount, target_address=destination, sender_address=checksum_address)
-        config.blockchain.wait_for_receipt(txhash)
+        txhash = ursula_config.token_agent.transfer(amount=amount, target_address=destination, sender_address=checksum_address)
+        ursula_config.blockchain.wait_for_receipt(txhash)
         click.echo("Sent {} tokens to {} | {}".format(amount, destination, txhash))
 
     elif action == "transfer-eth":
         destination, amount = __collect_transfer_details(denomination='ETH')
         tx = {'to': destination, 'from': checksum_address, 'value': amount}
         click.confirm("Are you sure you want to send {} tokens to {}?".format(tx['value'], tx['to']), abort=True)
-        txhash = config.blockchain.interface.w3.eth.sendTransaction(tx)
-        config.blockchain.wait_for_receipt(txhash)
+        txhash = ursula_config.blockchain.interface.w3.eth.sendTransaction(tx)
+        ursula_config.blockchain.wait_for_receipt(txhash)
         click.echo("Sent {} ETH to {} | {}".format(amount, destination, str(txhash)))
 
     else:
-        raise click.BadArgumentUsage
+        raise click.BadArgumentUsage("No such argument {}".format(action))
 
 
 #
