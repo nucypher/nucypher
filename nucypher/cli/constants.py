@@ -15,19 +15,35 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+
+
+import os
+
 import collections
 
 import nucypher
+from nucypher.blockchain.eth.agents import EthereumContractAgent
+from nucypher.blockchain.eth.deployers import (
+    NucypherTokenDeployer,
+    MinerEscrowDeployer,
+    PolicyManagerDeployer,
+    ContractDeployer
+)
 
 
-# Environment Variable Keys
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
+#
+# Environment Variables
+#
+NUCYPHER_SENTRY_ENDPOINT = os.environ.get("NUCYPHER_SENTRY_ENDPOINT", "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685")
+LOG_TO_SENTRY = os.environ.get("NUCYPHER_SENTRY_LOGS", True)
+LOG_TO_FILE = os.environ.get("NUCYPHER_FILE_LOGS", True)
 
-LOG_TO_SENTRY_ENVVAR = "NUCYPHER_SENTRY_LOGS"
-KEYRING_PASSPHRASE_ENVVAR = "NUCYPHER_KEYRING_PASSPHRASE"
+KEYRING_PASSWORD_ENVVAR = "NUCYPHER_KEYRING_PASSWORD"
 
-NUCYPHER_SENTRY_ENDPOINT = "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685"
 
+#
+# Art
+#
 BANNER = """
                                   _               
                                  | |              
@@ -37,13 +53,18 @@ BANNER = """
     |_| |_|\__,_|\___|\__, | .__/|_| |_|\___|_|   
                        __/ | |                    
                       |___/|_|      
-
     version {}
 
 """.format(nucypher.__version__)
 
 
-DeployerInfo = collections.namedtuple('DeployerInfo', 'deployer_class upgradeable agent_name dependant')
+#
+# Deployers
+#
+DeployerInfo = collections.namedtuple('DeployerInfo', ('deployer_class',  # type: ContractDeployer
+                                                       'upgradeable',     # type: bool
+                                                       'agent_name',      # type: EthereumContractAgent
+                                                       'dependant'))      # type: EthereumContractAgent
 DEPLOYERS = collections.OrderedDict({
 
     NucypherTokenDeployer._contract_name: DeployerInfo(deployer_class=NucypherTokenDeployer,
@@ -59,6 +80,5 @@ DEPLOYERS = collections.OrderedDict({
     PolicyManagerDeployer._contract_name: DeployerInfo(deployer_class=PolicyManagerDeployer,
                                                        upgradeable=True,
                                                        agent_name='policy_agent',
-                                                       dependant='miner_agent'
-                                                       )
+                                                       dependant='miner_agent')
 })
