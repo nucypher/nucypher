@@ -180,11 +180,11 @@ class NodeConfiguration:
     def dev(self):
         return self.__dev
 
-    def produce(self, passphrase: str = None, **overrides):
+    def produce(self, password: str = None, **overrides):
         """Initialize a new character instance and return it"""
         if not self.dev:
             self.read_keyring()
-            self.keyring.unlock(passphrase=passphrase)
+            self.keyring.unlock(password=password)
         merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
         return self._character_class(**merged_parameters)
 
@@ -255,7 +255,6 @@ class NodeConfiguration:
             federated_only=self.federated_only,  # TODO: 466
             checksum_address=self.checksum_address,
             keyring_dir=self.keyring_dir,
-            known_certificates_dir=self.known_certificates_dir,
 
             # Behavior
             learn_on_same_thread=self.learn_on_same_thread,
@@ -283,18 +282,15 @@ class NodeConfiguration:
     def runtime_filepaths(self):
         filepaths = dict(config_root=self.config_root,
                          keyring_dir=self.keyring_dir,
-                         known_certificates_dir=self.known_certificates_dir,
                          registry_filepath=self.registry_filepath)
         return filepaths
 
-    @staticmethod
-    def generate_runtime_filepaths(config_root: str) -> dict:
+    @classmethod
+    def generate_runtime_filepaths(cls, config_root: str) -> dict:
         """Dynamically generate paths based on configuration root directory"""
-        known_nodes_dir = os.path.join(config_root, 'known_nodes')
         filepaths = dict(config_root=config_root,
+                         config_file_location=os.path.join(config_root, cls.CONFIG_FILENAME),
                          keyring_dir=os.path.join(config_root, 'keyring'),
-                         known_nodes_dir=known_nodes_dir,
-                         known_certificates_dir=os.path.join(known_nodes_dir, 'certificates'),
                          registry_filepath=os.path.join(config_root, NodeConfiguration.__REGISTRY_NAME))
         return filepaths
 
@@ -314,7 +310,7 @@ class NodeConfiguration:
         return power_ups
 
     def initialize(self,
-                   passphrase: str,
+                   password: str,
                    no_registry: bool = False,
                    wallet: bool = False,
                    encrypting: bool = False,
@@ -323,7 +319,7 @@ class NodeConfiguration:
                    curve=None,
                    no_keys: bool = False
                    ) -> str:
-        """Write a new configuration to the disk, and with the configured node store."""
+        """Initialize a new configuration."""
 
         #
         # Create Config Root
@@ -347,15 +343,14 @@ class NodeConfiguration:
         self.__cache_runtime_filepaths()
         try:
 
-            # Directories
-            os.mkdir(self.keyring_dir, mode=0o700)             # keyring
-            os.mkdir(self.known_nodes_dir, mode=0o755)         # known_nodes
-            os.mkdir(self.known_certificates_dir, mode=0o755)  # known_certs
-            self.node_storage.initialize()  # TODO: default known dir
+            # Node Storage
+            self.node_storage.initialize()
 
+            # Keyring
+            os.mkdir(self.keyring_dir, mode=0o700)  # keyring TODO: Keyring backend entry point
             if not self.dev and not no_keys:
                 # Keyring
-                self.write_keyring(passphrase=passphrase,
+                self.write_keyring(password=password,
                                    wallet=wallet,
                                    encrypting=encrypting,
                                    tls=tls,
@@ -391,7 +386,7 @@ class NodeConfiguration:
                                        *args, **kwargs)
 
     def write_keyring(self,
-                      passphrase: str,
+                      password: str,
                       encrypting: bool,
                       wallet: bool,
                       tls: bool,
@@ -399,7 +394,7 @@ class NodeConfiguration:
                       tls_curve: EllipticCurve = None,
                       ) -> NucypherKeyring:
 
-        self.keyring = NucypherKeyring.generate(passphrase=passphrase,
+        self.keyring = NucypherKeyring.generate(password=password,
                                                 encrypting=encrypting,
                                                 wallet=wallet,
                                                 tls=tls,
@@ -446,5 +441,24 @@ class NodeConfiguration:
             self.log.warn("Writing blank registry")
             open(output_filepath, 'w').close()  # write blank
 
-        self.log.info("Successfully wrote registry to {}".format(output_filepath))
+        self.log.debug("Successfully wrote registry to {}".format(output_filepath))
         return output_filepath
+    
+    def connect_to_blockchain(self, provider_uri: str, poa: bool, compile: bool):
+        if self.federated_only:
+            raise NodeConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
+
+        self.blockchain = Blockchain.connect(provider_uri=provider_uri, compile=compile)
+        if poa is True:
+            w3 = self.blockchain.interface.w3
+            w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+
+        self.accounts = self.blockchain.interface.w3.eth.accounts
+        self.log.debug("Established connection to provider {}".format(self.blockchain.interface.provider_uri))
+
+    def connect_to_contracts(self) -> None:
+        """Initialize contract agency and set them on config"""
+        self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
+        self.miner_agent = MinerAgent(blockchain=self.blockchain)
+        self.policy_agent = PolicyAgent(blockchain=self.blockchain)
+        self.log.debug("CLI established connection to nucypher contracts")
