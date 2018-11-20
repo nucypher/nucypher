@@ -19,13 +19,31 @@ import datetime
 import pathlib
 
 from sentry_sdk import capture_exception, add_breadcrumb
+from sentry_sdk.integrations.logging import LoggingIntegration
 from twisted.logger import FileLogObserver, jsonFileLogObserver
 from twisted.logger import ILogObserver
 from twisted.logger import LogLevel
 from twisted.python.logfile import DailyLogFile
 from zope.interface import provider
 
+import nucypher
+from nucypher.cli.constants import NUCYPHER_SENTRY_ENDPOINT
 from nucypher.config.constants import USER_LOG_DIR
+
+
+def initialize_sentry():
+    import sentry_sdk
+    import logging
+
+    sentry_logging = LoggingIntegration(
+        level=logging.INFO,        # Capture info and above as breadcrumbs
+        event_level=logging.DEBUG  # Send debug logs as events
+    )
+    sentry_sdk.init(
+        dsn=NUCYPHER_SENTRY_ENDPOINT,
+        integrations=[sentry_logging],
+        release=nucypher.__version__
+    )
 
 
 def formatUrsulaLogEvent(event):
