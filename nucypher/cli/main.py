@@ -297,7 +297,7 @@ def accounts(config,
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=click.IntRange(min=49151, max=65535, clamp=False))
-@click.option('--db-name', help="The database name to connect to", type=click.STRING)
+@click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--checksum-address', help="Run with a specified account", type=CHECKSUM_ADDRESS)
 @click.option('--federated-only', help="Connect only to federated nodes", is_flag=True, default=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
@@ -339,6 +339,7 @@ def ursula(config,
     init           Create a new Ursula node configuration.
     view           View the Ursula node's configuration.
     forget         Forget all known nodes.
+    save-metadata  Manually write node metadata to disk without running
     destroy        Delete Ursula node configuration.
 
     """
@@ -346,23 +347,49 @@ def ursula(config,
     #
     # Boring Setup Stuff
     #
+    if debug:
+        config.log_to_sentry = False
+        config.log_to_file = True
+        globalLogPublisher.removeObserver(logToSentry)  # Sentry
+        globalLogPublisher.addObserver(simpleObserver)  # Print
 
-    # Launch Logger
-    log = Logger('ursula.launch')
-
+    #
+    # Launch Warnings
+    #
+    if dev:
+        click.secho("WARNING: Running in development mode", fg='yellow')
+    if federated_only:
+        click.secho("WARNING: Running in Federated mode", fg='yellow')
     if force:
         click.secho("WARNING: Force is enabled", fg='yellow')
 
-    if debug:
-        globalLogPublisher.removeObserver(logToSentry)  # Sentry
-        config.log_to_sentry = False
-        globalLogPublisher.addObserver(simpleObserver)  # Print
+    #
+    # New Ursula (Headless Configurations)
+    #
+    if action == "init":
+        if dev:
+            click.secho("WARNING: Using temporary storage area", fg='yellow')
+        write_new_ursula_configuration(rest_host=rest_host,
+                                       rest_port=rest_port,
+                                       config_root=config_root,
+                                       db_filepath=db_filepath,
+                                       federated_only=federated_only,
+                                       checksum_address=checksum_address,
+                                       no_registry=federated_only or no_registry,
+                                       registry_filepath=registry_filepath,
+                                       provider_uri=provider_uri)
+        return
+
+    elif action == "destroy":
+        destroy_configuration(config_root or DEFAULT_CONFIG_ROOT, force=force)
+        return
 
     #
     # Configure - Step 0
     #
     ursula_config = get_ursula_configuration(dev_mode=dev,
                                              poa=poa,
+                                             registry_filepath=registry_filepath,
                                              config_file=config_file,
                                              metadata_dir=metadata_dir,
                                              provider_uri=provider_uri,
@@ -370,74 +397,23 @@ def ursula(config,
                                              federated_only=federated_only,
                                              rest_host=rest_host,
                                              rest_port=rest_port,
-                                             db_name=db_name)
+                                             db_filepath=db_filepath)
 
-    config.ursula = ursula  # Pass Ursula onto staking sub-command
-
-    #
-    # Launch Warnings
-    #
-    if ursula_config.dev:
-        click.secho("WARNING: Running in development mode", fg='yellow')
-    else:
-        click.secho("WARNING: Development mode is disabled", fg='yellow')
-
-    if ursula_config.federated_only:
-        click.secho("WARNING: Running in Federated mode", fg='yellow')
-
-    if action == "init":
-        write_configuration(ursula_config=ursula_config,
-                            no_registry=federated_only or no_registry,
-                            rest_host=rest_host)
-
-    elif action == 'run':
-        #
-        # Seed - Step 1
-        #
-        teacher_nodes = list()
-        if teacher_uri:
-            node = attempt_seednode_learning(ursula_config, teacher_uri, min_stake)
-            teacher_nodes.append(node)
-        #
-        # Produce - Step 2
-        #
-        URSULA = unlock_and_produce(ursula_config=ursula_config, teacher_nodes=teacher_nodes)
-        log.debug("Initialized Ursula {}".format(URSULA), fg='green')
-
-        # GO!
-        try:
-
-            #
-            # Run - Step 3
-            #
-            click.secho("Running Ursula on {}".format(URSULA.rest_interface), fg='green', bold=True)
-            if not debug:
-                stdio.StandardIO(UrsulaCommandProtocol(ursula=URSULA))
-            URSULA.get_deployer().run()
-
-        except Exception as e:
-            config.log.critical(str(e))
-            click.secho("{} {}".format(e.__class__.__name__, str(e)), fg='red')
-            raise  # Crash :-(
-
-        finally:
-            click.secho("Stopping Ursula")
-            ursula_config.cleanup()
-            click.secho("Ursula Stopped", fg='red')
+    config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
 
     #
-    # Utilities; Not Steps
+    # Existing Ursula Action Switch
     #
+    if action == 'run':
+        run_ursula(ursula_config=ursula_config, teacher_uri=teacher_uri, min_stake=min_stake, interactive=not debug)
+
     elif action == "save-metadata":
-        URSULA = unlock_and_produce(ursula_config=ursula_config)
-        metadata_path = URSULA.write_node_metadata(node=URSULA)
+        ursula = unlock_and_produce(ursula_config=ursula_config)
+        metadata_path = ursula.write_node_metadata(node=ursula)
         click.secho("Successfully saved node metadata to {}.".format(metadata_path), fg='green')
 
-    elif action == "destroy":
-        destroy_configuration(ursula_config=ursula_config, force=force)
-
     elif action == "view":
-        paint_configuration(ursula_config=ursula_config)
+        paint_configuration(config_filepath=config_file or ursula_config.config_file_location)
 
     elif action == "forget":
         forget_nodes(config)
@@ -476,7 +452,6 @@ def stake(config,
     #
     # Initialize
     #
-    ursula = get_ursula_configuration()
     if not config.federated_only:
         connect_to_blockchain(config)
         connect_to_contracts(config)
@@ -590,4 +565,4 @@ def stake(config,
         raise NotImplementedError
 
     else:
-        raise click.BadArgumentUsage
+        raise click.BadArgumentUsage("No such argument {}".format(action))
