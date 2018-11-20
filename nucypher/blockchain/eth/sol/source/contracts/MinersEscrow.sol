@@ -748,7 +748,10 @@ contract MinersEscrow is Issuer {
             }
         }
 
-        unMint(_penalty - _reward);
+        _penalty = _penalty - _reward;
+        if (_penalty > 0) {
+            unMint(_penalty);
+        }
         if (_reward > 0) {
             token.safeTransfer(_investigator, _reward);
         }
@@ -784,9 +787,16 @@ contract MinersEscrow is Issuer {
             uint256 appliedPenalty = _penalty;
             if (_penalty < shortestSubStake.lockedValue) {
                 shortestSubStake.lockedValue -= _penalty;
+                if (_info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD &&
+                    _info.confirmedPeriod1 < _period ||
+                    _info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD &&
+                    _info.confirmedPeriod2 < _period
+                ) {
+                    saveSubStake(_info, shortestSubStake.firstPeriod, _period.sub16(1), 0, _penalty);
+                }
                 _penalty = 0;
             } else {
-                shortestSubStake.lastPeriod = 1;
+                shortestSubStake.lastPeriod = _period.sub16(1);
                 _penalty -= shortestSubStake.lockedValue;
                 appliedPenalty = shortestSubStake.lockedValue;
             }
