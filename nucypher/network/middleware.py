@@ -81,7 +81,7 @@ class RestMiddleware:
         # TODO: Implement revocation confirmations
         response = requests.delete("https://{}/kFrag/{}".format(ursula.rest_interface,
                                                                 revocation.arrangement_id.hex()),
-                                                                b''.join(revocation),
+                                                                bytes(revocation),
                                                                 verify=ursula.certificate_filepath)
         if response.status_code == 200:
             return response
