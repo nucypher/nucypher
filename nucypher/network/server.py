@@ -260,8 +260,6 @@ class ProxyRESTRoutes:
     def revoke_arrangement(self, id_as_hex, request: Request):
         """
         REST endpoint for revoking/deleting a KFrag from a node.
-        TODO: How do we want to verify that this request comes from Alice?
-              What/How is she going to sign?
         """
         from nucypher.crypto.kits import RevocationKit
         from nucypher.policy.models import Revocation

@@ -186,11 +186,10 @@ class Alice(Character, PolicyAuthor):
                 ursula = self.known_nodes[node_id]
                 revocation = policy.revocation_kit[node_id]
                 response = self.network_middleware.revoke_arrangement(ursula, revocation)
-                if response.status_code != 200:
-                    if response.status_code == 404:
-                        failed_revocations.append((revocation, None))
-                    else:
-                        failed_revocations.append(revocation)
+                if response.status_code == 404:
+                    failed_revocations.append((revocation, None))
+                elif response.status_code != 200:
+                    failed_revocations.append(revocation)
         return failed_revocations
 
 
