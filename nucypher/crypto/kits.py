@@ -82,16 +82,13 @@ class UmbralMessageKit(MessageKit):
         return cls(capsule=capsule, sender_pubkey_sig=sender_pubkey_sig, ciphertext=ciphertext)
 
 
-Revocation = namedtuple('Revocation', ['prefix', 'arrangement_id', 'signature'])
-
-
 class RevocationKit:
 
-    def __init__(self, policy_treasure_map):
+    def __init__(self, policy_treasure_map, signer: 'SignatureStamp'):
+        from nucypher.policy.models import Revocation
         self.revocations = dict()
         for node_id, arrangement_id in policy_treasure_map:
-            self.revocations[node_id] = Revocation(b'REVOKE-', arrangement_id,
-                                                   constants.NOT_SIGNED)
+            self.revocations[node_id] = Revocation(arrangement_id, signer=signer)
 
     def __iter__(self):
         return iter(self.revocations.values())
@@ -105,48 +102,12 @@ class RevocationKit:
     def __eq__(self, other):
         return self.revocations == other.revocations
 
-    @staticmethod
-    def revocation_to_bytes(revocation):
-        prefix, arrangement_id, signature = revocation
-        return b''.join((prefix, arrangement_id, bytes(signature)))
-
-    @staticmethod
-    def revocation_from_bytes(revocation_as_bytes: bytes):
-        from nucypher.crypto.signing import Signature
-        revocation_splitter = BytestringSplitter((bytes, 7),
-                                                 (bytes, 32),
-                                                 Signature)
-        return Revocation(*revocation_splitter(revocation_as_bytes))
-
-    @staticmethod
-    def verify_revocation(revocation, alice_pubkey: 'UmbralPublicKey'):
-        """
-        Verifies the revocation was from the provided pubkey.
-        """
-        from nucypher.crypto.signing import InvalidSignature
-
-        if not revocation.signature.verify(revocation.prefix + revocation.arrangement_id,
-                                           alice_pubkey):
-            raise InvalidSignature("Revocation has an invalid signature: {}".format(signature))
-        return True
-
     @property
     def revokable_addresses(self):
         """
         Returns a Set of revokable addresses in the checksum address formatting
         """
         return set(self.revocations.keys())
-
-    def sign_revocations(self, signer):
-        """
-        Signs all the revocations provided in the kit and adds them to
-        the revocations dict ready for use.
-        """
-        for node_id, revocation in self.revocations.items():
-            signature = signer(revocation.prefix + revocation.arrangement_id)
-            self.revocations[node_id] = Revocation(revocation.prefix,
-                                                   revocation.arrangement_id,
-                                                   signature)
 
     def add_receipt(self, node_id, signed_receipt):
         """

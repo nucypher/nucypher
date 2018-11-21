@@ -29,6 +29,7 @@ from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import SigningPower, DelegatingPower, EncryptingPower
+from nucypher.policy.models import Revocation
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import MockPolicyCreation
@@ -113,23 +114,14 @@ def test_revocation(federated_alice, federated_bob):
     for node_id, arrangement_id in policy.treasure_map:
         assert policy.revocation_kit[node_id].arrangement_id == arrangement_id
 
-    # Test that RevocationKits are deterministic from the TreasureMap
-    new_kit = RevocationKit(policy.treasure_map)
-    assert new_kit == policy.revocation_kit
-
-    # Test RevocationKit is unsigned by default
+    # Test revocation kit's signatures
     for revocation in policy.revocation_kit:
-        assert revocation.signature == constants.NOT_SIGNED
-
-    # Test RevocationKit signing and verification
-    policy.revocation_kit.sign_revocations(federated_alice.stamp)
-    for revocation in policy.revocation_kit:
-        assert RevocationKit.verify_revocation(revocation, federated_alice.stamp.as_umbral_pubkey())
+        assert revocation.verify_signature(federated_alice.stamp.as_umbral_pubkey())
 
     # Test Revocation deserialization
     revocation = policy.revocation_kit[node_id]
-    revocation_bytes = RevocationKit.revocation_to_bytes(revocation)
-    deserialized_revocation = RevocationKit.revocation_from_bytes(revocation_bytes)
+    revocation_bytes = bytes(revocation)
+    deserialized_revocation = Revocation.from_bytes(revocation_bytes)
     assert deserialized_revocation == revocation
 
     # Attempt to revoke the new policy

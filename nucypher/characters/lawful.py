@@ -172,10 +172,6 @@ class Alice(Character, PolicyAuthor):
         arrangement_id are added to a list and returned. If a node returns a
         404 status code, then it will add a tuple of the Revocation and `None`.
         """
-        # Sign the revocations in the RevocationKit in preparation for
-        # sending to Ursula.
-        policy.revocation_kit.sign_revocations(self.stamp)
-
         try:
             # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
             revocation_threshold = ((policy.n - policy.treasure_map.m) + 1)

@@ -36,7 +36,7 @@ from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, EncryptingPower
-from nucypher.crypto.signing import Signature
+from nucypher.crypto.signing import Signature, InvalidSignature
 from nucypher.crypto.splitters import key_splitter
 from nucypher.network.middleware import RestMiddleware
 
@@ -249,7 +249,8 @@ class Policy:
 
         else:  # ...After *all* the policies are enacted
             # Create Alice's revocation kit
-            self.revocation_kit = RevocationKit(self.treasure_map)
+            self.revocation_kit = RevocationKit(self.treasure_map,
+                                                self.alice.stamp)
 
             if publish is True:
                 return self.publish(network_middleware)
@@ -599,3 +600,46 @@ class WorkOrderHistory:
                 if saved_capsule == capsule:
                     ursulas_by_capsules[ursula] = work_order
         return ursulas_by_capsules
+
+
+class Revocation:
+    revocation_splitter = BytestringSplitter((bytes, 7), (bytes, 32), Signature)
+
+    def __init__(self, arrangement_id: bytes,
+                       signer: 'SignatureStamp' = None,
+                       signature: Signature = None):
+        self.prefix = b'REVOKE-'
+        self.arrangement_id = arrangement_id
+
+        if not (bool(signer) ^ bool(signature)):
+            raise ValueError("Either pass a signer or a signature; not both.")
+        elif signer:
+            self.signature = signer(self.prefix + self.arrangement_id)
+        elif signature:
+            self.signature = signature
+
+    def __bytes__(self):
+        return self.prefix + self.arrangement_id + bytes(self.signature)
+
+    def __repr__(self):
+        return bytes(self)
+
+    def __len__(self):
+        return len(bytes(self))
+
+    def __eq__(self, other):
+        return bytes(self) == bytes(other)
+
+    @classmethod
+    def from_bytes(cls, revocation_bytes):
+        _, arrangement_id, signature = cls.revocation_splitter(revocation_bytes)
+        return cls(arrangement_id, signature=signature)
+
+    def verify_signature(self, alice_pubkey: 'UmbralPublicKey'):
+        """
+        Verifies the revocation was from the provided pubkey.
+        """
+        if not self.signature.verify(self.prefix + self.arrangement_id, alice_pubkey):
+            raise InvalidSignature(
+                "Revocation has an invalid signature: {}".format(self.signature))
+        return True

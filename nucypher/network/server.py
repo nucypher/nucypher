@@ -264,8 +264,9 @@ class ProxyRESTRoutes:
               What/How is she going to sign?
         """
         from nucypher.crypto.kits import RevocationKit
+        from nucypher.policy.models import Revocation
 
-        revocation = RevocationKit.revocation_from_bytes(request.body)
+        revocation = Revocation.from_bytes(request.body)
         try:
             with ThreadedSession(self.db_engine) as session:
                 # Verify the Notice was signed by Alice
@@ -277,7 +278,7 @@ class ProxyRESTRoutes:
                 # Check that the request is the same for the provided revocation
                 if id_as_hex != revocation.arrangement_id.hex():
                     return Response(status_code=400)
-                elif RevocationKit.verify_revocation(revocation, alice_pubkey):
+                elif revocation.verify_signature(alice_pubkey):
                     self.datastore.del_policy_arrangement(
                         id_as_hex.encode(), session=session)
         except (NotFound, InvalidSignature):

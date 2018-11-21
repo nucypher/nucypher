@@ -114,7 +114,7 @@ class MockRestMiddleware(RestMiddleware):
         mock_client = self._get_mock_client_by_ursula(ursula)
         response = mock_client.delete('http://localhost/kFrag/{}'.format(
                                       revocation.arrangement_id.hex()),
-                                      data=RevocationKit.revocation_to_bytes(revocation))
+                                      data=bytes(revocation))
         
         if response.status_code != 200:
             if response.status_code != 404:
