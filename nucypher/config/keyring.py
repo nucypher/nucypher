@@ -366,7 +366,7 @@ class NucypherKeyring:
     class KeyringLocked(KeyringError):
         pass
 
-    class InvalidPassword(KeyringError):
+    class AuthenticationFailed(KeyringError):
         pass
 
     def __init__(self,
@@ -423,7 +423,7 @@ class NucypherKeyring:
     @property
     def checksum_address(self) -> str:
         key_data = _read_keyfile(keypath=self.__wallet_path, deserializer=None)
-        # TODO Json joads
+        # TODO Json joads # TODO: what is this TODO?
         address = key_data['address']
         return to_checksum_address(address)
 
@@ -585,7 +585,7 @@ class NucypherKeyring:
 
         failures = cls.validate_password(password)
         if failures:
-            raise cls.InvalidPassword(", ".join(failures))  # TODO: Ensure this scope is seperable from the scope containing the password
+            raise cls.AuthenticationFailed(", ".join(failures))  # TODO: Ensure this scope is seperable from the scope containing the password
 
         if not any((wallet, encrypting, tls)):
             raise ValueError('Either "encrypting", "wallet", or "tls" must be True '
@@ -598,11 +598,8 @@ class NucypherKeyring:
         _public_key_dir = _base_filepaths['public_key_dir']
         _private_key_dir = _base_filepaths['private_key_dir']
 
-        # Create the key directories with default paths. Raises OSError if dirs exist
-        # if exists_ok and not os.path.isdir(_public_key_dir):
+        # Write to disk
         os.mkdir(_public_key_dir, mode=0o744)   # public dir
-
-        # if exists_ok and not os.path.isdir(_private_key_dir):
         os.mkdir(_private_key_dir, mode=0o700)  # private dir
 
         #
@@ -614,8 +611,9 @@ class NucypherKeyring:
         if wallet is True:
             new_address, new_wallet = _generate_wallet(password)
             new_wallet_path = os.path.join(_private_key_dir, 'wallet-{}.json'.format(new_address))
-            saved_wallet_path = _write_private_keyfile(new_wallet_path, json.dumps(new_wallet), serializer=None)
-            keyring_args.update(wallet_path=saved_wallet_path)
+            with open(new_wallet_path, 'w') as wallet:  # TODO: is this pub or private?
+                wallet.write(json.dumps(new_wallet))
+            keyring_args.update(wallet_path=new_wallet_path)
             account = new_address
 
         if encrypting is True:
@@ -635,21 +633,15 @@ class NucypherKeyring:
 
             # Derive Wrapping Keys
             password_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))
-            derived_key_material = _derive_key_material_from_password(salt=password_salt,
-                                                                        password=password)
-            encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt,
-                                                                         key_material=derived_key_material)
-            signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt,
-                                                                        key_material=derived_key_material)
-            delegating_wrap_key = _derive_wrapping_key_from_key_material(salt=delegating_salt,
-                                                                         key_material=derived_key_material)
+            derived_key_material = _derive_key_material_from_password(salt=password_salt, password=password)
+            encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt, key_material=derived_key_material)
+            signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt, key_material=derived_key_material)
+            delegating_wrap_key = _derive_wrapping_key_from_key_material(salt=delegating_salt, key_material=derived_key_material)
 
             # TODO: Deprecate _encrypt_umbral_key with new pyumbral release
             # Encapsulate Private Keys
-            encrypting_key_data = _encrypt_umbral_key(umbral_key=encrypting_private_key,
-                                                      wrapping_key=encrypting_wrap_key)
-            signing_key_data = _encrypt_umbral_key(umbral_key=signing_private_key,
-                                                   wrapping_key=signature_wrap_key)
+            encrypting_key_data = _encrypt_umbral_key(umbral_key=encrypting_private_key, wrapping_key=encrypting_wrap_key)
+            signing_key_data = _encrypt_umbral_key(umbral_key=signing_private_key, wrapping_key=signature_wrap_key)
             delegating_key_data = bytes(SecretBox(delegating_wrap_key).encrypt(delegating_keying_material))
 
             # Assemble Private Keys
@@ -690,7 +682,7 @@ class NucypherKeyring:
 
         if tls is True:
             if not all((host, curve)):
-                raise ValueError("Host and curve are required to make a new keyring TLS certificate")
+                raise ValueError("Host and curve are required to make a new keyring TLS certificate. Got {}, {}".format(host, curve))
             private_key, cert = _generate_tls_keys(host, curve)
 
             def __serialize_pem(pk):
