@@ -26,8 +26,21 @@ from typing import ClassVar, Tuple
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.cli.utilities import CHECKSUM_ADDRESS
+
+from nucypher.cli.constants import BANNER
 from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.logging import getTextFileObserver
+
+
+#
+# Click Eager Functions
+#
+
+def echo_version(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    click.secho(BANNER, bold=True)
+    ctx.exit()
 
 
 class NucypherDeployerClickConfig:
@@ -176,7 +189,7 @@ def deploy(config,
 
         if not force and click.confirm("Save transaction hashes to JSON file?"):
             file = click.prompt("Enter output filepath", type=click.File(mode='w'))  # TODO: Save Txhashes
-            file.write(json.dumps(__deployment_transactions))
+            file.__write(json.dumps(__deployment_transactions))
             click.secho("Successfully wrote transaction hashes file to {}".format(file.path), fg='green')
 
     else:
