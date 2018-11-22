@@ -25,6 +25,9 @@ from apistar.http import Response, Request, QueryParams
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from hendrix.experience import crosstown_traffic
+from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.crypto.signing import SignatureStamp
+from nucypher.network.middleware import RestMiddleware
 from umbral import pre
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
@@ -43,8 +46,9 @@ from jinja2 import Template
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
 
+
 class ProxyRESTServer:
-    log = Logger("characters")
+    log = Logger("proxy-server")
 
     def __init__(self,
                  rest_host: str,
@@ -63,30 +67,32 @@ class ProxyRESTServer:
 
         self.__hosting_power = hosting_power
 
-
     def rest_url(self):
         return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
 
 
 class ProxyRESTRoutes:
-    log = Logger("characters")
+    log = Logger("proxy-routes")
 
     def __init__(self,
-                 db_filepath,
-                 network_middleware,
-                 federated_only,
-                 treasure_map_tracker,
-                 node_tracker,
-                 node_bytes_caster,
-                 work_order_tracker,
-                 node_recorder,
-                 stamp,
-                 verifier,
-                 suspicious_activity_tracker,
+                 db_filepath: str,
+                 network_middleware: RestMiddleware,
+                 federated_only: bool,
+                 treasure_map_tracker: dict,
+                 node_tracker: 'FleetStateTracker',
+                 node_bytes_caster: Callable,
+                 work_order_tracker: list,
+                 node_recorder: Callable,
+                 stamp: SignatureStamp,
+                 verifier: Callable,
+                 suspicious_activity_tracker: dict,
                  ) -> None:
 
         self.network_middleware = network_middleware
         self.federated_only = federated_only
+        self.datastore = None
+
+        self.__forgetful_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
 
         self._treasure_map_tracker = treasure_map_tracker
         self._work_order_tracker = work_order_tracker
@@ -96,7 +102,6 @@ class ProxyRESTRoutes:
         self._stamp = stamp
         self._verifier = verifier
         self._suspicious_activity_tracker = suspicious_activity_tracker
-        self.datastore = None
 
         routes = [
             Route('/kFrag/{id_as_hex}',
@@ -181,8 +186,7 @@ class ProxyRESTRoutes:
             signature = self._stamp(payload)
             return Response(bytes(signature) + payload, headers=headers, status_code=204)
 
-        nodes = self._node_class.batch_from_bytes(request.body,
-                                                  federated_only=self.federated_only)  # TODO: 466
+        nodes = self._node_class.batch_from_bytes(request.body, federated_only=self.federated_only)  # TODO: 466
 
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
         # Let's find a better way.  #555
@@ -194,26 +198,35 @@ class ProxyRESTRoutes:
             @crosstown_traffic()
             def learn_about_announced_nodes():
                 try:
-                    certificate_filepath = self._node_recorder.store_node_certificate(node)
-
+                    temp_certificate_filepath = self.__forgetful_node_storage.store_node_certificate(checksum_address=node.checksum_public_address,
+                                                                                                     certificate=node.certificate)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
-                                     certificate_filepath=certificate_filepath)
+                                     certificate_filepath=temp_certificate_filepath)
+
+                # Suspicion
                 except node.SuspiciousActivity:
                     # TODO: Include data about caller?
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
+                    # TODO: Maybe also record the bytes representation separately to disk?
                     message = "Suspicious Activity: Discovered node with bad signature: {}.  Announced via REST."
                     self.log.warn(message)
-
-                    # TODO: Maybe also record the bytes representation separately to disk?
                     self._suspicious_activity_tracker['vladimirs'].append(node)
+
+                # Async Sentinel
                 except Exception as e:
                     self.log.critical(str(e))
                     raise
+
+                # Believable
                 else:
                     self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
-                    self._node_recorder.store_node_metadata(node)
+                    self._node_recorder(node)
                     # TODO: Record new fleet state
+
+                # Cleanup
+                finally:
+                    self.__forgetful_node_storage.forget(everything=True)
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
         return self.all_known_nodes(request)

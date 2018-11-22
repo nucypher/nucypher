@@ -519,12 +519,12 @@ class Ursula(Teacher, Character, Miner):
                 rest_routes = ProxyRESTRoutes(
                     db_filepath=db_filepath,
                     network_middleware=self.network_middleware,
-                    federated_only=self.federated_only,   # TODO: 466
+                    federated_only=self.federated_only,            # TODO: 466
                     treasure_map_tracker=self.treasure_maps,
                     node_tracker=self.known_nodes,
                     node_bytes_caster=self.__bytes__,
                     work_order_tracker=self._work_orders,
-                    node_recorder=self.node_storage,
+                    node_recorder=self.remember_node,
                     stamp=self.stamp,
                     verifier=self.verify_from,
                     suspicious_activity_tracker=self.suspicious_activities_witnessed

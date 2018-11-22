@@ -291,7 +291,6 @@ class Learner:
 
             seed_node = Ursula.from_seednode_metadata(seednode_metadata=seednode_metadata,
                                                       network_middleware=self.network_middleware,
-                                                      node_storage=self.node_storage,
                                                       federated_only=self.federated_only)  # TODO: 466
             if seed_node is False:
                 self.unresponsive_seed_nodes.add(seednode_metadata)
@@ -343,6 +342,7 @@ class Learner:
                              certificate_filepath=certificate_filepath)
         except SSLError:
             return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
+
         except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
             self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
             return False  # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.
