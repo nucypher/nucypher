@@ -18,7 +18,7 @@ from eth_tester.exceptions import ValidationError
 
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.powers import CryptoPower, SigningPower
-from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import EvilMiddleWare
 
 
@@ -75,7 +75,7 @@ class Vladimir(Ursula):
         Upload Vladimir's ETH keys to the keychain via web3 / RPC.
         """
         try:
-            password = TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+            password = INSECURE_DEVELOPMENT_PASSWORD
             blockchain.interface.w3.personal.importRawKey(private_key=cls.fraud_key, passphrase=password)
         except (ValidationError, ):
             # check if Vlad's key is already on the keyring...

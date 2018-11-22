@@ -17,23 +17,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import binascii
-import os
 import random
 from collections import defaultdict, OrderedDict
 from collections import deque
 from collections import namedtuple
 from contextlib import suppress
 from logging import Logger
-from tempfile import TemporaryDirectory
-from typing import Set, Tuple
 
-import OpenSSL
 import maya
 import requests
+import socket
 import time
-from bytestring_splitter import BytestringSplitter
-from constant_sorrow import constants
-from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_keys.datatypes import Signature as EthSignature
 from requests.exceptions import SSLError
@@ -41,16 +35,18 @@ from twisted.internet import reactor, defer
 from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
+from typing import Set, Tuple
 
+from bytestring_splitter import BytestringSplitter
+from constant_sorrow import constants
 from nucypher.config.constants import SeednodeMetadata
-from nucypher.config.keyring import _write_tls_certificate
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
-from nucypher.network.protocols import SuspiciousActivity
+from nucypher.network.protocols import SuspiciousActivity, parse_node_uri
 from nucypher.network.server import TLSHostingPower
 from nucypher.utilities.decorators import validate_checksum_address
 
@@ -701,7 +697,7 @@ class Teacher:
     verified_interface = False
     _verified_node = False
     _interface_info_splitter = (int, 4, {'byteorder': 'big'})
-    log = Logger("network/nodes")
+    log = Logger("teacher")
     __DEFAULT_MIN_SEED_STAKE = 0
 
     def __init__(self,

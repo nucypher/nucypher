@@ -19,14 +19,22 @@ from contextlib import suppress
 
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
-from typing import Dict, ClassVar, Tuple, Union, List, Optional
+from typing import Dict, ClassVar
+from typing import Optional
+from typing import Tuple
+from typing import Union, List
 
-from constant_sorrow import constants, default_constant_splitter
-from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_checksum_address, to_canonical_address
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
-
+from constant_sorrow import default_constant_splitter
+from constant_sorrow.constants import (
+    NO_NICKNAME,
+    NO_BLOCKCHAIN_CONNECTION,
+    STRANGER,
+    NO_SIGNING_POWER,
+    DO_NOT_SIGN,
+    NO_DECRYPTION_PERFORMED,
+    SIGNATURE_TO_FOLLOW,
+    SIGNATURE_IS_ON_CIPHERTEXT
+)
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
@@ -42,6 +50,8 @@ from nucypher.crypto.signing import signature_splitter, StrangerStamp, Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Learner
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
 
 class Character(Learner):
@@ -60,7 +70,7 @@ class Character(Learner):
                  is_me: bool = True,
                  federated_only: bool = False,
                  blockchain: Blockchain = None,
-                 checksum_address: bytes = constants.NO_BLOCKCHAIN_CONNECTION.bool_value(False),
+                 checksum_address: bytes = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
                  keyring_dir: str = None,
                  crypto_power: CryptoPower = None,
@@ -127,7 +137,7 @@ class Character(Learner):
                 signing_power = self._crypto_power.power_ups(SigningPower)  # type: SigningPower
                 self._stamp = signing_power.get_signature_stamp()  # type: SignatureStamp
             except NoSigningPower:
-                self._stamp = constants.NO_SIGNING_POWER
+                self._stamp = NO_SIGNING_POWER
 
             #
             # Learner
@@ -143,8 +153,8 @@ class Character(Learner):
             if network_middleware is not None:
                 raise TypeError("Network middleware cannot be attached to a Stanger-Character.")
             self._stamp = StrangerStamp(self.public_keys(SigningPower))
-            self.keyring_dir = constants.STRANGER
-            self.network_middleware = constants.STRANGER
+            self.keyring_dir = STRANGER
+            self.network_middleware = STRANGER
 
 
         #
@@ -162,7 +172,7 @@ class Character(Learner):
             try:
                 self._set_checksum_address()  # type: str
             except NoSigningPower:
-                self._checksum_address = constants.NO_BLOCKCHAIN_CONNECTION
+                self._checksum_address = NO_BLOCKCHAIN_CONNECTION
             if checksum_address:
                 # We'll take a checksum address, as long as it matches their singing key
                 if not checksum_address == self.checksum_public_address:
@@ -173,7 +183,7 @@ class Character(Learner):
             self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_public_address)
         except SigningPower.not_found_error:
             if self.federated_only:
-                self.nickname = self.nickname_metadata = constants.NO_NICKNAME
+                self.nickname = self.nickname_metadata = NO_NICKNAME
             else:
                 raise
 
@@ -201,7 +211,7 @@ class Character(Learner):
 
     @property
     def stamp(self):
-        if self._stamp is constants.NO_SIGNING_POWER:
+        if self._stamp is NO_SIGNING_POWER:
             raise NoSigningPower
         elif not self._stamp:
             raise AttributeError("SignatureStamp has not been set up yet.")
@@ -218,7 +228,7 @@ class Character(Learner):
 
     @property
     def checksum_public_address(self):
-        if self._checksum_address is constants.NO_BLOCKCHAIN_CONNECTION:
+        if self._checksum_address is NO_BLOCKCHAIN_CONNECTION:
             self._set_checksum_address()
         return self._checksum_address
 
@@ -273,7 +283,7 @@ class Character(Learner):
         :return: A tuple, (ciphertext, signature).  If sign==False,
             then signature will be NOT_SIGNED.
         """
-        signer = self.stamp if sign else constants.DO_NOT_SIGN
+        signer = self.stamp if sign else DO_NOT_SIGN
 
         message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_keys(EncryptingPower),
                                                   plaintext=plaintext,
@@ -322,12 +332,12 @@ class Character(Learner):
             cleartext_with_sig_header = self.decrypt(message_kit=message_kit,
                                                      label=label)
             sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
-            if sig_header == constants.SIGNATURE_IS_ON_CIPHERTEXT:
-                # The ciphertext is what is signed - note that for later.
+            if sig_header == SIGNATURE_IS_ON_CIPHERTEXT:
+                # THe ciphertext is what is signed - note that for later.
                 message = message_kit.ciphertext
                 if not signature:
                     raise ValueError("Can't check a signature on the ciphertext if don't provide one.")
-            elif sig_header == constants.SIGNATURE_TO_FOLLOW:
+            elif sig_header == SIGNATURE_TO_FOLLOW:
                 # The signature follows in this cleartext - split it off.
                 signature_from_kit, cleartext = signature_splitter(cleartext,
                                                                    return_remainder=True)
@@ -335,7 +345,7 @@ class Character(Learner):
         else:
             # Not decrypting - the message is the object passed in as a message kit.  Cast it.
             message = bytes(message_kit)
-            cleartext = constants.NO_DECRYPTION_PERFORMED
+            cleartext = NO_DECRYPTION_PERFORMED
 
         if signature and signature_from_kit:
             if signature != signature_from_kit:
