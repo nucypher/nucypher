@@ -14,6 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
 
 import pytest
@@ -26,7 +28,7 @@ from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import SigningPower
 from nucypher.network.nicknames import nickname_from_seed
-from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
@@ -191,14 +193,16 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
     message = vladimir._signable_interface_info_message()
     signature = vladimir._crypto_power.power_ups(SigningPower).sign(message)
 
-    vladimir.substantiate_stamp(password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
+    vladimir.substantiate_stamp(password=INSECURE_DEVELOPMENT_PASSWORD)
     vladimir._interface_signature_object = signature
 
     class FakeArrangement:
         federated = False
         ursula = target
 
-    vladimir.node_storage.store_node_certificate(node=target)
+    vladimir.node_storage.store_node_certificate(host=target.rest_information()[0].host,
+                                                 certificate=target.certificate,
+                                                 checksum_address=target.checksum_public_address)
 
     with pytest.raises(vladimir.InvalidNode):
         idle_blockchain_policy.consider_arrangement(network_middleware=blockchain_alice.network_middleware,

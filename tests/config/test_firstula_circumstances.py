@@ -14,6 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from functools import partial
 
 import maya
@@ -46,6 +48,7 @@ def test_get_cert_from_running_seed_node(ursula_federated_test_config):
                                   ursula_config=ursula_federated_test_config,
                                   quantity=1,
                                   know_each_other=False)
+
     firstula = lonely_ursula_maker().pop()
     node_deployer = firstula.get_deployer()
 
@@ -63,9 +66,9 @@ def test_get_cert_from_running_seed_node(ursula_federated_test_config):
     def start_lonely_learning_loop():
         any_other_ursula.start_learning_loop()
         start = maya.now()
-        while not firstula in any_other_ursula.known_nodes:
+        while firstula not in any_other_ursula.known_nodes:
             passed = maya.now() - start
-            if passed.seconds > 2:
+            if passed.seconds > 5:
                 pytest.fail("Didn't find the seed node.")
 
     yield deferToThread(start_lonely_learning_loop)

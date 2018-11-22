@@ -14,23 +14,25 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import contextlib
 import glob
+import os
+import tempfile
 
 import datetime
-import os
-import re
-import shutil
-import tempfile
 import maya
 import pytest
-from constant_sorrow import constants
+import re
+import shutil
 from sqlalchemy.engine import create_engine
 
+from constant_sorrow.constants import NON_PAYMENT
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
 from nucypher.blockchain.eth.deployers import PolicyManagerDeployer, NucypherTokenDeployer, MinerEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import TemporaryEthereumContractRegistry, InMemoryEthereumContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.characters import UrsulaConfiguration, AliceConfiguration, BobConfiguration
 from nucypher.config.constants import BASE_DIR
@@ -40,9 +42,8 @@ from nucypher.keystore import keystore
 from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
-from nucypher.utilities.sandbox.constants import (DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
-                                                  TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
+from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
 
@@ -90,8 +91,7 @@ def temp_config_root(temp_dir_path):
     """
     User is responsible for closing the file given at the path.
     """
-    default_node_config = NodeConfiguration(dev=True,
-                                            auto_initialize=False,
+    default_node_config = NodeConfiguration(dev_mode=True,
                                             config_root=temp_dir_path,
                                             import_seed_registry=False)
     yield default_node_config.config_root
@@ -121,10 +121,7 @@ def certificates_tempdir():
 @pytest.fixture(scope="module")
 def ursula_federated_test_config():
 
-    ursula_config = UrsulaConfiguration(dev=True,
-                                        auto_initialize=True,
-                                        auto_generate_keys=True,
-                                        password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+    ursula_config = UrsulaConfiguration(dev_mode=True,
                                         is_me=True,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
@@ -137,13 +134,10 @@ def ursula_federated_test_config():
 
 
 @pytest.fixture(scope="module")
+@pytest.mark.usefixtures('three_agents')
 def ursula_decentralized_test_config(three_agents):
-    token_agent, miner_agent, policy_agent = three_agents
 
-    ursula_config = UrsulaConfiguration(dev=True,
-                                        auto_initialize=True,
-                                        auto_generate_keys=True,
-                                        password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+    ursula_config = UrsulaConfiguration(dev_mode=True,
                                         is_me=True,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
@@ -158,10 +152,7 @@ def ursula_decentralized_test_config(three_agents):
 
 @pytest.fixture(scope="module")
 def alice_federated_test_config(federated_ursulas):
-    config = AliceConfiguration(dev=True,
-                                auto_initialize=True,
-                                auto_generate_keys=True,
-                                password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+    config = AliceConfiguration(dev_mode=True,
                                 is_me=True,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=federated_ursulas,
@@ -178,12 +169,9 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
 
-    config = AliceConfiguration(dev=True,
+    config = AliceConfiguration(dev_mode=True,
                                 is_me=True,
-                                auto_initialize=True,
-                                auto_generate_keys=True,
                                 checksum_address=alice_address,
-                                password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
@@ -196,10 +184,7 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
 
 @pytest.fixture(scope="module")
 def bob_federated_test_config():
-    config = BobConfiguration(dev=True,
-                              auto_initialize=True,
-                              auto_generate_keys=True,
-                              password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
+    config = BobConfiguration(dev_mode=True,
                               network_middleware=MockRestMiddleware(),
                               start_learning_now=False,
                               abort_on_learning_error=True,
@@ -215,11 +200,8 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
 
-    config = BobConfiguration(dev=True,
-                              auto_initialize=True,
-                              auto_generate_keys=True,
+    config = BobConfiguration(dev_mode=True,
                               checksum_address=bob_address,
-                              password=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas,
                               start_learning_now=False,
@@ -241,7 +223,7 @@ def idle_federated_policy(federated_alice, federated_bob):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
-    n = DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+    n = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
     random_label = b'label://' + os.urandom(32)
     policy = federated_alice.create_policy(federated_bob, label=random_label, m=3, n=n, federated=True)
     return policy
@@ -250,7 +232,7 @@ def idle_federated_policy(federated_alice, federated_bob):
 @pytest.fixture(scope="module")
 def enacted_federated_policy(idle_federated_policy, federated_ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
-    deposit = constants.NON_PAYMENT
+    deposit = NON_PAYMENT
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()
 
@@ -277,7 +259,7 @@ def idle_blockchain_policy(blockchain_alice, blockchain_bob):
 @pytest.fixture(scope="module")
 def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
     # Alice has a policy in mind and knows of enough qualifies Ursulas; she crafts an offer for them.
-    deposit = constants.NON_PAYMENT(b"0000000")
+    deposit = NON_PAYMENT(b"0000000")
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()
 
@@ -331,7 +313,7 @@ def blockchain_bob(bob_blockchain_test_config):
 @pytest.fixture(scope="module")
 def federated_ursulas(ursula_federated_test_config):
     _ursulas = make_federated_ursulas(ursula_config=ursula_federated_test_config,
-                                      quantity=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
+                                      quantity=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK)
     yield _ursulas
 
 
@@ -340,7 +322,7 @@ def blockchain_ursulas(three_agents, ursula_decentralized_test_config):
     token_agent, miner_agent, policy_agent = three_agents
     etherbase, alice, bob, *all_yall = token_agent.blockchain.interface.w3.eth.accounts
 
-    ursula_addresses = all_yall[:DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK]
+    ursula_addresses = all_yall[:NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK]
 
     token_airdrop(origin=etherbase,
                   addresses=ursula_addresses,
@@ -382,7 +364,7 @@ def testerchain(solidity_compiler):
 
     # Create the blockchain
     testerchain = TesterBlockchain(interface=deployer_interface,
-                                   test_accounts=DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                   test_accounts=NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                                    airdrop=False)
 
     origin, *everyone = testerchain.interface.w3.eth.accounts
