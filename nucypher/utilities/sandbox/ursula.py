@@ -25,21 +25,21 @@ from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.crypto.api import secure_random
 from nucypher.utilities.sandbox.constants import (
-    TEST_KNOWN_URSULAS_CACHE,
-    TEST_URSULA_STARTING_PORT,
-    DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+    MOCK_KNOWN_URSULAS_CACHE,
+    MOCK_URSULA_STARTING_PORT,
+    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 )
 
 
 def make_federated_ursulas(ursula_config: UrsulaConfiguration,
-                           quantity: int = DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                           quantity: int = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
                            know_each_other: bool = True,
                            **ursula_overrides) -> Set[Ursula]:
 
-    if not TEST_KNOWN_URSULAS_CACHE:
-        starting_port = TEST_URSULA_STARTING_PORT
+    if not MOCK_KNOWN_URSULAS_CACHE:
+        starting_port = MOCK_URSULA_STARTING_PORT
     else:
-        starting_port = max(TEST_KNOWN_URSULAS_CACHE.keys()) + 1
+        starting_port = max(MOCK_KNOWN_URSULAS_CACHE.keys()) + 1
 
     federated_ursulas = set()
     for port in range(starting_port, starting_port+quantity):
@@ -53,7 +53,7 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
         # Store this Ursula in our global testing cache.
 
         port = ursula.rest_information()[0].port
-        TEST_KNOWN_URSULAS_CACHE[port] = ursula
+        MOCK_KNOWN_URSULAS_CACHE[port] = ursula
 
     if know_each_other:
 
@@ -75,10 +75,10 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
     if isinstance(ether_addresses, int):
         ether_addresses = [to_checksum_address(secure_random(20)) for _ in range(ether_addresses)]
 
-    if not TEST_KNOWN_URSULAS_CACHE:
-        starting_port = TEST_URSULA_STARTING_PORT
+    if not MOCK_KNOWN_URSULAS_CACHE:
+        starting_port = MOCK_URSULA_STARTING_PORT
     else:
-        starting_port = max(TEST_KNOWN_URSULAS_CACHE.keys()) + 1
+        starting_port = max(MOCK_KNOWN_URSULAS_CACHE.keys()) + 1
 
     ursulas = set()
     for port, checksum_address in enumerate(ether_addresses, start=starting_port):
@@ -101,7 +101,7 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
         ursulas.add(ursula)
         # Store this Ursula in our global cache.
         port = ursula.rest_information()[0].port
-        TEST_KNOWN_URSULAS_CACHE[port] = ursula
+        MOCK_KNOWN_URSULAS_CACHE[port] = ursula
 
     if know_each_other:
 

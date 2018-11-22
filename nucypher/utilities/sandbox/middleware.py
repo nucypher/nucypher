@@ -21,7 +21,7 @@ from apistar import TestClient
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.kits import RevocationKit
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.sandbox.constants import TEST_KNOWN_URSULAS_CACHE
+from nucypher.utilities.sandbox.constants import MOCK_KNOWN_URSULAS_CACHE
 
 
 class MockRestMiddleware(RestMiddleware):
@@ -46,7 +46,7 @@ class MockRestMiddleware(RestMiddleware):
 
     def _get_ursula_by_port(self, port):
         try:
-            return TEST_KNOWN_URSULAS_CACHE[port]
+            return MOCK_KNOWN_URSULAS_CACHE[port]
         except KeyError:
             raise RuntimeError(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
