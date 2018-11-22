@@ -15,14 +15,11 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
+import pytest
 from click.testing import CliRunner
 
-from nucypher.cli.main import nucypher_cli
 
-
-def test_help_message(click_runner):
-    result = click_runner.invoke(nucypher_cli, ['--help'], catch_exceptions=False)
-
-    assert result.exit_code == 0
-    assert '[OPTIONS] COMMAND [ARGS]'.format('nucypher') in result.output, 'Missing or invalid help text was produced.'
+@pytest.fixture(scope='module')
+def click_runner():
+    runner = CliRunner()
+    yield runner
