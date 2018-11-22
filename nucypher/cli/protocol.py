@@ -24,8 +24,6 @@ import maya
 from twisted.internet import reactor
 from twisted.protocols.basic import LineReceiver
 
-from nucypher.config.constants import SEEDNODES
-
 
 class UrsulaCommandProtocol(LineReceiver):
 
