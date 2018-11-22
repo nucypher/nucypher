@@ -14,11 +14,37 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
+from urllib.parse import urlparse
+
+from eth_utils import is_checksum_address
+
 from bytestring_splitter import VariableLengthBytestring
 
 
 class SuspiciousActivity(RuntimeError):
     """raised when an action appears to amount to malicious conduct."""
+
+
+def parse_node_uri(uri: str):
+    from nucypher.config.characters import UrsulaConfiguration
+
+    if '@' in uri:
+        checksum_address, uri = uri.split("@")
+        if not is_checksum_address(checksum_address):
+            raise ValueError("{} is not a valid checksum address.".format(checksum_address))
+    else:
+        checksum_address = None  # federated
+
+    # HTTPS Explicit Required
+    parsed_uri = urlparse(uri)
+    if not parsed_uri.scheme == "https":
+        raise ValueError("Invalid teacher URI. Is the hostname prefixed with 'https://' ?")
+
+    hostname = parsed_uri.hostname
+    port = parsed_uri.port or UrsulaConfiguration.DEFAULT_REST_PORT
+    return hostname, port, checksum_address
 
 
 class InterfaceInfo:

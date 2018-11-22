@@ -18,6 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import binascii
 import os
+from typing import Callable
+
 from twisted.logger import Logger
 
 from apistar import Route, App
