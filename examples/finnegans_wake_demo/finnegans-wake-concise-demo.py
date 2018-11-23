@@ -63,6 +63,12 @@ ALICE = Alice(network_middleware=RestMiddleware(),
               federated_only=True,
               known_certificates_dir=TEMP_CERTIFICATE_DIR)
 
+# Alice can get the public key even before creating the policy.
+# From this moment on, any Data Source that knows the public key
+# can encrypt data originally intended for Alice, but that can be shared with
+# any Bob that Alice grants access.
+policy_pubkey = ALICE.get_policy_pubkey_from_label(label)
+
 BOB = Bob(
     known_nodes=[ursula],
     network_middleware=RestMiddleware(),
@@ -77,6 +83,8 @@ policy = ALICE.grant(BOB,
                      label,
                      m=m, n=n,
                      expiration=policy_end_datetime)
+
+assert policy.public_key == policy_pubkey
 
 # Alice puts her public key somewhere for Bob to find later...
 alices_pubkey_bytes_saved_for_posterity = bytes(ALICE.stamp)
@@ -113,7 +121,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     #########################
     # Enrico, the Encryptor #
     #########################
-    enciro = Enrico(policy_pubkey_enc=policy.public_key)
+    enrico = Enrico(policy_pubkey_enc=policy_pubkey)
 
     # In this case, the plaintext is a
     # single passage from James Joyce's Finnegan's Wake.
@@ -128,7 +136,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     enrico_as_understood_by_bob = Enrico.from_public_keys(
-        policy_public_key=policy.public_key,
+        policy_public_key=policy_pubkey,
         datasource_public_key=data_source_public_key,
         label=label
     )
