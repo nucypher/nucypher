@@ -31,3 +31,6 @@ variables*.yml
 *ansible/*.retry
 *ansible/inventory/*
 .env
+examples/heartbeat_demo/*.json
+examples/heartbeat_demo/*.pickle
+examples/heartbeat_demo/hearbeat-demo-files/
