@@ -49,6 +49,10 @@ class UrsulaCommandProtocol(LineReceiver):
 
         super().__init__()
 
+    @property
+    def commands(self):
+        return self.__commands.keys()
+
     def paintKnownNodes(self):
         from nucypher.cli.painting import paint_known_nodes
         paint_known_nodes(ursula=self.ursula)
