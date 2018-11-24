@@ -153,8 +153,8 @@ class ForgetfulNodeStorage(NodeStorage):
 
         self.__rollover_certificates = list()
 
-    def all(self, federated_only: bool, certificate_only: bool = False) -> set:
-        return set(self.__metadata.values() if not certificate_only else self.__certificates.values())
+    def all(self, federated_only: bool, certificates_only: bool = False) -> set:
+        return set(self.__metadata.values() if not certificates_only else self.__certificates.values())
 
     @validate_checksum_address
     def get(self,

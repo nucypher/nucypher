@@ -93,4 +93,4 @@ class UrsulaCommandProtocol(LineReceiver):
             self.__history.append(raw_line)
 
         # Loop
-        self.transport.__write(self.prompt)
+        self.transport.write(self.prompt)

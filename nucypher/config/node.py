@@ -288,16 +288,14 @@ class NodeConfiguration(ABC):
 
     def destroy(self, force: bool = False, logs: bool = True) -> None:
 
-        # TODO: Confirm this is a nucypher dir first! (in-depth measure)
-        if force:
-            pass
+        # TODO: Further confirm this is a nucypher dir first! (in-depth measure)
 
-        if logs is True:
-            shutil.rmtree(USER_LOG_DIR)
+        if logs is True or force:
+            shutil.rmtree(USER_LOG_DIR, ignore_errors=True)
         try:
-            shutil.rmtree(self.config_root)
+            shutil.rmtree(self.config_root, ignore_errors=force)
         except FileNotFoundError:
-            raise
+            raise FileNotFoundError("No such directory {}".format(self.config_root))
 
     def produce(self, **overrides):
         """Initialize a new character instance and return it."""
