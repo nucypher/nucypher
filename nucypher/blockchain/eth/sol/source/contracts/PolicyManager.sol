@@ -319,9 +319,6 @@ contract PolicyManager is Upgradeable {
                break;
             }
         }
-        if (refundValue > 0) {
-            msg.sender.transfer(refundValue);
-        }
         if (_node == RESERVED_NODE) {
             if (numberOfActive == 0) {
                 policy.disabled = true;
@@ -332,6 +329,9 @@ contract PolicyManager is Upgradeable {
         } else {
             // arrangement not found
             require(i < policy.arrangements.length);
+        }
+        if (refundValue > 0) {
+            msg.sender.transfer(refundValue);
         }
     }
 
