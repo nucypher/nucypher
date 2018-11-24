@@ -12,7 +12,7 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - eth_contract:
+      - contracts:
           context: "NuCypher Tests"
           filters:
             tags:
@@ -26,8 +26,7 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - pip_install
-            - pipenv_install
+            - contracts
       - crypto:
           context: "NuCypher Tests"
           filters:
@@ -82,8 +81,8 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - eth_contract
-      - mypy_type_check:
+            - contracts
+      - mypy:
           filters:
             tags:
               only: /.*/
@@ -111,12 +110,19 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - cli_tests
+            - learning
+      - cli:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - ursula_command
+            - intercontract_integration
+            - mypy
       - test_deploy:
           context: "NuCypher PyPI"
           requires:
-            - mypy_type_check
-            - cli_tests
+            - test_build
           filters:
             tags:
               only: /v[0-9]+.*/
@@ -223,7 +229,7 @@ jobs:
       - store_test_results:
           path: ./reports/pytest/
 
-  eth_contract:
+  contracts:
     <<: *python_36_base
     parallelism: 4
     steps:
@@ -311,6 +317,18 @@ jobs:
       - store_test_results:
           path: ./reports/pytest/
 
+  learning:
+    <<: *python_36_base
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
+      - run:
+          name: Learner Tests
+          command: pipenv run pytest --cov=nucypher -v --runslow tests/learning --junitxml=./reports/pytest/results.xml
+      - store_test_results:
+          path: ./reports/pytest/
+
   intercontract_integration:
     <<: *python_36_base
     steps:
@@ -324,7 +342,7 @@ jobs:
       - store_test_results:
           path: ./reports/pytest/
 
-  cli_tests:
+  cli:
     <<: *python_36_base
     parallelism: 4
     steps:
@@ -339,7 +357,7 @@ jobs:
     - store_test_results:
         path: ./reports/pytest/
 
-  ursula_command_tests:
+  ursula_command:
     <<: *python_36_base
     steps:
     - checkout
@@ -353,16 +371,17 @@ jobs:
     - store_test_results:
         path: ./reports/pytest/
 
-  mypy_type_check:
+  mypy:
     <<: *python_36_base
     steps:
       - checkout
       - attach_workspace:
           at: ~/.local/share/virtualenvs/
       - run:
-          name: Install lxml
+          name: Install mypy
           command: |
               pipenv run pip install lxml
+              pipenv run pip install mypy
       - run:
           name: Run Mypy Static Type Checks (Always Succeed)
           command: |
@@ -371,6 +390,33 @@ jobs:
               pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount || true
       - store_artifacts:
           path: ./mypy_reports
+
+  test_build:
+    <<: *python_36_base
+    steps:
+      - checkout
+      - run:
+          name: Install Dependencies (Test Build)
+          command: |
+            pipenv install --three --dev --skip-lock --pre
+            pipenv install --dev --skip-lock twine
+      - run:
+          name: Verify git tag == __version__ (Test Deploy)
+          command: pipenv run python setup.py verify
+      - run:
+          name: Build Python Wheel
+          command: |
+            pipenv run python setup.py sdist
+            pipenv run python setup.py bdist_wheel -v
+      - run:
+          name: Destroy Build Enviorment
+          command: |
+            pipenv --rm --v
+      - run:
+          name: Install Nucypher from Fresh Wheel
+          command: |
+            pip3 install --user ./dist/nucypher-0.1.0a0-py3-none-any.whl
+            python -c "import nucypher; print(nucypher.__version__)"
 
   test_deploy:
     <<: *python_36_base
