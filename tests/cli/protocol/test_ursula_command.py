@@ -54,10 +54,29 @@ def test_ursula_command_protocol_creation(ursula):
 
 def test_ursula_command_help(protocol, ursula):
 
+    class FakeTransport:
+        """This is a transport"""
+
+        mock_output = b''
+
+        @staticmethod
+        def write(data: bytes):
+            FakeTransport.mock_output += data
+
+    protocol.transport = FakeTransport
+
+    with capture_output() as (out, err):
+        protocol.lineReceived(line=b'bananas')
+
+    # Ensure all commands are in the help text
+    result = out.getvalue()
+    for command in protocol.commands:
+        assert command in result, '{} is missing from help text'.format(command)
+
+    # Blank lines are OK!
     with capture_output() as (out, err):
         protocol.lineReceived(line=b'')
-    result = out.getvalue()
-    assert all(k in result for k in protocol.commands)
+    assert protocol.prompt in FakeTransport.mock_output
 
 
 def test_ursula_command_status(protocol, ursula):
