@@ -68,7 +68,7 @@ def test_get_cert_from_running_seed_node(ursula_federated_test_config):
         start = maya.now()
         while firstula not in any_other_ursula.known_nodes:
             passed = maya.now() - start
-            if passed.seconds > 5:
+            if passed.seconds > 2:
                 pytest.fail("Didn't find the seed node.")
 
     yield deferToThread(start_lonely_learning_loop)

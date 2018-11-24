@@ -89,33 +89,37 @@ class NodeConfiguration(ABC):
 
     def __init__(self,
 
+                 # Base
+                 config_root: str = None,
+                 config_file_location: str = None,
+
                  # Mode
                  dev_mode: bool = False,
                  federated_only: bool = False,
 
-                 # Keyring
-                 keyring: NucypherKeyring = None,
-                 keyring_dir: str = None,
-
                  # Identity
                  is_me: bool = True,
                  checksum_address: str = None,
+                 crypto_power: CryptoPower = None,
+
+                 # Keyring
+                 keyring: NucypherKeyring = None,
+                 keyring_dir: str = None,
 
                  # Learner
                  learn_on_same_thread: bool = False,
                  abort_on_learning_error: bool = False,
                  start_learning_now: bool = True,
 
-                 # Configuration
-                 config_root: str = None,
-                 config_file_location: str = None,
-
-                 # REST + TLS
+                 # REST
                  rest_host: str = None,
                  rest_port: int = None,
+
+                 # TLS
                  tls_curve: EllipticCurve = None,
                  certificate: Certificate = None,
-                 crypto_power: CryptoPower = None,
+
+                 # Network
                  interface_signature: Signature = None,
                  network_middleware: RestMiddleware = None,
 
@@ -140,12 +144,13 @@ class NodeConfiguration(ABC):
         self.log = Logger(self.__class__.__name__)
 
         #
-        # REST + TLS
+        # REST + TLS (Ursula)
         #
         self.rest_host = rest_host or self.DEFAULT_REST_HOST
         self.rest_port = rest_port or self.DEFAULT_REST_PORT
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.certificate = certificate
+
         self.interface_signature = interface_signature
         self.crypto_power = crypto_power
 

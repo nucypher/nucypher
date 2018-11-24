@@ -31,6 +31,7 @@ from nucypher.config.storages import (
     TemporaryFileBasedNodeStorage,
     NodeStorage
 )
+from nucypher.utilities.sandbox.constants import MOCK_URSULA_DB_FILEPATH
 
 MOCK_S3_BUCKET_NAME = 'mock-seednodes'
 S3_DOMAIN_NAME = 's3.amazonaws.com'
@@ -44,7 +45,7 @@ class BaseTestNodeStorageBackends:
         try:
             node = Ursula(rest_host='127.0.0.1',
                           rest_port=10151,
-                          db_filepath=db_filepath,
+                          db_filepath=MOCK_URSULA_DB_FILEPATH,
                           federated_only=True)
 
             yield node
@@ -68,7 +69,7 @@ class BaseTestNodeStorageBackends:
         # Save more nodes
         all_known_nodes = set()
         for port in range(10152, 10251):
-            node = Ursula(rest_host='127.0.0.1', db_filepath='test-ursula-{}.db'.format(port), rest_port=port, federated_only=True)
+            node = Ursula(rest_host='127.0.0.1', db_filepath=MOCK_URSULA_DB_FILEPATH, rest_port=port, federated_only=True)
             node_storage.store_node_metadata(node=node)
             all_known_nodes.add(node)
 

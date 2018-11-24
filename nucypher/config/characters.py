@@ -40,9 +40,14 @@ class UrsulaConfiguration(NodeConfiguration):
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
     DEFAULT_DB_NAME = '{}.db'.format(_NAME)
 
-    def __init__(self, db_filepath: str = None, *args, **kwargs) -> None:
+    def __init__(self,
+                 dev_mode: bool = False,
+                 db_filepath: str = None,
+                 *args, **kwargs) -> None:
+        if dev_mode is True:
+            db_filepath = ':memory:'  # sqlite in-memory db
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
-        super().__init__(*args, **kwargs)
+        super().__init__(dev_mode=dev_mode, *args, **kwargs)
 
     def generate_runtime_filepaths(self, config_root: str) -> dict:
         base_filepaths = super().generate_runtime_filepaths(config_root=config_root)

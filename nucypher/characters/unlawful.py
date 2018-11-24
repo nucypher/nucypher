@@ -18,7 +18,7 @@ from eth_tester.exceptions import ValidationError
 
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.powers import CryptoPower, SigningPower
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_DB_FILEPATH
 from nucypher.utilities.sandbox.middleware import EvilMiddleWare
 
 
@@ -30,7 +30,7 @@ class Vladimir(Ursula):
     network_middleware = EvilMiddleWare()
     fraud_address = '0xbad022A87Df21E4c787C7B1effD5077014b8CC45'
     fraud_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
-    db_filepath = 'vladimir.db'
+    db_filepath = MOCK_URSULA_DB_FILEPATH
 
     @classmethod
     def from_target_ursula(cls,

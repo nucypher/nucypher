@@ -143,7 +143,11 @@ class ProxyRESTRoutes:
         from sqlalchemy.engine import create_engine
 
         self.log.info("Starting datastore {}".format(self.db_filepath))
-        engine = create_engine('sqlite:///{}'.format(self.db_filepath))
+
+        # See: https://docs.sqlalchemy.org/en/rel_0_9/dialects/sqlite.html#connect-strings
+        db_filepath = (self.db_filepath or '')  # Capture None
+        engine = create_engine('sqlite:///{}'.format(db_filepath))
+
         Base.metadata.create_all(engine)
         self.datastore = keystore.KeyStore(engine)
         self.db_engine = engine
