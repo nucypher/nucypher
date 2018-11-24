@@ -12,7 +12,7 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - eth_contract_unit:
+      - eth_contract:
           context: "NuCypher Tests"
           filters:
             tags:
@@ -20,7 +20,7 @@ workflows:
           requires:
             - pip_install
             - pipenv_install
-      - config_unit:
+      - config:
           context: "NuCypher Tests"
           filters:
             tags:
@@ -28,7 +28,7 @@ workflows:
           requires:
             - pip_install
             - pipenv_install
-      - crypto_unit:
+      - crypto:
           context: "NuCypher Tests"
           filters:
             tags:
@@ -36,7 +36,7 @@ workflows:
           requires:
             - pip_install
             - pipenv_install
-      - network_unit:
+      - network:
           context: "NuCypher Tests"
           filters:
             tags:
@@ -44,7 +44,7 @@ workflows:
           requires:
             - pip_install
             - pipenv_install
-      - keystore_unit:
+      - keystore:
           context: "NuCypher Tests"
           filters:
             tags:
@@ -52,7 +52,7 @@ workflows:
           requires:
             - pip_install
             - pipenv_install
-      - blockchain_interface_unit:
+      - blockchain_interface:
           context: "NuCypher Tests"
           filters:
             tags:
@@ -82,16 +82,16 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - eth_contract_unit
+            - eth_contract
       - mypy_type_check:
           filters:
             tags:
               only: /.*/
           requires:
-            - config_unit
-            - crypto_unit
-            - network_unit
-            - keystore_unit
+            - config
+            - crypto
+            - network
+            - keystore
             - character
       - cli_tests:
           context: "NuCypher Tests"
@@ -99,13 +99,19 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - blockchain_entities
-            - blockchain_interface_unit
-            - config_unit
-            - crypto_unit
-            - network_unit
-            - keystore_unit
+            - blockchain_interface
+            - config
+            - crypto
+            - network
+            - keystore
             - character
+      - ursula_command_tests:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - cli_tests
       - test_deploy:
           context: "NuCypher PyPI"
           requires:
@@ -187,7 +193,7 @@ jobs:
           name: Check Python Entrypoint
           command: python3 -c "import nucypher; print(nucypher.__version__)"
 
-  blockchain_interface_unit:
+  blockchain_interface:
     <<: *python_36_base
     parallelism: 2
     steps:
@@ -217,7 +223,7 @@ jobs:
       - store_test_results:
           path: ./reports/pytest/
 
-  eth_contract_unit:
+  eth_contract:
     <<: *python_36_base
     parallelism: 4
     steps:
@@ -232,7 +238,7 @@ jobs:
       - store_test_results:
           path: ./reports/pytest/
 
-  config_unit:
+  config:
     <<: *python_36_base
     parallelism: 2
     steps:
@@ -247,7 +253,7 @@ jobs:
       - store_test_results:
           path: ./reports/pytest/
 
-  crypto_unit:
+  crypto:
     <<: *python_36_base
     steps:
       - checkout
@@ -261,7 +267,7 @@ jobs:
       - store_test_results:
           path: ./reports/pytest/
 
-  network_unit:
+  network:
     <<: *python_36_base
     steps:
       - checkout
@@ -275,7 +281,7 @@ jobs:
       - store_test_results:
           path: ./reports/pytest/
 
-  keystore_unit:
+  keystore:
     <<: *python_36_base
     parallelism: 2
     steps:
@@ -329,6 +335,20 @@ jobs:
         name: Nucypher CLI Tests
         command: |
           pipenv run pytest --cov=nucypher/cli.py -v --runslow $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/cli_results.xml
+    - run: *coveralls
+    - store_test_results:
+        path: ./reports/pytest/
+
+  ursula_command_tests:
+    <<: *python_36_base
+    steps:
+    - checkout
+    - attach_workspace:
+        at: ~/.local/share/virtualenvs/
+    - run:
+        name: Ursula Command Tests
+        command: |
+          pipenv run pytest -v --cov=nucypher/cli.py --runslow tests/cli/protocol --junitxml=./reports/pytest/results.xml
     - run: *coveralls
     - store_test_results:
         path: ./reports/pytest/
