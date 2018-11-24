@@ -413,10 +413,14 @@ jobs:
           command: |
             pipenv --rm --v
       - run:
-          name: Install Nucypher from Fresh Wheel
+          name: Install Nucypher via Wheel with Test Extra
           command: |
-            pip3 install --user ./dist/nucypher-0.1.0a0-py3-none-any.whl
+            pip3 install --user ./dist/nucypher-0.1.0a0-py3-none-any.whl[test]
             python -c "import nucypher; print(nucypher.__version__)"
+      - run:
+          name: Run Integrated Test Suite
+          command: |
+            nucypher-test
 
   test_deploy:
     <<: *python_36_base
