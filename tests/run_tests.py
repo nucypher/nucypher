@@ -17,15 +17,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-from os.path import abspath, dirname
 
 import maya
 import pytest
 
 
 class NucypherPytestRunner:
-    TEST_PATH = os.path.join(abspath(dirname(__file__)), 'cli')
-    PYTEST_ARGS = ['--verbose', '--runslow', TEST_PATH]
+    TEST_PATH = os.path.join('tests', 'cli')
+    PYTEST_ARGS = ['--verbose', TEST_PATH]
 
     def pytest_sessionstart(self):
         print("*** Running Nucypher CLI Tests ***")
