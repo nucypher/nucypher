@@ -527,9 +527,9 @@ contract MinersEscrow is Issuer {
 
         for (uint256 index = 0; index < info.subStakes.length; index++) {
             SubStakeInfo storage subStake = info.subStakes[index];
-            if (subStake.periods > 1) {
+            if (subStake.lastPeriod == 0 && subStake.periods > 1) {
                 subStake.periods--;
-            } else if (subStake.periods == 1) {
+            } else if (subStake.lastPeriod == 0 && subStake.periods == 1) {
                 subStake.periods = 0;
                 subStake.lastPeriod = nextPeriod;
             }
@@ -761,20 +761,20 @@ contract MinersEscrow is Issuer {
     function slashMiner(
         MinerInfo storage _info,
         uint256 _penalty,
-        uint16 _period,
+        uint16 _slashingPeriod,
         uint16 _startPeriod,
         bool _strict
     )
         internal
     {
         while(_penalty > 0) {
-            uint16 minSubStakeLastPeriod = MAX_PERIOD; //TODO
+            uint16 minSubStakeLastPeriod = MAX_PERIOD;
             for (uint256 i = 0; i < _info.subStakes.length; i++) {
                 SubStakeInfo storage subStake = _info.subStakes[i];
                 uint16 lastPeriod = getLastPeriodOfSubStake(subStake, _startPeriod);
-                if ((_strict && subStake.firstPeriod == _period ||
-                    !_strict && subStake.firstPeriod <= _period) &&
-                    lastPeriod >= _period &&
+                if ((_strict && subStake.firstPeriod == _slashingPeriod ||
+                    !_strict && subStake.firstPeriod <= _slashingPeriod) &&
+                    lastPeriod >= _slashingPeriod &&
                     lastPeriod < minSubStakeLastPeriod)
                 {
                     SubStakeInfo storage shortestSubStake = subStake;
@@ -787,27 +787,58 @@ contract MinersEscrow is Issuer {
             uint256 appliedPenalty = _penalty;
             if (_penalty < shortestSubStake.lockedValue) {
                 shortestSubStake.lockedValue -= _penalty;
-                if (_info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD &&
-                    _info.confirmedPeriod1 < _period ||
-                    _info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD &&
-                    _info.confirmedPeriod2 < _period
-                ) {
-                    saveSubStake(_info, shortestSubStake.firstPeriod, _period.sub16(1), 0, _penalty);
-                }
+                saveOldSubStake(_info, shortestSubStake.firstPeriod, _penalty, _slashingPeriod);
                 _penalty = 0;
             } else {
-                shortestSubStake.lastPeriod = _period.sub16(1);
+                shortestSubStake.lastPeriod = _slashingPeriod.sub16(1);
                 _penalty -= shortestSubStake.lockedValue;
                 appliedPenalty = shortestSubStake.lockedValue;
             }
-            if (_info.confirmedPeriod1 >= _period &&
+            if (_info.confirmedPeriod1 >= _slashingPeriod &&
                 _info.confirmedPeriod1 <= minSubStakeLastPeriod) {
                 lockedPerPeriod[_info.confirmedPeriod1] -= appliedPenalty;
             }
-            if (_info.confirmedPeriod2 >= _period &&
+            if (_info.confirmedPeriod2 >= _slashingPeriod &&
                 _info.confirmedPeriod2 <= minSubStakeLastPeriod) {
                 lockedPerPeriod[_info.confirmedPeriod2] -= appliedPenalty;
             }
+        }
+    }
+
+    function saveOldSubStake(
+        MinerInfo storage _info,
+        uint16 _firstPeriod,
+        uint256 _penalty,
+        uint16 _slashingPeriod
+    )
+        internal
+    {
+        bool oldConfirmedPeriod1 = _info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD &&
+            _info.confirmedPeriod1 < _slashingPeriod;
+        bool oldConfirmedPeriod2 = _info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD &&
+            _info.confirmedPeriod2 < _slashingPeriod;
+        bool crossConfirmedPeriod1 = oldConfirmedPeriod1 && _info.confirmedPeriod1 >= _firstPeriod;
+        bool crossConfirmedPeriod2 = oldConfirmedPeriod2 && _info.confirmedPeriod2 >= _firstPeriod;
+        if (!crossConfirmedPeriod1 && !crossConfirmedPeriod2) {
+            return;
+        }
+        uint256 previousPeriod = _slashingPeriod.sub16(1);
+        bool createNew = true;
+        for (uint256 i = 0; i < _info.subStakes.length; i++) {
+            SubStakeInfo storage subStake = _info.subStakes[i];
+            if (subStake.lastPeriod == previousPeriod &&
+                ((crossConfirmedPeriod1 ==
+                (oldConfirmedPeriod1 && _info.confirmedPeriod1 >= subStake.firstPeriod)) &&
+                (crossConfirmedPeriod2 ==
+                (oldConfirmedPeriod2 && _info.confirmedPeriod2 >= subStake.firstPeriod))))
+            {
+                subStake.lockedValue += _penalty;
+                createNew = false;
+                break;
+            }
+        }
+        if (createNew) {
+            saveSubStake(_info, _firstPeriod, _slashingPeriod.sub16(1), 0, _penalty);
         }
     }
 
