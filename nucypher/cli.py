@@ -56,7 +56,7 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import SEEDNODES, USER_LOG_DIR
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
-from nucypher.utilities.logging import logToSentry, getTextFileObserver, simpleObserver
+from nucypher.utilities.logging import logToSentry, getTextFileObserver, SimpleObserver
 from nucypher.utilities.sandbox.ursula import UrsulaCommandProtocol
 
 BANNER = """
