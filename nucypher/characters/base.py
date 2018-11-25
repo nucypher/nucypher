@@ -179,6 +179,9 @@ class Character(Learner):
                     error = "Federated-only Characters derive their address from their Signing key; got {} instead."
                     raise self.SuspiciousActivity(error.format(checksum_address))
 
+        #
+        # Nicknames
+        #
         try:
             self.nickname, self.nickname_metadata = nickname_from_seed(self.checksum_public_address)
         except SigningPower.not_found_error:
@@ -187,6 +190,9 @@ class Character(Learner):
             else:
                 raise
 
+        #
+        # Fleet state
+        #
         if is_me is True:
             self.known_nodes.record_fleet_state()
 

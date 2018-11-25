@@ -55,6 +55,8 @@ def paint_configuration(config_filepath: str) -> None:
 
 
 def paint_node_status(ursula, start_time):
+
+    # Build Learning status line
     learning_status = "Unknown"
     if ursula._learning_task.running:
         learning_status = "Learning at {}s Intervals".format(ursula._learning_task.interval)
@@ -65,17 +67,22 @@ def paint_node_status(ursula, start_time):
     if ursula._current_teacher_node:
         teacher = 'Current Teacher ..... {}'.format(ursula._current_teacher_node)
 
-    fleet_state_checksum = 'Unknown'
+    # Build FleetState status line
     if ursula.known_nodes.checksum is not NO_KNOWN_NODES:
         fleet_state_checksum = ursula.known_nodes.checksum[:7]
+        fleet_state_nickname = ursula.known_nodes.nickname
+        fleet_state_icon = ursula.known_nodes.icon
+        fleet_state = '{2} {1} ({0})'.format(fleet_state_checksum, fleet_state_nickname, fleet_state_icon)
+    elif ursula.known_nodes.checksum is not NO_KNOWN_NODES:
+        fleet_state = 'No Known Nodes'
+    else:
+        fleet_state = 'Unknown'
 
     stats = ['⇀URSULA {}↽'.format(ursula.nickname_icon),
              '{}'.format(ursula),
              'Uptime .............. {}'.format(maya.now() - start_time),
              'Start Time .......... {}'.format(start_time.slang_time()),
-             'Fleet State ......... {2} {1} ({0})'.format(fleet_state_checksum,
-                                                          ursula.known_nodes.nickname,
-                                                          ursula.known_nodes.icon),
+             'Fleet State.......... {}'.format(fleet_state),
              'Learning Status ..... {}'.format(learning_status),
              'Learning Round ...... Round #{}'.format(ursula._learning_round),
              'Operating Mode ...... {}'.format('Federated' if ursula.federated_only else 'Decentralized'),

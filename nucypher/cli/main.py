@@ -77,9 +77,11 @@ class NucypherClickConfig:
 
     def get_password(self, confirm: bool =False) -> str:
         keyring_password = os.environ.get("NUCYPHER_KEYRING_PASSWORD", NO_PASSWORD)
+
         if keyring_password is NO_PASSWORD:  # Collect password, prefer env var
             prompt = "Enter keyring password"
             keyring_password = click.prompt(prompt, confirmation_prompt=confirm, hide_input=True)
+
         self.__keyring_password = keyring_password
         return self.__keyring_password
 
@@ -343,8 +345,8 @@ def ursula(click_config,
                                                                     # db_filepath = db_filepath
                                                                     )
 
-        # Unlock keyring
-        try:
+        try:  # Unlock Keyring
+            # ursula_config.attach_keyring()
             click.secho('Decrypting keyring...', fg='blue')
             ursula_config.keyring.unlock(password=click_config.get_password())  # Takes ~3 seconds, ~1GB Ram
         except CryptoError:
