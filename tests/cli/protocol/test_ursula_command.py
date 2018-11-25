@@ -6,16 +6,8 @@ from io import StringIO
 
 from nucypher.cli.main import NucypherClickConfig
 from nucypher.cli.protocol import UrsulaCommandProtocol
-import sys
-from contextlib import contextmanager
 
-import pytest
-from io import StringIO
-
-from nucypher.cli.main import NucypherClickConfig
-from nucypher.cli.protocol import UrsulaCommandProtocol
-
-# Disable click sentry and file logging TODO: is this working?
+# Disable click sentry and file logging
 
 NucypherClickConfig.log_to_sentry = False
 NucypherClickConfig.log_to_file = False

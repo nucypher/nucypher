@@ -258,11 +258,11 @@ class NodeConfiguration(ABC):
     def dev_mode(self):
         return self.__dev_mode
 
-    def connect_to_blockchain(self, provider_uri: str, poa: bool, compile: bool):
+    def connect_to_blockchain(self, provider_uri: str, poa: bool = False, compile_contracts: bool = False):
         if self.federated_only:
             raise NodeConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
 
-        self.blockchain = Blockchain.connect(provider_uri=provider_uri, compile=compile)
+        self.blockchain = Blockchain.connect(provider_uri=provider_uri, compile=compile_contracts)
         if poa is True:
             w3 = self.blockchain.interface.w3
             w3.middleware_stack.inject(geth_poa_middleware, layer=0)

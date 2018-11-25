@@ -19,20 +19,23 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import os
 
 import click
-import collections
 from nacl.exceptions import CryptoError
 from twisted.internet import stdio
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_ENVVAR
-from nucypher.blockchain.eth.constants import (MIN_ALLOWED_LOCKED,
-                                               MIN_LOCKED_PERIODS,
-                                               MAX_MINTING_PERIODS)
-from nucypher.cli.constants import BANNER, LOG_TO_SENTRY, LOG_TO_FILE, KEYRING_PASSWORD_ENVVAR
-from nucypher.cli.painting import paint_configuration
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
+from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
+from nucypher.cli.painting import BANNER, paint_configuration
 from nucypher.cli.protocol import UrsulaCommandProtocol
-from nucypher.cli.types import IPV4_ADDRESS, CHECKSUM_ADDRESS
+from nucypher.cli.types import (
+    EIP55_CHECKSUM_ADDRESS,
+    UNREGISTERED_PORT,
+    EXISTING_READABLE_FILE,
+    EXISTING_WRITABLE_DIRECTORY,
+    STAKE_VALUE,
+    STAKE_DURATION
+)
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import SEEDNODES
 from nucypher.network.nodes import Teacher
@@ -45,23 +48,22 @@ from nucypher.utilities.logging import (
 
 
 #
-# Logging
+# Click CLI Config
 #
 
-# Sentry
-if LOG_TO_SENTRY is True:
-    initialize_sentry()
-    globalLogPublisher.addObserver(logToSentry)
+class NucypherClickConfig:
 
-# Files
-if LOG_TO_FILE is True:
-    globalLogPublisher.addObserver(getTextFileObserver())
-    globalLogPublisher.addObserver(getJsonFileObserver())
+    __sentry_endpoint = "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685"  # TODO: Use nucypher domain
 
+    # Environment Variables
+    sentry_endpoint = os.environ.get("NUCYPHER_SENTRY_DSN", __sentry_endpoint)
+    log_to_sentry = os.environ.get("NUCYPHER_SENTRY_LOGS", True)
+    log_to_file = os.environ.get("NUCYPHER_FILE_LOGS", True)
 
-#
-# Utilities
-#
+    # Sentry Logging
+    if log_to_sentry is True:
+        initialize_sentry(dsn=__sentry_endpoint)
+        globalLogPublisher.addObserver(logToSentry)
 
     # File Logging
     if log_to_file is True:
@@ -84,63 +86,12 @@ if LOG_TO_FILE is True:
 # Register the above click configuration class as a decorator
 nucypher_click_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 
-#
-# Click Eager Functions
-#
 
 def echo_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
     click.secho(BANNER, bold=True)
     ctx.exit()
-
-
-PendingConfigurationDetails = collections.namedtuple('PendingConfigurationDetails',
-                                                     ('rest_host',    # type: str
-                                                      'password',     # type: str
-                                                      'wallet',       # type: bool
-                                                      'signing',      # type: bool
-                                                      'tls',          # type: bool
-                                                      'skip_keys',    # type: bool
-                                                      'save_file'))   # type: bool
-
-
-def _collect_pending_configuration_details(ursula: bool = True, rest_host=None) -> PendingConfigurationDetails:
-
-    # Defaults
-    generate_wallet = False
-    generate_encrypting_keys, generate_tls_keys, save_node_configuration_file = True, True, True
-
-    if ursula and not rest_host:
-        rest_host = click.prompt("Enter Node's Public IPv4 Address", type=IPV4_ADDRESS)
-
-    if os.environ.get(KEYRING_PASSWORD_ENVVAR):
-        password = os.environ.get(KEYRING_PASSWORD_ENVVAR)
-    else:
-        password = click.prompt("Enter a password to encrypt your keyring",
-                                hide_input=True,
-                                confirmation_prompt=True)
-
-    details = PendingConfigurationDetails(password=password,
-                                          rest_host=rest_host,
-                                          wallet=generate_wallet,
-                                          signing=generate_encrypting_keys,
-                                          tls=generate_tls_keys,
-                                          save_file=save_node_configuration_file,
-                                          skip_keys=False)
-    return details
-
-
-#
-# Click CLI Config
-#
-
-class NucypherClickConfig:
-    def __init__(self):
-        self.log = Logger(self.__class__.__name__)
-
-
-uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 
 
 #
@@ -150,17 +101,17 @@ uses_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 @click.group()
 @click.option('--version', help="Echo the CLI version", is_flag=True, callback=echo_version, expose_value=False, is_eager=True)
 @click.option('-v', '--verbose', help="Specify verbosity level", count=True)
-@uses_config
-def nucypher_cli(config, verbose):
+@nucypher_click_config
+def nucypher_cli(click_config, verbose):
     click.echo(BANNER)
-    config.verbose = verbose
-    if config.verbose:
+    click_config.verbose = verbose
+    if click_config.verbose:
         click.secho("Verbose mode is enabled", fg='blue')
 
 
 @nucypher_cli.command()
-@uses_config
-def status(config):
+@nucypher_click_config
+def status(click_config):
     """
     Echo a snapshot of live network metadata.
     """
@@ -169,8 +120,8 @@ def status(config):
     #
     ursula_config = UrsulaConfiguration.from_configuration_file()
     if not ursula_config.federated_only:
-        ursula_config.connect_to_blockchain(config)
-        ursula_config.connect_to_contracts(config)
+        ursula_config.connect_to_blockchain(provider_uri=ursula_config.provider_uri)
+        ursula_config.connect_to_contracts()
 
         contract_payload = """
 
@@ -198,9 +149,9 @@ def status(config):
         Gas Price ................ {gas_price}
         Active Staking Ursulas ... {ursulas}
 
-        """.format(period=config.miner_agent.get_current_period(),
-                   gas_price=config.blockchain.interface.w3.eth.gasPrice,
-                   ursulas=config.miner_agent.get_miner_population())
+        """.format(period=click_config.miner_agent.get_current_period(),
+                   gas_price=click_config.blockchain.interface.w3.eth.gasPrice,
+                   ursulas=click_config.miner_agent.get_miner_population())
         click.secho(network_payload)
 
     #
@@ -209,9 +160,9 @@ def status(config):
 
     # Gather Data
     known_nodes = ursula_config.read_known_nodes()
-    known_certificate_files = os.listdir(ursula_config.known_certificates_dir)
+    known_certificates = ursula_config.node_storage.all(certificates_only=True)
     number_of_known_nodes = len(known_nodes)
-    seen_nodes = len(known_certificate_files)
+    seen_nodes = len(known_certificates)
 
     # Operating Mode
     federated_only = ursula_config.federated_only
@@ -256,19 +207,19 @@ def status(config):
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
-@click.option('--rest-port', help="The host port to run Ursula network services on", type=click.IntRange(min=49151, max=65535, clamp=False))
+@click.option('--rest-port', help="The host port to run Ursula network services on", type=UNREGISTERED_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
-@click.option('--checksum-address', help="Run with a specified account", type=CHECKSUM_ADDRESS)
+@click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--federated-only', help="Connect only to federated nodes", is_flag=True, default=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
-@click.option('--config-file', help="Path to configuration file", type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True))
-@click.option('--metadata-dir', help="Custom known metadata directory", type=click.Path(exists=True, dir_okay=True, file_okay=False, writable=True))
+@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
+@click.option('--metadata-dir', help="Custom known metadata directory", type=EXISTING_WRITABLE_DIRECTORY)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
-@click.option('--registry-filepath', help="Custom contract registry filepath", type=click.Path(exists=True, dir_okay=False, file_okay=True, readable=True))
-@uses_config
-def ursula(config,
+@click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+@nucypher_click_config
+def ursula(click_config,
            action,
            debug,
            dev,
@@ -283,7 +234,7 @@ def ursula(config,
            poa,
            config_root,
            config_file,
-           metadata_dir,
+           metadata_dir,  # TODO: Start nodes from an additional existing metadata dir
            provider_uri,
            no_registry,
            registry_filepath
@@ -303,14 +254,15 @@ def ursula(config,
     destroy        Delete Ursula node configuration.
 
     """
-    log = Logger('ursula.cli')
 
     #
     # Boring Setup Stuff
     #
+    log = Logger('ursula.cli')
+
     if debug:
-        config.log_to_sentry = False
-        config.log_to_file = True
+        click_config.log_to_sentry = False
+        click_config.log_to_file = True
         globalLogPublisher.removeObserver(logToSentry)                          # Sentry
         globalLogPublisher.addObserver(SimpleObserver(log_level_name='debug'))  # Print
 
@@ -372,7 +324,7 @@ def ursula(config,
 
         # Restore configuration from file
         ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file
-                                                                    # TODO: CLI Overrides
+                                                                    # TODO: CLI Overrides for file-based configurations
                                                                     # poa = poa,
                                                                     # registry_filepath = registry_filepath,
                                                                     # provider_uri = provider_uri,
@@ -490,19 +442,19 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
 
 
 @click.argument('action', default='list', required=False)
-@click.option('--checksum-address', type=CHECKSUM_ADDRESS)
-@click.option('--value', help="Token value of stake", type=click.IntRange(min=MIN_ALLOWED_LOCKED, max=MIN_ALLOWED_LOCKED, clamp=False))
-@click.option('--duration', help="Period duration of stake", type=click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS, clamp=False))
+@click.option('--checksum-address', type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--value', help="Token value of stake", type=STAKE_VALUE)
+@click.option('--duration', help="Period duration of stake", type=STAKE_DURATION)
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
-@uses_config
-def stake(config,
+@nucypher_click_config
+def stake(click_config,
           action,
           checksum_address,
           index,
           value,
           duration):
     """
-    Manage token staking.
+    Manage token staking.  TODO
 
     \b
     Actions
@@ -515,13 +467,14 @@ def stake(config,
     collect-reward    Withdraw staking reward.
 
     """
+    ursula_config = click_config.ursula_config
 
     #
     # Initialize
     #
-    if not config.federated_only:
-        config.ursula_config.connect_to_blockchain(config)
-        config.ursula_config.connect_to_contracts(config)
+    if not ursula_config.federated_only:
+        ursula_config.connect_to_blockchain(click_config)
+        ursula_config.connect_to_contracts(click_config)
 
     if not checksum_address:
 
@@ -529,7 +482,7 @@ def stake(config,
             click.echo('No account found.')
             raise click.Abort()
 
-        for index, address in enumerate(config.accounts):
+        for index, address in enumerate(click_config.accounts):
             if index == 0:
                 row = 'etherbase (0) | {}'.format(address)
             else:
@@ -537,11 +490,11 @@ def stake(config,
             click.echo(row)
 
         click.echo("Select ethereum address")
-        account_selection = click.prompt("Enter 0-{}".format(len(config.accounts)), type=click.INT)
-        address = config.ursula_config.accounts[account_selection]
+        account_selection = click.prompt("Enter 0-{}".format(len(ur.accounts)), type=click.INT)
+        address = click_config.accounts[account_selection]
 
     if action == 'list':
-        live_stakes = config.miner_agent.get_all_stakes(miner_address=checksum_address)
+        live_stakes = ursula_config.miner_agent.get_all_stakes(miner_address=checksum_address)
         for index, stake_info in enumerate(live_stakes):
             row = '{} | {}'.format(index, stake_info)
             click.echo(row)
@@ -549,22 +502,21 @@ def stake(config,
     elif action == 'init':
         click.confirm("Stage a new stake?", abort=True)
 
-        live_stakes = config.miner_agent.get_all_stakes(miner_address=checksum_address)
+        live_stakes = ursula_config.miner_agent.get_all_stakes(miner_address=checksum_address)
         if len(live_stakes) > 0:
             raise RuntimeError("There is an existing stake for {}".format(checksum_address))
 
         # Value
-        balance = config.token_agent.get_balance(address=checksum_address)
+        balance = ursula_config.miner_agent.token_agent.get_balance(address=checksum_address)
         click.echo("Current balance: {}".format(balance))
         value = click.prompt("Enter stake value", type=click.INT)
 
         # Duration
-        message = "Minimum duration: {} | Maximum Duration: {}".format(MIN_LOCKED_PERIODS,
-                                                                       MAX_MINTING_PERIODS)
+        message = "Minimum duration: {} | Maximum Duration: {}".format(MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS)
         click.echo(message)
         duration = click.prompt("Enter stake duration in periods (1 Period = 24 Hours)", type=click.INT)
 
-        start_period = config.miner_agent.get_current_period()
+        start_period = ursula_config.miner_agent.get_current_period()
         end_period = start_period + duration
 
         # Review
@@ -588,15 +540,15 @@ def stake(config,
 
     elif action == 'confirm-activity':
         """Manually confirm activity for the active period"""
-        stakes = config.miner_agent.get_all_stakes(miner_address=checksum_address)
+        stakes = ursula_config.miner_agent.get_all_stakes(miner_address=checksum_address)
         if len(stakes) == 0:
             raise RuntimeError("There are no active stakes for {}".format(checksum_address))
-        config.miner_agent.confirm_activity(node_address=checksum_address)
+        ursula_config.miner_agent.confirm_activity(node_address=checksum_address)
 
     elif action == 'divide':
         """Divide an existing stake by specifying the new target value and end period"""
 
-        stakes = config.miner_agent.get_all_stakes(miner_address=checksum_address)
+        stakes = ursula_config.miner_agent.get_all_stakes(miner_address=checksum_address)
         if len(stakes) == 0:
             raise RuntimeError("There are no active stakes for {}".format(checksum_address))
 
@@ -619,16 +571,15 @@ def stake(config,
                    target_value + extension))
 
         click.confirm("Is this correct?", abort=True)
-        config.miner_agent.divide_stake(miner_address=checksum_address,
-                                        stake_index=index,
-                                        value=value,
-                                        periods=extension)
+        ursula_config.miner_agent.divide_stake(miner_address=checksum_address,
+                                               stake_index=index,
+                                               value=value,
+                                               periods=extension)
 
-    elif action == 'collect-reward':
+    elif action == 'collect-reward':          # TODO: Implement
         """Withdraw staking reward to the specified wallet address"""
-        # TODO: Implement
         # click.confirm("Send {} to {}?".format)
-        # config.miner_agent.collect_staking_reward(collector_address=address)
+        # ursula_config.miner_agent.collect_staking_reward(collector_address=address)
         raise NotImplementedError
 
     else:

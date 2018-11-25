@@ -28,11 +28,10 @@ from twisted.python.logfile import DailyLogFile
 from zope.interface import provider
 
 import nucypher
-from nucypher.cli.constants import NUCYPHER_SENTRY_ENDPOINT
 from nucypher.config.constants import USER_LOG_DIR
 
 
-def initialize_sentry():
+def initialize_sentry(dsn: str):
     import sentry_sdk
     import logging
 
@@ -41,7 +40,7 @@ def initialize_sentry():
         event_level=logging.DEBUG  # Send debug logs as events
     )
     sentry_sdk.init(
-        dsn=NUCYPHER_SENTRY_ENDPOINT,
+        dsn=dsn,
         integrations=[sentry_logging],
         release=nucypher.__version__
     )

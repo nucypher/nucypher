@@ -16,17 +16,23 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import collections
 import hashlib
 import json
 
 import click
+from nucypher.cli.utilities import CHECKSUM_ADDRESS
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 from typing import ClassVar, Tuple
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent
-from nucypher.cli.utilities import CHECKSUM_ADDRESS
-
+from nucypher.blockchain.eth.deployers import (
+    NucypherTokenDeployer,
+    MinerEscrowDeployer,
+    PolicyManagerDeployer,
+    ContractDeployer
+)
 from nucypher.cli.constants import BANNER
 from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.logging import getTextFileObserver
@@ -41,6 +47,34 @@ def echo_version(ctx, param, value):
         return
     click.secho(BANNER, bold=True)
     ctx.exit()
+
+
+#
+# Deployers
+#
+DeployerInfo = collections.namedtuple('DeployerInfo', ('deployer_class',  # type: ContractDeployer
+                                                       'upgradeable',     # type: bool
+                                                       'agent_name',      # type: EthereumContractAgent
+                                                       'dependant'))      # type: EthereumContractAgent
+
+
+DEPLOYERS = collections.OrderedDict({
+
+    NucypherTokenDeployer._contract_name: DeployerInfo(deployer_class=NucypherTokenDeployer,
+                                                       upgradeable=False,
+                                                       agent_name='token_agent',
+                                                       dependant=None),
+
+    MinerEscrowDeployer._contract_name: DeployerInfo(deployer_class=MinerEscrowDeployer,
+                                                     upgradeable=True,
+                                                     agent_name='miner_agent',
+                                                     dependant='token_agent'),
+
+    PolicyManagerDeployer._contract_name: DeployerInfo(deployer_class=PolicyManagerDeployer,
+                                                       upgradeable=True,
+                                                       agent_name='policy_agent',
+                                                       dependant='miner_agent')
+})
 
 
 class NucypherDeployerClickConfig:
