@@ -56,6 +56,7 @@ class NucypherClickConfig:
     __sentry_endpoint = "https://d8af7c4d692e4692a455328a280d845e@sentry.io/1310685"  # TODO: Use nucypher domain
 
     # Environment Variables
+    config_file = os.environ.get('NUCYPHER_CONFIG_FILE', None)
     sentry_endpoint = os.environ.get("NUCYPHER_SENTRY_DSN", __sentry_endpoint)
     log_to_sentry = os.environ.get("NUCYPHER_SENTRY_LOGS", True)
     log_to_file = os.environ.get("NUCYPHER_FILE_LOGS", True)
@@ -110,15 +111,16 @@ def nucypher_cli(click_config, verbose):
 
 
 @nucypher_cli.command()
+@click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
 @nucypher_click_config
-def status(click_config):
+def status(click_config, config_file):
     """
     Echo a snapshot of live network metadata.
     """
     #
     # Initialize
     #
-    ursula_config = UrsulaConfiguration.from_configuration_file()
+    ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file)
     if not ursula_config.federated_only:
         ursula_config.connect_to_blockchain(provider_uri=ursula_config.provider_uri)
         ursula_config.connect_to_contracts()
@@ -160,7 +162,7 @@ def status(click_config):
 
     # Gather Data
     known_nodes = ursula_config.read_known_nodes()
-    known_certificates = ursula_config.node_storage.all(certificates_only=True)
+    known_certificates = ursula_config.node_storage.all(certificates_only=True, federated_only=ursula_config.federated_only)
     number_of_known_nodes = len(known_nodes)
     seen_nodes = len(known_certificates)
 
@@ -285,10 +287,13 @@ def ursula(click_config,
         if dev:
             click.secho("WARNING: Using temporary storage area", fg='yellow')
 
+        if not config_root:                         # Flag
+            config_root = click_config.config_root  # Envvar
+
         ursula_config = UrsulaConfiguration.generate(password=click_config.get_password(confirm=True),
+                                                     config_root=config_root,
                                                      rest_host=rest_host,
                                                      rest_port=rest_port,
-                                                     config_root=config_root,
                                                      db_filepath=db_filepath,
                                                      federated_only=federated_only,
                                                      checksum_address=checksum_address,

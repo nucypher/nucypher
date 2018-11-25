@@ -16,13 +16,26 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from click.testing import CliRunner
-
+from nucypher.cli.deploy import deploy
 from nucypher.cli.main import nucypher_cli
 
 
-def test_help_message(click_runner):
-    result = click_runner.invoke(nucypher_cli, ['--help'], catch_exceptions=False)
-
+def test_nucypher_help_message(click_runner):
+    help_args = ('--help', )
+    result = click_runner.invoke(nucypher_cli, help_args, catch_exceptions=False)
     assert result.exit_code == 0
-    assert '[OPTIONS] COMMAND [ARGS]'.format('nucypher') in result.output, 'Missing or invalid help text was produced.'
+    assert '[OPTIONS] COMMAND [ARGS]' in result.output, 'Missing or invalid help text was produced.'
+
+
+def test_nucypher_ursula_help_message(click_runner):
+    help_args = ('ursula', '--help')
+    result = click_runner.invoke(nucypher_cli, help_args, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert 'ursula [OPTIONS] ACTION' in result.output, 'Missing or invalid help text was produced.'
+
+
+def test_nucypher_deploy_help_message(click_runner):
+    help_args = ('--help', )
+    result = click_runner.invoke(deploy, help_args, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert 'deploy [OPTIONS] ACTION' in result.output, 'Missing or invalid help text was produced.'

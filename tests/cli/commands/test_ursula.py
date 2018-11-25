@@ -15,39 +15,21 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import contextlib
 import json
 import os
 from json import JSONDecodeError
 
 import pytest
-import shutil
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT
-from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, \
-    MOCK_IP_ADDRESS, MOCK_URSULA_STARTING_PORT
-
-
-@pytest.fixture(scope='module')
-def nominal_configuration_fields():
-    config = UrsulaConfiguration(dev_mode=True)
-    config_fields = config.static_payload
-    del config_fields['is_me']
-    yield tuple(config_fields.keys())
-    del config
-
-
-@pytest.fixture(scope='module')
-def custom_filepath():
-    _custom_filepath = MOCK_CUSTOM_INSTALLATION_PATH
-    with contextlib.suppress(FileNotFoundError):
-        shutil.rmtree(_custom_filepath, ignore_errors=True)
-    yield _custom_filepath
-    with contextlib.suppress(FileNotFoundError):
-        shutil.rmtree(_custom_filepath, ignore_errors=True)
+from nucypher.utilities.sandbox.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_CUSTOM_INSTALLATION_PATH,
+    MOCK_IP_ADDRESS,
+    MOCK_URSULA_STARTING_PORT
+)
 
 
 def test_initialize_configuration_files_and_directories(custom_filepath, click_runner):

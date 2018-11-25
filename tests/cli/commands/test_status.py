@@ -17,28 +17,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 
-import pytest
-
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, \
-    MOCK_IP_ADDRESS, MOCK_URSULA_STARTING_PORT
-
-
-@pytest.fixture(scope='module')
-def nominal_configuration_fields():
-    config = UrsulaConfiguration(dev_mode=True)
-    config_fields = config.static_payload
-    del config_fields['is_me']
-    yield tuple(config_fields.keys())
-    del config
+    MOCK_IP_ADDRESS_2
 
 
 def test_initialize_configuration_files_and_directories(custom_filepath, click_runner):
-    init_args = ('ursula', 'init', '--config-root', custom_filepath, '--rest-port', MOCK_URSULA_STARTING_PORT)
+    init_args = ('ursula', 'init', '--config-root', custom_filepath)
 
     # Use a custom local filepath for configuration
-    user_input = '{password}\n{password}\n{ip}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
+    user_input = '{ip}\n{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS_2)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
