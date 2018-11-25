@@ -32,17 +32,42 @@ from nucypher.utilities.sandbox.constants import (
 )
 
 
-def test_initialize_configuration_files_and_directories(custom_filepath, click_runner):
-    init_args = ('ursula', 'init', '--config-root', custom_filepath, '--rest-port', MOCK_URSULA_STARTING_PORT)
+def test_initialize_ursula_defaults(click_runner, mocker):
+
+    # Mock out filesystem writes
+    mocker.patch.object(UrsulaConfiguration, 'initialize', autospec=True)
+    mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', autospec=True)
+
+    # Use default ursula init args
+    init_args = ('ursula', 'init')
+    user_input = '{ip}\n{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
+    result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    # REST Host
+    assert 'Enter Ursula\'s public-facing IPv4 address' in result.output
+
+    # Auth
+    assert 'Enter keyring password:' in result.output, 'WARNING: User was not prompted for password'
+    assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
+
+
+def test_initialize_custom_configuration_root(custom_filepath, click_runner):
 
     # Use a custom local filepath for configuration
-    user_input = '{password}\n{password}\n{ip}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
+    init_args = ('ursula', 'init',
+                 '--config-root', custom_filepath,
+                 '--rest-host', MOCK_IP_ADDRESS,
+                 '--rest-port', MOCK_URSULA_STARTING_PORT)
+
+    user_input = '{password}\n{password}'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
     # CLI Output
     assert MOCK_CUSTOM_INSTALLATION_PATH in result.output, "Configuration not in system temporary directory"
     assert "nucypher ursula run" in result.output, 'Help message is missing suggested command'
+    assert 'IPv4' not in result.output
 
     # Files and Directories
     assert os.path.isdir(custom_filepath), 'Configuration file does not exist'

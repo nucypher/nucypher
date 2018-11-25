@@ -44,6 +44,8 @@ def custom_filepath():
     _custom_filepath = MOCK_CUSTOM_INSTALLATION_PATH
     with contextlib.suppress(FileNotFoundError):
         shutil.rmtree(_custom_filepath, ignore_errors=True)
-    yield _custom_filepath
-    with contextlib.suppress(FileNotFoundError):
-        shutil.rmtree(_custom_filepath, ignore_errors=True)
+    try:
+        yield _custom_filepath
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            shutil.rmtree(_custom_filepath, ignore_errors=True)

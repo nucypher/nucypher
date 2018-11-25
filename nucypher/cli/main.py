@@ -288,7 +288,10 @@ def ursula(click_config,
             click.secho("WARNING: Using temporary storage area", fg='yellow')
 
         if not config_root:                         # Flag
-            config_root = click_config.config_root  # Envvar
+            config_root = click_config.config_file  # Envvar
+
+        if not rest_host:
+            rest_host = click.prompt("Enter Ursula's public-facing IPv4 address")
 
         ursula_config = UrsulaConfiguration.generate(password=click_config.get_password(confirm=True),
                                                      config_root=config_root,
