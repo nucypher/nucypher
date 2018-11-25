@@ -63,6 +63,26 @@ if LOG_TO_FILE is True:
 # Utilities
 #
 
+    # File Logging
+    if log_to_file is True:
+        globalLogPublisher.addObserver(getTextFileObserver())
+        globalLogPublisher.addObserver(getJsonFileObserver())
+
+    def __init__(self):
+        self.log = Logger(self.__class__.__name__)
+        self.__keyring_password = NO_PASSWORD
+
+    def get_password(self, confirm: bool =False) -> str:
+        keyring_password = os.environ.get("NUCYPHER_KEYRING_PASSWORD", NO_PASSWORD)
+        if keyring_password is NO_PASSWORD:  # Collect password, prefer env var
+            prompt = "Enter keyring password"
+            keyring_password = click.prompt(prompt, confirmation_prompt=confirm, hide_input=True)
+        self.__keyring_password = keyring_password
+        return self.__keyring_password
+
+
+# Register the above click configuration class as a decorator
+nucypher_click_config = click.make_pass_decorator(NucypherClickConfig, ensure=True)
 
 #
 # Click Eager Functions
@@ -313,12 +333,7 @@ def ursula(config,
         if dev:
             click.secho("WARNING: Using temporary storage area", fg='yellow')
 
-        # Get password
-        password = os.environ.get(KEYRING_PASSWORD_ENVVAR, NO_ENVVAR)
-        if password is NO_ENVVAR:  # Collect password, prefer env var
-            password = click.prompt("Enter keyring password", hide_input=True)
-
-        ursula_config = UrsulaConfiguration.generate(password=password,
+        ursula_config = UrsulaConfiguration.generate(password=click_config.get_password(confirm=True),
                                                      rest_host=rest_host,
                                                      rest_port=rest_port,
                                                      config_root=config_root,
@@ -368,19 +383,14 @@ def ursula(config,
                                                                     # db_filepath = db_filepath
                                                                     )
 
-        # Get password
-        password = os.environ.get(KEYRING_PASSWORD_ENVVAR, NO_ENVVAR)
-        if password is NO_ENVVAR:  # Collect password, prefer env var
-            password = click.prompt("Enter keyring password", hide_input=True)
-
         # Unlock keyring
         try:
             click.secho('Decrypting keyring...', fg='blue')
-            ursula_config.keyring.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
+            ursula_config.keyring.unlock(password=click_config.get_password())  # Takes ~3 seconds, ~1GB Ram
         except CryptoError:
             raise ursula_config.keyring.AuthenticationFailed
 
-    config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
+    click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
 
     #
     # Action Switch

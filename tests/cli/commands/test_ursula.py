@@ -26,9 +26,9 @@ import shutil
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import APP_DIR
+from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH, \
-    MOCK_IP_ADDRESS
+    MOCK_IP_ADDRESS, MOCK_URSULA_STARTING_PORT
 
 
 @pytest.fixture(scope='module')
@@ -51,22 +51,28 @@ def custom_filepath():
 
 
 def test_initialize_configuration_files_and_directories(custom_filepath, click_runner):
-    init_args = ('ursula', 'init', '--config-root', custom_filepath, '--rest-port', '64454')
+    init_args = ('ursula', 'init', '--config-root', custom_filepath, '--rest-port', MOCK_URSULA_STARTING_PORT)
 
     # Use a custom local filepath for configuration
     user_input = '{password}\n{password}\n{ip}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    assert 'password' in result.output, 'WARNING: User was not prompted for password'
+    # CLI Output
     assert MOCK_CUSTOM_INSTALLATION_PATH in result.output, "Configuration not in system temporary directory"
     assert "nucypher ursula run" in result.output, 'Help message is missing suggested command'
+
+    # Files and Directories
     assert os.path.isdir(custom_filepath), 'Configuration file does not exist'
     assert os.path.isdir(os.path.join(custom_filepath, 'keyring')), 'Keyring does not exist'
     assert os.path.isdir(os.path.join(custom_filepath, 'known_nodes')), 'known_nodes directory does not exist'
 
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
+
+    # Auth
+    assert 'Enter keyring password:' in result.output, 'WARNING: User was not prompted for password'
+    assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
 def test_configuration_file_contents(custom_filepath, nominal_configuration_fields):
@@ -93,17 +99,39 @@ def test_configuration_file_contents(custom_filepath, nominal_configuration_fiel
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
 
-def test_ursula_view_configuration(custom_filepath, click_runner, nominal_configuration_fields):
+def test_password_prompt(click_runner, custom_filepath):
+
+    # Ensure the configuration file still exists
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
-    view_args = ('ursula', 'view', '--config-file', os.path.join(custom_filepath, 'ursula.config'))
+    view_args = ('ursula', 'view', '--config-file', custom_config_filepath)
+
+    user_input = '{}\n'.format(INSECURE_DEVELOPMENT_PASSWORD)
+    result = click_runner.invoke(nucypher_cli, view_args, input=user_input, catch_exceptions=False, env=dict())
+    assert 'password' in result.output, 'WARNING: User was not prompted for password'
+    assert result.exit_code == 0
+
+    envvars = {'NUCYPHER_KEYRING_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD}
+    result = click_runner.invoke(nucypher_cli, view_args, input=user_input, catch_exceptions=False, env=envvars)
+    assert not 'password' in result.output, 'User was prompted for password'
+    assert result.exit_code == 0
+
+
+def test_ursula_view_configuration(custom_filepath, click_runner, nominal_configuration_fields):
+
+    # Ensure the configuration file still exists
+    custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
+    assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
+
+    view_args = ('ursula', 'view', '--config-file', os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME))
 
     # View the configuration
     result = click_runner.invoke(nucypher_cli, view_args,
                                  input='{}\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
                                  catch_exceptions=False)
 
+    # CLI Output
     assert 'password' in result.output, 'WARNING: User was not prompted for password'
     assert MOCK_CUSTOM_INSTALLATION_PATH in result.output
     for field in nominal_configuration_fields:
@@ -113,17 +141,20 @@ def test_ursula_view_configuration(custom_filepath, click_runner, nominal_config
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
 
-@pytest.mark.skip  # TODO
+@pytest.mark.skip("Results in ReactorAlreadyRunning")  # TODO: Find a way to execute this test (contains reactor.run call)
 def test_run_ursula(custom_filepath, click_runner):
+
+    # Ensure the configuration file still exists
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
+    # Run Ursula
     run_args = ('ursula', 'run', '--config-file', custom_config_filepath)
-
     result = click_runner.invoke(nucypher_cli, run_args,
                                  input='{}\nY\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
                                  catch_exceptions=False)
 
+    # CLI Output
     assert result.exit_code == 0
     assert 'password' in result.output, 'WARNING: User was not prompted for password'
     assert '? [y/N]:' in result.output, 'WARNING: User was to run Ursula'
@@ -131,6 +162,8 @@ def test_run_ursula(custom_filepath, click_runner):
 
 
 def test_ursula_init_does_not_overrides_existing_files(custom_filepath, click_runner):
+
+    # Ensure the configuration file still exists
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
@@ -139,7 +172,7 @@ def test_ursula_init_does_not_overrides_existing_files(custom_filepath, click_ru
     # Ensure that an existing configuration directory cannot be overridden
     with pytest.raises(UrsulaConfiguration.ConfigurationError):
         _bad_result = click_runner.invoke(nucypher_cli, init_args,
-                                          input='{}\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
+                                          input='{}\n'.format(INSECURE_DEVELOPMENT_PASSWORD)*2,
                                           catch_exceptions=False)
 
         assert 'password' in _bad_result.output, 'WARNING: User was not prompted for password'
@@ -149,15 +182,21 @@ def test_ursula_init_does_not_overrides_existing_files(custom_filepath, click_ru
 
 
 def test_ursula_destroy_configuration(custom_filepath, click_runner):
+
+    preexisting_live_configuration = os.path.isdir(DEFAULT_CONFIG_ROOT)
+    preexisting_live_configuration_file = os.path.isfile(os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.CONFIG_FILENAME))
+
+    # Ensure the configuration file still exists
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
+    # Run the destroy command
     destruction_args = ('ursula', 'destroy', '--config-file', custom_config_filepath)
-
     result = click_runner.invoke(nucypher_cli, destruction_args,
                                  input='{}\nY\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
                                  catch_exceptions=False)
 
+    # CLI Output
     assert not os.path.isfile(custom_config_filepath), 'Configuration file still exists'
     assert 'password' in result.output, 'WARNING: User was not prompted for password'
     assert '? [y/N]:' in result.output, 'WARNING: User was not asked to destroy files'
@@ -168,3 +207,12 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     # Ensure the files are deleted from the filesystem
     assert not os.path.isfile(custom_config_filepath), 'Files still exist'   # ... it's gone...
     assert not os.path.isdir(custom_filepath), 'Nucypher files still exist'  # it's all gone...
+
+    # If this test started off with a live configuration, ensure it still exists
+    if preexisting_live_configuration:
+        configuration_still_exists = os.path.isdir(DEFAULT_CONFIG_ROOT)
+        assert configuration_still_exists
+
+    if preexisting_live_configuration_file:
+        file_still_exists = os.path.isfile(os.path.join(DEFAULT_CONFIG_ROOT, UrsulaConfiguration.CONFIG_FILENAME))
+        assert file_still_exists, 'WARNING: Test command deleted live non-test files'
