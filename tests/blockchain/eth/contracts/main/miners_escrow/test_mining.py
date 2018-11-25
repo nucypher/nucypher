@@ -545,7 +545,7 @@ def test_slashing(testerchain, token, escrow_contract):
     assert 200 == escrow.functions.getLockedTokens(ursula2).call()
     assert 200 == escrow.functions.getLockedTokens(ursula2, 1).call()
 
-    # Slash one sub stake to set the last period if this sub stake to the previous period
+    # Slash one sub stake to set the last period of this sub stake to the previous period
     tx = overseer.functions.slashMiner(ursula2, 100, investigator, 0).transact()
     testerchain.wait_for_receipt(tx)
     assert 100 == escrow.functions.getLockedTokens(ursula2, -2).call()
@@ -561,3 +561,27 @@ def test_slashing(testerchain, token, escrow_contract):
     assert 200 == escrow.functions.getLockedTokens(ursula2, -1).call()
     assert 50 == escrow.functions.getLockedTokens(ursula2).call()
     assert 50 == escrow.functions.getLockedTokens(ursula2, 1).call()
+
+    # Prepare next case: new deposit is longer than previous sub stake
+    tx = escrow.functions.confirmActivity().transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(hours=1)
+    tx = escrow.functions.deposit(100, 3).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+    assert 50 == escrow.functions.getLockedTokens(ursula2).call()
+    assert 150 == escrow.functions.getLockedTokens(ursula2, 1).call()
+    assert 100 == escrow.functions.getLockedTokens(ursula2, 2).call()
+
+    # Withdraw all not locked tokens
+    deposit = escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]  # Some reward is already mined
+    unlocked_deposit = deposit - 150
+    tx = escrow.functions.withdraw(unlocked_deposit).transact({'from': ursula2})
+    testerchain.wait_for_receipt(tx)
+
+    # Slash the previous sub stake
+    # Stake in the current period should not change, because overflow starts from the next period
+    tx = overseer.functions.slashMiner(ursula2, 10, investigator, 0).transact()
+    testerchain.wait_for_receipt(tx)
+    assert 50 == escrow.functions.getLockedTokens(ursula2).call()
+    assert 140 == escrow.functions.getLockedTokens(ursula2, 1).call()
+    assert 100 == escrow.functions.getLockedTokens(ursula2, 2).call()
