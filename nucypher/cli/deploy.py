@@ -21,7 +21,6 @@ import hashlib
 import json
 
 import click
-from nucypher.cli.utilities import CHECKSUM_ADDRESS
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 from typing import ClassVar, Tuple
@@ -33,7 +32,8 @@ from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     ContractDeployer
 )
-from nucypher.cli.constants import BANNER
+from nucypher.cli.painting import BANNER
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.logging import getTextFileObserver
 
@@ -88,23 +88,16 @@ class NucypherDeployerClickConfig:
 
 
 # Register the above class as a decorator
-uses_deployer_config = click.make_pass_decorator(NucypherDeployerClickConfig, ensure=True)
+nucypher_deployer_config = click.make_pass_decorator(NucypherDeployerClickConfig, ensure=True)
 
 
 @click.command()
 @click.argument('action')
-@click.option('--contract-name',
-              help="Deploy a single contract by name",
-              type=click.STRING)
+@click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--force', is_flag=True)
-@click.option('--deployer-address',
-              help="Deployer's checksum address",
-              type=CHECKSUM_ADDRESS)
-@click.option('--registry-outfile',
-              help="Output path for new registry",
-              type=click.Path(),
-              default=NodeConfiguration.REGISTRY_SOURCE)
-@uses_deployer_config
+@click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
+@click.option('--registry-outfile', help="Output path for new registry", type=click.Path(), default=NodeConfiguration.REGISTRY_SOURCE)
+@nucypher_deployer_config
 def deploy(config,
            action,
            deployer_address,
