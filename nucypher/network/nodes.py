@@ -250,8 +250,7 @@ class Learner:
         self.unresponsive_startup_nodes = list()  # TODO: Attempt to use these again later
         for node in known_nodes:
             try:
-                self.remember_node(
-                    node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
+                self.remember_node(node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
 
@@ -285,7 +284,7 @@ class Learner:
         def __attempt_seednode_learning(seednode_metadata, current_attempt=1):
             from nucypher.characters.lawful import Ursula
             self.log.debug(
-                "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_address,
+                "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_public_address,
                                                 seednode_metadata.rest_host,
                                                 seednode_metadata.rest_port))
 
@@ -724,128 +723,6 @@ class Teacher:
         """
         Raise when a Character tries to use another Character as decentralized when the latter is federated_only.
         """
-
-    #
-    # Alternate Constructors
-    #
-
-    @classmethod
-    def from_seednode_metadata(cls,
-                               seednode_metadata,
-                               *args,
-                               **kwargs):
-        """
-        Essentially another deserialization method, but this one doesn't reconstruct a complete
-        node from bytes; instead it's just enough to connect to and verify a node.
-        """
-
-        return cls.from_seed_and_stake_info(checksum_address=seednode_metadata.checksum_address,
-                                            host=seednode_metadata.rest_host,
-                                            port=seednode_metadata.rest_port,
-                                            *args, **kwargs)
-
-    @classmethod
-    def from_teacher_uri(cls,
-                         federated_only: bool,
-                         teacher_uri: str,
-                         min_stake: int,
-                         ) -> 'Ursula':
-
-        hostname, port, checksum_address = parse_node_uri(uri=teacher_uri)
-        try:
-            teacher = cls.from_seed_and_stake_info(host=hostname,
-                                                   port=port,
-                                                   federated_only=federated_only,
-                                                   checksum_address=checksum_address,
-                                                   minimum_stake=min_stake)
-
-        except (socket.gaierror, requests.exceptions.ConnectionError, ConnectionRefusedError):
-            # self.log.warn("Can't connect to seed node.  Will retry.")
-            time.sleep(5)  # TODO: Move this 5
-
-        else:
-            return teacher
-
-    @classmethod
-    @validate_checksum_address
-    def from_seed_and_stake_info(cls,
-                                 host: str,
-                                 port: int,
-                                 federated_only: bool,
-                                 minimum_stake: int = 0,
-                                 checksum_address: str = None,
-                                 network_middleware: RestMiddleware = None,
-                                 *args,
-                                 **kwargs
-                                 ) -> 'Teacher':
-
-        #
-        # WARNING: xxx Poison xxx
-        # Let's learn what we can about the ... "seednode".
-        #
-
-        if network_middleware is None:
-            network_middleware = RestMiddleware()
-
-        # Fetch the hosts TLS certificate and read the common name
-        certificate = network_middleware.get_certificate(host=host, port=port)
-        real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
-        temp_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
-        certificate_filepath = temp_node_storage.store_host_certificate(host=real_host,
-                                                                        certificate=certificate)
-        # Load the host as a potential seed node
-        potential_seed_node = cls.from_rest_url(
-            host=real_host,
-            port=port,
-            network_middleware=network_middleware,
-            certificate_filepath=certificate_filepath,
-            federated_only=True,
-            *args,
-            **kwargs)  # TODO: 466
-
-        if checksum_address:
-            # Ensure this is the specific node we expected
-            if not checksum_address == potential_seed_node.checksum_public_address:
-                template = "This seed node has a different wallet address: {} (expected {}).  Are you sure this is a seednode?"
-                raise potential_seed_node.SuspiciousActivity(template.format(potential_seed_node.checksum_public_address,
-                                                                             checksum_address))
-
-        # Check the node's stake (optional)
-        if minimum_stake > 0:
-            # TODO: check the blockchain to verify that address has more then minimum_stake. #511
-            raise NotImplementedError("Stake checking is not implemented yet.")
-
-        # Verify the node's TLS certificate
-        try:
-            potential_seed_node.verify_node(
-                network_middleware=network_middleware,
-                accept_federated_only=federated_only,
-                certificate_filepath=certificate_filepath)
-
-        except potential_seed_node.InvalidNode:
-            raise  # TODO: What if our seed node fails verification?
-
-        # OK - everyone get out
-        temp_node_storage.forget()
-        return potential_seed_node
-
-    @classmethod
-    def from_rest_url(cls,
-                      network_middleware: RestMiddleware,
-                      host: str,
-                      port: int,
-                      certificate_filepath,
-                      federated_only: bool = False,
-                      *args, **kwargs
-                      ):
-
-        response = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
-        if not response.status_code == 200:
-            raise RuntimeError("Got a bad response: {}".format(response))
-
-        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only, *args,
-                                                          **kwargs)
-        return stranger_ursula_from_public_keys
 
     @classmethod
     def from_tls_hosting_power(cls, tls_hosting_power: TLSHostingPower, *args, **kwargs) -> 'Teacher':

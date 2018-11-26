@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MAX_MINTING_PE
 
 
 class ChecksumAddress(click.ParamType):
-    name = 'checksum_address'
+    name = 'checksum_public_address'
 
     def convert(self, value, param, ctx):
         if is_checksum_address(value):

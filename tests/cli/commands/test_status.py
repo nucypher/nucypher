@@ -59,6 +59,6 @@ def test_empty_federated_status(click_runner, custom_filepath):
     assert result.exit_code == 0
 
     assert 'Federated Only' in result.output
-    heading = 'Known Nodes (connected 0 / seen 0)           Last Seen    self   | known  | seednode |'
+    heading = 'Known Nodes (connected 0 / seen 0)'
     assert heading in result.output
     assert 'password' not in result.output

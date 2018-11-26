@@ -47,6 +47,23 @@ BANNER = """
 # Paint
 #
 
+def build_fleet_state_status(ursula) -> str:
+    # Build FleetState status line
+    if ursula.known_nodes.checksum is not NO_KNOWN_NODES:
+        fleet_state_checksum = ursula.known_nodes.checksum[:7]
+        fleet_state_nickname = ursula.known_nodes.nickname
+        fleet_state_icon = ursula.known_nodes.icon
+        fleet_state = '{checksum} ⇀{nickname}↽ {icon}'.format(icon=fleet_state_icon,
+                                                              nickname=fleet_state_nickname,
+                                                              checksum=fleet_state_checksum)
+    elif ursula.known_nodes.checksum is not NO_KNOWN_NODES:
+        fleet_state = 'No Known Nodes'
+    else:
+        fleet_state = 'Unknown'
+
+    return fleet_state
+
+
 def paint_configuration(config_filepath: str) -> None:
     json_config = UrsulaConfiguration._read_configuration_file(filepath=config_filepath)
     click.secho("\n======== Ursula Configuration ======== \n", bold=True)
@@ -68,15 +85,7 @@ def paint_node_status(ursula, start_time):
         teacher = 'Current Teacher ..... {}'.format(ursula._current_teacher_node)
 
     # Build FleetState status line
-    if ursula.known_nodes.checksum is not NO_KNOWN_NODES:
-        fleet_state_checksum = ursula.known_nodes.checksum[:7]
-        fleet_state_nickname = ursula.known_nodes.nickname
-        fleet_state_icon = ursula.known_nodes.icon
-        fleet_state = '{2} {1} ({0})'.format(fleet_state_checksum, fleet_state_nickname, fleet_state_icon)
-    elif ursula.known_nodes.checksum is not NO_KNOWN_NODES:
-        fleet_state = 'No Known Nodes'
-    else:
-        fleet_state = 'Unknown'
+    fleet_state = build_fleet_state_status(ursula=ursula)
 
     stats = ['⇀URSULA {}↽'.format(ursula.nickname_icon),
              '{}'.format(ursula),
@@ -108,8 +117,13 @@ def paint_known_nodes(ursula) -> None:
 
     # Heading
     label = "Known Nodes (connected {} / seen {})".format(number_of_known_nodes, seen_nodes)
-    heading = '\n' + label + " " * (45 - len(label)) + "Last Seen    "
-    click.secho(heading, bold=True, nl=False)
+    heading = '\n' + label + " " * (45 - len(label))
+    click.secho(heading, bold=True, nl=True)
+
+    # Build FleetState status line
+    fleet_state = build_fleet_state_status(ursula=ursula)
+    fleet_status_line = 'Fleet State {}'.format(fleet_state)
+    click.secho(fleet_status_line, fg='blue', bold=True, nl=True)
 
     # Legend
     color_index = {
@@ -117,14 +131,16 @@ def paint_known_nodes(ursula) -> None:
         'known': 'white',
         'seednode': 'blue'
     }
-    for node_type, color in color_index.items():
-        click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
-    click.echo('\n')
+
+    # Ledgend
+    # for node_type, color in color_index.items():
+    #     click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
+    # click.echo('\n')
 
     seednode_addresses = list(bn.checksum_address for bn in SEEDNODES)
 
     for node in known_nodes:
-        row_template = "{} | {} | {} | {} | {}"
+        row_template = "{} | {}"
         node_type = 'known'
         if node.checksum_public_address == ursula.checksum_public_address:
             node_type = 'self'
@@ -132,9 +148,37 @@ def paint_known_nodes(ursula) -> None:
         elif node.checksum_public_address in seednode_addresses:
             node_type = 'seednode'
             row_template += ' ({})'.format(node_type)
-        click.secho(row_template.format(node.checksum_public_address,
-                                        node.rest_url().ljust(20),
-                                        node.nickname.ljust(50),
-                                        node.timestamp,
-                                        node.last_seen,
-                                        ), fg=color_index[node_type])
+        click.secho(row_template.format(node.rest_url().ljust(20), node), fg=color_index[node_type])
+
+
+def paint_contract_status(ursula_config, click_config):
+    contract_payload = """
+
+    | NuCypher ETH Contracts |
+
+    Provider URI ............. {provider_uri}
+    Registry Path ............ {registry_filepath}
+
+    NucypherToken ............ {token}
+    MinerEscrow .............. {escrow}
+    PolicyManager ............ {manager}
+
+    """.format(provider_uri=ursula_config.blockchain.interface.provider_uri,
+               registry_filepath=ursula_config.blockchain.interface.registry.filepath,
+               token=ursula_config.token_agent.contract_address,
+               escrow=ursula_config.miner_agent.contract_address,
+               manager=ursula_config.policy_agent.contract_address,
+               period=ursula_config.miner_agent.get_current_period())
+    click.secho(contract_payload)
+
+    network_payload = """
+    | Blockchain Network |
+
+    Current Period ........... {period}
+    Gas Price ................ {gas_price}
+    Active Staking Ursulas ... {ursulas}
+
+    """.format(period=click_config.miner_agent.get_current_period(),
+               gas_price=click_config.blockchain.interface.w3.eth.gasPrice,
+               ursulas=click_config.miner_agent.get_miner_population())
+    click.secho(network_payload)

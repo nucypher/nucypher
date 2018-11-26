@@ -140,7 +140,7 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
         start_learning_now=False,
         federated_only=True,
         save_metadata=False,
-        load_metadata=False)
+        reload_metadata=False)
 
     # Generate keys and write them the disk
     alice_config.initialize(password=INSECURE_DEVELOPMENT_PASSWORD)

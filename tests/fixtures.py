@@ -128,7 +128,7 @@ def ursula_federated_test_config():
                                         federated_only=True,
                                         network_middleware=MockRestMiddleware(),
                                         save_metadata=False,
-                                        load_metadata=False)
+                                        reload_metadata=False)
     yield ursula_config
     ursula_config.cleanup()
 
@@ -145,7 +145,7 @@ def ursula_decentralized_test_config(three_agents):
                                         network_middleware=MockRestMiddleware(),
                                         import_seed_registry=False,
                                         save_metadata=False,
-                                        load_metadata=False)
+                                        reload_metadata=False)
     yield ursula_config
     ursula_config.cleanup()
 
@@ -159,7 +159,7 @@ def alice_federated_test_config(federated_ursulas):
                                 federated_only=True,
                                 abort_on_learning_error=True,
                                 save_metadata=False,
-                                load_metadata=False)
+                                reload_metadata=False)
     yield config
     config.cleanup()
 
@@ -171,13 +171,13 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
 
     config = AliceConfiguration(dev_mode=True,
                                 is_me=True,
-                                checksum_address=alice_address,
+                                checksum_public_address=alice_address,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=blockchain_ursulas,
                                 abort_on_learning_error=True,
                                 import_seed_registry=False,
                                 save_metadata=False,
-                                load_metadata=False)
+                                reload_metadata=False)
     yield config
     config.cleanup()
 
@@ -190,7 +190,7 @@ def bob_federated_test_config():
                               abort_on_learning_error=True,
                               federated_only=True,
                               save_metadata=False,
-                              load_metadata=False)
+                              reload_metadata=False)
     yield config
     config.cleanup()
 
@@ -201,7 +201,7 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
     etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
 
     config = BobConfiguration(dev_mode=True,
-                              checksum_address=bob_address,
+                              checksum_public_address=bob_address,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas,
                               start_learning_now=False,
@@ -209,7 +209,7 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
                               federated_only=False,
                               import_seed_registry=False,
                               save_metadata=False,
-                              load_metadata=False)
+                              reload_metadata=False)
     yield config
     config.cleanup()
 

@@ -34,5 +34,5 @@ DEFAULT_CONFIG_ROOT = APP_DIR.user_data_dir
 USER_LOG_DIR = APP_DIR.user_log_dir
 
 # Static Seednodes
-SeednodeMetadata = namedtuple('seednode', ['checksum_address', 'rest_host', 'rest_port'])
+SeednodeMetadata = namedtuple('seednode', ['checksum_public_address', 'rest_host', 'rest_port'])
 SEEDNODES = tuple()

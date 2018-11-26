@@ -26,7 +26,8 @@ from twisted.logger import globalLogPublisher
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
-from nucypher.cli.painting import BANNER, paint_configuration
+from nucypher.characters.lawful import Ursula
+from nucypher.cli.painting import BANNER, paint_configuration, paint_known_nodes, paint_contract_status
 from nucypher.cli.protocol import UrsulaCommandProtocol
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
@@ -37,8 +38,6 @@ from nucypher.cli.types import (
     STAKE_DURATION
 )
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import SEEDNODES
-from nucypher.network.nodes import Teacher
 from nucypher.utilities.logging import (
     logToSentry,
     getTextFileObserver,
@@ -127,80 +126,11 @@ def status(click_config, config_file):
         ursula_config.connect_to_blockchain(provider_uri=ursula_config.provider_uri)
         ursula_config.connect_to_contracts()
 
-        contract_payload = """
+        # Contracts
+        paint_contract_status(ursula_config=ursula_config, click_config=click_config)
 
-        | NuCypher ETH Contracts |
-
-        Provider URI ............. {provider_uri}
-        Registry Path ............ {registry_filepath}
-
-        NucypherToken ............ {token}
-        MinerEscrow .............. {escrow}
-        PolicyManager ............ {manager}
-
-        """.format(provider_uri=ursula_config.blockchain.interface.provider_uri,
-                   registry_filepath=ursula_config.blockchain.interface.registry.filepath,
-                   token=ursula_config.token_agent.contract_address,
-                   escrow=ursula_config.miner_agent.contract_address,
-                   manager=ursula_config.policy_agent.contract_address,
-                   period=ursula_config.miner_agent.get_current_period())
-        click.secho(contract_payload)
-
-        network_payload = """
-        | Blockchain Network |
-
-        Current Period ........... {period}
-        Gas Price ................ {gas_price}
-        Active Staking Ursulas ... {ursulas}
-
-        """.format(period=click_config.miner_agent.get_current_period(),
-                   gas_price=click_config.blockchain.interface.w3.eth.gasPrice,
-                   ursulas=click_config.miner_agent.get_miner_population())
-        click.secho(network_payload)
-
-    #
     # Known Nodes
-    #
-
-    # Gather Data
-    known_nodes = ursula_config.read_known_nodes()
-    known_certificates = ursula_config.node_storage.all(certificates_only=True, federated_only=ursula_config.federated_only)
-    number_of_known_nodes = len(known_nodes)
-    seen_nodes = len(known_certificates)
-
-    # Operating Mode
-    federated_only = ursula_config.federated_only
-    if federated_only:
-        click.secho("Configured in Federated Only mode", fg='green')
-
-    # Heading
-    label = "Known Nodes (connected {} / seen {})".format(number_of_known_nodes, seen_nodes)
-    heading = '\n' + label + " " * (45 - len(label)) + "Last Seen    "
-    click.secho(heading, bold=True, nl=False)
-
-    # Legend
-    color_index = {
-        'self': 'yellow',
-        'known': 'white',
-        'seednode': 'blue'
-    }
-    for node_type, color in color_index.items():
-        click.secho('{0:<6} | '.format(node_type), fg=color, nl=False)
-    click.echo('\n')
-
-    seednode_addresses = list(bn.checksum_address for bn in SEEDNODES)
-    for node in known_nodes:
-        row_template = "{} | {} | {}"
-        node_type = 'known'
-        if node.checksum_public_address == ursula_config.checksum_address:
-            node_type = 'self'
-            row_template += ' ({})'.format(node_type)
-        if node.checksum_public_address in seednode_addresses:
-            node_type = 'seednode'
-            row_template += ' ({})'.format(node_type)
-        click.secho(row_template.format(node.checksum_public_address,
-                                        node.rest_url(),
-                                        node.timestamp), fg=color_index[node_type])
+    paint_known_nodes(ursula=ursula_config)
 
 
 @nucypher_cli.command()
@@ -301,7 +231,7 @@ def ursula(click_config,
                                                      rest_port=rest_port,
                                                      db_filepath=db_filepath,
                                                      federated_only=federated_only,
-                                                     checksum_address=checksum_address,
+                                                     checksum_public_address=checksum_address,
                                                      no_registry=federated_only or no_registry,
                                                      registry_filepath=registry_filepath,
                                                      provider_uri=provider_uri)
@@ -324,7 +254,7 @@ def ursula(click_config,
                                             poa=poa,
                                             registry_filepath=registry_filepath,
                                             provider_uri=provider_uri,
-                                            checksum_address=checksum_address,
+                                            checksum_public_address=checksum_address,
                                             federated_only=federated_only,
                                             rest_host=rest_host,
                                             rest_port=rest_port,
@@ -338,7 +268,7 @@ def ursula(click_config,
                                                                     # poa = poa,
                                                                     # registry_filepath = registry_filepath,
                                                                     # provider_uri = provider_uri,
-                                                                    # checksum_address = checksum_address,
+                                                                    # checksum_public_address = checksum_public_address,
                                                                     # federated_only = federated_only,
                                                                     # rest_host = rest_host,
                                                                     # rest_port = rest_port,
@@ -365,14 +295,13 @@ def ursula(click_config,
         #
         teacher_nodes = list()
         if teacher_uri:
-            node = Teacher.from_teacher_uri(teacher_uri=teacher_uri,
-                                            min_stake=min_stake,
-                                            federated_only=federated_only)
+            node = Ursula.from_teacher_uri(teacher_uri=teacher_uri, min_stake=min_stake, federated_only=federated_only)
             teacher_nodes.append(node)
+
         #
         # Produce - Step 2
         #
-        ursula = ursula_config.produce()
+        ursula = ursula_config.produce(known_nodes=teacher_nodes)
         ursula_config.log.debug("Initialized Ursula {}".format(ursula), fg='green')
 
         # GO!
@@ -488,7 +417,7 @@ def stake(click_config,
 
     if not checksum_address:
 
-        if config.accounts == NO_BLOCKCHAIN_CONNECTION:
+        if click_config.accounts == NO_BLOCKCHAIN_CONNECTION:
             click.echo('No account found.')
             raise click.Abort()
 

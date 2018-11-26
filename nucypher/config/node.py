@@ -47,6 +47,7 @@ from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
 from nucypher.network.middleware import RestMiddleware
+from nucypher.network.nodes import FleetStateTracker
 from umbral.signing import Signature
 
 
@@ -99,7 +100,7 @@ class NodeConfiguration(ABC):
 
                  # Identity
                  is_me: bool = True,
-                 checksum_address: str = None,
+                 checksum_public_address: str = None,
                  crypto_power: CryptoPower = None,
 
                  # Keyring
@@ -126,7 +127,7 @@ class NodeConfiguration(ABC):
                  # Node Storage
                  known_nodes: set = None,
                  node_storage: NodeStorage = None,
-                 load_metadata: bool = True,
+                 reload_metadata: bool = True,
                  save_metadata: bool = True,
 
                  # Blockchain
@@ -195,11 +196,11 @@ class NodeConfiguration(ABC):
         # Identity
         #
         self.is_me = is_me
-        self.checksum_address = checksum_address
+        self.checksum_public_address = checksum_public_address
 
         if self.is_me is True or dev_mode is True:
             # Self
-            if self.checksum_address and dev_mode is False:
+            if self.checksum_public_address and dev_mode is False:
                 self.attach_keyring()
             self.network_middleware = network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS()
         else:
@@ -214,12 +215,17 @@ class NodeConfiguration(ABC):
         #
         # Learner
         #
-        self.known_nodes = known_nodes or set()
         self.learn_on_same_thread = learn_on_same_thread
         self.abort_on_learning_error = abort_on_learning_error
         self.start_learning_now = start_learning_now
         self.save_metadata = save_metadata
-        self.load_metadata = load_metadata
+        self.reload_metadata = reload_metadata
+
+        self.__fleet_state = FleetStateTracker()
+        known_nodes = known_nodes or set()
+        if known_nodes:
+            self.known_nodes._nodes.update({node.checksum_public_address: node for node in known_nodes})
+            self.known_nodes.record_fleet_state()
 
         #
         # Blockchain
@@ -240,7 +246,7 @@ class NodeConfiguration(ABC):
 
             # Ephemeral dev settings
             self.save_metadata = False
-            self.load_metadata = False
+            self.reload_metadata = False
 
             # Generate one-time alphanumeric development password
             alphabet = string.ascii_letters + string.digits
@@ -257,6 +263,10 @@ class NodeConfiguration(ABC):
     @property
     def dev_mode(self):
         return self.__dev_mode
+
+    @property
+    def known_nodes(self):
+        return self.__fleet_state
 
     def connect_to_blockchain(self, provider_uri: str, poa: bool = False, compile_contracts: bool = False):
         if self.federated_only:
@@ -278,7 +288,10 @@ class NodeConfiguration(ABC):
         self.log.debug("Established connection to nucypher contracts")
 
     def read_known_nodes(self):
-        self.known_nodes.update(self.node_storage.all(federated_only=self.federated_only))
+        known_nodes = self.node_storage.all(federated_only=self.federated_only)
+        known_nodes = {node.checksum_public_address: node for node in known_nodes}
+        self.known_nodes._nodes.update(known_nodes)
+        self.known_nodes.record_fleet_state()
         return self.known_nodes
 
     def forget_nodes(self) -> None:
@@ -389,7 +402,7 @@ class NodeConfiguration(ABC):
             # Identity
             is_me=self.is_me,
             federated_only=self.federated_only,  # TODO: 466
-            checksum_address=self.checksum_address,
+            checksum_public_address=self.checksum_public_address,
             keyring_dir=self.keyring_dir,
 
             # Behavior
@@ -403,8 +416,12 @@ class NodeConfiguration(ABC):
     @property
     def dynamic_payload(self, **overrides) -> dict:
         """Exported dynamic configuration values for initializing Ursula"""
-        if self.load_metadata:
-            self.known_nodes.update(self.node_storage.all(federated_only=self.federated_only))
+        if self.reload_metadata:
+            known_nodes = self.node_storage.all(federated_only=self.federated_only)
+            known_nodes = {node.checksum_public_address: node for node in known_nodes}
+            self.known_nodes._nodes.update(known_nodes)
+        self.known_nodes.record_fleet_state()
+
         payload = dict(network_middleware=self.network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS(),
                        known_nodes=self.known_nodes,
                        node_storage=self.node_storage,
@@ -503,15 +520,15 @@ class NodeConfiguration(ABC):
 
     def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
         if self.keyring is not NO_KEYRING_ATTACHED:
-            if self.keyring.checksum_address != (checksum_address or self.checksum_address):
+            if self.keyring.checksum_address != (checksum_address or self.checksum_public_address):
                 raise self.ConfigurationError("There is already a keyring attached to this configuration.")
             return
 
-        if (checksum_address or self.checksum_address) is None:
+        if (checksum_address or self.checksum_public_address) is None:
             raise self.ConfigurationError("No account specified to unlock keyring")
 
         self.keyring = NucypherKeyring(keyring_root=self.keyring_dir,  # type: str
-                                       account=checksum_address or self.checksum_address,  # type: str
+                                       account=checksum_address or self.checksum_public_address,  # type: str
                                        *args, **kwargs)
 
     def write_keyring(self,
@@ -533,9 +550,9 @@ class NodeConfiguration(ABC):
 
         # TODO: Operating mode switch #466
         if self.federated_only or not wallet:
-            self.checksum_address = self.keyring.federated_address
+            self.checksum_public_address = self.keyring.federated_address
         else:
-            self.checksum_address = self.keyring.checksum_address
+            self.checksum_public_address = self.keyring.checksum_address
 
         return self.keyring
 

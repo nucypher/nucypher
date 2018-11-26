@@ -24,6 +24,8 @@ import maya
 from twisted.internet import reactor
 from twisted.protocols.basic import LineReceiver
 
+from nucypher.cli.painting import build_fleet_state_status
+
 
 class UrsulaCommandProtocol(LineReceiver):
 
@@ -39,12 +41,20 @@ class UrsulaCommandProtocol(LineReceiver):
 
         # Expose Ursula functional entry points
         self.__commands = {
-            'stop': reactor.stop,
-            'known_nodes': self.paintKnownNodes,
+
+            # Status
             'status': self.paintStatus,
+            'known_nodes': self.paintKnownNodes,
+            'fleet_state': self.paintFleetState,
+
+            # Learning Control
             'cycle_teacher': self.ursula.cycle_teacher_node,
             'start_learning': self.ursula.start_learning_loop,
-            'stop_learning': self.ursula.stop_learning_loop
+            'stop_learning': self.ursula.stop_learning_loop,
+
+            # Process Control
+            'stop': reactor.stop,
+
         }
 
         super().__init__()
@@ -60,6 +70,10 @@ class UrsulaCommandProtocol(LineReceiver):
     def paintStatus(self):
         from nucypher.cli.painting import paint_node_status
         paint_node_status(ursula=self.ursula, start_time=self.start_time)
+
+    def paintFleetState(self):
+        line = '{}'.format(build_fleet_state_status(ursula=self.ursula))
+        click.secho(line)
 
     def connectionMade(self):
 

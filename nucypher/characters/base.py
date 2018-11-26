@@ -70,7 +70,7 @@ class Character(Learner):
                  is_me: bool = True,
                  federated_only: bool = False,
                  blockchain: Blockchain = None,
-                 checksum_address: bytes = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
+                 checksum_public_address: bytes = NO_BLOCKCHAIN_CONNECTION.bool_value(False),
                  network_middleware: RestMiddleware = None,
                  keyring_dir: str = None,
                  crypto_power: CryptoPower = None,
@@ -118,7 +118,7 @@ class Character(Learner):
         else:
             self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
 
-        self._checksum_address = checksum_address
+        self._checksum_address = checksum_public_address
         #
         # Self-Character
         #
@@ -161,10 +161,10 @@ class Character(Learner):
         # Decentralized
         #
         if not federated_only:
-            if not checksum_address:
-                raise ValueError("No checksum_address provided while running in a non-federated mode.")
+            if not checksum_public_address:
+                raise ValueError("No checksum_public_address provided while running in a non-federated mode.")
             else:
-                self._checksum_address = checksum_address  # TODO: Check that this matches BlockchainPower
+                self._checksum_address = checksum_public_address  # TODO: Check that this matches BlockchainPower
         #
         # Federated
         #
@@ -173,11 +173,11 @@ class Character(Learner):
                 self._set_checksum_address()  # type: str
             except NoSigningPower:
                 self._checksum_address = NO_BLOCKCHAIN_CONNECTION
-            if checksum_address:
+            if checksum_public_address:
                 # We'll take a checksum address, as long as it matches their singing key
-                if not checksum_address == self.checksum_public_address:
+                if not checksum_public_address == self.checksum_public_address:
                     error = "Federated-only Characters derive their address from their Signing key; got {} instead."
-                    raise self.SuspiciousActivity(error.format(checksum_address))
+                    raise self.SuspiciousActivity(error.format(checksum_public_address))
 
         #
         # Nicknames
@@ -254,7 +254,7 @@ class Character(Learner):
         with the public_material_bytes, and the resulting CryptoPowerUp instance
         consumed by the Character.
 
-        # TODO: Need to be federated only until we figure out the best way to get the checksum_address in here.
+        # TODO: Need to be federated only until we figure out the best way to get the checksum_public_address in here.
 
         """
 
