@@ -34,4 +34,5 @@ variables*.yml
 .env
 examples/heartbeat_demo/*.json
 examples/heartbeat_demo/*.pickle
-examples/heartbeat_demo/hearbeat-demo-files/
+examples/heartbeat_demo/doctor-files/
+examples/heartbeat_demo/alicia-files/

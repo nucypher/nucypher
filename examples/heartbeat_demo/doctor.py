@@ -96,7 +96,7 @@ kits = (UmbralMessageKit.from_bytes(k) for k in data['kits'])
 for message_kit in kits:
 
     try:
-        print("Bob retrieves ...")
+        #print("Bob retrieves ...")
         start = timer()
         delivered_cleartexts = bob.retrieve(message_kit=message_kit,
                                             data_source=data_source,
@@ -111,8 +111,16 @@ for message_kit in kits:
         plaintext = pickle.loads(delivered_cleartexts[0])
 
         heart_rate = plaintext['heart_rate']
-        timestamp = maya.MayaDT(plaintext['timestamp'])
+        _timestamp = maya.MayaDT(plaintext['timestamp'])
 
-        print("Retrieved: Heart rate ({} BPM), Timestamp ({}) \t "
-              "[Retrieval time: {}]".format(heart_rate, timestamp, end - start))
+        terminal_size = shutil.get_terminal_size().columns
+        max_width = min(terminal_size, 120)
+        columns = max_width - 10 - 27
+        scale = columns/40
+        scaled_heart_rate = int(scale * (heart_rate - 60))
+        retrieval_time = "Retrieval time: {:8.2f} ms".format(1000*(end - start))
+        line = "* ({} BPM)".rjust(scaled_heart_rate, " ")
+        line = line.format(heart_rate)
+        line = line.ljust(max_width - 27, " ") + retrieval_time
 
+        print(line)
