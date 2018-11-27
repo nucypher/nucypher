@@ -14,7 +14,7 @@ DEFAULT_LABEL = b"Alicia's heart data"
 
 def generate_heart_rate_samples(policy_pubkey,
                                 label: bytes = DEFAULT_LABEL,
-                                samples: int = 30,
+                                samples: int = 500,
                                 save_as_file: bool = False):
     data_source = DataSource(policy_pubkey_enc=policy_pubkey,
                              label=label)
