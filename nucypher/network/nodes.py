@@ -663,15 +663,17 @@ class Learner:
 
                 else:
                     node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
-
-            except node.SuspiciousActivity:
+            except node.InvalidNode:
                 # TODO: Account for possibility that stamp, rather than interface, was bad.
+                self.log.warn(node.invalid_metadata_message.format(node))
+            except node.SuspiciousActivity:
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
                           "Propagated by: {}".format(current_teacher.checksum_public_address, rest_url)
                 self.log.warn(message)
-            new = self.remember_node(node, record_fleet_state=False)
-            if new:
-                new_nodes.append(node)
+            else:
+                new = self.remember_node(node, record_fleet_state=False)
+                if new:
+                    new_nodes.append(node)
 
         self._adjust_learning(new_nodes)
 
