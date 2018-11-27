@@ -10,7 +10,7 @@ python_version = "3"
 #
 # NuCypher
 #
-umbral = "==0.1.1a3"
+umbral = "*"
 constant-sorrow = "*"
 bytestringSplitter = "*"
 hendrix = ">=3.1.0"
@@ -27,15 +27,17 @@ maya = "*"
 #
 # Third-Party Ethereum
 #
-eth-utils="==1.2.2"
+eth-hash = {version = "==0.2.0", extras = ["pysha3"]}
+eth-utils = "==1.2.1"
 eth-keys="*"
 eth-tester = ">=0.1.0b33"
-py-evm = ">=0.2.0a33"
+py-evm = "==0.2.0a33"
 py-solc = "*"
 web3 = "*"
 #
 # CLI / Configuration
 #
+sentry-sdk = "==0.5.2"
 appdirs = "*"
 click = ">=7.0"
 colorama = "*"
@@ -54,7 +56,6 @@ pytest-cov = "*"
 mypy = "*"
 codecov = "*"
 coverage = "*"
-sentry-sdk = "==0.5.2"
 ansible = "*"
 moto = "*"
 nucypher = {editable = true, path = "."}
