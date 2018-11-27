@@ -460,6 +460,7 @@ class Ursula(Teacher, Character, Miner):
 
                  # Blockchain
                  checksum_address: str = None,
+                 identity_evidence: bytes = constants.NOT_SIGNED,
 
                  # Character
                  passphrase: str = None,
@@ -580,7 +581,10 @@ class Ursula(Teacher, Character, Miner):
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
                          interface_signature=interface_signature,
-                         timestamp=timestamp)
+                         timestamp=timestamp,
+                         identity_evidence=identity_evidence,
+                         substantiate_immediately=is_me,
+                         passphrase=passphrase)
 
         #
         # Logging / Updating
@@ -694,7 +698,8 @@ class Ursula(Teacher, Character, Miner):
                 certificate=certificate,
                 rest_host=rest_info.host,
                 rest_port=rest_info.port,
-                federated_only=federated_only  # TODO: 289
+                federated_only=federated_only,  # TODO: 289
+                identity_evidence=identity_evidence.message_as_bytes
             )
             stranger_ursulas.append(stranger_ursula_from_public_keys)
 
