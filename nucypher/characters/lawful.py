@@ -504,9 +504,6 @@ class Ursula(Teacher, Character, Miner):
                 blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
                 self._crypto_power.consume_power_up(blockchain_power)
 
-                # Use blockchain power to substantiate stamp, instead of signing key
-                self.substantiate_stamp(passphrase=passphrase)  # TODO: Derive from keyring
-
         #
         # ProxyRESTServer and TLSHostingPower # TODO: Maybe we want _power_ups to be public after all?
         #

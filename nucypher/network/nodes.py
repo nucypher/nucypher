@@ -40,6 +40,7 @@ from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 
+from constant_sorrow.constants import constant_or_bytes
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.keyring import _write_tls_certificate
 from nucypher.config.storages import InMemoryNodeStorage
@@ -690,18 +691,21 @@ class Learner:
 
 class Teacher:
     TEACHER_VERSION = 1
-    _evidence_of_decentralized_identity = constants.NOT_SIGNED
     verified_stamp = False
     verified_interface = False
     _verified_node = False
     _interface_info_splitter = (int, 4, {'byteorder': 'big'})
     log = Logger("network/nodes")
+    invalid_metadata_message = "{} has invalid metadata.  Maybe its stake is over?  Or maybe it is transitioning to a new interface.  Ignoring."
 
     def __init__(self,
                  certificate: Certificate,
                  certificate_filepath: str,
                  interface_signature=constants.NOT_SIGNED.bool_value(False),
                  timestamp=constants.NOT_SIGNED,
+                 identity_evidence=constants.NOT_SIGNED,
+                 substantiate_immediately=False,
+                 passphrase=None,
                  ) -> None:
 
         self.certificate = certificate
@@ -711,6 +715,10 @@ class Teacher:
         self.last_seen = constants.NEVER_SEEN("Haven't connected to this node yet.")
         self.fleet_state_checksum = None
         self.fleet_state_updated = None
+        self._evidence_of_decentralized_identity = constant_or_bytes(identity_evidence)
+
+        if substantiate_immediately:
+            self.substantiate_stamp(passphrase=passphrase)  # TODO: Derive from keyring
 
     class InvalidNode(SuspiciousActivity):
         """
