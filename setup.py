@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
+
 """
 This file is part of nucypher.
 
@@ -66,40 +68,9 @@ class VerifyVersionCommand(install):
 #
 #  Dependencies
 #
+with open(os.path.join(BASE_DIR, "requirements.txt")) as f:
+    INSTALL_REQUIRES = f.read().split('\n')
 
-INSTALL_REQUIRES = [
-
-    # NuCypher
-    'umbral',
-    'constant-sorrow',
-    'bytestringSplitter',
-    'hendrix>=3.1.0',
-
-    # Third Party (General)
-    'cryptography>=2.3',
-    'pysha3',
-    'requests',
-    'sqlalchemy',
-    'apistar<0.6.0',
-    'tzlocal<2.0.0',
-    'maya',
-
-    # Third Party (Ethereum)
-    'eth-utils==1.2.2',
-    'eth-keys',
-    'eth-tester>=0.1.0b33',
-    'py-evm>=0.2.0a33',
-    'py-solc',
-    'web3',
-
-    # Third Party (Configuration + CLI)
-    'appdirs',
-    'click>=7.0',
-    'colorama',
-    'sentry-sdk==0.5.2',
-    'boto3',
-
-]
 
 TESTS_REQUIRE = [
     'pytest',
