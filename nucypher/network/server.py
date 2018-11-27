@@ -42,8 +42,7 @@ from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import InterfaceInfo
-from jinja2 import Template
-
+from jinja2 import Template, TemplateError
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -145,7 +144,7 @@ class ProxyRESTRoutes:
         self.log.info("Starting datastore {}".format(self.db_filepath))
 
         # See: https://docs.sqlalchemy.org/en/rel_0_9/dialects/sqlite.html#connect-strings
-        db_filepath = (self.db_filepath or '')  # Capture None
+        db_filepath = (self.db_filepath or '')      # Capture None
         engine = create_engine('sqlite:///{}'.format(db_filepath))
 
         Base.metadata.create_all(engine)
@@ -401,12 +400,22 @@ class ProxyRESTRoutes:
             assert False
 
     def status(self, request: Request):
-        headers = {"Content-Type": "text/html", "charset":"utf-8"}
-        # TODO: Seems very strange to deserialize *this node* when we can just pass it in.  Might be a sign that we need to rethnk this composition.
+        # TODO: Seems very strange to deserialize *this node* when we can just pass it in.  
+        #       Might be a sign that we need to rethnk this composition.
+
+        headers = {"Content-Type": "text/html", "charset": "utf-8"}
         this_node = self._node_class.from_bytes(self._node_bytes_caster(), federated_only=self.federated_only)
-        content = self._status_template.render(known_nodes=self._node_tracker,
-                                               this_node=this_node,
-                                               previous_states=list(reversed(self._node_tracker.states.values()))[:5])
+        
+        previous_states = list(reversed(self._node_tracker.states.values()))[:5]
+
+        try:
+            content = self._status_template.render(this_node=this_node,
+                                                   known_nodes=self._node_tracker,
+                                                   previous_states=previous_states)
+        except Exception as e:
+            self.log.debug("Template Rendering Exception: ".format(str(e)))
+            raise TemplateError(str(e)) from e
+
         return Response(content=content, headers=headers)
 
 

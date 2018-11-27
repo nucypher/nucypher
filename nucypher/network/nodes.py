@@ -143,6 +143,8 @@ class FleetStateTracker:
 
     @property
     def icon(self) -> str:
+        if self.nickname_metadata is constants.NO_KNOWN_NODES:
+            return str(constants.NO_KNOWN_NODES)
         return self.nickname_metadata[0][1]
 
     def addresses(self):

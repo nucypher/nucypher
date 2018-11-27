@@ -245,12 +245,15 @@ class NodeConfiguration(ABC):
         if dev_mode:
 
             # Ephemeral dev settings
+            self.abort_on_learning_error = True
             self.save_metadata = False
             self.reload_metadata = False
 
             # Generate one-time alphanumeric development password
             alphabet = string.ascii_letters + string.digits
             password = ''.join(secrets.choice(alphabet) for _ in range(32))
+
+            # Auto-initialize
             self.initialize(password=password, import_registry=import_seed_registry)
 
     def __call__(self, *args, **kwargs):

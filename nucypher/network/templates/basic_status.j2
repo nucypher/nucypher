@@ -104,12 +104,12 @@
 
 <div id="this-node">
     <h2>{{ this_node.nickname}}</h2>
-    {{ this_node.nickname_icon() }}
+    {{ this_node.nickname_icon }}
 
     <h3>Fleet State</h3>
     <div class="state">
         <h4>{{ known_nodes.nickname }}</h4>
-        {{ known_nodes.icon() }}
+        {{ known_nodes.icon }}
         <br/>
         <span class="small">{{ known_nodes.updated }}</span>
         </ul>
@@ -139,7 +139,7 @@
         </thead>
         {% for node in known_nodes -%}
             <tr>
-                <td>{{ node.nickname_icon() }}</td>
+                <td>{{ node.nickname_icon }}</td>
                 <td>
                     <a href="https://{{ node.rest_url()}}/status">{{ node.nickname }}</a>
                     <br/><span class="small">{{ node.checksum_public_address }}</span>
