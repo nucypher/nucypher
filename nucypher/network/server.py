@@ -265,6 +265,7 @@ class ProxyRESTRoutes:
         from nucypher.policy.models import Revocation
 
         revocation = Revocation.from_bytes(request.body)
+        self.log.info("Received revocation: {} -- for arrangement {}".format(bytes(revocation), id_as_hex))
         try:
             with ThreadedSession(self.db_engine) as session:
                 # Verify the Notice was signed by Alice
@@ -275,13 +276,16 @@ class ProxyRESTRoutes:
 
                 # Check that the request is the same for the provided revocation
                 if id_as_hex != revocation.arrangement_id.hex():
+                    self.log.debug("Couldn't identify an arrangement with id {}".format(id_as_hex))
                     return Response(status_code=400)
                 elif revocation.verify_signature(alice_pubkey):
                     self.datastore.del_policy_arrangement(
                         id_as_hex.encode(), session=session)
-        except (NotFound, InvalidSignature):
+        except (NotFound, InvalidSignature) as e:
+            self.log.debug("Exception attempting to revoke: {}".format(e))
             return Response(content='KFrag not found or revocation signature is invalid.', status_code=404)
         else:
+            self.log.info("KFrag successfully removed.")
             return Response(content='KFrag deleted!', status_code=200)
 
     def reencrypt_via_rest(self, id_as_hex, request: Request):
