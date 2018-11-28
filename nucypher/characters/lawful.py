@@ -168,9 +168,9 @@ class Alice(Character, PolicyAuthor):
     def revoke(self, policy):
         """
         Parses the treasure map and revokes arrangements in it.
-        If any arrangements can't be revoked, then the node_id and
-        arrangement_id are added to a list and returned. If a node returns a
-        404 status code, then it will add a tuple of the Revocation and `None`.
+        If any arrangements can't be revoked, then the node_id is added to a
+        dict as a key, and the revocation and Ursula's response is added as
+        a value.
         """
         try:
             # Wait for a revocation threshold of nodes to be known ((n - m) + 1)

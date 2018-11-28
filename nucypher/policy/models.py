@@ -603,6 +603,12 @@ class WorkOrderHistory:
 
 
 class Revocation:
+    """
+    Represents a string used by characters to perform a revocation on a specific
+    Ursula. It's a bytestring made of the following format:
+        REVOKE-<arrangement id to revoke><signature of the previous string>
+    This is sent as a payload in a DELETE method to the /KFrag/ endpoint.
+    """
     revocation_splitter = BytestringSplitter((bytes, 7), (bytes, 32), Signature)
 
     def __init__(self, arrangement_id: bytes,
