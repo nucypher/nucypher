@@ -56,6 +56,7 @@ pytest-cov = "*"
 mypy = "*"
 codecov = "*"
 coverage = "*"
+coveralls = "*"
 ansible = "*"
 moto = "*"
 nucypher = {editable = true, path = "."}

@@ -137,7 +137,9 @@ jobs:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Blockchain Interface Tests
-          command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/interfaces tests/blockchain/eth/entities --junitxml=./reports/pytest/results.xml
+          command: |
+            pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/interfaces tests/blockchain/eth/entities --junitxml=./reports/pytest/results.xml
+            pipenv run coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -152,6 +154,7 @@ jobs:
           name: Ethereum Contract Unit Tests
           command: |
             pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/**/**/test_*.py | circleci tests split --split-by=timings)
+            pipenv run coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -163,7 +166,9 @@ jobs:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Node Configuration Tests
-          command: pipenv run pytest --cov=nucypher/config -v --runslow tests/config --junitxml=./reports/pytest/results.xml
+          command: |
+            pipenv run pytest --cov=nucypher/config -v --runslow tests/config --junitxml=./reports/pytest/results.xml
+            pipenv run coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -175,7 +180,9 @@ jobs:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Crypto Character Tests
-          command: pipenv run pytest --cov=nucypher/crypto -v --runslow tests/crypto --junitxml=./reports/pytest/results.xml
+          command: |
+            pipenv run pytest --cov=nucypher/crypto -v --runslow tests/crypto --junitxml=./reports/pytest/results.xml
+            pipenv run coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -187,7 +194,9 @@ jobs:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Network Tests
-          command: pipenv run pytest --cov=nucypher/network -v --runslow tests/network --junitxml=./reports/pytest/results.xml
+          command: |
+            pipenv run pytest --cov=nucypher/network -v --runslow tests/network --junitxml=./reports/pytest/results.xml
+            pipenv run coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -199,7 +208,9 @@ jobs:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Keystore Tests
-          command: pipenv run pytest --cov=nucypher/keystore -v --runslow tests/keystore --junitxml=./reports/pytest/results.xml
+          command: |
+            pipenv run pytest --cov=nucypher/keystore -v --runslow tests/keystore --junitxml=./reports/pytest/results.xml
+            pipenv run coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -211,7 +222,9 @@ jobs:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Character Tests
-          command: pipenv run pytest --cov=nucypher -v --runslow tests/characters --junitxml=./reports/pytest/results.xml
+          command: |
+            pipenv run pytest --cov=nucypher -v --runslow tests/characters --junitxml=./reports/pytest/results.xml
+            pipenv run coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -225,6 +238,7 @@ jobs:
           name: Ethereum Inter-Contract Integration Test
           command: |
             pipenv run pytest -v --runslow tests/blockchain/eth/contracts/main/test_intercontract_integration.py --junitxml=./reports/pytest/results.xml
+            pipenv run coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -238,6 +252,7 @@ jobs:
         name: Nucypher CLI Tests
         command: |
           pipenv run pytest -v --runslow tests/cli --junitxml=./reports/pytest/results.xml
+          pipenv run coveralls
     - store_test_results:
         path: ./reports/pytest/
 
