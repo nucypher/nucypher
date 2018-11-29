@@ -28,5 +28,7 @@ reports/
 test-*
 *.sqlite3
 *variables.yml
+variables*.yml
 *ansible/*.retry
 *ansible/inventory/*
+.env
