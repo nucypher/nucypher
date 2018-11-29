@@ -570,7 +570,7 @@ class Ursula(Teacher, Character, Miner):
                          interface_signature=interface_signature,
                          timestamp=timestamp,
                          identity_evidence=identity_evidence,
-                         substantiate_immediately=is_me,
+                         substantiate_immediately=is_me and not federated_only,
                          passphrase=passphrase)
 
         #
