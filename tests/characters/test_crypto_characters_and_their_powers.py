@@ -22,6 +22,7 @@ from nucypher.characters.lawful import Alice, Character, Bob
 from nucypher.crypto import api
 from nucypher.crypto.powers import CryptoPower, SigningPower, NoSigningPower, \
     BlockchainPower, PowerUpError
+from nucypher.data_sources import DataSource
 
 """
 Chapter 1: SIGNING
@@ -235,3 +236,22 @@ def test_encrypt_but_do_not_sign(federated_alice, federated_bob):
     # ...and thus, the message is not verified.
     with pytest.raises(Character.InvalidSignature):
         federated_bob.verify_from(federated_alice, message_kit, decrypt=True)
+
+
+def test_alice_can_decrypt(federated_alice):
+
+    label = b"boring test label"
+
+    policy_pubkey = federated_alice.get_policy_pubkey_from_label(label)
+
+    data_source = DataSource(policy_pubkey_enc=policy_pubkey,
+                             label=label)
+
+    message = b"boring test message"
+    message_kit, signature = data_source.encapsulate_single_message(message=message)
+
+    cleartext = federated_alice.verify_from(stranger=data_source,
+                                            message_kit=message_kit,
+                                            signature=signature,
+                                            decrypt=True)
+    assert cleartext == message
