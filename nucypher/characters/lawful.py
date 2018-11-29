@@ -679,38 +679,29 @@ class Ursula(Teacher, Character, Miner):
                          federated_only: bool = False,
                          ) -> List['Ursula']:
 
-        # TODO: Make a better splitter for this.  This is a workaround until bytestringSplitter #8 is closed.
+        node_splitter = BytestringSplitter(VariableLengthBytestring)
+        nodes_vbytes = node_splitter.repeat(ursulas_as_bytes)
+        version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
+        versions_and_node_bytes = [version_splitter(n.message_as_bytes, return_remainder=True) for n in nodes_vbytes]
 
-        stranger_ursulas = []
+        ursulas = []
+        for version, node_bytes in versions_and_node_bytes:
+            if version > cls.LEARNER_VERSION:
+                try:
+                    canonical_address, _ = BytestringSplitter(PUBLIC_ADDRESS_LENGTH)(node_bytes, return_remainder=True)
+                    checksum_address = to_checksum_address(canonical_address)
+                    nickname = nickname_from_seed(checksum_address)
+                    display_name = "⇀{}↽ ({})".format(nickname, checksum_address)
+                    message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
+                    cls.log.warn(message.format(display_name, version, cls.LEARNER_VERSION))  # TODO: Some auto-updater logic?
+                except ValueError as e:
+                    message = "Unable to glean address from node that purported to be version {}.  We're only version {}."
+                    cls.log.warn(message.format(version, cls.LEARNER_VERSION))
+            else:
+                ursula = cls.from_bytes(node_bytes, version, federated_only=federated_only)
+                ursulas.append(ursula)
 
-        ursulas_attrs = cls._internal_splitter.repeat(ursulas_as_bytes)
-        for (timestamp,
-             signature,
-             identity_evidence,
-             verifying_key,
-             encrypting_key,
-             public_address,
-             certificate_vbytes,
-             rest_info) in ursulas_attrs:
-            certificate = load_pem_x509_certificate(certificate_vbytes.message_as_bytes,
-                                                    default_backend())
-            timestamp = maya.MayaDT(timestamp)
-            stranger_ursula_from_public_keys = cls.from_public_keys(
-                {SigningPower: verifying_key,
-                 EncryptingPower: encrypting_key,
-                 },
-                interface_signature=signature,
-                timestamp=timestamp,
-                checksum_address=to_checksum_address(public_address),
-                certificate=certificate,
-                rest_host=rest_info.host,
-                rest_port=rest_info.port,
-                federated_only=federated_only,  # TODO: 289
-                identity_evidence=identity_evidence.message_as_bytes
-            )
-            stranger_ursulas.append(stranger_ursula_from_public_keys)
-
-        return stranger_ursulas
+        return ursulas
 
     @classmethod
     def from_storage(cls,
