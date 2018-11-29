@@ -1,5 +1,5 @@
 - name: "Start Ursulas"
-  hosts: ec2
+  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
   user: ubuntu
   gather_facts: false
 
