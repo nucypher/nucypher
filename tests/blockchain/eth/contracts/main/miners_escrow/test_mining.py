@@ -360,6 +360,7 @@ def test_slashing(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     assert 100 == escrow.functions.minerInfo(ursula).call()[VALUE_FIELD]
     assert 100 == escrow.functions.getLockedTokens(ursula).call()
+    assert 100 == escrow.functions.getLockedTokens(ursula, 1).call()
     assert 100 == escrow.functions.lockedPerPeriod(period).call()
     assert 100 == escrow.functions.lockedPerPeriod(period + 1).call()
 
@@ -369,6 +370,7 @@ def test_slashing(testerchain, token, escrow_contract):
     testerchain.wait_for_receipt(tx)
     assert 90 == escrow.functions.minerInfo(ursula).call()[VALUE_FIELD]
     assert 90 == escrow.functions.getLockedTokens(ursula).call()
+    assert 90 == escrow.functions.getLockedTokens(ursula, 1).call()
     # The reward will be equal to the penalty (can't be more then penalty)
     assert 20 == token.functions.balanceOf(investigator).call()
     assert 90 == escrow.functions.lockedPerPeriod(period).call()

@@ -734,17 +734,22 @@ contract MinersEscrow is Issuer {
             _reward = _penalty;
         }
 
-        // decrease sub stakes
-        if (info.subStakes.length > 0) {
-            uint16 currentPeriod = getCurrentPeriod();
-            uint16 startPeriod = getStartPeriod(info, currentPeriod);
-            uint256 lockedTokens = getLockedTokens(_miner);
+        uint16 currentPeriod = getCurrentPeriod();
+        uint16 nextPeriod = currentPeriod.add16(1);
+        uint16 startPeriod = getStartPeriod(info, currentPeriod);
+
+        (uint256 currentLockedTokens, uint256 nextLockedTokens, uint256 crossLockedTokens,
+            uint256 shortestSubStakeIndex) = getLockedTokens(info, currentPeriod, nextPeriod, startPeriod);
+
+        uint256 lockedTokens = currentLockedTokens + crossLockedTokens;
+        if (info.value < lockedTokens) {
+           slashMiner(info, lockedTokens - info.value, currentPeriod, startPeriod, shortestSubStakeIndex);
+        }
+        if (nextLockedTokens > 0) {
+            lockedTokens = nextLockedTokens + crossLockedTokens -
+                (crossLockedTokens > info.value ? crossLockedTokens - info.value : 0);
             if (info.value < lockedTokens) {
-               slashMiner(info, lockedTokens - info.value, currentPeriod, startPeriod);
-            }
-            lockedTokens = getLockedTokens(_miner, 1);
-            if (info.value < lockedTokens) {
-               slashMiner(info, lockedTokens - info.value, currentPeriod.add16(1), startPeriod);
+               slashMiner(info, lockedTokens - info.value, nextPeriod, startPeriod, MAX_SUB_STAKES);
             }
         }
 
@@ -757,34 +762,70 @@ contract MinersEscrow is Issuer {
         }
     }
 
+    function getLockedTokens(
+        MinerInfo storage _info,
+        uint16 currentPeriod,
+        uint16 nextPeriod,
+        uint16 startPeriod
+    )
+        internal view returns (
+            uint256 currentLockedTokens,
+            uint256 nextLockedTokens,
+            uint256 crossLockedTokens,
+            uint256 shortestSubStakeIndex
+        )
+    {
+        uint16 minSubStakeDuration = MAX_UINT16;
+        uint16 minSubStakeLastPeriod = MAX_UINT16;
+        shortestSubStakeIndex = MAX_SUB_STAKES;
+        for (uint256 i = 0; i < _info.subStakes.length; i++) {
+            SubStakeInfo storage subStake = _info.subStakes[i];
+            uint16 lastPeriod = getLastPeriodOfSubStake(subStake, startPeriod);
+            if (lastPeriod < subStake.firstPeriod) {
+                continue;
+            }
+            if (subStake.firstPeriod <= currentPeriod &&
+                lastPeriod >= nextPeriod) {
+                crossLockedTokens = crossLockedTokens.add(subStake.lockedValue);
+            } else if (subStake.firstPeriod <= currentPeriod &&
+                lastPeriod >= currentPeriod) {
+                currentLockedTokens = currentLockedTokens.add(subStake.lockedValue);
+            } else if (subStake.firstPeriod <= nextPeriod &&
+                lastPeriod >= nextPeriod) {
+                nextLockedTokens = nextLockedTokens.add(subStake.lockedValue);
+            }
+            uint16 duration = lastPeriod.sub16(subStake.firstPeriod);
+            if (subStake.firstPeriod <= currentPeriod &&
+                lastPeriod >= currentPeriod &&
+                (lastPeriod < minSubStakeLastPeriod ||
+                lastPeriod == minSubStakeLastPeriod && duration < minSubStakeDuration))
+            {
+                shortestSubStakeIndex = i;
+                minSubStakeDuration = duration;
+                minSubStakeLastPeriod = lastPeriod;
+            }
+        }
+    }
+
     // TODO complete
     function slashMiner(
         MinerInfo storage _info,
         uint256 _penalty,
         uint16 _slashingPeriod,
-        uint16 _startPeriod
+        uint16 _startPeriod,
+        uint256 _shortestSubStakeIndex
     )
         internal
     {
         while(_penalty > 0) {
-            uint16 minSubStakeDuration = MAX_UINT16;
-            uint16 minSubStakeLastPeriod = MAX_UINT16;
-            for (uint256 i = 0; i < _info.subStakes.length; i++) {
-                SubStakeInfo storage subStake = _info.subStakes[i];
-                uint16 lastPeriod = getLastPeriodOfSubStake(subStake, _startPeriod);
-                if (lastPeriod < subStake.firstPeriod) {
-                    continue;
-                }
-                uint16 duration = lastPeriod.sub16(subStake.firstPeriod);
-                if (subStake.firstPeriod <= _slashingPeriod &&
-                    lastPeriod >= _slashingPeriod &&
-                    (lastPeriod < minSubStakeLastPeriod ||
-                    lastPeriod == minSubStakeLastPeriod && duration < minSubStakeDuration))
-                {
-                    SubStakeInfo storage shortestSubStake = subStake;
-                    minSubStakeDuration = duration;
-                    minSubStakeLastPeriod = lastPeriod;
-                }
+            if (_shortestSubStakeIndex < MAX_SUB_STAKES) {
+                SubStakeInfo storage shortestSubStake = _info.subStakes[_shortestSubStakeIndex];
+                uint16 minSubStakeLastPeriod = getLastPeriodOfSubStake(shortestSubStake, _startPeriod);
+                uint16 minSubStakeDuration = minSubStakeLastPeriod.sub16(shortestSubStake.firstPeriod);
+                _shortestSubStakeIndex = MAX_SUB_STAKES;
+            } else {
+                (shortestSubStake, minSubStakeDuration, minSubStakeLastPeriod) =
+                    getShortestSubStake(_info, _slashingPeriod, _startPeriod);
             }
             if (minSubStakeDuration == MAX_UINT16) {
                 break;
@@ -806,6 +847,39 @@ contract MinersEscrow is Issuer {
             if (_info.confirmedPeriod2 >= _slashingPeriod &&
                 _info.confirmedPeriod2 <= minSubStakeLastPeriod) {
                 lockedPerPeriod[_info.confirmedPeriod2] -= appliedPenalty;
+            }
+        }
+    }
+
+    function getShortestSubStake(
+        MinerInfo storage _info,
+        uint16 _slashingPeriod,
+        uint16 _startPeriod
+    )
+        internal view returns (
+            SubStakeInfo storage shortestSubStake,
+            uint16 minSubStakeDuration,
+            uint16 minSubStakeLastPeriod
+        )
+    {
+        shortestSubStake = shortestSubStake;
+        minSubStakeDuration = MAX_UINT16;
+        minSubStakeLastPeriod = MAX_UINT16;
+        for (uint256 i = 0; i < _info.subStakes.length; i++) {
+            SubStakeInfo storage subStake = _info.subStakes[i];
+            uint16 lastPeriod = getLastPeriodOfSubStake(subStake, _startPeriod);
+            if (lastPeriod < subStake.firstPeriod) {
+                continue;
+            }
+            uint16 duration = lastPeriod.sub16(subStake.firstPeriod);
+            if (subStake.firstPeriod <= _slashingPeriod &&
+                lastPeriod >= _slashingPeriod &&
+                (lastPeriod < minSubStakeLastPeriod ||
+                lastPeriod == minSubStakeLastPeriod && duration < minSubStakeDuration))
+            {
+                shortestSubStake = subStake;
+                minSubStakeDuration = duration;
+                minSubStakeLastPeriod = lastPeriod;
             }
         }
     }
