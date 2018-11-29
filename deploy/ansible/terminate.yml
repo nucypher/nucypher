@@ -3,14 +3,16 @@
   gather_facts: false
   user: root
   pre_tasks:
-    - include_vars: variables.yml
+    - include_vars: "{{ lookup('env', 'ANSIBLE_SEEDNODE_VARIABLES') }}"
+  vars:
+    nucypher_network_name: "{{ lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
   tasks:
-    - name: Get EC2 instance IDs
+    - name: Get EC2 instance IDs for {{ nucypher_network_name }}
       run_once: true
       ec2_remote_facts:
         filters:
           "tag:Type": "{{ ec2_tag_Type }}"
-          "tag:Role": "{{ ec2_tag_Role }}"
+          "tag:Role": "{{ nucypher_network_name }}"
         region: "{{ ec2_region }}"
       register: instances
 
