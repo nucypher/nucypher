@@ -311,8 +311,16 @@ class Character(Learner):
         signature_from_kit = None
 
         if decrypt:
+            # Let's try to get the label from the Stranger.
+            try:
+                label = stranger.label
+            except AttributeError:
+                # The Stranger has no idea what we're talking about. Nothing to do here.
+                label = None
+
             # We are decrypting the message; let's do that first and see what the sig header says.
-            cleartext_with_sig_header = self.decrypt(message_kit)
+            cleartext_with_sig_header = self.decrypt(message_kit=message_kit,
+                                                     label=label)
             sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
             if sig_header == constants.SIGNATURE_IS_ON_CIPHERTEXT:
                 # THe ciphertext is what is signed - note that for later.
@@ -344,12 +352,6 @@ class Character(Learner):
         else:
             raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
 
-        #
-        # Next we have decrypt() and sign() - these use the private
-        # keys of their respective powers; any character who has these powers can use these functions.
-        #
-        # If they don't have the correct Power, the appropriate PowerUpError is raised.
-        #
         return cleartext
 
     def decrypt(self, message_kit, label: Optional[bytes] = None):

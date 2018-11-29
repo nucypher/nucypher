@@ -40,7 +40,10 @@ class DataSource:
         return message_kit, signature
 
     @classmethod
-    def from_public_keys(cls, policy_public_key, datasource_public_key, label):
+    def from_public_keys(cls,
+                         policy_public_key: UmbralPublicKey,
+                         datasource_public_key: bytes,
+                         label: bytes):
         umbral_public_key = UmbralPublicKey.from_bytes(datasource_public_key)
         return cls(policy_public_key,
                    signing_keypair=SigningKeypair(public_key=umbral_public_key),
