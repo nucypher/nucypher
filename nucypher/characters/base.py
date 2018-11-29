@@ -16,9 +16,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from contextlib import suppress
-from typing import Dict, ClassVar
-from typing import Tuple
-from typing import Union, List
+
+from eth_keys import KeyAPI as EthKeyAPI
+from eth_utils import to_checksum_address, to_canonical_address
+from typing import Dict, ClassVar, Tuple, Union, List, Optional
 
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
@@ -29,7 +30,14 @@ from umbral.signing import Signature
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, NoSigningPower, CryptoPowerUp
+from nucypher.crypto.powers import (
+    CryptoPower,
+    SigningPower,
+    EncryptingPower,
+    NoSigningPower,
+    CryptoPowerUp,
+    DelegatingPower
+)
 from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
@@ -344,8 +352,13 @@ class Character(Learner):
         #
         return cleartext
 
-    def decrypt(self, message_kit):
-        return self._crypto_power.power_ups(EncryptingPower).decrypt(message_kit)
+    def decrypt(self, message_kit, label: Optional[bytes] = None):
+        if label and DelegatingPower in self._default_crypto_powerups:
+            delegating_power = self._crypto_power.power_ups(DelegatingPower)
+            encrypting_power = delegating_power.get_encrypting_power_from_label(label)
+        else:
+            encrypting_power = self._crypto_power.power_ups(EncryptingPower)
+        return encrypting_power.decrypt(message_kit)
 
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
