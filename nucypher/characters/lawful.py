@@ -543,7 +543,7 @@ class Ursula(Teacher, Character, Miner):
                                                         public_certificate_filepath=certificate_filepath,
                                                         public_certificate=certificate)
                 else:
-                    tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host)
+                    tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host, generate_certificate=False)
                     tls_hosting_power = TLSHostingPower(host=rest_host, keypair=tls_hosting_keypair)
 
                 # REST Server
