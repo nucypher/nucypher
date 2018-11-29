@@ -15,18 +15,14 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import binascii
 import random
 from collections import OrderedDict
 from functools import partial
-from typing import Iterable, Callable
+from typing import Iterable
 from typing import List, Dict
 
 import maya
 import requests
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -36,15 +32,17 @@ from twisted.internet import threads
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
+from bytestring_splitter import VariableLengthBytestring, BytestringSplittingFabricator
+from constant_sorrow import constants
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower
 from nucypher.keystore.keypairs import HostingKeypair
-from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
@@ -176,8 +174,8 @@ class Alice(Character, PolicyAuthor):
             # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
             revocation_threshold = ((policy.n - policy.treasure_map.m) + 1)
             self.block_until_specific_nodes_are_known(
-                    policy.revocation_kit.revokable_addresses,
-                    allow_missing=(policy.n - revocation_threshold))
+                policy.revocation_kit.revokable_addresses,
+                allow_missing=(policy.n - revocation_threshold))
         except self.NotEnoughTeachers as e:
             raise e
         else:
@@ -420,14 +418,6 @@ class Bob(Character):
 
 
 class Ursula(Teacher, Character, Miner):
-    _internal_splitter = BytestringSplitter((int, 4, {'byteorder': 'big'}),
-                                            Signature,
-                                            VariableLengthBytestring,
-                                            (UmbralPublicKey, PUBLIC_KEY_LENGTH),
-                                            (UmbralPublicKey, PUBLIC_KEY_LENGTH),
-                                            PUBLIC_ADDRESS_LENGTH,
-                                            VariableLengthBytestring,  # Certificate
-                                            InterfaceInfo)
     _alice_class = Alice
 
     # TODO: Maybe this wants to be a registry, so that, for example,
@@ -491,7 +481,7 @@ class Ursula(Teacher, Character, Miner):
         #
         # Self-Ursula
         #
-        if is_me is True:           # TODO: 340
+        if is_me is True:  # TODO: 340
             self._stored_treasure_maps = dict()
 
             #
@@ -522,7 +512,7 @@ class Ursula(Teacher, Character, Miner):
                     db_name=db_name,
                     db_filepath=db_filepath,
                     network_middleware=self.network_middleware,
-                    federated_only=self.federated_only,   # TODO: 466
+                    federated_only=self.federated_only,  # TODO: 466
                     treasure_map_tracker=self.treasure_maps,
                     node_tracker=self.known_nodes,
                     node_bytes_caster=self.__bytes__,
@@ -567,7 +557,7 @@ class Ursula(Teacher, Character, Miner):
             #
             # OK - Now we have a ProxyRestServer and a TLSHostingPower for some Ursula
             #
-            self._crypto_power.consume_power_up(tls_hosting_power)          # Consume!
+            self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
 
         #
         # Verifiable Node
@@ -613,18 +603,20 @@ class Ursula(Teacher, Character, Miner):
 
     def __bytes__(self):
 
+        version = self.TEACHER_VERSION.to_bytes(2, "big")
         interface_info = VariableLengthBytestring(bytes(self.rest_information()[0]))
         identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
 
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
 
-        as_bytes = bytes().join((self.timestamp_bytes(),
+        as_bytes = bytes().join((version,
+                                 self.canonical_public_address,
+                                 self.timestamp_bytes(),
                                  bytes(self._interface_signature),
                                  bytes(identity_evidence),
                                  bytes(self.public_keys(SigningPower)),
                                  bytes(self.public_keys(EncryptingPower)),
-                                 self.canonical_public_address,
                                  bytes(cert_vbytes),
                                  bytes(interface_info))
                                 )
@@ -635,33 +627,51 @@ class Ursula(Teacher, Character, Miner):
     #
 
     @classmethod
+    def internal_splitter(cls, splittable):
+        result = BytestringSplittingFabricator(
+            mill=dict,
+            public_address=PUBLIC_ADDRESS_LENGTH,
+            timestamp=(int, 4, {'byteorder': 'big'}),
+            interface_signature=Signature,
+            identity_evidence=VariableLengthBytestring,
+            verifying_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
+            encrypting_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
+            certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),
+            rest_interface=InterfaceInfo,
+        )
+        return result(splittable)
+
+    @classmethod
     def from_bytes(cls,
                    ursula_as_bytes: bytes,
+                   version: int = INCLUDED_IN_BYTESTRING,
                    federated_only: bool = False,
                    ) -> 'Ursula':
 
-        (timestamp,
-         signature,
-         identity_evidence,
-         verifying_key,
-         encrypting_key,
-         public_address,
-         certificate_vbytes,
-         rest_info) = cls._internal_splitter(ursula_as_bytes)
-        certificate = load_pem_x509_certificate(certificate_vbytes.message_as_bytes,
-                                                default_backend())
-        timestamp = maya.MayaDT(timestamp)
-        stranger_ursula_from_public_keys = cls.from_public_keys(
-            {SigningPower: verifying_key, EncryptingPower: encrypting_key},
-            timestamp=timestamp,
-            interface_signature=signature,
-            checksum_address=to_checksum_address(public_address),
-            rest_host=rest_info.host,
-            rest_port=rest_info.port,
-            certificate=certificate,
-            federated_only=federated_only,  # TODO: 289
-        )
-        return stranger_ursula_from_public_keys
+        # Quick throwaway sanity check.
+        # Presumably, with subsequent versions, we'll use version here to get the appropriate splitter.
+        if version is INCLUDED_IN_BYTESTRING:
+            version, payload = cls.version_splitter(ursula_as_bytes, return_remainder=True)
+        else:
+            payload = ursula_as_bytes
+
+        node_as_dict = cls.internal_splitter(payload)
+        assert version <= cls.TEACHER_VERSION
+
+        interface_info = node_as_dict.pop("rest_interface")
+
+        powers_and_material = {
+            SigningPower: node_as_dict.pop("verifying_key"),
+            EncryptingPower: node_as_dict.pop("encrypting_key")
+        }
+
+        node_as_dict['rest_host'] = interface_info.host
+        node_as_dict['rest_port'] = interface_info.port
+        node_as_dict['timestamp'] = maya.MayaDT(node_as_dict.pop("timestamp"))
+        node_as_dict['checksum_address'] = to_checksum_address(node_as_dict.pop("public_address"))
+
+        ursula = cls.from_public_keys(powers_and_material, federated_only=federated_only, **node_as_dict)
+        return ursula
 
     @classmethod
     def batch_from_bytes(cls,
