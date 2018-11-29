@@ -25,6 +25,7 @@ from twisted.internet.error import CannotListenError
 from nucypher.cli import cli
 from nucypher.characters.base import Learner
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.sandbox.ursula import UrsulaCommandProtocol
 
 
 @pytest.mark.skip()

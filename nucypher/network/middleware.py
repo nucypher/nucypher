@@ -134,7 +134,7 @@ class RestMiddleware:
             params = {}
 
         if announce_nodes:
-            payload = bytes().join(bytes(n) for n in announce_nodes)
+            payload = bytes().join(bytes(VariableLengthBytestring(n)) for n in announce_nodes)
             response = client.post("https://{}/node_metadata".format(url),
                                      verify=certificate_filepath,
                                      data=payload, timeout=2, params=params)

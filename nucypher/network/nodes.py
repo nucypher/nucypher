@@ -29,7 +29,7 @@ import OpenSSL
 import maya
 import requests
 import time
-from bytestring_splitter import BytestringSplitter
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
@@ -515,7 +515,7 @@ class Learner:
             if self._crashed:
                 return self._crashed
             rounds_undertaken = self._learning_round - starting_round
-            if addresses.issubset(self.__known_nodes):
+            if addresses.issubset(self.known_nodes.addresses()):
                 if rounds_undertaken:
                     self.log.info("Learned about all nodes after {} rounds.".format(rounds_undertaken))
                 return True
@@ -638,7 +638,7 @@ class Learner:
             # TODO: What to do if the teacher improperly signed the node payload?
             raise
 
-        fleet_state_checksum_bytes, fleet_state_updated_bytes, nodes = FleetStateTracker.snapshot_splitter(node_payload,
+        fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = FleetStateTracker.snapshot_splitter(node_payload,
                                                                                                            return_remainder=True)
         current_teacher.last_seen = maya.now()
         # TODO: This is weird - let's get a stranger FleetState going.
@@ -653,7 +653,7 @@ class Learner:
         if response.status_code == 204:
             return constants.FLEET_STATES_MATCH
 
-        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)  # TODO: 466
+        node_list = Ursula.batch_from_bytes(node_payload, federated_only=self.federated_only)  # TODO: 466
 
         new_nodes = []
         for node in node_list:

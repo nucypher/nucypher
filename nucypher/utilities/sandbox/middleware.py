@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from apistar import TestClient
 
+from bytestring_splitter import VariableLengthBytestring
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.kits import RevocationKit
 from nucypher.network.middleware import RestMiddleware
@@ -118,5 +119,6 @@ class EvilMiddleWare(MockRestMiddleware):
         mock_client = self._get_mock_client_by_ursula(ursula)
         response = mock_client.post("http://localhost/node_metadata".format(mock_client),
                                     verify=False,
-                                    data=bytes(shitty_interface_id))
+                                    data=bytes(VariableLengthBytestring(shitty_interface_id))
+                                    )
         return response
