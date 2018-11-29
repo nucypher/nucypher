@@ -36,6 +36,7 @@ from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
+from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.protocols import InterfaceInfo
 from jinja2 import Template
 
@@ -45,6 +46,7 @@ TEMPLATES_DIR = os.path.join(HERE, "templates")
 
 class ProxyRESTServer:
     log = Logger("characters")
+    SERVER_VERSION = LEARNING_LOOP_VERSION
 
     def __init__(self,
                  rest_host: str,

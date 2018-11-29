@@ -47,6 +47,7 @@ from nucypher.config.storages import InMemoryNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
+from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.protocols import SuspiciousActivity
@@ -202,6 +203,10 @@ class Learner:
     # For Keeps
     __DEFAULT_NODE_STORAGE = InMemoryNodeStorage
     __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
+
+    LEARNER_VERSION = LEARNING_LOOP_VERSION
+    node_splitter = BytestringSplitter(VariableLengthBytestring)
+    version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
 
     class NotEnoughTeachers(RuntimeError):
         pass
@@ -692,7 +697,7 @@ class Learner:
 
 
 class Teacher:
-    TEACHER_VERSION = 1
+    TEACHER_VERSION = LEARNING_LOOP_VERSION
     verified_stamp = False
     verified_interface = False
     _verified_node = False
@@ -837,14 +842,17 @@ class Teacher:
 
         if not response.status_code == 200:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
-        timestamp, signature, identity_evidence, \
-        verifying_key, encrypting_key, \
-        public_address, certificate_vbytes, rest_info = self._internal_splitter(response.content)
 
-        verifying_keys_match = verifying_key == self.public_keys(SigningPower)
-        encrypting_keys_match = encrypting_key == self.public_keys(EncryptingPower)
-        addresses_match = public_address == self.canonical_public_address
-        evidence_matches = identity_evidence == self._evidence_of_decentralized_identity
+        version, node_bytes = self.version_splitter(response.content, return_remainder=True)
+        if version > self.LEARNER_VERSION:
+            raise ValueError("Something")  # TODO: Properly handle this.
+        else:
+            node_details = self.internal_splitter(node_bytes)
+
+        verifying_keys_match = node_details['verifying_key'] == self.public_keys(SigningPower)
+        encrypting_keys_match = node_details['encrypting_key'] == self.public_keys(EncryptingPower)
+        addresses_match = node_details['public_address'] == self.canonical_public_address
+        evidence_matches = node_details['identity_evidence'] == self._evidence_of_decentralized_identity
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # TODO: Optional reporting.  355
