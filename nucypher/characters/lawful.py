@@ -21,7 +21,7 @@ import random
 from collections import OrderedDict
 from functools import partial
 from typing import Iterable, Callable
-from typing import List
+from typing import List, Dict
 
 import maya
 import requests
@@ -165,7 +165,7 @@ class Alice(Character, PolicyAuthor):
         policy_pubkey = alice_delegating_power.get_pubkey_from_label(label)
         return policy_pubkey
 
-    def revoke(self, policy):
+    def revoke(self, policy) -> Dict:
         """
         Parses the treasure map and revokes arrangements in it.
         If any arrangements can't be revoked, then the node_id is added to a
