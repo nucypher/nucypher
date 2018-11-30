@@ -1,9 +1,10 @@
 import maya
 import datetime
 import os
+import pytest
 
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
-from nucypher.characters.lawful import Bob
+from nucypher.characters.lawful import Bob, Ursula
 from nucypher.data_sources import DataSource
 from nucypher.utilities.sandbox.constants import DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from nucypher.keystore.keypairs import SigningKeypair
@@ -100,3 +101,12 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
                                         alice_verifying_key=alices_verifying_key)
 
     assert plaintext == delivered_cleartexts[0]
+
+    # Let's try retrieve again, but Alice revoked the policy.
+    failed_revocations = federated_alice.revoke(policy)
+    assert len(failed_revocations) == 0
+
+    with pytest.raises(Ursula.NotEnoughUrsulas):
+        _cleartexts = bob.retrieve(message_kit=message_kit,
+                                   data_source=data_source,
+                                   alice_verifying_key=alices_verifying_key)
