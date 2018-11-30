@@ -88,6 +88,7 @@ contract MinersEscrow is Issuer {
     uint16 constant MAX_CHECKED_VALUES = 5;
     // to prevent high gas consumption in loops for slashing
     uint16 constant MAX_SUB_STAKES = 30;
+    uint16 constant MAX_UINT16 = 65535;
 
     mapping (address => MinerInfo) public minerInfo;
     address[] public miners;
@@ -169,6 +170,8 @@ contract MinersEscrow is Issuer {
     //------------------------Main getters------------------------
     /**
     * @notice Get the start period. Use in the calculation of the last period of the sub stake
+    * @param _info Miner structure
+    * @param _currentPeriod Current period
     **/
     function getStartPeriod(MinerInfo storage _info, uint16 _currentPeriod)
         internal view returns (uint16)
@@ -182,6 +185,8 @@ contract MinersEscrow is Issuer {
 
     /**
     * @notice Get the last period of the sub stake
+    * @param _subStake Sub stake structure
+    * @param _startPeriod Pre-calculated start period
     **/
     function getLastPeriodOfSubStake(SubStakeInfo storage _subStake, uint16 _startPeriod)
         internal view returns (uint16)
@@ -406,6 +411,11 @@ contract MinersEscrow is Issuer {
     /**
     * @notice Save sub stake. First tries to override inactive sub stake
     * @dev Inactive sub stake means that last period of sub stake has been surpassed and already mined
+    * @param _info Miner structure
+    * @param _firstPeriod First period of the sub stake
+    * @param _lastPeriod Last period of the sub stake
+    * @param _periods Duration of the sub stake in periods
+    * @param _lockedValue Amount of locked tokens
     **/
     function saveSubStake(
         MinerInfo storage _info,
@@ -634,6 +644,11 @@ contract MinersEscrow is Issuer {
 
     /**
     * @notice Calculate reward for one period
+    * @param _miner Miner's address
+    * @param _info Miner structure
+    * @param _mintingPeriod Period when minting occurs
+    * @param _currentPeriod Current period
+    * @param _startPeriod Pre-calculated start period
     **/
     function mint(
         address _miner,
@@ -711,10 +726,15 @@ contract MinersEscrow is Issuer {
         }
     }
 
-
+    //-------------------------Slashing-------------------------
     // TODO events
-    uint16 constant MAX_UINT16 = 65535;
-    // TODO complete
+    /**
+    * @notice Slash the miner's stake and reward the investigator
+    * @param _miner Miner's address
+    * @param _penalty Penalty
+    * @param _investigator Investigator
+    * @param _reward Reward for the investigator
+    **/
     function slashMiner(
         address _miner,
         uint256 _penalty,
@@ -738,18 +758,20 @@ contract MinersEscrow is Issuer {
         uint16 nextPeriod = currentPeriod.add16(1);
         uint16 startPeriod = getStartPeriod(info, currentPeriod);
 
-        (uint256 currentLockedTokens, uint256 nextLockedTokens, uint256 crossLockedTokens,
-            uint256 shortestSubStakeIndex) = getLockedTokens(info, currentPeriod, nextPeriod, startPeriod);
+        (uint256 currentLock, uint256 nextLock, uint256 currentAndNextLock, uint256 shortestSubStakeIndex) =
+            getLockedTokensAndShortestSubStake(info, currentPeriod, nextPeriod, startPeriod);
 
-        uint256 lockedTokens = currentLockedTokens + crossLockedTokens;
+        // Decrease the stake if amount of locked tokens in the current period more than miner has
+        uint256 lockedTokens = currentLock + currentAndNextLock;
         if (info.value < lockedTokens) {
-           slashMiner(info, lockedTokens - info.value, currentPeriod, startPeriod, shortestSubStakeIndex);
+           decreaseSubStakes(info, lockedTokens - info.value, currentPeriod, startPeriod, shortestSubStakeIndex);
         }
-        if (nextLockedTokens > 0) {
-            lockedTokens = nextLockedTokens + crossLockedTokens -
-                (crossLockedTokens > info.value ? crossLockedTokens - info.value : 0);
+        // Decrease the stake if amount of locked tokens in the next period more than miner has
+        if (nextLock > 0) {
+            lockedTokens = nextLock + currentAndNextLock -
+                (currentAndNextLock > info.value ? currentAndNextLock - info.value : 0);
             if (info.value < lockedTokens) {
-               slashMiner(info, lockedTokens - info.value, nextPeriod, startPeriod, MAX_SUB_STAKES);
+               decreaseSubStakes(info, lockedTokens - info.value, nextPeriod, startPeriod, MAX_SUB_STAKES);
             }
         }
 
@@ -757,61 +779,81 @@ contract MinersEscrow is Issuer {
         if (_penalty > 0) {
             unMint(_penalty);
         }
+        // TODO change to withdrawal pattern
         if (_reward > 0) {
             token.safeTransfer(_investigator, _reward);
         }
     }
 
-    function getLockedTokens(
+    /**
+    * @notice Get the value of locked tokens for a miner in the current and the next period
+    * and find the shortest sub stake
+    * @param _info Miner structure
+    * @param _currentPeriod Current period
+    * @param _nextPeriod Next period
+    * @param _startPeriod Pre-calculated start period
+    * @return currentLock Amount of tokens that locked in the current period and unlocked in the next period
+    * @return nextLock Amount of tokens that locked in the next period and not locked in the current period
+    * @return currentAndNextLock Amount of tokens that locked in the current period and in the next period
+    * @return shortestSubStakeIndex Index of the shortest sub stake
+    **/
+    function getLockedTokensAndShortestSubStake(
         MinerInfo storage _info,
-        uint16 currentPeriod,
-        uint16 nextPeriod,
-        uint16 startPeriod
+        uint16 _currentPeriod,
+        uint16 _nextPeriod,
+        uint16 _startPeriod
     )
         internal view returns (
-            uint256 currentLockedTokens,
-            uint256 nextLockedTokens,
-            uint256 crossLockedTokens,
+            uint256 currentLock,
+            uint256 nextLock,
+            uint256 currentAndNextLock,
             uint256 shortestSubStakeIndex
         )
     {
-        uint16 minSubStakeDuration = MAX_UINT16;
-        uint16 minSubStakeLastPeriod = MAX_UINT16;
+        uint16 minDuration = MAX_UINT16;
+        uint16 minLastPeriod = MAX_UINT16;
         shortestSubStakeIndex = MAX_SUB_STAKES;
         for (uint256 i = 0; i < _info.subStakes.length; i++) {
             SubStakeInfo storage subStake = _info.subStakes[i];
-            uint16 lastPeriod = getLastPeriodOfSubStake(subStake, startPeriod);
+            uint16 lastPeriod = getLastPeriodOfSubStake(subStake, _startPeriod);
             if (lastPeriod < subStake.firstPeriod) {
                 continue;
             }
-            if (subStake.firstPeriod <= currentPeriod &&
-                lastPeriod >= nextPeriod) {
-                crossLockedTokens = crossLockedTokens.add(subStake.lockedValue);
-            } else if (subStake.firstPeriod <= currentPeriod &&
-                lastPeriod >= currentPeriod) {
-                currentLockedTokens = currentLockedTokens.add(subStake.lockedValue);
-            } else if (subStake.firstPeriod <= nextPeriod &&
-                lastPeriod >= nextPeriod) {
-                nextLockedTokens = nextLockedTokens.add(subStake.lockedValue);
+            if (subStake.firstPeriod <= _currentPeriod &&
+                lastPeriod >= _nextPeriod) {
+                currentAndNextLock = currentAndNextLock.add(subStake.lockedValue);
+            } else if (subStake.firstPeriod <= _currentPeriod &&
+                lastPeriod >= _currentPeriod) {
+                currentLock = currentLock.add(subStake.lockedValue);
+            } else if (subStake.firstPeriod <= _nextPeriod &&
+                lastPeriod >= _nextPeriod) {
+                nextLock = nextLock.add(subStake.lockedValue);
             }
             uint16 duration = lastPeriod.sub16(subStake.firstPeriod);
-            if (subStake.firstPeriod <= currentPeriod &&
-                lastPeriod >= currentPeriod &&
-                (lastPeriod < minSubStakeLastPeriod ||
-                lastPeriod == minSubStakeLastPeriod && duration < minSubStakeDuration))
+            if (subStake.firstPeriod <= _currentPeriod &&
+                lastPeriod >= _currentPeriod &&
+                (lastPeriod < minLastPeriod ||
+                lastPeriod == minLastPeriod && duration < minDuration))
             {
                 shortestSubStakeIndex = i;
-                minSubStakeDuration = duration;
-                minSubStakeLastPeriod = lastPeriod;
+                minDuration = duration;
+                minLastPeriod = lastPeriod;
             }
         }
     }
 
-    // TODO complete
-    function slashMiner(
+    /**
+    * @notice Decrease short sub stakes
+    * @param _info Miner structure
+    * @param _penalty Penalty rate
+    * @param _decreasePeriod The period when the decrease begins
+    * @param _startPeriod Pre-calculated start period
+    * @param _shortestSubStakeIndex Index of the shortest period
+    **/
+    function decreaseSubStakes(
         MinerInfo storage _info,
         uint256 _penalty,
-        uint16 _slashingPeriod,
+        uint16 _decreasePeriod,
         uint16 _startPeriod,
         uint256 _shortestSubStakeIndex
     )
@@ -825,7 +867,7 @@ contract MinersEscrow is Issuer {
                 _shortestSubStakeIndex = MAX_SUB_STAKES;
             } else {
                 (shortestSubStake, minSubStakeDuration, minSubStakeLastPeriod) =
-                    getShortestSubStake(_info, _slashingPeriod, _startPeriod);
+                    getShortestSubStake(_info, _decreasePeriod, _startPeriod);
             }
             if (minSubStakeDuration == MAX_UINT16) {
                 break;
@@ -833,27 +875,38 @@ contract MinersEscrow is Issuer {
             uint256 appliedPenalty = _penalty;
             if (_penalty < shortestSubStake.lockedValue) {
                 shortestSubStake.lockedValue -= _penalty;
-                saveOldSubStake(_info, shortestSubStake.firstPeriod, _penalty, _slashingPeriod);
+                saveOldSubStake(_info, shortestSubStake.firstPeriod, _penalty, _decreasePeriod);
                 _penalty = 0;
             } else {
-                shortestSubStake.lastPeriod = _slashingPeriod.sub16(1);
+                shortestSubStake.lastPeriod = _decreasePeriod.sub16(1);
                 _penalty -= shortestSubStake.lockedValue;
                 appliedPenalty = shortestSubStake.lockedValue;
             }
-            if (_info.confirmedPeriod1 >= _slashingPeriod &&
-                _info.confirmedPeriod1 <= minSubStakeLastPeriod) {
+            if (_info.confirmedPeriod1 >= _decreasePeriod &&
+                _info.confirmedPeriod1 <= minSubStakeLastPeriod)
+            {
                 lockedPerPeriod[_info.confirmedPeriod1] -= appliedPenalty;
             }
-            if (_info.confirmedPeriod2 >= _slashingPeriod &&
-                _info.confirmedPeriod2 <= minSubStakeLastPeriod) {
+            if (_info.confirmedPeriod2 >= _decreasePeriod &&
+                _info.confirmedPeriod2 <= minSubStakeLastPeriod)
+            {
                 lockedPerPeriod[_info.confirmedPeriod2] -= appliedPenalty;
             }
         }
     }
 
+    /**
+    * @notice Get the shortest sub stake
+    * @param _info Miner structure
+    * @param _currentPeriod Current period
+    * @param _startPeriod Pre-calculated start period
+    * @return shortestSubStake The shortest sub stake
+    * @return minSubStakeDuration Duration of the shortest sub stake
+    * @return minSubStakeLastPeriod Last period of the shortest sub stake
+    **/
     function getShortestSubStake(
         MinerInfo storage _info,
-        uint16 _slashingPeriod,
+        uint16 _currentPeriod,
         uint16 _startPeriod
     )
         internal view returns (
@@ -872,8 +925,8 @@ contract MinersEscrow is Issuer {
                 continue;
             }
             uint16 duration = lastPeriod.sub16(subStake.firstPeriod);
-            if (subStake.firstPeriod <= _slashingPeriod &&
-                lastPeriod >= _slashingPeriod &&
+            if (subStake.firstPeriod <= _currentPeriod &&
+                lastPeriod >= _currentPeriod &&
                 (lastPeriod < minSubStakeLastPeriod ||
                 lastPeriod == minSubStakeLastPeriod && duration < minSubStakeDuration))
             {
@@ -884,24 +937,34 @@ contract MinersEscrow is Issuer {
         }
     }
 
+    /**
+    * @notice Save the old sub stake values to prevent decreasing reward for the previous period
+    * @dev Saving happens only if the previous period is confirmed
+    * @param _info Miner structure
+    * @param _firstPeriod First period of the old sub stake
+    * @param _lockedValue Locked value of the old sub stake
+    * @param _currentPeriod Current period, when the old sub stake is already unlocked
+    **/
     function saveOldSubStake(
         MinerInfo storage _info,
         uint16 _firstPeriod,
-        uint256 _penalty,
-        uint16 _slashingPeriod
+        uint256 _lockedValue,
+        uint16 _currentPeriod
     )
         internal
     {
+        // Check that the old sub stake should be saved
         bool oldConfirmedPeriod1 = _info.confirmedPeriod1 != EMPTY_CONFIRMED_PERIOD &&
-            _info.confirmedPeriod1 < _slashingPeriod;
+            _info.confirmedPeriod1 < _currentPeriod;
         bool oldConfirmedPeriod2 = _info.confirmedPeriod2 != EMPTY_CONFIRMED_PERIOD &&
-            _info.confirmedPeriod2 < _slashingPeriod;
+            _info.confirmedPeriod2 < _currentPeriod;
         bool crossConfirmedPeriod1 = oldConfirmedPeriod1 && _info.confirmedPeriod1 >= _firstPeriod;
         bool crossConfirmedPeriod2 = oldConfirmedPeriod2 && _info.confirmedPeriod2 >= _firstPeriod;
         if (!crossConfirmedPeriod1 && !crossConfirmedPeriod2) {
             return;
         }
-        uint16 previousPeriod = _slashingPeriod.sub16(1);
+        // Try to find already existent proper old sub stake
+        uint16 previousPeriod = _currentPeriod.sub16(1);
         bool createNew = true;
         for (uint256 i = 0; i < _info.subStakes.length; i++) {
             SubStakeInfo storage subStake = _info.subStakes[i];
@@ -911,13 +974,13 @@ contract MinersEscrow is Issuer {
                 (crossConfirmedPeriod2 ==
                 (oldConfirmedPeriod2 && _info.confirmedPeriod2 >= subStake.firstPeriod))))
             {
-                subStake.lockedValue += _penalty;
+                subStake.lockedValue += _lockedValue;
                 createNew = false;
                 break;
             }
         }
         if (createNew) {
-            saveSubStake(_info, _firstPeriod, previousPeriod, 0, _penalty);
+            saveSubStake(_info, _firstPeriod, previousPeriod, 0, _lockedValue);
         }
     }
 
