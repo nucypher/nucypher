@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from bytestring_splitter import BytestringSplitter
-from collections import namedtuple
 from constant_sorrow import constants
 
 from nucypher.crypto.splitters import key_splitter, capsule_splitter
