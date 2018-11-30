@@ -89,13 +89,13 @@ contract ChallengeOverseer {
         require(minerValue > 0);
 
         // Verify correctness of re-encryption
+        challengedCFrags[challengeHash] = true;
         if (!isCapsuleFragCorrect(
             _capsuleBytes.toCapsule(), _cFragBytes.toCapsuleFrag(), _preComputedData.toPreComputedData())) {
             // TODO calculate penalty - depends on how many time was slashed
             // TODO set reward
             escrow.slashMiner(miner, PENALTY, msg.sender, PENALTY);
         }
-        challengedCFrags[challengeHash] = true;
     }
 
     /**
