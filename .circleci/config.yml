@@ -60,6 +60,14 @@ workflows:
           requires:
             - pip_install
             - pipenv_install
+      - blockchain_entities:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - pip_install
+            - pipenv_install
       - character:
           context: "NuCypher Tests"
           filters:
@@ -91,6 +99,7 @@ workflows:
             tags:
               only: /.*/
           requires:
+            - blockchain_entities
             - blockchain_interface_unit
             - config_unit
             - crypto_unit
@@ -171,6 +180,25 @@ jobs:
 
   blockchain_interface_unit:
     <<: *python_36_base
+    parallelism: 2
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
+      - run:
+          name: Blockchain Interface Tests
+          command: |
+            pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow $(circleci tests glob tests/blockchain/eth/interfaces/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/blockchain_interface_results.xml
+      - run:
+          name: Upload Coverage Report
+          command: |
+            echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
+            pipenv run coveralls
+      - store_test_results:
+          path: ./reports/pytest/
+
+  blockchain_entities:
+    <<: *python_36_base
     parallelism: 6
     steps:
       - checkout
@@ -179,7 +207,7 @@ jobs:
       - run:
           name: Blockchain Interface Tests
           command: |
-            pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/interfaces tests/blockchain/eth/entities --junitxml=./reports/pytest/blockchain_interface_results.xml
+            pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow $(circleci tests glob tests/blockchain/eth/entities/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/blockchain_interface_results.xml
       - run:
           name: Upload Coverage Report
           command: |
