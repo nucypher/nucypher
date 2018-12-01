@@ -13,6 +13,7 @@ workflows:
             tags:
               only: /.*/
       - eth_contract_unit:
+          context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
@@ -20,6 +21,7 @@ workflows:
             - pip_install
             - pipenv_install
       - config_unit:
+          context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
@@ -27,6 +29,7 @@ workflows:
             - pip_install
             - pipenv_install
       - crypto_unit:
+          context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
@@ -34,6 +37,7 @@ workflows:
             - pip_install
             - pipenv_install
       - network_unit:
+          context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
@@ -41,6 +45,7 @@ workflows:
             - pip_install
             - pipenv_install
       - keystore_unit:
+          context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
@@ -48,6 +53,7 @@ workflows:
             - pip_install
             - pipenv_install
       - blockchain_interface_unit:
+          context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
@@ -55,6 +61,7 @@ workflows:
             - pip_install
             - pipenv_install
       - character:
+          context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
@@ -62,6 +69,7 @@ workflows:
             - pip_install
             - pipenv_install
       - intercontract_integration:
+          context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
@@ -241,6 +249,10 @@ jobs:
           name: Keystore Tests
           command: |
             pipenv run pytest --cov=nucypher/keystore -v --runslow tests/keystore --junitxml=./reports/pytest/results.xml
+      - run:
+          name: Upload Coverage Report
+          command: |
+            echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
             pipenv run coveralls
       - store_test_results:
           path: ./reports/pytest/
@@ -269,7 +281,6 @@ jobs:
           name: Ethereum Inter-Contract Integration Test
           command: |
             pipenv run pytest -v --runslow tests/blockchain/eth/contracts/main/test_intercontract_integration.py --junitxml=./reports/pytest/results.xml
-            pipenv run coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -283,7 +294,6 @@ jobs:
         name: Nucypher CLI Tests
         command: |
           pipenv run pytest -v --runslow tests/cli --junitxml=./reports/pytest/results.xml
-          pipenv run coveralls
     - store_test_results:
         path: ./reports/pytest/
 
