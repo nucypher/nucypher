@@ -44,6 +44,7 @@ contract MinersEscrow is Issuer {
     event Withdrawn(address indexed miner, uint256 value);
     event ActivityConfirmed(address indexed miner, uint16 indexed period, uint256 value);
     event Mined(address indexed miner, uint16 indexed period, uint256 value);
+    event Slashed(address indexed miner, uint256 penalty, address indexed investigator, uint256 reward);
 
     struct SubStakeInfo {
         uint16 firstPeriod;
@@ -727,7 +728,6 @@ contract MinersEscrow is Issuer {
     }
 
     //-------------------------Slashing-------------------------
-    // TODO events
     /**
     * @notice Slash the miner's stake and reward the investigator
     * @param _miner Miner's address
@@ -775,7 +775,8 @@ contract MinersEscrow is Issuer {
             }
         }
 
-        _penalty = _penalty - _reward;
+        emit Slashed(_miner, _penalty, _investigator, _reward);
+        _penalty -= _reward;
         if (_penalty > 0) {
             unMint(_penalty);
         }
