@@ -438,7 +438,7 @@ class Learner:
         except IndexError:
             error = "Not enough nodes to select a good teacher, Check your network connection then node configuration"
             raise self.NotEnoughTeachers(error)
-        self.log.info("Cycled teachers; New teacher is {}".format(self._current_teacher_node.checksum_public_address))
+        self.log.info("Cycled teachers; New teacher is {}".format(self._current_teacher_node))
 
     def current_teacher_node(self, cycle=False):
         if cycle:
@@ -857,6 +857,8 @@ class Teacher:
             raise ValueError("Something")  # TODO: Properly handle this.
         else:
             node_details = self.internal_splitter(node_bytes)
+
+        # TODO check timestamp here.  589
 
         verifying_keys_match = node_details['verifying_key'] == self.public_keys(SigningPower)
         encrypting_keys_match = node_details['encrypting_key'] == self.public_keys(EncryptingPower)

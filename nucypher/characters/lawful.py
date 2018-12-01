@@ -654,16 +654,15 @@ class Ursula(Teacher, Character, Miner):
                    version: int = INCLUDED_IN_BYTESTRING,
                    federated_only: bool = False,
                    ) -> 'Ursula':
-
-        # Quick throwaway sanity check.
-        # Presumably, with subsequent versions, we'll use version here to get the appropriate splitter.
         if version is INCLUDED_IN_BYTESTRING:
             version, payload = cls.version_splitter(ursula_as_bytes, return_remainder=True)
         else:
             payload = ursula_as_bytes
 
-        node_info = cls.internal_splitter(payload)
+        # Quick throwaway sanity check.
+        # Presumably, with subsequent versions, we'll use version here to get the appropriate splitter.
         assert version <= cls.TEACHER_VERSION
+        node_info = cls.internal_splitter(payload)
 
         interface_info = node_info.pop("rest_interface")
 
@@ -708,6 +707,7 @@ class Ursula(Teacher, Character, Miner):
                 except ValueError as e:
                     message = "Unable to glean address from node that purported to be version {}.  We're only version {}."
                     cls.log.warn(message.format(version, cls.LEARNER_VERSION))
+                continue  # We aren't going to save this node; it's the wrong version.
             else:
                 ursula = cls.from_bytes(node_bytes, version, federated_only=federated_only)
                 ursulas.append(ursula)
