@@ -171,6 +171,7 @@ jobs:
 
   blockchain_interface_unit:
     <<: *python_36_base
+    parallelism: 6
     steps:
       - checkout
       - attach_workspace:
@@ -178,7 +179,7 @@ jobs:
       - run:
           name: Blockchain Interface Tests
           command: |
-            pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/interfaces tests/blockchain/eth/entities --junitxml=./reports/pytest/results.xml
+            pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/interfaces tests/blockchain/eth/entities --junitxml=./reports/pytest/blockchain_interface_results.xml
       - run:
           name: Upload Coverage Report
           command: |
@@ -208,6 +209,7 @@ jobs:
 
   config_unit:
     <<: *python_36_base
+    parallelism: 2
     steps:
       - checkout
       - attach_workspace:
@@ -215,7 +217,7 @@ jobs:
       - run:
           name: Node Configuration Tests
           command: |
-            pipenv run pytest --cov=nucypher/config -v --runslow tests/config --junitxml=./reports/pytest/results.xml
+            pipenv run pytest --cov=nucypher/config -v --runslow $(circleci tests glob tests/config/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/config_results.xml
       - run:
           name: Upload Coverage Report
           command: |
@@ -233,7 +235,7 @@ jobs:
       - run:
           name: Crypto Character Tests
           command: |
-            pipenv run pytest --cov=nucypher/crypto -v --runslow tests/crypto --junitxml=./reports/pytest/results.xml
+            pipenv run pytest --cov=nucypher/crypto -v --runslow tests/crypto --junitxml=./reports/pytest/crypto_results.xml
       - run:
           name: Upload Coverage Report
           command: |
@@ -251,7 +253,7 @@ jobs:
       - run:
           name: Network Tests
           command: |
-            pipenv run pytest --cov=nucypher/network -v --runslow tests/network --junitxml=./reports/pytest/results.xml
+            pipenv run pytest --cov=nucypher/network -v --runslow $(circleci tests glob tests/network/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/network_results.xml
       - run:
           name: Upload Coverage Report
           command: |
@@ -262,6 +264,7 @@ jobs:
 
   keystore_unit:
     <<: *python_36_base
+    parallelism: 2
     steps:
       - checkout
       - attach_workspace:
@@ -269,7 +272,7 @@ jobs:
       - run:
           name: Keystore Tests
           command: |
-            pipenv run pytest --cov=nucypher/keystore -v --runslow tests/keystore --junitxml=./reports/pytest/results.xml
+            pipenv run pytest --cov=nucypher/keystore -v --runslow $(circleci tests glob tests/keystore/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/keystore_results.xml
       - run:
           name: Upload Coverage Report
           command: |
@@ -280,6 +283,7 @@ jobs:
 
   character:
     <<: *python_36_base
+    parallelism: 4
     steps:
       - checkout
       - attach_workspace:
@@ -287,7 +291,7 @@ jobs:
       - run:
           name: Character Tests
           command: |
-            pipenv run pytest --cov=nucypher -v --runslow tests/characters --junitxml=./reports/pytest/results.xml
+            pipenv run pytest --cov=nucypher -v --runslow $(circleci tests glob tests/characters/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/character_results.xml
       - run:
           name: Upload Coverage Report
           command: |
@@ -305,12 +309,13 @@ jobs:
       - run:
           name: Ethereum Inter-Contract Integration Test
           command: |
-            pipenv run pytest -v --runslow tests/blockchain/eth/contracts/main/test_intercontract_integration.py --junitxml=./reports/pytest/results.xml
+            pipenv run pytest -v --runslow tests/blockchain/eth/contracts/main/test_intercontract_integration.py --junitxml=./reports/pytest/intercontract_integration_results.xml
       - store_test_results:
           path: ./reports/pytest/
 
   cli_tests:
     <<: *python_36_base
+    parallelism: 4
     steps:
     - checkout
     - attach_workspace:
@@ -318,7 +323,7 @@ jobs:
     - run:
         name: Nucypher CLI Tests
         command: |
-          pipenv run pytest --cov=nucypher/cli.py -v --runslow tests/cli --junitxml=./reports/pytest/results.xml
+          pipenv run pytest --cov=nucypher/cli.py -v --runslow $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/cli_results.xml
     - run:
         name: Upload Coverage Report
         command: |
@@ -342,11 +347,9 @@ jobs:
           command: |
               mkdir ./mypy_reports ./mypy_results
               export MYPYPATH=./nucypher
-              pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount --junit-xml ./mypy_results/results.xml || true
+              pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount || true
       - store_artifacts:
           path: ./mypy_reports
-      - store_test_results:
-          path: ./mypy_results
 
   test_deploy:
     <<: *python_36_base
