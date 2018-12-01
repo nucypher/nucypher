@@ -16,17 +16,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from contextlib import suppress
+from typing import Dict, ClassVar, Set
+from typing import Optional
+from typing import Tuple
+from typing import Union, List
 
-from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_checksum_address, to_canonical_address
-from typing import Dict, ClassVar, Tuple, Union, List, Optional
-
-from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
+from constant_sorrow import constants, default_constant_splitter
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
@@ -57,6 +57,7 @@ class Character(Learner):
     from nucypher.crypto.signing import InvalidSignature
 
     def __init__(self,
+                 domains: Set = (constants.GLOBAL_DOMAIN,),
                  is_me: bool = True,
                  federated_only: bool = False,
                  blockchain: Blockchain = None,
@@ -133,6 +134,7 @@ class Character(Learner):
             # Learner
             #
             Learner.__init__(self,
+                             domains=domains,
                              network_middleware=network_middleware,
                              *args, **kwargs)
 
@@ -145,7 +147,6 @@ class Character(Learner):
             self._stamp = StrangerStamp(self.public_keys(SigningPower))
             self.keyring_dir = constants.STRANGER
             self.network_middleware = constants.STRANGER
-
 
         #
         # Decentralized

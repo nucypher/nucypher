@@ -20,6 +20,7 @@ from collections import OrderedDict
 from functools import partial
 from typing import Iterable
 from typing import List, Dict
+from typing import Set
 
 import maya
 import requests
@@ -32,7 +33,8 @@ from twisted.internet import threads
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
-from bytestring_splitter import VariableLengthBytestring, BytestringSplittingFabricator
+from bytestring_splitter import BytestringSplittingFabricator
+from bytestring_splitter import VariableLengthBytestring, BytestringSplitter
 from constant_sorrow import constants
 from constant_sorrow.constants import INCLUDED_IN_BYTESTRING
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
@@ -439,6 +441,7 @@ class Ursula(Teacher, Character, Miner):
                  # Ursula
                  rest_host: str,
                  rest_port: int,
+                 domains: Set = (constants.GLOBAL_DOMAIN,),  # For now, serving and learning domains will be the same.
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
 
@@ -476,6 +479,7 @@ class Ursula(Teacher, Character, Miner):
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
+                           domains=domains,
                            **character_kwargs)
 
         #
@@ -565,6 +569,7 @@ class Ursula(Teacher, Character, Miner):
         certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
         Teacher.__init__(self,
+                         domains=domains,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
                          interface_signature=interface_signature,
@@ -693,7 +698,8 @@ class Ursula(Teacher, Character, Miner):
                     nickname = nickname_from_seed(checksum_address)
                     display_name = "⇀{}↽ ({})".format(nickname, checksum_address)
                     message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
-                    cls.log.warn(message.format(display_name, version, cls.LEARNER_VERSION))  # TODO: Some auto-updater logic?
+                    cls.log.warn(
+                        message.format(display_name, version, cls.LEARNER_VERSION))  # TODO: Some auto-updater logic?
                 except ValueError as e:
                     message = "Unable to glean address from node that purported to be version {}.  We're only version {}."
                     cls.log.warn(message.format(version, cls.LEARNER_VERSION))

@@ -215,6 +215,7 @@ class Learner:
         pass
 
     def __init__(self,
+                 domains: Set,
                  network_middleware: RestMiddleware = __DEFAULT_MIDDLEWARE_CLASS(),
                  start_learning_now: bool = False,
                  learn_on_same_thread: bool = False,
@@ -657,6 +658,9 @@ class Learner:
 
         new_nodes = []
         for node in node_list:
+            if GLOBAL_DOMAIN not in self.learning_domains:
+                if not self.learning_domains.intersection(node.serving_domains):
+                    continue  # This node is not serving any of our domains.
             try:
                 if eager:
                     certificate_filepath = current_teacher.get_certificate_filepath(
@@ -706,6 +710,7 @@ class Teacher:
     invalid_metadata_message = "{} has invalid metadata.  Maybe its stake is over?  Or maybe it is transitioning to a new interface.  Ignoring."
 
     def __init__(self,
+                 domains: Set,
                  certificate: Certificate,
                  certificate_filepath: str,
                  interface_signature=constants.NOT_SIGNED.bool_value(False),
@@ -715,6 +720,7 @@ class Teacher:
                  passphrase=None,
                  ) -> None:
 
+        self.serving_domains = domains
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
         self._interface_signature_object = interface_signature
