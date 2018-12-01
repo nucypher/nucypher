@@ -40,7 +40,7 @@ from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 
-from constant_sorrow.constants import constant_or_bytes
+from constant_sorrow.constants import constant_or_bytes, GLOBAL_DOMAIN
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.keyring import _write_tls_certificate
 from nucypher.config.storages import InMemoryNodeStorage
@@ -164,6 +164,7 @@ class FleetStateTracker:
             # No news here.
             return
         sorted_nodes = self.sorted()
+
         sorted_nodes_joined = b"".join(bytes(n) for n in sorted_nodes)
         checksum = keccak_digest(sorted_nodes_joined).hex()
         if checksum not in self.states:
@@ -227,7 +228,9 @@ class Learner:
                  abort_on_learning_error: bool = False
                  ) -> None:
 
-        self.log = Logger("characters")  # type: Logger
+        self.log = Logger("learning-loop")  # type: Logger
+
+        self.learning_domains = domains
         self.network_middleware = network_middleware
         self.save_metadata = save_metadata
         self.start_learning_now = start_learning_now

@@ -617,6 +617,7 @@ class Ursula(Teacher, Character, Miner):
 
         as_bytes = bytes().join((version,
                                  self.canonical_public_address,
+                                 bytes(VariableLengthBytestring.bundle(self.serving_domains)),
                                  self.timestamp_bytes(),
                                  bytes(self._interface_signature),
                                  bytes(identity_evidence),
@@ -633,9 +634,10 @@ class Ursula(Teacher, Character, Miner):
 
     @classmethod
     def internal_splitter(cls, splittable):
-        result = BytestringSplittingFabricator(
-            mill=dict,
+        result = BytestringKwargifier(
+            dict,
             public_address=PUBLIC_ADDRESS_LENGTH,
+            domains=VariableLengthBytestring,
             timestamp=(int, 4, {'byteorder': 'big'}),
             interface_signature=Signature,
             identity_evidence=VariableLengthBytestring,
@@ -660,22 +662,25 @@ class Ursula(Teacher, Character, Miner):
         else:
             payload = ursula_as_bytes
 
-        node_as_dict = cls.internal_splitter(payload)
+        node_info = cls.internal_splitter(payload)
         assert version <= cls.TEACHER_VERSION
 
-        interface_info = node_as_dict.pop("rest_interface")
+        interface_info = node_info.pop("rest_interface")
 
         powers_and_material = {
-            SigningPower: node_as_dict.pop("verifying_key"),
-            EncryptingPower: node_as_dict.pop("encrypting_key")
+            SigningPower: node_info.pop("verifying_key"),
+            EncryptingPower: node_info.pop("encrypting_key")
         }
 
-        node_as_dict['rest_host'] = interface_info.host
-        node_as_dict['rest_port'] = interface_info.port
-        node_as_dict['timestamp'] = maya.MayaDT(node_as_dict.pop("timestamp"))
-        node_as_dict['checksum_address'] = to_checksum_address(node_as_dict.pop("public_address"))
+        node_info['rest_host'] = interface_info.host
+        node_info['rest_port'] = interface_info.port
+        node_info['timestamp'] = maya.MayaDT(node_info.pop("timestamp"))
+        node_info['checksum_address'] = to_checksum_address(node_info.pop("public_address"))
 
-        ursula = cls.from_public_keys(powers_and_material, federated_only=federated_only, **node_as_dict)
+        domains_vbytes = VariableLengthBytestring.discharge(node_info['domains'])
+        node_info['domains'] = [constant_or_bytes(d) for d in domains_vbytes]
+
+        ursula = cls.from_public_keys(powers_and_material, federated_only=federated_only, **node_info)
         return ursula
 
     @classmethod
@@ -687,7 +692,7 @@ class Ursula(Teacher, Character, Miner):
         node_splitter = BytestringSplitter(VariableLengthBytestring)
         nodes_vbytes = node_splitter.repeat(ursulas_as_bytes)
         version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
-        versions_and_node_bytes = [version_splitter(n.message_as_bytes, return_remainder=True) for n in nodes_vbytes]
+        versions_and_node_bytes = [version_splitter(n, return_remainder=True) for n in nodes_vbytes]
 
         ursulas = []
         for version, node_bytes in versions_and_node_bytes:
