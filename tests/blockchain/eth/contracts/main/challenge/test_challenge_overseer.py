@@ -129,7 +129,7 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     testerchain.wait_for_receipt(tx)
     # Hash of the data is saved and miner was not slashed
     assert challenge_contract.functions.challengedCFrags(data_hash).call()
-    assert 1000 == escrow.functions.minerInfo(miner).call()
+    assert 1000 == escrow.functions.minerInfo(miner).call()[0]
 
     # Can't challenge miner with data that already was checked
     with pytest.raises((TransactionFailed, ValueError)):
@@ -162,7 +162,7 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     testerchain.wait_for_receipt(tx)
     # Hash of the data is saved and miner was slashed
     assert challenge_contract.functions.challengedCFrags(data_hash).call()
-    assert 900 == escrow.functions.minerInfo(miner).call()
+    assert 900 == escrow.functions.minerInfo(miner).call()[0]
 
     # Prepare hash of the data
     metadata = os.urandom(34)
@@ -247,4 +247,4 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     tx = challenge_contract.functions.challengeCFrag(*args).transact()
     testerchain.wait_for_receipt(tx)
     assert challenge_contract.functions.challengedCFrags(data_hash).call()
-    assert 800 == escrow.functions.minerInfo(miner).call()
+    assert 800 == escrow.functions.minerInfo(miner).call()[0]

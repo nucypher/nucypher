@@ -24,7 +24,7 @@ secret = (123456).to_bytes(32, byteorder='big')
 
 @pytest.fixture()
 def escrow(testerchain):
-    escrow, _ = testerchain.interface.deploy_contract('MinersEscrowStub')
+    escrow, _ = testerchain.interface.deploy_contract('MinersEscrowForChallengeOverseerMock')
     return escrow
 
 
