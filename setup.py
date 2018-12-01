@@ -75,7 +75,7 @@ with open(os.path.join(BASE_DIR, "requirements.txt")) as f:
 
 TESTS_REQUIRE = [
     'pytest',
-    'pytest-xdist'
+    'pytest-xdist',
     'pytest-mypy',
     'pytest-twisted',
     'pytest-cov',

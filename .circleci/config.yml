@@ -170,7 +170,7 @@ jobs:
       - run:
           name: Install Python Development Dependencies with Pip
           command: |
-            pip3 install --user -e .[testing]
+            pip3 install --user .[testing]
       - run:
           name: Install Solidity Compiler
           command: ./scripts/install_solc.sh
