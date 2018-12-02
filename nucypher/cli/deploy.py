@@ -17,24 +17,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import collections
-import hashlib
 import json
+import os
 
 import click
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
-from typing import ClassVar, Tuple
 
-from nucypher.blockchain.eth.agents import EthereumContractAgent
-from nucypher.blockchain.eth.deployers import (
-    NucypherTokenDeployer,
-    MinerEscrowDeployer,
-    PolicyManagerDeployer,
-    ContractDeployer
-)
+from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.cli.painting import BANNER
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
-from nucypher.config.node import NodeConfiguration
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.logging import getTextFileObserver
 
 
@@ -49,42 +44,43 @@ def echo_version(ctx, param, value):
     ctx.exit()
 
 
-#
-# Deployers
-#
-DeployerInfo = collections.namedtuple('DeployerInfo', ('deployer_class',  # type: ContractDeployer
-                                                       'upgradeable',     # type: bool
-                                                       'agent_name',      # type: EthereumContractAgent
-                                                       'dependant'))      # type: EthereumContractAgent
-
-
-DEPLOYERS = collections.OrderedDict({
-
-    NucypherTokenDeployer._contract_name: DeployerInfo(deployer_class=NucypherTokenDeployer,
-                                                       upgradeable=False,
-                                                       agent_name='token_agent',
-                                                       dependant=None),
-
-    MinerEscrowDeployer._contract_name: DeployerInfo(deployer_class=MinerEscrowDeployer,
-                                                     upgradeable=True,
-                                                     agent_name='miner_agent',
-                                                     dependant='token_agent'),
-
-    PolicyManagerDeployer._contract_name: DeployerInfo(deployer_class=PolicyManagerDeployer,
-                                                       upgradeable=True,
-                                                       agent_name='policy_agent',
-                                                       dependant='miner_agent')
-})
-
-
 class NucypherDeployerClickConfig:
 
-    log_to_file = True    # TODO: Use envvar
+    # Environment Variables
+    log_to_file = os.environ.get("NUCYPHER_FILE_LOGS", True)
+    miner_escrow_deployment_secret = os.environ.get("NUCYPHER_MINER_ESCROW_SECRET", None)
+    policy_manager_deployment_secret = os.environ.get("NUCYPHER_POLICY_MANAGER_SECRET", None)
+    user_escrow_proxy_deployment_secret = os.environ.get("NUCYPHER_USER_ESCROW_PROXY_SECRET", None)
+
+    Secrets = collections.namedtuple('Secrets', ('miner_secret', 'policy_secret', 'escrow_proxy_secret'))
 
     def __init__(self):
         if self.log_to_file is True:
             globalLogPublisher.addObserver(getTextFileObserver())
         self.log = Logger(self.__class__.__name__)
+
+    def collect_deployment_secrets(self) -> Secrets:
+
+        miner_secret = self.miner_escrow_deployment_secret
+        if not miner_secret:
+            miner_secret = click.prompt('Enter MinerEscrow Deployment Secret', hide_input=True,
+                                        confirmation_prompt=True)
+
+        policy_secret = self.policy_manager_deployment_secret
+        if not policy_secret:
+            policy_secret = click.prompt('Enter PolicyManager Deployment Secret', hide_input=True,
+                                         confirmation_prompt=True)
+
+        escrow_proxy_secret = self.user_escrow_proxy_deployment_secret
+        if not escrow_proxy_secret:
+            escrow_proxy_secret = click.prompt('Enter UserEscrowProxy Deployment Secret', hide_input=True,
+                                               confirmation_prompt=True)
+
+        secrets = self.Secrets(miner_secret=miner_secret,                 # type: str
+                               policy_secret=policy_secret,               # type: str
+                               escrow_proxy_secret=escrow_proxy_secret    # type: str
+                               )
+        return secrets
 
 
 # Register the above class as a decorator
@@ -93,131 +89,116 @@ nucypher_deployer_config = click.make_pass_decorator(NucypherDeployerClickConfig
 
 @click.command()
 @click.argument('action')
-@click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--force', is_flag=True)
+@click.option('--poa', help="Inject POA middleware", is_flag=True)
+@click.option('--no-compile', help="Inject POA middleware", is_flag=True)
+@click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
+@click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--registry-outfile', help="Output path for new registry", type=click.Path(), default=NodeConfiguration.REGISTRY_SOURCE)
+@click.option('--allocation-infile', help="Input path for allocation JSON file", type=EXISTING_READABLE_FILE)
 @nucypher_deployer_config
-def deploy(config,
+def deploy(click_config,
            action,
+           poa,
+           provider_uri,
            deployer_address,
            contract_name,
-           registry_outfile,
+           allocation_infile,
+           no_compile,
            force):
     """Manage contract and registry deployment"""
 
-    if not config.deployer:
-        click.secho("The --deployer flag must be used to issue the deploy command.", fg='red', bold=True)
-        raise click.Abort()
+    def __connect(deployer_address=None):
 
-    def __get_deployers():
+        # Ensure config root exists
+        if not os.path.exists(DEFAULT_CONFIG_ROOT):
+            os.makedirs(DEFAULT_CONFIG_ROOT)
 
-        config.registry_filepath = registry_outfile
-        config.connect_to_blockchain()
-        config.blockchain.interface.deployer_address = deployer_address or config.accounts[0]
-        click.confirm("Continue?", abort=True)
-        return deployers
+        # Connect to Blockchain
+        blockchain = Blockchain.connect(provider_uri=provider_uri, deployer=True, compile=not no_compile, poa=poa)
 
+        if not deployer_address:
+            etherbase = blockchain.interface.w3.eth.accounts[0]
+            deployer_address = etherbase
+        click.confirm("Deployer Address is {} - Continue?".format(deployer_address), abort=True)
+
+        deployer = Deployer(blockchain=blockchain, deployer_address=deployer_address)
+
+        return deployer
+
+    # The Big Three
     if action == "contracts":
-        deployers = __get_deployers()
+        deployer = __connect(deployer_address)
+        secrets = click_config.collect_deployment_secrets()
+
+        # Track tx hashes, and new agents
         __deployment_transactions = dict()
         __deployment_agents = dict()
 
-        available_deployers = ", ".join(deployers)
-        click.echo("\n-----------------------------------------------")
-        click.echo("Available Deployers: {}".format(available_deployers))
-        click.echo("Blockchain Provider URI ... {}".format(config.blockchain.interface.provider_uri))
-        click.echo("Registry Output Filepath .. {}".format(config.blockchain.interface.registry.filepath))
-        click.echo("Deployer's Address ........ {}".format(config.blockchain.interface.deployer_address))
-        click.echo("-----------------------------------------------\n")
+        if force:
+            deployer.blockchain.interface.registry._destroy()
 
-        def __deploy_contract(deployer_class: ClassVar,
-                              upgradeable: bool,
-                              agent_name: str,
-                              dependant: str = None
-                              ) -> Tuple[dict, EthereumContractAgent]:
+        try:
+            txhashes, agents = deployer.deploy_network_contracts(miner_secret=bytes(secrets.miner_secret, encoding='utf=8'),
+                                                                 policy_secret=bytes(secrets.policy_secret, encoding='utf-8'))
+        except BlockchainInterface.InterfaceError:
+            raise  # TODO: Handle registry management here (it may already exists)
+        else:
+            __deployment_transactions.update(txhashes)
 
-            __contract_name = deployer_class._contract_name
+        # User Escrow Proxy
+        deployer.deploy_escrow_proxy(secret=secrets.escrow_proxy_secret)
+        click.secho("Deployed!", fg='green', bold=True)
 
-            __deployer_init_args = dict(blockchain=config.blockchain,
-                                        deployer_address=config.blockchain.interface.deployer_address)
-
-            if dependant is not None:
-                __deployer_init_args.update({dependant: __deployment_agents[dependant]})
-
-            if upgradeable:
-                secret = click.prompt("Enter deployment secret for {}".format(__contract_name),
-                                      hide_input=True, confirmation_prompt=True)
-                secret_hash = hashlib.sha256(secret)
-                __deployer_init_args.update({'secret_hash': secret_hash})
-
-            __deployer = deployer_class(**__deployer_init_args)
-
-            #
-            # Arm
-            #
-            if not force:
-                click.confirm("Arm {}?".format(deployer_class.__name__), abort=True)
-
-            is_armed, disqualifications = __deployer.arm(abort=False)
-            if not is_armed:
-                disqualifications = ', '.join(disqualifications)
-                click.secho("Failed to arm {}. Disqualifications: {}".format(__contract_name, disqualifications),
-                            fg='red', bold=True)
-                raise click.Abort()
-
-            #
-            # Deploy
-            #
-            if not force:
-                click.confirm("Deploy {}?".format(__contract_name), abort=True)
-            __transactions = __deployer.deploy()
-            __deployment_transactions[__contract_name] = __transactions
-
-            __agent = __deployer.make_agent()
-            __deployment_agents[agent_name] = __agent
-
-            click.secho("Deployed {} - Contract Address: {}".format(contract_name, __agent.contract_address),
-                        fg='green', bold=True)
-
-            return __transactions, __agent
-
+        #
+        # Deploy Single Contract
+        #
         if contract_name:
-            #
-            # Deploy Single Contract
-            #
+
             try:
-                deployer_info = deployers[contract_name]
+                deployer_func = deployer.deployers[contract_name]
             except KeyError:
-                click.secho(
-                    "No such contract {}. Available contracts are {}".format(contract_name, available_deployers),
-                    fg='red', bold=True)
+                message = "No such contract {}. Available contracts are {}".format(contract_name, deployer.deployers.keys())
+                click.secho(message, fg='red', bold=True)
                 raise click.Abort()
             else:
-                _txs, _agent = __deploy_contract(deployer_info.deployer_class,
-                                                 upgradeable=deployer_info.upgradeable,
-                                                 agent_name=deployer_info.agent_name,
-                                                 dependant=deployer_info.dependant)
-        else:
-            #
-            # Deploy All Contracts
-            #
-            for deployer_name, deployer_info in deployers.items():
-                _txs, _agent = __deploy_contract(deployer_info.deployer_class,
-                                                 upgradeable=deployer_info.upgradeable,
-                                                 agent_name=deployer_info.agent_name,
-                                                 dependant=deployer_info.dependant)
+                _txs, _agent = deployer_func()
 
-        if not force and click.prompt("View deployment transaction hashes?"):
-            for contract_name, transactions in __deployment_transactions.items():
-                click.echo(contract_name)
-                for tx_name, txhash in transactions.items():
-                    click.echo("{}:{}".format(tx_name, txhash))
+        registry_outfile = deployer.blockchain.interface.registry.filepath
+        click.secho('\nDeployment Transaction Hashes for {}'.format(registry_outfile), bold=True, fg='blue')
+        for contract_name, transactions in __deployment_transactions.items():
+
+            heading = '\n{} ({})'.format(contract_name, agents[contract_name].contract_address)
+            click.secho(heading, bold=True)
+            click.echo('*'*(42+3+len(contract_name)))
+
+            total_gas_used = 0
+            for tx_name, txhash in transactions.items():
+                receipt = deployer.blockchain.wait_for_receipt(txhash=txhash)
+                total_gas_used += int(receipt['gasUsed'])
+
+                if receipt['status'] == 1:
+                    click.secho("OK", fg='green', nl=False, bold=True)
+                else:
+                    click.secho("Failed", fg='red', nl=False, bold=True)
+                click.secho(" | {}".format(tx_name), fg='yellow', nl=False)
+                click.secho(" | {}".format(txhash.hex()), fg='yellow', nl=False)
+                click.secho(" ({} gas)".format(receipt['cumulativeGasUsed']))
+
+                click.secho("Block #{} | {}\n".format(receipt['blockNumber'], receipt['blockHash'].hex()))
+
+        click.secho("Cumulative Gas Consumption: {} gas\n".format(total_gas_used), bold=True, fg='blue')
 
         if not force and click.confirm("Save transaction hashes to JSON file?"):
             file = click.prompt("Enter output filepath", type=click.File(mode='w'))  # TODO: Save Txhashes
-            file.__write(json.dumps(__deployment_transactions))
-            click.secho("Successfully wrote transaction hashes file to {}".format(file.path), fg='green')
+            file.write(json.dumps(__deployment_transactions))
+            click.secho("Wrote transaction hashes file to {}".format(file.path), fg='green')
+
+    elif action == "allocations":
+        deployer = __connect(deployer_address=deployer_address)
+        if not allocation_infile:
+            allocation_infile = click.prompt("Enter allocation data filepath")
+        deployer.deploy_beneficiaries_from_file(allocation_data_filepath=allocation_infile)
 
     else:
         raise click.BadArgumentUsage
