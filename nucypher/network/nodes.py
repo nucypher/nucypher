@@ -29,7 +29,7 @@ import OpenSSL
 import maya
 import requests
 import time
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring, BytestringSplittingError
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
@@ -208,6 +208,10 @@ class Learner:
     LEARNER_VERSION = LEARNING_LOOP_VERSION
     node_splitter = BytestringSplitter(VariableLengthBytestring)
     version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
+
+    invalid_metadata_message = "{} has invalid metadata.  Maybe its stake is over?  Or maybe it is transitioning to a new interface.  Ignoring."
+    unknown_version_message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
+    really_unknown_version_message = "Unable to glean address from node that purported to be version {}.  We're only version {}."
 
     class NotEnoughTeachers(RuntimeError):
         pass
@@ -603,10 +607,8 @@ class Learner:
             self.log.warn("Can't learn right now: {}".format(e.args[0]))
             return
 
-        rest_url = current_teacher.rest_interface  # TODO: Name this..?
+        teacher_uri = current_teacher.rest_interface
 
-        # TODO: Do we really want to try to learn about all these nodes instantly?
-        # Hearing this traffic might give insight to an attacker.
         if Teacher in self.__class__.__bases__:
             announce_nodes = [self]
         else:
@@ -614,27 +616,30 @@ class Learner:
 
         unresponsive_nodes = set()
         try:
-
             # TODO: Streamline path generation
             certificate_filepath = current_teacher.get_certificate_filepath(
                 certificates_dir=self.known_certificates_dir)
-            response = self.network_middleware.get_nodes_via_rest(url=rest_url,
+            response = self.network_middleware.get_nodes_via_rest(url=teacher_uri,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
                                                                   certificate_filepath=certificate_filepath,
                                                                   fleet_checksum=self.known_nodes.checksum)
         except requests.exceptions.ConnectionError as e:
             unresponsive_nodes.add(current_teacher)
-            teacher_rest_info = current_teacher.rest_information()[0]
-
-            # TODO: This error isn't necessarily "no repsonse" - let's maybe pass on the text of the exception here.
-            self.log.info("No Response from teacher: {}:{}.".format(teacher_rest_info.host, teacher_rest_info.port))
+            self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e.args[0]))
+            return
+        finally:
             self.cycle_teacher_node()
 
         if response.status_code not in (200, 204):
-            raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content))
+            self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
+            return
 
-        signature, node_payload = signature_splitter(response.content, return_remainder=True)
+        try:
+            signature, node_payload = signature_splitter(response.content, return_remainder=True)
+        except BytestringSplittingError as e:
+            self.log.warn(e.args[0])
+            return
 
         try:
             self.verify_from(current_teacher, node_payload, signature=signature)
@@ -649,8 +654,6 @@ class Learner:
         checksum = fleet_state_checksum_bytes.hex()
         current_teacher.update_snapshot(checksum=checksum,
                                         updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")))
-
-        self.cycle_teacher_node()
 
         # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
         from nucypher.characters.lawful import Ursula
@@ -680,7 +683,7 @@ class Learner:
                 self.log.warn(node.invalid_metadata_message.format(node))
             except node.SuspiciousActivity:
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
-                          "Propagated by: {}".format(current_teacher.checksum_public_address, rest_url)
+                          "Propagated by: {}".format(current_teacher.checksum_public_address, teacher_uri)
                 self.log.warn(message)
             else:
                 new = self.remember_node(node, record_fleet_state=False)
@@ -710,7 +713,6 @@ class Teacher:
     _verified_node = False
     _interface_info_splitter = (int, 4, {'byteorder': 'big'})
     log = Logger("network/nodes")
-    invalid_metadata_message = "{} has invalid metadata.  Maybe its stake is over?  Or maybe it is transitioning to a new interface.  Ignoring."
 
     def __init__(self,
                  domains: Set,
@@ -743,7 +745,12 @@ class Teacher:
 
     class WrongMode(TypeError):
         """
-        Raise when a Character tries to use another Character as decentralized when the latter is federated_only.
+        Raised when a Character tries to use another Character as decentralized when the latter is federated_only.
+        """
+
+    class IsFromTheFuture(TypeError):
+        """
+        Raised when deserializing a Character from a future version.
         """
 
     def seed_node_metadata(self):

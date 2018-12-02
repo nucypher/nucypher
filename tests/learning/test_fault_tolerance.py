@@ -1,5 +1,10 @@
+from functools import partial
+
+import mock
 import pytest
+from apistar.http import Response
 from eth_keys.datatypes import Signature as EthSignature
+from twisted.logger import globalLogPublisher, LogLevel
 
 from constant_sorrow.constants import NOT_SIGNED
 from nucypher.characters.lawful import Ursula
@@ -7,7 +12,7 @@ from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.powers import SigningPower, CryptoPower
 from nucypher.network.nodes import FleetStateTracker
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
-from twisted.logger import globalLogPublisher, LogLevel
+from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 
 
 def test_blockchain_ursula_substantiates_stamp(blockchain_ursulas):
@@ -44,18 +49,23 @@ def test_blockchain_ursula_is_not_valid_with_unsigned_identity_evidence(blockcha
 
     lonely_blockchain_learner.remember_node(blockchain_teacher)
     warnings = []
+
     def warning_trapper(event):
         if event['log_level'] == LogLevel.warn:
             warnings.append(event)
+
     globalLogPublisher.addObserver(warning_trapper)
 
     lonely_blockchain_learner.learn_from_teacher_node()
+
+    globalLogPublisher.removeObserver(warning_trapper)
 
     # We received one warning during learning, and it was about this very matter.
     assert len(warnings) == 1
     assert warnings[0]['log_format'] == unsigned.invalid_metadata_message.format(unsigned)
 
-    assert len(lonely_blockchain_learner.known_nodes) == len(blockchain_ursulas) - 2  # minus self and, of course, unsigned.
+    assert len(lonely_blockchain_learner.known_nodes) == len(
+        blockchain_ursulas) - 2  # minus self and, of course, unsigned.
     assert blockchain_teacher in lonely_blockchain_learner.known_nodes
     assert unsigned not in lonely_blockchain_learner.known_nodes
 
@@ -112,3 +122,50 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
     # However, the actual handshake proves him wrong.
     with pytest.raises(vladimir.InvalidNode):
         vladimir.verify_node(blockchain_alice.network_middleware)
+
+
+def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
+    lonely_ursula_maker = partial(make_federated_ursulas,
+                                  ursula_config=ursula_federated_test_config,
+                                  quantity=2,
+                                  know_each_other=True)
+    learner = lonely_ursula_maker().pop()
+    teacher, new_node = lonely_ursula_maker()
+
+    new_node.TEACHER_VERSION = learner.LEARNER_VERSION + 1
+
+    learner._current_teacher_node = teacher
+
+    warnings = []
+
+    def warning_trapper(event):
+        if event['log_level'] == LogLevel.warn:
+            warnings.append(event)
+
+    globalLogPublisher.addObserver(warning_trapper)
+
+    learner.learn_from_teacher_node()
+
+    assert len(warnings) == 1
+    warnings[0]['log_format'] == learner.unknown_version_message.format(new_node, new_node.TEACHER_VERSION,
+                                                                        learner.LEARNER_VERSION)
+
+    # Now let's go a little further: make the version totally unrecognizable.
+    crazy_bytes_representation = int(learner.LEARNER_VERSION + 1).to_bytes(2,
+                                                                           byteorder="big") + b"totally unintelligible nonsense"
+
+    response = Response(content=crazy_bytes_representation, status_code=200)
+    learner.network_middleware.get_nodes_via_rest = lambda *args, **kwargs: response
+    learner.learn_from_teacher_node()
+
+    assert len(warnings) == 2
+    warnings[1]['log_format'] == learner.unknown_version_message.format(new_node, new_node.TEACHER_VERSION,
+                                                                        learner.LEARNER_VERSION)
+
+    globalLogPublisher.removeObserver(warning_trapper)
+
+    #
+    # learning_callers = []
+    # crosstown_traffic.decorator = crosstownTaskListDecoratorFactory(learning_callers)
+    #
+    # vladimir.network_middleware.propagate_shitty_interface_id(other_ursula, bytes(vladimir))
