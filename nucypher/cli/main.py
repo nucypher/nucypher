@@ -46,6 +46,9 @@ from nucypher.utilities.logging import (
     SimpleObserver)
 
 
+FEDERATED_ONLY = False
+
+
 #
 # Click CLI Config
 #
@@ -144,7 +147,7 @@ def status(click_config, config_file):
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=UNREGISTERED_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--federated-only', help="Connect only to federated nodes", is_flag=True, default=True)
+@click.option('--federated-only', help="Connect only to federated nodes", is_flag=True, default=FEDERATED_ONLY)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
@@ -234,7 +237,8 @@ def ursula(click_config,
                                                      checksum_public_address=checksum_address,
                                                      no_registry=federated_only or no_registry,
                                                      registry_filepath=registry_filepath,
-                                                     provider_uri=provider_uri)
+                                                     provider_uri=provider_uri,
+                                                     poa=poa)
 
         click.secho("Generated keyring {}".format(ursula_config.keyring_dir), fg='green')
         click.secho("Saved configuration file {}".format(ursula_config.config_file_location), fg='green')
