@@ -33,7 +33,6 @@ from twisted.internet import threads
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
-from bytestring_splitter import BytestringSplittingFabricator
 from bytestring_splitter import VariableLengthBytestring, BytestringSplitter
 from constant_sorrow import constants
 from constant_sorrow.constants import INCLUDED_IN_BYTESTRING
@@ -698,6 +697,7 @@ class Ursula(Teacher, Character, Miner):
     def batch_from_bytes(cls,
                          ursulas_as_bytes: Iterable[bytes],
                          federated_only: bool = False,
+                         fail_fast=False,
                          ) -> List['Ursula']:
 
         node_splitter = BytestringSplitter(VariableLengthBytestring)
@@ -707,21 +707,14 @@ class Ursula(Teacher, Character, Miner):
 
         ursulas = []
         for version, node_bytes in versions_and_node_bytes:
-            if version > cls.LEARNER_VERSION:
-                try:
-                    canonical_address, _ = BytestringSplitter(PUBLIC_ADDRESS_LENGTH)(node_bytes, return_remainder=True)
-                    checksum_address = to_checksum_address(canonical_address)
-                    nickname = nickname_from_seed(checksum_address)
-                    display_name = "⇀{}↽ ({})".format(nickname, checksum_address)
-                    message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
-                    cls.log.warn(
-                        message.format(display_name, version, cls.LEARNER_VERSION))  # TODO: Some auto-updater logic?
-                except ValueError as e:
-                    message = "Unable to glean address from node that purported to be version {}.  We're only version {}."
-                    cls.log.warn(message.format(version, cls.LEARNER_VERSION))
-                continue  # We aren't going to save this node; it's the wrong version.
-            else:
+            try:
                 ursula = cls.from_bytes(node_bytes, version, federated_only=federated_only)
+            except Ursula.IsFromTheFuture as e:
+                if fail_fast:
+                    raise
+                else:
+                    cls.log.warn(e.args[0])
+            else:
                 ursulas.append(ursula)
 
         return ursulas
