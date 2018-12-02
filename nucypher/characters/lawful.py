@@ -659,20 +659,32 @@ class Ursula(Teacher, Character, Miner):
         else:
             payload = ursula_as_bytes
 
-        # Quick throwaway sanity check.
-        # Presumably, with subsequent versions, we'll use version here to get the appropriate splitter.
-        assert version <= cls.TEACHER_VERSION
-        node_info = cls.internal_splitter(payload)
+        # Check version and raise IsFromTheFuture if this node is... you guessed it...
+        if version > cls.LEARNER_VERSION:
+            # TODO: Some auto-updater logic?
+            try:
+                canonical_address, _ = BytestringSplitter(PUBLIC_ADDRESS_LENGTH)(payload, return_remainder=True)
+                checksum_address = to_checksum_address(canonical_address)
+                nickname, _ = nickname_from_seed(checksum_address)
+                display_name = "⇀{}↽ ({})".format(nickname, checksum_address)
+                message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
+            except ValueError:
+                message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
 
-        interface_info = node_info.pop("rest_interface")
+            raise cls.IsFromTheFuture(message)
+
+        # Version stuff checked out.  Moving on.
+        node_info = cls.internal_splitter(payload)
 
         powers_and_material = {
             SigningPower: node_info.pop("verifying_key"),
             EncryptingPower: node_info.pop("encrypting_key")
         }
 
+        interface_info = node_info.pop("rest_interface")
         node_info['rest_host'] = interface_info.host
         node_info['rest_port'] = interface_info.port
+
         node_info['timestamp'] = maya.MayaDT(node_info.pop("timestamp"))
         node_info['checksum_address'] = to_checksum_address(node_info.pop("public_address"))
 
