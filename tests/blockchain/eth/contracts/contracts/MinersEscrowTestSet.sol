@@ -137,7 +137,7 @@ contract ChallengeOverseerForMinersEscrowMock {
 
     MinersEscrow public escrow;
 
-    constructor(address, MinersEscrow _escrow) public {
+    constructor(MinersEscrow _escrow) public {
         escrow = _escrow;
     }
 
