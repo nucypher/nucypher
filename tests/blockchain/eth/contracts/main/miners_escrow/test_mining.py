@@ -303,7 +303,7 @@ def test_mining(testerchain, token, escrow_contract):
 def test_slashing(testerchain, token, escrow_contract):
     escrow = escrow_contract(1500)
     overseer, _ = testerchain.interface.deploy_contract(
-        'ChallengeOverseerForMinersEscrowMock', token.address, escrow.address
+        'ChallengeOverseerForMinersEscrowMock', escrow.address
     )
     tx = escrow.functions.setChallengeOverseer(overseer.address).transact()
     testerchain.wait_for_receipt(tx)
