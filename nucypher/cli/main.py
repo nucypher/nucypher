@@ -282,6 +282,10 @@ def ursula(click_config,
         except CryptoError:
             raise ursula_config.keyring.AuthenticationFailed
 
+    if not federated_only:
+        ursula_config.connect_to_blockchain(recompile_contracts=False)
+        ursula_config.connect_to_contracts()
+
     click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
 
     #

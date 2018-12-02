@@ -72,6 +72,9 @@ class NodeConfiguration(ABC):
     __CONFIG_FILE_DESERIALIZER = json.loads
     __TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
 
+    # Blockchain
+    __DEFAULT_PROVIDER_URI = 'tester://geth'
+
     # Registry
     __REGISTRY_NAME = 'contract_registry.json'
     REGISTRY_SOURCE = os.path.join(BASE_DIR, __REGISTRY_NAME)  # TODO: #461 Where will this be hosted?
@@ -231,7 +234,7 @@ class NodeConfiguration(ABC):
         # Blockchain
         #
         self.poa = poa
-        self.provider_uri = provider_uri
+        self.provider_uri = provider_uri or self.__DEFAULT_PROVIDER_URI
 
         self.blockchain = NO_BLOCKCHAIN_CONNECTION
         self.accounts = NO_BLOCKCHAIN_CONNECTION
@@ -271,14 +274,13 @@ class NodeConfiguration(ABC):
     def known_nodes(self):
         return self.__fleet_state
 
-    def connect_to_blockchain(self, provider_uri: str, poa: bool = False, compile_contracts: bool = False):
+    def connect_to_blockchain(self, recompile_contracts: bool = False):
         if self.federated_only:
             raise NodeConfiguration.ConfigurationError("Cannot connect to blockchain in federated mode")
 
-        self.blockchain = Blockchain.connect(provider_uri=provider_uri, compile=compile_contracts)
-        if poa is True:
-            w3 = self.blockchain.interface.w3
-            w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+        self.blockchain = Blockchain.connect(provider_uri=self.provider_uri,
+                                             compile=recompile_contracts,
+                                             poa=self.poa)
 
         self.accounts = self.blockchain.interface.w3.eth.accounts
         self.log.debug("Established connection to provider {}".format(self.blockchain.interface.provider_uri))
@@ -412,8 +414,15 @@ class NodeConfiguration(ABC):
             learn_on_same_thread=self.learn_on_same_thread,
             abort_on_learning_error=self.abort_on_learning_error,
             start_learning_now=self.start_learning_now,
-            save_metadata=self.save_metadata
+            save_metadata=self.save_metadata,
         )
+
+        if not self.federated_only:
+
+            # Blockchain
+            payload.update(dict(provider_uri=self.provider_uri,
+                                poa=self.poa))
+
         return payload
 
     @property

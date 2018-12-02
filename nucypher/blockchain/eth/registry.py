@@ -71,6 +71,9 @@ class EthereumContractRegistry:
         self.__filepath = filepath
         return True
 
+    def _destroy(self) -> None:
+        os.remove(self.filepath)
+
     def write(self, registry_data: list) -> None:
         """
         Writes the registry data list as JSON to the registry file. If no
