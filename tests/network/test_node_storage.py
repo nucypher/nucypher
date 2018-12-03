@@ -15,9 +15,15 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import maya
+import pytest
+import pytest_twisted as pt
+from twisted.internet.threads import deferToThread
+
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 
 
+@pt.inlineCallbacks
 def test_one_node_stores_a_bunch_of_others(federated_ursulas, ursula_federated_test_config):
     the_chosen_seednode = list(federated_ursulas)[2]  # ...neo?
     seed_node = the_chosen_seednode.seed_node_metadata()
@@ -32,6 +38,16 @@ def test_one_node_stores_a_bunch_of_others(federated_ursulas, ursula_federated_t
     assert not newcomer.known_nodes
 
     newcomer.start_learning_loop(now=True)
+    def start_lonely_learning_loop():
+        newcomer.start_learning_loop()
+        start = maya.now()
+        # Loop until the_chosen_seednode is in storage.
+        while the_chosen_seednode not in newcomer.node_storage.all(federated_only=True):
+            passed = maya.now() - start
+            if passed.seconds > 2:
+                pytest.fail("Didn't find the seed node.")
+
+    yield deferToThread(start_lonely_learning_loop)
 
     assert list(newcomer.known_nodes)
     assert len(list(newcomer.known_nodes)) == len(list(newcomer.node_storage.all(True)))
