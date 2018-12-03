@@ -18,7 +18,7 @@ import datetime
 import maya
 import os
 import pytest
-from umbral.fragments import KFrag
+from umbral.kfrags import KFrag
 
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.config.characters import AliceConfiguration

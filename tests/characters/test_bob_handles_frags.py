@@ -22,7 +22,8 @@ from tempfile import TemporaryDirectory
 from twisted.internet import threads
 
 from umbral import pre
-from umbral.fragments import KFrag, CapsuleFrag
+from umbral.kfrags import KFrag
+from umbral.cfrags import CapsuleFrag
 
 from nucypher.crypto.powers import EncryptingPower
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware

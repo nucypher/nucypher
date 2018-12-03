@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from bytestring_splitter import BytestringSplitter
 from sqlalchemy.orm import sessionmaker
 from typing import Union
-from umbral.fragments import KFrag
+from umbral.kfrags import KFrag
 from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.signing import Signature
