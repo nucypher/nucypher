@@ -35,9 +35,9 @@ class DataSource:
         self.stamp = signing_power.get_signature_stamp()
         self.label = label
 
-    def encapsulate_single_message(self,
-                                   message: bytes
-                                   ) -> Tuple[UmbralMessageKit, Signature]:
+    def encrypt_message(self,
+                        message: bytes
+                        ) -> Tuple[UmbralMessageKit, Signature]:
         message_kit, signature = encrypt_and_sign(self.policy_pubkey,
                                                   plaintext=message,
                                                   signer=self.stamp)

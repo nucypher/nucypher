@@ -248,7 +248,7 @@ def test_alice_can_decrypt(federated_alice):
                              label=label)
 
     message = b"boring test message"
-    message_kit, signature = data_source.encapsulate_single_message(message=message)
+    message_kit, signature = data_source.encrypt_message(message=message)
 
     cleartext = federated_alice.verify_from(stranger=data_source,
                                             message_kit=message_kit,
