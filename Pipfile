@@ -23,6 +23,7 @@ flask = "*"
 # Third-Party Ethereum
 py-evm = "*"
 eth-tester = "*"
+coincurve = "*"
 web3 = "*"
 # CLI / Configuration
 sentry-sdk = "==0.5.2"
