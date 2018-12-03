@@ -39,7 +39,7 @@ def test_initialize_ursula_defaults(click_runner, mocker):
     mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', autospec=True)
 
     # Use default ursula init args
-    init_args = ('ursula', 'init')
+    init_args = ('ursula', 'init', '--federated-only')
     user_input = '{ip}\n{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
@@ -56,6 +56,7 @@ def test_initialize_custom_configuration_root(custom_filepath, click_runner):
 
     # Use a custom local filepath for configuration
     init_args = ('ursula', 'init',
+                 '--federated-only',
                  '--config-root', custom_filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)
