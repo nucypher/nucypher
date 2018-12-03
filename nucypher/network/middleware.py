@@ -86,7 +86,7 @@ class RestMiddleware:
         if response.status_code == 200:
             return response
         elif response.status_code == 404:
-            raise RuntimeError("404 - KFrag doesn't exist to revoke with id {}".format(revocation.arrangement_id))
+            raise RuntimeError("KFrag doesn't exist to revoke with id {}".format(revocation.arrangement_id), response.status_code)
         else:
             self.log.debug("Bad response during revocation: {}".format(response))
             raise RuntimeError("Bad response: {}".format(response.content), response.status_code)
