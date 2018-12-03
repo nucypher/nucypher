@@ -23,6 +23,7 @@ flask = "*"
 # Third-Party Ethereum
 py-evm = "*"
 eth-tester = "*"
+coincurve = "*"
 py-solc = "*"
 web3 = "*"
 # CLI / Configuration

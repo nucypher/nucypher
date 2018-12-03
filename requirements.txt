@@ -13,6 +13,7 @@ certifi==2018.11.29
 cffi==1.11.5
 chardet==3.0.4
 click==7.0
+coincurve==9.0.0
 colorama==0.4.1
 constant-sorrow==0.1.0a8
 constantly==15.1.0
