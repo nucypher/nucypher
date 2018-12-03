@@ -16,9 +16,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from contextlib import suppress
-from typing import Dict, ClassVar
-from typing import Tuple
-from typing import Union, List
+
+from eth_keys import KeyAPI as EthKeyAPI
+from eth_utils import to_checksum_address, to_canonical_address
+from typing import Dict, ClassVar, Tuple, Union, List, Optional
 
 from constant_sorrow import constants, default_constant_splitter
 from eth_keys import KeyAPI as EthKeyAPI
@@ -29,7 +30,14 @@ from umbral.signing import Signature
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import CryptoPower, SigningPower, EncryptingPower, NoSigningPower, CryptoPowerUp
+from nucypher.crypto.powers import (
+    CryptoPower,
+    SigningPower,
+    EncryptingPower,
+    NoSigningPower,
+    CryptoPowerUp,
+    DelegatingPower
+)
 from nucypher.crypto.signing import signature_splitter, StrangerStamp, SignatureStamp
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
@@ -279,21 +287,16 @@ class Character(Learner):
                     message_kit: Union[UmbralMessageKit, bytes],
                     signature: Signature = None,
                     decrypt=False,
-                    delegator_verifying_key: UmbralPublicKey = None,
-                    ) -> tuple:
+                    ) -> bytes:
         """
         Inverse of encrypt_for.
 
-        :param actor_that_sender_claims_to_be: A Character instance representing
+        :param stranger: A Character instance representing
             the actor whom the sender claims to be.  We check the public key
             owned by this Character instance to verify.
         :param message_kit: the message to be (perhaps decrypted and) verified.
         :param signature: The signature to check.
         :param decrypt: Whether or not to decrypt the messages.
-        :param delegator_verifying_key: A signing key from the original delegator.
-            This is used only when decrypting a MessageKit with an activated Capsule
-            to check that the KFrag used to create each attached CFrag is the
-            authentic KFrag initially created by the delegator.
 
         :return: Whether or not the signature is valid, the decrypted plaintext
             or NO_DECRYPTION_PERFORMED
@@ -308,11 +311,19 @@ class Character(Learner):
         signature_from_kit = None
 
         if decrypt:
+            # Let's try to get the label from the Stranger.
+            try:
+                label = stranger.label
+            except AttributeError:
+                # The Stranger has no idea what we're talking about. Nothing to do here.
+                label = None
+
             # We are decrypting the message; let's do that first and see what the sig header says.
-            cleartext_with_sig_header = self.decrypt(message_kit, verifying_key=delegator_verifying_key)
+            cleartext_with_sig_header = self.decrypt(message_kit=message_kit,
+                                                     label=label)
             sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
             if sig_header == constants.SIGNATURE_IS_ON_CIPHERTEXT:
-                # THe ciphertext is what is signed - note that for later.
+                # The ciphertext is what is signed - note that for later.
                 message = message_kit.ciphertext
                 if not signature:
                     raise ValueError("Can't check a signature on the ciphertext if don't provide one.")
@@ -341,16 +352,17 @@ class Character(Learner):
         else:
             raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
 
-        #
-        # Next we have decrypt() and sign() - these use the private
-        # keys of their respective powers; any character who has these powers can use these functions.
-        #
-        # If they don't have the correct Power, the appropriate PowerUpError is raised.
-        #
         return cleartext
 
-    def decrypt(self, message_kit, verifying_key: UmbralPublicKey = None):
-        return self._crypto_power.power_ups(EncryptingPower).decrypt(message_kit, verifying_key)
+    def decrypt(self,
+                message_kit: UmbralMessageKit,
+                label: Optional[bytes] = None) -> bytes:
+        if label and DelegatingPower in self._default_crypto_powerups:
+            delegating_power = self._crypto_power.power_ups(DelegatingPower)
+            encrypting_power = delegating_power.get_encrypting_power_from_label(label)
+        else:
+            encrypting_power = self._crypto_power.power_ups(EncryptingPower)
+        return encrypting_power.decrypt(message_kit)
 
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)

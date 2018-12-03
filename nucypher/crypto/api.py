@@ -32,6 +32,7 @@ from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
 from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
+from umbral.signing import Signature
 
 from nucypher.crypto.constants import BLAKE2B
 from nucypher.crypto.kits import UmbralMessageKit
@@ -160,7 +161,7 @@ def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
                      plaintext: bytes,
                      signer: 'SignatureStamp',
                      sign_plaintext: bool = True
-                     ) -> Tuple[UmbralMessageKit, 'SignatureStamp']:
+                     ) -> Tuple[UmbralMessageKit, Signature]:
     if signer is not constants.DO_NOT_SIGN:
         # The caller didn't expressly tell us not to sign; we'll sign.
         if sign_plaintext:
@@ -179,7 +180,6 @@ def encrypt_and_sign(recipient_pubkey_enc: UmbralPublicKey,
     else:
         # Don't sign.
         signature = sig_header = constants.NOT_SIGNED
-        alice_pubkey = None  # TODO: ..eh?
         ciphertext, capsule = pre.encrypt(recipient_pubkey_enc, sig_header + plaintext)
         message_kit = UmbralMessageKit(ciphertext=ciphertext, capsule=capsule)
 

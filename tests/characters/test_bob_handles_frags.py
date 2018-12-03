@@ -264,7 +264,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
 
     # Bob can't decrypt yet with just two CFrags.  He needs to gather at least m.
     with pytest.raises(pre.GenericUmbralError):
-        federated_bob.decrypt(the_message_kit, verifying_key=federated_alice.stamp.as_umbral_pubkey())
+        federated_bob.decrypt(the_message_kit)
 
     number_left_to_collect = enacted_federated_policy.treasure_map.m - len(federated_bob._saved_work_orders)
 
@@ -279,8 +279,7 @@ def test_bob_gathers_and_combines(enacted_federated_policy, federated_bob, feder
     # Now.
     # At long last.
     cleartext = federated_bob.verify_from(the_data_source, the_message_kit,
-                                          decrypt=True,
-                                          delegator_verifying_key=federated_alice.stamp.as_umbral_pubkey())
+                                          decrypt=True)
     assert cleartext == b'Welcome to the flippering.'
 
 

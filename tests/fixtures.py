@@ -296,7 +296,7 @@ def capsule_side_channel(enacted_federated_policy):
                              signing_keypair=SigningKeypair(),
                              label=enacted_federated_policy.label
                              )
-    message_kit, _signature = data_source.encapsulate_single_message(b"Welcome to the flippering.")
+    message_kit, _signature = data_source.encrypt_message(b"Welcome to the flippering.")
     return message_kit, data_source
 
 

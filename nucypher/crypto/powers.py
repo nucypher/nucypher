@@ -248,3 +248,9 @@ class DelegatingPower(DerivedKeyBasedPower):
                                      sign_receiving_key=False,
                                      )
         return __private_key.get_pubkey(), kfrags
+
+    def get_encrypting_power_from_label(self, label):
+        label_privkey = self._get_privkey_from_label(label)
+        label_keypair = keypairs.EncryptingKeypair(private_key=label_privkey)
+        encrypting_power = EncryptingPower(keypair=label_keypair)
+        return encrypting_power

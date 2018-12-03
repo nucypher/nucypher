@@ -413,7 +413,7 @@ class Bob(Character):
         delivered_cleartext = self.verify_from(data_source,
                                                message_kit,
                                                decrypt=True,
-                                               delegator_verifying_key=alice_verifying_key)
+                                               )
 
         cleartexts.append(delivered_cleartext)
         return cleartexts

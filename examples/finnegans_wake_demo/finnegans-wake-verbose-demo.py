@@ -143,7 +143,7 @@ for counter, plaintext in enumerate(finnegans_wake):
     # single passage from James Joyce's Finnegan's Wake.
     # The matter of whether encryption makes the passage more or less readable
     # is left to the reader to determine.
-    message_kit, _signature = data_source.encapsulate_single_message(plaintext)
+    message_kit, _signature = data_source.encrypt_message(plaintext)
 
     # The DataSource will want to be able to be verified by Bob, so it leaves
     # its Public Key somewhere.

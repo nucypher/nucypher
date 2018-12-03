@@ -91,7 +91,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
                              )
 
     plaintext = b"What's your approach?  Mississippis or what?"
-    message_kit, _signature = data_source.encapsulate_single_message(plaintext)
+    message_kit, _signature = data_source.encrypt_message(plaintext)
 
     alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
 
