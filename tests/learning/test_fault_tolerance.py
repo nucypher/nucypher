@@ -164,8 +164,28 @@ def test_emit_warning_upon_new_version(ursula_federated_test_config, caplog):
 
     globalLogPublisher.removeObserver(warning_trapper)
 
-    #
-    # learning_callers = []
-    # crosstown_traffic.decorator = crosstownTaskListDecoratorFactory(learning_callers)
-    #
-    # vladimir.network_middleware.propagate_shitty_interface_id(other_ursula, bytes(vladimir))
+
+def test_node_posts_future_version(federated_ursulas):
+    ursula = list(federated_ursulas)[0]
+    middleware = MockRestMiddleware()
+
+    warnings = []
+
+    def warning_trapper(event):
+        if event['log_level'] == LogLevel.warn:
+            warnings.append(event)
+
+    globalLogPublisher.addObserver(warning_trapper)
+
+    crazy_node = b"invalid-node"
+    middleware.get_nodes_via_rest(ursula.rest_url(),
+                                  certificate_filepath=ursula.certificate_filepath,
+                                  announce_nodes=(crazy_node,))
+    assert len(warnings) == 1
+    future_node = list(federated_ursulas)[1]
+    future_node.TEACHER_VERSION = future_node.TEACHER_VERSION + 10
+    future_node_bytes = bytes(future_node)
+    middleware.get_nodes_via_rest(ursula.rest_url(),
+                                  certificate_filepath=ursula.certificate_filepath,
+                                  announce_nodes=(future_node_bytes,))
+    assert len(warnings) == 2
