@@ -29,6 +29,7 @@ pyopenssl = "*"
 # Third-Party Ethereum
 #
 eth-abi = "==1.2.2"
+coincurve = "==9.0.0"
 eth-hash = {version = "==0.2.0", extras = ["pysha3"]}
 eth-utils = "<2"
 eth-keys = "*"
