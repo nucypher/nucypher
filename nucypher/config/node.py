@@ -206,6 +206,7 @@ class NodeConfiguration(ABC):
             if self.checksum_public_address and dev_mode is False:
                 self.attach_keyring()
             self.network_middleware = network_middleware or self.__DEFAULT_NETWORK_MIDDLEWARE_CLASS()
+
         else:
             # Stranger
             self.node_storage = STRANGER_CONFIGURATION
@@ -228,7 +229,7 @@ class NodeConfiguration(ABC):
         known_nodes = known_nodes or set()
         if known_nodes:
             self.known_nodes._nodes.update({node.checksum_public_address: node for node in known_nodes})
-            self.known_nodes.record_fleet_state()
+            self.known_nodes.record_fleet_state()  # TODO: Does this call need to be here?
 
         #
         # Blockchain
@@ -315,18 +316,15 @@ class NodeConfiguration(ABC):
         except FileNotFoundError:
             raise FileNotFoundError("No such directory {}".format(self.config_root))
 
+    def generate_parameters(self, **overrides) -> dict:
+        merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
+        non_init_params = ('config_root', 'poa', 'provider_uri')
+        character_init_params = filter(lambda t: t[0] not in non_init_params, merged_parameters.items())
+        return dict(character_init_params)
+
     def produce(self, **overrides):
         """Initialize a new character instance and return it."""
-
-        # Build a merged dict of node parameters
-        merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
-
-        # Verify the configuration file refers to the same configuration root as this instance
-        config_root_from_config_file = merged_parameters.pop('config_root')
-        if config_root_from_config_file != self.config_root:
-            message = "Configuration root mismatch {} and {}.".format(config_root_from_config_file, self.config_root)
-            raise self.ConfigurationError(message)
-
+        merged_parameters = self.generate_parameters(**overrides)
         character = self._CHARACTER_CLASS(**merged_parameters)
         return character
 
@@ -353,6 +351,7 @@ class NodeConfiguration(ABC):
         # Read from disk
         payload = cls._read_configuration_file(filepath=filepath)
 
+        # TODO: Move to NodeStorage?
         # Initialize NodeStorage subclass from file (sub-configuration)
         storage_payload = payload['node_storage']
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
@@ -364,7 +363,7 @@ class NodeConfiguration(ABC):
                                                   deserializer=cls.NODE_DESERIALIZER)
 
         payload.update(dict(node_storage=node_storage))
-        return cls(is_me=True, **{**payload, **overrides})
+        return cls(**{**payload, **overrides})
 
     def to_configuration_file(self, filepath: str = None) -> str:
         """Write the static_payload to a JSON file."""
@@ -406,7 +405,7 @@ class NodeConfiguration(ABC):
 
             # Identity
             is_me=self.is_me,
-            federated_only=self.federated_only,  # TODO: 466
+            federated_only=self.federated_only,
             checksum_public_address=self.checksum_public_address,
             keyring_dir=self.keyring_dir,
 
@@ -418,16 +417,14 @@ class NodeConfiguration(ABC):
         )
 
         if not self.federated_only:
-
-            # Blockchain
-            payload.update(dict(provider_uri=self.provider_uri,
-                                poa=self.poa))
+            payload.update(dict(provider_uri=self.provider_uri, poa=self.poa))
 
         return payload
 
     @property
     def dynamic_payload(self, **overrides) -> dict:
         """Exported dynamic configuration values for initializing Ursula"""
+
         if self.reload_metadata:
             known_nodes = self.node_storage.all(federated_only=self.federated_only)
             known_nodes = {node.checksum_public_address: node for node in known_nodes}
@@ -438,9 +435,15 @@ class NodeConfiguration(ABC):
                        known_nodes=self.known_nodes,
                        node_storage=self.node_storage,
                        crypto_power_ups=self.derive_node_power_ups() or None)
+
+        if self.federated_only is False:
+            self.connect_to_blockchain(recompile_contracts=False)
+            payload.update(blockchain=self.blockchain)
+
         if overrides:
             self.log.debug("Overrides supplied to dynamic payload for {}".format(self.__class__.__name__))
             payload.update(overrides)
+
         return payload
 
     @property

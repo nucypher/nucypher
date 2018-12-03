@@ -139,6 +139,7 @@ def ursula_decentralized_test_config(three_agents):
 
     ursula_config = UrsulaConfiguration(dev_mode=True,
                                         is_me=True,
+                                        provider_uri="tester://pyevm",
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
                                         federated_only=False,
@@ -171,6 +172,7 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
 
     config = AliceConfiguration(dev_mode=True,
                                 is_me=True,
+                                provider_uri="tester://pyevm",
                                 checksum_public_address=alice_address,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=blockchain_ursulas,
@@ -201,6 +203,7 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
     etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
 
     config = BobConfiguration(dev_mode=True,
+                              provider_uri="tester://pyevm",
                               checksum_public_address=bob_address,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas,
