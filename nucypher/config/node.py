@@ -73,7 +73,7 @@ class NodeConfiguration(ABC):
     __TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
 
     # Blockchain
-    __DEFAULT_PROVIDER_URI = 'tester://geth'
+    __DEFAULT_PROVIDER_URI = 'tester://pyevm'  # FIXME: Needs to be updated in tandem with manual providers for interface.connect
 
     # Registry
     __REGISTRY_NAME = 'contract_registry.json'

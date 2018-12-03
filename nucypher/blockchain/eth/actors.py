@@ -168,7 +168,8 @@ class Deployer(NucypherTokenActor):
 
     def deploy_miner_contract(self, secret: bytes):
 
-        miner_escrow_deployer = MinerEscrowDeployer(deployer_address=self.deployer_address,
+        miner_escrow_deployer = MinerEscrowDeployer(blockchain=self.blockchain,
+                                                    deployer_address=self.deployer_address,
                                                     secret_hash=secret)
 
         txhashes = miner_escrow_deployer.deploy()
@@ -177,7 +178,8 @@ class Deployer(NucypherTokenActor):
 
     def deploy_policy_contract(self, secret: bytes):
 
-        policy_manager_deployer = PolicyManagerDeployer(deployer_address=self.deployer_address,
+        policy_manager_deployer = PolicyManagerDeployer(blockchain=self.blockchain,
+                                                        deployer_address=self.deployer_address,
                                                         secret_hash=secret)
 
         txhashes = policy_manager_deployer.deploy()
@@ -186,14 +188,16 @@ class Deployer(NucypherTokenActor):
 
     def deploy_escrow_proxy(self, secret: bytes):
 
-        escrow_proxy_deployer = UserEscrowProxyDeployer(deployer_address=self.deployer_address,
+        escrow_proxy_deployer = UserEscrowProxyDeployer(blockchain=self.blockchain,
+                                                        deployer_address=self.deployer_address,
                                                         secret_hash=secret)
 
         txhashes = escrow_proxy_deployer.deploy()
         return txhashes
 
     def deploy_user_escrow(self):
-        user_escrow_deployer = UserEscrowDeployer(deployer_address=self.deployer_address,
+        user_escrow_deployer = UserEscrowDeployer(blockchain=self.blockchain,
+                                                  deployer_address=self.deployer_address,
                                                   allocation_registry=self.allocation_registy)
 
         user_escrow_deployer.deploy()

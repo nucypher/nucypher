@@ -239,14 +239,8 @@ class BlockchainInterface:
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
                 elif uri_breakdown.netloc == 'geth':
-                    # TODO: Auto gethdev
-                    # https://web3py.readthedocs.io/en/stable/providers.html  # geth-dev-proof-of-authority
-                    # from web3.auto.gethdev import w3
-
                     # Hardcoded gethdev IPC provider
                     provider = IPCProvider(ipc_path='/tmp/geth.ipc', timeout=timeout)
-                    # w3 = Web3(providers=(provider))
-                    # w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
                 else:
                     raise ValueError("{} is an invalid or unsupported blockchain provider URI".format(provider_uri))
