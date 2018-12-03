@@ -14,20 +14,26 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import datetime
 import maya
 import os
 import pytest
-from umbral.fragments import KFrag
 
+from apistar.test import TestClient
+from constant_sorrow import constants
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.crypto.api import keccak_digest
+from nucypher.crypto.kits import RevocationKit
 from nucypher.crypto.powers import SigningPower, DelegatingPower, EncryptingPower
+from nucypher.policy.models import Revocation
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import MockPolicyCreation
+from umbral.fragments import KFrag
 
 
 @pytest.mark.skip(reason="to be implemented")
@@ -94,6 +100,37 @@ def test_federated_grant(federated_alice, federated_bob):
         retrieved_kfrag = KFrag.from_bytes(retrieved_policy.kfrag)
 
         assert kfrag == retrieved_kfrag
+
+
+@pytest.mark.usefixtures('federated_ursulas')
+def test_revocation(federated_alice, federated_bob):
+    m, n = 2, 3
+    policy_end_datetime = maya.now() + datetime.timedelta(days=5)
+    label = b"revocation test"
+
+    policy = federated_alice.grant(federated_bob, label, m=m, n=n, expiration=policy_end_datetime)
+
+    # Test that all arrangements are included in the RevocationKit
+    for node_id, arrangement_id in policy.treasure_map:
+        assert policy.revocation_kit[node_id].arrangement_id == arrangement_id
+
+    # Test revocation kit's signatures
+    for revocation in policy.revocation_kit:
+        assert revocation.verify_signature(federated_alice.stamp.as_umbral_pubkey())
+
+    # Test Revocation deserialization
+    revocation = policy.revocation_kit[node_id]
+    revocation_bytes = bytes(revocation)
+    deserialized_revocation = Revocation.from_bytes(revocation_bytes)
+    assert deserialized_revocation == revocation
+
+    # Attempt to revoke the new policy
+    failed_revocations = federated_alice.revoke(policy)
+    assert len(failed_revocations) == 0
+
+    # Try to revoke the already revoked policy
+    already_revoked = federated_alice.revoke(policy)
+    assert len(already_revoked) == 3
 
 
 def test_alices_powers_are_persistent(federated_ursulas, tmpdir):

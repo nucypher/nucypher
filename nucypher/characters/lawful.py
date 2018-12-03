@@ -14,12 +14,14 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import binascii
 import random
 from collections import OrderedDict
 from functools import partial
 from typing import Iterable, Callable
-from typing import List
+from typing import List, Dict
 
 import maya
 import requests
@@ -162,6 +164,31 @@ class Alice(Character, PolicyAuthor):
         alice_delegating_power = self._crypto_power.power_ups(DelegatingPower)
         policy_pubkey = alice_delegating_power.get_pubkey_from_label(label)
         return policy_pubkey
+
+    def revoke(self, policy) -> Dict:
+        """
+        Parses the treasure map and revokes arrangements in it.
+        If any arrangements can't be revoked, then the node_id is added to a
+        dict as a key, and the revocation and Ursula's response is added as
+        a value.
+        """
+        try:
+            # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
+            revocation_threshold = ((policy.n - policy.treasure_map.m) + 1)
+            self.block_until_specific_nodes_are_known(
+                    policy.revocation_kit.revokable_addresses,
+                    allow_missing=(policy.n - revocation_threshold))
+        except self.NotEnoughTeachers as e:
+            raise e
+        else:
+            failed_revocations = dict()
+            for node_id in policy.revocation_kit.revokable_addresses:
+                ursula = self.known_nodes[node_id]
+                revocation = policy.revocation_kit[node_id]
+                response = self.network_middleware.revoke_arrangement(ursula, revocation)
+                if response.status_code != 200:
+                    failed_revocations[node_id] = (revocation, response.status_code)
+        return failed_revocations
 
 
 class Bob(Character):

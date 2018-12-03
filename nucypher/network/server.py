@@ -14,6 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import binascii
 import os
 from twisted.logger import Logger
@@ -30,7 +32,9 @@ from umbral.keys import UmbralPublicKey
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
+from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore.keypairs import HostingKeypair
+from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network.protocols import InterfaceInfo
 from jinja2 import Template
@@ -104,6 +108,9 @@ class ProxyRESTRoutes:
             Route('/kFrag/{id_as_hex}/reencrypt',
                   'POST',
                   self.reencrypt_via_rest),
+            Route('/kFrag/{id_as_hex}',
+                  'DELETE',
+                  self.revoke_arrangement),
             Route('/public_information', 'GET',
                   self.public_information),
             Route('/node_metadata', 'GET',
@@ -217,7 +224,7 @@ class ProxyRESTRoutes:
         arrangement = Arrangement.from_bytes(request.body)
 
         with ThreadedSession(self.db_engine) as session:
-            new_policyarrangement = self.datastore.add_policy_arrangement(
+            new_policy_arrangement = self.datastore.add_policy_arrangement(
                 arrangement.expiration.datetime(),
                 id=arrangement.id.hex().encode(),
                 alice_pubkey_sig=arrangement.alice.stamp,
@@ -263,6 +270,37 @@ class ProxyRESTRoutes:
 
         # TODO: Sign the arrangement here.  #495
         return  # TODO: Return A 200, with whatever policy metadata.
+
+    def revoke_arrangement(self, id_as_hex, request: Request):
+        """
+        REST endpoint for revoking/deleting a KFrag from a node.
+        """
+        from nucypher.crypto.kits import RevocationKit
+        from nucypher.policy.models import Revocation
+
+        revocation = Revocation.from_bytes(request.body)
+        self.log.info("Received revocation: {} -- for arrangement {}".format(bytes(revocation), id_as_hex))
+        try:
+            with ThreadedSession(self.db_engine) as session:
+                # Verify the Notice was signed by Alice
+                policy_arrangement = self.datastore.get_policy_arrangement(
+                    id_as_hex.encode(), session=session)
+                alice_pubkey = UmbralPublicKey.from_bytes(
+                    policy_arrangement.alice_pubkey_sig.key_data)
+
+                # Check that the request is the same for the provided revocation
+                if id_as_hex != revocation.arrangement_id.hex():
+                    self.log.debug("Couldn't identify an arrangement with id {}".format(id_as_hex))
+                    return Response(status_code=400)
+                elif revocation.verify_signature(alice_pubkey):
+                    self.datastore.del_policy_arrangement(
+                        id_as_hex.encode(), session=session)
+        except (NotFound, InvalidSignature) as e:
+            self.log.debug("Exception attempting to revoke: {}".format(e))
+            return Response(content='KFrag not found or revocation signature is invalid.', status_code=404)
+        else:
+            self.log.info("KFrag successfully removed.")
+            return Response(content='KFrag deleted!', status_code=200)
 
     def reencrypt_via_rest(self, id_as_hex, request: Request):
         from nucypher.policy.models import WorkOrder  # Avoid circular import

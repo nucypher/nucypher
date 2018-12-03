@@ -14,9 +14,12 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from apistar import TestClient
 
 from nucypher.characters.lawful import Ursula
+from nucypher.crypto.kits import RevocationKit
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.sandbox.constants import TEST_KNOWN_URSULAS_CACHE
 
@@ -89,6 +92,17 @@ class MockRestMiddleware(RestMiddleware):
 
         response = mock_client.post("http://localhost/treasure_map/{}".format(map_id),
                                     data=map_payload, verify=certificate_filepath)
+        return response
+
+    def revoke_arrangement(self, ursula, revocation):
+        mock_client = self._get_mock_client_by_ursula(ursula)
+        response = mock_client.delete('http://localhost/kFrag/{}'.format(
+                                      revocation.arrangement_id.hex()),
+                                      data=bytes(revocation))
+        
+        if response.status_code != 200:
+            if response.status_code != 404:
+                raise RuntimeError("Bad response: {}".format(response.status_code))
         return response
 
 

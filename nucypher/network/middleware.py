@@ -77,6 +77,21 @@ class RestMiddleware:
             cfrags_and_signatures)
         return cfrags
 
+    def revoke_arrangement(self, ursula, revocation):
+        # TODO: Implement revocation confirmations
+        response = requests.delete("https://{}/kFrag/{}".format(ursula.rest_interface,
+                                                                revocation.arrangement_id.hex()),
+                                                                bytes(revocation),
+                                                                verify=ursula.certificate_filepath)
+        if response.status_code == 200:
+            return response
+        elif response.status_code == 404:
+            raise RuntimeError("KFrag doesn't exist to revoke with id {}".format(revocation.arrangement_id), response.status_code)
+        else:
+            self.log.debug("Bad response during revocation: {}".format(response))
+            raise RuntimeError("Bad response: {}".format(response.content), response.status_code)
+        return response
+
     def get_competitive_rate(self):
         return NotImplemented
 
