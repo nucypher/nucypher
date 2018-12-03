@@ -287,7 +287,7 @@ class Character(Learner):
                     message_kit: Union[UmbralMessageKit, bytes],
                     signature: Signature = None,
                     decrypt=False,
-                    ) -> tuple:
+                    ) -> bytes:
         """
         Inverse of encrypt_for.
 
@@ -323,7 +323,7 @@ class Character(Learner):
                                                      label=label)
             sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
             if sig_header == constants.SIGNATURE_IS_ON_CIPHERTEXT:
-                # THe ciphertext is what is signed - note that for later.
+                # The ciphertext is what is signed - note that for later.
                 message = message_kit.ciphertext
                 if not signature:
                     raise ValueError("Can't check a signature on the ciphertext if don't provide one.")
@@ -354,7 +354,9 @@ class Character(Learner):
 
         return cleartext
 
-    def decrypt(self, message_kit, label: Optional[bytes] = None):
+    def decrypt(self,
+                message_kit: UmbralMessageKit,
+                label: Optional[bytes] = None) -> bytes:
         if label and DelegatingPower in self._default_crypto_powerups:
             delegating_power = self._crypto_power.power_ups(DelegatingPower)
             encrypting_power = delegating_power.get_encrypting_power_from_label(label)

@@ -15,9 +15,12 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from constant_sorrow.constants import NO_SIGNING_POWER
+from typing import Tuple
 from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.api import encrypt_and_sign
+from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.crypto.signing import Signature
 from nucypher.crypto.powers import SigningPower
 from nucypher.keystore.keypairs import SigningKeypair
 
@@ -32,7 +35,9 @@ class DataSource:
         self.stamp = signing_power.get_signature_stamp()
         self.label = label
 
-    def encapsulate_single_message(self, message):
+    def encapsulate_single_message(self,
+                                   message: bytes
+                                   ) -> Tuple[UmbralMessageKit, Signature]:
         message_kit, signature = encrypt_and_sign(self.policy_pubkey,
                                                   plaintext=message,
                                                   signer=self.stamp)

@@ -255,3 +255,4 @@ def test_alice_can_decrypt(federated_alice):
                                             signature=signature,
                                             decrypt=True)
     assert cleartext == message
+
