@@ -24,6 +24,7 @@ from apistar import Route, App
 from apistar.http import Response, Request, QueryParams
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
+from constant_sorrow.constants import GLOBAL_DOMAIN
 from hendrix.experience import crosstown_traffic
 from umbral import pre
 from umbral.fragments import KFrag
@@ -65,7 +66,6 @@ class ProxyRESTServer:
 
         self.__hosting_power = hosting_power
 
-
     def rest_url(self):
         return "{}:{}".format(self.rest_interface.host, self.rest_interface.port)
 
@@ -87,6 +87,7 @@ class ProxyRESTRoutes:
                  verifier,
                  suspicious_activity_tracker,
                  certificate_dir,
+                 serving_domains,
                  ) -> None:
 
         self.network_middleware = network_middleware
@@ -101,6 +102,7 @@ class ProxyRESTRoutes:
         self._verifier = verifier
         self._suspicious_activity_tracker = suspicious_activity_tracker
         self._certificate_dir = certificate_dir
+        self.serving_domains = serving_domains
         self.datastore = None
 
         routes = [
@@ -194,6 +196,9 @@ class ProxyRESTRoutes:
 
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.  Let's find a better way.  555
         for node in nodes:
+            if GLOBAL_DOMAIN not in self.serving_domains:
+                if not self.serving_domains.intersection(node.serving_domains):
+                    continue  # This node is not serving any of our domains.
 
             if node in self._node_tracker:
                 continue  # TODO: 168 Check version and update if required.
@@ -216,7 +221,7 @@ class ProxyRESTRoutes:
                     self.log.critical(str(e))
                     raise  # TODO
                 else:
-                    self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
+                    self.log.info("Learned about previously unknown node: {}".format(node))
                     self._node_recorder(node)
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
@@ -391,6 +396,7 @@ class ProxyRESTRoutes:
         this_node = self._node_class.from_bytes(self._node_bytes_caster(), federated_only=self.federated_only)
         content = self._status_template.render(known_nodes=self._node_tracker,
                                                this_node=this_node,
+                                               domains=[str(d) for d in self.serving_domains],
                                                previous_states=list(reversed(self._node_tracker.states.values()))[:5])
         return Response(content=content, headers=headers)
 

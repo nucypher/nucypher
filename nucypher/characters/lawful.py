@@ -33,7 +33,8 @@ from twisted.internet import threads
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
-from bytestring_splitter import VariableLengthBytestring, BytestringSplitter
+from bytestring_splitter import VariableLengthBytestring, BytestringKwargifier, BytestringSplitter, \
+    BytestringSplittingError
 from constant_sorrow import constants
 from constant_sorrow.constants import INCLUDED_IN_BYTESTRING
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
@@ -525,6 +526,7 @@ class Ursula(Teacher, Character, Miner):
                     verifier=self.verify_from,
                     suspicious_activity_tracker=self.suspicious_activities_witnessed,
                     certificate_dir=self.known_certificates_dir,
+                    serving_domains=domains,
                 )
 
                 #
@@ -667,7 +669,7 @@ class Ursula(Teacher, Character, Miner):
                 nickname, _ = nickname_from_seed(checksum_address)
                 display_name = "⇀{}↽ ({})".format(nickname, checksum_address)
                 message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
-            except ValueError:
+            except BytestringSplittingError:
                 message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
 
             raise cls.IsFromTheFuture(message)

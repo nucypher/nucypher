@@ -211,7 +211,7 @@ class Learner:
 
     invalid_metadata_message = "{} has invalid metadata.  Maybe its stake is over?  Or maybe it is transitioning to a new interface.  Ignoring."
     unknown_version_message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
-    really_unknown_version_message = "Unable to glean address from node that purported to be version {}.  We're only version {}."
+    really_unknown_version_message = "Unable to glean address from node that perhaps purported to be version {}.  We're only version {}."
 
     class NotEnoughTeachers(RuntimeError):
         pass
@@ -860,11 +860,8 @@ class Teacher:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
 
         version, node_bytes = self.version_splitter(response.content, return_remainder=True)
-        if version > self.LEARNER_VERSION:
-            raise ValueError("Something")  # TODO: Properly handle this.
-        else:
-            node_details = self.internal_splitter(node_bytes)
 
+        node_details = self.internal_splitter(node_bytes)
         # TODO check timestamp here.  589
 
         verifying_keys_match = node_details['verifying_key'] == self.public_keys(SigningPower)
@@ -1037,7 +1034,7 @@ class Teacher:
     def nickname_icon(self):
         icon_template = """
         <div class="nucypher-nickname-icon" style="border-top-color:{first_color}; border-left-color:{first_color}; border-bottom-color:{second_color}; border-right-color:{second_color};">
-        <span class="small">{node_class}</span>
+        <span class="small">{node_class} v{version}</span>
         <div class="symbols">
             <span class="single-symbol" style="color: {first_color}">{first_symbol}&#xFE0E;</span>
             <span class="single-symbol" style="color: {second_color}">{second_symbol}&#xFE0E;</span>
@@ -1048,6 +1045,7 @@ class Teacher:
         """.replace("  ", "").replace('\n', "")
         return icon_template.format(
             node_class=self.__class__.__name__,
+            version=self.TEACHER_VERSION,
             first_color=self.nickname_metadata[0][0]['hex'],  # TODO: These index lookups are awful.
             first_symbol=self.nickname_metadata[0][1],
             second_color=self.nickname_metadata[1][0]['hex'],

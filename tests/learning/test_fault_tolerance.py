@@ -1,6 +1,5 @@
 from functools import partial
 
-import mock
 import pytest
 from apistar.http import Response
 from eth_keys.datatypes import Signature as EthSignature
@@ -12,6 +11,7 @@ from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.powers import SigningPower, CryptoPower
 from nucypher.network.nodes import FleetStateTracker
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 
 
