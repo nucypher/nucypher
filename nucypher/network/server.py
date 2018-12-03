@@ -31,7 +31,7 @@ from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.signing import SignatureStamp
 from nucypher.network.middleware import RestMiddleware
 from umbral import pre
-from umbral.fragments import KFrag
+from umbral.kfrags import KFrag
 from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.api import keccak_digest

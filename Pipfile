@@ -10,7 +10,7 @@ python_version = "3"
 #
 # NuCypher
 #
-umbral = "==0.1.1a3"
+umbral = "==0.1.2a1"
 constant-sorrow = "*"
 bytestringSplitter = "*"
 hendrix = ">=3.1.0"

@@ -27,7 +27,6 @@ from constant_sorrow import constants
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import Generator, List, Set
 from umbral.config import default_params
-from umbral.fragments import KFrag
 from umbral.pre import Capsule
 
 from nucypher.characters.lawful import Alice
