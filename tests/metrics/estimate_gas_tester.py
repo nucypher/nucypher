@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+
+
 """
 This file is part of nucypher.
 
@@ -16,138 +18,110 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-"""
-Deploy contracts in tester.
-A simple Python script to deploy contracts and then estimate gas for different methods.
-"""
-
 import os
-import sys
-
-
-sys.path.append(os.path.abspath(os.getcwd()))
-
 from os.path import dirname, abspath
 
-from eth_tester import EthereumTester
-from web3 import EthereumTesterProvider
-from constant_sorrow import constants
-
-from nucypher.blockchain.eth.chains import TesterBlockchain
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, MinerEscrowDeployer, PolicyManagerDeployer
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.sol.compile import SolidityCompiler
-
+from blockchain.constants import CONTRACTS_DIR
 from nucypher.blockchain.eth import sol
-
-CONTRACTS_DIR = os.path.join(dirname(abspath(sol.__file__)), 'source', 'contracts')
+from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
+from nucypher.blockchain.eth.constants import (
+    DISPATCHER_SECRET_LENGTH,
+    MIN_ALLOWED_LOCKED,
+    MIN_LOCKED_PERIODS,
+    POLICY_ID_LENGTH
+)
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 
 
 def estimate_gas():
+
+    #
+    # Deploy
+    #
+
     solidity_compiler = SolidityCompiler(test_contract_dir=CONTRACTS_DIR)
+    memory_registry = InMemoryEthereumContractRegistry()
+    circumflex = BlockchainDeployerInterface(provider_uri="tester://pyevm",
+                                             compiler=solidity_compiler, 
+                                             registry=memory_registry)
 
-    # create a temporary registrar for the tester blockchain
-    temporary_registry = TemporaryEthereumContractRegistry()
-
-    # Configure a custom provider
-    overrides = {'gas_limit': 4626271}
-    pyevm_backend = OverridablePyEVMBackend(genesis_overrides=overrides)
-
-    eth_tester = EthereumTester(backend=pyevm_backend, auto_mine_transactions=True)
-    pyevm_provider = EthereumTesterProvider(ethereum_tester=eth_tester)
-
-    # Use the the custom provider and registrar to init an interface
-    circumflex = BlockchainDeployerInterface(compiler=solidity_compiler,  # freshly recompile
-                                             registry=temporary_registry,  # use temporary registrar
-                                             providers=(pyevm_provider,))  # use custom test provider
-
-    # Create the blockchain
-    testerchain = TesterBlockchain(interface=circumflex, test_accounts=10)
+    testerchain = TesterBlockchain(interface=circumflex, test_accounts=10, airdrop=False)
     origin, ursula1, ursula2, ursula3, alice1, *everyone_else = testerchain.interface.w3.eth.accounts
-    circumflex.deployer_address = origin  # Set the deployer address from a freshly created test account
 
-    token_deployer = NucypherTokenDeployer(blockchain=testerchain, deployer_address=origin)
-
-    token_deployer.deploy()
-    token_agent = token_deployer.make_agent()
-
-    miners_escrow_secret = os.urandom(constants.DISPATCHER_SECRET_LENGTH)
-    miner_escrow_deployer = MinerEscrowDeployer(
-        token_agent=token_agent,
-        deployer_address=origin,
-        secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
-
-    miner_escrow_deployer.deploy()
-    miner_agent = miner_escrow_deployer.make_agent()
-
-    policy_manager_secret = os.urandom(constants.DISPATCHER_SECRET_LENGTH)
-    policy_manager_deployer = PolicyManagerDeployer(
-        miner_agent=miner_agent,
-        deployer_address=origin,
-        secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
-
-    policy_manager_deployer.deploy()
-    policy_agent = policy_manager_deployer.make_agent()
+    deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
+    _txhashes, _agents = deployer.deploy_network_contracts(miner_secret=os.urandom(DISPATCHER_SECRET_LENGTH),
+                                                           policy_secret=os.urandom(DISPATCHER_SECRET_LENGTH))
 
     web3 = testerchain.interface.w3
+    token_agent = NucypherTokenAgent(blockchain=testerchain)
+    miner_agent = MinerAgent(blockchain=testerchain)
+    policy_agent = PolicyAgent(blockchain=testerchain)
 
-    print("Estimate gas:")
+    #
+    # Scenario
+    #
+
+    print("*** Estimate Gas ***")
+
     # Pre deposit tokens
-    tx = token_agent.contract.functions.approve(miner_agent.contract_address, constants.MIN_ALLOWED_LOCKED * 5)\
-        .transact({'from': origin})
+    tx = token_agent.contract.functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 5).transact({'from': origin})
     testerchain.wait_for_receipt(tx)
     print("Pre-deposit tokens for 5 owners = " +
           str(miner_agent.contract.functions
               .preDeposit(everyone_else[0:5],
-                          [int(constants.MIN_ALLOWED_LOCKED)] * 5,
-                          [int(constants.MIN_LOCKED_PERIODS)] * 5)
+                          [int(MIN_ALLOWED_LOCKED)] * 5,
+                          [int(MIN_LOCKED_PERIODS)] * 5)
               .estimateGas({'from': origin})))
 
     # Give Ursula and Alice some coins
     print("Transfer tokens = " +
-          str(token_agent.contract.functions.transfer(ursula1, constants.MIN_ALLOWED_LOCKED * 10)
+          str(token_agent.contract.functions.transfer(ursula1, MIN_ALLOWED_LOCKED * 10)
               .estimateGas({'from': origin})))
-    tx = token_agent.contract.functions.transfer(ursula1, constants.MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
+    tx = token_agent.contract.functions.transfer(ursula1, MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
     testerchain.wait_for_receipt(tx)
-    tx = token_agent.contract.functions.transfer(ursula2, constants.MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
+    tx = token_agent.contract.functions.transfer(ursula2, MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
     testerchain.wait_for_receipt(tx)
-    tx = token_agent.contract.functions.transfer(ursula3, constants.MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
+    tx = token_agent.contract.functions.transfer(ursula3, MIN_ALLOWED_LOCKED * 10).transact({'from': origin})
     testerchain.wait_for_receipt(tx)
 
     # Ursula and Alice give Escrow rights to transfer
     print("Approving transfer = " +
-          str(token_agent.contract.functions.approve(miner_agent.contract_address, constants.MIN_ALLOWED_LOCKED * 6)
+          str(token_agent.contract.functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 6)
               .estimateGas({'from': ursula1})))
-    tx = token_agent.contract.functions.approve(miner_agent.contract_address, constants.MIN_ALLOWED_LOCKED * 6)\
+    tx = token_agent.contract.functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 6)\
         .transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
-    tx = token_agent.contract.functions.approve(miner_agent.contract_address, constants.MIN_ALLOWED_LOCKED * 6)\
+    tx = token_agent.contract.functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 6)\
         .transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
-    tx = token_agent.contract.functions.approve(miner_agent.contract_address, constants.MIN_ALLOWED_LOCKED * 6)\
+    tx = token_agent.contract.functions.approve(miner_agent.contract_address, MIN_ALLOWED_LOCKED * 6)\
         .transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     # Ursula and Alice transfer some tokens to the escrow and lock them
     print("First initial deposit tokens = " +
           str(miner_agent.contract.functions
-              .deposit(constants.MIN_ALLOWED_LOCKED * 3, int(constants.MIN_LOCKED_PERIODS))
+              .deposit(MIN_ALLOWED_LOCKED * 3, int(MIN_LOCKED_PERIODS))
               .estimateGas({'from': ursula1})))
-    tx = miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 3, int(constants.MIN_LOCKED_PERIODS))\
+    tx = miner_agent.contract.functions.deposit(MIN_ALLOWED_LOCKED * 3, int(MIN_LOCKED_PERIODS))\
         .transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     print("Second initial deposit tokens = " +
           str(miner_agent.contract.functions
-              .deposit(constants.MIN_ALLOWED_LOCKED * 3, int(constants.MIN_LOCKED_PERIODS))
+              .deposit(MIN_ALLOWED_LOCKED * 3, int(MIN_LOCKED_PERIODS))
               .estimateGas({'from': ursula2})))
-    tx = miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 3, int(constants.MIN_LOCKED_PERIODS))\
+    tx = miner_agent.contract.functions.deposit(MIN_ALLOWED_LOCKED * 3, int(MIN_LOCKED_PERIODS))\
         .transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     print("Third initial deposit tokens = " +
           str(miner_agent.contract.functions
-              .deposit(constants.MIN_ALLOWED_LOCKED * 3, int(constants.MIN_LOCKED_PERIODS))
+              .deposit(MIN_ALLOWED_LOCKED * 3, int(MIN_LOCKED_PERIODS))
               .estimateGas({'from': ursula3})))
-    tx = miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 3, int(constants.MIN_LOCKED_PERIODS))\
+    tx = miner_agent.contract.functions.deposit(MIN_ALLOWED_LOCKED * 3, int(MIN_LOCKED_PERIODS))\
         .transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
@@ -238,21 +212,21 @@ def estimate_gas():
 
     # Ursula and Alice deposit some tokens to the escrow again
     print("First deposit tokens again = " +
-          str(miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 2, int(constants.MIN_LOCKED_PERIODS))
+          str(miner_agent.contract.functions.deposit(MIN_ALLOWED_LOCKED * 2, int(MIN_LOCKED_PERIODS))
               .estimateGas({'from': ursula1})))
-    tx = miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 2, int(constants.MIN_LOCKED_PERIODS))\
+    tx = miner_agent.contract.functions.deposit(MIN_ALLOWED_LOCKED * 2, int(MIN_LOCKED_PERIODS))\
         .transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     print("Second deposit tokens again = " +
-          str(miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 2, int(constants.MIN_LOCKED_PERIODS))
+          str(miner_agent.contract.functions.deposit(MIN_ALLOWED_LOCKED * 2, int(MIN_LOCKED_PERIODS))
               .estimateGas({'from': ursula2})))
-    tx = miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 2, int(constants.MIN_LOCKED_PERIODS))\
+    tx = miner_agent.contract.functions.deposit(MIN_ALLOWED_LOCKED * 2, int(MIN_LOCKED_PERIODS))\
         .transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     print("Third deposit tokens again = " +
-          str(miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 2, int(constants.MIN_LOCKED_PERIODS))
+          str(miner_agent.contract.functions.deposit(MIN_ALLOWED_LOCKED * 2, int(MIN_LOCKED_PERIODS))
               .estimateGas({'from': ursula3})))
-    tx = miner_agent.contract.functions.deposit(constants.MIN_ALLOWED_LOCKED * 2, int(constants.MIN_LOCKED_PERIODS))\
+    tx = miner_agent.contract.functions.deposit(MIN_ALLOWED_LOCKED * 2, int(MIN_LOCKED_PERIODS))\
         .transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
@@ -269,8 +243,8 @@ def estimate_gas():
     testerchain.wait_for_receipt(tx)
 
     # Create policy
-    policy_id_1 = os.urandom(int(constants.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(constants.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 10
     print("First creating policy (1 node, 10 periods) = " +
           str(policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 0, [ursula1])
@@ -294,9 +268,9 @@ def estimate_gas():
     testerchain.wait_for_receipt(tx)
 
     # Create policy with more periods
-    policy_id_1 = os.urandom(int(constants.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(constants.POLICY_ID_LENGTH))
-    policy_id_3 = os.urandom(int(constants.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_3 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 100
     print("First creating policy (1 node, " + str(number_of_periods) + " periods, first reward) = " +
           str(policy_agent.contract.functions.createPolicy(policy_id_1, number_of_periods, 50, [ursula2])
@@ -348,9 +322,9 @@ def estimate_gas():
     testerchain.wait_for_receipt(tx)
 
     # Create policy with multiple nodes
-    policy_id_1 = os.urandom(int(constants.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(constants.POLICY_ID_LENGTH))
-    policy_id_3 = os.urandom(int(constants.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_3 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 100
     print("First creating policy (3 nodes, 100 periods, first reward) = " +
           str(policy_agent.contract.functions
@@ -391,21 +365,21 @@ def estimate_gas():
 
     # Check regular deposit
     print("First deposit tokens = " +
-          str(miner_agent.contract.functions.deposit(int(constants.MIN_ALLOWED_LOCKED), int(constants.MIN_LOCKED_PERIODS))
+          str(miner_agent.contract.functions.deposit(int(MIN_ALLOWED_LOCKED), int(MIN_LOCKED_PERIODS))
               .estimateGas({'from': ursula1})))
-    tx = miner_agent.contract.functions.deposit(int(constants.MIN_ALLOWED_LOCKED), int(constants.MIN_LOCKED_PERIODS))\
+    tx = miner_agent.contract.functions.deposit(int(MIN_ALLOWED_LOCKED), int(MIN_LOCKED_PERIODS))\
         .transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     print("Second deposit tokens = " +
-          str(miner_agent.contract.functions.deposit(int(constants.MIN_ALLOWED_LOCKED), int(constants.MIN_LOCKED_PERIODS))
+          str(miner_agent.contract.functions.deposit(int(MIN_ALLOWED_LOCKED), int(MIN_LOCKED_PERIODS))
               .estimateGas({'from': ursula2})))
-    tx = miner_agent.contract.functions.deposit(int(constants.MIN_ALLOWED_LOCKED), int(constants.MIN_LOCKED_PERIODS))\
+    tx = miner_agent.contract.functions.deposit(int(MIN_ALLOWED_LOCKED), int(MIN_LOCKED_PERIODS))\
         .transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     print("Third deposit tokens = " +
-          str(miner_agent.contract.functions.deposit(int(constants.MIN_ALLOWED_LOCKED), int(constants.MIN_LOCKED_PERIODS))
+          str(miner_agent.contract.functions.deposit(int(MIN_ALLOWED_LOCKED), int(MIN_LOCKED_PERIODS))
               .estimateGas({'from': ursula3})))
-    tx = miner_agent.contract.functions.deposit(int(constants.MIN_ALLOWED_LOCKED), int(constants.MIN_LOCKED_PERIODS))\
+    tx = miner_agent.contract.functions.deposit(int(MIN_ALLOWED_LOCKED), int(MIN_LOCKED_PERIODS))\
         .transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
@@ -421,32 +395,32 @@ def estimate_gas():
 
     print("First approveAndCall = " +
           str(token_agent.contract.functions.approveAndCall(miner_agent.contract_address,
-                                                            int(constants.MIN_ALLOWED_LOCKED) * 2,
-                                                            web3.toBytes(int(constants.MIN_LOCKED_PERIODS)))
+                                                            int(MIN_ALLOWED_LOCKED) * 2,
+                                                            web3.toBytes(int(MIN_LOCKED_PERIODS)))
               .estimateGas({'from': ursula1})))
     tx = token_agent.contract.functions.approveAndCall(miner_agent.contract_address,
-                                                       int(constants.MIN_ALLOWED_LOCKED) * 2,
-                                                       web3.toBytes(int(constants.MIN_LOCKED_PERIODS)))\
+                                                       int(MIN_ALLOWED_LOCKED) * 2,
+                                                       web3.toBytes(int(MIN_LOCKED_PERIODS)))\
         .transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     print("Second approveAndCall = " +
           str(token_agent.contract.functions.approveAndCall(miner_agent.contract_address,
-                                                            int(constants.MIN_ALLOWED_LOCKED) * 2,
-                                                            web3.toBytes(int(constants.MIN_LOCKED_PERIODS)))
+                                                            int(MIN_ALLOWED_LOCKED) * 2,
+                                                            web3.toBytes(int(MIN_LOCKED_PERIODS)))
               .estimateGas({'from': ursula2})))
     tx = token_agent.contract.functions.approveAndCall(miner_agent.contract_address,
-                                                       int(constants.MIN_ALLOWED_LOCKED) * 2,
-                                                       web3.toBytes(int(constants.MIN_LOCKED_PERIODS)))\
+                                                       int(MIN_ALLOWED_LOCKED) * 2,
+                                                       web3.toBytes(int(MIN_LOCKED_PERIODS)))\
         .transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     print("Third approveAndCall = " +
           str(token_agent.contract.functions.approveAndCall(miner_agent.contract_address,
-                                                            int(constants.MIN_ALLOWED_LOCKED) * 2,
-                                                            web3.toBytes(int(constants.MIN_LOCKED_PERIODS)))
+                                                            int(MIN_ALLOWED_LOCKED) * 2,
+                                                            web3.toBytes(int(MIN_LOCKED_PERIODS)))
               .estimateGas({'from': ursula3})))
     tx = token_agent.contract.functions.approveAndCall(miner_agent.contract_address,
-                                                       int(constants.MIN_ALLOWED_LOCKED) * 2,
-                                                       web3.toBytes(int(constants.MIN_LOCKED_PERIODS)))\
+                                                       int(MIN_ALLOWED_LOCKED) * 2,
+                                                       web3.toBytes(int(MIN_LOCKED_PERIODS)))\
         .transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
@@ -461,40 +435,40 @@ def estimate_gas():
     testerchain.wait_for_receipt(tx)
 
     print("First locking tokens = " +
-          str(miner_agent.contract.functions.lock(int(constants.MIN_ALLOWED_LOCKED),
-                                                  int(constants.MIN_LOCKED_PERIODS))
+          str(miner_agent.contract.functions.lock(int(MIN_ALLOWED_LOCKED),
+                                                  int(MIN_LOCKED_PERIODS))
               .estimateGas({'from': ursula1})))
-    tx = miner_agent.contract.functions.lock(int(constants.MIN_ALLOWED_LOCKED),
-                                             int(constants.MIN_LOCKED_PERIODS))\
+    tx = miner_agent.contract.functions.lock(int(MIN_ALLOWED_LOCKED),
+                                             int(MIN_LOCKED_PERIODS))\
         .transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     print("Second locking tokens = " +
-          str(miner_agent.contract.functions.lock(int(constants.MIN_ALLOWED_LOCKED),
-                                                  int(constants.MIN_LOCKED_PERIODS))
+          str(miner_agent.contract.functions.lock(int(MIN_ALLOWED_LOCKED),
+                                                  int(MIN_LOCKED_PERIODS))
               .estimateGas({'from': ursula2})))
-    tx = miner_agent.contract.functions.lock(int(constants.MIN_ALLOWED_LOCKED),
-                                             int(constants.MIN_LOCKED_PERIODS))\
+    tx = miner_agent.contract.functions.lock(int(MIN_ALLOWED_LOCKED),
+                                             int(MIN_LOCKED_PERIODS))\
         .transact({'from': ursula2})
     testerchain.wait_for_receipt(tx)
     print("Third locking tokens = " +
-          str(miner_agent.contract.functions.lock(int(constants.MIN_ALLOWED_LOCKED),
-                                                  int(constants.MIN_LOCKED_PERIODS))
+          str(miner_agent.contract.functions.lock(int(MIN_ALLOWED_LOCKED),
+                                                  int(MIN_LOCKED_PERIODS))
               .estimateGas({'from': ursula3})))
-    tx = miner_agent.contract.functions.lock(int(constants.MIN_ALLOWED_LOCKED),
-                                             int(constants.MIN_LOCKED_PERIODS))\
+    tx = miner_agent.contract.functions.lock(int(MIN_ALLOWED_LOCKED),
+                                             int(MIN_LOCKED_PERIODS))\
         .transact({'from': ursula3})
     testerchain.wait_for_receipt(tx)
 
     # Divide stake
     print("First divide stake = " +
-          str(miner_agent.contract.functions.divideStake(1, int(constants.MIN_ALLOWED_LOCKED), 2)
+          str(miner_agent.contract.functions.divideStake(1, int(MIN_ALLOWED_LOCKED), 2)
               .estimateGas({'from': ursula1})))
-    tx = miner_agent.contract.functions.divideStake(1, int(constants.MIN_ALLOWED_LOCKED), 2).transact({'from': ursula1})
+    tx = miner_agent.contract.functions.divideStake(1, int(MIN_ALLOWED_LOCKED), 2).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     print("Second divide stake = " +
-          str(miner_agent.contract.functions.divideStake(3, int(constants.MIN_ALLOWED_LOCKED), 2)
+          str(miner_agent.contract.functions.divideStake(3, int(MIN_ALLOWED_LOCKED), 2)
               .estimateGas({'from': ursula1})))
-    tx = miner_agent.contract.functions.divideStake(3, int(constants.MIN_ALLOWED_LOCKED), 2).transact({'from': ursula1})
+    tx = miner_agent.contract.functions.divideStake(3, int(MIN_ALLOWED_LOCKED), 2).transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
 
     # Divide almost finished stake
@@ -503,15 +477,15 @@ def estimate_gas():
     testerchain.wait_for_receipt(tx)
     testerchain.time_travel(periods=1)
     print("Divide stake (next period is not confirmed) = " +
-          str(miner_agent.contract.functions.divideStake(0, int(constants.MIN_ALLOWED_LOCKED), 2)
+          str(miner_agent.contract.functions.divideStake(0, int(MIN_ALLOWED_LOCKED), 2)
               .estimateGas({'from': ursula1})))
     tx = miner_agent.contract.functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     print("Divide stake (next period is confirmed) = " +
-          str(miner_agent.contract.functions.divideStake(0, int(constants.MIN_ALLOWED_LOCKED), 2)
+          str(miner_agent.contract.functions.divideStake(0, int(MIN_ALLOWED_LOCKED), 2)
               .estimateGas({'from': ursula1})))
 
-    print("All done!")
+    print("*** All Done! ***")
 
 
 if __name__ == "__main__":
