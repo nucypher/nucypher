@@ -15,7 +15,7 @@ hendrix = ">=3.1.0"
 # Third-Party
 pyopenssl = "*"
 cryptography = ">=2.3"
-pysha3="*"
+pysha3 = "*"
 requests = "*"
 sqlalchemy = "*"
 maya = "*"
@@ -23,6 +23,7 @@ apistar = "<0.6.0"
 # Third-Party Ethereum
 py-evm = "==0.2.0a37"
 eth-tester = "*"
+coincurve = "*"
 py-solc = "*"
 web3 = "*"
 # CLI / Configuration
