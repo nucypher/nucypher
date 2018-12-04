@@ -685,12 +685,10 @@ class UnquestionableEvidence:
         self.capsule = capsule
         self.cfrag = cfrag
 
-    def precompute_values(self) -> bytes:
-
+    def get_proof_challenge_scalar(self) -> CurveBN:
         umbral_params = default_params()
         e, v, _ = self.capsule.components()
 
-        # TODO: Change this with new umbral release
         e1 = self.cfrag.point_e1
         v1 = self.cfrag.point_v1
         e2 = self.cfrag.proof.point_e2
@@ -707,6 +705,20 @@ class UnquestionableEvidence:
         h = hash_to_curvebn(*hash_input,
                             params=umbral_params,
                             hash_class=ExtendedKeccak)
+        return h
+
+    def precompute_values(self) -> bytes:
+
+        umbral_params = default_params()
+        e, v, _ = self.capsule.components()
+
+        e1 = self.cfrag.point_e1
+        v1 = self.cfrag.point_v1
+        e2 = self.cfrag.proof.point_e2
+        v2 = self.cfrag.proof.point_v2
+        u = umbral_params.u
+
+        h = self.get_proof_challenge_scalar()
 
         e1h = h * e1
         v1h = h * v1
