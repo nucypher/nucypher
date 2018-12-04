@@ -135,10 +135,19 @@ workflows:
             branches:
               ignore: /.*/
 
+
 python_36_base: &python_36_base
     working_directory: ~/nucypher-depends
     docker:
       - image: circleci/python:3.6
+
+_run:
+  coveralls: &coveralls
+    name: Upload Coverage Report
+    command: |
+      echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
+      pipenv run coveralls
+
 
 jobs:
   
@@ -189,11 +198,7 @@ jobs:
           name: Blockchain Interface Tests
           command: |
             pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow $(circleci tests glob tests/blockchain/eth/interfaces/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/blockchain_interface_results.xml
-      - run:
-          name: Upload Coverage Report
-          command: |
-            echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
-            pipenv run coveralls
+      - run: *coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -208,11 +213,7 @@ jobs:
           name: Blockchain Interface Tests
           command: |
             pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow $(circleci tests glob tests/blockchain/eth/entities/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/blockchain_interface_results.xml
-      - run:
-          name: Upload Coverage Report
-          command: |
-            echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
-            pipenv run coveralls
+      - run: *coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -227,11 +228,7 @@ jobs:
           name: Ethereum Contract Unit Tests
           command: |
             pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/**/**/test_*.py | circleci tests split --split-by=timings)
-      - run:
-          name: Upload Coverage Report
-          command: |
-            echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
-            pipenv run coveralls
+      - run: *coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -246,11 +243,7 @@ jobs:
           name: Node Configuration Tests
           command: |
             pipenv run pytest --cov=nucypher/config -v --runslow $(circleci tests glob tests/config/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/config_results.xml
-      - run:
-          name: Upload Coverage Report
-          command: |
-            echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
-            pipenv run coveralls
+      - run: *coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -264,11 +257,7 @@ jobs:
           name: Crypto Character Tests
           command: |
             pipenv run pytest --cov=nucypher/crypto -v --runslow tests/crypto --junitxml=./reports/pytest/crypto_results.xml
-      - run:
-          name: Upload Coverage Report
-          command: |
-            echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
-            pipenv run coveralls
+      - run: *coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -282,11 +271,7 @@ jobs:
           name: Network Tests
           command: |
             pipenv run pytest --cov=nucypher/network -v --runslow $(circleci tests glob tests/network/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/network_results.xml
-      - run:
-          name: Upload Coverage Report
-          command: |
-            echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
-            pipenv run coveralls
+      - run: *coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -301,11 +286,7 @@ jobs:
           name: Keystore Tests
           command: |
             pipenv run pytest --cov=nucypher/keystore -v --runslow $(circleci tests glob tests/keystore/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/keystore_results.xml
-      - run:
-          name: Upload Coverage Report
-          command: |
-            echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
-            pipenv run coveralls
+      - run: *coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -320,11 +301,7 @@ jobs:
           name: Character Tests
           command: |
             pipenv run pytest --cov=nucypher -v --runslow $(circleci tests glob tests/characters/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/character_results.xml
-      - run:
-          name: Upload Coverage Report
-          command: |
-            echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
-            pipenv run coveralls
+      - run: *coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -352,11 +329,7 @@ jobs:
         name: Nucypher CLI Tests
         command: |
           pipenv run pytest --cov=nucypher/cli.py -v --runslow $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/cli_results.xml
-    - run:
-        name: Upload Coverage Report
-        command: |
-          echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
-          pipenv run coveralls
+    - run: *coveralls
     - store_test_results:
         path: ./reports/pytest/
 
