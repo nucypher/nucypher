@@ -92,11 +92,8 @@ contract ChallengeOverseer {
         require(minerValue > 0);
 
         // Verify correctness of re-encryption
-        UmbralDeserializer.Capsule memory capsule = _capsuleBytes.toCapsule();
-        UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
-        UmbralDeserializer.PreComputedData memory data = _preComputedData.toPreComputedData();
         challengedCFrags[challengeHash] = true;
-        if (!isCapsuleFragCorrect(capsule, cFrag, data)) {
+        if (!isCapsuleFragCorrect(_capsuleBytes, _cFragBytes, _preComputedData)) {
             // TODO calculate penalty - depends on how many time was slashed
             // TODO set reward
             escrow.slashMiner(miner, PENALTY, msg.sender, PENALTY);
@@ -119,18 +116,21 @@ contract ChallengeOverseer {
 
     /**
     * @notice Check correctness of re-encryption
-    * @param _capsule Capsule
-    * @param _cFrag Capsule frag
-    * @param _precomputed Additional precomputed data
+    * @param _capsuleBytes Capsule
+    * @param _cFragBytes Capsule frag
+    * @param _precomputedBytes Additional precomputed data
     **/
     function isCapsuleFragCorrect(
-        UmbralDeserializer.Capsule memory _capsule,
-        UmbralDeserializer.CapsuleFrag memory _cFrag,
-        UmbralDeserializer.PreComputedData memory _precomputed
+        bytes memory _capsuleBytes,
+        bytes memory _cFragBytes,
+        bytes memory _precomputedBytes
     )
         // TODO make public when possible
         internal pure returns (bool)
     {
+        UmbralDeserializer.Capsule memory _capsule = _capsuleBytes.toCapsule();
+        UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
+        UmbralDeserializer.PreComputedData memory _precomputed = _precomputedBytes.toPreComputedData();
 
         uint256 h = computeProofChallengeScalar(_capsuleBytes, _cFragBytes);
 
