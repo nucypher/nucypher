@@ -29,6 +29,7 @@ from eth_utils import to_canonical_address
 from umbral import pre
 from umbral.config import default_params
 from umbral.keys import UmbralPrivateKey
+from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
 from umbral.signing import Signature, Signer
 
 from nucypher.policy.models import UnquestionableEvidence
@@ -90,8 +91,7 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     assert u_xcoord == challenge_contract.functions.UMBRAL_PARAMETER_U_XCOORD().call()
 
     # TODO: Move this to an integration test
-    test_data = b"test"
-    from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
+    test_data = os.urandom(40)
     h = hash_to_curvebn(test_data,
                         params=umbral_params,
                         hash_class=ExtendedKeccak)
@@ -119,11 +119,20 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     # Prepare hash of the data
     metadata = os.urandom(33)
     capsule, cfrag = fragments(metadata)
+
+    assert cfrag.verify_correctness(capsule)
+
     capsule_bytes = capsule.to_bytes()
     cfrag_bytes = cfrag.to_bytes()
 
-    some_data = UnquestionableEvidence(capsule, cfrag).precompute_values()
+    # Bob prepares supporting Evidence
+    evidence = UnquestionableEvidence(capsule, cfrag)
+
+    some_data = evidence.precompute_values()
     assert len(some_data) == 14 * 32
+
+    proof_signature = int(evidence.get_proof_challenge_scalar())
+    assert proof_signature == challenge_contract.functions.computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
 
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
     hash_ctx.update(capsule_bytes + cfrag_bytes)
