@@ -174,9 +174,9 @@ contract ChallengeOverseer {
         ));
 
         bool sum_is_correct = Numerology.eqAffineJacobian(
-            [_cFrag.proof.pointE2.xCoord, _precomputed.pointE2yCoord],
+            [_precomputed.pointEZxCoord,  _precomputed.pointEZyCoord],
             Numerology.addAffineJacobian(
-                [_precomputed.pointEZxCoord,  _precomputed.pointEZyCoord],
+                [_cFrag.proof.pointE2.xCoord, _precomputed.pointE2yCoord],
                 [_precomputed.pointE1HxCoord, _precomputed.pointE1HyCoord]
             )
         );
