@@ -132,46 +132,7 @@ contract ChallengeOverseer {
         internal pure returns (bool)
     {
 
-        // Compute h = hash_to_bignum(e, e1, e2, v, v1, v2, u, u1, u2)
-        bytes memory hashInput = abi.encodePacked(
-            // Point E
-            _capsule.pointE.sign,
-            _capsule.pointE.xCoord,
-            // Point E1
-            _cFrag.pointE1.sign,
-            _cFrag.pointE1.xCoord,
-            // Point E2
-            _cFrag.proof.pointE2.sign,
-            _cFrag.proof.pointE2.xCoord
-        );
-
-        hashInput = abi.encodePacked(
-            hashInput,
-            // Point V
-            _capsule.pointV.sign,
-            _capsule.pointV.xCoord,
-            // Point V1
-            _cFrag.pointV1.sign,
-            _cFrag.pointV1.xCoord,
-            // Point V2
-            _cFrag.proof.pointV2.sign,
-            _cFrag.proof.pointV2.xCoord
-        );
-
-        hashInput = abi.encodePacked(
-            hashInput,
-            // Point U
-            bytes1(UMBRAL_PARAMETER_U_SIGN),
-            bytes32(UMBRAL_PARAMETER_U_XCOORD),
-            // Point U1
-            _cFrag.proof.pointKFragCommitment.sign,
-            _cFrag.proof.pointKFragCommitment.xCoord,
-            // Point U2
-            _cFrag.proof.pointKFragPok.sign,
-            _cFrag.proof.pointKFragPok.xCoord
-        );
-
-        uint256 h = extendedKeccakToBN(hashInput);
+        uint256 h = computeProofChallengeScalar(_capsuleBytes, _cFragBytes);
 
         //////
         // Verifying equation: z*E + h*E_1 = E_2
@@ -222,6 +183,61 @@ contract ChallengeOverseer {
 
         // TODO: Repeat with v and u
         return ez_is_correct && e1h_is_correct && sum_is_correct;
+    }
+
+
+    function computeProofChallengeScalar(
+        bytes memory _capsuleBytes,
+        bytes memory _cFragBytes
+    ) public pure returns (uint256) {
+
+        UmbralDeserializer.Capsule memory _capsule = _capsuleBytes.toCapsule();
+        UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
+
+        // Compute h = hash_to_bignum(e, e1, e2, v, v1, v2, u, u1, u2, metadata)
+        bytes memory hashInput = abi.encodePacked(
+            // Point E
+            _capsule.pointE.sign,
+            _capsule.pointE.xCoord,
+            // Point E1
+            _cFrag.pointE1.sign,
+            _cFrag.pointE1.xCoord,
+            // Point E2
+            _cFrag.proof.pointE2.sign,
+            _cFrag.proof.pointE2.xCoord
+        );
+
+        hashInput = abi.encodePacked(
+            hashInput,
+            // Point V
+            _capsule.pointV.sign,
+            _capsule.pointV.xCoord,
+            // Point V1
+            _cFrag.pointV1.sign,
+            _cFrag.pointV1.xCoord,
+            // Point V2
+            _cFrag.proof.pointV2.sign,
+            _cFrag.proof.pointV2.xCoord
+        );
+
+        hashInput = abi.encodePacked(
+            hashInput,
+            // Point U
+            bytes1(UMBRAL_PARAMETER_U_SIGN),
+            bytes32(UMBRAL_PARAMETER_U_XCOORD),
+            // Point U1
+            _cFrag.proof.pointKFragCommitment.sign,
+            _cFrag.proof.pointKFragCommitment.xCoord,
+            // Point U2
+            _cFrag.proof.pointKFragPok.sign,
+            _cFrag.proof.pointKFragPok.xCoord,
+            // Re-encryption metadata
+            _cFrag.proof.metadata
+        );
+
+        uint256 h = extendedKeccakToBN(hashInput);
+        return h;
+
     }
 
 //    function extendedKeccak (bytes _data) internal pure returns (bytes32, bytes32) {
