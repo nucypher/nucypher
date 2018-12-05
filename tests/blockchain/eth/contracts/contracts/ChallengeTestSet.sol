@@ -2,9 +2,9 @@ pragma solidity ^0.4.25;
 
 
 /**
-* @notice Contract for testing the ChallengeOverseer contract
+* @notice Contract for testing the MiningAdjudicator contract
 **/
-contract MinersEscrowForChallengeOverseerMock {
+contract MinersEscrowForMiningAdjudicatorMock {
 
     struct MinerInfo {
         uint256 value;
