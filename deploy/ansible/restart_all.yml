@@ -1,5 +1,5 @@
 - name: "Restart Ursulas"
-  hosts: seednodes
+  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
   user: ubuntu
   gather_facts: false
   tasks:
