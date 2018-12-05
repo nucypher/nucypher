@@ -22,7 +22,7 @@ contract MiningAdjudicator {
 
     MinersEscrow public escrow;
     SignatureVerifier.HashAlgorithm public hashAlgorithm;
-    mapping (bytes32 => bool) public challengedCFrags;
+    mapping (bytes32 => bool) public evaluatedCFrags;
 
     /**
     * @param _escrow Escrow contract
@@ -51,7 +51,7 @@ contract MiningAdjudicator {
     * @param _minerPublicKeySignature Signature of public key by miner's eth-key
     * @param _preComputedData Pre computed data for CFrag correctness verification
     **/
-    function challengeCFrag(
+    function evaluateCFrag(
         bytes _capsuleBytes,
         bytes _capsuleSignatureByRequester,
         bytes _capsuleSignatureByRequesterAndMiner,
@@ -66,10 +66,10 @@ contract MiningAdjudicator {
     {
         require(_minerPublicKey.length == 65 && _requesterPublicKey.length == 65);
 
-        // Check that CFrag is not challenged yet
-        bytes32 challengeHash = SignatureVerifier.hash(
+        // Check that CFrag is not evaluated yet
+        bytes32 evaluationHash = SignatureVerifier.hash(
             abi.encodePacked(_capsuleBytes, _cFragBytes), hashAlgorithm);
-        require(!challengedCFrags[challengeHash]);
+        require(!evaluatedCFrags[evaluationHash]);
 
         // Verify requester's signature of Capsule
         bytes memory preparedPublicKey = new bytes(64);
@@ -92,7 +92,7 @@ contract MiningAdjudicator {
         require(minerValue > 0);
 
         // Verify correctness of re-encryption
-        challengedCFrags[challengeHash] = true;
+        evaluatedCFrags[evaluationHash] = true;
         if (!isCapsuleFragCorrect(_capsuleBytes, _cFragBytes, _preComputedData)) {
             // TODO calculate penalty - depends on how many time was slashed
             // TODO set reward
