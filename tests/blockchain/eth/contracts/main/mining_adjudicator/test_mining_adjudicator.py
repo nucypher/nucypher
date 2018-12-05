@@ -80,15 +80,15 @@ def fragments(metadata):
 
 
 @pytest.mark.slow
-def test_challenge_cfrag(testerchain, escrow, challenge_contract):
+def test_challenge_cfrag(testerchain, escrow, adjudicator_contract):
     creator, miner, wrong_miner, *everyone_else = testerchain.interface.w3.eth.accounts
 
     # TODO: Move this to an integration test
     umbral_params = default_params()
     u_xcoord, u_ycoord = umbral_params.u.to_affine()
     u_sign = 2 + (u_ycoord % 2)
-    assert u_sign == challenge_contract.functions.UMBRAL_PARAMETER_U_SIGN().call()
-    assert u_xcoord == challenge_contract.functions.UMBRAL_PARAMETER_U_XCOORD().call()
+    assert u_sign == adjudicator_contract.functions.UMBRAL_PARAMETER_U_SIGN().call()
+    assert u_xcoord == adjudicator_contract.functions.UMBRAL_PARAMETER_U_XCOORD().call()
 
     # TODO: Move this to an integration test
     test_data = os.urandom(40)
@@ -96,7 +96,7 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
                         params=umbral_params,
                         hash_class=ExtendedKeccak)
     h = int(h)
-    h2 = challenge_contract.functions.extendedKeccakToBN(test_data).call()
+    h2 = adjudicator_contract.functions.extendedKeccakToBN(test_data).call()
     assert h == h2
 
     # Prepare one miner
@@ -132,13 +132,13 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     assert len(some_data) == 14 * 32
 
     proof_signature = int(evidence.get_proof_challenge_scalar())
-    assert proof_signature == challenge_contract.functions.computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
+    assert proof_signature == adjudicator_contract.functions.computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
 
     hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
     hash_ctx.update(capsule_bytes + cfrag_bytes)
     data_hash = hash_ctx.finalize()
     # This capsule and cFrag are not yet challenged
-    assert not challenge_contract.functions.challengedCFrags(data_hash).call()
+    assert not adjudicator_contract.functions.challengedCFrags(data_hash).call()
 
     # Generate requester's Umbral key
     requester_umbral_private_key = UmbralPrivateKey.gen_key()
@@ -159,15 +159,15 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
             miner_umbral_public_key_bytes,
             signed_miner_umbral_public_key,
             some_data)
-    tx = challenge_contract.functions.challengeCFrag(*args).transact()
+    tx = adjudicator_contract.functions.challengeCFrag(*args).transact()
     testerchain.wait_for_receipt(tx)
     # Hash of the data is saved and miner was not slashed
-    assert challenge_contract.functions.challengedCFrags(data_hash).call()
+    assert adjudicator_contract.functions.challengedCFrags(data_hash).call()
     assert 1000 == escrow.functions.minerInfo(miner).call()[0]
 
     # Can't challenge miner with data that already was checked
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = challenge_contract.functions.challengeCFrag(*args).transact()
+        tx = adjudicator_contract.functions.challengeCFrag(*args).transact()
         testerchain.wait_for_receipt(tx)
 
     # TODO: Fix test for challenge using bad data
@@ -192,11 +192,11 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     #         signed_miner_umbral_public_key,
     #         some_data)
     #
-    # assert not challenge_contract.functions.challengedCFrags(data_hash).call()
-    # tx = challenge_contract.functions.challengeCFrag(*args).transact()
+    # assert not adjudicator_contract.functions.challengedCFrags(data_hash).call()
+    # tx = adjudicator_contract.functions.challengeCFrag(*args).transact()
     # testerchain.wait_for_receipt(tx)
     # # Hash of the data is saved and miner was slashed
-    # assert challenge_contract.functions.challengedCFrags(data_hash).call()
+    # assert adjudicator_contract.functions.challengedCFrags(data_hash).call()
     # assert 900 == escrow.functions.minerInfo(miner).call()[0]
     #
     # Prepare hash of the data
@@ -219,40 +219,40 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
             miner_umbral_public_key_bytes,
             signed_miner_umbral_public_key,
             some_data]
-    assert not challenge_contract.functions.challengedCFrags(data_hash).call()
+    assert not adjudicator_contract.functions.challengedCFrags(data_hash).call()
 
     # Can't challenge miner using broken signatures
     wrong_args = args[:]
     wrong_args[1] = capsule_signature_by_requester[1:]
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        tx = adjudicator_contract.functions.challengeCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
     wrong_args = args[:]
     wrong_args[2] = capsule_signature_by_requester_and_miner[1:]
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        tx = adjudicator_contract.functions.challengeCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
     wrong_args = args[:]
     wrong_args[4] = cfrag_signature_by_miner[1:]
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        tx = adjudicator_contract.functions.challengeCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
     wrong_args = args[:]
     wrong_args[7] = signed_miner_umbral_public_key[1:]
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        tx = adjudicator_contract.functions.challengeCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
 
     # Can't challenge miner using wrong keys
     wrong_args = args[:]
     wrong_args[5] = UmbralPrivateKey.gen_key().get_pubkey().to_bytes(is_compressed=False)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        tx = adjudicator_contract.functions.challengeCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
     wrong_args = args[:]
     wrong_args[6] = UmbralPrivateKey.gen_key().get_pubkey().to_bytes(is_compressed=False)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+        tx = adjudicator_contract.functions.challengeCFrag(*wrong_args).transact()
         testerchain.wait_for_receipt(tx)
 
     # TODO: Fix remaining tests
@@ -260,12 +260,12 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     # wrong_args = args[:]
     # wrong_args[0] = bytes(args[0][0] + 1) + args[0][1:]
     # with pytest.raises((TransactionFailed, ValueError)):
-    #     tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+    #     tx = adjudicator_contract.functions.challengeCFrag(*wrong_args).transact()
     #     testerchain.wait_for_receipt(tx)
     # wrong_args = args[:]
     # wrong_args[3] = bytes(args[3][0] + 1) + args[3][1:]
     # with pytest.raises((TransactionFailed, ValueError)):
-    #     tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+    #     tx = adjudicator_contract.functions.challengeCFrag(*wrong_args).transact()
     #     testerchain.wait_for_receipt(tx)
     #
     # # Can't challenge nonexistent miner
@@ -275,13 +275,13 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     # wrong_args = args[:]
     # wrong_args[7] = signed_miner_umbral_public_key
     # with pytest.raises((TransactionFailed, ValueError)):
-    #     tx = challenge_contract.functions.challengeCFrag(*wrong_args).transact()
+    #     tx = adjudicator_contract.functions.challengeCFrag(*wrong_args).transact()
     #     testerchain.wait_for_receipt(tx)
     #
     # # Initial arguments were correct
-    # assert not challenge_contract.functions.challengedCFrags(data_hash).call()
-    # tx = challenge_contract.functions.challengeCFrag(*args).transact()
+    # assert not adjudicator_contract.functions.challengedCFrags(data_hash).call()
+    # tx = adjudicator_contract.functions.challengeCFrag(*args).transact()
     # testerchain.wait_for_receipt(tx)
-    # assert challenge_contract.functions.challengedCFrags(data_hash).call()
+    # assert adjudicator_contract.functions.challengedCFrags(data_hash).call()
     # assert 800 == escrow.functions.minerInfo(miner).call()[0]
 

@@ -115,7 +115,7 @@ def overseer(testerchain, escrow):
 
     # Creator deploys the contract
     #  TODO change to the normal contract
-    contract, _ = testerchain.interface.deploy_contract('ChallengeOverseerForMinersEscrowMock', escrow.address)
+    contract, _ = testerchain.interface.deploy_contract('MiningAdjudicatorForMinersEscrowMock', escrow.address)
     # dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
 
     # # Wrap dispatcher contract
@@ -124,7 +124,7 @@ def overseer(testerchain, escrow):
     #     address=dispatcher.address,
     #     ContractFactoryClass=Contract)
 
-    tx = escrow.functions.setChallengeOverseer(contract.address).transact({'from': creator})
+    tx = escrow.functions.setMiningAdjudicator(contract.address).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
     return contract  # , dispatcher
