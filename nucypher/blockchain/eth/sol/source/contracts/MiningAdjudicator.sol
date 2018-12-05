@@ -8,9 +8,9 @@ import "./MinersEscrow.sol";
 
 
 /**
-* @notice Challenges for NuCypher net characters
+* @notice Supervises miners' behavior and punishes when something's wrong.
 **/
-contract ChallengeOverseer {
+contract MiningAdjudicator {
 
     uint8 public constant UMBRAL_PARAMETER_U_SIGN = 0x02;
     uint256 public constant UMBRAL_PARAMETER_U_XCOORD = 0x03c98795773ff1c241fc0b1cced85e80f8366581dda5c9452175ebd41385fa1f;

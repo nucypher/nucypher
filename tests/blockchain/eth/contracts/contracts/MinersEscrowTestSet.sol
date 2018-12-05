@@ -133,7 +133,7 @@ contract PolicyManagerForMinersEscrowMock {
 /**
 * @notice Contract for testing miners escrow contract
 **/
-contract ChallengeOverseerForMinersEscrowMock {
+contract MiningAdjudicatorForMinersEscrowMock {
 
     MinersEscrow public escrow;
 

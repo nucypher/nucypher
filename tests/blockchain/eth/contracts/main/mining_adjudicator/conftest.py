@@ -26,16 +26,16 @@ secret = (123456).to_bytes(32, byteorder='big')
 
 @pytest.fixture()
 def escrow(testerchain):
-    escrow, _ = testerchain.interface.deploy_contract('MinersEscrowForChallengeOverseerMock')
+    escrow, _ = testerchain.interface.deploy_contract('MinersEscrowForMiningAdjudicatorMock')
     return escrow
 
 
 # @pytest.fixture(params=[False, True])
 @pytest.fixture()
-def challenge_contract(testerchain, escrow, request):
+def adjudicator_contract(testerchain, escrow, request):
     # creator, client, bad_node, node1, node2, node3, *everyone_else = testerchain.interface.w3.eth.accounts
 
-    contract, _ = testerchain.interface.deploy_contract('ChallengeOverseer', escrow.address, ALGORITHM_SHA256)
+    contract, _ = testerchain.interface.deploy_contract('MiningAdjudicator', escrow.address, ALGORITHM_SHA256)
 
     # if request.param:
     #     secret_hash = testerchain.interface.w3.sha3(secret)

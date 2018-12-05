@@ -305,9 +305,9 @@ def test_mining(testerchain, token, escrow_contract):
 def test_slashing(testerchain, token, escrow_contract):
     escrow = escrow_contract(1500)
     overseer, _ = testerchain.interface.deploy_contract(
-        'ChallengeOverseerForMinersEscrowMock', escrow.address
+        'MiningAdjudicatorForMinersEscrowMock', escrow.address
     )
-    tx = escrow.functions.setChallengeOverseer(overseer.address).transact()
+    tx = escrow.functions.setMiningAdjudicator(overseer.address).transact()
     testerchain.wait_for_receipt(tx)
     creator = testerchain.interface.w3.eth.accounts[0]
     ursula = testerchain.interface.w3.eth.accounts[1]
