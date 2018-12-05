@@ -27,7 +27,7 @@
             volume_type: gp2
             volume_size: "{{ ec2_volume_size }}"
             delete_on_termination: true
-      register: nucypher_swarm
+      register: nucypher_fleet
 
     - name: "Add Provisioned Servers as Hosts"
       add_host:
@@ -37,9 +37,9 @@
         ec2_tag_Type: "{{ ec2_tag_Type}}"
         ec2_tag_Role: "{{ nucypher_network_name }}"
         ec2_ip_address: "{{ item.public_ip }}"
-      with_items: "{{ nucypher_swarm.instances }}"
+      with_items: "{{ nucypher_fleet.instances }}"
 
     - name: Wait for the instances to boot by checking the ssh port
       wait_for: host={{item.public_ip}} port=22 delay=15 timeout=300 state=started
-      with_items: "{{ nucypher_swarm.instances }}"
+      with_items: "{{ nucypher_fleet.instances }}"
 

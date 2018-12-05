@@ -51,8 +51,8 @@
         LANG: C.UTF-8
 
     - name: "Generate Ursula passphrase"
-      shell: head -c 32 /dev/urandom | sha256sum
-      register: ursula_passphrase
+      shell: head -c 32 /dev/urandom | sha256sum | awk '{print $1}'
+      register: ursula_password
 
     - name: "Configure Ursula"
       shell: "pipenv run nucypher configure install --rest-host {{inventory_hostname}}"
@@ -61,7 +61,7 @@
       vars:
         ansible_python_interpreter: /usr/bin/python3
       environment:
-        NUCYPHER_KEYRING_PASSPHRASE: "{{ ursula_passphrase.stdout }}"
+        NUCYPHER_KEYRING_PASSPHRASE: "{{ ursula_password.stdout }}"
         LC_ALL: C.UTF-8
         LANG: C.UTF-8
       ignore_errors: yes
