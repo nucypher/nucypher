@@ -16,9 +16,9 @@ contract PolicyManagerInterface {
 
 
 /**
-* @notice ChallengeOverseer interface
+* @notice MiningAdjudicator interface
 **/
-contract ChallengeOverseerInterface {
+contract MiningAdjudicatorInterface {
     function escrow() public view returns (address);
 }
 
@@ -99,7 +99,7 @@ contract MinersEscrow is Issuer {
     uint256 public minAllowableLockedTokens;
     uint256 public maxAllowableLockedTokens;
     PolicyManagerInterface public policyManager;
-    ChallengeOverseerInterface public challengeOverseer;
+    MiningAdjudicatorInterface public miningAdjudicator;
 
     /**
     * @notice Constructor sets address of token contract and coefficients for mining
@@ -159,13 +159,13 @@ contract MinersEscrow is Issuer {
     }
 
     /**
-    * @notice Set challenge overseer address
+    * @notice Set mining adjudicator address
     **/
-    function setChallengeOverseer(ChallengeOverseerInterface _challengeOverseer) external onlyOwner {
-        require(address(challengeOverseer) == 0x0 &&
-            address(_challengeOverseer) != 0x0 &&
-            _challengeOverseer.escrow() == address(this));
-        challengeOverseer = _challengeOverseer;
+    function setMiningAdjudicator(MiningAdjudicatorInterface _miningAdjudicator) external onlyOwner {
+        require(address(miningAdjudicator) == 0x0 &&
+            address(_miningAdjudicator) != 0x0 &&
+            _miningAdjudicator.escrow() == address(this));
+        miningAdjudicator = _miningAdjudicator;
     }
 
     //------------------------Main getters------------------------
@@ -775,7 +775,7 @@ contract MinersEscrow is Issuer {
     )
         public
     {
-        require(msg.sender == address(challengeOverseer));
+        require(msg.sender == address(miningAdjudicator));
         require(_penalty > 0);
         MinerInfo storage info = minerInfo[_miner];
         if (info.value <= _penalty) {
@@ -1116,7 +1116,7 @@ contract MinersEscrow is Issuer {
         require(delegateGet(_testTarget, "maxAllowableLockedTokens()") ==
             maxAllowableLockedTokens);
         require(address(uint160(delegateGet(_testTarget, "policyManager()"))) == address(policyManager));
-        require(address(delegateGet(_testTarget, "challengeOverseer()")) == address(challengeOverseer));
+        require(address(delegateGet(_testTarget, "miningAdjudicator()")) == address(miningAdjudicator));
         require(delegateGet(_testTarget, "lockedPerPeriod(uint16)",
             bytes32(bytes2(RESERVED_PERIOD))) == lockedPerPeriod[RESERVED_PERIOD]);
 
