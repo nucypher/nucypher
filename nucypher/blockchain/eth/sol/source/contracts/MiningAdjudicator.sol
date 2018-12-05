@@ -1,23 +1,24 @@
 pragma solidity ^0.4.25;
 
 
-import "./lib/UmbralDeserializer.sol";
-import "./lib/SignatureVerifier.sol";
-import "./lib/Numerology.sol";
-import "./MinersEscrow.sol";
+import "contracts/lib/UmbralDeserializer.sol";
+import "contracts/lib/SignatureVerifier.sol";
+import "contracts/lib/Numerology.sol";
+import "contracts/MinersEscrow.sol";
+import "contracts/proxy/Upgradeable.sol";
 
 
 /**
 * @notice Supervises miners' behavior and punishes when something's wrong.
 **/
-contract MiningAdjudicator {
+contract MiningAdjudicator is Upgradeable {
+    using UmbralDeserializer for bytes;
 
     uint8 public constant UMBRAL_PARAMETER_U_SIGN = 0x02;
     uint256 public constant UMBRAL_PARAMETER_U_XCOORD = 0x03c98795773ff1c241fc0b1cced85e80f8366581dda5c9452175ebd41385fa1f;
     uint256 public constant UMBRAL_PARAMETER_U_YCOORD = 0x7880ed56962d7c0ae44d6f14bb53b5fe64b31ea44a41d0316f3a598778f0f936;
-
-    using UmbralDeserializer for bytes;
-
+    // used only for upgrading
+    bytes32 constant RESERVED_CAPSULE_AND_CFRAG_BYTES = bytes32(0);
     // TODO events
     uint256 constant PENALTY = 100; // TODO
 
@@ -380,5 +381,23 @@ contract MiningAdjudicator {
 
         uint256 upper_half = mulmod(uint256(upper), delta, n_minus_1);
         return 1 + addmod(upper_half, uint256(lower), n_minus_1);
+    }
+
+    function verifyState(address _testTarget) public onlyOwner {
+        require(address(delegateGet(_testTarget, "escrow()")) == address(escrow));
+        require(SignatureVerifier.HashAlgorithm(uint256(delegateGet(_testTarget, "hashAlgorithm()"))) == hashAlgorithm);
+        bytes32 evaluationCFragHash = SignatureVerifier.hash(
+            abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), hashAlgorithm);
+        require(delegateGet(_testTarget, "evaluatedCFrags(bytes32)", evaluationCFragHash) != bytes32(0));
+    }
+
+    function finishUpgrade(address _target) public onlyOwner {
+        MiningAdjudicator targetContract = MiningAdjudicator(_target);
+        escrow = targetContract.escrow();
+        hashAlgorithm = targetContract.hashAlgorithm();
+        // preparation for the verifyState method
+        bytes32 evaluationCFragHash = SignatureVerifier.hash(
+            abi.encodePacked(RESERVED_CAPSULE_AND_CFRAG_BYTES), hashAlgorithm);
+        evaluatedCFrags[evaluationCFragHash] = true;
     }
 }

@@ -25,6 +25,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
+from web3.contract import Contract
 
 from umbral import pre
 from umbral.config import default_params
@@ -33,6 +34,12 @@ from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
 from umbral.signing import Signature, Signer
 
 from nucypher.policy.models import IndisputableEvidence
+
+
+ALGORITHM_KECCAK256 = 0
+ALGORITHM_SHA256 = 1
+secret = (123456).to_bytes(32, byteorder='big')
+secret2 = (654321).to_bytes(32, byteorder='big')
 
 
 def sign_data(data, umbral_privkey):
@@ -284,3 +291,68 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     # assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
     # assert 800 == escrow.functions.minerInfo(miner).call()[0]
 
+
+@pytest.mark.slow
+def test_upgrading(testerchain):
+    creator = testerchain.interface.w3.eth.accounts[0]
+
+    secret_hash = testerchain.interface.w3.sha3(secret)
+    secret2_hash = testerchain.interface.w3.sha3(secret2)
+
+    # Deploy contracts
+    escrow1, _ = testerchain.interface.deploy_contract('MinersEscrowForMiningAdjudicatorMock')
+    escrow2, _ = testerchain.interface.deploy_contract('MinersEscrowForMiningAdjudicatorMock')
+    address1 = escrow1.address
+    address2 = escrow2.address
+    contract_library_v1, _ = testerchain.interface.deploy_contract('MiningAdjudicator', address1, ALGORITHM_KECCAK256)
+    dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
+
+    # Deploy second version of the contract
+    contract_library_v2, _ = testerchain.interface.deploy_contract(
+        'MiningAdjudicatorV2Mock', address2, ALGORITHM_SHA256)
+    contract = testerchain.interface.w3.eth.contract(
+        abi=contract_library_v2.abi,
+        address=dispatcher.address,
+        ContractFactoryClass=Contract)
+
+    # Upgrade to the second version
+    assert address1 == contract.functions.escrow().call()
+    assert ALGORITHM_KECCAK256 == contract.functions.hashAlgorithm().call()
+    tx = dispatcher.functions.upgrade(contract_library_v2.address, secret, secret2_hash).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    # Check constructor and storage values
+    assert contract_library_v2.address == dispatcher.functions.target().call()
+    assert address2 == contract.functions.escrow().call()
+    assert ALGORITHM_SHA256 == contract.functions.hashAlgorithm().call()
+    # Check new ABI
+    tx = contract.functions.setValueToCheck(3).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert 3 == contract.functions.valueToCheck().call()
+
+    # Can't upgrade to the previous version or to the bad version
+    contract_library_bad, _ = testerchain.interface.deploy_contract('MiningAdjudicatorBad')
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(contract_library_v1.address, secret2, secret_hash)\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret2, secret_hash)\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # But can rollback
+    tx = dispatcher.functions.rollback(secret2, secret_hash).transact({'from': creator})
+    testerchain.wait_for_receipt(tx)
+    assert contract_library_v1.address == dispatcher.functions.target().call()
+    assert address1 == contract.functions.escrow().call()
+    assert ALGORITHM_KECCAK256 == contract.functions.hashAlgorithm().call()
+    # After rollback new ABI is unavailable
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = contract.functions.setValueToCheck(2).transact({'from': creator})
+        testerchain.wait_for_receipt(tx)
+
+    # Try to upgrade to the bad version
+    with pytest.raises((TransactionFailed, ValueError)):
+        tx = dispatcher.functions.upgrade(contract_library_bad.address, secret, secret2_hash)\
+            .transact({'from': creator})
+        testerchain.wait_for_receipt(tx)

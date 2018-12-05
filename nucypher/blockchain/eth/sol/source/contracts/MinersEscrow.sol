@@ -83,12 +83,12 @@ contract MinersEscrow is Issuer {
     * but increases gas usage in mint() method. In both cases confirmActivity()
     * with one execution of mint() method consume the same amount of gas
     */
-    uint16 constant EMPTY_CONFIRMED_PERIOD = 0;
+    uint16 public constant EMPTY_CONFIRMED_PERIOD = 0;
     // used only for upgrading
     uint16 constant RESERVED_PERIOD = 0;
     uint16 constant MAX_CHECKED_VALUES = 5;
     // to prevent high gas consumption in loops for slashing
-    uint16 constant MAX_SUB_STAKES = 30;
+    uint16 public constant MAX_SUB_STAKES = 30;
     uint16 constant MAX_UINT16 = 65535;
 
     mapping (address => MinerInfo) public minerInfo;
