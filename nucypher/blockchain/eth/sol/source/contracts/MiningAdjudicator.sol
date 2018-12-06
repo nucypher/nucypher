@@ -136,7 +136,7 @@ contract MiningAdjudicator {
         uint256 h = computeProofChallengeScalar(_capsuleBytes, _cFragBytes);
 
         //////
-        // Verifying equation: z*E + h*E_1 = E_2
+        // Verifying equation: z*E == h*E_1 + E_2
         //////
 
         // Input validation: E
@@ -158,7 +158,7 @@ contract MiningAdjudicator {
 
         // Input validation: E1
         require(Numerology.check_compressed_point(
-            _cFrag.pointE1.sign,        // E_sign
+            _cFrag.pointE1.sign,        // E1_sign
             _cFrag.pointE1.xCoord,      // E1_x
             _precomputed.pointE1yCoord  // E1_y
         ));
@@ -193,7 +193,7 @@ contract MiningAdjudicator {
         }
 
         //////
-        // Verifying equation: z*V + h*V_1 = V_2
+        // Verifying equation: z*V == h*V_1 + V_2
         //////
 
         // Input validation: V
@@ -215,7 +215,7 @@ contract MiningAdjudicator {
 
         // Input validation: V1
         require(Numerology.check_compressed_point(
-            _cFrag.pointV1.sign,        // V_sign
+            _cFrag.pointV1.sign,        // V1_sign
             _cFrag.pointV1.xCoord,      // V1_x
             _precomputed.pointV1yCoord  // V1_y
         ));
