@@ -36,7 +36,7 @@ from umbral.signing import Signature
 from bytestring_splitter import VariableLengthBytestring, BytestringKwargifier, BytestringSplitter, \
     BytestringSplittingError
 from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, constant_or_bytes
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
@@ -45,6 +45,7 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower
 from nucypher.keystore.keypairs import HostingKeypair
+from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
@@ -689,7 +690,7 @@ class Ursula(Teacher, Character, Miner):
         node_info['timestamp'] = maya.MayaDT(node_info.pop("timestamp"))
         node_info['checksum_address'] = to_checksum_address(node_info.pop("public_address"))
 
-        domains_vbytes = VariableLengthBytestring.discharge(node_info['domains'])
+        domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
         node_info['domains'] = [constant_or_bytes(d) for d in domains_vbytes]
 
         ursula = cls.from_public_keys(powers_and_material, federated_only=federated_only, **node_info)
