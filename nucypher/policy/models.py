@@ -25,6 +25,7 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import Generator, List, Set, Optional
+from eth_keys import KeyAPI as EthKeyAPI
 from umbral.config import default_params
 from umbral.kfrags import KFrag
 from umbral.cfrags import CapsuleFrag
@@ -517,11 +518,18 @@ class TreasureMap:
 
 
 class WorkOrder:
+
+    class NotFromBob(InvalidSignature):
+        def __init__(self):
+            super().__init__("This doesn't appear to be from Bob.")
+
     def __init__(self,
                  bob,
                  arrangement_id,
                  capsules,
                  capsule_signatures,
+                 alice_address,
+                 alice_address_signature,
                  receipt_bytes,
                  receipt_signature,
                  ursula=None,
@@ -530,6 +538,8 @@ class WorkOrder:
         self.arrangement_id = arrangement_id
         self.capsules = capsules
         self.capsule_signatures = capsule_signatures
+        self.alice_address = alice_address
+        self.alice_address_signature = alice_address_signature
         self.receipt_bytes = receipt_bytes
         self.receipt_signature = receipt_signature
         self.ursula = ursula  # TODO: We may still need a more elegant system for ID'ing Ursula.  See #136.
@@ -550,39 +560,72 @@ class WorkOrder:
 
     @classmethod
     def construct_by_bob(cls, arrangement_id, capsules, ursula, bob):
-        capsules_bytes = [bytes(c) for c in capsules]
+        alice_verifying_key = capsules[0].get_correctness_keys()["verifying"]
+
+        capsules_bytes = []
+        capsule_signatures = []
+        for capsule in capsules:
+            if alice_verifying_key != capsule.get_correctness_keys()["verifying"]:
+                raise ValueError("Capsules in this work order are inconsistent.")
+            capsule_bytes = bytes(capsule)
+            capsules_bytes.append(capsule_bytes)
+            capsule_signatures.append(bob.stamp(capsule_bytes))
+
+        pubkey_raw_bytes = alice_verifying_key.to_bytes(is_compressed=False)[1:]
+        verifying_key_as_eth_key = EthKeyAPI.PublicKey(pubkey_raw_bytes)
+        alice_address = verifying_key_as_eth_key.to_canonical_address()
+        alice_address_signature = bytes(bob.stamp(alice_address))
+
         receipt_bytes = b"wo:" + ursula.canonical_public_address
         receipt_bytes += msgpack.dumps(capsules_bytes)
         receipt_signature = bob.stamp(receipt_bytes)
-        capsule_signatures = [bob.stamp(c) for c in capsules_bytes]
-        return cls(bob, arrangement_id, capsules, capsule_signatures, receipt_bytes, receipt_signature,
-                   ursula)
+
+        return cls(bob, arrangement_id, capsules, capsule_signatures,
+                   alice_address, alice_address_signature,
+                   receipt_bytes, receipt_signature, ursula)
 
     @classmethod
     def from_rest_payload(cls, arrangement_id, rest_payload):
+
+        # TODO: Use JSON instead? This is a mess.
         payload_splitter = BytestringSplitter(Signature) + key_splitter
-        signature, bob_pubkey_sig, \
-            (receipt_bytes, packed_capsules, packed_signatures) = payload_splitter(rest_payload,
-                                                                                   msgpack_remainder=True)
+        signature, bob_pubkey_sig, remainder = payload_splitter(rest_payload,
+                                                                msgpack_remainder=True)
+
+        receipt_bytes, *remainder = remainder
+        packed_capsules, packed_signatures, *remainder = remainder
+        alice_address, alice_address_signature = remainder
+        alice_address_signature = Signature.from_bytes(alice_address_signature)
+        if not alice_address_signature.verify(alice_address, bob_pubkey_sig):
+            raise cls.NotFromBob()
+
         capsules, capsule_signatures = list(), list()
-        for capsule_bytes, signed_capsule in zip(msgpack.loads(packed_capsules), msgpack.loads(packed_signatures)):
+        for capsule_bytes, capsule_signature in zip(msgpack.loads(packed_capsules), msgpack.loads(packed_signatures)):
             capsules.append(Capsule.from_bytes(capsule_bytes, params=default_params()))
-            signed_capsule = Signature.from_bytes(signed_capsule)
-            capsule_signatures.append(signed_capsule)
-            if not signed_capsule.verify(capsule_bytes, bob_pubkey_sig):
-                raise ValueError("This doesn't appear to be from Bob.")
+            capsule_signature = Signature.from_bytes(capsule_signature)
+            capsule_signatures.append(capsule_signature)
+            if not capsule_signature.verify(capsule_bytes, bob_pubkey_sig):
+                raise cls.NotFromBob()
 
         verified = signature.verify(receipt_bytes, bob_pubkey_sig)
         if not verified:
-            raise ValueError("This doesn't appear to be from Bob.")
+            raise cls.NotFromBob()
         bob = Bob.from_public_keys({SigningPower: bob_pubkey_sig})
-        return cls(bob, arrangement_id, capsules, capsule_signatures, receipt_bytes, signature)
+        return cls(bob, arrangement_id, capsules, capsule_signatures,
+                   alice_address, alice_address_signature,
+                   receipt_bytes, signature)
 
     def payload(self):
         capsules_as_bytes = [bytes(p) for p in self.capsules]
         capsule_signatures_as_bytes = [bytes(s) for s in self.capsule_signatures]
         packed_receipt_and_capsules = msgpack.dumps(
-            (self.receipt_bytes, msgpack.dumps(capsules_as_bytes), msgpack.dumps(capsule_signatures_as_bytes)))
+            (self.receipt_bytes,
+             msgpack.dumps(capsules_as_bytes),
+             msgpack.dumps(capsule_signatures_as_bytes),
+             self.alice_address,
+             self.alice_address_signature,
+             )
+        )
         return bytes(self.receipt_signature) + self.bob.stamp + packed_receipt_and_capsules
 
     def complete(self, cfrags_and_signatures):
