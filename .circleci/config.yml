@@ -24,6 +24,13 @@ workflows:
           requires:
             - pip_install
             - pipenv_install
+      - intercontract_integration:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - contracts
       - config:
           context: "NuCypher Tests"
           filters:
@@ -63,19 +70,22 @@ workflows:
           requires:
             - pip_install
             - pipenv_install
-      - blockchain_entities:
+      - character:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - contracts
+            - crypto
+            - network
+            - keystore
       - agents:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
+            - intercontract_integration
             - blockchain_interface
       - actors:
           context: "NuCypher Tests"
@@ -83,6 +93,7 @@ workflows:
             tags:
               only: /.*/
           requires:
+            - intercontract_integration
             - blockchain_interface
       - deployers:
           context: "NuCypher Tests"
@@ -99,11 +110,9 @@ workflows:
               only: /.*/
           requires:
             - blockchain_interface
-            - config
             - crypto
             - network
             - keystore
-            - character
       - cli:
           context: "NuCypher Tests"
           filters:
