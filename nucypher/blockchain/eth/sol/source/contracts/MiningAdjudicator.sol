@@ -145,6 +145,8 @@ contract MiningAdjudicator {
             _precomputed.pointEyCoord
         ));
 
+        // Input validation: z*E
+        require(Numerology.is_on_curve(_precomputed.pointEZxCoord, _precomputed.pointEZyCoord));
         bool ez_is_correct = Numerology.ecmulVerify(
             _capsule.pointE.xCoord,     // E_x
             _precomputed.pointEyCoord,  // E_y
@@ -153,12 +155,15 @@ contract MiningAdjudicator {
             _precomputed.pointEZyCoord  // zE_y
         );
 
+        // Input validation: E1
         require(Numerology.check_compressed_point(
             _cFrag.pointE1.sign,         // E_sign
             _cFrag.pointE1.xCoord,      // E1_x
             _precomputed.pointE1yCoord  // E1_y
         ));
 
+        // Input validation: h*E_1
+        require(Numerology.is_on_curve(_precomputed.pointE1HxCoord, _precomputed.pointE1HyCoord));
         bool e1h_is_correct = Numerology.ecmulVerify(
             _cFrag.pointE1.xCoord,          // E1_x
             _precomputed.pointE1yCoord,     // E1_y
@@ -167,6 +172,7 @@ contract MiningAdjudicator {
             _precomputed.pointE1HyCoord     // hE1_y
         );
 
+        // Input validation: E_2
         require(Numerology.check_compressed_point(
             _cFrag.proof.pointE2.sign,        // E2_sign
             _cFrag.proof.pointE2.xCoord,      // E2_x
