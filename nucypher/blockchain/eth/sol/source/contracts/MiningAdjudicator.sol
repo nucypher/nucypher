@@ -157,7 +157,7 @@ contract MiningAdjudicator {
 
         // Input validation: E1
         require(Numerology.check_compressed_point(
-            _cFrag.pointE1.sign,         // E_sign
+            _cFrag.pointE1.sign,        // E_sign
             _cFrag.pointE1.xCoord,      // E1_x
             _precomputed.pointE1yCoord  // E1_y
         ));
@@ -187,8 +187,70 @@ contract MiningAdjudicator {
             )
         );
 
-        // TODO: Repeat with v and u
-        return ez_is_correct && e1h_is_correct && sum_is_correct;
+        if (!(ez_is_correct && e1h_is_correct && sum_is_correct)){
+            return false;
+        }
+
+        //////
+        // Verifying equation: z*V + h*V_1 = V_2
+        //////
+
+        // Input validation: V
+        require(Numerology.check_compressed_point(
+            _capsule.pointV.sign,
+            _capsule.pointV.xCoord,
+            _precomputed.pointVyCoord
+        ));
+
+        // Input validation: z*V
+        require(Numerology.is_on_curve(_precomputed.pointVZxCoord, _precomputed.pointVZyCoord));
+        bool vz_is_correct = Numerology.ecmulVerify(
+            _capsule.pointV.xCoord,     // V_x
+            _precomputed.pointVyCoord,  // V_y
+            _cFrag.proof.bnSig,         // z
+            _precomputed.pointVZxCoord, // zV_x
+            _precomputed.pointVZyCoord  // zV_y
+        );
+
+        // Input validation: V1
+        require(Numerology.check_compressed_point(
+            _cFrag.pointV1.sign,        // V_sign
+            _cFrag.pointV1.xCoord,      // V1_x
+            _precomputed.pointV1yCoord  // V1_y
+        ));
+
+        // Input validation: h*V_1
+        require(Numerology.is_on_curve(_precomputed.pointV1HxCoord, _precomputed.pointV1HyCoord));
+        bool v1h_is_correct = Numerology.ecmulVerify(
+            _cFrag.pointV1.xCoord,          // V1_x
+            _precomputed.pointV1yCoord,     // V1_y
+            h,
+            _precomputed.pointV1HxCoord,    // h*V1_x
+            _precomputed.pointV1HyCoord     // h*V1_y
+        );
+
+        // Input validation: V_2
+        require(Numerology.check_compressed_point(
+            _cFrag.proof.pointV2.sign,        // V2_sign
+            _cFrag.proof.pointV2.xCoord,      // V2_x
+            _precomputed.pointV2yCoord        // V2_y
+        ));
+
+        sum_is_correct = Numerology.eqAffineJacobian(
+            [_precomputed.pointVZxCoord,  _precomputed.pointVZyCoord],
+            Numerology.addAffineJacobian(
+                [_cFrag.proof.pointV2.xCoord, _precomputed.pointV2yCoord],
+                [_precomputed.pointV1HxCoord, _precomputed.pointV1HyCoord]
+            )
+        );
+
+        if (!(vz_is_correct && v1h_is_correct && sum_is_correct)){
+            return false;
+        }
+
+        return true;
+
+        // TODO: Repeat with u
     }
 
 
