@@ -89,6 +89,7 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     u_sign = 2 + (u_ycoord % 2)
     assert u_sign == adjudicator_contract.functions.UMBRAL_PARAMETER_U_SIGN().call()
     assert u_xcoord == adjudicator_contract.functions.UMBRAL_PARAMETER_U_XCOORD().call()
+    assert u_ycoord == adjudicator_contract.functions.UMBRAL_PARAMETER_U_YCOORD().call()
 
     # TODO: Move this to an integration test
     test_data = os.urandom(40)

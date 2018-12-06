@@ -14,6 +14,7 @@ contract MiningAdjudicator {
 
     uint8 public constant UMBRAL_PARAMETER_U_SIGN = 0x02;
     uint256 public constant UMBRAL_PARAMETER_U_XCOORD = 0x03c98795773ff1c241fc0b1cced85e80f8366581dda5c9452175ebd41385fa1f;
+    uint256 public constant UMBRAL_PARAMETER_U_YCOORD = 0x7880ed56962d7c0ae44d6f14bb53b5fe64b31ea44a41d0316f3a598778f0f936;
 
     using UmbralDeserializer for bytes;
 
