@@ -717,11 +717,14 @@ class UnquestionableEvidence:
         e2 = self.cfrag.proof.point_e2
         v2 = self.cfrag.proof.point_v2
         u = umbral_params.u
+        u1 = self.cfrag.proof.point_kfrag_commitment
+        u2 = self.cfrag.proof.point_kfrag_pok
 
         h = self.get_proof_challenge_scalar()
 
         e1h = h * e1
         v1h = h * v1
+        u1h = h * u1
 
         z = self.cfrag.proof.bn_sig
         ez = z * e
@@ -735,18 +738,27 @@ class UnquestionableEvidence:
             else:
                 return point.to_bytes(is_compressed=False)[1:]
 
+        # E points
         e_y = raw_bytes_from_point(e, only_y_coord=True)
         ez_xy = raw_bytes_from_point(ez)
         e1_y = raw_bytes_from_point(e1, only_y_coord=True)
         e1h_xy = raw_bytes_from_point(e1h)
         e2_y = raw_bytes_from_point(e2, only_y_coord=True)
+        # V points
         v_y = raw_bytes_from_point(v, only_y_coord=True)
         vz_xy = raw_bytes_from_point(vz)
         v1_y = raw_bytes_from_point(v1, only_y_coord=True)
         v1h_xy = raw_bytes_from_point(v1h)
         v2_y = raw_bytes_from_point(v2, only_y_coord=True)
+        # U points
+        uz_xy = raw_bytes_from_point(uz)
+        u1_y = raw_bytes_from_point(u1, only_y_coord=True)
+        u1h_xy = raw_bytes_from_point(u1h)
+        u2_y = raw_bytes_from_point(u2, only_y_coord=True)
 
         pieces = (
-            e_y, ez_xy, e1_y, e1h_xy, e2_y, v_y, vz_xy, v1_y, v1h_xy, v2_y
+            e_y, ez_xy, e1_y, e1h_xy, e2_y,
+            v_y, vz_xy, v1_y, v1h_xy, v2_y,
+            uz_xy, u1_y, u1h_xy, u2_y,
         )
         return b''.join(pieces)
