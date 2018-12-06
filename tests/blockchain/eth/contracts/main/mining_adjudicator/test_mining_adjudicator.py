@@ -130,7 +130,7 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     evidence = UnquestionableEvidence(capsule, cfrag)
 
     some_data = evidence.precompute_values()
-    assert len(some_data) == 14 * 32
+    assert len(some_data) == 20 * 32
 
     proof_signature = int(evidence.get_proof_challenge_scalar())
     assert proof_signature == adjudicator_contract.functions.computeProofChallengeScalar(capsule_bytes, cfrag_bytes).call()
