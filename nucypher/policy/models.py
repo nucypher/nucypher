@@ -622,7 +622,7 @@ class WorkOrder:
             (self.receipt_bytes,
              msgpack.dumps(capsules_as_bytes),
              msgpack.dumps(capsule_signatures_as_bytes),
-             self.alice_address,
+             self.alice_address,  # TODO: if Ursula computes ETH address, we can remove this
              self.alice_address_signature,
              )
         )
@@ -631,13 +631,27 @@ class WorkOrder:
     def complete(self, cfrags_and_signatures):
         good_cfrags = []
         if not len(self) == len(cfrags_and_signatures):
-            raise ValueError("Ursula gave back the wrong number of cfrags.  She's up to something.")
+            raise ValueError("Ursula gave back the wrong number of cfrags.  "
+                             "She's up to something.")
+
+        alice_address_signature = bytes(self.alice_address_signature)
+        ursula_verifying_key = self.ursula.stamp.as_umbral_pubkey()
+
         for counter, capsule in enumerate(self.capsules):
             cfrag, signature = cfrags_and_signatures[counter]
-            if signature.verify(bytes(cfrag) + bytes(capsule), self.ursula.stamp.as_umbral_pubkey()):
+
+            # Validate CFrag metadata
+            capsule_signature = bytes(self.capsule_signatures[counter])
+            metadata_input = capsule_signature + alice_address_signature
+            metadata_as_signature = Signature.from_bytes(cfrag.proof.metadata)
+            if not metadata_as_signature.verify(metadata_input, ursula_verifying_key):
+                raise InvalidSignature("Invalid metadata for {}.".format(cfrag))
+
+            # Validate work order response signatures
+            if signature.verify(bytes(cfrag) + bytes(capsule), ursula_verifying_key):
                 good_cfrags.append(cfrag)
             else:
-                raise self.ursula.InvalidSignature("This CFrag is not properly signed by Ursula.")
+                raise InvalidSignature("{} is not properly signed by Ursula.".format(cfrag))
         else:
             self.completed = maya.now()
             return good_cfrags
