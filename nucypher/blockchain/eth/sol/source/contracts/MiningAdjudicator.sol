@@ -249,9 +249,55 @@ contract MiningAdjudicator {
             return false;
         }
 
-        return true;
+        //////
+        // Verifying equation: z*U == h*U_1 + U_2
+        //////
 
-        // TODO: Repeat with u
+        // We don't have to validate U since it's fixed and hard-coded
+
+        // Input validation: z*U
+        require(Numerology.is_on_curve(_precomputed.pointUZxCoord, _precomputed.pointUZyCoord));
+        bool uz_is_correct = Numerology.ecmulVerify(
+            UMBRAL_PARAMETER_U_XCOORD,  // U_x
+            UMBRAL_PARAMETER_U_YCOORD,  // U_y
+            _cFrag.proof.bnSig,         // z
+            _precomputed.pointUZxCoord, // zU_x
+            _precomputed.pointUZyCoord  // zU_y
+        );
+
+        // Input validation: U_1  (a.k.a. KFragCommitment)
+        require(Numerology.check_compressed_point(
+            _cFrag.proof.pointKFragCommitment.sign,     // U1_sign
+            _cFrag.proof.pointKFragCommitment.xCoord,   // U1_x
+            _precomputed.pointU1yCoord                  // U1_y
+        ));
+
+        // Input validation: h*U_1
+        require(Numerology.is_on_curve(_precomputed.pointU1HxCoord, _precomputed.pointU1HyCoord));
+        bool u1h_is_correct = Numerology.ecmulVerify(
+            _cFrag.proof.pointKFragCommitment.xCoord,   // U1_x
+            _precomputed.pointU1yCoord,                 // U1_y
+            h,
+            _precomputed.pointU1HxCoord,    // h*V1_x
+            _precomputed.pointU1HyCoord     // h*V1_y
+        );
+
+        // Input validation: U_2  (a.k.a. KFragPok ("proof of knowledge"))
+        require(Numerology.check_compressed_point(
+            _cFrag.proof.pointKFragPok.sign,    // U2_sign
+            _cFrag.proof.pointKFragPok.xCoord,  // U2_x
+            _precomputed.pointU2yCoord          // U2_y
+        ));
+
+        sum_is_correct = Numerology.eqAffineJacobian(
+            [_precomputed.pointUZxCoord,  _precomputed.pointUZyCoord],
+            Numerology.addAffineJacobian(
+                [_cFrag.proof.pointKFragPok.xCoord, _precomputed.pointU2yCoord],
+                [_precomputed.pointU1HxCoord, _precomputed.pointU1HyCoord]
+            )
+        );
+
+        return uz_is_correct && u1h_is_correct && sum_is_correct;
     }
 
 
