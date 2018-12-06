@@ -315,15 +315,18 @@ def make_rest_app(
         alices_verifying_key = UmbralPublicKey.from_bytes(verifying_key_bytes)
         cfrag_byte_stream = b""
 
+        # This is Alice's verifying key as ETH address, signed by Bob
+        alice_address_signature = bytes(work_order.alice_address_signature)
+
         for capsule, capsule_signature in zip(work_order.capsules, work_order.capsule_signatures):
             # This is the capsule signed by Bob
             capsule_signature = bytes(capsule_signature)
             # Ursula signs on top of it. Now both are committed to the same capsule.
-            capsule_signed_by_both = bytes(stamp(capsule_signature))
-
+            # She signs Alice's address too.
+            ursula_signature = stamp(capsule_signature + alice_address_signature)
             capsule.set_correctness_keys(verifying=alices_verifying_key)
-            cfrag = pre.reencrypt(kfrag, capsule, metadata=capsule_signed_by_both)
-            log.info("Re-encrypting for {}, made {}.".format(capsule, cfrag))
+            cfrag = pre.reencrypt(kfrag, capsule, metadata=bytes(ursula_signature))
+            log.info(f"Re-encrypting for {capsule}, made {cfrag}.")
             signature = stamp(bytes(cfrag) + bytes(capsule))
             cfrag_byte_stream += VariableLengthBytestring(cfrag) + signature
 
