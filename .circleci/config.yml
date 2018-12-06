@@ -24,13 +24,6 @@ workflows:
           requires:
             - pip_install
             - pipenv_install
-      - intercontract_integration:
-          context: "NuCypher Tests"
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - contracts
       - config:
           context: "NuCypher Tests"
           filters:
@@ -62,7 +55,7 @@ workflows:
           requires:
             - pip_install
             - pipenv_install
-      - blockchain_interface:
+      - blockchain:
           context: "NuCypher Tests"
           filters:
             tags:
@@ -85,31 +78,31 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - intercontract_integration
-            - blockchain_interface
+            - blockchain
+            - contracts
       - actors:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - intercontract_integration
-            - blockchain_interface
+            - blockchain
+            - contracts
       - deployers:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - intercontract_integration
-            - blockchain_interface
+            - blockchain
+            - contracts
       - config:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - blockchain_interface
+            - blockchain
             - crypto
             - network
             - keystore
@@ -225,7 +218,7 @@ jobs:
           name: Check Python Entrypoint
           command: python3 -c "import nucypher; print(nucypher.__version__)"
 
-  blockchain_interface:
+  blockchain:
     <<: *python_36_base
     parallelism: 2
     steps:
@@ -241,6 +234,7 @@ jobs:
 
   agents:
     <<: *python_36_base
+    parallelism: 2
     steps:
       - checkout
       - attach_workspace:
@@ -254,6 +248,7 @@ jobs:
 
   actors:
     <<: *python_36_base
+    parallelism: 2
     steps:
       - checkout
       - attach_workspace:
@@ -267,20 +262,21 @@ jobs:
 
   deployers:
     <<: *python_36_base
+    parallelism: 4
     steps:
       - checkout
       - attach_workspace:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Contract Deployer Tests
-          command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/entities/deployers --junitxml=./reports/pytest/results.xml
+          command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow --junitxml=./reports/pytest/results.xml $(circleci tests glob tests/blockchain/eth/entities/deployers/test_*.py | circleci tests split --split-by=timings)
       - run: *coveralls
       - store_test_results:
           path: ./reports/pytest/
 
   contracts:
     <<: *python_36_base
-    parallelism: 4
+    parallelism: 5
     steps:
       - checkout
       - attach_workspace:
@@ -378,19 +374,6 @@ jobs:
       - store_test_results:
           path: ./reports/pytest/
 
-  intercontract_integration:
-    <<: *python_36_base
-    steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
-      - run:
-          name: Ethereum Inter-Contract Integration Test
-          command: |
-            pipenv run pytest -v --runslow tests/blockchain/eth/contracts/main/test_intercontract_integration.py --junitxml=./reports/pytest/intercontract_integration_results.xml
-      - store_test_results:
-          path: ./reports/pytest/
-
   cli:
     <<: *python_36_base
     parallelism: 4
@@ -401,8 +384,7 @@ jobs:
     - run:
         name: Nucypher CLI Tests
         command: |
-          pipenv run pytest --cov=nucypher/cli.py -v --runslow $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/cli_results.xml
-    - run: *coveralls
+          pipenv run pytest -v --runslow $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/cli_results.xml
     - store_test_results:
         path: ./reports/pytest/
 
@@ -415,8 +397,7 @@ jobs:
     - run:
         name: Ursula Command Tests
         command: |
-          pipenv run pytest -v --cov=nucypher/cli.py --runslow tests/cli/protocol --junitxml=./reports/pytest/results.xml
-    - run: *coveralls
+          pipenv run pytest -v --runslow tests/cli/protocol --junitxml=./reports/pytest/results.xml
     - store_test_results:
         path: ./reports/pytest/
 
