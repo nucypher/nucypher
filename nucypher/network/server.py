@@ -56,7 +56,7 @@ class ProxyRESTServer:
     def __init__(self,
                  rest_host: str,
                  rest_port: int,
-                 hosting_power = None,
+                 hosting_power=None,
                  routes: 'ProxyRESTRoutes' = None,
                  ) -> None:
 
@@ -106,7 +106,6 @@ class ProxyRESTRoutes:
         self._stamp = stamp
         self._verifier = verifier
         self._suspicious_activity_tracker = suspicious_activity_tracker
-        self._certificate_dir = certificate_dir
         self.serving_domains = serving_domains
         self.datastore = None
 
@@ -150,7 +149,7 @@ class ProxyRESTRoutes:
         self.log.info("Starting datastore {}".format(self.db_filepath))
 
         # See: https://docs.sqlalchemy.org/en/rel_0_9/dialects/sqlite.html#connect-strings
-        db_filepath = (self.db_filepath or '')      # Capture None
+        db_filepath = (self.db_filepath or '')  # Capture None
         engine = create_engine('sqlite:///{}'.format(db_filepath))
 
         Base.metadata.create_all(engine)
@@ -213,8 +212,9 @@ class ProxyRESTRoutes:
             @crosstown_traffic()
             def learn_about_announced_nodes():
                 try:
-                    temp_certificate_filepath = self.__forgetful_node_storage.store_node_certificate(checksum_address=node.checksum_public_address,
-                                                                                                     certificate=node.certificate)
+                    temp_certificate_filepath = self.__forgetful_node_storage.store_node_certificate(
+                        checksum_address=node.checksum_public_address,
+                        certificate=node.certificate)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=temp_certificate_filepath)

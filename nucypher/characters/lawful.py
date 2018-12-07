@@ -812,7 +812,7 @@ class Ursula(Teacher, Character, Miner):
         node_info['rest_port'] = interface_info.port
 
         node_info['timestamp'] = maya.MayaDT(node_info.pop("timestamp"))
-        node_info['checksum_address'] = to_checksum_address(node_info.pop("public_address"))
+        node_info['checksum_public_address'] = to_checksum_address(node_info.pop("public_address"))
 
         domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
         node_info['domains'] = [constant_or_bytes(d) for d in domains_vbytes]

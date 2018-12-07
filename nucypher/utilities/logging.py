@@ -35,7 +35,7 @@ def initialize_sentry(dsn: str):
     import logging
 
     sentry_logging = LoggingIntegration(
-        level=logging.INFO,        # Capture info and above as breadcrumbs
+        level=logging.INFO,  # Capture info and above as breadcrumbs
         event_level=logging.DEBUG  # Send debug logs as events
     )
     sentry_sdk.init(

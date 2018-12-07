@@ -176,9 +176,7 @@ class FleetStateTracker:
             # its own class, FleetState, and use it as the basis for partial updates.
             self.states[checksum] = self.state_template(nickname=self.nickname,
                                                         nodes=sorted_nodes,
-                                                        icon=self.icon_html(),
-                                                        icon=self.icon(),
-                                                        nodes=sorted_nodes,
+                                                        icon=self.icon,
                                                         updated=self.updated,
                                                         )
 
@@ -270,7 +268,8 @@ class Learner:
         self.unresponsive_startup_nodes = list()  # TODO: Attempt to use these again later
         for node in known_nodes:
             try:
-                self.remember_node(node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
+                self.remember_node(
+                    node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
 
@@ -625,10 +624,8 @@ class Learner:
         unresponsive_nodes = set()
         try:
             # TODO: Streamline path generation
-            certificate_filepath = self.node_storage.generate_certificate_filepath(checksum_address=current_teacher.checksum_public_address)
-            response = self.network_middleware.get_nodes_via_rest(url=rest_url,
-            certificate_filepath = current_teacher.get_certificate_filepath(
-                certificates_dir=self.known_certificates_dir)
+            certificate_filepath = self.node_storage.generate_certificate_filepath(
+                checksum_address=current_teacher.checksum_public_address)
             response = self.network_middleware.get_nodes_via_rest(url=teacher_uri,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
@@ -657,8 +654,9 @@ class Learner:
             # TODO: What to do if the teacher improperly signed the node payload?
             raise
 
-        fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = FleetStateTracker.snapshot_splitter(node_payload,
-                                                                                                           return_remainder=True)
+        fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = FleetStateTracker.snapshot_splitter(
+            node_payload,
+            return_remainder=True)
         current_teacher.last_seen = maya.now()
         # TODO: This is weird - let's get a stranger FleetState going.
         checksum = fleet_state_checksum_bytes.hex()
@@ -679,7 +677,8 @@ class Learner:
                     continue  # This node is not serving any of our domains.
             try:
                 if eager:
-                    certificate_filepath = self.node_storage.generate_certificate_filepath(checksum_address=current_teacher.checksum_public_address)
+                    certificate_filepath = self.node_storage.generate_certificate_filepath(
+                        checksum_address=current_teacher.checksum_public_address)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
@@ -708,10 +707,11 @@ class Learner:
                                                         len(new_nodes)), )
         if new_nodes:
             self.known_nodes.record_fleet_state()
-            if self.known_certificates_dir:
-                for node in new_nodes:
-                    node.save_certificate_to_disk(self.known_certificates_dir, force=True)
-
+            for node in new_nodes:
+                self.node_storage.store_node_certificate(checksum_address=node.checksum_public_address,
+                                                         certificate=node.certificate,
+                                                         host=node.rest_information()[0].host,
+                                                         force=True)
         return new_nodes
 
 
@@ -746,7 +746,7 @@ class Teacher:
         self._evidence_of_decentralized_identity = constant_or_bytes(identity_evidence)
 
         if substantiate_immediately:
-            self.substantiate_stamp(passphrase=passphrase)  # TODO: Derive from keyring
+            self.substantiate_stamp(password=passphrase)  # TODO: Derive from keyring
 
     class InvalidNode(SuspiciousActivity):
         """
@@ -774,7 +774,7 @@ class Teacher:
     #
 
     def seed_node_metadata(self):
-        return SeednodeMetadata(self.checksum_public_address,          # type: str
+        return SeednodeMetadata(self.checksum_public_address,  # type: str
                                 self.rest_server.rest_interface.host,  # type: str
                                 self.rest_server.rest_interface.port)  # type: int
 
@@ -801,6 +801,7 @@ class Teacher:
         self.fleet_state_updated = updated
         self.fleet_state_icon = icon_from_checksum(self.fleet_state_checksum,
                                                    nickname_metadata=self.fleet_state_nickname_metadata)
+
     #
     # Stamp
     #
