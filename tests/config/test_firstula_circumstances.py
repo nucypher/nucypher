@@ -15,11 +15,11 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 from functools import partial
 
+import maya
+import pytest
 import pytest_twisted
-from cryptography.hazmat.primitives import serialization
 from twisted.internet.threads import deferToThread
 
 from nucypher.network.middleware import RestMiddleware

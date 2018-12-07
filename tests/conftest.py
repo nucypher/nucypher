@@ -19,10 +19,7 @@ import pytest
 from twisted.logger import globalLogPublisher
 
 from nucypher.cli.main import NucypherClickConfig
-from nucypher.utilities.logging import SimpleObserver
-
 #
-from nucypher.cli import NucypherClickConfig
 from nucypher.utilities.logging import SimpleObserver
 
 # Logger Configuration
@@ -32,13 +29,12 @@ from nucypher.utilities.logging import SimpleObserver
 NucypherClickConfig.log_to_sentry = False
 NucypherClickConfig.log_to_file = False
 
-
 #
 # Pytest configuration
 #
 
 pytest_plugins = [
-   'tests.fixtures',  # Includes external fixtures module
+    'tests.fixtures',  # Includes external fixtures module
 ]
 
 

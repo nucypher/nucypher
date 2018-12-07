@@ -15,7 +15,6 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import pytest
 import pytest_twisted as pt
 import time
@@ -25,8 +24,6 @@ from twisted.internet.error import CannotListenError
 from nucypher.characters.base import Learner
 from nucypher.cli.main import nucypher_cli
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_STARTING_PORT
-from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
-from nucypher.utilities.sandbox.ursula import UrsulaCommandProtocol
 
 
 @pytest.mark.skip('Results in exception "ReactorAlreadyRunning"')

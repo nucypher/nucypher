@@ -15,7 +15,6 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import binascii
 import random
 from collections import defaultdict, OrderedDict
@@ -23,24 +22,21 @@ from collections import deque
 from collections import namedtuple
 from contextlib import suppress
 from logging import Logger
+from typing import Set, Tuple
 
 import maya
 import requests
-import socket
 import time
-from bytestring_splitter import BytestringSplitter, VariableLengthBytestring, BytestringSplittingError
-from constant_sorrow import constants
-from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509 import Certificate, NameOID
+from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 from requests.exceptions import SSLError
 from twisted.internet import reactor, defer
 from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
-from typing import Set, Tuple
 
 from bytestring_splitter import BytestringSplitter
+from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
 from constant_sorrow import constants
 from constant_sorrow.constants import constant_or_bytes, GLOBAL_DOMAIN
 from nucypher.config.constants import SeednodeMetadata
@@ -51,17 +47,15 @@ from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
-from nucypher.network.protocols import SuspiciousActivity, parse_node_uri
+from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
-from nucypher.utilities.decorators import validate_checksum_address
 
 
 def icon_from_checksum(checksum,
                        nickname_metadata,
                        number_of_nodes="Unknown number of "):
-
     if checksum is constants.NO_KNOWN_NODES:
-            return "NO FLEET STATE AVAILABLE"
+        return "NO FLEET STATE AVAILABLE"
     icon_template = """
     <div class="nucypher-nickname-icon" style="border-color:{color};">
     <div class="small">{number_of_nodes} nodes</div>

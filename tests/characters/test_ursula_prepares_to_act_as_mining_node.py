@@ -15,10 +15,8 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import os
-
 import pytest
+from eth_keys.datatypes import Signature as EthSignature
 
 from nucypher.characters.lawful import Ursula
 from nucypher.characters.unlawful import Vladimir

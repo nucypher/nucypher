@@ -16,20 +16,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from contextlib import suppress
+from typing import Dict, ClassVar, Set
+from typing import Optional
+from typing import Tuple
+from typing import Union, List
 
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address, to_canonical_address
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
-from constant_sorrow import constants, default_constant_splitter
-from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_checksum_address, to_canonical_address
-from typing import Dict, ClassVar
-from typing import Optional
-from typing import Tuple
-from typing import Union, List
-
+from constant_sorrow import constants
 from constant_sorrow import default_constant_splitter
 from constant_sorrow.constants import (
     NO_NICKNAME,
@@ -56,8 +53,6 @@ from nucypher.crypto.signing import signature_splitter, StrangerStamp, Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Learner
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 
 class Character(Learner):
@@ -163,7 +158,6 @@ class Character(Learner):
             self._stamp = StrangerStamp(self.public_keys(SigningPower))
             self.keyring_dir = STRANGER
             self.network_middleware = STRANGER
-
 
         #
         # Decentralized

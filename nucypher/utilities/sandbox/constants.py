@@ -15,12 +15,9 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import os
 
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, M
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-
 
 MOCK_KNOWN_URSULAS_CACHE = {}
 

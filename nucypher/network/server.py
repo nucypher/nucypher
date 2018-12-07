@@ -15,36 +15,34 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import binascii
 import os
 from typing import Callable
 
-from twisted.logger import Logger
-
 from apistar import Route, App
 from apistar.http import Response, Request, QueryParams
+from jinja2 import Template, TemplateError
+from twisted.logger import Logger
+from umbral import pre
+from umbral.fragments import KFrag
+from umbral.keys import UmbralPublicKey
+
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from constant_sorrow.constants import GLOBAL_DOMAIN
 from hendrix.experience import crosstown_traffic
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.signing import SignatureStamp
-from nucypher.network.middleware import RestMiddleware
-from umbral import pre
-from umbral.fragments import KFrag
-from umbral.keys import UmbralPublicKey
-
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.crypto.signing import SignatureStamp
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
+from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import InterfaceInfo
-from jinja2 import Template, TemplateError
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -304,7 +302,6 @@ class ProxyRESTRoutes:
         """
         REST endpoint for revoking/deleting a KFrag from a node.
         """
-        from nucypher.crypto.kits import RevocationKit
         from nucypher.policy.models import Revocation
 
         revocation = Revocation.from_bytes(request.body)

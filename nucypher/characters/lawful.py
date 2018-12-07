@@ -16,34 +16,30 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import random
+import socket
 from collections import OrderedDict
 from functools import partial
+from typing import Dict
 from typing import Iterable
-from typing import List, Dict
+from typing import List
 from typing import Set
 
 import maya
 import requests
-import socket
 import time
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
-from functools import partial
 from twisted.internet import threads
-from typing import Dict
-from typing import Iterable
-from typing import List
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
-from bytestring_splitter import VariableLengthBytestring, BytestringKwargifier, BytestringSplitter, \
-    BytestringSplittingError
-from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, constant_or_bytes
+from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import PUBLIC_ONLY
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, constant_or_bytes
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
@@ -52,16 +48,12 @@ from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower
 from nucypher.keystore.keypairs import HostingKeypair
-from nucypher.network.nicknames import nickname_from_seed
-from nucypher.network.nodes import Teacher
-from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.middleware import RestMiddleware
+from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
 from nucypher.utilities.decorators import validate_checksum_address
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 
 class Alice(Character, PolicyAuthor):
