@@ -14,16 +14,19 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
 
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, M
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
-TEST_KNOWN_URSULAS_CACHE = {}
 
-TEST_URSULA_STARTING_PORT = 7468
+MOCK_KNOWN_URSULAS_CACHE = {}
 
-DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = 10
+MOCK_URSULA_STARTING_PORT = 49152
+
+NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = 10
 
 DEVELOPMENT_TOKEN_AIRDROP_AMOUNT = 1000000 * int(M)
 
@@ -33,6 +36,14 @@ MINERS_ESCROW_DEPLOYMENT_SECRET = os.urandom(DISPATCHER_SECRET_LENGTH)
 
 POLICY_MANAGER_DEPLOYMENT_SECRET = os.urandom(DISPATCHER_SECRET_LENGTH)
 
-TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD = 'this-is-not-a-secure-password'
+INSECURE_DEVELOPMENT_PASSWORD = 'this-is-not-a-secure-password'
 
-DEFAULT_SIMULATION_REGISTRY_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, 'simulated_registry.json')
+MAX_TEST_SEEDER_ENTRIES = 20
+
+MOCK_IP_ADDRESS = '0.0.0.0'
+
+MOCK_IP_ADDRESS_2 = '10.10.10.10'
+
+MOCK_URSULA_DB_FILEPATH = ':memory:'
+
+MOCK_CUSTOM_INSTALLATION_PATH = '/tmp/nucypher-tmp-test-custom'

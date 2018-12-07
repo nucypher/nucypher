@@ -6,7 +6,7 @@ import pytest
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.data_sources import DataSource
-from nucypher.utilities.sandbox.constants import DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+from nucypher.utilities.sandbox.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from nucypher.keystore.keypairs import SigningKeypair
 
 
@@ -52,7 +52,6 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
     bob = Bob(federated_only=True,
               start_learning_now=True,
               network_middleware=MockRestMiddleware(),
-              known_certificates_dir=certificates_tempdir,
               abort_on_learning_error=True,
               known_nodes=a_couple_of_ursulas,
               )
@@ -62,7 +61,7 @@ def test_bob_joins_policy_and_retrieves(federated_alice,
 
     # Alice creates a policy granting access to Bob
     # Just for fun, let's assume she distributes KFrags among Ursulas unknown to Bob
-    n = DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - 2
+    n = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - 2
     label = b'label://' + os.urandom(32)
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     policy = federated_alice.grant(bob=bob,

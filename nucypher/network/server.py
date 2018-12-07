@@ -18,6 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import binascii
 import os
+from typing import Callable
+
 from twisted.logger import Logger
 
 from apistar import Route, App
@@ -26,6 +28,9 @@ from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
 from constant_sorrow.constants import GLOBAL_DOMAIN
 from hendrix.experience import crosstown_traffic
+from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.crypto.signing import SignatureStamp
+from nucypher.network.middleware import RestMiddleware
 from umbral import pre
 from umbral.fragments import KFrag
 from umbral.keys import UmbralPublicKey
@@ -39,15 +44,16 @@ from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.protocols import InterfaceInfo
-from jinja2 import Template
-
+from jinja2 import Template, TemplateError
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
 
+
 class ProxyRESTServer:
     log = Logger("characters")
     SERVER_VERSION = LEARNING_LOOP_VERSION
+    log = Logger("network-server")
 
     def __init__(self,
                  rest_host: str,
@@ -71,27 +77,28 @@ class ProxyRESTServer:
 
 
 class ProxyRESTRoutes:
-    log = Logger("characters")
+    log = Logger("network-server")
 
     def __init__(self,
-                 db_name,
-                 db_filepath,
-                 network_middleware,
-                 federated_only,
-                 treasure_map_tracker,
-                 node_tracker,
-                 node_bytes_caster,
-                 work_order_tracker,
-                 node_recorder,
-                 stamp,
-                 verifier,
-                 suspicious_activity_tracker,
-                 certificate_dir,
+                 db_filepath: str,
+                 network_middleware: RestMiddleware,
+                 federated_only: bool,
+                 treasure_map_tracker: dict,
+                 node_tracker: 'FleetStateTracker',
+                 node_bytes_caster: Callable,
+                 work_order_tracker: list,
+                 node_recorder: Callable,
+                 stamp: SignatureStamp,
+                 verifier: Callable,
+                 suspicious_activity_tracker: dict,
                  serving_domains,
                  ) -> None:
 
         self.network_middleware = network_middleware
         self.federated_only = federated_only
+        self.datastore = None
+
+        self.__forgetful_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
 
         self._treasure_map_tracker = treasure_map_tracker
         self._work_order_tracker = work_order_tracker
@@ -136,7 +143,6 @@ class ProxyRESTRoutes:
         ]
 
         self.rest_app = App(routes=routes)
-        self.db_name = db_name
         self.db_filepath = db_filepath
 
         from nucypher.keystore import keystore
@@ -144,7 +150,11 @@ class ProxyRESTRoutes:
         from sqlalchemy.engine import create_engine
 
         self.log.info("Starting datastore {}".format(self.db_filepath))
-        engine = create_engine('sqlite:///{}'.format(self.db_filepath))
+
+        # See: https://docs.sqlalchemy.org/en/rel_0_9/dialects/sqlite.html#connect-strings
+        db_filepath = (self.db_filepath or '')      # Capture None
+        engine = create_engine('sqlite:///{}'.format(db_filepath))
+
         Base.metadata.create_all(engine)
         self.datastore = keystore.KeyStore(engine)
         self.db_engine = engine
@@ -190,11 +200,10 @@ class ProxyRESTRoutes:
             signature = self._stamp(payload)
             return Response(bytes(signature) + payload, headers=headers, status_code=204)
 
-        nodes = self._node_class.batch_from_bytes(request.body,
-                                                  federated_only=self.federated_only,  # TODO: 466
-                                                  )
+        nodes = self._node_class.batch_from_bytes(request.body, federated_only=self.federated_only)  # TODO: 466
 
-        # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.  Let's find a better way.  555
+        # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
+        # Let's find a better way.  #555
         for node in nodes:
             if GLOBAL_DOMAIN not in self.serving_domains:
                 if not self.serving_domains.intersection(node.serving_domains):
@@ -206,23 +215,35 @@ class ProxyRESTRoutes:
             @crosstown_traffic()
             def learn_about_announced_nodes():
                 try:
-                    certificate_filepath = node.get_certificate_filepath(certificates_dir=self._certificate_dir)  # TODO: integrate with recorder?
-                    node.save_certificate_to_disk(directory=self._certificate_dir, force=True)
+                    temp_certificate_filepath = self.__forgetful_node_storage.store_node_certificate(checksum_address=node.checksum_public_address,
+                                                                                                     certificate=node.certificate)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
-                                     certificate_filepath=certificate_filepath)
+                                     certificate_filepath=temp_certificate_filepath)
+
+                # Suspicion
                 except node.SuspiciousActivity:
+                    # TODO: Include data about caller?
                     # TODO: Account for possibility that stamp, rather than interface, was bad.
-                    message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
-                              " Announced via REST."  # TODO: Include data about caller?
+                    # TODO: Maybe also record the bytes representation separately to disk?
+                    message = "Suspicious Activity: Discovered node with bad signature: {}.  Announced via REST."
                     self.log.warn(message)
-                    self._suspicious_activity_tracker['vladimirs'].append(node)  # TODO: Maybe also record the bytes representation separately to disk?
+                    self._suspicious_activity_tracker['vladimirs'].append(node)
+
+                # Async Sentinel
                 except Exception as e:
                     self.log.critical(str(e))
-                    raise  # TODO
+                    raise
+
+                # Believable
                 else:
                     self.log.info("Learned about previously unknown node: {}".format(node))
                     self._node_recorder(node)
+                    # TODO: Record new fleet state
+
+                # Cleanup
+                finally:
+                    self.__forgetful_node_storage.forget(everything=True)
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
         return self.all_known_nodes(request)
@@ -391,13 +412,22 @@ class ProxyRESTRoutes:
             assert False
 
     def status(self, request: Request):
-        headers = {"Content-Type": "text/html", "charset":"utf-8"}
-        # TODO: Seems very strange to deserialize *this node* when we can just pass it in.  Might be a sign that we need to rethnk this composition.
+        # TODO: Seems very strange to deserialize *this node* when we can just pass it in.
+        #       Might be a sign that we need to rethnk this composition.
+
+        headers = {"Content-Type": "text/html", "charset": "utf-8"}
         this_node = self._node_class.from_bytes(self._node_bytes_caster(), federated_only=self.federated_only)
-        content = self._status_template.render(known_nodes=self._node_tracker,
-                                               this_node=this_node,
-                                               domains=[str(d) for d in self.serving_domains],
-                                               previous_states=list(reversed(self._node_tracker.states.values()))[:5])
+
+        previous_states = list(reversed(self._node_tracker.states.values()))[:5]
+
+        try:
+            content = self._status_template.render(this_node=this_node,
+                                                   known_nodes=self._node_tracker,
+                                                   previous_states=previous_states)
+        except Exception as e:
+            self.log.debug("Template Rendering Exception: ".format(str(e)))
+            raise TemplateError(str(e)) from e
+
         return Response(content=content, headers=headers)
 
 

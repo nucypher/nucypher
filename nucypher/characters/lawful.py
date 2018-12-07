@@ -24,23 +24,30 @@ from typing import Set
 
 import maya
 import requests
+import socket
+import time
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509 import load_pem_x509_certificate, Certificate
+from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
+from functools import partial
 from twisted.internet import threads
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
+from typing import Dict
+from typing import Iterable
+from typing import List
 
 from bytestring_splitter import VariableLengthBytestring, BytestringKwargifier, BytestringSplitter, \
     BytestringSplittingError
 from constant_sorrow import constants
 from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, constant_or_bytes
+from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
+from constant_sorrow import constants
+from constant_sorrow.constants import PUBLIC_ONLY
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
-from nucypher.config.storages import NodeStorage
+from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower
@@ -48,7 +55,13 @@ from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.network.middleware import RestMiddleware
+from nucypher.network.nodes import Teacher
+from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
+from nucypher.utilities.decorators import validate_checksum_address
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
 
 class Alice(Character, PolicyAuthor):
@@ -57,11 +70,11 @@ class Alice(Character, PolicyAuthor):
     def __init__(self, is_me=True, federated_only=False, network_middleware=None, *args, **kwargs) -> None:
 
         policy_agent = kwargs.pop("policy_agent", None)
-        checksum_address = kwargs.pop("checksum_address", None)
+        checksum_address = kwargs.pop("checksum_public_address", None)
         Character.__init__(self,
                            is_me=is_me,
                            federated_only=federated_only,
-                           checksum_address=checksum_address,
+                           checksum_public_address=checksum_address,
                            network_middleware=network_middleware,
                            *args, **kwargs)
 
@@ -177,8 +190,8 @@ class Alice(Character, PolicyAuthor):
             # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
             revocation_threshold = ((policy.n - policy.treasure_map.m) + 1)
             self.block_until_specific_nodes_are_known(
-                policy.revocation_kit.revokable_addresses,
-                allow_missing=(policy.n - revocation_threshold))
+                    policy.revocation_kit.revokable_addresses,
+                    allow_missing=(policy.n - revocation_threshold))
         except self.NotEnoughTeachers as e:
             raise e
         else:
@@ -445,19 +458,17 @@ class Ursula(Teacher, Character, Miner):
                  domains: Set = (constants.GLOBAL_DOMAIN,),  # For now, serving and learning domains will be the same.
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
-
-                 db_name: str = None,
                  db_filepath: str = None,
                  is_me: bool = True,
                  interface_signature=None,
                  timestamp=None,
 
                  # Blockchain
-                 checksum_address: str = None,
                  identity_evidence: bytes = constants.NOT_SIGNED,
+                 checksum_public_address: str = None,
 
                  # Character
-                 passphrase: str = None,
+                 password: str = None,
                  abort_on_learning_error: bool = False,
                  federated_only: bool = False,
                  start_learning_now: bool = None,
@@ -474,7 +485,7 @@ class Ursula(Teacher, Character, Miner):
         self._work_orders = list()
         Character.__init__(self,
                            is_me=is_me,
-                           checksum_address=checksum_address,
+                           checksum_public_address=checksum_public_address,
                            start_learning_now=start_learning_now,
                            federated_only=federated_only,
                            crypto_power=crypto_power,
@@ -493,11 +504,14 @@ class Ursula(Teacher, Character, Miner):
             # Staking Ursula
             #
             if not federated_only:
-                Miner.__init__(self, is_me=is_me, checksum_address=checksum_address)
+                Miner.__init__(self, is_me=is_me, checksum_address=checksum_public_address)
 
                 # Access staking node via node's transacting keys  TODO: Better handle ephemeral staking self ursula
                 blockchain_power = BlockchainPower(blockchain=self.blockchain, account=self.checksum_public_address)
                 self._crypto_power.consume_power_up(blockchain_power)
+
+                # Use blockchain power to substantiate stamp, instead of signing key
+                self.substantiate_stamp(password=password)  # TODO: Derive from keyring
 
         #
         # ProxyRESTServer and TLSHostingPower # TODO: Maybe we want _power_ups to be public after all?
@@ -514,7 +528,6 @@ class Ursula(Teacher, Character, Miner):
                 # REST Server (Ephemeral Self-Ursula)
                 #
                 rest_routes = ProxyRESTRoutes(
-                    db_name=db_name,
                     db_filepath=db_filepath,
                     network_middleware=self.network_middleware,
                     federated_only=self.federated_only,  # TODO: 466
@@ -578,7 +591,7 @@ class Ursula(Teacher, Character, Miner):
                          timestamp=timestamp,
                          identity_evidence=identity_evidence,
                          substantiate_immediately=is_me and not federated_only,
-                         passphrase=passphrase)
+                         )
 
         #
         # Logging / Updating

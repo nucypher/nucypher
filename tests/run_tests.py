@@ -16,14 +16,25 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from click.testing import CliRunner
+import os
 
-from nucypher.cli import cli
+import maya
+import pytest
 
 
-def test_help_message():
-    runner = CliRunner()
-    result = runner.invoke(cli, ['--help'], catch_exceptions=False)
+class NucypherPytestRunner:
+    TEST_PATH = os.path.join('tests', 'cli')
+    PYTEST_ARGS = ['--verbose', TEST_PATH]
 
-    assert result.exit_code == 0
-    assert 'Usage: cli [OPTIONS] COMMAND [ARGS]' in result.output, 'Missing or invalid help text was produced.'
+    def pytest_sessionstart(self):
+        print("*** Running Nucypher CLI Tests ***")
+        self.start_time = maya.now()
+
+    def pytest_sessionfinish(self):
+        duration = maya.now() - self.start_time
+        print("*** Nucypher Test Run Report ***")
+        print("""Run Duration ... {}""".format(duration))
+
+
+def run():
+    pytest.main(NucypherPytestRunner.PYTEST_ARGS, plugins=[NucypherPytestRunner()])

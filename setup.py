@@ -99,7 +99,7 @@ BENCHMARKS_REQUIRE = [
     'pytest-benchmark'
 ]
 
-EXTRAS_REQUIRE = {'testing': TESTS_REQUIRE,
+EXTRAS_REQUIRE = {'test': TESTS_REQUIRE,
                   'deployment': DEPLOY_REQUIRES,
                   'docs': DOCS_REQUIRE,
                   'benchmark': BENCHMARKS_REQUIRE}
@@ -113,6 +113,8 @@ setup(name=ABOUT['__title__'],
       license=ABOUT['__license__'],
       long_description=long_description,
 
+      setup_requires=['pytest-runner'],  # required for setup.py test
+      tests_require=TESTS_REQUIRE,
       install_requires=INSTALL_REQUIRES,
       extras_require=EXTRAS_REQUIRE,
 
@@ -127,7 +129,11 @@ setup(name=ABOUT['__title__'],
           'blockchain/eth/sol/source/zepellin/token/*']},
       include_package_data=True,
 
-      entry_points={'console_scripts': ['{0}={0}.cli:cli'.format(PACKAGE_NAME)]},
+      # Entry Points
+      entry_points={'console_scripts': [
+          '{0} = {0}.cli.main:nucypher_cli'.format(PACKAGE_NAME),
+          '{0}-deploy = {0}.cli.deploy:deploy'.format(PACKAGE_NAME),
+      ]},
       cmdclass={'verify': VerifyVersionCommand},
 
       classifiers=[

@@ -22,7 +22,7 @@ from bytestring_splitter import VariableLengthBytestring
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.kits import RevocationKit
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.sandbox.constants import TEST_KNOWN_URSULAS_CACHE
+from nucypher.utilities.sandbox.constants import MOCK_KNOWN_URSULAS_CACHE
 
 
 class MockRestMiddleware(RestMiddleware):
@@ -47,13 +47,12 @@ class MockRestMiddleware(RestMiddleware):
 
     def _get_ursula_by_port(self, port):
         try:
-            return TEST_KNOWN_URSULAS_CACHE[port]
+            return MOCK_KNOWN_URSULAS_CACHE[port]
         except KeyError:
             raise RuntimeError(
                 "Can't find an Ursula with port {} - did you spin up the right test ursulas?".format(port))
 
-    def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3,
-                        retry_rate: int = 2, ):
+    def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2, current_attempt: int = 0):
         ursula = self._get_ursula_by_port(port)
         return ursula.certificate
 

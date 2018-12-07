@@ -32,16 +32,16 @@ MY_REST_PORT = sys.argv[1]
 # TODO: Use real path tooling here.
 SHARED_CRUFTSPACE = "{}/examples-runtime-cruft".format(os.path.dirname(os.path.abspath(__file__)))
 CRUFTSPACE = "{}/{}".format(SHARED_CRUFTSPACE, MY_REST_PORT)
-DB_NAME = "{}/database".format(CRUFTSPACE)
+db_filepath = "{}/database".format(CRUFTSPACE)
 CERTIFICATE_DIR = "{}/certs".format(CRUFTSPACE)
 
 
-def spin_up_ursula(rest_port, db_name, teachers=(), certificate_dir=None):
+def spin_up_ursula(rest_port, db_filepath, teachers=(), certificate_dir=None):
     metadata_file = "examples-runtime-cruft/node-metadata-{}".format(rest_port)
 
     _URSULA = Ursula(rest_port=rest_port,
                      rest_host="localhost",
-                     db_name=db_name,
+                     db_filepath=db_filepath,
                      federated_only=True,
                      known_nodes=teachers,
                      known_certificates_dir=certificate_dir
@@ -52,7 +52,7 @@ def spin_up_ursula(rest_port, db_name, teachers=(), certificate_dir=None):
         _URSULA.start_learning_loop()
         _URSULA.get_deployer().run()
     finally:
-        os.remove(db_name)
+        os.remove(db_filepath)
         os.remove(metadata_file)
 
 
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         except FileNotFoundError as e:
             raise ValueError("Can't find a metadata file for node {}".format(teacher_rest_port))
 
-        spin_up_ursula(MY_REST_PORT, DB_NAME,
+        spin_up_ursula(MY_REST_PORT, db_filepath,
                        teachers=teachers,
                        certificate_dir=CERTIFICATE_DIR)
     finally:

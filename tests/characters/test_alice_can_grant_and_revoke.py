@@ -16,27 +16,24 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import os
+
 import datetime
 import maya
-import os
 import pytest
 
-from apistar.test import TestClient
-from constant_sorrow import constants
-from nucypher.characters.lawful import Bob, Ursula
+from nucypher.characters.lawful import Bob
 from nucypher.config.characters import AliceConfiguration
-from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.kits import RevocationKit
-from nucypher.crypto.powers import SigningPower, DelegatingPower, EncryptingPower
+from nucypher.crypto.powers import SigningPower, EncryptingPower
 from nucypher.policy.models import Revocation
-from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import MockPolicyCreation
 from umbral.fragments import KFrag
 
 
-@pytest.mark.skip(reason="to be implemented")
+@pytest.mark.skip(reason="to be implemented")  # TODO
 @pytest.mark.usefixtures('blockchain_ursulas')
 def test_mocked_decentralized_grant(blockchain_alice, blockchain_bob, three_agents):
 
@@ -135,33 +132,26 @@ def test_revocation(federated_alice, federated_bob):
 
 def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
 
-    passphrase = TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
-
-    # Let's create an Alice from a Configuration.
-    # This requires creating a local storage for her first.
-    node_storage = LocalFileBasedNodeStorage(
-        federated_only=True,
-        character_class=Ursula, # Alice needs to store some info about Ursula
-        known_metadata_dir=os.path.join(tmpdir, "known_metadata"),
-    )
-
+    # Create a non-learning AliceConfiguration
     alice_config = AliceConfiguration(
-        config_root=os.path.join(tmpdir, "config_root"),
-        node_storage=node_storage,
-        auto_initialize=True,
-        auto_generate_keys=True,
-        passphrase=passphrase,
-        is_me=True,
+        config_root=os.path.join(tmpdir, 'nucypher-custom-alice-config'),
         network_middleware=MockRestMiddleware(),
         known_nodes=federated_ursulas,
         start_learning_now=False,
         federated_only=True,
         save_metadata=False,
-        load_metadata=False
-    )
-    alice = alice_config(passphrase=passphrase)
+        reload_metadata=False)
 
-    # We will save Alice's config to a file for later use
+    # Generate keys and write them the disk
+    alice_config.initialize(password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    # Unlock Alice's keyring
+    alice_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    # Produce an Alice
+    alice = alice_config()  # or alice_config.produce()
+
+    # Save Alice's node configuration file to disk for later use
     alice_config_file = alice_config.to_configuration_file()
 
     # Let's save Alice's public keys too to check they are correctly restored later
@@ -181,8 +171,7 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
 
     bob = Bob(federated_only=True,
               start_learning_now=False,
-              network_middleware=MockRestMiddleware(),
-              )
+              network_middleware=MockRestMiddleware())
 
     bob_policy = alice.grant(bob, label, m=m, n=n, expiration=policy_end_datetime)
 
@@ -208,7 +197,9 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
         start_learning_now=False,
     )
 
-    new_alice = new_alice_config(passphrase=passphrase)
+    # Alice unlocks her restored keyring from disk
+    new_alice_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    new_alice = new_alice_config()
 
     # First, we check that her public keys are correctly restored
     assert alices_verifying_key == new_alice.public_keys(SigningPower)
@@ -217,8 +208,7 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
     # Bob's eldest brother, Roberto, appears too
     roberto = Bob(federated_only=True,
                   start_learning_now=False,
-                  network_middleware=MockRestMiddleware(),
-                  )
+                  network_middleware=MockRestMiddleware())
 
     # Alice creates a new policy for Roberto. Note how all the parameters
     # except for the label (i.e., recipient, m, n, policy_end) are different

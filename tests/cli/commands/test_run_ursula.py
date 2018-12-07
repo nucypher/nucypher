@@ -14,33 +14,30 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import time
+
 
 import pytest
-import pytest_twisted
-from click.testing import CliRunner
+import pytest_twisted as pt
+import time
 from twisted.internet import threads
 from twisted.internet.error import CannotListenError
 
-from nucypher.cli import cli
 from nucypher.characters.base import Learner
+from nucypher.cli.main import nucypher_cli
+from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_STARTING_PORT
 from nucypher.utilities.sandbox.constants import TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.ursula import UrsulaCommandProtocol
 
 
-@pytest.mark.skip()
-@pytest_twisted.inlineCallbacks
-def test_run_lone_federated_default_ursula():
+@pytest.mark.skip('Results in exception "ReactorAlreadyRunning"')
+@pt.inlineCallbacks
+def test_run_lone_federated_default_development_ursula(click_runner):
+    args = ('ursula', 'run', '--rest-port', MOCK_URSULA_STARTING_PORT, '--dev')
 
-    args = ['--dev',
-            '--federated-only',
-            'ursula', 'run',
-            '--rest-port', '9999',  # TODO: use different port to avoid premature ConnectionError with many test runs?
-            '--no-reactor'
-            ]
-
-    runner = CliRunner()
-    result = yield threads.deferToThread(runner.invoke, cli, args, catch_exceptions=False, input=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD+'\n')
+    result = yield threads.deferToThread(click_runner.invoke,
+                                         nucypher_cli, args,
+                                         catch_exceptions=False,
+                                         input=INSECURE_DEVELOPMENT_PASSWORD + '\n')
 
     alone = "WARNING - Can't learn right now: Need some nodes to start learning from."
     time.sleep(Learner._SHORT_LEARNING_DELAY)
@@ -49,4 +46,4 @@ def test_run_lone_federated_default_ursula():
 
     # Cannot start another Ursula on the same REST port
     with pytest.raises(CannotListenError):
-        _result = runner.invoke(cli, args, catch_exceptions=False, input=TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
+        _result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False, input=INSECURE_DEVELOPMENT_PASSWORD)

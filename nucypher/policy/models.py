@@ -256,7 +256,7 @@ class Policy:
                 return self.publish(network_middleware)
 
     def consider_arrangement(self, network_middleware, ursula, arrangement):
-        certificate_filepath = ursula.get_certificate_filepath(certificates_dir=self.alice.known_certificates_dir)
+        certificate_filepath = ursula.node_storage.generate_certificate_filepath(checksum_address=arrangement.ursula.checksum_public_address)
         try:
             ursula.verify_node(network_middleware,
                                accept_federated_only=arrangement.federated,
