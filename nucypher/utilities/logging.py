@@ -84,9 +84,10 @@ class SimpleObserver:
     @provider(ILogObserver)
     def __call__(self, event):
         if event['log_level'] >= self.log_level:
-            message = '{} ({}): {}'.format(event.get('log_level').name.upper(),
-                                           event.get('log_namespace'),
-                                           event.get('log_format'))
+            message = '{} {} ({}): {}'.format(event.get('log_level').name.upper(),
+                                              event.get('log_time'),
+                                              event.get('log_namespace'),
+                                              event.get('log_format'))
             print(message)
 
 

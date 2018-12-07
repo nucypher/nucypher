@@ -389,12 +389,14 @@ class Learner:
         if self._learning_task.running:
             return False
         elif now:
+            self.log.info("Starting Learning Loop NOW.")
             self.load_seednodes()
             self.learn_from_teacher_node()
             self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
             self.learning_deferred.addErrback(self.handle_learning_errors)
             return self.learning_deferred
         else:
+            self.log.info("Starting Learning Loop.")
             seeder_deferred = deferToThread(self.load_seednodes)
             learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
             seeder_deferred.addErrback(self.handle_learning_errors)

@@ -63,13 +63,11 @@ def test_get_cert_from_running_seed_node(ursula_federated_test_config):
     assert not any_other_ursula.known_nodes
 
     def start_lonely_learning_loop():
+        any_other_ursula.log.info(
+            "Known nodes when starting learning loop were: {}".format(any_other_ursula.known_nodes))
         any_other_ursula.start_learning_loop()
-        start = maya.now()
-        while firstula not in any_other_ursula.known_nodes:
-            passed = maya.now() - start
-            if passed.seconds > 2:
-                pytest.fail("Didn't find the seed node.")
-        any_other_ursula.block_until_specific_nodes_are_known(set([firstula.checksum_public_address]), timeout=2)
+        result = any_other_ursula.block_until_specific_nodes_are_known(set([firstula.checksum_public_address]), timeout=2)
+        assert result
 
     yield deferToThread(start_lonely_learning_loop)
     assert firstula in any_other_ursula.known_nodes
