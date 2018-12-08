@@ -62,16 +62,16 @@ def _get_or_create_user_log_dir():
     return pathlib.Path(USER_LOG_DIR).mkdir(parents=True, exist_ok=True)
 
 
-def getJsonFileObserver():
+def getJsonFileObserver(name="ursula.log.json", path=USER_LOG_DIR):  # TODO: More configurable naming here?
     _get_or_create_user_log_dir()
-    logfile = DailyLogFile("ursula.log.json", USER_LOG_DIR)
+    logfile = DailyLogFile(name, path)
     observer = jsonFileLogObserver(outFile=logfile)
     return observer
 
 
-def getTextFileObserver():
+def getTextFileObserver(name="ursula.log", path=USER_LOG_DIR):
     _get_or_create_user_log_dir()
-    logfile = DailyLogFile("ursula.log", USER_LOG_DIR)
+    logfile = DailyLogFile(name, path)
     observer = FileLogObserver(formatEvent=formatUrsulaLogEvent, outFile=logfile)
     return observer
 
