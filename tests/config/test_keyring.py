@@ -8,22 +8,22 @@ from nucypher.crypto.powers import DelegatingPower, EncryptingPower
 
 
 @pytest.mark.skip("Redacted and refactored for sensitive info leakage")
-def test_validate_passphrase():
-    # Passphrase too short
-    passphrase = 'x' * 5
+def test_validate_password():
+    # Password too short
+    password = 'x' * 5
     with pytest.raises(ValueError):
-        _keyring = NucypherKeyring.generate(passphrase=passphrase)
+        _keyring = NucypherKeyring.generate(password=password)
 
-    # Empty passphrase is provided
+    # Empty password is provided
     with pytest.raises(ValueError):
-        _keyring = NucypherKeyring.generate(passphrase="")
+        _keyring = NucypherKeyring.generate(password="")
 
 
 def test_generate_alice_keyring(tmpdir):
-    passphrase = 'x' * 16
+    password = 'x' * 16
 
     keyring = NucypherKeyring.generate(
-        passphrase=passphrase,
+        password=password,
         encrypting=True,
         wallet=False,
         tls=False,
@@ -36,7 +36,7 @@ def test_generate_alice_keyring(tmpdir):
     with pytest.raises(NucypherKeyring.KeyringLocked):
         _enc_keypair = keyring.derive_crypto_power(EncryptingPower).keypair
 
-    keyring.unlock(passphrase)
+    keyring.unlock(password)
     enc_keypair = keyring.derive_crypto_power(EncryptingPower).keypair
 
     assert enc_pubkey == enc_keypair.pubkey

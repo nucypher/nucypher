@@ -80,7 +80,6 @@ def test_bob_can_follow_treasure_map_even_if_he_only_knows_of_one_node(enacted_f
     from nucypher.characters.lawful import Bob
 
     bob = Bob(network_middleware=MockRestMiddleware(),
-              known_certificates_dir=certificates_tempdir,
               start_learning_now=False,
               abort_on_learning_error=True,
               federated_only=True)

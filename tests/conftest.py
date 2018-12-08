@@ -18,18 +18,24 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from twisted.logger import globalLogPublisher
 
-from nucypher.cli import NucypherClickConfig
-from nucypher.utilities.logging import simpleObserver
+from nucypher.cli.main import NucypherClickConfig
+from nucypher.utilities.logging import SimpleObserver
 
-
+#
 # Logger Configuration
+#
+
+# Disable click sentry and file logging
 NucypherClickConfig.log_to_sentry = False
-globalLogPublisher.addObserver(simpleObserver)
+NucypherClickConfig.log_to_file = False
 
 
+#
 # Pytest configuration
+#
+
 pytest_plugins = [
-   'tests.fixtures',
+   'tests.fixtures',  # Includes external fixtures module
 ]
 
 
@@ -41,9 +47,14 @@ def pytest_addoption(parser):
 
 
 def pytest_collection_modifyitems(config, items):
-    if config.getoption("--runslow"):   # --runslow given in cli: do not skip slow tests
-        return
-    skip_slow = pytest.mark.skip(reason="need --runslow option to run")
-    for item in items:
-        if "slow" in item.keywords:
-            item.add_marker(skip_slow)
+
+    if not config.getoption("--runslow"):   # --runslow given in cli: do not skip slow tests
+        skip_slow = pytest.mark.skip(reason="need --runslow option to run")
+        for item in items:
+            if "slow" in item.keywords:
+                item.add_marker(skip_slow)
+
+    # Timber!
+    log_level_name = config.getoption("--log-level", "info", skip=True)
+    observer = SimpleObserver(log_level_name)
+    globalLogPublisher.addObserver(observer)

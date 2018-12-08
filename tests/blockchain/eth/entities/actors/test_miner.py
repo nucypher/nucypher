@@ -14,6 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import maya
 import pytest
 
@@ -100,7 +102,7 @@ def test_miner_collects_staking_reward(testerchain, miner, three_agents):
     initial_balance = miner.token_balance
     assert token_agent.get_balance(miner.checksum_public_address) == initial_balance
 
-    miner.initialize_stake(amount=int(constants.MIN_ALLOWED_LOCKED),  # Lock the minimum amount of tokens
+    miner.initialize_stake(amount=int(constants.MIN_ALLOWED_LOCKED),         # Lock the minimum amount of tokens
                            lock_periods=int(constants.MIN_LOCKED_PERIODS))   # ... for the fewest number of periods
 
     # ...wait out the lock period...

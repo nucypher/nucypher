@@ -59,6 +59,7 @@ python-coveralls = "*"
 ansible = "*"
 moto = "*"
 nucypher = {editable = true, path = "."}
+pytest-mock = "*"
 
 [scripts]
 install-solc = "./scripts/install_solc.sh"

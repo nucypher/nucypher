@@ -14,6 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import json
 import os
 import tempfile
@@ -189,7 +191,7 @@ class TemporaryEthereumContractRegistry(EthereumContractRegistry):
 class InMemoryEthereumContractRegistry(EthereumContractRegistry):
 
     def __init__(self) -> None:
-        super().__init__(registry_filepath=":memory:")
+        super().__init__(registry_filepath="::memory-registry::")
         self.__registry_data = None  # type: str
 
     def clear(self):
@@ -277,7 +279,7 @@ class AllocationRegistry(EthereumContractRegistry):
 class InMemoryAllocationRegistry(AllocationRegistry):
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(registry_filepath=":memory:", *args, **kwargs)
+        super().__init__(registry_filepath="::memory-registry::", *args, **kwargs)
         self.__registry_data = None  # type: str
 
     def clear(self):

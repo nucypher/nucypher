@@ -24,8 +24,8 @@ from web3.middleware import geth_poa_middleware
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.utilities.sandbox.constants import (DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-                                                  DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD)
+                                                  NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+                                                  INSECURE_DEVELOPMENT_PASSWORD)
 
 
 def token_airdrop(token_agent, amount: int, origin: str, addresses: List[str]):
@@ -62,11 +62,11 @@ class TesterBlockchain(Blockchain):
             w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
         # Generate additional ethereum accounts for testing
-        enough_accounts = len(self.interface.w3.eth.accounts) >= DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+        enough_accounts = len(self.interface.w3.eth.accounts) >= NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
         if test_accounts is not None and not enough_accounts:
 
-            accounts_to_make = DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - len(self.interface.w3.eth.accounts)
-            test_accounts = test_accounts if test_accounts is not None else DEFAULT_NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+            accounts_to_make = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - len(self.interface.w3.eth.accounts)
+            test_accounts = test_accounts if test_accounts is not None else NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 
             self.__generate_insecure_unlocked_accounts(quantity=accounts_to_make)
 
@@ -84,14 +84,14 @@ class TesterBlockchain(Blockchain):
         Generate additional unlocked accounts transferring a balance to each account on creation.
         """
         addresses = list()
-        insecure_passphrase = TEST_URSULA_INSECURE_DEVELOPMENT_PASSWORD
+        insecure_password = INSECURE_DEVELOPMENT_PASSWORD
         for _ in range(quantity):
 
             umbral_priv_key = UmbralPrivateKey.gen_key()
             address = self.interface.w3.personal.importRawKey(private_key=umbral_priv_key.to_bytes(),
-                                                              passphrase=insecure_passphrase)
+                                                              password=insecure_password)
 
-            assert self.interface.unlock_account(address, password=insecure_passphrase, duration=None), 'Failed to unlock {}'.format(address)
+            assert self.interface.unlock_account(address, password=insecure_password, duration=None), 'Failed to unlock {}'.format(address)
             addresses.append(address)
             self._test_account_cache.append(address)
             self.log.info('Generated new insecure account {}'.format(address))
