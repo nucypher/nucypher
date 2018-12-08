@@ -31,7 +31,7 @@ from nucypher.cli.painting import BANNER, paint_configuration, paint_known_nodes
 from nucypher.cli.protocol import UrsulaCommandProtocol
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
-    UNREGISTERED_PORT,
+    NETWORK_PORT,
     EXISTING_READABLE_FILE,
     EXISTING_WRITABLE_DIRECTORY,
     STAKE_VALUE,
@@ -144,7 +144,7 @@ def status(click_config, config_file):
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
-@click.option('--rest-port', help="The host port to run Ursula network services on", type=UNREGISTERED_PORT)
+@click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
 @click.option('--federated-only', help="Connect only to federated nodes", is_flag=True, default=FEDERATED_ONLY)

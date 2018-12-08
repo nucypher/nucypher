@@ -49,6 +49,6 @@ STAKE_DURATION = click.IntRange(min=MIN_LOCKED_PERIODS, max=MAX_MINTING_PERIODS,
 STAKE_VALUE = click.IntRange(min=MIN_ALLOWED_LOCKED, max=MAX_ALLOWED_LOCKED, clamp=False)
 EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True)
 EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True, readable=True)
-UNREGISTERED_PORT = click.IntRange(min=49151, max=65535, clamp=False)
+NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)
 IPV4_ADDRESS = IPv4Address()
 EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
