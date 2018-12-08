@@ -83,7 +83,7 @@ def test_initialize_custom_configuration_root(custom_filepath, click_runner):
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
-def test_configuration_file_contents(custom_filepath, nominal_configuration_fields):
+def test_configuration_file_contents(custom_filepath, nominal_federated_configuration_fields):
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
@@ -96,7 +96,7 @@ def test_configuration_file_contents(custom_filepath, nominal_configuration_fiel
         except JSONDecodeError:
             raise pytest.fail(msg="Invalid JSON configuration file {}".format(custom_config_filepath))
 
-        for field in nominal_configuration_fields:
+        for field in nominal_federated_configuration_fields:
             assert field in data, "Missing field '{}' from configuration file."
             if any(keyword in field for keyword in ('path', 'dir')):
                 path = data[field]
@@ -126,7 +126,7 @@ def test_password_prompt(click_runner, custom_filepath):
     assert result.exit_code == 0
 
 
-def test_ursula_view_configuration(custom_filepath, click_runner, nominal_configuration_fields):
+def test_ursula_view_configuration(custom_filepath, click_runner, nominal_federated_configuration_fields):
 
     # Ensure the configuration file still exists
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
@@ -142,7 +142,7 @@ def test_ursula_view_configuration(custom_filepath, click_runner, nominal_config
     # CLI Output
     assert 'password' in result.output, 'WARNING: User was not prompted for password'
     assert MOCK_CUSTOM_INSTALLATION_PATH in result.output
-    for field in nominal_configuration_fields:
+    for field in nominal_federated_configuration_fields:
         assert field in result.output, "Missing field '{}' from configuration file."
 
     # Make sure nothing crazy is happening...

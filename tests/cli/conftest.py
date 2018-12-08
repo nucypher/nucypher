@@ -33,8 +33,8 @@ def click_runner():
 
 
 @pytest.fixture(scope='module')
-def nominal_configuration_fields():
-    config = UrsulaConfiguration(dev_mode=True)
+def nominal_federated_configuration_fields():
+    config = UrsulaConfiguration(dev_mode=True, federated_only=True)
     config_fields = config.static_payload
     del config_fields['is_me']
     yield tuple(config_fields.keys())
