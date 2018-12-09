@@ -37,8 +37,8 @@ from twisted.logger import Logger
 
 from bytestring_splitter import BytestringSplitter
 from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
-from constant_sorrow import constants
-from constant_sorrow.constants import constant_or_bytes, GLOBAL_DOMAIN
+from constant_sorrow import constants, constant_or_bytes
+from constant_sorrow.constants import GLOBAL_DOMAIN
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
@@ -50,6 +50,13 @@ from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
 
+
+GLOBAL_DOMAIN.set_constant_documentation(
+    """
+    If this domain is among those being learned or served, then domain checking is skipped.
+    A Learner learning about the GLOBAL_DOMAIN will learn about all nodes.
+    A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
+    """)
 
 def icon_from_checksum(checksum,
                        nickname_metadata,

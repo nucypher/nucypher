@@ -38,8 +38,8 @@ from umbral.signing import Signature
 
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, constant_or_bytes
+from constant_sorrow import constants, constant_or_bytes
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
