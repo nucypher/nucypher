@@ -20,12 +20,12 @@ contract MinersEscrowForMiningAdjudicatorMock {
     }
 
     mapping (address => MinerInfo) public minerInfo;
+    mapping (address => uint256) public rewardInfo;
 
     function setMinerInfo(address _miner, uint256 _amount) public {
         minerInfo[_miner].value = _amount;
     }
 
-    // TODO tests for _investigator and _reward fields
     function slashMiner(
         address _miner,
         uint256 _penalty,
@@ -35,6 +35,7 @@ contract MinersEscrowForMiningAdjudicatorMock {
         public
     {
         minerInfo[_miner].value -= _penalty;
+        rewardInfo[_investigator] += _reward;
     }
 
 }
@@ -46,8 +47,13 @@ contract MinersEscrowForMiningAdjudicatorMock {
 contract MiningAdjudicatorBad is Upgradeable {
 
     MinersEscrow public escrow;
-    mapping (bytes32 => bool) public evaluatedCFrags;
     SignatureVerifier.HashAlgorithm public hashAlgorithm;
+    uint256 public basePenalty;
+    uint256 public penaltyHistoryCoefficient;
+    uint256 public percentagePenalty;
+    uint256 public rewardCoefficient;
+    mapping (bytes32 => bool) public evaluatedCFrags;
+    mapping (address => uint256) public penaltyHistory;
 
     function verifyState(address) public onlyOwner {}
     function finishUpgrade(address) public onlyOwner {}
@@ -64,9 +70,21 @@ contract MiningAdjudicatorV2Mock is MiningAdjudicator {
 
     constructor(
         MinersEscrow _escrow,
-        SignatureVerifier.HashAlgorithm _hashAlgorithm
+        SignatureVerifier.HashAlgorithm _hashAlgorithm,
+        uint256 _basePenalty,
+        uint256 _percentagePenalty,
+        uint256 _penaltyHistoryCoefficient,
+        uint256 _rewardCoefficient
     )
-        public MiningAdjudicator(_escrow, _hashAlgorithm)
+        public
+        MiningAdjudicator(
+            _escrow,
+            _hashAlgorithm,
+            _basePenalty,
+            _percentagePenalty,
+            _penaltyHistoryCoefficient,
+            _rewardCoefficient
+        )
     {
     }
 

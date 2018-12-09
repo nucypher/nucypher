@@ -290,6 +290,7 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     # testerchain.wait_for_receipt(tx)
     # assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
     # assert 800 == escrow.functions.minerInfo(miner).call()[0]
+    # TODO tests for penalty/reward calculation
 
 
 @pytest.mark.slow
@@ -304,12 +305,13 @@ def test_upgrading(testerchain):
     escrow2, _ = testerchain.interface.deploy_contract('MinersEscrowForMiningAdjudicatorMock')
     address1 = escrow1.address
     address2 = escrow2.address
-    contract_library_v1, _ = testerchain.interface.deploy_contract('MiningAdjudicator', address1, ALGORITHM_KECCAK256)
+    contract_library_v1, _ = testerchain.interface.deploy_contract(
+        'MiningAdjudicator', address1, ALGORITHM_KECCAK256, 1, 2, 3, 4)
     dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract_library_v1.address, secret_hash)
 
     # Deploy second version of the contract
     contract_library_v2, _ = testerchain.interface.deploy_contract(
-        'MiningAdjudicatorV2Mock', address2, ALGORITHM_SHA256)
+        'MiningAdjudicatorV2Mock', address2, ALGORITHM_SHA256, 5, 6, 7, 8)
     contract = testerchain.interface.w3.eth.contract(
         abi=contract_library_v2.abi,
         address=dispatcher.address,
@@ -318,12 +320,20 @@ def test_upgrading(testerchain):
     # Upgrade to the second version
     assert address1 == contract.functions.escrow().call()
     assert ALGORITHM_KECCAK256 == contract.functions.hashAlgorithm().call()
+    assert 1 == contract.functions.basePenalty().call()
+    assert 2 == contract.functions.penaltyHistoryCoefficient().call()
+    assert 3 == contract.functions.percentagePenalty().call()
+    assert 4 == contract.functions.rewardCoefficient().call()
     tx = dispatcher.functions.upgrade(contract_library_v2.address, secret, secret2_hash).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     # Check constructor and storage values
     assert contract_library_v2.address == dispatcher.functions.target().call()
     assert address2 == contract.functions.escrow().call()
     assert ALGORITHM_SHA256 == contract.functions.hashAlgorithm().call()
+    assert 5 == contract.functions.basePenalty().call()
+    assert 6 == contract.functions.penaltyHistoryCoefficient().call()
+    assert 7 == contract.functions.percentagePenalty().call()
+    assert 8 == contract.functions.rewardCoefficient().call()
     # Check new ABI
     tx = contract.functions.setValueToCheck(3).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -346,6 +356,10 @@ def test_upgrading(testerchain):
     assert contract_library_v1.address == dispatcher.functions.target().call()
     assert address1 == contract.functions.escrow().call()
     assert ALGORITHM_KECCAK256 == contract.functions.hashAlgorithm().call()
+    assert 1 == contract.functions.basePenalty().call()
+    assert 2 == contract.functions.penaltyHistoryCoefficient().call()
+    assert 3 == contract.functions.percentagePenalty().call()
+    assert 4 == contract.functions.rewardCoefficient().call()
     # After rollback new ABI is unavailable
     with pytest.raises((TransactionFailed, ValueError)):
         tx = contract.functions.setValueToCheck(2).transact({'from': creator})
