@@ -1,11 +1,11 @@
 import random
 import time
-import pickle
+import msgpack
 
 from nucypher.data_sources import DataSource
 
 
-HEART_DATA_FILENAME = 'heart_data.pickle'
+HEART_DATA_FILENAME = 'heart_data.msgpack'
 
 # Alicia defined a label to categorize all her heart-related data ❤️
 # All DataSources that produce this type of data will use this label.
@@ -37,7 +37,7 @@ def generate_heart_rate_samples(policy_pubkey,
             'timestamp': now,
         }
 
-        plaintext = pickle.dumps(heart_rate_data)
+        plaintext = msgpack.dumps(heart_rate_data, use_bin_type=True)
         message_kit, _signature = data_source.encapsulate_single_message(plaintext)
 
         kit_bytes = message_kit.to_bytes()
@@ -49,6 +49,7 @@ def generate_heart_rate_samples(policy_pubkey,
     }
 
     if save_as_file:
-        pickle.dump(data, open(HEART_DATA_FILENAME, "wb"))
+        with open(HEART_DATA_FILENAME, "wb") as file:
+            msgpack.dump(data, file, use_bin_type=True)
 
     return data
