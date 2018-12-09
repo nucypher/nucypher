@@ -2,6 +2,7 @@
 __pycache__
 *.pyc
 /.venv
+.eggs
 /*.egg-info
 /build
 /.cache

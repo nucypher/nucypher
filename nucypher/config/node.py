@@ -70,10 +70,10 @@ class NodeConfiguration(ABC):
     # Configuration
     __CONFIG_FILE_EXT = '.config'
     __CONFIG_FILE_DESERIALIZER = json.loads
-    __TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
+    TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
 
     # Blockchain
-    __DEFAULT_PROVIDER_URI = 'tester://pyevm'  # FIXME: Needs to be updated in tandem with manual providers for interface.connect
+    DEFAULT_PROVIDER_URI = 'tester://pyevm'  # FIXME: Needs to be updated in tandem with manual providers for interface.connect
 
     # Registry
     __REGISTRY_NAME = 'contract_registry.json'
@@ -235,7 +235,7 @@ class NodeConfiguration(ABC):
         # Blockchain
         #
         self.poa = poa
-        self.provider_uri = provider_uri or self.__DEFAULT_PROVIDER_URI
+        self.provider_uri = provider_uri or self.DEFAULT_PROVIDER_URI
 
         self.blockchain = NO_BLOCKCHAIN_CONNECTION
         self.accounts = NO_BLOCKCHAIN_CONNECTION
@@ -487,7 +487,7 @@ class NodeConfiguration(ABC):
         # Create Config Root
         #
         if self.__dev_mode:
-            self.__temp_dir = TemporaryDirectory(prefix=self.__TEMP_CONFIGURATION_DIR_PREFIX)
+            self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
             self.config_root = self.__temp_dir.name
         else:
             try:
