@@ -94,7 +94,6 @@ class ProxyRESTRoutes:
 
         self.network_middleware = network_middleware
         self.federated_only = federated_only
-        self.datastore = None
 
         self.__forgetful_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
 
@@ -107,7 +106,6 @@ class ProxyRESTRoutes:
         self._verifier = verifier
         self._suspicious_activity_tracker = suspicious_activity_tracker
         self.serving_domains = serving_domains
-        self.datastore = None
 
         routes = [
             Route('/kFrag/{id_as_hex}',
@@ -207,7 +205,8 @@ class ProxyRESTRoutes:
                     continue  # This node is not serving any of our domains.
 
             if node in self._node_tracker:
-                continue  # TODO: 168 Check version and update if required.
+                if node.timestamp <= self._node_tracker[node.checksum_public_address].timestamp:
+                    continue
 
             @crosstown_traffic()
             def learn_about_announced_nodes():

@@ -824,7 +824,7 @@ class Ursula(Teacher, Character, Miner):
     def batch_from_bytes(cls,
                          ursulas_as_bytes: Iterable[bytes],
                          federated_only: bool = False,
-                         fail_fast=False,
+                         fail_fast: bool = False,
                          ) -> List['Ursula']:
 
         node_splitter = BytestringSplitter(VariableLengthBytestring)
