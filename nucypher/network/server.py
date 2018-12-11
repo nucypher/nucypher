@@ -24,7 +24,7 @@ from apistar.http import Response, Request, QueryParams
 from jinja2 import Template, TemplateError
 from twisted.logger import Logger
 from umbral import pre
-from umbral.fragments import KFrag
+from umbral.kfrags import KFrag
 from umbral.keys import UmbralPublicKey
 
 from bytestring_splitter import VariableLengthBytestring

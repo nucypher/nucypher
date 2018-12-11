@@ -23,7 +23,7 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from twisted.logger import Logger
-from umbral.fragments import CapsuleFrag
+from umbral.cfrags import CapsuleFrag
 from umbral.signing import Signature
 
 
