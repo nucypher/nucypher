@@ -16,14 +16,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from contextlib import suppress
-
-from eth_keys import KeyAPI as EthKeyAPI
-from eth_utils import to_checksum_address, to_canonical_address
-from typing import Dict, ClassVar
+from typing import Dict, ClassVar, Set
 from typing import Optional
 from typing import Tuple
 from typing import Union, List
 
+from eth_keys import KeyAPI as EthKeyAPI
+from eth_utils import to_checksum_address, to_canonical_address
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
+
+from constant_sorrow import constants
 from constant_sorrow import default_constant_splitter
 from constant_sorrow.constants import (
     NO_NICKNAME,
@@ -50,8 +53,6 @@ from nucypher.crypto.signing import signature_splitter, StrangerStamp, Signature
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Learner
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 
 class Character(Learner):
@@ -67,6 +68,7 @@ class Character(Learner):
     from nucypher.crypto.signing import InvalidSignature
 
     def __init__(self,
+                 domains: Set = (constants.GLOBAL_DOMAIN,),
                  is_me: bool = True,
                  federated_only: bool = False,
                  blockchain: Blockchain = None,
@@ -143,6 +145,7 @@ class Character(Learner):
             # Learner
             #
             Learner.__init__(self,
+                             domains=domains,
                              network_middleware=network_middleware,
                              *args, **kwargs)
 
@@ -155,7 +158,6 @@ class Character(Learner):
             self._stamp = StrangerStamp(self.public_keys(SigningPower))
             self.keyring_dir = STRANGER
             self.network_middleware = STRANGER
-
 
         #
         # Decentralized

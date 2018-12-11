@@ -15,7 +15,6 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import datetime
 import pathlib
 
@@ -36,7 +35,7 @@ def initialize_sentry(dsn: str):
     import logging
 
     sentry_logging = LoggingIntegration(
-        level=logging.INFO,        # Capture info and above as breadcrumbs
+        level=logging.INFO,  # Capture info and above as breadcrumbs
         event_level=logging.DEBUG  # Send debug logs as events
     )
     sentry_sdk.init(
@@ -85,9 +84,10 @@ class SimpleObserver:
     @provider(ILogObserver)
     def __call__(self, event):
         if event['log_level'] >= self.log_level:
-            message = '{} ({}): {}'.format(event.get('log_level').name.upper(),
-                                           event.get('log_namespace'),
-                                           event.get('log_format'))
+            message = '{} {} ({}): {}'.format(event.get('log_level').name.upper(),
+                                              event.get('log_time'),
+                                              event.get('log_namespace'),
+                                              event.get('log_format'))
             print(message)
 
 

@@ -22,6 +22,8 @@ import datetime
 import maya
 import pytest
 
+from umbral.kfrags import KFrag
+
 from nucypher.characters.lawful import Bob
 from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
@@ -30,7 +32,6 @@ from nucypher.policy.models import Revocation
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.policy import MockPolicyCreation
-from umbral.fragments import KFrag
 
 
 @pytest.mark.skip(reason="to be implemented")  # TODO

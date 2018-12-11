@@ -15,7 +15,6 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import binascii
 import random
 from collections import defaultdict, OrderedDict
@@ -23,40 +22,47 @@ from collections import deque
 from collections import namedtuple
 from contextlib import suppress
 from logging import Logger
+from typing import Set, Tuple
 
 import maya
 import requests
-import socket
 import time
-from cryptography.x509 import Certificate, NameOID
+from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 from requests.exceptions import SSLError
 from twisted.internet import reactor, defer
 from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
-from typing import Set, Tuple
 
 from bytestring_splitter import BytestringSplitter
-from constant_sorrow import constants
+from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
+from constant_sorrow import constants, constant_or_bytes
+from constant_sorrow.constants import GLOBAL_DOMAIN
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
+from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
-from nucypher.network.protocols import SuspiciousActivity, parse_node_uri
+from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
-from nucypher.utilities.decorators import validate_checksum_address
 
+
+GLOBAL_DOMAIN.set_constant_documentation(
+    """
+    If this domain is among those being learned or served, then domain checking is skipped.
+    A Learner learning about the GLOBAL_DOMAIN will learn about all nodes.
+    A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
+    """)
 
 def icon_from_checksum(checksum,
                        nickname_metadata,
                        number_of_nodes="Unknown number of "):
-
     if checksum is constants.NO_KNOWN_NODES:
-            return "NO FLEET STATE AVAILABLE"
+        return "NO FLEET STATE AVAILABLE"
     icon_template = """
     <div class="nucypher-nickname-icon" style="border-color:{color};">
     <div class="small">{number_of_nodes} nodes</div>
@@ -167,6 +173,7 @@ class FleetStateTracker:
             # No news here.
             return
         sorted_nodes = self.sorted()
+
         sorted_nodes_joined = b"".join(bytes(n) for n in sorted_nodes)
         checksum = keccak_digest(sorted_nodes_joined).hex()
         if checksum not in self.states:
@@ -176,9 +183,14 @@ class FleetStateTracker:
             # its own class, FleetState, and use it as the basis for partial updates.
             self.states[checksum] = self.state_template(nickname=self.nickname,
                                                         nodes=sorted_nodes,
-                                                        icon=self.icon_html(),
+                                                        icon=self.icon,
                                                         updated=self.updated,
                                                         )
+
+    def start_tracking_state(self, additional_nodes_to_track=[]):
+        self.additional_nodes_to_track.extend(additional_nodes_to_track)
+        self._tracking = True
+        self.update_fleet_state()
 
     def sorted(self):
         nodes_to_consider = list(self._nodes.values()) + self.additional_nodes_to_track
@@ -207,6 +219,14 @@ class Learner:
     __DEFAULT_NODE_STORAGE = ForgetfulNodeStorage
     __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
 
+    LEARNER_VERSION = LEARNING_LOOP_VERSION
+    node_splitter = BytestringSplitter(VariableLengthBytestring)
+    version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
+
+    invalid_metadata_message = "{} has invalid metadata.  Maybe its stake is over?  Or maybe it is transitioning to a new interface.  Ignoring."
+    unknown_version_message = "{} purported to be of version {}, but we're only version {}.  Is there a new version of NuCypher?"
+    really_unknown_version_message = "Unable to glean address from node that perhaps purported to be version {}.  We're only version {}."
+
     class NotEnoughTeachers(RuntimeError):
         pass
 
@@ -214,6 +234,7 @@ class Learner:
         pass
 
     def __init__(self,
+                 domains: Set,
                  network_middleware: RestMiddleware = __DEFAULT_MIDDLEWARE_CLASS(),
                  start_learning_now: bool = False,
                  learn_on_same_thread: bool = False,
@@ -224,7 +245,9 @@ class Learner:
                  abort_on_learning_error: bool = False
                  ) -> None:
 
-        self.log = Logger("characters")  # type: Logger
+        self.log = Logger("learning-loop")  # type: Logger
+
+        self.learning_domains = domains
         self.network_middleware = network_middleware
         self.save_metadata = save_metadata
         self.start_learning_now = start_learning_now
@@ -252,7 +275,8 @@ class Learner:
         self.unresponsive_startup_nodes = list()  # TODO: Attempt to use these again later
         for node in known_nodes:
             try:
-                self.remember_node(node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
+                self.remember_node(
+                    node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
 
@@ -372,12 +396,14 @@ class Learner:
         if self._learning_task.running:
             return False
         elif now:
+            self.log.info("Starting Learning Loop NOW.")
             self.load_seednodes()
             self.learn_from_teacher_node()
             self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
             self.learning_deferred.addErrback(self.handle_learning_errors)
             return self.learning_deferred
         else:
+            self.log.info("Starting Learning Loop.")
             seeder_deferred = deferToThread(self.load_seednodes)
             learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
             seeder_deferred.addErrback(self.handle_learning_errors)
@@ -432,7 +458,7 @@ class Learner:
         except IndexError:
             error = "Not enough nodes to select a good teacher, Check your network connection then node configuration"
             raise self.NotEnoughTeachers(error)
-        self.log.info("Cycled teachers; New teacher is {}".format(self._current_teacher_node.checksum_public_address))
+        self.log.info("Cycled teachers; New teacher is {}".format(self._current_teacher_node))
 
     def current_teacher_node(self, cycle=False):
         if cycle:
@@ -513,7 +539,7 @@ class Learner:
             if self._crashed:
                 return self._crashed
             rounds_undertaken = self._learning_round - starting_round
-            if addresses.issubset(self.__known_nodes):
+            if addresses.issubset(self.known_nodes.addresses()):
                 if rounds_undertaken:
                     self.log.info("Learned about all nodes after {} rounds.".format(rounds_undertaken))
                 return True
@@ -597,10 +623,8 @@ class Learner:
             self.log.warn("Can't learn right now: {}".format(e.args[0]))
             return
 
-        rest_url = current_teacher.rest_interface  # TODO: Name this..?
+        teacher_uri = current_teacher.rest_interface
 
-        # TODO: Do we really want to try to learn about all these nodes instantly?
-        # Hearing this traffic might give insight to an attacker.
         if Teacher in self.__class__.__bases__:
             announce_nodes = [self]
         else:
@@ -608,26 +632,30 @@ class Learner:
 
         unresponsive_nodes = set()
         try:
-
             # TODO: Streamline path generation
-            certificate_filepath = self.node_storage.generate_certificate_filepath(checksum_address=current_teacher.checksum_public_address)
-            response = self.network_middleware.get_nodes_via_rest(url=rest_url,
+            certificate_filepath = self.node_storage.generate_certificate_filepath(
+                checksum_address=current_teacher.checksum_public_address)
+            response = self.network_middleware.get_nodes_via_rest(url=teacher_uri,
                                                                   nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
                                                                   certificate_filepath=certificate_filepath,
                                                                   fleet_checksum=self.known_nodes.checksum)
         except requests.exceptions.ConnectionError as e:
             unresponsive_nodes.add(current_teacher)
-            teacher_rest_info = current_teacher.rest_information()[0]
-
-            # TODO: This error isn't necessarily "no repsonse" - let's maybe pass on the text of the exception here.
-            self.log.info("No Response from teacher: {}:{}.".format(teacher_rest_info.host, teacher_rest_info.port))
+            self.log.info("Bad Response from teacher: {}:{}.".format(current_teacher, e.args[0]))
+            return
+        finally:
             self.cycle_teacher_node()
 
         if response.status_code not in (200, 204):
-            raise RuntimeError("Bad response from teacher: {} - {}".format(response, response.content))
+            self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
+            return
 
-        signature, node_payload = signature_splitter(response.content, return_remainder=True)
+        try:
+            signature, node_payload = signature_splitter(response.content, return_remainder=True)
+        except BytestringSplittingError as e:
+            self.log.warn(e.args[0])
+            return
 
         try:
             self.verify_from(current_teacher, node_payload, signature=signature)
@@ -635,28 +663,31 @@ class Learner:
             # TODO: What to do if the teacher improperly signed the node payload?
             raise
 
-        fleet_state_checksum_bytes, fleet_state_updated_bytes, nodes = FleetStateTracker.snapshot_splitter(node_payload,
-                                                                                                           return_remainder=True)
+        fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = FleetStateTracker.snapshot_splitter(
+            node_payload,
+            return_remainder=True)
         current_teacher.last_seen = maya.now()
         # TODO: This is weird - let's get a stranger FleetState going.
         checksum = fleet_state_checksum_bytes.hex()
         current_teacher.update_snapshot(checksum=checksum,
                                         updated=maya.MayaDT(int.from_bytes(fleet_state_updated_bytes, byteorder="big")))
 
-        self.cycle_teacher_node()
-
         # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
         from nucypher.characters.lawful import Ursula
         if response.status_code == 204:
             return constants.FLEET_STATES_MATCH
 
-        node_list = Ursula.batch_from_bytes(nodes, federated_only=self.federated_only)  # TODO: 466
+        node_list = Ursula.batch_from_bytes(node_payload, federated_only=self.federated_only)  # TODO: 466
 
         new_nodes = []
         for node in node_list:
+            if GLOBAL_DOMAIN not in self.learning_domains:
+                if not self.learning_domains.intersection(node.serving_domains):
+                    continue  # This node is not serving any of our domains.
             try:
                 if eager:
-                    certificate_filepath = self.node_storage.generate_certificate_filepath(checksum_address=current_teacher.checksum_public_address)
+                    certificate_filepath = self.node_storage.generate_certificate_filepath(
+                        checksum_address=current_teacher.checksum_public_address)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
@@ -664,15 +695,17 @@ class Learner:
 
                 else:
                     node.validate_metadata(accept_federated_only=self.federated_only)  # TODO: 466
-
-            except node.SuspiciousActivity:
+            except node.InvalidNode:
                 # TODO: Account for possibility that stamp, rather than interface, was bad.
+                self.log.warn(node.invalid_metadata_message.format(node))
+            except node.SuspiciousActivity:
                 message = "Suspicious Activity: Discovered node with bad signature: {}.  " \
-                          "Propagated by: {}".format(current_teacher.checksum_public_address, rest_url)
+                          "Propagated by: {}".format(current_teacher.checksum_public_address, teacher_uri)
                 self.log.warn(message)
-            new = self.remember_node(node, record_fleet_state=False)
-            if new:
-                new_nodes.append(node)
+            else:
+                new = self.remember_node(node, record_fleet_state=False)
+                if new:
+                    new_nodes.append(node)
 
         self._adjust_learning(new_nodes)
 
@@ -692,8 +725,7 @@ class Learner:
 
 
 class Teacher:
-    TEACHER_VERSION = 1
-    _evidence_of_decentralized_identity = constants.NOT_SIGNED
+    TEACHER_VERSION = LEARNING_LOOP_VERSION
     verified_stamp = False
     verified_interface = False
     _verified_node = False
@@ -702,12 +734,17 @@ class Teacher:
     __DEFAULT_MIN_SEED_STAKE = 0
 
     def __init__(self,
+                 domains: Set,
                  certificate: Certificate,
                  certificate_filepath: str,
                  interface_signature=constants.NOT_SIGNED.bool_value(False),
                  timestamp=constants.NOT_SIGNED,
+                 identity_evidence=constants.NOT_SIGNED,
+                 substantiate_immediately=False,
+                 passphrase=None,
                  ) -> None:
 
+        self.serving_domains = domains
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
         self._interface_signature_object = interface_signature
@@ -715,6 +752,10 @@ class Teacher:
         self.last_seen = constants.NEVER_SEEN("Haven't connected to this node yet.")
         self.fleet_state_checksum = None
         self.fleet_state_updated = None
+        self._evidence_of_decentralized_identity = constant_or_bytes(identity_evidence)
+
+        if substantiate_immediately:
+            self.substantiate_stamp(password=passphrase)  # TODO: Derive from keyring
 
     class InvalidNode(SuspiciousActivity):
         """
@@ -723,7 +764,12 @@ class Teacher:
 
     class WrongMode(TypeError):
         """
-        Raise when a Character tries to use another Character as decentralized when the latter is federated_only.
+        Raised when a Character tries to use another Character as decentralized when the latter is federated_only.
+        """
+
+    class IsFromTheFuture(TypeError):
+        """
+        Raised when deserializing a Character from a future version.
         """
 
     @classmethod
@@ -737,13 +783,23 @@ class Teacher:
     #
 
     def seed_node_metadata(self):
-        return SeednodeMetadata(self.checksum_public_address,          # type: str
+        return SeednodeMetadata(self.checksum_public_address,  # type: str
                                 self.rest_server.rest_interface.host,  # type: str
                                 self.rest_server.rest_interface.port)  # type: int
 
     def sorted_nodes(self):
         nodes_to_consider = list(self.known_nodes.values()) + [self]
         return sorted(nodes_to_consider, key=lambda n: n.checksum_public_address)
+
+    def _stamp_has_valid_wallet_signature(self):
+        signature_bytes = self._evidence_of_decentralized_identity
+        if signature_bytes is constants.NOT_SIGNED:
+            return False
+        else:
+            signature = EthSignature(signature_bytes)
+        proper_pubkey = signature.recover_public_key_from_msg(bytes(self.stamp))
+        proper_address = proper_pubkey.to_checksum_address()
+        return proper_address == self.checksum_public_address
 
     def update_snapshot(self, checksum, updated):
         # TODO: Kind of an interesting pattern here - with VerifiableNode increasingly looking like it will be Teacher.
@@ -754,6 +810,7 @@ class Teacher:
         self.fleet_state_updated = updated
         self.fleet_state_icon = icon_from_checksum(self.fleet_state_checksum,
                                                    nickname_metadata=self.fleet_state_nickname_metadata)
+
     #
     # Stamp
     #
@@ -825,14 +882,16 @@ class Teacher:
 
         if not response.status_code == 200:
             raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
-        timestamp, signature, identity_evidence, \
-        verifying_key, encrypting_key, \
-        public_address, certificate_vbytes, rest_info = self._internal_splitter(response.content)
 
-        verifying_keys_match = verifying_key == self.public_keys(SigningPower)
-        encrypting_keys_match = encrypting_key == self.public_keys(EncryptingPower)
-        addresses_match = public_address == self.canonical_public_address
-        evidence_matches = identity_evidence == self._evidence_of_decentralized_identity
+        version, node_bytes = self.version_splitter(response.content, return_remainder=True)
+
+        node_details = self.internal_splitter(node_bytes)
+        # TODO check timestamp here.  589
+
+        verifying_keys_match = node_details['verifying_key'] == self.public_keys(SigningPower)
+        encrypting_keys_match = node_details['encrypting_key'] == self.public_keys(EncryptingPower)
+        addresses_match = node_details['public_address'] == self.canonical_public_address
+        evidence_matches = node_details['identity_evidence'] == self._evidence_of_decentralized_identity
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # TODO: Optional reporting.  355
@@ -908,7 +967,7 @@ class Teacher:
     def nickname_icon_html(self):
         icon_template = """
         <div class="nucypher-nickname-icon" style="border-top-color:{first_color}; border-left-color:{first_color}; border-bottom-color:{second_color}; border-right-color:{second_color};">
-        <span class="small">{node_class}</span>
+        <span class="small">{node_class} v{version}</span>
         <div class="symbols">
             <span class="single-symbol" style="color: {first_color}">{first_symbol}&#xFE0E;</span>
             <span class="single-symbol" style="color: {second_color}">{second_symbol}&#xFE0E;</span>
@@ -919,6 +978,7 @@ class Teacher:
         """.replace("  ", "").replace('\n', "")
         return icon_template.format(
             node_class=self.__class__.__name__,
+            version=self.TEACHER_VERSION,
             first_color=self.nickname_metadata[0][0]['hex'],  # TODO: These index lookups are awful.
             first_symbol=self.nickname_metadata[0][1],
             second_color=self.nickname_metadata[1][0]['hex'],

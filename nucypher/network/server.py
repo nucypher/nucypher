@@ -15,46 +15,48 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import binascii
 import os
 from typing import Callable
 
-from twisted.logger import Logger
-
 from apistar import Route, App
 from apistar.http import Response, Request, QueryParams
-from bytestring_splitter import VariableLengthBytestring
-from constant_sorrow import constants
-from hendrix.experience import crosstown_traffic
-from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.signing import SignatureStamp
-from nucypher.network.middleware import RestMiddleware
+from jinja2 import Template, TemplateError
+from twisted.logger import Logger
 from umbral import pre
-from umbral.fragments import KFrag
+from umbral.kfrags import KFrag
 from umbral.keys import UmbralPublicKey
 
+from bytestring_splitter import VariableLengthBytestring
+from constant_sorrow import constants
+from constant_sorrow.constants import GLOBAL_DOMAIN
+from hendrix.experience import crosstown_traffic
+from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import SigningPower, KeyPairBasedPower, PowerUpError
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.crypto.signing import SignatureStamp
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.keystore.keystore import NotFound
 from nucypher.keystore.threading import ThreadedSession
+from nucypher.network import LEARNING_LOOP_VERSION
+from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import InterfaceInfo
-from jinja2 import Template, TemplateError
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
 
 
 class ProxyRESTServer:
-    log = Logger("proxy-server")
+    log = Logger("characters")
+    SERVER_VERSION = LEARNING_LOOP_VERSION
+    log = Logger("network-server")
 
     def __init__(self,
                  rest_host: str,
                  rest_port: int,
-                 hosting_power = None,
+                 hosting_power=None,
                  routes: 'ProxyRESTRoutes' = None,
                  ) -> None:
 
@@ -73,7 +75,7 @@ class ProxyRESTServer:
 
 
 class ProxyRESTRoutes:
-    log = Logger("proxy-routes")
+    log = Logger("network-server")
 
     def __init__(self,
                  db_filepath: str,
@@ -87,11 +89,11 @@ class ProxyRESTRoutes:
                  stamp: SignatureStamp,
                  verifier: Callable,
                  suspicious_activity_tracker: dict,
+                 serving_domains,
                  ) -> None:
 
         self.network_middleware = network_middleware
         self.federated_only = federated_only
-        self.datastore = None
 
         self.__forgetful_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
 
@@ -103,6 +105,7 @@ class ProxyRESTRoutes:
         self._stamp = stamp
         self._verifier = verifier
         self._suspicious_activity_tracker = suspicious_activity_tracker
+        self.serving_domains = serving_domains
 
         routes = [
             Route('/kFrag/{id_as_hex}',
@@ -144,7 +147,7 @@ class ProxyRESTRoutes:
         self.log.info("Starting datastore {}".format(self.db_filepath))
 
         # See: https://docs.sqlalchemy.org/en/rel_0_9/dialects/sqlite.html#connect-strings
-        db_filepath = (self.db_filepath or '')      # Capture None
+        db_filepath = (self.db_filepath or '')  # Capture None
         engine = create_engine('sqlite:///{}'.format(db_filepath))
 
         Base.metadata.create_all(engine)
@@ -173,8 +176,9 @@ class ProxyRESTRoutes:
     def all_known_nodes(self, request: Request):
         headers = {'Content-Type': 'application/octet-stream'}
         payload = self._node_tracker.snapshot()
-        ursulas_as_bytes = bytes().join(bytes(n) for n in self._node_tracker)
-        ursulas_as_bytes += self._node_bytes_caster()
+        ursulas_as_vbytes = (VariableLengthBytestring(n) for n in self._node_tracker)
+        ursulas_as_bytes = bytes().join(bytes(u) for u in ursulas_as_vbytes)
+        ursulas_as_bytes += VariableLengthBytestring(self._node_bytes_caster())
 
         payload += ursulas_as_bytes
 
@@ -196,15 +200,20 @@ class ProxyRESTRoutes:
         # TODO: This logic is basically repeated in learn_from_teacher_node and remember_node.
         # Let's find a better way.  #555
         for node in nodes:
+            if GLOBAL_DOMAIN not in self.serving_domains:
+                if not self.serving_domains.intersection(node.serving_domains):
+                    continue  # This node is not serving any of our domains.
 
             if node in self._node_tracker:
-                continue  # TODO: 168 Check version and update if required.
+                if node.timestamp <= self._node_tracker[node.checksum_public_address].timestamp:
+                    continue
 
             @crosstown_traffic()
             def learn_about_announced_nodes():
                 try:
-                    temp_certificate_filepath = self.__forgetful_node_storage.store_node_certificate(checksum_address=node.checksum_public_address,
-                                                                                                     certificate=node.certificate)
+                    temp_certificate_filepath = self.__forgetful_node_storage.store_node_certificate(
+                        checksum_address=node.checksum_public_address,
+                        certificate=node.certificate)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=temp_certificate_filepath)
@@ -225,7 +234,7 @@ class ProxyRESTRoutes:
 
                 # Believable
                 else:
-                    self.log.info("Previously unknown node: {}".format(node.checksum_public_address))
+                    self.log.info("Learned about previously unknown node: {}".format(node))
                     self._node_recorder(node)
                     # TODO: Record new fleet state
 
@@ -292,7 +301,6 @@ class ProxyRESTRoutes:
         """
         REST endpoint for revoking/deleting a KFrag from a node.
         """
-        from nucypher.crypto.kits import RevocationKit
         from nucypher.policy.models import Revocation
 
         revocation = Revocation.from_bytes(request.body)
@@ -400,12 +408,12 @@ class ProxyRESTRoutes:
             assert False
 
     def status(self, request: Request):
-        # TODO: Seems very strange to deserialize *this node* when we can just pass it in.  
+        # TODO: Seems very strange to deserialize *this node* when we can just pass it in.
         #       Might be a sign that we need to rethnk this composition.
 
         headers = {"Content-Type": "text/html", "charset": "utf-8"}
         this_node = self._node_class.from_bytes(self._node_bytes_caster(), federated_only=self.federated_only)
-        
+
         previous_states = list(reversed(self._node_tracker.states.values()))[:5]
 
         try:

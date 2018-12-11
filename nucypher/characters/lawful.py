@@ -16,41 +16,44 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import random
+import socket
 from collections import OrderedDict
+from functools import partial
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Set
 
 import maya
 import requests
-import socket
 import time
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
-from functools import partial
 from twisted.internet import threads
-from typing import Dict
-from typing import Iterable
-from typing import List
+from umbral.keys import UmbralPublicKey
+from umbral.signing import Signature
 
+from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants
-from constant_sorrow.constants import PUBLIC_ONLY
+from constant_sorrow import constants, constant_or_bytes
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH
+from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
+from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
 from nucypher.utilities.decorators import validate_checksum_address
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 
 class Alice(Character, PolicyAuthor):
@@ -179,8 +182,8 @@ class Alice(Character, PolicyAuthor):
             # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
             revocation_threshold = ((policy.n - policy.treasure_map.m) + 1)
             self.block_until_specific_nodes_are_known(
-                    policy.revocation_kit.revokable_addresses,
-                    allow_missing=(policy.n - revocation_threshold))
+                policy.revocation_kit.revokable_addresses,
+                allow_missing=(policy.n - revocation_threshold))
         except self.NotEnoughTeachers as e:
             raise e
         else:
@@ -423,14 +426,6 @@ class Bob(Character):
 
 
 class Ursula(Teacher, Character, Miner):
-    _internal_splitter = BytestringSplitter((int, 4, {'byteorder': 'big'}),
-                                            Signature,
-                                            VariableLengthBytestring,
-                                            (UmbralPublicKey, PUBLIC_KEY_LENGTH),
-                                            (UmbralPublicKey, PUBLIC_KEY_LENGTH),
-                                            PUBLIC_ADDRESS_LENGTH,
-                                            VariableLengthBytestring,  # Certificate
-                                            InterfaceInfo)
     _alice_class = Alice
 
     # TODO: Maybe this wants to be a registry, so that, for example,
@@ -452,6 +447,7 @@ class Ursula(Teacher, Character, Miner):
                  # Ursula
                  rest_host: str,
                  rest_port: int,
+                 domains: Set = (constants.GLOBAL_DOMAIN,),  # For now, serving and learning domains will be the same.
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
                  db_filepath: str = None,
@@ -460,6 +456,7 @@ class Ursula(Teacher, Character, Miner):
                  timestamp=None,
 
                  # Blockchain
+                 identity_evidence: bytes = constants.NOT_SIGNED,
                  checksum_public_address: str = None,
 
                  # Character
@@ -486,12 +483,13 @@ class Ursula(Teacher, Character, Miner):
                            crypto_power=crypto_power,
                            abort_on_learning_error=abort_on_learning_error,
                            known_nodes=known_nodes,
+                           domains=domains,
                            **character_kwargs)
 
         #
         # Self-Ursula
         #
-        if is_me is True:           # TODO: 340
+        if is_me is True:  # TODO: 340
             self._stored_treasure_maps = dict()
 
             #
@@ -516,7 +514,7 @@ class Ursula(Teacher, Character, Miner):
             # Ephemeral Self-Ursula
             #
             if is_me:
-                self.suspicious_activities_witnessed = {'vladimirs': list(), 'bad_treasure_maps': list()}
+                self.suspicious_activities_witnessed = {'vladimirs': [], 'bad_treasure_maps': []}
 
                 #
                 # REST Server (Ephemeral Self-Ursula)
@@ -524,7 +522,7 @@ class Ursula(Teacher, Character, Miner):
                 rest_routes = ProxyRESTRoutes(
                     db_filepath=db_filepath,
                     network_middleware=self.network_middleware,
-                    federated_only=self.federated_only,            # TODO: 466
+                    federated_only=self.federated_only,  # TODO: 466
                     treasure_map_tracker=self.treasure_maps,
                     node_tracker=self.known_nodes,
                     node_bytes_caster=self.__bytes__,
@@ -532,7 +530,8 @@ class Ursula(Teacher, Character, Miner):
                     node_recorder=self.remember_node,
                     stamp=self.stamp,
                     verifier=self.verify_from,
-                    suspicious_activity_tracker=self.suspicious_activities_witnessed
+                    suspicious_activity_tracker=self.suspicious_activities_witnessed,
+                    serving_domains=domains,
                 )
 
                 #
@@ -554,7 +553,7 @@ class Ursula(Teacher, Character, Miner):
                                                         public_certificate_filepath=certificate_filepath,
                                                         public_certificate=certificate)
                 else:
-                    tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host)
+                    tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host, generate_certificate=False)
                     tls_hosting_power = TLSHostingPower(host=rest_host, keypair=tls_hosting_keypair)
 
                 # REST Server
@@ -568,7 +567,7 @@ class Ursula(Teacher, Character, Miner):
             #
             # OK - Now we have a ProxyRestServer and a TLSHostingPower for some Ursula
             #
-            self._crypto_power.consume_power_up(tls_hosting_power)          # Consume!
+            self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
 
         #
         # Verifiable Node
@@ -576,10 +575,14 @@ class Ursula(Teacher, Character, Miner):
         certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
         certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
         Teacher.__init__(self,
+                         domains=domains,
                          certificate=certificate,
                          certificate_filepath=certificate_filepath,
                          interface_signature=interface_signature,
-                         timestamp=timestamp)
+                         timestamp=timestamp,
+                         identity_evidence=identity_evidence,
+                         substantiate_immediately=is_me and not federated_only,
+                         )
 
         #
         # Logging / Updating
@@ -607,22 +610,25 @@ class Ursula(Teacher, Character, Miner):
         return deployer
 
     def rest_server_certificate(self):  # TODO: relocate and use reference on TLS hosting power
-        return self.certificate
+        return self.get_deployer().cert.to_cryptography()
 
     def __bytes__(self):
 
+        version = self.TEACHER_VERSION.to_bytes(2, "big")
         interface_info = VariableLengthBytestring(bytes(self.rest_information()[0]))
         identity_evidence = VariableLengthBytestring(self._evidence_of_decentralized_identity)
 
         certificate = self.rest_server_certificate()
         cert_vbytes = VariableLengthBytestring(certificate.public_bytes(Encoding.PEM))
 
-        as_bytes = bytes().join((self.timestamp_bytes(),
+        as_bytes = bytes().join((version,
+                                 self.canonical_public_address,
+                                 bytes(VariableLengthBytestring.bundle(self.serving_domains)),
+                                 self.timestamp_bytes(),
                                  bytes(self._interface_signature),
                                  bytes(identity_evidence),
                                  bytes(self.public_keys(SigningPower)),
                                  bytes(self.public_keys(EncryptingPower)),
-                                 self.canonical_public_address,
                                  bytes(cert_vbytes),
                                  bytes(interface_info))
                                 )
@@ -641,14 +647,14 @@ class Ursula(Teacher, Character, Miner):
                       federated_only: bool = False,
                       *args, **kwargs
                       ):
-
         response = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
         if not response.status_code == 200:
             raise RuntimeError("Got a bad response: {}".format(response))
 
-        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only, *args, **kwargs)
-        return stranger_ursula_from_public_keys
+        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only, *args,
+                                                          **kwargs)
 
+        return stranger_ursula_from_public_keys
 
     @classmethod
     def from_seednode_metadata(cls,
@@ -728,8 +734,9 @@ class Ursula(Teacher, Character, Miner):
             # Ensure this is the specific node we expected
             if not checksum_public_address == potential_seed_node.checksum_public_address:
                 template = "This seed node has a different wallet address: {} (expected {}).  Are you sure this is a seednode?"
-                raise potential_seed_node.SuspiciousActivity(template.format(potential_seed_node.checksum_public_address,
-                                                                             checksum_public_address))
+                raise potential_seed_node.SuspiciousActivity(
+                    template.format(potential_seed_node.checksum_public_address,
+                                    checksum_public_address))
 
         # Check the node's stake (optional)
         if minimum_stake > 0:
@@ -748,82 +755,104 @@ class Ursula(Teacher, Character, Miner):
 
         # OK - everyone get out
         temp_node_storage.forget()
+
         return potential_seed_node
+
+    @classmethod
+    def internal_splitter(cls, splittable):
+        result = BytestringKwargifier(
+            dict,
+            public_address=PUBLIC_ADDRESS_LENGTH,
+            domains=VariableLengthBytestring,
+            timestamp=(int, 4, {'byteorder': 'big'}),
+            interface_signature=Signature,
+            identity_evidence=VariableLengthBytestring,
+            verifying_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
+            encrypting_key=(UmbralPublicKey, PUBLIC_KEY_LENGTH),
+            certificate=(load_pem_x509_certificate, VariableLengthBytestring, {"backend": default_backend()}),
+            rest_interface=InterfaceInfo,
+        )
+        return result(splittable)
 
     @classmethod
     def from_bytes(cls,
                    ursula_as_bytes: bytes,
+                   version: int = INCLUDED_IN_BYTESTRING,
                    federated_only: bool = False,
                    ) -> 'Ursula':
+        if version is INCLUDED_IN_BYTESTRING:
+            version, payload = cls.version_splitter(ursula_as_bytes, return_remainder=True)
+        else:
+            payload = ursula_as_bytes
 
-        (timestamp,
-         signature,
-         identity_evidence,
-         verifying_key,
-         encrypting_key,
-         public_address,
-         certificate_vbytes,
-         rest_info) = cls._internal_splitter(ursula_as_bytes)
-        certificate = load_pem_x509_certificate(certificate_vbytes.message_as_bytes,
-                                                default_backend())
-        timestamp = maya.MayaDT(timestamp)
-        stranger_ursula_from_public_keys = cls.from_public_keys(
-            {SigningPower: verifying_key, EncryptingPower: encrypting_key},
-            timestamp=timestamp,
-            interface_signature=signature,
-            checksum_address=to_checksum_address(public_address),
-            rest_host=rest_info.host,
-            rest_port=rest_info.port,
-            certificate=certificate,
-            federated_only=federated_only,  # TODO: 289
-        )
-        return stranger_ursula_from_public_keys
+        # Check version and raise IsFromTheFuture if this node is... you guessed it...
+        if version > cls.LEARNER_VERSION:
+            # TODO: Some auto-updater logic?
+            try:
+                canonical_address, _ = BytestringSplitter(PUBLIC_ADDRESS_LENGTH)(payload, return_remainder=True)
+                checksum_address = to_checksum_address(canonical_address)
+                nickname, _ = nickname_from_seed(checksum_address)
+                display_name = "⇀{}↽ ({})".format(nickname, checksum_address)
+                message = cls.unknown_version_message.format(display_name, version, cls.LEARNER_VERSION)
+            except BytestringSplittingError:
+                message = cls.really_unknown_version_message.format(version, cls.LEARNER_VERSION)
+
+            raise cls.IsFromTheFuture(message)
+
+        # Version stuff checked out.  Moving on.
+        node_info = cls.internal_splitter(payload)
+
+        powers_and_material = {
+            SigningPower: node_info.pop("verifying_key"),
+            EncryptingPower: node_info.pop("encrypting_key")
+        }
+
+        interface_info = node_info.pop("rest_interface")
+        node_info['rest_host'] = interface_info.host
+        node_info['rest_port'] = interface_info.port
+
+        node_info['timestamp'] = maya.MayaDT(node_info.pop("timestamp"))
+        node_info['checksum_public_address'] = to_checksum_address(node_info.pop("public_address"))
+
+        domains_vbytes = VariableLengthBytestring.dispense(node_info['domains'])
+        node_info['domains'] = [constant_or_bytes(d) for d in domains_vbytes]
+
+        ursula = cls.from_public_keys(powers_and_material, federated_only=federated_only, **node_info)
+        return ursula
 
     @classmethod
     def batch_from_bytes(cls,
                          ursulas_as_bytes: Iterable[bytes],
                          federated_only: bool = False,
+                         fail_fast: bool = False,
                          ) -> List['Ursula']:
 
-        # TODO: Make a better splitter for this.  This is a workaround until bytestringSplitter #8 is closed.
+        node_splitter = BytestringSplitter(VariableLengthBytestring)
+        nodes_vbytes = node_splitter.repeat(ursulas_as_bytes)
+        version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
+        versions_and_node_bytes = [version_splitter(n, return_remainder=True) for n in nodes_vbytes]
 
-        stranger_ursulas = []
+        ursulas = []
+        for version, node_bytes in versions_and_node_bytes:
+            try:
+                ursula = cls.from_bytes(node_bytes, version, federated_only=federated_only)
+            except Ursula.IsFromTheFuture as e:
+                if fail_fast:
+                    raise
+                else:
+                    cls.log.warn(e.args[0])
+            else:
+                ursulas.append(ursula)
 
-        ursulas_attrs = cls._internal_splitter.repeat(ursulas_as_bytes)
-        for (timestamp,
-             signature,
-             identity_evidence,
-             verifying_key,
-             encrypting_key,
-             public_address,
-             certificate_vbytes,
-             rest_info) in ursulas_attrs:
-            certificate = load_pem_x509_certificate(certificate_vbytes.message_as_bytes,
-                                                    default_backend())
-            timestamp = maya.MayaDT(timestamp)
-            stranger_ursula_from_public_keys = cls.from_public_keys(
-                {SigningPower: verifying_key,
-                 EncryptingPower: encrypting_key,
-                 },
-                interface_signature=signature,
-                timestamp=timestamp,
-                checksum_public_address=to_checksum_address(public_address),
-                certificate=certificate,
-                rest_host=rest_info.host,
-                rest_port=rest_info.port,
-                federated_only=federated_only  # TODO: 289
-            )
-            stranger_ursulas.append(stranger_ursula_from_public_keys)
-
-        return stranger_ursulas
+        return ursulas
 
     @classmethod
     def from_storage(cls,
                      node_storage: NodeStorage,
                      checksum_adress: str,
                      federated_only: bool = False) -> 'Ursula':
-
-        return node_storage.get(checksum_address=checksum_adress, federated_only=federated_only)
+        return node_storage.get(checksum_address=checksum_adress,
+                                federated_only=federated_only)
 
     #
     # Properties
@@ -845,6 +874,7 @@ class Ursula(Teacher, Character, Miner):
     @property
     def rest_app(self):
         rest_app_on_server = self.rest_server.rest_app
+
         if not rest_app_on_server:
             m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."
             raise AttributeError(m)

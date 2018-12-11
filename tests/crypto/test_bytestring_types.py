@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import pytest
-from bytestring_splitter import BytestringSplitter
+from bytestring_splitter import BytestringSplitter, BytestringSplittingError
 
 from nucypher.crypto.api import secure_random
 from nucypher.crypto.signing import Signature
@@ -49,5 +49,5 @@ def test_trying_to_extract_too_many_bytes_raises_typeerror():
     some_bytes = secure_random(how_many_bytes)
     splitter = BytestringSplitter(Signature, (bytes, too_many_bytes))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(BytestringSplittingError):
         rebuilt_signature, rebuilt_bytes = splitter(signature + some_bytes, return_remainder=True)
