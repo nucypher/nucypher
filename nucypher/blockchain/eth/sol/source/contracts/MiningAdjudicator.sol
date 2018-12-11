@@ -17,13 +17,19 @@ contract MiningAdjudicator is Upgradeable {
     using UmbralDeserializer for bytes;
     using SafeMath for uint256;
 
+    event CFragEvaluated(
+        bytes32 indexed evaluationHash,
+        address indexed miner,
+        address indexed investigator,
+        bool correctness
+    );
+
     uint8 public constant UMBRAL_PARAMETER_U_SIGN = 0x02;
     uint256 public constant UMBRAL_PARAMETER_U_XCOORD = 0x03c98795773ff1c241fc0b1cced85e80f8366581dda5c9452175ebd41385fa1f;
     uint256 public constant UMBRAL_PARAMETER_U_YCOORD = 0x7880ed56962d7c0ae44d6f14bb53b5fe64b31ea44a41d0316f3a598778f0f936;
     // used only for upgrading
     bytes32 constant RESERVED_CAPSULE_AND_CFRAG_BYTES = bytes32(0);
     address constant RESERVED_ADDRESS = 0x0;
-    // TODO events
 
     MinersEscrow public escrow;
     SignatureVerifier.HashAlgorithm public hashAlgorithm;
@@ -120,6 +126,9 @@ contract MiningAdjudicator is Upgradeable {
         if (!isCapsuleFragCorrect(_capsuleBytes, _cFragBytes, _preComputedData)) {
             (uint256 penalty, uint256 reward) = calculatePenaltyAndReward(miner, minerValue);
             escrow.slashMiner(miner, penalty, msg.sender, reward);
+            emit CFragEvaluated(evaluationHash, miner, msg.sender, false);
+        } else {
+            emit CFragEvaluated(evaluationHash, miner, msg.sender, true);
         }
     }
 
