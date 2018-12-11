@@ -89,6 +89,7 @@ def fragments(metadata):
 @pytest.mark.slow
 def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     creator, miner, wrong_miner, *everyone_else = testerchain.interface.w3.eth.accounts
+    evaluation_log = adjudicator_contract.events.CFragEvaluated.createFilter(fromBlock='latest')
 
     # TODO: Move this to an integration test?
     umbral_params = default_params()
@@ -170,6 +171,14 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     # Hash of the data is saved and miner was not slashed
     assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
     assert 1000 == escrow.functions.minerInfo(miner).call()[0]
+
+    events = evaluation_log.get_all_entries()
+    assert 1 == len(events)
+    event_args = events[0]['args']
+    assert data_hash == event_args['evaluationHash']
+    assert miner == event_args['miner']
+    assert creator == event_args['investigator']
+    assert event_args['correctness']
 
     # Can't evaluate miner with data that already was checked
     with pytest.raises((TransactionFailed, ValueError)):
@@ -291,6 +300,7 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     # assert adjudicator_contract.functions.evaluatedCFrags(data_hash).call()
     # assert 800 == escrow.functions.minerInfo(miner).call()[0]
     # TODO tests for penalty/reward calculation
+    # TODO tests for events
 
 
 @pytest.mark.slow
