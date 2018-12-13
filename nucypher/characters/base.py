@@ -44,7 +44,7 @@ from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
     CryptoPower,
     SigningPower,
-    EncryptingPower,
+    DecryptingPower,
     NoSigningPower,
     CryptoPowerUp,
     DelegatingPower
@@ -293,7 +293,7 @@ class Character(Learner):
         """
         signer = self.stamp if sign else DO_NOT_SIGN
 
-        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_keys(EncryptingPower),
+        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_keys(DecryptingPower),
                                                   plaintext=plaintext,
                                                   signer=signer,
                                                   sign_plaintext=sign_plaintext
@@ -377,10 +377,10 @@ class Character(Learner):
                 label: Optional[bytes] = None) -> bytes:
         if label and DelegatingPower in self._default_crypto_powerups:
             delegating_power = self._crypto_power.power_ups(DelegatingPower)
-            encrypting_power = delegating_power.get_encrypting_power_from_label(label)
+            decrypting_power = delegating_power.get_decrypting_power_from_label(label)
         else:
-            encrypting_power = self._crypto_power.power_ups(EncryptingPower)
-        return encrypting_power.decrypt(message_kit)
+            decrypting_power = self._crypto_power.power_ups(DecryptingPower)
+        return decrypting_power.decrypt(message_kit)
 
     def sign(self, message):
         return self._crypto_power.power_ups(SigningPower).sign(message)
@@ -391,7 +391,7 @@ class Character(Learner):
         class - whatever type of object that may be.
 
         If the Character doesn't have the power corresponding to that class, raises the
-        appropriate PowerUpError (ie, NoSigningPower or NoEncryptingPower).
+        appropriate PowerUpError (ie, NoSigningPower or NoDecryptingPower).
         """
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()

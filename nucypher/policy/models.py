@@ -34,7 +34,7 @@ from nucypher.characters.lawful import Bob, Ursula, Character
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
 from nucypher.crypto.constants import PUBLIC_ADDRESS_LENGTH, KECCAK_DIGEST_LENGTH
 from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
-from nucypher.crypto.powers import SigningPower, EncryptingPower
+from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.signing import Signature, InvalidSignature
 from nucypher.crypto.splitters import key_splitter
 from nucypher.network.middleware import RestMiddleware
@@ -178,7 +178,7 @@ class Policy:
         return keccak_digest(bytes(self.alice.stamp) + bytes(self.bob.stamp) + self.label)
 
     def publish_treasure_map(self, network_middleware: RestMiddleware) -> dict:
-        self.treasure_map.prepare_for_publication(self.bob.public_keys(EncryptingPower),
+        self.treasure_map.prepare_for_publication(self.bob.public_keys(DecryptingPower),
                                                   self.bob.public_keys(SigningPower),
                                                   self.alice.stamp,
                                                   self.label

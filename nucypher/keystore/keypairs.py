@@ -85,7 +85,7 @@ class Keypair(object):
         return sha3.keccak_256(bytes(self.pubkey)).hexdigest().encode()
 
 
-class EncryptingKeypair(Keypair):
+class DecryptingKeypair(Keypair):
     """
     A keypair for Umbral
     """

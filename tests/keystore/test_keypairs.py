@@ -23,10 +23,10 @@ from nucypher.keystore import keypairs
 
 
 def test_gen_keypair_if_needed():
-    new_enc_keypair = keypairs.EncryptingKeypair()
-    assert new_enc_keypair._privkey is not None
-    assert new_enc_keypair.pubkey is not None
-    assert new_enc_keypair.pubkey == new_enc_keypair._privkey.get_pubkey()
+    new_dec_keypair = keypairs.DecryptingKeypair()
+    assert new_dec_keypair._privkey is not None
+    assert new_dec_keypair.pubkey is not None
+    assert new_dec_keypair.pubkey == new_dec_keypair._privkey.get_pubkey()
 
     new_sig_keypair = keypairs.SigningKeypair()
     assert new_sig_keypair._privkey is not None
@@ -81,4 +81,4 @@ def test_signing():
     assert not signature.verify(bad_msg, sig_keypair.pubkey)
 
 
-# TODO: Add test for EncryptingKeypair.decrypt
+# TODO: Add test for DecryptingKeypair.decrypt

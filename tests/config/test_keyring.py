@@ -4,7 +4,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.signing import Signer
 
 from nucypher.config.keyring import NucypherKeyring
-from nucypher.crypto.powers import DelegatingPower, EncryptingPower
+from nucypher.crypto.powers import DelegatingPower, DecryptingPower
 
 
 @pytest.mark.skip("Redacted and refactored for sensitive info leakage")
@@ -34,12 +34,12 @@ def test_generate_alice_keyring(tmpdir):
     assert enc_pubkey is not None
 
     with pytest.raises(NucypherKeyring.KeyringLocked):
-        _enc_keypair = keyring.derive_crypto_power(EncryptingPower).keypair
+        _dec_keypair = keyring.derive_crypto_power(DecryptingPower).keypair
 
     keyring.unlock(password)
-    enc_keypair = keyring.derive_crypto_power(EncryptingPower).keypair
+    dec_keypair = keyring.derive_crypto_power(DecryptingPower).keypair
 
-    assert enc_pubkey == enc_keypair.pubkey
+    assert enc_pubkey == dec_keypair.pubkey
 
     label = b'test'
 
