@@ -14,6 +14,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
 import json
 from collections import OrderedDict
 from json import JSONDecodeError
@@ -125,10 +126,10 @@ class Deployer(NucypherTokenActor):
         self.user_escrow_deployers = dict()
 
         self.deployers = {
-            NucypherTokenDeployer._contract_name: self.deploy_token_contract,
-            MinerEscrowDeployer._contract_name: self.deploy_miner_contract,
-            PolicyManagerDeployer._contract_name: self.deploy_policy_contract,
-            UserEscrowProxyDeployer._contract_name: self.deploy_escrow_proxy,
+            NucypherTokenDeployer.contract_name: self.deploy_token_contract,
+            MinerEscrowDeployer.contract_name: self.deploy_miner_contract,
+            PolicyManagerDeployer.contract_name: self.deploy_policy_contract,
+            UserEscrowProxyDeployer.contract_name: self.deploy_escrow_proxy,
         }
 
     def __repr__(self):
@@ -214,15 +215,15 @@ class Deployer(NucypherTokenActor):
         policy_txhashes = self.deploy_policy_contract(secret=policy_secret)
 
         txhashes = {
-            NucypherTokenDeployer._contract_name: token_txhashes,
-            MinerEscrowDeployer._contract_name: miner_txhashes,
-            PolicyManagerDeployer._contract_name: policy_txhashes
+            NucypherTokenDeployer.contract_name: token_txhashes,
+            MinerEscrowDeployer.contract_name: miner_txhashes,
+            PolicyManagerDeployer.contract_name: policy_txhashes
         }
 
         agents = {
-            NucypherTokenDeployer._contract_name: self.token_agent,
-            MinerEscrowDeployer._contract_name: self.miner_agent,
-            PolicyManagerDeployer._contract_name: self.policy_agent
+            NucypherTokenDeployer.contract_name: self.token_agent,
+            MinerEscrowDeployer.contract_name: self.miner_agent,
+            PolicyManagerDeployer.contract_name: self.policy_agent
         }
 
         return txhashes, agents

@@ -55,7 +55,7 @@ class NucypherDeployerClickConfig:
     Secrets = collections.namedtuple('Secrets', ('miner_secret', 'policy_secret', 'escrow_proxy_secret'))
 
     def __init__(self):
-        if self.log_to_file is True:
+        if self.log_to_file:
             globalLogPublisher.addObserver(getTextFileObserver())
         self.log = Logger(self.__class__.__name__)
 
@@ -91,7 +91,7 @@ nucypher_deployer_config = click.make_pass_decorator(NucypherDeployerClickConfig
 @click.argument('action')
 @click.option('--force', is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
-@click.option('--no-compile', help="Inject POA middleware", is_flag=True)
+@click.option('--no-compile', help="Disables solidity contract compilation", is_flag=True)
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)

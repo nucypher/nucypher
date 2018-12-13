@@ -363,7 +363,10 @@ class NodeConfiguration(ABC):
                                                   deserializer=cls.NODE_DESERIALIZER)
 
         payload.update(dict(node_storage=node_storage))
-        return cls(**{**payload, **overrides})
+
+        # Instantiate from merged params
+        node_configuration = cls(**{**payload, **overrides})
+        return node_configuration
 
     def to_configuration_file(self, filepath: str = None) -> str:
         """Write the static_payload to a JSON file."""
@@ -436,7 +439,7 @@ class NodeConfiguration(ABC):
                        node_storage=self.node_storage,
                        crypto_power_ups=self.derive_node_power_ups() or None)
 
-        if self.federated_only is False:
+        if not self.federated_only:
             self.connect_to_blockchain(recompile_contracts=False)
             payload.update(blockchain=self.blockchain)
 

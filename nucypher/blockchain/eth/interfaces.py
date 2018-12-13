@@ -275,6 +275,7 @@ class BlockchainInterface:
             if self.__raw_contract_cache is NO_COMPILATION_PERFORMED:
                 message = "The local contract compiler cache is empty because no compilation was performed."
                 raise self.InterfaceError(message)
+            raise
         else:
             contract = self.w3.eth.contract(abi=interface['abi'],
                                             bytecode=interface['bin'],
