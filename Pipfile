@@ -65,6 +65,7 @@ pytest-mock = "*"
 
 [scripts]
 install-solc = "./scripts/install_solc.sh"
+estimate-gas = "python3 tests/metrics/estimate_gas.py"
 nucypher = "python3 nucypher/cli.py"
 
 [pipenv]

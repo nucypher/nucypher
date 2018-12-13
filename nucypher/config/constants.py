@@ -16,17 +16,19 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import os
 from collections import namedtuple
 from os.path import abspath, dirname
 
 from appdirs import AppDirs
 
 import nucypher
-
+from nucypher.blockchain.eth import sol
 
 # Base Filepaths
 BASE_DIR = abspath(dirname(dirname(nucypher.__file__)))
 PROJECT_ROOT = abspath(dirname(nucypher.__file__))
+CONTRACT_ROOT = os.path.join(abspath(dirname(sol.__file__)), 'source', 'contracts')
 
 # User Application Filepaths
 APP_DIR = AppDirs(nucypher.__title__, nucypher.__author__)
