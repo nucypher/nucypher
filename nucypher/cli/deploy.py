@@ -95,7 +95,7 @@ nucypher_deployer_config = click.make_pass_decorator(NucypherDeployerClickConfig
 @click.option('--provider-uri', help="Blockchain provider's URI", type=click.STRING)
 @click.option('--contract-name', help="Deploy a single contract by name", type=click.STRING)
 @click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--allocation-infile', help="Input path for allocation JSON file", type=EXISTING_READABLE_FILE)
+@click.option('--allocation-infile', help="Input path for token allocation JSON file", type=EXISTING_READABLE_FILE)
 @nucypher_deployer_config
 def deploy(click_config,
            action,
