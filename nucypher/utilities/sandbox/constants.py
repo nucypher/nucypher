@@ -15,13 +15,39 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
+import contextlib
 import os
 
+import socket
+
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH, M
+from nucypher.config.characters import UrsulaConfiguration
+
+
+def select_test_port() -> int:
+    """
+    Search for a network port that is open at the time of the call;
+    Verify that the port is not the same as the default Ursula running port.
+
+    Note: There is no guarantee that the returned port will still be available later.
+    """
+
+    closed_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    with contextlib.closing(closed_socket) as open_socket:
+        open_socket.bind(('localhost', 0))
+        port = open_socket.getsockname()[1]
+
+        if port == UrsulaConfiguration.DEFAULT_REST_PORT:
+            return select_test_port()
+
+        open_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return port
+
+
+MOCK_URSULA_STARTING_PORT = select_test_port()
 
 MOCK_KNOWN_URSULAS_CACHE = {}
-
-MOCK_URSULA_STARTING_PORT = 49152
 
 NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = 10
 

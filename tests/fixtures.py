@@ -43,7 +43,7 @@ from nucypher.keystore.db import Base
 from nucypher.keystore.keypairs import SigningKeypair
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain, token_airdrop
 from nucypher.utilities.sandbox.constants import (NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+                                                  DEVELOPMENT_TOKEN_AIRDROP_AMOUNT, MOCK_URSULA_STARTING_PORT)
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas, make_decentralized_ursulas
 
@@ -122,6 +122,7 @@ def certificates_tempdir():
 def ursula_federated_test_config():
 
     ursula_config = UrsulaConfiguration(dev_mode=True,
+                                        rest_port=MOCK_URSULA_STARTING_PORT,
                                         is_me=True,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
@@ -139,6 +140,8 @@ def ursula_decentralized_test_config(three_agents):
 
     ursula_config = UrsulaConfiguration(dev_mode=True,
                                         is_me=True,
+                                        provider_uri="tester://pyevm",
+                                        rest_port=MOCK_URSULA_STARTING_PORT,
                                         start_learning_now=False,
                                         abort_on_learning_error=True,
                                         federated_only=False,
@@ -171,6 +174,7 @@ def alice_blockchain_test_config(blockchain_ursulas, three_agents):
 
     config = AliceConfiguration(dev_mode=True,
                                 is_me=True,
+                                provider_uri="tester://pyevm",
                                 checksum_public_address=alice_address,
                                 network_middleware=MockRestMiddleware(),
                                 known_nodes=blockchain_ursulas,
@@ -201,6 +205,7 @@ def bob_blockchain_test_config(blockchain_ursulas, three_agents):
     etherbase, alice_address, bob_address, *everyone_else = token_agent.blockchain.interface.w3.eth.accounts
 
     config = BobConfiguration(dev_mode=True,
+                              provider_uri="tester://pyevm",
                               checksum_public_address=bob_address,
                               network_middleware=MockRestMiddleware(),
                               known_nodes=blockchain_ursulas,

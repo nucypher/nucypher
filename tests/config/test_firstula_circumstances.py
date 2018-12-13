@@ -19,7 +19,7 @@ from functools import partial
 
 import maya
 import pytest
-import pytest_twisted
+import pytest_twisted as pt
 from twisted.internet.threads import deferToThread
 
 from nucypher.network.middleware import RestMiddleware
@@ -41,7 +41,7 @@ def test_proper_seed_node_instantiation(ursula_federated_test_config):
     assert firstula in any_other_ursula.known_nodes
 
 
-@pytest_twisted.inlineCallbacks
+@pt.inlineCallbacks
 def test_get_cert_from_running_seed_node(ursula_federated_test_config):
     lonely_ursula_maker = partial(make_federated_ursulas,
                                   ursula_config=ursula_federated_test_config,

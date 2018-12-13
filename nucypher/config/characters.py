@@ -18,14 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 
-from web3.middleware import geth_poa_middleware
-
 from constant_sorrow.constants import (
-    UNINITIALIZED_CONFIGURATION,
-    NO_KEYRING_ATTACHED
+    UNINITIALIZED_CONFIGURATION
 )
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent
-from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.node import NodeConfiguration
 
@@ -78,39 +73,9 @@ class UrsulaConfiguration(NodeConfiguration):
     def produce(self, **overrides):
         """Produce a new Ursula from configuration"""
 
-        # Build a merged dict of Ursula parameters
-        merged_parameters = {**self.static_payload, **self.dynamic_payload, **overrides}
-
-        #
-        # Pre-Init
-        #
-
-        # Verify the configuration file refers to the same configuration root as this instance
-        config_root_from_config_file = merged_parameters.pop('config_root')
-        if config_root_from_config_file != self.config_root:
-            message = "Configuration root mismatch {} and {}.".format(config_root_from_config_file, self.config_root)
-            raise self.ConfigurationError(message)
-
-        if self.federated_only is False:
-
-            self.blockchain = Blockchain.connect(provider_uri=self.provider_uri)
-
-            if self.poa:
-                w3 = self.miner_agent.blockchain.interface.w3
-                w3.middleware_stack.inject(geth_poa_middleware, layer=0)
-
-            self.token_agent = NucypherTokenAgent(blockchain=self.blockchain)
-            self.miner_agent = MinerAgent(blockchain=self.blockchain)
-            merged_parameters.update(blockchain=self.blockchain)
-
-        #
-        # Init
-        #
+        merged_parameters = self.generate_parameters(**overrides)
         ursula = self._CHARACTER_CLASS(**merged_parameters)
 
-        #
-        # Post-Init
-        #
         if self.dev_mode:
             class MockDatastoreThreadPool(object):
                 def callInThread(self, f, *args, **kwargs):

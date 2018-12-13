@@ -24,7 +24,7 @@ from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, 
 
 
 def test_initialize_configuration_files_and_directories(custom_filepath, click_runner):
-    init_args = ('ursula', 'init', '--config-root', custom_filepath)
+    init_args = ('ursula', 'init', '--federated-only', '--config-root', custom_filepath)
 
     # Use a custom local filepath for configuration
     user_input = '{ip}\n{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS_2)

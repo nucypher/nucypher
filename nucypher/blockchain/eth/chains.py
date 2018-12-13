@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from twisted.logger import Logger
+from web3.middleware import geth_poa_middleware
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
 from typing import Union
@@ -64,6 +65,7 @@ class Blockchain:
                 registry: EthereumContractRegistry = None,
                 deployer: bool = False,
                 compile: bool = False,
+                poa: bool = False
                 ) -> 'Blockchain':
 
         if cls._instance is NO_BLOCKCHAIN_AVAILABLE:
@@ -71,6 +73,10 @@ class Blockchain:
             compiler = SolidityCompiler() if compile is True else None
             InterfaceClass = BlockchainDeployerInterface if deployer is True else BlockchainInterface
             interface = InterfaceClass(provider_uri=provider_uri, registry=registry, compiler=compiler)
+
+            if poa is True:
+                interface.w3.middleware_stack.inject(geth_poa_middleware, layer=0)
+
             cls._instance = cls(interface=interface)
         else:
             if provider_uri is not None:

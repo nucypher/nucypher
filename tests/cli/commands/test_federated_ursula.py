@@ -39,7 +39,7 @@ def test_initialize_ursula_defaults(click_runner, mocker):
     mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', autospec=True)
 
     # Use default ursula init args
-    init_args = ('ursula', 'init')
+    init_args = ('ursula', 'init', '--federated-only')
     user_input = '{ip}\n{password}\n{password}\n'.format(password=INSECURE_DEVELOPMENT_PASSWORD, ip=MOCK_IP_ADDRESS)
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
@@ -56,6 +56,7 @@ def test_initialize_custom_configuration_root(custom_filepath, click_runner):
 
     # Use a custom local filepath for configuration
     init_args = ('ursula', 'init',
+                 '--federated-only',
                  '--config-root', custom_filepath,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', MOCK_URSULA_STARTING_PORT)
@@ -82,7 +83,7 @@ def test_initialize_custom_configuration_root(custom_filepath, click_runner):
     assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
 
 
-def test_configuration_file_contents(custom_filepath, nominal_configuration_fields):
+def test_configuration_file_contents(custom_filepath, nominal_federated_configuration_fields):
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
     assert os.path.isfile(custom_config_filepath), 'Configuration file does not exist'
 
@@ -95,7 +96,7 @@ def test_configuration_file_contents(custom_filepath, nominal_configuration_fiel
         except JSONDecodeError:
             raise pytest.fail(msg="Invalid JSON configuration file {}".format(custom_config_filepath))
 
-        for field in nominal_configuration_fields:
+        for field in nominal_federated_configuration_fields:
             assert field in data, "Missing field '{}' from configuration file."
             if any(keyword in field for keyword in ('path', 'dir')):
                 path = data[field]
@@ -125,7 +126,7 @@ def test_password_prompt(click_runner, custom_filepath):
     assert result.exit_code == 0
 
 
-def test_ursula_view_configuration(custom_filepath, click_runner, nominal_configuration_fields):
+def test_ursula_view_configuration(custom_filepath, click_runner, nominal_federated_configuration_fields):
 
     # Ensure the configuration file still exists
     custom_config_filepath = os.path.join(custom_filepath, UrsulaConfiguration.CONFIG_FILENAME)
@@ -141,7 +142,7 @@ def test_ursula_view_configuration(custom_filepath, click_runner, nominal_config
     # CLI Output
     assert 'password' in result.output, 'WARNING: User was not prompted for password'
     assert MOCK_CUSTOM_INSTALLATION_PATH in result.output
-    for field in nominal_configuration_fields:
+    for field in nominal_federated_configuration_fields:
         assert field in result.output, "Missing field '{}' from configuration file."
 
     # Make sure nothing crazy is happening...

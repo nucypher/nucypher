@@ -15,10 +15,6 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import contextlib
-import os
-
 import boto3
 import pytest
 import requests
@@ -31,7 +27,7 @@ from nucypher.config.storages import (
     TemporaryFileBasedNodeStorage,
     NodeStorage
 )
-from nucypher.utilities.sandbox.constants import MOCK_URSULA_DB_FILEPATH
+from nucypher.utilities.sandbox.constants import MOCK_URSULA_DB_FILEPATH, MOCK_URSULA_STARTING_PORT
 
 MOCK_S3_BUCKET_NAME = 'mock-seednodes'
 S3_DOMAIN_NAME = 's3.amazonaws.com'
@@ -41,17 +37,11 @@ class BaseTestNodeStorageBackends:
 
     @pytest.fixture(scope='class')
     def light_ursula(temp_dir_path):
-        db_filepath = 'ursula-{}.db'.format(10151)
-        try:
-            node = Ursula(rest_host='127.0.0.1',
-                          rest_port=10151,
-                          db_filepath=MOCK_URSULA_DB_FILEPATH,
-                          federated_only=True)
-
-            yield node
-        finally:
-            with contextlib.suppress(Exception):
-                os.remove(db_filepath)
+        node = Ursula(rest_host='127.0.0.1',
+                      rest_port=MOCK_URSULA_STARTING_PORT,
+                      db_filepath=MOCK_URSULA_DB_FILEPATH,
+                      federated_only=True)
+        yield node
 
     character_class = Ursula
     federated_only = True
@@ -68,7 +58,7 @@ class BaseTestNodeStorageBackends:
 
         # Save more nodes
         all_known_nodes = set()
-        for port in range(10152, 10251):
+        for port in range(MOCK_URSULA_STARTING_PORT, MOCK_URSULA_STARTING_PORT+100):
             node = Ursula(rest_host='127.0.0.1', db_filepath=MOCK_URSULA_DB_FILEPATH, rest_port=port, federated_only=True)
             node_storage.store_node_metadata(node=node)
             all_known_nodes.add(node)

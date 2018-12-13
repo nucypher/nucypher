@@ -14,6 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import contextlib
 import shutil
 
@@ -31,8 +33,8 @@ def click_runner():
 
 
 @pytest.fixture(scope='module')
-def nominal_configuration_fields():
-    config = UrsulaConfiguration(dev_mode=True)
+def nominal_federated_configuration_fields():
+    config = UrsulaConfiguration(dev_mode=True, federated_only=True)
     config_fields = config.static_payload
     del config_fields['is_me']
     yield tuple(config_fields.keys())

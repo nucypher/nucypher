@@ -31,7 +31,7 @@ from nucypher.cli.painting import BANNER, paint_configuration, paint_known_nodes
 from nucypher.cli.protocol import UrsulaCommandProtocol
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
-    UNREGISTERED_PORT,
+    NETWORK_PORT,
     EXISTING_READABLE_FILE,
     EXISTING_WRITABLE_DIRECTORY,
     STAKE_VALUE,
@@ -44,6 +44,9 @@ from nucypher.utilities.logging import (
     initialize_sentry,
     getJsonFileObserver,
     SimpleObserver)
+
+
+FEDERATED_ONLY = False
 
 
 #
@@ -141,10 +144,10 @@ def status(click_config, config_file):
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
-@click.option('--rest-port', help="The host port to run Ursula network services on", type=UNREGISTERED_PORT)
+@click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--federated-only', help="Connect only to federated nodes", is_flag=True, default=True)
+@click.option('--federated-only', help="Connect only to federated nodes", is_flag=True, default=FEDERATED_ONLY)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
@@ -234,7 +237,8 @@ def ursula(click_config,
                                                      checksum_public_address=checksum_address,
                                                      no_registry=federated_only or no_registry,
                                                      registry_filepath=registry_filepath,
-                                                     provider_uri=provider_uri)
+                                                     provider_uri=provider_uri,
+                                                     poa=poa)
 
         click.secho("Generated keyring {}".format(ursula_config.keyring_dir), fg='green')
         click.secho("Saved configuration file {}".format(ursula_config.config_file_location), fg='green')
@@ -281,6 +285,10 @@ def ursula(click_config,
             ursula_config.keyring.unlock(password=click_config.get_password())  # Takes ~3 seconds, ~1GB Ram
         except CryptoError:
             raise ursula_config.keyring.AuthenticationFailed
+
+    if not ursula_config.federated_only:
+        ursula_config.connect_to_blockchain(recompile_contracts=False)
+        ursula_config.connect_to_contracts()
 
     click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
 

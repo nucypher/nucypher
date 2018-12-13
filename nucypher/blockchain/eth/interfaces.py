@@ -14,19 +14,26 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from twisted.logger import Logger
+
+
 from urllib.parse import urlparse
 
-from constant_sorrow import constants
 from eth_keys.datatypes import PublicKey, Signature
-from eth_tester import EthereumTester
-from eth_tester import PyEVMBackend
 from eth_utils import to_canonical_address
+from twisted.logger import Logger
 from typing import Tuple, Union
 from web3 import Web3, WebsocketProvider, HTTPProvider, IPCProvider
 from web3.contract import Contract
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
+from constant_sorrow.constants import (
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_COMPILATION_PERFORMED,
+    MANUAL_PROVIDERS_SET,
+    NO_DEPLOYER_CONFIGURED
+)
+from eth_tester import EthereumTester
+from eth_tester import PyEVMBackend
 from nucypher.blockchain.eth.constants import NUCYPHER_GAS_LIMIT
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
@@ -130,9 +137,9 @@ class BlockchainInterface:
         # Providers
         #
 
-        self.w3 = constants.NO_BLOCKCHAIN_CONNECTION
-        self.__providers = providers or constants.NO_BLOCKCHAIN_CONNECTION
-        self.provider_uri = constants.NO_BLOCKCHAIN_CONNECTION
+        self.w3 = NO_BLOCKCHAIN_CONNECTION
+        self.__providers = providers or NO_BLOCKCHAIN_CONNECTION
+        self.provider_uri = NO_BLOCKCHAIN_CONNECTION
         self.timeout = timeout if timeout is not None else self.__default_timeout
 
         if provider_uri and providers:
@@ -141,7 +148,7 @@ class BlockchainInterface:
             self.provider_uri = provider_uri
             self.add_provider(provider_uri=provider_uri)
         elif providers:
-            self.provider_uri = constants.MANUAL_PROVIDERS_SET
+            self.provider_uri = MANUAL_PROVIDERS_SET
             for provider in providers:
                 self.add_provider(provider)
         else:
@@ -163,7 +170,7 @@ class BlockchainInterface:
             interfaces = self.__sol_compiler.compile()
             __raw_contract_cache = interfaces
         else:
-            __raw_contract_cache = constants.NO_COMPILATION_PERFORMED
+            __raw_contract_cache = NO_COMPILATION_PERFORMED
         self.__raw_contract_cache = __raw_contract_cache
 
         # Auto-connect
@@ -171,10 +178,14 @@ class BlockchainInterface:
         if self.autoconnect is True:
             self.connect()
 
+    def __repr__(self):
+        r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.provider_uri)
+        return r
+
     def connect(self):
         self.log.info("Connecting to {}".format(self.provider_uri))
 
-        if self.__providers is constants.NO_BLOCKCHAIN_CONNECTION:
+        if self.__providers is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")
 
         # Connect
@@ -228,14 +239,8 @@ class BlockchainInterface:
                     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
 
                 elif uri_breakdown.netloc == 'geth':
-                    # TODO: Auto gethdev
-                    # https://web3py.readthedocs.io/en/stable/providers.html  # geth-dev-proof-of-authority
-                    # from web3.auto.gethdev import w3
-
                     # Hardcoded gethdev IPC provider
                     provider = IPCProvider(ipc_path='/tmp/geth.ipc', timeout=timeout)
-                    # w3 = Web3(providers=(provider))
-                    # w3.middleware_stack.inject(geth_poa_middleware, layer=0)
 
                 else:
                     raise ValueError("{} is an invalid or unsupported blockchain provider URI".format(provider_uri))
@@ -256,7 +261,7 @@ class BlockchainInterface:
                 raise self.InterfaceError("'{}' is not a blockchain provider protocol".format(uri_breakdown.scheme))
 
             # lazy
-            if self.__providers is constants.NO_BLOCKCHAIN_CONNECTION:
+            if self.__providers is NO_BLOCKCHAIN_CONNECTION:
                 self.__providers = list()
             self.__providers.append(provider)
 
@@ -267,9 +272,10 @@ class BlockchainInterface:
         except KeyError:
             raise self.UnknownContract('{} is not a locally compiled contract.'.format(contract_name))
         except TypeError:
-            if self.__raw_contract_cache is constants.NO_COMPILATION_PERFORMED:
+            if self.__raw_contract_cache is NO_COMPILATION_PERFORMED:
                 message = "The local contract compiler cache is empty because no compilation was performed."
                 raise self.InterfaceError(message)
+            raise
         else:
             contract = self.w3.eth.contract(abi=interface['abi'],
                                             bytecode=interface['bin'],
@@ -399,7 +405,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
     def __init__(self, deployer_address: str=None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)  # Depends on web3 instance
-        self.__deployer_address = deployer_address if deployer_address is not None else constants.NO_DEPLOYER_CONFIGURED
+        self.__deployer_address = deployer_address if deployer_address is not None else NO_DEPLOYER_CONFIGURED
 
     @property
     def deployer_address(self):
@@ -407,7 +413,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
 
     @deployer_address.setter
     def deployer_address(self, checksum_address: str) -> None:
-        if self.deployer_address is not constants.NO_DEPLOYER_CONFIGURED:
+        if self.deployer_address is not NO_DEPLOYER_CONFIGURED:
             raise RuntimeError("{} already has a deployer address set: {}.".format(self.__class__.__name__, self.deployer_address))
         self.__deployer_address = checksum_address
 
@@ -416,7 +422,7 @@ class BlockchainDeployerInterface(BlockchainInterface):
         Retrieve compiled interface data from the cache and
         return an instantiated deployed contract
         """
-        if self.__deployer_address is constants.NO_DEPLOYER_CONFIGURED:
+        if self.__deployer_address is NO_DEPLOYER_CONFIGURED:
             raise self.NoDeployerAddress
 
         #
