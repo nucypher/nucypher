@@ -15,7 +15,6 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import binascii
-import os
 from abc import abstractmethod
 from collections import OrderedDict
 
@@ -23,9 +22,9 @@ import maya
 import msgpack
 import uuid
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
-from constant_sorrow import constants
+from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import Generator, List, Set
+from typing import Generator, List, Set, Optional
 from umbral.config import default_params
 from umbral.kfrags import KFrag
 from umbral.cfrags import CapsuleFrag
@@ -54,8 +53,8 @@ class Arrangement:
     splitter = key_splitter + BytestringSplitter((bytes, ID_LENGTH),
                                                  (bytes, 27))
 
-    def __init__(self, alice, expiration, ursula=None, id=None,
-                 kfrag=constants.UNKNOWN_KFRAG, value=None, alices_signature=None) -> None:
+    def __init__(self, alice, expiration, ursula=None, arrangement_id=None,
+                 kfrag=UNKNOWN_KFRAG, value=None, alices_signature=None) -> None:
         """
         :param deposit: Funds which will pay for the timeframe  of this Arrangement (not the actual re-encryptions);
             a portion will be locked for each Ursula that accepts.
@@ -63,7 +62,7 @@ class Arrangement:
 
         Other params are hopefully self-evident.
         """
-        self.id = id or secure_random(self.ID_LENGTH)
+        self.id = arrangement_id or secure_random(self.ID_LENGTH)
         self.expiration = expiration
         self.alice = alice
         self.uuid = uuid.uuid4()
@@ -82,10 +81,10 @@ class Arrangement:
     @classmethod
     def from_bytes(cls, arrangement_as_bytes):
         # Still unclear how to arrive at the correct number of bytes to represent a deposit.  See #148.
-        alice_pubkey_sig, id, expiration_bytes = cls.splitter(arrangement_as_bytes)
+        alice_pubkey_sig, arrangement_id, expiration_bytes = cls.splitter(arrangement_as_bytes)
         expiration = maya.parse(expiration_bytes.decode())
         alice = Alice.from_public_keys({SigningPower: alice_pubkey_sig})
-        return cls(alice=alice, id=id, expiration=expiration)
+        return cls(alice=alice, arrangement_id=arrangement_id, expiration=expiration)
 
     def encrypt_payload_for_ursula(self):
         """Craft an offer to send to Ursula."""
@@ -108,7 +107,7 @@ class Arrangement:
     @abstractmethod
     def revoke(self):
         """
-        Publish arrangement.
+        Revoke arrangement.
         """
         raise NotImplementedError
 
@@ -130,10 +129,10 @@ class Policy:
                  alice,
                  label,
                  bob=None,
-                 kfrags=(constants.UNKNOWN_KFRAG,),
+                 kfrags=(UNKNOWN_KFRAG,),
                  public_key=None,
                  m: int = None,
-                 alices_signature=constants.NOT_SIGNED) -> None:
+                 alices_signature=NOT_SIGNED) -> None:
 
         """
         :param kfrags:  A list of KFrags to distribute per this Policy.
@@ -263,7 +262,7 @@ class Policy:
             if publish is True:
                 return self.publish(network_middleware)
 
-    def consider_arrangement(self, network_middleware, ursula, arrangement):
+    def consider_arrangement(self, network_middleware, ursula, arrangement) -> bool:
         try:
             ursula.verify_node(network_middleware,
                                accept_federated_only=arrangement.federated)
@@ -278,12 +277,12 @@ class Policy:
         negotiation_response = network_middleware.consider_arrangement(arrangement=arrangement)
 
         # TODO: check out the response: need to assess the result and see if we're actually good to go.
-        negotiation_result = negotiation_response.status_code == 200
+        arrangement_is_accepted = negotiation_response.status_code == 200
 
-        bucket = self._accepted_arrangements if negotiation_result is True else self._rejected_arrangements
+        bucket = self._accepted_arrangements if arrangement_is_accepted else self._rejected_arrangements
         bucket.add(arrangement)
 
-        return negotiation_result
+        return arrangement_is_accepted
 
     @abstractmethod
     def make_arrangements(self,
@@ -292,7 +291,7 @@ class Policy:
                           expiration: maya.MayaDT,
                           ursulas: Set[Ursula] = None) -> None:
         """
-        Create and consider n Arangement objects.
+        Create and consider n Arrangement objects.
         """
         raise NotImplementedError
 
@@ -373,9 +372,9 @@ class TreasureMap:
     def __init__(self,
                  m: int = None,
                  destinations=None,
-                 message_kit: UmbralMessageKit= None,
+                 message_kit: UmbralMessageKit = None,
                  public_signature: Signature = None,
-                 hrac=None) -> None:
+                 hrac: Optional[bytes] = None) -> None:
 
         if m is not None:
             if m > 255:
@@ -384,11 +383,10 @@ class TreasureMap:
 
             self._destinations = destinations or {}
         else:
-            self._m = constants.NO_DECRYPTION_PERFORMED
-            self._destinations = constants.NO_DECRYPTION_PERFORMED
+            self._m = NO_DECRYPTION_PERFORMED
+            self._destinations = NO_DECRYPTION_PERFORMED
 
         self.message_kit = message_kit
-        self._signature_for_bob = None
         self._public_signature = public_signature
         self._hrac = hrac
         self._payload = None
@@ -449,13 +447,16 @@ class TreasureMap:
         return self._destinations
 
     def nodes_as_bytes(self):
-        if self.destinations == constants.NO_DECRYPTION_PERFORMED:
-            return constants.NO_DECRYPTION_PERFORMED
+        if self.destinations == NO_DECRYPTION_PERFORMED:
+            return NO_DECRYPTION_PERFORMED
         else:
-            return bytes().join(to_canonical_address(ursula_id) + arrangement_id for ursula_id, arrangement_id in self.destinations.items())
+            nodes_as_bytes = b""
+            for ursula_id, arrangement_id in self.destinations.items():
+                nodes_as_bytes += to_canonical_address(ursula_id) + arrangement_id
+            return nodes_as_bytes
 
     def add_arrangement(self, arrangement):
-        if self.destinations == constants.NO_DECRYPTION_PERFORMED:
+        if self.destinations == NO_DECRYPTION_PERFORMED:
             raise TypeError("This TreasureMap is encrypted.  You can't add another node without decrypting it.")
         self.destinations[arrangement.ursula.checksum_public_address] = arrangement.id
 
@@ -469,8 +470,7 @@ class TreasureMap:
 
     @classmethod
     def from_bytes(cls, bytes_representation, verify=True):
-        signature, hrac, tmap_message_kit = \
-            cls.splitter(bytes_representation)
+        signature, hrac, tmap_message_kit = cls.splitter(bytes_representation)
 
         treasure_map = cls(
             message_kit=tmap_message_kit,
