@@ -197,14 +197,16 @@ workflows:
 
 
 python_36_base: &python_36_base
-    working_directory: ~/nucypher-depends
-    docker:
-      - image: circleci/python:3.6
+  parallelism: 1
+  working_directory: ~/nucypher-depends
+  docker:
+    - image: circleci/python:3.6
 
 python_37_base: &python_37_base
-    working_directory: ~/nucypher-depends
-    docker:
-      - image: circleci/python:3.7
+  parallelism: 1
+  working_directory: ~/nucypher-depends
+  docker:
+    - image: circleci/python:3.7
 
 
 commands:
@@ -310,7 +312,6 @@ jobs:
           name: Blockchain Interface Tests
           command: pipenv run pytest tests/blockchain/eth/interfaces
       - capture_test_results
-
 
   agents:
     <<: *python_36_base
