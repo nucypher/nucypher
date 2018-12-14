@@ -321,6 +321,13 @@ class Alice(Character, PolicyAuthor):
 class Bob(Character):
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
+    class IncorrectCFragReceived(Exception):
+        """
+        Raised when Bob detects an incorrect CFrag returned by some Ursula
+        """
+        def __init__(self, evidence):
+            self.evidence = evidence
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -547,7 +554,7 @@ class Bob(Character):
                                                  cfrag=cfrag,
                                                  )
                 # TODO: Here's the evidence of Ursula misbehavior. Now what? #500
-                raise
+                raise self.IncorrectCFragReceived(evidence)
 
         else:
             raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
