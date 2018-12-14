@@ -66,8 +66,6 @@ from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
 from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.utilities.decorators import validate_checksum_address
-# TODO: Fix circular import issue
-#from nucypher.policy.models import UnquestionableEvidence
 
 
 class Alice(Character, PolicyAuthor):
@@ -552,10 +550,9 @@ class Bob(Character):
             except UmbralCorrectnessError:
                 evidence = self.collect_evidence(capsule=capsule,
                                                  cfrag=cfrag,
-                                                 )
+                                                 ursula=work_order.ursula)
                 # TODO: Here's the evidence of Ursula misbehavior. Now what? #500
                 raise self.IncorrectCFragReceived(evidence)
-
         else:
             raise Ursula.NotEnoughUrsulas("Unable to snag m cfrags.")
 
@@ -567,10 +564,9 @@ class Bob(Character):
         cleartexts.append(delivered_cleartext)
         return cleartexts
 
-    def collect_evidence(self, capsule, cfrag):
-        pass
-        # TODO: Fix circular import problem
-        # return UnquestionableEvidence(capsule, cfrag)
+    def collect_evidence(self, capsule, cfrag, ursula):
+        from nucypher.policy.models import UnquestionableEvidence
+        return UnquestionableEvidence(capsule, cfrag, ursula)
 
 def make_wsgi_app(drone_bob, start_learning=True):
         bob_control = Flask('bob-control')
