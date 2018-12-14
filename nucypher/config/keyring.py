@@ -43,7 +43,7 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
-from nucypher.crypto.powers import SigningPower, EncryptingPower, KeyPairBasedPower, DerivedKeyBasedPower
+from nucypher.crypto.powers import SigningPower, DecryptingPower, KeyPairBasedPower, DerivedKeyBasedPower
 from nucypher.network.server import TLSHostingPower
 
 FILE_ENCODING = 'utf-8'
@@ -526,8 +526,8 @@ class NucypherKeyring:
     @unlock_required
     def derive_crypto_power(self, power_class: ClassVar) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
         """
-        Takes either a SigningPower or an EncryptingPower and returns
-        either a SigningPower or EncryptingPower with the coinciding
+        Takes either a SigningPower or an DecryptingPower and returns
+        either a SigningPower or DecryptingPower with the coinciding
         private key.
 
         TODO: Derive a key from the root_key.
@@ -536,7 +536,7 @@ class NucypherKeyring:
         if issubclass(power_class, KeyPairBasedPower):
 
             codex = {SigningPower: self.__signing_keypath,
-                     EncryptingPower: self.__root_keypath,
+                     DecryptingPower: self.__root_keypath,
                      TLSHostingPower: self.__tls_keypath,    # TODO
                      # BlockchainPower: self.__wallet_path,    # TODO
                     }

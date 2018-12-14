@@ -46,7 +46,7 @@ from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
-from nucypher.crypto.powers import SigningPower, EncryptingPower, DelegatingPower, BlockchainPower
+from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, BlockchainPower
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
@@ -57,7 +57,7 @@ from nucypher.utilities.decorators import validate_checksum_address
 
 
 class Alice(Character, PolicyAuthor):
-    _default_crypto_powerups = [SigningPower, EncryptingPower, DelegatingPower]
+    _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
 
     def __init__(self, is_me=True, federated_only=False, network_middleware=None, *args, **kwargs) -> None:
 
@@ -85,7 +85,7 @@ class Alice(Character, PolicyAuthor):
         :param n: Total number of kfrags to generate
         """
 
-        bob_pubkey_enc = bob.public_keys(EncryptingPower)
+        bob_pubkey_enc = bob.public_keys(DecryptingPower)
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
         return delegating_power.generate_kfrags(bob_pubkey_enc, self.stamp, label, m, n)
 
@@ -198,7 +198,7 @@ class Alice(Character, PolicyAuthor):
 
 
 class Bob(Character):
-    _default_crypto_powerups = [SigningPower, EncryptingPower]
+    _default_crypto_powerups = [SigningPower, DecryptingPower]
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -395,7 +395,7 @@ class Bob(Character):
 
         message_kit.capsule.set_correctness_keys(
             delegating=data_source.policy_pubkey,
-            receiving=self.public_keys(EncryptingPower),
+            receiving=self.public_keys(DecryptingPower),
             verifying=alice_verifying_key)
 
         hrac, map_id = self.construct_hrac_and_map_id(alice_verifying_key, data_source.label)
@@ -430,7 +430,7 @@ class Ursula(Teacher, Character, Miner):
 
     # TODO: Maybe this wants to be a registry, so that, for example,
     # TLSHostingPower still can enjoy default status, but on a different class
-    _default_crypto_powerups = [SigningPower, EncryptingPower]
+    _default_crypto_powerups = [SigningPower, DecryptingPower]
 
     class NotEnoughUrsulas(Learner.NotEnoughTeachers, MinerAgent.NotEnoughMiners):
         """
@@ -628,7 +628,7 @@ class Ursula(Teacher, Character, Miner):
                                  bytes(self._interface_signature),
                                  bytes(identity_evidence),
                                  bytes(self.public_keys(SigningPower)),
-                                 bytes(self.public_keys(EncryptingPower)),
+                                 bytes(self.public_keys(DecryptingPower)),
                                  bytes(cert_vbytes),
                                  bytes(interface_info))
                                 )
@@ -804,7 +804,7 @@ class Ursula(Teacher, Character, Miner):
 
         powers_and_material = {
             SigningPower: node_info.pop("verifying_key"),
-            EncryptingPower: node_info.pop("encrypting_key")
+            DecryptingPower: node_info.pop("encrypting_key")
         }
 
         interface_info = node_info.pop("rest_interface")

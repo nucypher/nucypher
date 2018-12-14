@@ -22,7 +22,7 @@ from eth_utils import is_checksum_address
 
 from nucypher.blockchain.eth.constants import MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS
 
-TestPolicyMetadata = collections.namedtuple('TestPolicyMetadata', 'policy_id author addresses')
+MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id author addresses')
 
 
 @pytest.fixture(scope='function')
@@ -41,7 +41,7 @@ def policy_meta(testerchain, three_agents):
                                   initial_reward=20,
                                   node_addresses=node_addresses)
 
-    return TestPolicyMetadata(_policy_id, someone, node_addresses)
+    return MockPolicyMetadata(_policy_id, someone, node_addresses)
 
 
 @pytest.mark.slow()

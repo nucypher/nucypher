@@ -25,7 +25,7 @@ from umbral import pre
 from umbral.kfrags import KFrag
 from umbral.cfrags import CapsuleFrag
 
-from nucypher.crypto.powers import EncryptingPower
+from nucypher.crypto.powers import DecryptingPower 
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
 
 
@@ -177,7 +177,7 @@ def test_bob_can_issue_a_work_order_to_a_specific_ursula(enacted_federated_polic
     # Attach the CFrag to the Capsule.
     capsule = capsule_side_channel[0].capsule
     capsule.set_correctness_keys(delegating=enacted_federated_policy.public_key,
-                                 receiving=federated_bob.public_keys(EncryptingPower),
+                                 receiving=federated_bob.public_keys(DecryptingPower),
                                  verifying=federated_alice.stamp.as_umbral_pubkey())
     capsule.attach_cfrag(the_cfrag)
 

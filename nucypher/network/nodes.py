@@ -42,7 +42,7 @@ from constant_sorrow.constants import GLOBAL_DOMAIN
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.powers import BlockchainPower, SigningPower, EncryptingPower, NoSigningPower
+from nucypher.crypto.powers import BlockchainPower, SigningPower, DecryptingPower, NoSigningPower
 from nucypher.crypto.signing import signature_splitter
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.middleware import RestMiddleware
@@ -889,7 +889,7 @@ class Teacher:
         # TODO check timestamp here.  589
 
         verifying_keys_match = node_details['verifying_key'] == self.public_keys(SigningPower)
-        encrypting_keys_match = node_details['encrypting_key'] == self.public_keys(EncryptingPower)
+        encrypting_keys_match = node_details['encrypting_key'] == self.public_keys(DecryptingPower)
         addresses_match = node_details['public_address'] == self.canonical_public_address
         evidence_matches = node_details['identity_evidence'] == self._evidence_of_decentralized_identity
 

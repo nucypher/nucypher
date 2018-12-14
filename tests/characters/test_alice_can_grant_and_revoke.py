@@ -27,7 +27,7 @@ from umbral.kfrags import KFrag
 from nucypher.characters.lawful import Bob
 from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.api import keccak_digest
-from nucypher.crypto.powers import SigningPower, EncryptingPower
+from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.policy.models import Revocation
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD
 from nucypher.utilities.sandbox.middleware import MockRestMiddleware
@@ -157,7 +157,7 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
 
     # Let's save Alice's public keys too to check they are correctly restored later
     alices_verifying_key = alice.public_keys(SigningPower)
-    alices_receiving_key = alice.public_keys(EncryptingPower)
+    alices_receiving_key = alice.public_keys(DecryptingPower)
 
     # Next, let's fix a label for all the policies we will create later.
     label = b"this_is_the_path_to_which_access_is_being_granted"
@@ -204,7 +204,7 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
 
     # First, we check that her public keys are correctly restored
     assert alices_verifying_key == new_alice.public_keys(SigningPower)
-    assert alices_receiving_key == new_alice.public_keys(EncryptingPower)
+    assert alices_receiving_key == new_alice.public_keys(DecryptingPower)
 
     # Bob's eldest brother, Roberto, appears too
     roberto = Bob(federated_only=True,

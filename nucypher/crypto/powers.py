@@ -23,7 +23,7 @@ from umbral import pre
 from umbral.keys import UmbralPublicKey, UmbralPrivateKey, UmbralKeyingMaterial
 
 from nucypher.keystore import keypairs
-from nucypher.keystore.keypairs import SigningKeypair, EncryptingKeypair
+from nucypher.keystore.keypairs import SigningKeypair, DecryptingKeypair
 
 
 class PowerUpError(TypeError):
@@ -34,7 +34,7 @@ class NoSigningPower(PowerUpError):
     pass
 
 
-class NoEncryptingPower(PowerUpError):
+class NoDecryptingPower(PowerUpError):
     pass
 
 
@@ -196,9 +196,9 @@ class SigningPower(KeyPairBasedPower):
     provides = ("sign", "get_signature_stamp")
 
 
-class EncryptingPower(KeyPairBasedPower):
-    _keypair_class = EncryptingKeypair
-    not_found_error = NoEncryptingPower
+class DecryptingPower(KeyPairBasedPower):
+    _keypair_class = DecryptingKeypair
+    not_found_error = NoDecryptingPower
     provides = ("decrypt",)
 
 
@@ -249,8 +249,8 @@ class DelegatingPower(DerivedKeyBasedPower):
                                      )
         return __private_key.get_pubkey(), kfrags
 
-    def get_encrypting_power_from_label(self, label):
+    def get_decrypting_power_from_label(self, label):
         label_privkey = self._get_privkey_from_label(label)
-        label_keypair = keypairs.EncryptingKeypair(private_key=label_privkey)
-        encrypting_power = EncryptingPower(keypair=label_keypair)
-        return encrypting_power
+        label_keypair = keypairs.DecryptingKeypair(private_key=label_privkey)
+        decrypting_power = DecryptingPower(keypair=label_keypair)
+        return decrypting_power
