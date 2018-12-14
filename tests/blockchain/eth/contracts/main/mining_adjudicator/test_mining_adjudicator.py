@@ -125,7 +125,7 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     cfrag_bytes = cfrag.to_bytes()
 
     # Bob prepares supporting Evidence
-    evidence = UnquestionableEvidence(capsule, cfrag)
+    evidence = UnquestionableEvidence(capsule, cfrag, ursula=None)
 
     some_data = evidence.precompute_values()
     assert len(some_data) == 20 * 32
