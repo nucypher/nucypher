@@ -55,18 +55,20 @@ pytest-xdist = "*"
 pytest-mypy = "*"
 pytest-twisted = "*"
 pytest-cov = "==2.5.1"
+pytest-mock = "*"
+moto = "*"
 mypy = "*"
 coverage = "*"
 python-coveralls = "*"
 ansible = "*"
-moto = "*"
 nucypher = {editable = true, path = "."}
-pytest-mock = "*"
+
 
 [scripts]
 install-solc = "./scripts/install_solc.sh"
 estimate-gas = "python3 tests/metrics/estimate_gas.py"
-nucypher = "python3 nucypher/cli.py"
+nucypher = "python3 nucypher/cli/main.py"
+nucypher-deploy = "python3 nucypher/cli/deploy.py"
 
 [pipenv]
 allow_prereleases = true
