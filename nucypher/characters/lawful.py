@@ -51,6 +51,7 @@ from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
 from nucypher.crypto.powers import SigningPower, DecryptingPower, DelegatingPower, BlockchainPower
+from nucypher.crypto.signing import InvalidSignature
 from nucypher.keystore.keypairs import HostingKeypair
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
@@ -150,10 +151,10 @@ class Alice(Character, PolicyAuthor):
             good_to_go = self.block_until_number_of_known_nodes_is(n, learn_on_this_thread=True)
             if not good_to_go:
                 raise ValueError(
-                    "To make a Policy in federated mode, you need to know about\
-                     all the Ursulas you need (in this case, {}); there's no other way to\
-                      know which nodes to use.  Either pass them here or when you make\
-                       the Policy, or run the learning loop on a network with enough Ursulas.".format(self.n))
+                    "To make a Policy in federated mode, you need to know about "
+                    "all the Ursulas you need (in this case, {}); there's no other way to "
+                    "know which nodes to use.  Either pass them here or when you make the Policy, "
+                    "or run the learning loop on a network with enough Ursulas.".format(self.n))
 
             if len(handpicked_ursulas) < n:
                 number_of_ursulas_needed = n - len(handpicked_ursulas)
@@ -217,6 +218,16 @@ class Bob(Character):
         from nucypher.policy.models import WorkOrderHistory  # Need a bigger strategy to avoid circulars.
         self._saved_work_orders = WorkOrderHistory()
 
+    def _pick_treasure_map(self, treasure_map=None, map_id=None):
+        if not treasure_map:
+            if map_id:
+                treasure_map = self.treasure_maps[map_id]
+            else:
+                raise ValueError("You need to pass either treasure_map or map_id.")
+        elif map_id:
+                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
+        return treasure_map
+
     def peek_at_treasure_map(self, treasure_map=None, map_id=None):
         """
         Take a quick gander at the TreasureMap matching map_id to see which
@@ -227,14 +238,7 @@ class Bob(Character):
 
         Return two sets: nodes that are unknown to us, nodes that are known to us.
         """
-        if not treasure_map:
-            if map_id:
-                treasure_map = self.treasure_maps[map_id]
-            else:
-                raise ValueError("You need to pass either treasure_map or map_id.")
-        else:
-            if map_id:
-                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
+        treasure_map = self._pick_treasure_map(treasure_map, map_id)
 
         # The intersection of the map and our known nodes will be the known Ursulas...
         known_treasure_ursulas = treasure_map.destinations.keys() & self.known_nodes.addresses()
@@ -266,14 +270,7 @@ class Bob(Character):
 
         # TODO: Check if nodes are up, declare them phantom if not.
         """
-        if not treasure_map:
-            if map_id:
-                treasure_map = self.treasure_maps[map_id]
-            else:
-                raise ValueError("You need to pass either treasure_map or map_id.")
-        else:
-            if map_id:
-                raise ValueError("Don't pass both treasure_map and map_id - pick one or the other.")
+        treasure_map = self._pick_treasure_map(treasure_map, map_id)
 
         unknown_ursulas, known_ursulas = self.peek_at_treasure_map(treasure_map=treasure_map)
 
@@ -330,16 +327,19 @@ class Bob(Character):
 
     def get_treasure_map_from_known_ursulas(self, networky_stuff, map_id):
         """
-        Iterate through swarm, asking for the TreasureMap.
+        Iterate through the nodes we know, asking for the TreasureMap.
         Return the first one who has it.
-        TODO: What if a node gives a bunk TreasureMap?
         """
         for node in self.known_nodes:
             response = networky_stuff.get_treasure_map_from_node(node, map_id)
 
             if response.status_code == 200 and response.content:
                 from nucypher.policy.models import TreasureMap
-                treasure_map = TreasureMap.from_bytes(response.content)
+                try:
+                    treasure_map = TreasureMap.from_bytes(response.content)
+                except InvalidSignature:
+                    # TODO: What if a node gives a bunk TreasureMap?
+                    raise
                 break
             else:
                 continue  # TODO: Actually, handle error case here.
@@ -377,11 +377,11 @@ class Bob(Character):
                 work_order = WorkOrder.construct_by_bob(
                     arrangement_id, capsules_to_include, ursula, self)
                 generated_work_orders[node_id] = work_order
+                # TODO: Fix this. It's always taking the last capsule
                 self._saved_work_orders[node_id][capsule] = work_order
 
-            if num_ursulas is not None:
-                if num_ursulas == len(generated_work_orders):
-                    break
+            if num_ursulas == len(generated_work_orders):
+                break
 
         return generated_work_orders
 
@@ -392,9 +392,6 @@ class Bob(Character):
             work_orders_by_ursula = self._saved_work_orders[work_order.ursula.checksum_public_address]
             work_orders_by_ursula[capsule] = work_order
         return cfrags
-
-    def get_ursula(self, ursula_id):
-        return self._ursulas[ursula_id]
 
     def join_policy(self, label, alice_pubkey_sig, node_list=None):
         if node_list:
