@@ -681,9 +681,10 @@ class Revocation:
 
 class UnquestionableEvidence:
 
-    def __init__(self, capsule: Capsule, cfrag: CapsuleFrag) -> None:
+    def __init__(self, capsule: Capsule, cfrag: CapsuleFrag, ursula) -> None:
         self.capsule = capsule
         self.cfrag = cfrag
+        self.ursula = ursula
 
     def get_proof_challenge_scalar(self) -> CurveBN:
         umbral_params = default_params()
