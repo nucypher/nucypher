@@ -47,17 +47,32 @@ from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 
 
 class AnalyzeGas:
+    """
+    Callable twisted log observer with built-in record-keeping for gas estimation runs.
+    """
 
-    # Tweaks
+    # Logging
     LOG_NAME = 'estimate-gas'
     LOG_FILENAME = '{}.log.json'.format(LOG_NAME)
     OUTPUT_DIR = os.path.join(abspath(dirname(__file__)), 'results')
+    JSON_OUTPUT_FILENAME = '{}.json'.format(LOG_NAME)
+
+    # Tweaks
     CONTRACT_DIR = CONTRACT_ROOT
     PROVIDER_URI = "tester://pyevm"
     TEST_ACCOUNTS = 10
-    JSON_OUTPUT_FILENAME ='{}.json'.format(LOG_NAME)
+
+    _PATTERN = re.compile(r'''
+                          ^          # Anchor at the start of a string
+                          (.+)       # Any character sequence longer than 1; Captured
+                          \s=\s      # Space-Equal-Space
+                          (\d+)      # A sequence of digits; Captured
+                          $          # Anchor at the end of the string
+                          ''', re.VERBOSE)
 
     def __init__(self) -> None:
+
+        self.log = Logger(self.__class__.__name__)
         self.gas_estimations = dict()
 
         if not os.path.isdir(self.OUTPUT_DIR):
@@ -65,11 +80,16 @@ class AnalyzeGas:
 
     @provider(ILogObserver)
     def __call__(self, event, *args, **kwargs) -> None:
+
         if event.get('log_namespace') == self.LOG_NAME:
             message = event.get("log_format")
-            if not re.match(r'\w+\s=\s\d+$', message):
+
+            matches = self._PATTERN.match(message)
+            if not matches:
+                self.log.debug("No match for {} with pattern {}".format(message, self._PATTERN))
                 return
-            label, gas = (s.strip() for s in message.split('='))
+
+            label, gas = matches.groups()
             self.paint_line(label, gas)
             self.gas_estimations[label] = int(gas)
 
@@ -133,31 +153,38 @@ class AnalyzeGas:
         return testerchain, testerchain.interface.w3.eth.accounts
 
 
-def estimate_gas(analyzer: AnalyzeGas) -> AnalyzeGas:
+def estimate_gas(analyzer: AnalyzeGas = None) -> None:
+    """
+    Execute a linear sequence of NyCypher transactions mimicking
+    post-deployment usage on a local PyEVM blockchain;
+    Record the resulting estimated transaction gas expenditure.
+
+    Note: The function calls below are *order dependant*
+    """
 
     #
     # Setup
     #
+    if AnalyzeGas is None:
+        analyzer = AnalyzeGas()
+
+    # Logger
     log = Logger(AnalyzeGas.LOG_NAME)
 
+    # Blockchain
     testerchain, accounts = analyzer.bootstrap_network()
     web3 = testerchain.interface.w3
 
+    # Contracts
     token_agent, miner_agent, policy_agent = analyzer.connect_to_contracts(testerchain=testerchain)
     token_functions = token_agent.contract.functions
     miner_functions = miner_agent.contract.functions
     policy_functions = policy_agent.contract.functions
-    
-    log.info("Running with provider URI: {}".format(testerchain.interface.provider_uri))
 
-    analyzer.start_collection()
-
-    #
-    # Scenario
-    #
-
+    # Accounts
     origin, ursula1, ursula2, ursula3, alice1, *everyone_else = testerchain.interface.w3.eth.accounts
 
+    analyzer.start_collection()
     print("********* Estimating Gas *********")
 
     #
@@ -547,12 +574,12 @@ def estimate_gas(analyzer: AnalyzeGas) -> AnalyzeGas:
     tx = miner_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Divide stake (next period is confirmed) = " + str(miner_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
+
     print("********* All Done! *********")
-    return analyzer
 
 
 if __name__ == "__main__":
     print("Starting Up...")
     analyzer = AnalyzeGas()
-    analyzer = estimate_gas(analyzer=analyzer)
+    estimate_gas(analyzer=analyzer)
     analyzer.to_json_file()
