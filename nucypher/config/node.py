@@ -496,8 +496,10 @@ class NodeConfiguration(ABC):
             try:
                 os.mkdir(self.config_root, mode=0o755)
             except FileExistsError:
-                message = "There are existing configuration files at {}".format(self.config_root)
-                raise self.ConfigurationError(message)
+                # Check for existing files
+                if os.listdir(self.config_root):
+                    message = "There are existing files located at {}".format(self.config_root)
+                    raise self.ConfigurationError(message)
             except FileNotFoundError:
                 message = "Cannot write configuration files because the directory {} does not exist."
                 raise self.ConfigurationError(message)
