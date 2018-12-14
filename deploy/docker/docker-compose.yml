@@ -2,8 +2,14 @@ version: '3'
 
 services:
   nucypher:
-    container_name: nucypher-prometheus
+    image: nucypher:latest
+    container_name: nucypher
+    ports:
+      - "9151:9151"
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile
-    image: nucypher-prometheus
+    volumes:
+      - ~/.local/share/nucypher:/nucypher
+    stdin_open: true
+    tty: true
