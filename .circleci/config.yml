@@ -227,10 +227,6 @@ commands:
       - run:
           name: Check NuCypher CLI Entrypoint
           command: pipenv run nucypher --help
-      - persist_to_workspace:
-          root: ~/.local/share/virtualenvs/
-          paths:
-            - nucypher-*
 
   pip_install:
     description: "Install Python dependencies with Pip"
@@ -282,32 +278,34 @@ commands:
 jobs:
 
   # Python 3.6
-  pipenv_install_36:
-    <<: *python_36_base
-    steps:
-      - pipenv_install
   pip_install_36:
     <<: *python_36_base
     steps:
       - pip_install
-
-  # Python 3.7
-  pipenv_install_37:
-    <<: *python_37_base
+  pipenv_install_36:
+    <<: *python_36_base
     steps:
       - pipenv_install
+      - persist_to_workspace:
+          root: ~/.local/share/virtualenvs/
+          paths:
+            - nucypher-*
+
+  # Python 3.7
   pip_install_37:
     <<: *python_37_base
     steps:
       - pip_install
+  pipenv_install_37:
+    <<: *python_37_base
+    steps:
+      - pipenv_install
 
   blockchain:
     <<: *python_36_base
     parallelism: 2
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - prepare_enviorment
       - run:
           name: Blockchain Interface Tests
           command: pipenv run pytest tests/blockchain/eth/interfaces
