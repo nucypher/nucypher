@@ -253,6 +253,13 @@ commands:
             source ~/.bashrc
             nucypher --help
 
+  prepare_enviorment:
+    description: "Checkout application code and Attach the Workspace"
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
+
   coveralls:
     description: "Upload Coverage Report To Coveralls.io"
     steps:
@@ -261,6 +268,13 @@ commands:
           command: |
             echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
             pipenv run coveralls
+
+  capture_test_results:
+    description: "Store and Upload test results; Follow-up step for tests"
+    steps:
+      - coveralls
+      - store_test_results:
+          path: ./reports/pytest/
 
 
 jobs:
@@ -295,62 +309,47 @@ jobs:
       - run:
           name: Blockchain Interface Tests
           command: pipenv run pytest tests/blockchain/eth/interfaces
-      - coveralls
-      - store_test_results:
-          path: ./reports/pytest/
+      - capture_test_results
+
 
   agents:
     <<: *python_36_base
     parallelism: 2
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - prepare_enviorment
       - run:
           name: Blockchain Agent Tests
           command: |
             pipenv run pytest $(circleci tests glob tests/blockchain/eth/entities/agents/**/*.py | circleci tests split --split-by=timings)
-      - coveralls
-      - store_test_results:
-          path: ./reports/pytest/
+      - capture_test_results
 
   actors:
     <<: *python_36_base
     parallelism: 2
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - prepare_enviorment
       - run:
           name: Blockchain Actor Tests
           command: |
             pipenv run pytest $(circleci tests glob tests/blockchain/eth/entities/actors/**/*.py | circleci tests split --split-by=timings)
-      - coveralls
-      - store_test_results:
-          path: ./reports/pytest/
+      - capture_test_results
 
   deployers:
     <<: *python_36_base
     parallelism: 4
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - prepare_enviorment
       - run:
           name: Contract Deployer Tests
           command: |
             pipenv run pytest $(circleci tests glob tests/blockchain/eth/entities/deployers/test_*.py | circleci tests split --split-by=timings)
-      - coveralls
-      - store_test_results:
-          path: ./reports/pytest/
+      - capture_test_results
 
   contracts:
     <<: *python_36_base
     parallelism: 5
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - prepare_enviorment
       - run:
           name: Ethereum Contract Unit Tests
           command: |
@@ -362,23 +361,17 @@ jobs:
     <<: *python_36_base
     parallelism: 2
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - prepare_enviorment
       - run:
           name: Node Configuration Tests
           command: |
             pipenv run pytest $(circleci tests glob tests/config/**/test_*.py | circleci tests split --split-by=timings)
-      - coveralls
-      - store_test_results:
-          path: ./reports/pytest/
+      - capture_test_results
 
   crypto:
     <<: *python_36_base
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - prepare_enviorment
       - run:
           name: Crypto Character Tests
           command: pipenv run pytest tests/crypto
@@ -389,93 +382,71 @@ jobs:
   network:
     <<: *python_36_base
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - prepare_enviorment
       - run:
           name: Network Tests
           command: |
             pipenv run pytest $(circleci tests glob tests/network/**/test_*.py | circleci tests split --split-by=timings)
-      - coveralls
-      - store_test_results:
-          path: ./reports/pytest/
+      - capture_test_results
 
   keystore:
     <<: *python_36_base
     parallelism: 2
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - prepare_enviorment
       - run:
           name: Keystore Tests
           command: |
             pipenv run pytest $(circleci tests glob tests/keystore/**/test_*.py | circleci tests split --split-by=timings)
-      - coveralls
-      - store_test_results:
-          path: ./reports/pytest/
+      - capture_test_results
 
   character:
     <<: *python_36_base
     parallelism: 4
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - prepare_enviorment
       - run:
           name: Character Tests
           command: |
             pipenv run pytest $(circleci tests glob tests/characters/**/test_*.py | circleci tests split --split-by=timings)
-      - coveralls
-      - store_test_results:
-          path: ./reports/pytest/
+      - capture_test_results
 
   learning:
     <<: *python_36_base
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - prepare_enviorment
       - run:
           name: Learner Tests
           command: pipenv run pytest  tests/learning
-      - coveralls
-      - store_test_results:
-          path: ./reports/pytest/
+      - capture_test_results
 
   cli:
     <<: *python_36_base
     parallelism: 4
     steps:
-    - checkout
-    - attach_workspace:
-        at: ~/.local/share/virtualenvs/
-    - run:
-        name: Nucypher CLI Tests
-        command: |
-          pipenv run pytest $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings)
-    - store_test_results:
-        path: ./reports/pytest/
+      - prepare_enviorment
+      - run:
+          name: Nucypher CLI Tests
+          command: |
+            pipenv run pytest $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings)
+      - store_test_results:
+          path: ./reports/pytest/
 
   ursula_command:
     <<: *python_36_base
     steps:
-    - checkout
-    - attach_workspace:
-        at: ~/.local/share/virtualenvs/
-    - run:
-        name: Ursula Command Tests
-        command: |
-          pipenv run pytest tests/cli/protocol
-    - store_test_results:
-        path: ./reports/pytest/
+      - prepare_enviorment
+      - run:
+          name: Ursula Command Tests
+          command: |
+            pipenv run pytest tests/cli/protocol
+      - store_test_results:
+          path: ./reports/pytest/
 
   mypy:
     <<: *python_36_base
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/.local/share/virtualenvs/
+      - prepare_enviorment
       - run:
           name: Install mypy
           command: |
