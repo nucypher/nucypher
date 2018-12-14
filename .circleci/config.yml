@@ -284,7 +284,7 @@ jobs:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Blockchain Interface Tests
-          command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/interfaces --junitxml=./reports/pytest/results.xml
+          command: pipenv run pytest tests/blockchain/eth/interfaces
       - coveralls
       - store_test_results:
           path: ./reports/pytest/
@@ -298,7 +298,8 @@ jobs:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Blockchain Agent Tests
-          command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow $(circleci tests glob tests/blockchain/eth/entities/agents/**/*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/results.xml
+          command: |
+            pipenv run pytest $(circleci tests glob tests/blockchain/eth/entities/agents/**/*.py | circleci tests split --split-by=timings)
       - coveralls
       - store_test_results:
           path: ./reports/pytest/
@@ -312,7 +313,8 @@ jobs:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Blockchain Actor Tests
-          command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow $(circleci tests glob tests/blockchain/eth/entities/actors/**/*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/results.xml
+          command: |
+            pipenv run pytest $(circleci tests glob tests/blockchain/eth/entities/actors/**/*.py | circleci tests split --split-by=timings)
       - coveralls
       - store_test_results:
           path: ./reports/pytest/
@@ -326,7 +328,8 @@ jobs:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Contract Deployer Tests
-          command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow --junitxml=./reports/pytest/results.xml $(circleci tests glob tests/blockchain/eth/entities/deployers/test_*.py | circleci tests split --split-by=timings)
+          command: |
+            pipenv run pytest $(circleci tests glob tests/blockchain/eth/entities/deployers/test_*.py | circleci tests split --split-by=timings)
       - coveralls
       - store_test_results:
           path: ./reports/pytest/
@@ -341,7 +344,7 @@ jobs:
       - run:
           name: Ethereum Contract Unit Tests
           command: |
-            pipenv run pytest --junitxml=./reports/pytest/eth-contract-unit-report.xml -v --runslow $(circleci tests glob tests/blockchain/eth/contracts/**/**/test_*.py | circleci tests split --split-by=timings)
+            pipenv run pytest $(circleci tests glob tests/blockchain/eth/contracts/**/**/test_*.py | circleci tests split --split-by=timings)
       - store_test_results:
           path: ./reports/pytest/
 
@@ -355,7 +358,7 @@ jobs:
       - run:
           name: Node Configuration Tests
           command: |
-            pipenv run pytest --cov=nucypher/config -v --runslow $(circleci tests glob tests/config/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/config_results.xml
+            pipenv run pytest $(circleci tests glob tests/config/**/test_*.py | circleci tests split --split-by=timings)
       - coveralls
       - store_test_results:
           path: ./reports/pytest/
@@ -368,8 +371,7 @@ jobs:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Crypto Character Tests
-          command: |
-            pipenv run pytest --cov=nucypher/crypto -v --runslow tests/crypto --junitxml=./reports/pytest/crypto_results.xml
+          command: pipenv run pytest tests/crypto
       - coveralls
       - store_test_results:
           path: ./reports/pytest/
@@ -383,7 +385,7 @@ jobs:
       - run:
           name: Network Tests
           command: |
-            pipenv run pytest --cov=nucypher/network -v --runslow $(circleci tests glob tests/network/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/network_results.xml
+            pipenv run pytest $(circleci tests glob tests/network/**/test_*.py | circleci tests split --split-by=timings)
       - coveralls
       - store_test_results:
           path: ./reports/pytest/
@@ -398,7 +400,7 @@ jobs:
       - run:
           name: Keystore Tests
           command: |
-            pipenv run pytest --cov=nucypher/keystore -v --runslow $(circleci tests glob tests/keystore/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/keystore_results.xml
+            pipenv run pytest $(circleci tests glob tests/keystore/**/test_*.py | circleci tests split --split-by=timings)
       - coveralls
       - store_test_results:
           path: ./reports/pytest/
@@ -413,7 +415,7 @@ jobs:
       - run:
           name: Character Tests
           command: |
-            pipenv run pytest --cov=nucypher -v --runslow $(circleci tests glob tests/characters/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/character_results.xml
+            pipenv run pytest $(circleci tests glob tests/characters/**/test_*.py | circleci tests split --split-by=timings)
       - coveralls
       - store_test_results:
           path: ./reports/pytest/
@@ -426,7 +428,7 @@ jobs:
           at: ~/.local/share/virtualenvs/
       - run:
           name: Learner Tests
-          command: pipenv run pytest --cov=nucypher -v --runslow tests/learning --junitxml=./reports/pytest/results.xml
+          command: pipenv run pytest  tests/learning
       - coveralls
       - store_test_results:
           path: ./reports/pytest/
@@ -441,7 +443,7 @@ jobs:
     - run:
         name: Nucypher CLI Tests
         command: |
-          pipenv run pytest -v --runslow $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/cli_results.xml
+          pipenv run pytest $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings)
     - store_test_results:
         path: ./reports/pytest/
 
@@ -454,7 +456,7 @@ jobs:
     - run:
         name: Ursula Command Tests
         command: |
-          pipenv run pytest -v --runslow tests/cli/protocol --junitxml=./reports/pytest/results.xml
+          pipenv run pytest tests/cli/protocol
     - store_test_results:
         path: ./reports/pytest/
 
@@ -504,7 +506,7 @@ jobs:
           name: Build Python Wheel
           command: |
             pipenv run python setup.py sdist
-            pipenv run python setup.py bdist_wheel -v
+            pipenv run python setup.py bdist_wheel
       - run:
           name: Install Nucypher via Wheel
           command: |
