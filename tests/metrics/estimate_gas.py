@@ -67,7 +67,7 @@ class AnalyzeGas:
     def __call__(self, event, *args, **kwargs) -> None:
         if event.get('log_namespace') == self.LOG_NAME:
             message = event.get("log_format")
-            if not re.match(r'.*\s=\s\d+$', message):
+            if not re.match(r'\w+\s=\s\d+$', message):
                 return
             label, gas = (s.strip() for s in message.split('='))
             self.paint_line(label, gas)
