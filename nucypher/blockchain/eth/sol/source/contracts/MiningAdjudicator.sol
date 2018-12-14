@@ -133,6 +133,8 @@ contract MiningAdjudicator {
         UmbralDeserializer.CapsuleFrag memory _cFrag = _cFragBytes.toCapsuleFrag();
         UmbralDeserializer.PreComputedData memory _precomputed = _precomputedBytes.toPreComputedData();
 
+        // TODO: Check KFrag signature by Alice. Depends on using ECDSA+SHA256 in umbral and nucypher
+
         uint256 h = computeProofChallengeScalar(_capsuleBytes, _cFragBytes);
 
         //////

@@ -307,11 +307,10 @@ def make_rest_app(
         with ThreadedSession(db_engine) as session:
             policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
                                                                   session=session)
-
         kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
         verifying_key_bytes = policy_arrangement.alice_pubkey_sig.key_data
 
-        # TODO: Push this to a lower level.
+        # TODO: Push this to a lower level. Perhaps to Ursula character? #619
         kfrag = KFrag.from_bytes(kfrag_bytes)
         alices_verifying_key = UmbralPublicKey.from_bytes(verifying_key_bytes)
         cfrag_byte_stream = b""

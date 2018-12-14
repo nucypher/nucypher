@@ -59,7 +59,7 @@ def make_recoverable_signature(data_hash, signature, umbral_pubkey_bytes):
         recoverable_signature = bytes(signature) + bytes([1])
     return recoverable_signature
 
-
+# TODO: Obtain real re-encryption metadata. Maybe constructing a WorkOrder and obtaining a response.
 def fragments(metadata):
     delegating_privkey = UmbralPrivateKey.gen_key()
     _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
@@ -83,7 +83,7 @@ def fragments(metadata):
 def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     creator, miner, wrong_miner, *everyone_else = testerchain.interface.w3.eth.accounts
 
-    # TODO: Move this to an integration test
+    # TODO: Move this to an integration test?
     umbral_params = default_params()
     u_xcoord, u_ycoord = umbral_params.u.to_affine()
     u_sign = 2 + (u_ycoord % 2)
@@ -91,14 +91,12 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     assert u_xcoord == adjudicator_contract.functions.UMBRAL_PARAMETER_U_XCOORD().call()
     assert u_ycoord == adjudicator_contract.functions.UMBRAL_PARAMETER_U_YCOORD().call()
 
-    # TODO: Move this to an integration test
+    # TODO: Move this to an integration test?
     test_data = os.urandom(40)
     h = hash_to_curvebn(test_data,
                         params=umbral_params,
                         hash_class=ExtendedKeccak)
-    h = int(h)
-    h2 = adjudicator_contract.functions.extendedKeccakToBN(test_data).call()
-    assert h == h2
+    assert int(h) == adjudicator_contract.functions.extendedKeccakToBN(test_data).call()
 
     # Prepare one miner
     tx = escrow.functions.setMinerInfo(miner, 1000).transact()
