@@ -1,18 +1,22 @@
-version: 2.0
+version: 2.1
 
 workflows:
   version: 2
   test:
     jobs:
-      - pipenv_install:
+      - pipenv_install_36:
           filters:
             tags:
               only: /.*/
-      - pip_install:
+      - pip_install_36:
           filters:
             tags:
               only: /.*/
-      - mypy:
+      - pipenv_install_37:
+          filters:
+            tags:
+              only: /.*/
+      - pip_install_37:
           filters:
             tags:
               only: /.*/
@@ -22,47 +26,50 @@ workflows:
             tags:
               only: /.*/
           requires:
-            - pip_install
-            - pipenv_install
-      - config:
-          context: "NuCypher Tests"
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - contracts
+            - pip_install_36
+            - pipenv_install_36
+            - pip_install_37
+            - pipenv_install_37
       - crypto:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install
-            - pipenv_install
+            - pip_install_36
+            - pipenv_install_36
+            - pip_install_37
+            - pipenv_install_37
       - network:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install
-            - pipenv_install
+            - pip_install_36
+            - pipenv_install_36
+            - pip_install_37
+            - pipenv_install_37
       - keystore:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install
-            - pipenv_install
+            - pip_install_36
+            - pipenv_install_36
+            - pip_install_37
+            - pipenv_install_37
       - blockchain:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - pip_install
-            - pipenv_install
+            - pip_install_36
+            - pipenv_install_36
+            - pip_install_37
+            - pipenv_install_37
       - character:
           context: "NuCypher Tests"
           filters:
@@ -112,6 +119,7 @@ workflows:
             tags:
               only: /.*/
           requires:
+            - agents
             - actors
             - deployers
             - config
@@ -122,59 +130,70 @@ workflows:
             tags:
               only: /.*/
           requires:
+            - agents
             - actors
             - deployers
             - config
             - character
+      - mypy:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - cli
+            - ursula_command
       - estimate_gas:
           context: "NuCypher Tests"
           filters:
             tags:
               only: /.*/
           requires:
-            - actors
-            - deployers
-            - config
-            - character
-
-#
-#  TODO: Initial Publication Automation
-#
-#      - test_build:
-#          filters:
-#            tags:
-#              only: /.*/
-#          requires:
-#            - cli
-#            - ursula_command
-#      - test_deploy:
-#          context: "NuCypher PyPI"
-#          requires:
-#            - test_build
-#          filters:
-#            tags:
-#              only: /v[0-9]+.*/
-#            branches:
-#              ignore: /.*/
-#      - request_publication_approval:
-#          type: approval
-#          requires:
-#            - test_deploy
-#          filters:
-#            tags:
-#              only: /v[0-9]+.*/
-#            branches:
-#              ignore: /.*/
-#      - deploy:
-#          context: "NuCypher PyPI"
-#          requires:
-#            - request_publication_approval
-#          filters:
-#            tags:
-#              only: /v[0-9]+.*/
-#            branches:
-#              ignore: /.*/
-#
+            - cli
+            - ursula_command
+      - test_build:
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - cli
+            - ursula_command
+      - test_deploy:
+          context: "NuCypher PyPI"
+          requires:
+            - test_build
+          filters:
+            tags:
+              only: /v[0-9]+.*/
+            branches:
+              ignore: /.*/
+      - request_publication_approval:
+          type: approval
+          requires:
+            - test_deploy
+          filters:
+            tags:
+              only: /v[0-9]+.*/
+            branches:
+              ignore: /.*/
+      - publish_pypi:
+          context: "NuCypher PyPI"
+          requires:
+            - request_publication_approval
+          filters:
+            tags:
+              only: /v[0-9]+.*/
+            branches:
+              ignore: /.*/
+      - publish_docker:
+          context: "NuCypher Docker"
+          requires:
+            - request_publication_approval
+          filters:
+            tags:
+              only: /v[0-9]+.*/
+            branches:
+              ignore: /.*/
 
 
 python_36_base: &python_36_base
@@ -182,25 +201,21 @@ python_36_base: &python_36_base
     docker:
       - image: circleci/python:3.6
 
-_run:
-  coveralls: &coveralls
-    name: Upload Coverage Report
-    command: |
-      echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
-      pipenv run coveralls
+python_37_base: &python_37_base
+    working_directory: ~/nucypher-depends
+    docker:
+      - image: circleci/python:3.7
 
 
-jobs:
-  
+commands:
+
   pipenv_install:
-    <<: *python_36_base
+    description: "Install Python dependencies with Pipenv"
     steps:
       - checkout
       - run:
           name: Install Python Dependencies with Pipenv
-          command: |
-            pip3 install --user pip==18.0
-            pipenv install --three --dev --skip-lock --pre
+          command: pipenv install --three --dev --skip-lock --pre
       - run:
           name: Install Solidity Compiler
           command: pipenv run ./scripts/install_solc.sh
@@ -210,7 +225,7 @@ jobs:
             - nucypher-*
 
   pip_install:
-    <<: *python_36_base
+    description: "Install Python dependencies with Pip"
     steps:
       - checkout
       - run:
@@ -228,6 +243,38 @@ jobs:
           name: Check Python Entrypoint
           command: python3 -c "import nucypher; print(nucypher.__version__)"
 
+  coveralls:
+    description: "Upload Coverage Report To Coveralls.io"
+    steps:
+      - run:
+          name: Upload Coverage Report
+          command: |
+            echo -e "COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN" >> .env
+            pipenv run coveralls
+
+
+jobs:
+  
+  pipenv_install_36:
+    <<: *python_36_base
+    steps:
+      - pipenv_install
+
+  pip_install_36:
+    <<: *python_36_base
+    steps:
+      - pip_install
+
+  pipenv_install_37:
+    <<: *python_37_base
+    steps:
+      - pipenv_install
+
+  pip_install_37:
+    <<: *python_37_base
+    steps:
+      - pip_install
+
   blockchain:
     <<: *python_36_base
     parallelism: 2
@@ -238,7 +285,7 @@ jobs:
       - run:
           name: Blockchain Interface Tests
           command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow tests/blockchain/eth/interfaces --junitxml=./reports/pytest/results.xml
-      - run: *coveralls
+      - coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -252,7 +299,7 @@ jobs:
       - run:
           name: Blockchain Agent Tests
           command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow $(circleci tests glob tests/blockchain/eth/entities/agents/**/*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/results.xml
-      - run: *coveralls
+      - coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -266,7 +313,7 @@ jobs:
       - run:
           name: Blockchain Actor Tests
           command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow $(circleci tests glob tests/blockchain/eth/entities/actors/**/*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/results.xml
-      - run: *coveralls
+      - coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -280,7 +327,7 @@ jobs:
       - run:
           name: Contract Deployer Tests
           command: pipenv run pytest --cov=nucypher/blockchain/eth -v --runslow --junitxml=./reports/pytest/results.xml $(circleci tests glob tests/blockchain/eth/entities/deployers/test_*.py | circleci tests split --split-by=timings)
-      - run: *coveralls
+      - coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -309,7 +356,7 @@ jobs:
           name: Node Configuration Tests
           command: |
             pipenv run pytest --cov=nucypher/config -v --runslow $(circleci tests glob tests/config/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/config_results.xml
-      - run: *coveralls
+      - coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -323,7 +370,7 @@ jobs:
           name: Crypto Character Tests
           command: |
             pipenv run pytest --cov=nucypher/crypto -v --runslow tests/crypto --junitxml=./reports/pytest/crypto_results.xml
-      - run: *coveralls
+      - coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -337,7 +384,7 @@ jobs:
           name: Network Tests
           command: |
             pipenv run pytest --cov=nucypher/network -v --runslow $(circleci tests glob tests/network/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/network_results.xml
-      - run: *coveralls
+      - coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -352,7 +399,7 @@ jobs:
           name: Keystore Tests
           command: |
             pipenv run pytest --cov=nucypher/keystore -v --runslow $(circleci tests glob tests/keystore/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/keystore_results.xml
-      - run: *coveralls
+      - coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -367,7 +414,7 @@ jobs:
           name: Character Tests
           command: |
             pipenv run pytest --cov=nucypher -v --runslow $(circleci tests glob tests/characters/**/test_*.py | circleci tests split --split-by=timings) --junitxml=./reports/pytest/character_results.xml
-      - run: *coveralls
+      - coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -380,7 +427,7 @@ jobs:
       - run:
           name: Learner Tests
           command: pipenv run pytest --cov=nucypher -v --runslow tests/learning --junitxml=./reports/pytest/results.xml
-      - run: *coveralls
+      - coveralls
       - store_test_results:
           path: ./reports/pytest/
 
@@ -506,7 +553,7 @@ jobs:
             pip install --user --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple nucypher --verbose
             python -c "import nucypher; print(nucypher.__version__)"
 
-  deploy:
+  publish_pypi:
     <<: *python_36_base
     steps:
       - checkout
@@ -533,11 +580,50 @@ jobs:
           command: |
             pipenv run python setup.py sdist
             pipenv run python setup.py bdist_wheel
-      - run:
+      - deploy:
           name: Upload to PyPI
           command: pipenv run twine upload dist/*  --verbose
+
+  publish_docker:
+    <<: *python_36_base
+    docker:
+      - image: docker:18.09.0-ce-git
+    steps:
+      - checkout
+      - setup_remote_docker
       - run:
-          name: pip install from PyPI
+          name: Install Build Dependencies
+          command: docker-compose==1.23.2
+      - restore_cache:
+          keys:
+            - v1-{{ .Branch }}
+          paths:
+            - /caches/nucypher.tar
+      - run:
+          name: Load Docker Image Layer Cache
           command: |
-            pip install --user nucypher --verbose
-            python -c "import nucypher; print(nucypher.__version__)"
+            set +o pipefail
+            docker load -i /caches/nucypher.tar | true
+      - run:
+          name: Build Docker Image
+          command: |
+            docker build --cache-from=nucypher -t nucypher .
+      - run:
+          name: Save Docker Image Layer Cache
+          command: |
+            mkdir -p /caches
+            docker save -o /caches/nucypher.tar nucypher
+      - save_cache:
+          key: v1-{{ .Branch }}-{{ epoch }}
+          paths:
+            - /caches/nucypher.tar
+      - run:
+          name: Run Tests via Docker
+          command: docker-compose -f ./deploy/docker/docker-compose.yml up
+      - deploy:
+          name: Push application Docker image
+          command: |
+            if [ "${CIRCLE_BRANCH}" == "master" ]; then
+              docker tag nucypher "nucypher/nucypher:${CIRCLE_TAG}"
+              docker push "nucypher/nucypher:${CIRCLE_TAG}"
+            fi
