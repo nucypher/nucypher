@@ -39,7 +39,7 @@ from umbral.signing import Signature
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, constant_or_bytes
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
@@ -609,8 +609,8 @@ class Ursula(Teacher, Character, Miner):
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app, port=port)
         return deployer
 
-    def rest_server_certificate(self):  # TODO: relocate and use reference on TLS hosting power
-        return self.get_deployer().cert.to_cryptography()
+    def rest_server_certificate(self):
+        return self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
 
     def __bytes__(self):
 
