@@ -228,6 +228,19 @@ commands:
           name: Check NuCypher CLI Entrypoint
           command: pipenv run nucypher --help
 
+  check_nucypher_entrypoints:
+    description: "Ensure both the python API and CLI entrypoints are usable"
+    steps:
+      - run:
+          name: Check NuCypher Python API Entrypoint
+          command: python3 -c "import nucypher; print(nucypher.__version__)"
+      - run:
+          name: Check NuCypher CLI Entrypoint
+          command: |
+            export PATH=~/.local/bin:$PATH
+            source ~/.bashrc
+            nucypher --help
+
   pip_install:
     description: "Install Python dependencies with Pip"
     steps:
@@ -241,15 +254,7 @@ commands:
       - run:
           name: Install Solidity Compiler
           command: ./scripts/install_solc.sh
-      - run:
-          name: Check NuCypher Python API Entrypoint
-          command: python3 -c "import nucypher; print(nucypher.__version__)"
-      - run:
-          name: Check NuCypher CLI Entrypoint
-          command: |
-            export PATH=~/.local/bin:$PATH
-            source ~/.bashrc
-            nucypher --help
+      - check_nucypher_entrypoints
 
   prepare_enviorment:
     description: "Checkout application code and Attach the Workspace"
@@ -416,7 +421,7 @@ jobs:
       - prepare_enviorment
       - run:
           name: Learner Tests
-          command: pipenv run pytest  tests/learning
+          command: pipenv run pytest tests/learning
       - capture_test_results
 
   cli:
@@ -437,8 +442,7 @@ jobs:
       - prepare_enviorment
       - run:
           name: Ursula Command Tests
-          command: |
-            pipenv run pytest tests/cli/protocol
+          command: pipenv run pytest tests/cli/protocol
       - store_test_results:
           path: ./reports/pytest/
 
@@ -477,35 +481,28 @@ jobs:
     <<: *python_36_base
     steps:
       - checkout
+      - pip_install
       - run:
-          name: Install Dependencies (Test Build)
-          command: |
-            pipenv install --three --dev --skip-lock --pre
-            pipenv install --dev --skip-lock twine
+          name: Install Twine
+          command: pip install --user twine
       - run:
-          name: Build Python Wheel
+          name: Build Python Distribution Wheel
           command: |
             pipenv run python setup.py sdist
             pipenv run python setup.py bdist_wheel
       - run:
           name: Install Nucypher via Wheel
-          command: |
-            pip3 install --user ./dist/nucypher-0.1.0a0-py3-none-any.whl[test]
-      - run:
-          name: Run Entrypoint Version Commands
-          command: |
-            python -c "import nucypher; print(nucypher.__version__)"
-            nucypher --version
+          command: pip3 install --user ./dist/nucypher-0.1.0a0-py3-none-any.whl[test]
+      - check_nucypher_entrypoints
 
   test_deploy:
     <<: *python_36_base
     steps:
       - checkout
+      - pip_install
       - run:
-          name: Install Dependencies (Test Deploy)
-          command: |
-              pipenv install --three --dev --skip-lock --pre
-              pipenv install --dev --skip-lock twine
+          name: Install Twine
+          command: pip install --user twine
       - run:
           name: Verify git tag == __version__ (Test Deploy)
           command: pipenv run python setup.py verify
