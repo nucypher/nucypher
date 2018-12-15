@@ -14,10 +14,20 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import os
+
 from twisted.logger import Logger
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
-from typing import List
+from typing import List, Tuple
+
+from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
+from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.config.constants import CONTRACT_ROOT
 from umbral.keys import UmbralPrivateKey
 from web3.middleware import geth_poa_middleware
 
@@ -48,10 +58,12 @@ class TesterBlockchain(Blockchain):
     Blockchain subclass with additional test utility methods and options.
     """
 
+    _PROVIDER_URI = 'tester://pyevm'
     _instance = NO_BLOCKCHAIN_AVAILABLE
     _test_account_cache = list()
+    _default_test_accounts = 10
 
-    def __init__(self, test_accounts=None, poa=True, airdrop=True, *args, **kwargs):
+    def __init__(self, test_accounts=_default_test_accounts, poa=True, airdrop=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.log = Logger("test-blockchain")  # type: Logger
@@ -91,7 +103,7 @@ class TesterBlockchain(Blockchain):
             address = self.interface.w3.personal.importRawKey(private_key=umbral_priv_key.to_bytes(),
                                                               passphrase=insecure_password)
 
-            assert self.interface.unlock_account(address, password=insecure_password, duration=None), 'Failed to unlock {}'.format(address)
+            assert self.interface.unlock_account(address, password=insecure_password), 'Failed to unlock {}'.format(address)
             addresses.append(address)
             self._test_account_cache.append(address)
             self.log.info('Generated new insecure account {}'.format(address))
@@ -143,3 +155,24 @@ class TesterBlockchain(Blockchain):
         self.interface.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
         self.interface.w3.eth.web3.testing.mine(1)
         self.log.info("Time traveled to {}".format(end_timestamp))
+
+    @classmethod
+    def connect(cls, *args, **kwargs) -> 'TesterBlockchain':
+        solidity_compiler = SolidityCompiler(test_contract_dir=CONTRACT_ROOT)
+        memory_registry = InMemoryEthereumContractRegistry()
+        interface = BlockchainDeployerInterface(provider_uri=cls._PROVIDER_URI, compiler=solidity_compiler, registry=memory_registry)
+        testerchain = TesterBlockchain(interface=interface, test_accounts=cls._default_test_accounts, airdrop=False)
+        return testerchain
+
+    @classmethod
+    def bootstrap_network(cls) -> Tuple['TesterBlockchain', List[str]]:
+
+        def __deploy_contracts(testerchain: TesterBlockchain) -> None:
+            origin = testerchain.interface.w3.eth.accounts[0]
+            deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
+            _txhashes, _agents = deployer.deploy_network_contracts(miner_secret=os.urandom(DISPATCHER_SECRET_LENGTH),
+                                                                   policy_secret=os.urandom(DISPATCHER_SECRET_LENGTH))
+
+        testerchain = cls.connect()
+        __deploy_contracts(testerchain=testerchain)
+        return testerchain, testerchain.interface.w3.eth.accounts
