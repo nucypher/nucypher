@@ -696,8 +696,7 @@ class Ursula(Teacher, Character, Miner):
     @classmethod
     @validate_checksum_address
     def from_seed_and_stake_info(cls,
-                                 host: str,
-                                 port: int,
+                                 seed_uri: str,
                                  federated_only: bool,
                                  minimum_stake: int = 0,
                                  checksum_public_address: str = None,
@@ -713,6 +712,8 @@ class Ursula(Teacher, Character, Miner):
 
         if network_middleware is None:
             network_middleware = RestMiddleware()
+
+        host, port, checksum_address = parse_node_uri(seed_uri)
 
         # Fetch the hosts TLS certificate and read the common name
         certificate = network_middleware.get_certificate(host=host, port=port)
@@ -875,7 +876,7 @@ class Ursula(Teacher, Character, Miner):
     def rest_app(self):
         rest_app_on_server = self.rest_server.rest_app
 
-        if not rest_app_on_server:
+        if rest_app_on_server is PUBLIC_ONLY or not rest_app_on_server:
             m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."
             raise AttributeError(m)
         else:

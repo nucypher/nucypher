@@ -37,10 +37,7 @@ def parse_node_uri(uri: str):
     else:
         checksum_address = None  # federated
 
-    # HTTPS Explicit Required
     parsed_uri = urlparse(uri)
-    if not parsed_uri.scheme == "https":
-        raise ValueError("Invalid teacher URI. Is the hostname prefixed with 'https://' ?")
 
     hostname = parsed_uri.hostname
     port = parsed_uri.port or UrsulaConfiguration.DEFAULT_REST_PORT
