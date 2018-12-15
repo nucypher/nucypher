@@ -1,9 +1,9 @@
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.storages import LocalFileBasedNodeStorage
-from nucypher.crypto.powers import EncryptingPower, SigningPower
+from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.logging import simpleObserver
+from nucypher.utilities.logging import SimpleObserver
 
 import datetime
 import os
@@ -21,7 +21,7 @@ POLICY_FILENAME = "policy-metadata.json"
 ######################
 #
 # # Twisted Logger
-globalLogPublisher.addObserver(simpleObserver)
+globalLogPublisher.addObserver(SimpleObserver())
 #
 # # Temporary file storage
 TEMP_ALICE_DIR = "{}/alicia-files".format(os.path.dirname(os.path.abspath(__file__)))
@@ -53,8 +53,7 @@ except:  # If anything fails, let's create Alicia from scratch
     os.mkdir(TEMP_ALICE_DIR)
     os.mkdir(TEMP_URSULA_CERTIFICATE_DIR)
 
-    ursula = Ursula.from_seed_and_stake_info(host=SEEDNODE_URL,
-                                             certificates_directory=TEMP_URSULA_CERTIFICATE_DIR,
+    ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
                                              federated_only=True,
                                              minimum_stake=0)
 
@@ -63,7 +62,7 @@ except:  # If anything fails, let's create Alicia from scratch
     node_storage = LocalFileBasedNodeStorage(
         federated_only=True,
         character_class=Ursula,  # Alice needs to store some info about Ursula
-        known_metadata_dir=os.path.join(TEMP_ALICE_DIR, "known_metadata"),
+        metadata_dir=os.path.join(TEMP_ALICE_DIR, "known_metadata"),
     )
 
     alice_config = AliceConfiguration(
