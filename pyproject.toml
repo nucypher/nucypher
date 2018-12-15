@@ -1,0 +1,54 @@
+[tool.poetry]
+name = "nucypher"
+version = "0.1.0-alpha.0"
+description = "A proxy re-encryption network to empower privacy in decentralized systems."
+authors = ["NuCypher"]
+license = "GPL-3.0"
+
+[tool.poetry.dependencies]
+python = "^3.6"
+
+#
+# NuCypher
+#
+umbral = "==0.1.2a2"
+constant-sorrow = ">=0.1.0a7"
+bytestring-splitter = "1.0.0a4"
+
+#
+# Third-Party
+#
+cryptography = ">=2.3"
+hendrix = "^3.1"
+pysha3="*"
+requests = "*"
+sqlalchemy = "*"
+apistar = "<0.6.0"
+tzlocal = "<2.0.0"
+maya = "*"
+pyopenssl = "*"
+#
+# Third-Party Ethereum
+#
+eth-abi = "==1.2.2"
+eth-hash = {version = "==0.2.0", extras = ["pysha3"]}
+eth-utils = "<2"
+eth-tester = ">=0.1.0b33"
+py-evm = "==0.2.0a33"
+py-solc = "*"
+web3 = "*"
+#
+# CLI / Configuration
+#
+sentry-sdk = "==0.5.2"
+appdirs = "*"
+click = "^7.0"
+eth-keys = {version = "^0.1.0-beta.1",allows-prereleases = true}
+boto3 = "^1.9"
+
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
