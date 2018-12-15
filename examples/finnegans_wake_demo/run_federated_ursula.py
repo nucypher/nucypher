@@ -28,23 +28,29 @@ import sys
 
 from nucypher.characters.lawful import Ursula
 
+
+from nucypher.utilities.logging import SimpleObserver
+from twisted.logger import globalLogPublisher
+globalLogPublisher.addObserver(SimpleObserver())
+
+
 MY_REST_PORT = sys.argv[1]
 # TODO: Use real path tooling here.
-SHARED_CRUFTSPACE = "{}/examples-runtime-cruft".format(os.path.dirname(os.path.abspath(__file__)))
+SHARED_CRUFTSPACE = "{}/examples-runtime-cruft".format(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CRUFTSPACE = "{}/{}".format(SHARED_CRUFTSPACE, MY_REST_PORT)
 db_filepath = "{}/database".format(CRUFTSPACE)
 CERTIFICATE_DIR = "{}/certs".format(CRUFTSPACE)
 
 
 def spin_up_ursula(rest_port, db_filepath, teachers=(), certificate_dir=None):
-    metadata_file = "examples-runtime-cruft/node-metadata-{}".format(rest_port)
+    metadata_file = "{}/node-metadata-{}".format(CRUFTSPACE, rest_port)
 
     _URSULA = Ursula(rest_port=rest_port,
-                     rest_host="localhost",
+                     rest_host="0.0.0.0",
                      db_filepath=db_filepath,
                      federated_only=True,
                      known_nodes=teachers,
-                     known_certificates_dir=certificate_dir
+                     # known_certificates_dir=certificate_dir
                      )
     try:
         with open(metadata_file, "w") as f:
