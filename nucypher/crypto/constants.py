@@ -14,11 +14,12 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from cryptography.hazmat.primitives import hashes
 
-BLAKE2B = hashes.BLAKE2b(64)
 
-BLAKE2B_DIGEST_LENGTH = 64
+SHA256 = hashes.SHA256()
 KECCAK_DIGEST_LENGTH = 32
 
 # These lengths are specific to secp256k1

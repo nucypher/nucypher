@@ -43,8 +43,10 @@ from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
+from nucypher.crypto.constants import SHA256
 from nucypher.crypto.powers import SigningPower, DecryptingPower, KeyPairBasedPower, DerivedKeyBasedPower
 from nucypher.network.server import TLSHostingPower
+
 
 FILE_ENCODING = 'utf-8'
 
@@ -62,7 +64,7 @@ __PUBLIC_MODE = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH  # 0o6
 # Keyring
 __WRAPPING_KEY_LENGTH = 32
 __WRAPPING_KEY_INFO = b'NuCypher-KeyWrap'
-__HKDF_HASH_ALGORITHM = hashes.BLAKE2b
+__HKDF_HASH_ALGORITHM = SHA256
 __HKDF_HASH_LENGTH = 64
 
 
@@ -223,7 +225,7 @@ def _derive_wrapping_key_from_key_material(salt: bytes,
     """
 
     wrapping_key = HKDF(
-        algorithm=__HKDF_HASH_ALGORITHM(__HKDF_HASH_LENGTH),
+        algorithm=__HKDF_HASH_ALGORITHM,
         length=__WRAPPING_KEY_LENGTH,
         salt=salt,
         info=__WRAPPING_KEY_INFO,
