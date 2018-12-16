@@ -21,7 +21,7 @@ import pathlib
 
 from sentry_sdk import capture_exception, add_breadcrumb
 from sentry_sdk.integrations.logging import LoggingIntegration
-from twisted.logger import FileLogObserver, jsonFileLogObserver
+from twisted.logger import FileLogObserver, jsonFileLogObserver, formatEvent, formatEventAsClassicLogText
 from twisted.logger import ILogObserver
 from twisted.logger import LogLevel
 from twisted.python.logfile import DailyLogFile
@@ -36,7 +36,7 @@ def initialize_sentry(dsn: str):
     import logging
 
     sentry_logging = LoggingIntegration(
-        level=logging.INFO,  # Capture info and above as breadcrumbs
+        level=logging.INFO,        # Capture info and above as breadcrumbs
         event_level=logging.DEBUG  # Send debug logs as events
     )
     sentry_sdk.init(
@@ -44,19 +44,6 @@ def initialize_sentry(dsn: str):
         integrations=[sentry_logging],
         release=nucypher.__version__
     )
-
-
-def formatUrsulaLogEvent(event):
-    """
-    Format log lines for file logging.
-    """
-    human_time = datetime.datetime.fromtimestamp(event.get('log_time')).strftime('%c')
-
-    log_line = '{} [{}] ({}): {}\n'.format(event.get('log_level').name.upper(),
-                                           human_time,
-                                           event.get('log_namespace'),
-                                           event.get('log_format'))
-    return log_line
 
 
 def _get_or_create_user_log_dir():
@@ -73,7 +60,7 @@ def getJsonFileObserver(name="ursula.log.json", path=USER_LOG_DIR):  # TODO: Mor
 def getTextFileObserver(name="ursula.log", path=USER_LOG_DIR):
     _get_or_create_user_log_dir()
     logfile = DailyLogFile(name, path)
-    observer = FileLogObserver(formatEvent=formatUrsulaLogEvent, outFile=logfile)
+    observer = FileLogObserver(formatEvent=formatEventAsClassicLogText, outFile=logfile)
     return observer
 
 
@@ -85,21 +72,19 @@ class SimpleObserver:
     @provider(ILogObserver)
     def __call__(self, event):
         if event['log_level'] >= self.log_level:
-            message = '{} {} ({}): {}'.format(event.get('log_level').name.upper(),
-                                              event.get('log_time'),
-                                              event.get('log_namespace'),
-                                              event.get('log_format'))
-            print(message)
+            event['log_format'] = event['log_format'].replace('{}', 'dict')  # FIXME: Dirty hack
+            print(formatEvent(event))
 
 
 def logToSentry(event):
-    # Handle Logs
+
+    # Handle Logs...
     if not event.get('isError') or 'failure' not in event:
         add_breadcrumb(level=event.get('log_level').name,
                        message=event.get('log_format'),
                        category=event.get('log_namespace'))
         return
 
-    # Handle Failures
+    # ...Handle Failures
     f = event['failure']
     capture_exception((f.type, f.value, f.getTracebackObject()))

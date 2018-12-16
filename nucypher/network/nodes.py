@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import binascii
 import random
 from collections import defaultdict, OrderedDict
@@ -22,11 +23,14 @@ from collections import deque
 from collections import namedtuple
 from contextlib import suppress
 from logging import Logger
-from typing import Set, Tuple
 
 import maya
 import requests
 import time
+from bytestring_splitter import BytestringSplitter
+from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
+from constant_sorrow import constants, constant_or_bytes
+from constant_sorrow.constants import GLOBAL_DOMAIN
 from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 from requests.exceptions import SSLError
@@ -34,11 +38,8 @@ from twisted.internet import reactor, defer
 from twisted.internet import task
 from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
+from typing import Set, Tuple
 
-from bytestring_splitter import BytestringSplitter
-from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
-from constant_sorrow import constants, constant_or_bytes
-from constant_sorrow.constants import GLOBAL_DOMAIN
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
@@ -57,6 +58,7 @@ GLOBAL_DOMAIN.set_constant_documentation(
     A Learner learning about the GLOBAL_DOMAIN will learn about all nodes.
     A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
     """)
+
 
 def icon_from_checksum(checksum,
                        nickname_metadata,
@@ -158,7 +160,7 @@ class FleetStateTracker:
 
     def icon_html(self):
         return icon_from_checksum(checksum=self.checksum,
-                                  number_of_nodes=len(self),
+                                  number_of_nodes=str(len(self)),
                                   nickname_metadata=self.nickname_metadata)
 
     def snapshot(self):
@@ -187,7 +189,9 @@ class FleetStateTracker:
                                                         updated=self.updated,
                                                         )
 
-    def start_tracking_state(self, additional_nodes_to_track=[]):
+    def start_tracking_state(self, additional_nodes_to_track=None):
+        if additional_nodes_to_track is None:
+            additional_nodes_to_track = list()
         self.additional_nodes_to_track.extend(additional_nodes_to_track)
         self._tracking = True
         self.update_fleet_state()
@@ -275,15 +279,14 @@ class Learner:
         self.unresponsive_startup_nodes = list()  # TODO: Attempt to use these again later
         for node in known_nodes:
             try:
-                self.remember_node(
-                    node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
+                self.remember_node(node)  # TODO: Need to test this better - do we ever init an Ursula-Learner with Node Storage?
             except self.UnresponsiveTeacher:
                 self.unresponsive_startup_nodes.append(node)
 
         self.teacher_nodes = deque()
-        self._current_teacher_node = None  # type: Teacher
+        self._current_teacher_node = None   # type: Teacher
         self._learning_task = task.LoopingCall(self.keep_learning_about_nodes)
-        self._learning_round = 0  # type: int
+        self._learning_round = 0            # type: int
         self._rounds_without_new_nodes = 0  # type: int
         self._seed_nodes = seed_nodes or []
         self.unresponsive_seed_nodes = set()
@@ -299,7 +302,7 @@ class Learner:
                        read_storages: bool = True,
                        retry_attempts: int = 3,
                        retry_rate: int = 2,
-                       timeout=3):
+                       timeout=3):  # TODO: why are these unused?
         """
         Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
         """
