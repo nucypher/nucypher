@@ -126,6 +126,16 @@ workflows:
             - deployers
             - config
             - character
+      - estimate_gas:
+          context: "NuCypher Tests"
+          filters:
+            tags:
+              only: /.*/
+          requires:
+            - actors
+            - deployers
+            - config
+            - character
 
 #
 #  TODO: Initial Publication Automation
@@ -420,6 +430,19 @@ jobs:
               pipenv run mypy ./nucypher --config-file=mypy.ini --xslt-html-report ./mypy_reports/html/ --linecount-report ./mypy_reports/linecount || true
       - store_artifacts:
           path: ./mypy_reports
+
+  estimate_gas:
+    <<: *python_36_base
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/.local/share/virtualenvs/
+      - run:
+          name: Estimate Gas
+          command: |
+            pipenv run python tests/metrics/estimate_gas.py
+      - store_artifacts:
+          path: tests/metrics/results/
 
   test_build:
     <<: *python_36_base
