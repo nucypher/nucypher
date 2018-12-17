@@ -140,6 +140,7 @@ def status(click_config, config_file):
 @click.argument('action')
 @click.option('--debug', '-D', help="Enable debugging mode", is_flag=True)
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
+@click.option('--dry-run', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--force', '-f', help="Don't ask for confirmation", is_flag=True)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
@@ -160,6 +161,7 @@ def ursula(click_config,
            action,
            debug,
            dev,
+           dry_run,
            force,
            teacher_uri,
            min_stake,
@@ -309,7 +311,7 @@ def ursula(click_config,
         #
         # Produce - Step 2
         #
-        ursula = ursula_config.produce(known_nodes=teacher_nodes)
+        ursula = ursula_config(known_nodes=teacher_nodes)
         ursula_config.log.debug("Initialized Ursula {}".format(ursula), fg='green')
 
         # GO!
@@ -321,7 +323,12 @@ def ursula(click_config,
             click.secho("Running Ursula on {}".format(ursula.rest_interface), fg='green', bold=True)
             if not debug:
                 stdio.StandardIO(UrsulaCommandProtocol(ursula=ursula))
-            ursula.get_deployer().run()
+
+            if dry_run:
+                # That's all folks!
+                return
+
+            ursula.get_deployer().run()  # <--- Blocking Call (Reactor)
 
         except Exception as e:
             ursula_config.log.critical(str(e))
