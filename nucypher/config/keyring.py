@@ -202,33 +202,6 @@ def _derive_wrapping_key_from_key_material(salt: bytes,
     ).derive(key_material)
     return wrapping_key
 
-
-def _encrypt_umbral_key(wrapping_key: bytes,
-                        umbral_key: UmbralPrivateKey
-                        ) -> bytes:
-    """
-    Encrypts a key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
-    Returns an encrypted key as bytes with the nonce appended.
-    """
-    # TODO: Deprecate this method once key wrapping is refined in pyumbral
-    return bytes(SecretBox(wrapping_key).encrypt(umbral_key.to_bytes()))
-
-
-def _decrypt_umbral_key(wrapping_key: bytes,
-                        encrypted_key_material: bytes,
-                        ) -> UmbralPrivateKey:
-    """
-    Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
-    Returns a decrypted key as an UmbralPrivateKey.
-    """
-    try:
-        decrypted_key = SecretBox(wrapping_key).decrypt(encrypted_key_material)
-    except CryptoError:
-        raise
-    umbral_key = UmbralPrivateKey.from_bytes(decrypted_key)
-    return umbral_key
-
-
 #
 # Keypair Generation
 #
@@ -462,8 +435,7 @@ class NucypherKeyring:
         key_data = _read_keyfile(key_path, deserializer=self._private_key_serializer)
         wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
                                                           key_material=self.__derived_key_material)
-        plain_umbral_key = _decrypt_umbral_key(wrap_key,
-                                               encrypted_key_material=key_data['key'])
+        plain_umbral_key = UmbralPrivateKey.from_bytes(key_bytes=key_data['key'], wrapping_key=wrap_key)
         return plain_umbral_key
 
     #
@@ -609,10 +581,9 @@ class NucypherKeyring:
             signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt, key_material=derived_key_material)
             delegating_wrap_key = _derive_wrapping_key_from_key_material(salt=delegating_salt, key_material=derived_key_material)
 
-            # TODO: Deprecate _encrypt_umbral_key with new pyumbral release
             # Encapsulate Private Keys
-            encrypting_key_data = _encrypt_umbral_key(umbral_key=encrypting_private_key, wrapping_key=encrypting_wrap_key)
-            signing_key_data = _encrypt_umbral_key(umbral_key=signing_private_key, wrapping_key=signature_wrap_key)
+            encrypting_key_data = encrypting_private_key.to_bytes(wrapping_key=encrypting_wrap_key)
+            signing_key_data = signing_private_key.to_bytes(wrapping_key=signature_wrap_key)
             delegating_key_data = bytes(SecretBox(delegating_wrap_key).encrypt(delegating_keying_material))
 
             # Assemble Private Keys
