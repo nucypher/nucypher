@@ -22,14 +22,12 @@ from json import JSONDecodeError
 
 from constant_sorrow import constants
 from cryptography import x509
-from cryptography.exceptions import InternalError
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from eth_account import Account
@@ -38,7 +36,7 @@ from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
 from typing import ClassVar, Tuple, Callable, Union, Dict
-from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial
+from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
@@ -188,32 +186,6 @@ def _read_tls_public_certificate(filepath: str) -> Certificate:
 #
 # Encrypt and Decrypt
 #
-
-def _derive_key_material_from_password(salt: bytes, password: str) -> bytes:
-    """
-    Uses Scrypt derivation to derive a key for encrypting key material.
-    See RFC 7914 for n, r, and p value selections.
-    This takes around ~5 seconds to perform.
-    """
-    try:
-        key_material = Scrypt(
-            salt=salt,
-            length=__WRAPPING_KEY_LENGTH,
-            n=2**20,
-            r=8,
-            p=1,
-            backend=default_backend()
-        ).derive(password.encode())
-    except InternalError as e:
-        # OpenSSL Attempts to malloc 1 GB of mem for scrypt key derivation
-        if e.err_code[0].reason == 65:
-            raise MemoryError("Key Derivation requires 1GB of memory: Please free up some memory and try again.")
-        else:
-            raise e
-    else:
-        return key_material
-
-
 def _derive_wrapping_key_from_key_material(salt: bytes,
                                            key_material: bytes,
                                            ) -> bytes:
@@ -515,7 +487,7 @@ class NucypherKeyring:
             return self.is_unlocked
         key_data = _read_keyfile(keypath=self.__root_keypath, deserializer=self._private_key_serializer)
         try:
-            derived_key = _derive_key_material_from_password(password=password, salt=key_data['master_salt'])
+            derived_key = derive_key_from_password(password=password.encode(), salt=key_data['master_salt'])
         except CryptoError:
             raise
         else:
@@ -632,7 +604,7 @@ class NucypherKeyring:
 
             # Derive Wrapping Keys
             password_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))
-            derived_key_material = _derive_key_material_from_password(salt=password_salt, password=password)
+            derived_key_material = derive_key_from_password(salt=password_salt, password=password.encode())
             encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt, key_material=derived_key_material)
             signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt, key_material=derived_key_material)
             delegating_wrap_key = _derive_wrapping_key_from_key_material(salt=delegating_salt, key_material=derived_key_material)
