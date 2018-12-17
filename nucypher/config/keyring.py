@@ -20,7 +20,10 @@ import os
 import stat
 from json import JSONDecodeError
 
-from constant_sorrow import constants
+from cryptography.hazmat.primitives.asymmetric import ec
+from typing import ClassVar, Tuple, Callable, Union, Dict, List
+
+from constant_sorrow.constants import KEYRING_LOCKED
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
@@ -35,7 +38,6 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
-from typing import ClassVar, Tuple, Callable, Union, Dict
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -184,7 +186,7 @@ def _read_tls_public_certificate(filepath: str) -> Certificate:
 
 
 #
-# Encrypt and Decrypt
+# Key wrapping
 #
 def _derive_wrapping_key_from_key_material(salt: bytes,
                                            key_material: bytes,
@@ -205,6 +207,7 @@ def _derive_wrapping_key_from_key_material(salt: bytes,
 #
 # Keypair Generation
 #
+
 
 def _generate_encryption_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
     """Use pyUmbral keys to generate a new encrypting key pair"""
@@ -356,7 +359,7 @@ class NucypherKeyring:
         self.__tls_certificate = tls_certificate_path or __default_key_filepaths['tls_certificate']
 
         # Set Initial State
-        self.__derived_key_material = constants.KEYRING_LOCKED
+        self.__derived_key_material = KEYRING_LOCKED
 
     def __del__(self) -> None:
         self.lock()
@@ -447,11 +450,11 @@ class NucypherKeyring:
 
     @property
     def is_unlocked(self) -> bool:
-        return not bool(self.__derived_key_material is constants.KEYRING_LOCKED)
+        return self.__derived_key_material is not KEYRING_LOCKED
 
     def lock(self) -> bool:
         """Make efforts to remove references to the cached key data"""
-        self.__derived_key_material = constants.KEYRING_LOCKED
+        self.__derived_key_material = KEYRING_LOCKED
         return self.is_unlocked
 
     def unlock(self, password: str) -> bool:
@@ -642,7 +645,7 @@ class NucypherKeyring:
         return keyring_instance
 
     @staticmethod
-    def validate_password(password: str) -> bool:
+    def validate_password(password: str) -> List:
         """
         Validate a password and return True or raise an error with a failure reason.
 
