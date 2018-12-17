@@ -34,7 +34,7 @@ from umbral import pre
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 from umbral.signing import Signature
 
-from nucypher.crypto.constants import BLAKE2B
+from nucypher.crypto.constants import SHA256
 from nucypher.crypto.kits import UmbralMessageKit
 
 SYSTEM_RAND = SystemRandom()
@@ -73,7 +73,7 @@ def keccak_digest(*messages: bytes) -> bytes:
     Accepts an iterable containing bytes and digests it returning a
     Keccak digest of 32 bytes (keccak_256).
 
-    Although we use BLAKE2b in many cases, we keep keccak handy in order
+    Although we use SHA256 in many cases, we keep keccak handy in order
     to provide compatibility with the Ethereum blockchain.
 
     :param bytes *messages: Data to hash
@@ -99,7 +99,7 @@ def ecdsa_sign(message: bytes,
     :return: signature
     """
     cryptography_priv_key = privkey.to_cryptography_privkey()
-    signature_der_bytes = cryptography_priv_key.sign(message, ec.ECDSA(BLAKE2B))
+    signature_der_bytes = cryptography_priv_key.sign(message, ec.ECDSA(SHA256))
     return signature_der_bytes
 
 
@@ -123,7 +123,7 @@ def ecdsa_verify(message: bytes,
         cryptography_pub_key.verify(
             signature,
             message,
-            ec.ECDSA(BLAKE2B)
+            ec.ECDSA(SHA256)
         )
     except InvalidSignature:
         return False

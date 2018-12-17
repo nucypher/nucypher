@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 
@@ -70,7 +70,7 @@ class VerifyVersionCommand(install):
 #
 
 with open(os.path.join(BASE_DIR, "requirements.txt")) as f:
-    INSTALL_REQUIRES = f.read().split('\n')
+    _PIP_FLAGS, *INSTALL_REQUIRES = f.read().split('\n')
 
 
 TESTS_REQUIRE = [
@@ -113,7 +113,7 @@ setup(name=ABOUT['__title__'],
       license=ABOUT['__license__'],
       long_description=long_description,
 
-      setup_requires=['pytest-runner'],  # required for setup.py test
+      setup_requires=['pytest-runner'],  # required for `setup.py test`
       tests_require=TESTS_REQUIRE,
       install_requires=INSTALL_REQUIRES,
       extras_require=EXTRAS_REQUIRE,
