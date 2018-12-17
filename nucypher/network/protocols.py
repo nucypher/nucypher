@@ -39,6 +39,15 @@ def parse_node_uri(uri: str):
 
     parsed_uri = urlparse(uri)
 
+    if not parsed_uri.scheme:
+        try:
+            parsed_uri = urlparse('https://'+uri)
+        except Exception:
+            raise  # TODO: Do we need even deeper handling/validation here?
+
+    if not parsed_uri.scheme == "https":
+        raise ValueError("Invalid teacher scheme or protocol. Is the hostname prefixed with 'https://' ?")
+
     hostname = parsed_uri.hostname
     port = parsed_uri.port or UrsulaConfiguration.DEFAULT_REST_PORT
     return hostname, port, checksum_address

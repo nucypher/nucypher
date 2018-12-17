@@ -176,17 +176,18 @@ class ProxyRESTRoutes:
     def all_known_nodes(self, request: Request):
         headers = {'Content-Type': 'application/octet-stream'}
         payload = self._node_tracker.snapshot()
+
         ursulas_as_vbytes = (VariableLengthBytestring(n) for n in self._node_tracker)
         ursulas_as_bytes = bytes().join(bytes(u) for u in ursulas_as_vbytes)
         ursulas_as_bytes += VariableLengthBytestring(self._node_bytes_caster())
 
         payload += ursulas_as_bytes
-
         signature = self._stamp(payload)
         return Response(bytes(signature) + payload, headers=headers)
 
     def node_metadata_exchange(self, request: Request, query_params: QueryParams):
         # If these nodes already have the same fleet state, no exchange is necessary.
+
         learner_fleet_state = query_params.get('fleet')
         if learner_fleet_state == self._node_tracker.checksum:
             self.log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))
@@ -211,9 +212,11 @@ class ProxyRESTRoutes:
             @crosstown_traffic()
             def learn_about_announced_nodes():
                 try:
+
                     temp_certificate_filepath = self.__forgetful_node_storage.store_node_certificate(
                         checksum_address=node.checksum_public_address,
                         certificate=node.certificate)
+
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=temp_certificate_filepath)

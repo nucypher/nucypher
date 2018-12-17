@@ -33,6 +33,8 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
 from twisted.internet import threads
+from twisted.logger import Logger
+
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
@@ -667,8 +669,7 @@ class Ursula(Teacher, Character, Miner):
         """
 
         return cls.from_seed_and_stake_info(checksum_public_address=seednode_metadata.checksum_public_address,
-                                            host=seednode_metadata.rest_host,
-                                            port=seednode_metadata.rest_port,
+                                            seed_uri='{}:{}'.format(seednode_metadata.rest_host, seednode_metadata.rest_port),
                                             *args, **kwargs)
 
     @classmethod
@@ -679,19 +680,26 @@ class Ursula(Teacher, Character, Miner):
                          ) -> 'Ursula':
 
         hostname, port, checksum_address = parse_node_uri(uri=teacher_uri)
-        try:
-            teacher = cls.from_seed_and_stake_info(host=hostname,
-                                                   port=port,
-                                                   federated_only=federated_only,
-                                                   checksum_public_address=checksum_address,
-                                                   minimum_stake=min_stake)
 
-        except (socket.gaierror, requests.exceptions.ConnectionError, ConnectionRefusedError):
-            # self.log.warn("Can't connect to seed node.  Will retry.")
-            time.sleep(5)  # TODO: Move this 5
+        def __attempt(round=1, interval=10) -> Ursula:
+            if round > 3:
+                raise ConnectionRefusedError("Host {} Refused Connection".format(teacher_uri))
 
-        else:
-            return teacher
+            try:
+                teacher = cls.from_seed_and_stake_info(seed_uri='{host}:{port}'.format(host=hostname, port=port),
+                                                       federated_only=federated_only,
+                                                       checksum_public_address=checksum_address,
+                                                       minimum_stake=min_stake)
+
+            except (socket.gaierror, requests.exceptions.ConnectionError, ConnectionRefusedError):
+                log = Logger(cls.__name__)
+                log.warn("Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(round, interval))
+                time.sleep(interval)
+                return __attempt(round=round+1)
+            else:
+                return teacher
+
+        return __attempt()
 
     @classmethod
     @validate_checksum_address
