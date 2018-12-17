@@ -20,15 +20,13 @@ import os
 import stat
 from json import JSONDecodeError
 
-from cryptography.hazmat.primitives.asymmetric import ec
-from typing import ClassVar, Tuple, Callable, Union, Dict
-
 from constant_sorrow import constants
 from cryptography import x509
 from cryptography.exceptions import InternalError
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
-from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
@@ -39,14 +37,14 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
+from typing import ClassVar, Tuple, Callable, Union, Dict
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
-from nucypher.crypto.constants import SHA256
+from nucypher.crypto.constants import BLAKE2B
 from nucypher.crypto.powers import SigningPower, DecryptingPower, KeyPairBasedPower, DerivedKeyBasedPower
 from nucypher.network.server import TLSHostingPower
-
 
 FILE_ENCODING = 'utf-8'
 
@@ -64,8 +62,7 @@ __PUBLIC_MODE = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH  # 0o6
 # Keyring
 __WRAPPING_KEY_LENGTH = 32
 __WRAPPING_KEY_INFO = b'NuCypher-KeyWrap'
-__HKDF_HASH_ALGORITHM = SHA256
-__HKDF_HASH_LENGTH = 64
+__HKDF_HASH_ALGORITHM = BLAKE2B
 
 
 def unlock_required(func):
