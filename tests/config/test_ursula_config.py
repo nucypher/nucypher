@@ -31,7 +31,7 @@ def test_ursula_development_configuration(federated_only=True):
 
     # Alternate way to produce a character with a direct call
     ursula_two = config.produce()
-    assert isinstance(ursula_one, Ursula)
+    assert isinstance(ursula_two, Ursula)
 
     # All development Ursulas are unique
     ursulas = [ursula_one, ursula_two]
