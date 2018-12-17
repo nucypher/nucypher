@@ -7,49 +7,33 @@ name = "pypi"
 python_version = "3"
 
 [packages]
-#
 # NuCypher
-#
-umbral = "==0.1.2a2"
+umbral = "==0.1.3a0"
 constant-sorrow = ">=0.1.0a7"
-bytestring-splitter = "*"
+bytestring-splitter = ">=1.0.0a4"
 hendrix = ">=3.1.0"
-#
 # Third-Party
-#
+pyopenssl = "*"
 cryptography = ">=2.3"
 pysha3="*"
 requests = "*"
 sqlalchemy = "*"
-apistar = "<0.6.0"
-tzlocal = "<2.0.0"
 maya = "*"
-pyopenssl = "*"
-#
+apistar = "<0.6.0"
 # Third-Party Ethereum
-#
-eth-abi = "==1.2.2"
-eth-hash = {version = "==0.2.0", extras = ["pysha3"]}
-eth-utils = "<2"
-eth-keys = "*"
-eth-tester = ">=0.1.0b33"
-py-evm = "==0.2.0a33"
+py-evm = "*"
+eth-tester = "*"
 py-solc = "*"
 web3 = "*"
-#
 # CLI / Configuration
-#
 sentry-sdk = "==0.5.2"
 appdirs = "*"
 click = ">=7.0"
 colorama = "*"
 boto3 = "*"
-pytest = "*"
 
 [dev-packages]
-#
 # Pytest
-#
 pytest = "*"
 pytest-xdist = "*"
 pytest-mypy = "*"
@@ -63,12 +47,11 @@ python-coveralls = "*"
 ansible = "*"
 nucypher = {editable = true, path = "."}
 
-
 [scripts]
-install-solc = "./scripts/install_solc.sh"
+install-solc = "scripts/install_solc.sh"
 estimate-gas = "python3 tests/metrics/estimate_gas.py"
-nucypher = "python3 nucypher/cli/main.py"
 nucypher-deploy = "python3 nucypher/cli/deploy.py"
+nucypher = "python3 nucypher/cli/main.py"
 
 [pipenv]
 allow_prereleases = true
