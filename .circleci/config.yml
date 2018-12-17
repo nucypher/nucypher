@@ -256,7 +256,7 @@ commands:
           command: ./scripts/install_solc.sh
       - check_nucypher_entrypoints
 
-  prepare_enviorment:
+  prepare_environment:
     description: "Checkout application code and Attach the Workspace"
     steps:
       - checkout
@@ -310,7 +310,7 @@ jobs:
     <<: *python_36_base
     parallelism: 2
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Blockchain Interface Tests
           command: pipenv run pytest tests/blockchain/eth/interfaces
@@ -320,7 +320,7 @@ jobs:
     <<: *python_36_base
     parallelism: 2
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Blockchain Agent Tests
           command: |
@@ -331,7 +331,7 @@ jobs:
     <<: *python_36_base
     parallelism: 2
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Blockchain Actor Tests
           command: |
@@ -342,7 +342,7 @@ jobs:
     <<: *python_36_base
     parallelism: 4
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Contract Deployer Tests
           command: |
@@ -353,7 +353,7 @@ jobs:
     <<: *python_36_base
     parallelism: 5
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Ethereum Contract Unit Tests
           command: |
@@ -365,7 +365,7 @@ jobs:
     <<: *python_36_base
     parallelism: 2
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Node Configuration Tests
           command: |
@@ -375,7 +375,7 @@ jobs:
   crypto:
     <<: *python_36_base
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Crypto Character Tests
           command: pipenv run pytest tests/crypto
@@ -386,7 +386,7 @@ jobs:
   network:
     <<: *python_36_base
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Network Tests
           command: |
@@ -397,7 +397,7 @@ jobs:
     <<: *python_36_base
     parallelism: 2
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Keystore Tests
           command: |
@@ -408,7 +408,7 @@ jobs:
     <<: *python_36_base
     parallelism: 4
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Character Tests
           command: |
@@ -418,7 +418,7 @@ jobs:
   learning:
     <<: *python_36_base
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Learner Tests
           command: pipenv run pytest tests/learning
@@ -428,7 +428,7 @@ jobs:
     <<: *python_36_base
     parallelism: 4
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Nucypher CLI Tests
           command: |
@@ -439,7 +439,7 @@ jobs:
   ursula_command:
     <<: *python_36_base
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Ursula Command Tests
           command: pipenv run pytest tests/cli/protocol
@@ -449,7 +449,7 @@ jobs:
   mypy:
     <<: *python_36_base
     steps:
-      - prepare_enviorment
+      - prepare_environment
       - run:
           name: Install mypy
           command: |
