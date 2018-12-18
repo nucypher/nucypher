@@ -20,16 +20,17 @@ import os
 import stat
 from json import JSONDecodeError
 
-from constant_sorrow import constants
+from cryptography.hazmat.primitives.asymmetric import ec
+from typing import ClassVar, Tuple, Callable, Union, Dict, List
+
+from constant_sorrow.constants import KEYRING_LOCKED
 from cryptography import x509
-from cryptography.exceptions import InternalError
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from eth_account import Account
@@ -37,8 +38,7 @@ from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_checksum_address
 from nacl.exceptions import CryptoError
 from nacl.secret import SecretBox
-from typing import ClassVar, Tuple, Callable, Union, Dict
-from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial
+from umbral.keys import UmbralPrivateKey, UmbralPublicKey, UmbralKeyingMaterial, derive_key_from_password
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.api import generate_self_signed_certificate
@@ -186,34 +186,8 @@ def _read_tls_public_certificate(filepath: str) -> Certificate:
 
 
 #
-# Encrypt and Decrypt
+# Key wrapping
 #
-
-def _derive_key_material_from_password(salt: bytes, password: str) -> bytes:
-    """
-    Uses Scrypt derivation to derive a key for encrypting key material.
-    See RFC 7914 for n, r, and p value selections.
-    This takes around ~5 seconds to perform.
-    """
-    try:
-        key_material = Scrypt(
-            salt=salt,
-            length=__WRAPPING_KEY_LENGTH,
-            n=2**20,
-            r=8,
-            p=1,
-            backend=default_backend()
-        ).derive(password.encode())
-    except InternalError as e:
-        # OpenSSL Attempts to malloc 1 GB of mem for scrypt key derivation
-        if e.err_code[0].reason == 65:
-            raise MemoryError("Key Derivation requires 1GB of memory: Please free up some memory and try again.")
-        else:
-            raise e
-    else:
-        return key_material
-
-
 def _derive_wrapping_key_from_key_material(salt: bytes,
                                            key_material: bytes,
                                            ) -> bytes:
@@ -230,36 +204,10 @@ def _derive_wrapping_key_from_key_material(salt: bytes,
     ).derive(key_material)
     return wrapping_key
 
-
-def _encrypt_umbral_key(wrapping_key: bytes,
-                        umbral_key: UmbralPrivateKey
-                        ) -> bytes:
-    """
-    Encrypts a key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
-    Returns an encrypted key as bytes with the nonce appended.
-    """
-    # TODO: Deprecate this method once key wrapping is refined in pyumbral
-    return bytes(SecretBox(wrapping_key).encrypt(umbral_key.to_bytes()))
-
-
-def _decrypt_umbral_key(wrapping_key: bytes,
-                        encrypted_key_material: bytes,
-                        ) -> UmbralPrivateKey:
-    """
-    Decrypts an encrypted key with nacl's XSalsa20-Poly1305 algorithm (SecretBox).
-    Returns a decrypted key as an UmbralPrivateKey.
-    """
-    try:
-        decrypted_key = SecretBox(wrapping_key).decrypt(encrypted_key_material)
-    except CryptoError:
-        raise
-    umbral_key = UmbralPrivateKey.from_bytes(decrypted_key)
-    return umbral_key
-
-
 #
 # Keypair Generation
 #
+
 
 def _generate_encryption_keys() -> Tuple[UmbralPrivateKey, UmbralPublicKey]:
     """Use pyUmbral keys to generate a new encrypting key pair"""
@@ -411,7 +359,7 @@ class NucypherKeyring:
         self.__tls_certificate = tls_certificate_path or __default_key_filepaths['tls_certificate']
 
         # Set Initial State
-        self.__derived_key_material = constants.KEYRING_LOCKED
+        self.__derived_key_material = KEYRING_LOCKED
 
     def __del__(self) -> None:
         self.lock()
@@ -490,8 +438,7 @@ class NucypherKeyring:
         key_data = _read_keyfile(key_path, deserializer=self._private_key_serializer)
         wrap_key = _derive_wrapping_key_from_key_material(salt=key_data['wrap_salt'],
                                                           key_material=self.__derived_key_material)
-        plain_umbral_key = _decrypt_umbral_key(wrap_key,
-                                               encrypted_key_material=key_data['key'])
+        plain_umbral_key = UmbralPrivateKey.from_bytes(key_bytes=key_data['key'], wrapping_key=wrap_key)
         return plain_umbral_key
 
     #
@@ -503,11 +450,11 @@ class NucypherKeyring:
 
     @property
     def is_unlocked(self) -> bool:
-        return not bool(self.__derived_key_material is constants.KEYRING_LOCKED)
+        return self.__derived_key_material is not KEYRING_LOCKED
 
     def lock(self) -> bool:
         """Make efforts to remove references to the cached key data"""
-        self.__derived_key_material = constants.KEYRING_LOCKED
+        self.__derived_key_material = KEYRING_LOCKED
         return self.is_unlocked
 
     def unlock(self, password: str) -> bool:
@@ -515,7 +462,7 @@ class NucypherKeyring:
             return self.is_unlocked
         key_data = _read_keyfile(keypath=self.__root_keypath, deserializer=self._private_key_serializer)
         try:
-            derived_key = _derive_key_material_from_password(password=password, salt=key_data['master_salt'])
+            derived_key = derive_key_from_password(password=password.encode(), salt=key_data['master_salt'])
         except CryptoError:
             raise
         else:
@@ -632,15 +579,14 @@ class NucypherKeyring:
 
             # Derive Wrapping Keys
             password_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))
-            derived_key_material = _derive_key_material_from_password(salt=password_salt, password=password)
+            derived_key_material = derive_key_from_password(salt=password_salt, password=password.encode())
             encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt, key_material=derived_key_material)
             signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt, key_material=derived_key_material)
             delegating_wrap_key = _derive_wrapping_key_from_key_material(salt=delegating_salt, key_material=derived_key_material)
 
-            # TODO: Deprecate _encrypt_umbral_key with new pyumbral release
             # Encapsulate Private Keys
-            encrypting_key_data = _encrypt_umbral_key(umbral_key=encrypting_private_key, wrapping_key=encrypting_wrap_key)
-            signing_key_data = _encrypt_umbral_key(umbral_key=signing_private_key, wrapping_key=signature_wrap_key)
+            encrypting_key_data = encrypting_private_key.to_bytes(wrapping_key=encrypting_wrap_key)
+            signing_key_data = signing_private_key.to_bytes(wrapping_key=signature_wrap_key)
             delegating_key_data = bytes(SecretBox(delegating_wrap_key).encrypt(delegating_keying_material))
 
             # Assemble Private Keys
@@ -699,7 +645,7 @@ class NucypherKeyring:
         return keyring_instance
 
     @staticmethod
-    def validate_password(password: str) -> bool:
+    def validate_password(password: str) -> List:
         """
         Validate a password and return True or raise an error with a failure reason.
 
