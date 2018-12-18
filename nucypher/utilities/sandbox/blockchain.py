@@ -14,15 +14,18 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
+from functools import partial
 
 from twisted.logger import Logger
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 from nucypher.blockchain.eth.actors import Deployer
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, EthereumContractAgent
 from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
@@ -63,7 +66,10 @@ class TesterBlockchain(Blockchain):
     _test_account_cache = list()
     _default_test_accounts = 10
 
-    def __init__(self, test_accounts=_default_test_accounts, poa=True, airdrop=True, *args, **kwargs):
+    def __init__(self, test_accounts=None, poa=True, airdrop=False, *args, **kwargs):
+        if test_accounts is None:
+            test_accounts = self._default_test_accounts
+
         super().__init__(*args, **kwargs)
 
         self.log = Logger("test-blockchain")  # type: Logger
@@ -103,7 +109,7 @@ class TesterBlockchain(Blockchain):
             address = self.interface.w3.personal.importRawKey(private_key=umbral_priv_key.to_bytes(),
                                                               passphrase=insecure_password)
 
-            assert self.interface.unlock_account(address, password=insecure_password), 'Failed to unlock {}'.format(address)
+            assert self.interface.unlock_account(address, password=insecure_password, duration=None), 'Failed to unlock {}'.format(address)
             addresses.append(address)
             self._test_account_cache.append(address)
             self.log.info('Generated new insecure account {}'.format(address))
@@ -158,21 +164,21 @@ class TesterBlockchain(Blockchain):
 
     @classmethod
     def connect(cls, *args, **kwargs) -> 'TesterBlockchain':
-        solidity_compiler = SolidityCompiler(test_contract_dir=CONTRACT_ROOT)
-        memory_registry = InMemoryEthereumContractRegistry()
-        interface = BlockchainDeployerInterface(provider_uri=cls._PROVIDER_URI, compiler=solidity_compiler, registry=memory_registry)
-        testerchain = TesterBlockchain(interface=interface, test_accounts=cls._default_test_accounts, airdrop=False)
+        interface = BlockchainDeployerInterface(provider_uri=cls._PROVIDER_URI,
+                                                compiler=SolidityCompiler(test_contract_dir=CONTRACT_ROOT),
+                                                registry=InMemoryEthereumContractRegistry())
+
+        testerchain = TesterBlockchain(interface=interface, *args, **kwargs)
         return testerchain
 
     @classmethod
-    def bootstrap_network(cls) -> Tuple['TesterBlockchain', List[str]]:
-
-        def __deploy_contracts(testerchain: TesterBlockchain) -> None:
-            origin = testerchain.interface.w3.eth.accounts[0]
-            deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
-            _txhashes, _agents = deployer.deploy_network_contracts(miner_secret=os.urandom(DISPATCHER_SECRET_LENGTH),
-                                                                   policy_secret=os.urandom(DISPATCHER_SECRET_LENGTH))
-
+    def bootstrap_network(cls) -> Tuple['TesterBlockchain', Dict[str, EthereumContractAgent]]:
         testerchain = cls.connect()
-        __deploy_contracts(testerchain=testerchain)
-        return testerchain, testerchain.interface.w3.eth.accounts
+
+        origin = testerchain.interface.w3.eth.accounts[0]
+        deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
+
+        random_deployment_secret = partial(os.urandom, DISPATCHER_SECRET_LENGTH)
+        _txhashes, agents = deployer.deploy_network_contracts(miner_secret=random_deployment_secret(),
+                                                              policy_secret=random_deployment_secret())
+        return testerchain, agents
