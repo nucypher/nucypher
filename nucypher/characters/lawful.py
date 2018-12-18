@@ -33,13 +33,15 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import load_pem_x509_certificate, Certificate, NameOID
 from eth_utils import to_checksum_address
 from twisted.internet import threads
+from twisted.logger import Logger
+
 from umbral.keys import UmbralPublicKey
 from umbral.signing import Signature
 
 from bytestring_splitter import BytestringKwargifier, BytestringSplittingError
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow import constants, constant_or_bytes
-from constant_sorrow.constants import INCLUDED_IN_BYTESTRING
+from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
@@ -609,8 +611,8 @@ class Ursula(Teacher, Character, Miner):
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app, port=port)
         return deployer
 
-    def rest_server_certificate(self):  # TODO: relocate and use reference on TLS hosting power
-        return self.get_deployer().cert.to_cryptography()
+    def rest_server_certificate(self):
+        return self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
 
     def __bytes__(self):
 
@@ -667,8 +669,7 @@ class Ursula(Teacher, Character, Miner):
         """
 
         return cls.from_seed_and_stake_info(checksum_public_address=seednode_metadata.checksum_public_address,
-                                            host=seednode_metadata.rest_host,
-                                            port=seednode_metadata.rest_port,
+                                            seed_uri='{}:{}'.format(seednode_metadata.rest_host, seednode_metadata.rest_port),
                                             *args, **kwargs)
 
     @classmethod
@@ -679,25 +680,31 @@ class Ursula(Teacher, Character, Miner):
                          ) -> 'Ursula':
 
         hostname, port, checksum_address = parse_node_uri(uri=teacher_uri)
-        try:
-            teacher = cls.from_seed_and_stake_info(host=hostname,
-                                                   port=port,
-                                                   federated_only=federated_only,
-                                                   checksum_public_address=checksum_address,
-                                                   minimum_stake=min_stake)
 
-        except (socket.gaierror, requests.exceptions.ConnectionError, ConnectionRefusedError):
-            # self.log.warn("Can't connect to seed node.  Will retry.")
-            time.sleep(5)  # TODO: Move this 5
+        def __attempt(round=1, interval=10) -> Ursula:
+            if round > 3:
+                raise ConnectionRefusedError("Host {} Refused Connection".format(teacher_uri))
 
-        else:
-            return teacher
+            try:
+                teacher = cls.from_seed_and_stake_info(seed_uri='{host}:{port}'.format(host=hostname, port=port),
+                                                       federated_only=federated_only,
+                                                       checksum_public_address=checksum_address,
+                                                       minimum_stake=min_stake)
+
+            except (socket.gaierror, requests.exceptions.ConnectionError, ConnectionRefusedError):
+                log = Logger(cls.__name__)
+                log.warn("Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(round, interval))
+                time.sleep(interval)
+                return __attempt(round=round+1)
+            else:
+                return teacher
+
+        return __attempt()
 
     @classmethod
     @validate_checksum_address
     def from_seed_and_stake_info(cls,
-                                 host: str,
-                                 port: int,
+                                 seed_uri: str,
                                  federated_only: bool,
                                  minimum_stake: int = 0,
                                  checksum_public_address: str = None,
@@ -713,6 +720,8 @@ class Ursula(Teacher, Character, Miner):
 
         if network_middleware is None:
             network_middleware = RestMiddleware()
+
+        host, port, checksum_address = parse_node_uri(seed_uri)
 
         # Fetch the hosts TLS certificate and read the common name
         certificate = network_middleware.get_certificate(host=host, port=port)
@@ -875,7 +884,7 @@ class Ursula(Teacher, Character, Miner):
     def rest_app(self):
         rest_app_on_server = self.rest_server.rest_app
 
-        if not rest_app_on_server:
+        if rest_app_on_server is PUBLIC_ONLY or not rest_app_on_server:
             m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."
             raise AttributeError(m)
         else:

@@ -28,5 +28,11 @@ reports/
 test-*
 *.sqlite3
 *variables.yml
+variables*.yml
 *ansible/*.retry
 *ansible/inventory/*
+.env
+examples/heartbeat_demo/*.json
+examples/heartbeat_demo/*.msgpack
+examples/heartbeat_demo/doctor-files/
+examples/heartbeat_demo/alicia-files/

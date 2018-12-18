@@ -1,9 +1,9 @@
 - name: "Update Application Code on Seednodes"
-  hosts: seednodes
+  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
   user: ubuntu
   gather_facts: false
   pre_tasks:
-    - include_vars: variables.yml
+    - include_vars: "{{ lookup('env', 'ANSIBLE_SEEDNODE_VARIABLES') }}"
   tasks:
 
     - git:
