@@ -589,7 +589,7 @@ def test_all(testerchain, token, escrow, policy_manager, overseer, user_escrow_p
     # Slash part of the free amount of tokens
     period = escrow.functions.getCurrentPeriod().call()
     tokens_amount = escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
-    previous_lock = escrow.functions.getLockedTokens(ursula1, -1).call()
+    previous_lock = escrow.functions.getLockedTokensInPast(ursula1, 1).call()
     lock = escrow.functions.getLockedTokens(ursula1).call()
     next_lock = escrow.functions.getLockedTokens(ursula1, 1).call()
     total_previous_lock = escrow.functions.lockedPerPeriod(period - 1).call()
@@ -598,7 +598,7 @@ def test_all(testerchain, token, escrow, policy_manager, overseer, user_escrow_p
     tx = overseer.functions.slashMiner(ursula1, 100, alice1, 10).transact()
     testerchain.wait_for_receipt(tx)
     assert tokens_amount - 100 == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
-    assert previous_lock == escrow.functions.getLockedTokens(ursula1, -1).call()
+    assert previous_lock == escrow.functions.getLockedTokensInPast(ursula1, 1).call()
     assert lock == escrow.functions.getLockedTokens(ursula1).call()
     assert next_lock == escrow.functions.getLockedTokens(ursula1, 1).call()
     assert total_previous_lock == escrow.functions.lockedPerPeriod(period - 1).call()
@@ -609,13 +609,13 @@ def test_all(testerchain, token, escrow, policy_manager, overseer, user_escrow_p
     # Slash part of the one sub stake
     tokens_amount = escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
     unlocked_amount = tokens_amount - escrow.functions.getLockedTokens(ursula2).call()
-    previous_lock = escrow.functions.getLockedTokens(ursula2, -1).call()
+    previous_lock = escrow.functions.getLockedTokensInPast(ursula2, 1).call()
     lock = escrow.functions.getLockedTokens(ursula2).call()
     next_lock = escrow.functions.getLockedTokens(ursula2, 1).call()
     tx = overseer.functions.slashMiner(ursula2, unlocked_amount + 100, alice1, 20).transact()
     testerchain.wait_for_receipt(tx)
     assert lock - 100 == escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
-    assert previous_lock == escrow.functions.getLockedTokens(ursula2, -1).call()
+    assert previous_lock == escrow.functions.getLockedTokensInPast(ursula2, 1).call()
     assert lock - 100 == escrow.functions.getLockedTokens(ursula2).call()
     assert next_lock - 100 == escrow.functions.getLockedTokens(ursula2, 1).call()
     assert total_previous_lock == escrow.functions.lockedPerPeriod(period - 1).call()
@@ -626,14 +626,14 @@ def test_all(testerchain, token, escrow, policy_manager, overseer, user_escrow_p
     # Slash two sub stakes
     tokens_amount = escrow.functions.minerInfo(user_escrow_1.address).call()[VALUE_FIELD]
     unlocked_amount = tokens_amount - escrow.functions.getLockedTokens(user_escrow_1.address).call()
-    previous_lock = escrow.functions.getLockedTokens(user_escrow_1.address, -1).call()
+    previous_lock = escrow.functions.getLockedTokensInPast(user_escrow_1.address, 1).call()
     lock = escrow.functions.getLockedTokens(user_escrow_1.address).call()
     next_lock = escrow.functions.getLockedTokens(user_escrow_1.address, 1).call()
     alice2_balance = token.functions.balanceOf(alice2).call()
     tx = overseer.functions.slashMiner(user_escrow_1.address, unlocked_amount + 600, alice2, 60).transact()
     testerchain.wait_for_receipt(tx)
     assert lock - 600 == escrow.functions.minerInfo(user_escrow_1.address).call()[VALUE_FIELD]
-    assert previous_lock == escrow.functions.getLockedTokens(user_escrow_1.address, -1).call()
+    assert previous_lock == escrow.functions.getLockedTokensInPast(user_escrow_1.address, 1).call()
     assert lock - 600 == escrow.functions.getLockedTokens(user_escrow_1.address).call()
     assert next_lock - 600 == escrow.functions.getLockedTokens(user_escrow_1.address, 1).call()
     assert total_previous_lock == escrow.functions.lockedPerPeriod(period - 1).call()
