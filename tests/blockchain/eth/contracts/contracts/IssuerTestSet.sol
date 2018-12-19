@@ -107,4 +107,3 @@ contract IssuerV2Mock is Issuer {
         require(uint256(delegateGet(_testTarget, "valueToCheck()")) == valueToCheck);
     }
 }
-
