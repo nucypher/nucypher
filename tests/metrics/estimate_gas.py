@@ -115,43 +115,6 @@ class AnalyzeGas:
         globalLogPublisher.addObserver(json_observer)
         globalLogPublisher.addObserver(self)
 
-    def connect_to_blockchain(self) -> TesterBlockchain:
-        print("Deploying Blockchain...")
-
-        solidity_compiler = SolidityCompiler(test_contract_dir=self.CONTRACT_DIR)
-        memory_registry = InMemoryEthereumContractRegistry()
-        interface = BlockchainDeployerInterface(provider_uri=self.PROVIDER_URI, compiler=solidity_compiler,
-                                                registry=memory_registry)
-
-        testerchain = TesterBlockchain(interface=interface, test_accounts=self.TEST_ACCOUNTS, airdrop=False)
-        return testerchain
-
-    @staticmethod
-    def deploy_contracts(testerchain: TesterBlockchain) -> None:
-        print("Deploying Contracts...")
-
-        origin = testerchain.interface.w3.eth.accounts[0]
-        deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
-        _txhashes, _agents = deployer.deploy_network_contracts(miner_secret=os.urandom(DISPATCHER_SECRET_LENGTH),
-                                                               policy_secret=os.urandom(DISPATCHER_SECRET_LENGTH))
-
-    @staticmethod
-    def connect_to_contracts(testerchain: TesterBlockchain) -> Tuple[NucypherTokenAgent, MinerAgent, PolicyAgent]:
-        print("Connecting...")
-
-        token_agent = NucypherTokenAgent(blockchain=testerchain)
-        miner_agent = MinerAgent(blockchain=testerchain)
-        policy_agent = PolicyAgent(blockchain=testerchain)
-
-        return token_agent, miner_agent, policy_agent
-
-    def bootstrap_network(self) -> Tuple[TesterBlockchain, List[str]]:
-        print("Bootstrapping testing network...")
-
-        testerchain = self.connect_to_blockchain()
-        self.deploy_contracts(testerchain=testerchain)
-        return testerchain, testerchain.interface.w3.eth.accounts
-
 
 def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     """
@@ -165,24 +128,28 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Setup
     #
-    if AnalyzeGas is None:
+
+    if analyzer is None:
         analyzer = AnalyzeGas()
 
-    # Logger
     log = Logger(AnalyzeGas.LOG_NAME)
 
     # Blockchain
-    testerchain, accounts = analyzer.bootstrap_network()
+    testerchain, agents = TesterBlockchain.bootstrap_network()
     web3 = testerchain.interface.w3
-
-    # Contracts
-    token_agent, miner_agent, policy_agent = analyzer.connect_to_contracts(testerchain=testerchain)
-    token_functions = token_agent.contract.functions
-    miner_functions = miner_agent.contract.functions
-    policy_functions = policy_agent.contract.functions
 
     # Accounts
     origin, ursula1, ursula2, ursula3, alice1, *everyone_else = testerchain.interface.w3.eth.accounts
+
+    # Contracts
+    token_agent = NucypherTokenAgent(blockchain=testerchain)
+    miner_agent = MinerAgent(blockchain=testerchain)
+    policy_agent = PolicyAgent(blockchain=testerchain)
+
+    # Contract Callers
+    token_functions = token_agent.contract.functions
+    miner_functions = miner_agent.contract.functions
+    policy_functions = policy_agent.contract.functions
 
     analyzer.start_collection()
     print("********* Estimating Gas *********")

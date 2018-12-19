@@ -14,10 +14,23 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
+import os
+from functools import partial
+
 from twisted.logger import Logger
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_AVAILABLE
-from typing import List
+from typing import List, Tuple, Dict
+
+from nucypher.blockchain.eth.actors import Deployer
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, MinerAgent, PolicyAgent, EthereumContractAgent
+from nucypher.blockchain.eth.constants import DISPATCHER_SECRET_LENGTH
+from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
+from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
+from nucypher.blockchain.eth.sol.compile import SolidityCompiler
+from nucypher.config.constants import CONTRACT_ROOT
 from umbral.keys import UmbralPrivateKey
 from web3.middleware import geth_poa_middleware
 
@@ -48,10 +61,15 @@ class TesterBlockchain(Blockchain):
     Blockchain subclass with additional test utility methods and options.
     """
 
+    _PROVIDER_URI = 'tester://pyevm'
     _instance = NO_BLOCKCHAIN_AVAILABLE
     _test_account_cache = list()
+    _default_test_accounts = 10
 
-    def __init__(self, test_accounts=None, poa=True, airdrop=True, *args, **kwargs):
+    def __init__(self, test_accounts=None, poa=True, airdrop=False, *args, **kwargs):
+        if test_accounts is None:
+            test_accounts = self._default_test_accounts
+
         super().__init__(*args, **kwargs)
 
         self.log = Logger("test-blockchain")  # type: Logger
@@ -143,3 +161,24 @@ class TesterBlockchain(Blockchain):
         self.interface.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
         self.interface.w3.eth.web3.testing.mine(1)
         self.log.info("Time traveled to {}".format(end_timestamp))
+
+    @classmethod
+    def connect(cls, *args, **kwargs) -> 'TesterBlockchain':
+        interface = BlockchainDeployerInterface(provider_uri=cls._PROVIDER_URI,
+                                                compiler=SolidityCompiler(test_contract_dir=CONTRACT_ROOT),
+                                                registry=InMemoryEthereumContractRegistry())
+
+        testerchain = TesterBlockchain(interface=interface, *args, **kwargs)
+        return testerchain
+
+    @classmethod
+    def bootstrap_network(cls) -> Tuple['TesterBlockchain', Dict[str, EthereumContractAgent]]:
+        testerchain = cls.connect()
+
+        origin = testerchain.interface.w3.eth.accounts[0]
+        deployer = Deployer(blockchain=testerchain, deployer_address=origin, bare=True)
+
+        random_deployment_secret = partial(os.urandom, DISPATCHER_SECRET_LENGTH)
+        _txhashes, agents = deployer.deploy_network_contracts(miner_secret=random_deployment_secret(),
+                                                              policy_secret=random_deployment_secret())
+        return testerchain, agents
