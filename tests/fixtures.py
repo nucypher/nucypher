@@ -54,23 +54,6 @@ TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contr
 # Temporary
 #
 
-
-@pytest.fixture(scope="session", autouse=True)
-def cleanup():
-    yield  # we've got a lot of men and women here...
-
-    # Database teardown
-    for f in glob.glob("**/*.db"):  # TODO: Needs cleanup
-        os.remove(f)
-
-    # Temp Storage Teardown
-    for f in os.listdir(tempfile.tempdir):
-        if re.search(r'nucypher-*', f):
-            with contextlib.suppress(FileNotFoundError, TypeError):
-                shutil.rmtree(os.path.join(tempfile.tempdir, f),
-                              ignore_errors=True)
-
-
 @pytest.fixture(scope="function")
 def tempfile_path():
     fd, path = tempfile.mkstemp()
