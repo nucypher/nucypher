@@ -72,7 +72,7 @@ class SimpleObserver:
     @provider(ILogObserver)
     def __call__(self, event):
         if event['log_level'] >= self.log_level:
-            event['log_format'] = event['log_format'].replace('{}', 'dict')  # FIXME: Dirty hack
+            event['log_format'] = event['log_format']
             print(formatEvent(event))
 
 
