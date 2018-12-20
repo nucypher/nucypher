@@ -22,6 +22,7 @@ from collections import deque
 import click
 import maya
 from twisted.internet import reactor
+from twisted.internet.protocol import connectionDone
 from twisted.protocols.basic import LineReceiver
 
 from nucypher.cli.painting import build_fleet_state_status
@@ -33,6 +34,8 @@ class UrsulaCommandProtocol(LineReceiver):
     delimiter = os.linesep.encode(encoding=encoding)
 
     def __init__(self, ursula):
+        super().__init__()
+
         self.ursula = ursula
         self.start_time = maya.now()
 
@@ -56,8 +59,6 @@ class UrsulaCommandProtocol(LineReceiver):
             'stop': reactor.stop,
 
         }
-
-        super().__init__()
 
     @property
     def commands(self):
@@ -86,6 +87,9 @@ class UrsulaCommandProtocol(LineReceiver):
 
         click.secho("\nType 'help' or '?' for help")
         self.transport.write(self.prompt)
+
+    def connectionLost(self, reason=connectionDone) -> None:
+        self.ursula.stop_learning_loop(reason=reason)
 
     def lineReceived(self, line):
         """Ursula Console REPL"""
