@@ -107,7 +107,7 @@ def policy_manager(testerchain, escrow):
 
 
 @pytest.fixture()
-def overseer(testerchain, escrow):
+def adjudicator(testerchain, escrow):
     escrow, _ = escrow
     creator = testerchain.interface.w3.eth.accounts[0]
 
@@ -144,7 +144,7 @@ def user_escrow_proxy(testerchain, token, escrow, policy_manager):
 
 
 @pytest.mark.slow
-def test_all(testerchain, token, escrow, policy_manager, overseer, user_escrow_proxy):
+def test_all(testerchain, token, escrow, policy_manager, adjudicator, user_escrow_proxy):
     # Travel to the start of the next period to prevent problems with unexpected overflow first period
     testerchain.time_travel(hours=1)
 
@@ -595,7 +595,7 @@ def test_all(testerchain, token, escrow, policy_manager, overseer, user_escrow_p
     total_previous_lock = escrow.functions.lockedPerPeriod(period - 1).call()
     total_lock = escrow.functions.lockedPerPeriod(period).call()
     alice1_balance = token.functions.balanceOf(alice1).call()
-    tx = overseer.functions.slashMiner(ursula1, 100, alice1, 10).transact()
+    tx = adjudicator.functions.slashMiner(ursula1, 100, alice1, 10).transact()
     testerchain.wait_for_receipt(tx)
     assert tokens_amount - 100 == escrow.functions.minerInfo(ursula1).call()[VALUE_FIELD]
     assert previous_lock == escrow.functions.getLockedTokensInPast(ursula1, 1).call()
@@ -612,7 +612,7 @@ def test_all(testerchain, token, escrow, policy_manager, overseer, user_escrow_p
     previous_lock = escrow.functions.getLockedTokensInPast(ursula2, 1).call()
     lock = escrow.functions.getLockedTokens(ursula2).call()
     next_lock = escrow.functions.getLockedTokens(ursula2, 1).call()
-    tx = overseer.functions.slashMiner(ursula2, unlocked_amount + 100, alice1, 20).transact()
+    tx = adjudicator.functions.slashMiner(ursula2, unlocked_amount + 100, alice1, 20).transact()
     testerchain.wait_for_receipt(tx)
     assert lock - 100 == escrow.functions.minerInfo(ursula2).call()[VALUE_FIELD]
     assert previous_lock == escrow.functions.getLockedTokensInPast(ursula2, 1).call()
@@ -630,7 +630,7 @@ def test_all(testerchain, token, escrow, policy_manager, overseer, user_escrow_p
     lock = escrow.functions.getLockedTokens(user_escrow_1.address).call()
     next_lock = escrow.functions.getLockedTokens(user_escrow_1.address, 1).call()
     alice2_balance = token.functions.balanceOf(alice2).call()
-    tx = overseer.functions.slashMiner(user_escrow_1.address, unlocked_amount + 600, alice2, 60).transact()
+    tx = adjudicator.functions.slashMiner(user_escrow_1.address, unlocked_amount + 600, alice2, 60).transact()
     testerchain.wait_for_receipt(tx)
     assert lock - 600 == escrow.functions.minerInfo(user_escrow_1.address).call()[VALUE_FIELD]
     assert previous_lock == escrow.functions.getLockedTokensInPast(user_escrow_1.address, 1).call()
