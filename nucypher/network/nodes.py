@@ -29,8 +29,8 @@ import requests
 import time
 from bytestring_splitter import BytestringSplitter
 from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
-from constant_sorrow import constants, constant_or_bytes
-from constant_sorrow.constants import GLOBAL_DOMAIN
+from constant_sorrow import constant_or_bytes
+from constant_sorrow.constants import GLOBAL_DOMAIN, NO_KNOWN_NODES, NOT_SIGNED, NEVER_SEEN, NO_STORAGE_AVAILIBLE, FLEET_STATES_MATCH
 from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 from requests.exceptions import SSLError
@@ -63,7 +63,7 @@ GLOBAL_DOMAIN.set_constant_documentation(
 def icon_from_checksum(checksum,
                        nickname_metadata,
                        number_of_nodes="Unknown number of "):
-    if checksum is constants.NO_KNOWN_NODES:
+    if checksum is NO_KNOWN_NODES:
         return "NO FLEET STATE AVAILABLE"
     icon_template = """
     <div class="nucypher-nickname-icon" style="border-color:{color};">
@@ -87,11 +87,11 @@ class FleetStateTracker:
     """
     A representation of a fleet of NuCypher nodes.
     """
-    _checksum = constants.NO_KNOWN_NODES.bool_value(False)
-    _nickname = constants.NO_KNOWN_NODES
-    _nickname_metadata = constants.NO_KNOWN_NODES
+    _checksum = NO_KNOWN_NODES.bool_value(False)
+    _nickname = NO_KNOWN_NODES
+    _nickname_metadata = NO_KNOWN_NODES
     _tracking = False
-    most_recent_node_change = constants.NO_KNOWN_NODES
+    most_recent_node_change = NO_KNOWN_NODES
     snapshot_splitter = BytestringSplitter(32, 4)
     log = Logger("Learning")
     state_template = namedtuple("FleetState", ("nickname", "icon", "nodes", "updated"))
@@ -151,8 +151,8 @@ class FleetStateTracker:
 
     @property
     def icon(self) -> str:
-        if self.nickname_metadata is constants.NO_KNOWN_NODES:
-            return str(constants.NO_KNOWN_NODES)
+        if self.nickname_metadata is NO_KNOWN_NODES:
+            return str(NO_KNOWN_NODES)
         return self.nickname_metadata[0][1]
 
     def addresses(self):
@@ -272,7 +272,7 @@ class Learner:
                                                        character_class=self.__class__)
 
         self.node_storage = node_storage
-        if save_metadata and node_storage is constants.NO_STORAGE_AVAILIBLE:
+        if save_metadata and node_storage is NO_STORAGE_AVAILIBLE:
             raise ValueError("Cannot save nodes without a configured node storage")
 
         known_nodes = known_nodes or tuple()
@@ -651,7 +651,15 @@ class Learner:
         finally:
             self.cycle_teacher_node()
 
-        if response.status_code not in (200, 204):
+        #
+        # Before we parse the response, let's handle some edge cases.
+        if response.status_code == 204:
+            # In this case, this node knows about no other nodes.  Hopefully we've taught it something.
+            if response.content == b"":
+                return NO_KNOWN_NODES
+            # In the other case - where the status code is 204 but the repsonse isn't blank - we'll keep parsing.  It's possible that our fleet states match, and we'll check for that later.
+
+        elif response.status_code != 200:
             self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
             return
 
@@ -666,6 +674,8 @@ class Learner:
         except current_teacher.InvalidSignature:
             # TODO: What to do if the teacher improperly signed the node payload?
             raise
+        # End edge case handling.
+        #
 
         fleet_state_checksum_bytes, fleet_state_updated_bytes, node_payload = FleetStateTracker.snapshot_splitter(
             node_payload,
@@ -679,7 +689,7 @@ class Learner:
         # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
         from nucypher.characters.lawful import Ursula
         if response.status_code == 204:
-            return constants.FLEET_STATES_MATCH
+            return FLEET_STATES_MATCH
 
         node_list = Ursula.batch_from_bytes(node_payload, federated_only=self.federated_only)  # TODO: 466
 
@@ -741,9 +751,9 @@ class Teacher:
                  domains: Set,
                  certificate: Certificate,
                  certificate_filepath: str,
-                 interface_signature=constants.NOT_SIGNED.bool_value(False),
-                 timestamp=constants.NOT_SIGNED,
-                 identity_evidence=constants.NOT_SIGNED,
+                 interface_signature=NOT_SIGNED.bool_value(False),
+                 timestamp=NOT_SIGNED,
+                 identity_evidence=NOT_SIGNED,
                  substantiate_immediately=False,
                  passphrase=None,
                  ) -> None:
@@ -753,7 +763,7 @@ class Teacher:
         self.certificate_filepath = certificate_filepath
         self._interface_signature_object = interface_signature
         self._timestamp = timestamp
-        self.last_seen = constants.NEVER_SEEN("Haven't connected to this node yet.")
+        self.last_seen = NEVER_SEEN("Haven't connected to this node yet.")
         self.fleet_state_checksum = None
         self.fleet_state_updated = None
         self._evidence_of_decentralized_identity = constant_or_bytes(identity_evidence)
@@ -797,7 +807,7 @@ class Teacher:
 
     def _stamp_has_valid_wallet_signature(self):
         signature_bytes = self._evidence_of_decentralized_identity
-        if signature_bytes is constants.NOT_SIGNED:
+        if signature_bytes is NOT_SIGNED:
             return False
         else:
             signature = EthSignature(signature_bytes)
@@ -821,7 +831,7 @@ class Teacher:
 
     def _stamp_has_valid_wallet_signature(self):
         signature_bytes = self._evidence_of_decentralized_identity
-        if signature_bytes is constants.NOT_SIGNED:
+        if signature_bytes is NOT_SIGNED:
             return False
         else:
             signature = EthSignature(signature_bytes)
@@ -837,7 +847,7 @@ class Teacher:
         if self._stamp_has_valid_wallet_signature():
             self.verified_stamp = True
             return True
-        elif self.federated_only and signature is constants.NOT_SIGNED:
+        elif self.federated_only and signature is NOT_SIGNED:
             message = "This node can't be verified in this manner, " \
                       "but is OK to use in federated mode if you" \
                       " have reason to believe it is trustworthy."
