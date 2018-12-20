@@ -141,7 +141,8 @@ def status(click_config, config_file):
 @click.argument('action')
 @click.option('--debug', '-D', help="Enable debugging mode", is_flag=True)
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-@click.option('--dry-run', help="Execute normally without actually starting the node", is_flag=True)
+@click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
+@click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--force', '-f', help="Don't ask for confirmation", is_flag=True)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
@@ -149,7 +150,7 @@ def status(click_config, config_file):
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--federated-only', help="Connect only to federated nodes", is_flag=True, default=FEDERATED_ONLY)
+@click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=FEDERATED_ONLY)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
@@ -162,6 +163,7 @@ def ursula(click_config,
            action,
            debug,
            dev,
+           quiet,
            dry_run,
            force,
            teacher_uri,
@@ -198,23 +200,30 @@ def ursula(click_config,
     #
     # Boring Setup Stuff
     #
-    log = Logger('ursula.cli')
+    if not quiet:
+        log = Logger('ursula.cli')
 
-    if debug:
+    if debug and not quiet:
         click_config.log_to_sentry = False
         click_config.log_to_file = True
         globalLogPublisher.removeObserver(logToSentry)                          # Sentry
         globalLogPublisher.addObserver(SimpleObserver(log_level_name='debug'))  # Print
 
+    elif quiet:
+        globalLogPublisher.removeObserver(logToSentry)
+        globalLogPublisher.removeObserver(SimpleObserver)
+        globalLogPublisher.removeObserver(getJsonFileObserver())
+
     #
     # Launch Warnings
     #
-    if dev:
-        click.secho("WARNING: Running in development mode", fg='yellow')
-    if federated_only:
-        click.secho("WARNING: Running in Federated mode", fg='yellow')
-    if force:
-        click.secho("WARNING: Force is enabled", fg='yellow')
+    if not quiet:
+        if dev:
+            click.secho("WARNING: Running in development mode", fg='yellow')
+        if federated_only:
+            click.secho("WARNING: Running in Federated mode", fg='yellow')
+        if force:
+            click.secho("WARNING: Force is enabled", fg='yellow')
 
     #
     # Unauthenticated Configurations
@@ -222,7 +231,7 @@ def ursula(click_config,
     if action == "init":
         """Create a brand-new persistent Ursula"""
 
-        if dev:
+        if dev and not quiet:
             click.secho("WARNING: Using temporary storage area", fg='yellow')
 
         if not config_root:                         # Flag
@@ -243,17 +252,21 @@ def ursula(click_config,
                                                      provider_uri=provider_uri,
                                                      poa=poa)
 
-        click.secho("Generated keyring {}".format(ursula_config.keyring_dir), fg='green')
-        click.secho("Saved configuration file {}".format(ursula_config.config_file_location), fg='green')
+        if not quiet:
+            click.secho("Generated keyring {}".format(ursula_config.keyring_dir), fg='green')
+            click.secho("Saved configuration file {}".format(ursula_config.config_file_location), fg='green')
 
-        # Give the use a suggestion as to what to do next...
-        how_to_run_message = "\nTo run an Ursula node from the default configuration filepath run: \n\n'{}'\n"
-        suggested_command = 'nucypher ursula run'
-        if config_root is not None:
-            config_file_location = os.path.join(config_root, config_file or UrsulaConfiguration.CONFIG_FILENAME)
-            suggested_command += ' --config-file {}'.format(config_file_location)
-        click.secho(how_to_run_message.format(suggested_command), fg='green')
-        return  # FIN
+            # Give the use a suggestion as to what to do next...
+            how_to_run_message = "\nTo run an Ursula node from the default configuration filepath run: \n\n'{}'\n"
+            suggested_command = 'nucypher ursula run'
+            if config_root is not None:
+                config_file_location = os.path.join(config_root, config_file or UrsulaConfiguration.CONFIG_FILENAME)
+                suggested_command += ' --config-file {}'.format(config_file_location)
+            click.secho(how_to_run_message.format(suggested_command), fg='green')
+            return  # FIN
+
+        else:
+            click.secho("OK")
 
     # Development Configuration
     if dev:
@@ -284,7 +297,8 @@ def ursula(click_config,
 
         try:  # Unlock Keyring
             # ursula_config.attach_keyring()
-            click.secho('Decrypting keyring...', fg='blue')
+            if not quiet:
+                click.secho('Decrypting keyring...', fg='blue')
             ursula_config.keyring.unlock(password=click_config.get_password())  # Takes ~3 seconds, ~1GB Ram
         except CryptoError:
             raise ursula_config.keyring.AuthenticationFailed
@@ -340,9 +354,13 @@ def ursula(click_config,
             raise  # Crash :-(
 
         finally:
-            click.secho("Stopping Ursula")
+            if not quiet:
+                click.secho("Stopping Ursula")
             ursula_config.cleanup()
-            click.secho("Ursula Stopped", fg='red')
+            if not quiet:
+                click.secho("Ursula Stopped", fg='red')
+            else:
+                click.secho("Stopped")
         return
 
     elif action == "save-metadata":
@@ -350,18 +368,17 @@ def ursula(click_config,
 
         ursula = ursula_config.produce(ursula_config=ursula_config)
         metadata_path = ursula.write_node_metadata(node=ursula)
-        click.secho("Successfully saved node metadata to {}.".format(metadata_path), fg='green')
+        if not quiet:
+            click.secho("Successfully saved node metadata to {}.".format(metadata_path), fg='green')
         return
 
     elif action == "view":
         """Paint an existing configuration to the console"""
-
         paint_configuration(config_filepath=config_file or ursula_config.config_file_location)
         return
 
     elif action == "forget":
         """Forget all known nodes via storages"""
-
         click.confirm("Permanently delete all known node data?", abort=True)
         ursula_config.forget_nodes()
         message = "Removed all stored node node metadata and certificates"
