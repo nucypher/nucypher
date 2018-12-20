@@ -26,6 +26,7 @@ from twisted.logger import globalLogPublisher
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
+from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.painting import BANNER, paint_configuration, paint_known_nodes, paint_contract_status
 from nucypher.cli.protocol import UrsulaCommandProtocol
@@ -289,8 +290,11 @@ def ursula(click_config,
             raise ursula_config.keyring.AuthenticationFailed
 
     if not ursula_config.federated_only:
-        ursula_config.connect_to_blockchain(recompile_contracts=False)
-        ursula_config.connect_to_contracts()
+        try:
+            ursula_config.connect_to_blockchain(recompile_contracts=False)
+            ursula_config.connect_to_contracts()
+        except EthereumContractRegistry.NoRegistry:
+            raise EthereumContractRegistry.NoRegistry("No contract registry found.  Did you mean to pass --federated-only?")
 
     click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
 

@@ -396,7 +396,9 @@ class NodeConfiguration(ABC):
 
         for field, path in filepaths.items():
             if not os.path.exists(path):
-                message = 'Missing configuration directory {}.'
+                message = 'Missing configuration file or directory: {}.'
+                if 'registry' in path:
+                    message += ' Did you mean to pass --federated-only?'                    
                 raise NodeConfiguration.InvalidConfiguration(message.format(path))
         return True
 
