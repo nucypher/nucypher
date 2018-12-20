@@ -29,7 +29,7 @@ from umbral.keys import UmbralPublicKey
 
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import GLOBAL_DOMAIN
+from constant_sorrow.constants import GLOBAL_DOMAIN, NO_KNOWN_NODES
 from hendrix.experience import crosstown_traffic
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
@@ -175,6 +175,10 @@ class ProxyRESTRoutes:
 
     def all_known_nodes(self, request: Request):
         headers = {'Content-Type': 'application/octet-stream'}
+
+        if self._node_tracker.checksum is NO_KNOWN_NODES:
+            return Response(b"", headers=headers, status_code=204)
+
         payload = self._node_tracker.snapshot()
 
         ursulas_as_vbytes = (VariableLengthBytestring(n) for n in self._node_tracker)
