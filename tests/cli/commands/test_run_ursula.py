@@ -21,6 +21,7 @@ from twisted.internet import threads
 
 from nucypher.characters.base import Learner
 from nucypher.cli.main import nucypher_cli
+from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_STARTING_PORT
 
 
@@ -43,3 +44,6 @@ def test_run_lone_federated_default_development_ursula(click_runner):
     assert result.exit_code == 0
     assert ":memory:" in result.output
     assert "Running Ursula on 127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT)
+
+    reserved_ports = (NodeConfiguration.DEFAULT_REST_PORT, NodeConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
+    assert MOCK_URSULA_STARTING_PORT not in reserved_ports
