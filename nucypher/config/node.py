@@ -497,14 +497,14 @@ class NodeConfiguration(ABC):
         else:
             try:
                 os.mkdir(self.config_root, mode=0o755)
+
             except FileExistsError:
-                # Check for existing files
                 if os.listdir(self.config_root):
                     message = "There are existing files located at {}".format(self.config_root)
                     raise self.ConfigurationError(message)
+
             except FileNotFoundError:
-                message = "Cannot write configuration files because the directory {} does not exist.".format(self.config_root)
-                raise self.ConfigurationError(message)
+                os.makedirs(self.config_root, mode=0o755)
 
         #
         # Create Config Subdirectories
