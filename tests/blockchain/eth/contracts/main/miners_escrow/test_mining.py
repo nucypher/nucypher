@@ -304,10 +304,10 @@ def test_mining(testerchain, token, escrow_contract):
 @pytest.mark.slow
 def test_slashing(testerchain, token, escrow_contract):
     escrow = escrow_contract(1500)
-    overseer, _ = testerchain.interface.deploy_contract(
+    adjudicator, _ = testerchain.interface.deploy_contract(
         'MiningAdjudicatorForMinersEscrowMock', escrow.address
     )
-    tx = escrow.functions.setMiningAdjudicator(overseer.address).transact()
+    tx = escrow.functions.setMiningAdjudicator(adjudicator.address).transact()
     testerchain.wait_for_receipt(tx)
     creator = testerchain.interface.w3.eth.accounts[0]
     ursula = testerchain.interface.w3.eth.accounts[1]
@@ -346,7 +346,7 @@ def test_slashing(testerchain, token, escrow_contract):
 
     # Slash the whole stake
     reward = escrow.functions.getReservedReward().call()
-    tx = overseer.functions.slashMiner(ursula, 100, investigator, 10).transact()
+    tx = adjudicator.functions.slashMiner(ursula, 100, investigator, 10).transact()
     testerchain.wait_for_receipt(tx)
     # Miner has no more sub stakes
     assert 0 == escrow.functions.minerInfo(ursula).call()[VALUE_FIELD]
@@ -378,7 +378,7 @@ def test_slashing(testerchain, token, escrow_contract):
 
     # Slash part of one sub stake (there is only one sub stake)
     reward = escrow.functions.getReservedReward().call()
-    tx = overseer.functions.slashMiner(ursula, 10, investigator, 11).transact()
+    tx = adjudicator.functions.slashMiner(ursula, 10, investigator, 11).transact()
     testerchain.wait_for_receipt(tx)
     assert 90 == escrow.functions.minerInfo(ursula).call()[VALUE_FIELD]
     assert 90 == escrow.functions.getLockedTokens(ursula).call()
@@ -412,7 +412,7 @@ def test_slashing(testerchain, token, escrow_contract):
 
     # Slash again part of the first sub stake because new sub stake is longer (there are two main sub stakes)
     reward = escrow.functions.getReservedReward().call()
-    tx = overseer.functions.slashMiner(ursula, 10, investigator, 0).transact()
+    tx = adjudicator.functions.slashMiner(ursula, 10, investigator, 0).transact()
     testerchain.wait_for_receipt(tx)
     assert 180 == escrow.functions.minerInfo(ursula).call()[VALUE_FIELD]
     assert 90 == escrow.functions.getLockedTokensInPast(ursula, 1).call()
@@ -445,7 +445,7 @@ def test_slashing(testerchain, token, escrow_contract):
 
     # Slash only free amount of tokens
     reward = escrow.functions.getReservedReward().call()
-    tx = overseer.functions.slashMiner(ursula, deposit - 290, investigator, 0).transact()
+    tx = adjudicator.functions.slashMiner(ursula, deposit - 290, investigator, 0).transact()
     testerchain.wait_for_receipt(tx)
     assert 290 == escrow.functions.minerInfo(ursula).call()[VALUE_FIELD]
     assert 290 == escrow.functions.getLockedTokensInPast(ursula, 1).call()
@@ -465,7 +465,7 @@ def test_slashing(testerchain, token, escrow_contract):
     assert 0 == event_args['reward']
 
     # Slash only the new sub stake because it's the shortest one (there are three main sub stakes)
-    tx = overseer.functions.slashMiner(ursula, 20, investigator, 0).transact()
+    tx = adjudicator.functions.slashMiner(ursula, 20, investigator, 0).transact()
     testerchain.wait_for_receipt(tx)
     assert 270 == escrow.functions.minerInfo(ursula).call()[VALUE_FIELD]
     assert 290 == escrow.functions.getLockedTokensInPast(ursula, 1).call()
@@ -486,7 +486,7 @@ def test_slashing(testerchain, token, escrow_contract):
 
     # Slash the whole new sub stake and part of the next shortest (there are three main sub stakes)
     reward = escrow.functions.getReservedReward().call()
-    tx = overseer.functions.slashMiner(ursula, 100, investigator, 0).transact()
+    tx = adjudicator.functions.slashMiner(ursula, 100, investigator, 0).transact()
     testerchain.wait_for_receipt(tx)
     assert 170 == escrow.functions.minerInfo(ursula).call()[VALUE_FIELD]
     assert 290 == escrow.functions.getLockedTokensInPast(ursula, 1).call()
@@ -521,7 +521,7 @@ def test_slashing(testerchain, token, escrow_contract):
 
     # Slash the new sub stake which starts in the next period
     # Because locked value is more in the next period than in the current period
-    tx = overseer.functions.slashMiner(ursula, unlocked_deposit + 10, investigator, 0).transact()
+    tx = adjudicator.functions.slashMiner(ursula, unlocked_deposit + 10, investigator, 0).transact()
     testerchain.wait_for_receipt(tx)
     assert 170 == escrow.functions.getLockedTokens(ursula).call()
     assert 260 == escrow.functions.getLockedTokens(ursula, 1).call()
@@ -564,7 +564,7 @@ def test_slashing(testerchain, token, escrow_contract):
     # Slash two sub stakes:
     # one which will be unlocked after current period and new sub stake
     reward = escrow.functions.getReservedReward().call()
-    tx = overseer.functions.slashMiner(ursula, unlocked_deposit + 10, investigator, 0).transact()
+    tx = adjudicator.functions.slashMiner(ursula, unlocked_deposit + 10, investigator, 0).transact()
     testerchain.wait_for_receipt(tx)
     assert 250 == escrow.functions.getLockedTokens(ursula).call()
     assert 250 == escrow.functions.getLockedTokens(ursula, 1).call()
@@ -585,7 +585,7 @@ def test_slashing(testerchain, token, escrow_contract):
 
     # Slash four sub stakes:
     # two that will be unlocked after current period, new sub stake and another short sub stake
-    tx = overseer.functions.slashMiner(ursula, 90, investigator, 0).transact()
+    tx = adjudicator.functions.slashMiner(ursula, 90, investigator, 0).transact()
     testerchain.wait_for_receipt(tx)
     assert 160 == escrow.functions.getLockedTokens(ursula).call()
     assert 160 == escrow.functions.getLockedTokens(ursula, 1).call()
@@ -624,7 +624,7 @@ def test_slashing(testerchain, token, escrow_contract):
     assert 200 == escrow.functions.getLockedTokens(ursula2, 1).call()
 
     # Slash one sub stake to set the last period of this sub stake to the previous period
-    tx = overseer.functions.slashMiner(ursula2, 100, investigator, 0).transact()
+    tx = adjudicator.functions.slashMiner(ursula2, 100, investigator, 0).transact()
     testerchain.wait_for_receipt(tx)
     assert 100 == escrow.functions.getLockedTokensInPast(ursula2, 2).call()
     assert 200 == escrow.functions.getLockedTokensInPast(ursula2, 1).call()
@@ -641,7 +641,7 @@ def test_slashing(testerchain, token, escrow_contract):
 
     # Slash the first sub stake
     # and check that the second sub stake will not combine with the slashed amount of the first one
-    tx = overseer.functions.slashMiner(ursula2, 50, investigator, 0).transact()
+    tx = adjudicator.functions.slashMiner(ursula2, 50, investigator, 0).transact()
     testerchain.wait_for_receipt(tx)
     assert 100 == escrow.functions.getLockedTokensInPast(ursula2, 2).call()
     assert 200 == escrow.functions.getLockedTokensInPast(ursula2, 1).call()
@@ -674,7 +674,7 @@ def test_slashing(testerchain, token, escrow_contract):
 
     # Slash the previous sub stake
     # Stake in the current period should not change, because overflow starts from the next period
-    tx = overseer.functions.slashMiner(ursula2, 10, investigator, 0).transact()
+    tx = adjudicator.functions.slashMiner(ursula2, 10, investigator, 0).transact()
     testerchain.wait_for_receipt(tx)
     assert 50 == escrow.functions.getLockedTokens(ursula2).call()
     assert 140 == escrow.functions.getLockedTokens(ursula2, 1).call()
