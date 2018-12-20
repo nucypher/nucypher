@@ -1,7 +1,23 @@
 from constant_sorrow.constants import FLEET_STATES_MATCH
+from hendrix.experience import crosstown_traffic
+from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
 from nucypher.utilities.sandbox.ursula import make_federated_ursulas
 from functools import partial
 
+
+def test_learning_from_node_with_no_known_nodes(ursula_federated_test_config):
+    lonely_ursula_maker = partial(make_federated_ursulas,
+                                  ursula_config=ursula_federated_test_config,
+                                  quantity=1,
+                                  know_each_other=False)
+    lonely_teacher = lonely_ursula_maker().pop()
+    lonely_learner = lonely_ursula_maker(known_nodes=[lonely_teacher]).pop()
+
+    learning_callers = []
+    crosstown_traffic.decorator = crosstownTaskListDecoratorFactory(learning_callers)
+
+    result = lonely_learner.learn_from_teacher_node()
+    assert False
 
 def test_all_nodes_have_same_fleet_state(federated_ursulas):
     checksums = [u.known_nodes.checksum for u in federated_ursulas]
