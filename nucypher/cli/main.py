@@ -386,7 +386,6 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
         # Produce - Step 2
         #
         ursula = ursula_config(known_nodes=teacher_nodes)
-        ursula_config.log.debug("Initialized Ursula {}".format(ursula), fg='green')
 
         # GO!
         try:
@@ -394,7 +393,7 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
             #
             # Run - Step 3
             #
-            click.secho("Running Ursula on {}".format(ursula.rest_interface), fg='green', bold=True)
+            click.secho("Running Ursula {} on {}".format(ursula, ursula.rest_interface), fg='green', bold=True)
             if not debug:
                 stdio.StandardIO(UrsulaCommandProtocol(ursula=ursula))
 

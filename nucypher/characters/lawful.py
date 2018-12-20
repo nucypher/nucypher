@@ -591,7 +591,7 @@ class Ursula(Teacher, Character, Miner):
         #
         if is_me:
             self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])
-            message = "Initialized Self {} | {}".format(self.__class__.__name__, self.checksum_public_address)
+            message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
             self.log.info(message)
         else:
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
