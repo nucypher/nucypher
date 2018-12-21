@@ -43,6 +43,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
 from nucypher.blockchain.eth.registry import InMemoryEthereumContractRegistry
 from nucypher.blockchain.eth.sol.compile import SolidityCompiler
 from nucypher.config.constants import CONTRACT_ROOT
+from nucypher.config.constants import BASE_DIR
 from nucypher.utilities.sandbox.blockchain import TesterBlockchain
 
 
@@ -59,6 +60,7 @@ class AnalyzeGas:
 
     # Tweaks
     CONTRACT_DIR = CONTRACT_ROOT
+    TEST_CONTRACTS_DIR = os.path.join(BASE_DIR, 'tests', 'blockchain', 'eth', 'contracts',  'contracts')
     PROVIDER_URI = "tester://pyevm"
     TEST_ACCOUNTS = 10
 
@@ -95,7 +97,7 @@ class AnalyzeGas:
 
     @staticmethod
     def paint_line(label: str, gas: str) -> None:
-        print('{label} {gas:,}'.format(label=label.ljust(65, '.'), gas=int(gas)))
+        print('{label} {gas:,}'.format(label=label.ljust(70, '.'), gas=int(gas)))
 
     def to_json_file(self) -> None:
         print('Saving JSON Output...')
@@ -541,6 +543,78 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     tx = miner_functions.confirmActivity().transact({'from': ursula1})
     testerchain.wait_for_receipt(tx)
     log.info("Divide stake (next period is confirmed) = " + str(miner_functions.divideStake(0, MIN_ALLOWED_LOCKED, 2).estimateGas({'from': ursula1})))
+
+    # Slashing tests
+    tx = miner_functions.confirmActivity().transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    testerchain.time_travel(periods=1)
+    # Deploy adjudicator mock to estimate slashing method in MinersEscrow contract
+    adjudicator, _ = testerchain.interface.deploy_contract(
+        'MiningAdjudicatorForMinersEscrowMock', miner_agent.contract.address
+    )
+    tx = miner_functions.setMiningAdjudicator(adjudicator.address).transact()
+    testerchain.wait_for_receipt(tx)
+    adjudicator_functions = adjudicator.functions
+
+    # Slashing
+    amount = MIN_ALLOWED_LOCKED
+    log.info("Slash just value = " + str(adjudicator_functions.slashMiner(ursula1, amount, alice1, amount // 2).estimateGas()))
+    tx = adjudicator_functions.slashMiner(ursula1, amount, alice1, amount // 2).transact()
+    testerchain.wait_for_receipt(tx)
+
+    deposit = miner_functions.minerInfo(ursula1).call()[0]
+    unlocked = deposit - miner_functions.getLockedTokens(ursula1).call()
+    tx = miner_functions.withdraw(unlocked).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+
+    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    log.info("First slashing one sub stake and saving old one (" + sug_stakes_length + " sub stakes) = " +
+             str(adjudicator_functions.slashMiner(ursula1, amount, alice1, amount // 2).estimateGas()))
+    tx = adjudicator_functions.slashMiner(ursula1, amount, alice1, amount // 2).transact()
+    testerchain.wait_for_receipt(tx)
+    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    log.info("Second slashing one sub stake and saving old one (" + sug_stakes_length + " sub stakes) = " +
+             str(adjudicator_functions.slashMiner(ursula1, amount, alice1, amount // 2).estimateGas()))
+    tx = adjudicator_functions.slashMiner(ursula1, amount, alice1, amount // 2).transact()
+    testerchain.wait_for_receipt(tx)
+    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    log.info("Third slashing one sub stake and saving old one (" + sug_stakes_length + " sub stakes) = " +
+             str(adjudicator_functions.slashMiner(ursula1, amount - 1, alice1, amount // 2).estimateGas()))
+    tx = adjudicator_functions.slashMiner(ursula1, amount - 1, alice1, amount // 2).transact()
+    testerchain.wait_for_receipt(tx)
+
+    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    log.info("Slashing two sub stakes and saving old one (" + sug_stakes_length + " sub stakes) = " +
+             str(adjudicator_functions.slashMiner(ursula1, 2, alice1, amount // 2).estimateGas()))
+    tx = adjudicator_functions.slashMiner(ursula1, 2, alice1, amount // 2).transact()
+    testerchain.wait_for_receipt(tx)
+
+    for index in range(18):
+        tx = miner_functions.confirmActivity().transact({'from': ursula1})
+        testerchain.wait_for_receipt(tx)
+        testerchain.time_travel(periods=1)
+
+    tx = miner_functions.lock(MIN_ALLOWED_LOCKED, MIN_LOCKED_PERIODS).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+    deposit = miner_functions.minerInfo(ursula1).call()[0]
+    unlocked = deposit - miner_functions.getLockedTokens(ursula1, 1).call()
+    tx = miner_functions.withdraw(unlocked).transact({'from': ursula1})
+    testerchain.wait_for_receipt(tx)
+
+    amount = MIN_ALLOWED_LOCKED - 1
+    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    log.info("Slashing two sub stakes, shortest and new one (" + sug_stakes_length + " sub stakes) = " +
+             str(adjudicator.functions.slashMiner(ursula1, amount, alice1, amount // 2).estimateGas()))
+    tx = adjudicator.functions.slashMiner(ursula1, amount, alice1, amount // 2).transact()
+    testerchain.wait_for_receipt(tx)
+
+    sug_stakes_length = str(miner_functions.getSubStakesLength(ursula1).call())
+    log.info("Slashing three sub stakes, two shortest and new one (" + sug_stakes_length + " sub stakes) = " +
+             str(adjudicator.functions.slashMiner(ursula1, amount, alice1, amount // 2).estimateGas()))
+    tx = adjudicator.functions.slashMiner(ursula1, amount, alice1, amount // 2).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # TODO estimate MiningAdjudicator
 
     print("********* All Done! *********")
 
