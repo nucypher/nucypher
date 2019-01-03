@@ -62,7 +62,7 @@ contract Seeder is Ownable {
     * @param _port Updated TCP port of the existing seed node
     **/
     function refresh(string _ip, uint16 _port) public {
-        SeedInfo seed = seeds[msg.sender];
+        SeedInfo storage seed = seeds[msg.sender];
         require(seed.port != 0);
         seed.ip = _ip;
         seed.port = _port;

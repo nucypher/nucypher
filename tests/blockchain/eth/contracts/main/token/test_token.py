@@ -14,6 +14,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
@@ -61,12 +63,6 @@ def test_create_token(testerchain):
     tx = token.functions.transfer(token.address, 10).transact({'from': account1})
     testerchain.wait_for_receipt(tx)
     assert 10 == token.functions.balanceOf(token.address).call()
-
-    # Can burn own tokens
-    tx = token.functions.burn(1).transact({'from': account2})
-    testerchain.wait_for_receipt(tx)
-    assert 9 == token.functions.balanceOf(account2).call()
-    assert 10 ** 9 - 1 == token.functions.totalSupply().call()
 
 
 @pytest.mark.slow()

@@ -1,3 +1,21 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+
 import os
 
 import coincurve
@@ -113,7 +131,7 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     testerchain.wait_for_receipt(tx)
     # Hash of the data is saved and miner was not slashed
     assert challenge_contract.functions.challengedCFrags(data_hash).call()
-    assert 1000 == escrow.functions.minerInfo(miner).call()
+    assert 1000 == escrow.functions.minerInfo(miner).call()[0]
 
     # Can't challenge miner with data that already was checked
     with pytest.raises((TransactionFailed, ValueError)):
@@ -146,7 +164,7 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     testerchain.wait_for_receipt(tx)
     # Hash of the data is saved and miner was slashed
     assert challenge_contract.functions.challengedCFrags(data_hash).call()
-    assert 900 == escrow.functions.minerInfo(miner).call()
+    assert 900 == escrow.functions.minerInfo(miner).call()[0]
 
     # Prepare hash of the data
     metadata = os.urandom(34)
@@ -231,4 +249,4 @@ def test_challenge_cfrag(testerchain, escrow, challenge_contract):
     tx = challenge_contract.functions.challengeCFrag(*args).transact()
     testerchain.wait_for_receipt(tx)
     assert challenge_contract.functions.challengedCFrags(data_hash).call()
-    assert 800 == escrow.functions.minerInfo(miner).call()
+    assert 800 == escrow.functions.minerInfo(miner).call()[0]

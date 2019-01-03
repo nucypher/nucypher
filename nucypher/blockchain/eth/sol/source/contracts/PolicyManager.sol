@@ -193,7 +193,7 @@ contract PolicyManager is Upgradeable {
             return;
         }
         for (uint16 i = node.lastMinedPeriod + 1; i <= _period; i++) {
-            node.rewardRate = node.rewardRate.add(node.rewardDelta[i]);
+            node.rewardRate = node.rewardRate.addSigned(node.rewardDelta[i]);
         }
         node.lastMinedPeriod = _period;
         node.reward = node.reward.add(node.rewardRate);
@@ -319,9 +319,6 @@ contract PolicyManager is Upgradeable {
                break;
             }
         }
-        if (refundValue > 0) {
-            msg.sender.transfer(refundValue);
-        }
         if (_node == RESERVED_NODE) {
             if (numberOfActive == 0) {
                 policy.disabled = true;
@@ -332,6 +329,9 @@ contract PolicyManager is Upgradeable {
         } else {
             // arrangement not found
             require(i < policy.arrangements.length);
+        }
+        if (refundValue > 0) {
+            msg.sender.transfer(refundValue);
         }
     }
 
