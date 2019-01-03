@@ -34,7 +34,7 @@ contract MinersEscrowBad is MinersEscrow {
     {
     }
 
-    function getStakeInfo(address, uint256) public view returns (uint16, uint16, uint16, uint256)
+    function getSubStakeInfo(address, uint256) public view returns (uint16, uint16, uint16, uint256)
     {
     }
 
@@ -127,4 +127,28 @@ contract PolicyManagerForMinersEscrowMock {
         return nodes[_node][_index];
     }
 
+}
+
+
+/**
+* @notice Contract for testing miners escrow contract
+**/
+contract ChallengeOverseerForMinersEscrowMock {
+
+    MinersEscrow public escrow;
+
+    constructor(MinersEscrow _escrow) public {
+        escrow = _escrow;
+    }
+
+    function slashMiner(
+        address _miner,
+        uint256 _penalty,
+        address _investigator,
+        uint256 _reward
+    )
+        public
+    {
+        escrow.slashMiner(_miner, _penalty, _investigator, _reward);
+    }
 }

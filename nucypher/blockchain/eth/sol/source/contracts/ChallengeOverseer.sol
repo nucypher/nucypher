@@ -8,7 +8,6 @@ import "./MinersEscrow.sol";
 
 /**
 * @notice Challenges for NuCypher net characters
-* @dev TODO move or integrate with MinersEscrow
 **/
 contract ChallengeOverseer {
     using UmbralDeserializer for bytes;
@@ -27,7 +26,9 @@ contract ChallengeOverseer {
     constructor(
         MinersEscrow _escrow,
         SignatureVerifier.HashAlgorithm _hashAlgorithm
-    ) public {
+    )
+        public
+    {
         require(address(_escrow) != 0x0);
         escrow = _escrow;
         hashAlgorithm = _hashAlgorithm;
@@ -56,7 +57,9 @@ contract ChallengeOverseer {
         bytes _minerPublicKeySignature,
         // TODO rename
         bytes _preComputedData
-    ) public {
+    )
+        public
+    {
         require(_minerPublicKey.length == 65 && _requesterPublicKey.length == 65);
 
         // Check that CFrag is not challenged yet
@@ -80,23 +83,26 @@ contract ChallengeOverseer {
         // Extract miner's address and check that is real miner
         address miner = SignatureVerifier.recover(
             SignatureVerifier.hash(_minerPublicKey, hashAlgorithm), _minerPublicKeySignature);
-        require(escrow.getLockedTokens(miner) > 0); // TODO check that miner can be slashed
+        // Check that miner can be slashed
+        (uint256 minerValue,,,) = escrow.minerInfo(miner);
+        require(minerValue > 0);
 
         // Verify correctness of re-encryption
-        UmbralDeserializer.Capsule memory capsule = _capsuleBytes.toCapsule();
-        UmbralDeserializer.CapsuleFrag memory cFrag = _cFragBytes.toCapsuleFrag();
-        // TODO rename
-        UmbralDeserializer.PreComputedData memory data = _preComputedData.toPreComputedData();
-        if (!isCapsuleFragCorrect(capsule, cFrag, data)) {
-            escrow.slashMiner(miner, PENALTY);
-        }
         challengedCFrags[challengeHash] = true;
+        if (!isCapsuleFragCorrect(
+            _capsuleBytes.toCapsule(), _cFragBytes.toCapsuleFrag(), _preComputedData.toPreComputedData())) {
+            // TODO calculate penalty - depends on how many time was slashed
+            // TODO set reward
+            escrow.slashMiner(miner, PENALTY, msg.sender, PENALTY);
+        }
     }
 
     /**
     * @notice Prepare public key before verification (cut the first byte)
     **/
-    function preparePublicKey(bytes memory _preparedPublicKey, bytes memory _publicKey) public pure {
+    function preparePublicKey(bytes memory _preparedPublicKey, bytes memory _publicKey)
+        public pure
+    {
         assembly {
             let destination := add(_preparedPublicKey, 32) // skip array length
             let source := add(_publicKey, 33) // skip array length and first byte in the array
@@ -115,8 +121,10 @@ contract ChallengeOverseer {
         UmbralDeserializer.Capsule memory _capsule,
         UmbralDeserializer.CapsuleFrag memory _cFrag,
         UmbralDeserializer.PreComputedData memory _data
-    // TODO make public when possible
-    ) internal pure returns (bool) {
+    )
+        // TODO make public when possible
+        internal pure returns (bool)
+    {
         // TODO use Numerology repo
         return _capsule.bnSig >= 0 &&
             _cFrag.proof.metadata.length == 33 &&

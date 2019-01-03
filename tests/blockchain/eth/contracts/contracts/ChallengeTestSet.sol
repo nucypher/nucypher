@@ -4,22 +4,30 @@ pragma solidity ^0.4.25;
 /**
 * @notice Contract for testing the ChallengeOverseer contract
 **/
-contract MinersEscrowStub {
+contract MinersEscrowForChallengeOverseerMock {
 
-    mapping (address => uint256) public minerInfo;
+    struct MinerInfo {
+        uint256 value;
+        uint16 stubValue1;
+        uint16 stubValue2;
+        uint16 stubValue3;
+    }
+
+    mapping (address => MinerInfo) public minerInfo;
 
     function setMinerInfo(address _miner, uint256 _amount) public {
-        minerInfo[_miner] = _amount;
+        minerInfo[_miner].value = _amount;
     }
 
-    function getLockedTokens(address _miner)
-        public view returns (uint256)
+    function slashMiner(
+        address _miner,
+        uint256 _penalty,
+        address _investigator,
+        uint256 _reward
+    )
+        public
     {
-        return minerInfo[_miner];
-    }
-
-    function slashMiner(address _miner, uint256 _amount) public {
-        minerInfo[_miner] -= _amount;
+        minerInfo[_miner].value -= _penalty;
     }
 
 }

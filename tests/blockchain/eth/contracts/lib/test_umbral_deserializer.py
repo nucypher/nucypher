@@ -1,3 +1,21 @@
+"""
+This file is part of nucypher.
+
+nucypher is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+nucypher is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
+
 import os
 
 import pytest
@@ -51,9 +69,9 @@ def test_capsule(testerchain, deserializer, fragments):
     capsule, _cfrag = fragments
     capsule_bytes = capsule.to_bytes()
     result = deserializer.functions.toCapsule(capsule_bytes).call()
-    assert bytes(capsule._point_e) == result[0] + result[1]
-    assert bytes(capsule._point_v) == result[2] + result[3]
-    assert capsule._bn_sig.to_bytes() == bytes(result[4])
+    assert bytes(capsule.point_e) == result[0] + result[1]
+    assert bytes(capsule.point_v) == result[2] + result[3]
+    assert capsule.bn_sig.to_bytes() == bytes(result[4])
 
 
 @pytest.mark.slow
@@ -79,10 +97,10 @@ def test_proof(testerchain, deserializer, fragments):
 
     # Check real proof
     result = deserializer.functions.toCorrectnessProof(proof_bytes).call()
-    assert bytes(proof._point_e2) == result[0] + result[1]
-    assert bytes(proof._point_v2) == result[2] + result[3]
-    assert bytes(proof._point_kfrag_commitment) == result[4] + result[5]
-    assert bytes(proof._point_kfrag_pok) == result[6] + result[7]
+    assert bytes(proof.point_e2) == result[0] + result[1]
+    assert bytes(proof.point_v2) == result[2] + result[3]
+    assert bytes(proof.point_kfrag_commitment) == result[4] + result[5]
+    assert bytes(proof.point_kfrag_pok) == result[6] + result[7]
     assert proof.bn_sig.to_bytes() == result[8]
     assert bytes(proof.kfrag_signature) == result[9]
     assert bytes(proof.metadata) == result[10]
@@ -108,15 +126,15 @@ def test_cfrag(testerchain, deserializer, fragments):
     proof = cfrag.proof
     cfrag_bytes = cfrag.to_bytes()
     result = deserializer.functions.toCapsuleFrag(cfrag_bytes).call()
-    assert bytes(cfrag._point_e1) == result[0] + result[1]
-    assert bytes(cfrag._point_v1) == result[2] + result[3]
-    assert bytes(cfrag._kfrag_id) == result[4]
-    assert bytes(cfrag._point_precursor) == result[5] + result[6]
+    assert bytes(cfrag.point_e1) == result[0] + result[1]
+    assert bytes(cfrag.point_v1) == result[2] + result[3]
+    assert bytes(cfrag.kfrag_id) == result[4]
+    assert bytes(cfrag.point_precursor) == result[5] + result[6]
     result = deserializer.functions.toCorrectnessProofFromCapsuleFrag(cfrag_bytes).call()
-    assert bytes(proof._point_e2) == result[0] + result[1]
-    assert bytes(proof._point_v2) == result[2] + result[3]
-    assert bytes(proof._point_kfrag_commitment) == result[4] + result[5]
-    assert bytes(proof._point_kfrag_pok) == result[6] + result[7]
+    assert bytes(proof.point_e2) == result[0] + result[1]
+    assert bytes(proof.point_v2) == result[2] + result[3]
+    assert bytes(proof.point_kfrag_commitment) == result[4] + result[5]
+    assert bytes(proof.point_kfrag_pok) == result[6] + result[7]
     assert proof.bn_sig.to_bytes() == result[8]
     assert bytes(proof.kfrag_signature) == result[9]
     assert bytes(proof.metadata) == result[10]
