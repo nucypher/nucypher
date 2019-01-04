@@ -227,6 +227,14 @@ commands:
       - run:
           name: Check NuCypher CLI Entrypoint
           command: pipenv run nucypher --help
+      - run:
+          name: Store requirements.txt and dev-requirements.txt
+          command: |
+            mkdir /tmp/reqs
+            pipenv lock --clear --pre --requirements > /tmp/reqs/requirements.txt
+            pipenv lock --clear --pre --dev --requirements > /tmp/reqs/dev-requirements.txt
+      - store_artifacts:
+          path: /tmp/reqs
 
   check_nucypher_entrypoints:
     description: "Ensure both the python API and CLI entrypoints are usable"
