@@ -21,7 +21,7 @@ sqlalchemy = "*"
 maya = "*"
 apistar = "<0.6.0"
 # Third-Party Ethereum
-py-evm = "*"
+py-evm = "==0.2.0a37"
 eth-tester = "*"
 py-solc = "*"
 web3 = "*"
