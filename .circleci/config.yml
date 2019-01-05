@@ -227,6 +227,16 @@ commands:
       - run:
           name: Check NuCypher CLI Entrypoint
           command: pipenv run nucypher --help
+      - run:
+          name: Store Pipfile.lock, requirements.txt and dev-requirements.txt
+          command: |
+            mkdir /tmp/pipenv-lock
+            pipenv lock --clear --pre --dev
+            cp Pipfile.lock /tmp/pipenv-lock/Pipfile.lock
+            pipenv lock --clear --pre --requirements > /tmp/pipenv-lock/requirements.txt
+            pipenv lock --clear --pre --dev --requirements > /tmp/pipenv-lock/dev-requirements.txt
+      - store_artifacts:
+          path: /tmp/pipenv-lock
 
   check_nucypher_entrypoints:
     description: "Ensure both the python API and CLI entrypoints are usable"
@@ -262,6 +272,9 @@ commands:
       - checkout
       - attach_workspace:
           at: ~/.local/share/virtualenvs/
+      - run:
+          name: "Create directory for test reports"
+          command: mkdir reports
 
   coveralls:
     description: "Upload Coverage Report To Coveralls.io"
@@ -277,7 +290,7 @@ commands:
     steps:
       - coveralls
       - store_test_results:
-          path: ./reports/pytest/
+          path: reports
 
 
 jobs:
@@ -359,7 +372,7 @@ jobs:
           command: |
             pipenv run pytest $(circleci tests glob tests/blockchain/eth/contracts/**/**/test_*.py | circleci tests split --split-by=timings)
       - store_test_results:
-          path: ./reports/pytest/
+          path: reports
 
   config:
     <<: *python_36_base
@@ -379,9 +392,7 @@ jobs:
       - run:
           name: Crypto Character Tests
           command: pipenv run pytest tests/crypto
-      - coveralls
-      - store_test_results:
-          path: ./reports/pytest/
+      - capture_test_results
 
   network:
     <<: *python_36_base
@@ -434,7 +445,7 @@ jobs:
           command: |
             pipenv run pytest $(circleci tests glob tests/cli/**/test_*.py | circleci tests split --split-by=timings)
       - store_test_results:
-          path: ./reports/pytest/
+          path: reports
 
   ursula_command:
     <<: *python_36_base
@@ -444,7 +455,7 @@ jobs:
           name: Ursula Command Tests
           command: pipenv run pytest tests/cli/protocol
       - store_test_results:
-          path: ./reports/pytest/
+          path: reports
 
   mypy:
     <<: *python_36_base
