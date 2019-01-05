@@ -145,7 +145,7 @@ def status(click_config, config_file):
 @click.option('--dev', '-d', help="Enable development mode", is_flag=True)
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
-@click.option('--force', '-f', help="Don't ask for confirmation", is_flag=True)
+@click.option('--force', help="Don't ask for confirmation", is_flag=True)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
@@ -205,7 +205,10 @@ def ursula(click_config,
     if not quiet:
         log = Logger('ursula.cli')
 
-    if debug and not quiet:
+    if debug and quiet:
+        raise click.BadOptionUsage(option_name="quiet", message="--debug and --quiet cannot be used at the same time.")
+
+    if debug:
         click_config.log_to_sentry = False
         click_config.log_to_file = True
         globalLogPublisher.removeObserver(logToSentry)                          # Sentry
@@ -360,7 +363,8 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
             ursula_config.connect_to_blockchain(recompile_contracts=False)
             ursula_config.connect_to_contracts()
         except EthereumContractRegistry.NoRegistry:
-            raise EthereumContractRegistry.NoRegistry("No contract registry found.  Did you mean to pass --federated-only?")
+            message = "Cannot configure blockchain character: No contract registry found;  Did you mean to pass --federated-only?"
+            raise EthereumContractRegistry.NoRegistry(message)
 
     click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
 
@@ -411,8 +415,7 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
             ursula_config.cleanup()
             if not quiet:
                 click.secho("Ursula Stopped", fg='red')
-            else:
-                click.secho("Stopped")
+
         return
 
     elif action == "save-metadata":
