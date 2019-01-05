@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
 import os
+import time
 
 import socket
 
@@ -69,4 +70,4 @@ MOCK_IP_ADDRESS_2 = '10.10.10.10'
 
 MOCK_URSULA_DB_FILEPATH = ':memory:'
 
-MOCK_CUSTOM_INSTALLATION_PATH = '/tmp/nucypher-tmp-test-custom'
+MOCK_CUSTOM_INSTALLATION_PATH = '/tmp/nucypher-tmp-test-custom-{}'.format(time.time())

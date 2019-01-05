@@ -15,32 +15,35 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
 import pytest_twisted as pt
 import time
 from twisted.internet import threads
-from twisted.internet.error import CannotListenError
 
 from nucypher.characters.base import Learner
 from nucypher.cli.main import nucypher_cli
+from nucypher.config.node import NodeConfiguration
 from nucypher.utilities.sandbox.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_URSULA_STARTING_PORT
 
 
-@pytest.mark.skip('Results in exception "ReactorAlreadyRunning"')
 @pt.inlineCallbacks
 def test_run_lone_federated_default_development_ursula(click_runner):
-    args = ('ursula', 'run', '--rest-port', MOCK_URSULA_STARTING_PORT, '--dev')
+    args = ('ursula', 'run',
+            '--federated-only',                         # Operating Mode
+            '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
+            '--dev',                                    # Run in development mode (ephemeral node)
+            '--debug',                                  # Display log output; Do not attach console
+            '--dry-run'                                 # Disable twisted reactor
+            )
 
     result = yield threads.deferToThread(click_runner.invoke,
                                          nucypher_cli, args,
                                          catch_exceptions=False,
                                          input=INSECURE_DEVELOPMENT_PASSWORD + '\n')
 
-    alone = "WARNING - Can't learn right now: Need some nodes to start learning from."
     time.sleep(Learner._SHORT_LEARNING_DELAY)
-    assert alone in result.output
     assert result.exit_code == 0
+    assert ":memory:" in result.output
+    assert "Running Ursula on 127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT)
 
-    # Cannot start another Ursula on the same REST port
-    with pytest.raises(CannotListenError):
-        _result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False, input=INSECURE_DEVELOPMENT_PASSWORD)
+    reserved_ports = (NodeConfiguration.DEFAULT_REST_PORT, NodeConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
+    assert MOCK_URSULA_STARTING_PORT not in reserved_ports

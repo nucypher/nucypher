@@ -414,10 +414,11 @@ class Learner:
             self.learning_deferred = defer.DeferredList([seeder_deferred, learner_deferred])
             return self.learning_deferred
 
-    def stop_learning_loop(self):
+    def stop_learning_loop(self, reason=None):
         """
         Only for tests at this point.  Maybe some day for graceful shutdowns.
         """
+        self._learning_task.stop()
 
     def handle_learning_errors(self, *args, **kwargs):
         failure = args[0]

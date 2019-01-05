@@ -21,18 +21,11 @@ import json
 import os
 import secrets
 import string
-from abc import ABC, abstractmethod
+from abc import ABC
 from json import JSONDecodeError
 from tempfile import TemporaryDirectory
 
 import shutil
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
-from cryptography.x509 import Certificate
-from twisted.logger import Logger
-from typing import List
-from web3.middleware import geth_poa_middleware
-
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
     STRANGER_CONFIGURATION,
@@ -40,6 +33,13 @@ from constant_sorrow.constants import (
     LIVE_CONFIGURATION,
     NO_KEYRING_ATTACHED
 )
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
+from cryptography.x509 import Certificate
+from twisted.logger import Logger
+from typing import List
+from umbral.signing import Signature
+
 from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, USER_LOG_DIR
@@ -48,7 +48,6 @@ from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFil
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import FleetStateTracker
-from umbral.signing import Signature
 
 
 class NodeConfiguration(ABC):
@@ -82,6 +81,7 @@ class NodeConfiguration(ABC):
     # Rest + TLS
     DEFAULT_REST_HOST = '127.0.0.1'
     DEFAULT_REST_PORT = 9151
+    DEFAULT_DEVELOPMENT_REST_PORT = 10151
     __DEFAULT_TLS_CURVE = ec.SECP384R1
     __DEFAULT_NETWORK_MIDDLEWARE_CLASS = RestMiddleware
 
@@ -151,7 +151,8 @@ class NodeConfiguration(ABC):
         # REST + TLS (Ursula)
         #
         self.rest_host = rest_host or self.DEFAULT_REST_HOST
-        self.rest_port = rest_port or self.DEFAULT_REST_PORT
+        default_port = (self.DEFAULT_DEVELOPMENT_REST_PORT if dev_mode else self.DEFAULT_REST_PORT)
+        self.rest_port = rest_port or default_port
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.certificate = certificate
 
@@ -396,7 +397,9 @@ class NodeConfiguration(ABC):
 
         for field, path in filepaths.items():
             if not os.path.exists(path):
-                message = 'Missing configuration directory {}.'
+                message = 'Missing configuration file or directory: {}.'
+                if 'registry' in path:
+                    message += ' Did you mean to pass --federated-only?'                    
                 raise NodeConfiguration.InvalidConfiguration(message.format(path))
         return True
 
@@ -495,14 +498,14 @@ class NodeConfiguration(ABC):
         else:
             try:
                 os.mkdir(self.config_root, mode=0o755)
+
             except FileExistsError:
-                # Check for existing files
                 if os.listdir(self.config_root):
                     message = "There are existing files located at {}".format(self.config_root)
                     raise self.ConfigurationError(message)
+
             except FileNotFoundError:
-                message = "Cannot write configuration files because the directory {} does not exist.".format(self.config_root)
-                raise self.ConfigurationError(message)
+                os.makedirs(self.config_root, mode=0o755)
 
         #
         # Create Config Subdirectories
