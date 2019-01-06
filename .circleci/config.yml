@@ -217,7 +217,7 @@ commands:
       - checkout
       - run:
           name: Install Python Dependencies with Pipenv
-          command: pipenv install --three --dev --skip-lock --pre
+          command: pipenv install --three --dev --pre
       - run:
           name: Install Solidity Compiler (Pipenv Entrypoint)
           command: pipenv run install-solc
