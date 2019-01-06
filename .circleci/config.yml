@@ -235,6 +235,11 @@ commands:
             pipenv lock --clear --pre --dev --requirements > /tmp/pipenv-lock/dev-requirements.txt
       - store_artifacts:
           path: /tmp/pipenv-lock
+      - run:
+          name: Verify original requirements files wrt those generated with pipenv lock
+          command: |
+            diff requirements.txt /tmp/pipenv-lock/requirements.txt
+            diff dev-requirements.txt /tmp/pipenv-lock/dev-requirements.txt
 
   check_nucypher_entrypoints:
     description: "Ensure both the python API and CLI entrypoints are usable"
