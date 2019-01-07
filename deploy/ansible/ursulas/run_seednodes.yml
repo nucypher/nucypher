@@ -1,12 +1,12 @@
 - name: "Start Ursulas"
-  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
+  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') + '_ursulas' }}"
   user: ubuntu
   gather_facts: false
 
   pre_tasks:
     - name: "Install Python2.7 for Ansible Control"
       raw: sudo apt -y update && sudo apt install -y python2.7-minimal python2.7-setuptools
-    - include_vars: "{{ lookup('env', 'ANSIBLE_SEEDNODE_VARIABLES') }}"
+    - include_vars: "{{ lookup('env', 'ANSIBLE_VARIABLES') }}"
 
   tasks:
     - name: "Install System Dependencies"
@@ -15,57 +15,54 @@
       apt:
         name: "{{ packages }}"
         update_cache: yes
+        state: latest
       vars:
         packages:
-        - python-pip
-        - python3
-        - python3-pip
-        - python3-dev
-        - python3-setuptools
-        - libffi-dev
-
-    - name: "Install Pipenv"
-      become: yes
-      become_flags: "-H -S"
-      shell: pip3 install pipenv
-
-    - name: "Create custom fact directory"
-      become: yes
-      become_flags: "-H -S"
-      file:
-        path: "/etc/ansible/facts.d"
-        state: "directory"
-        mode: 0755
+          - libffi-dev
+          - python3
+          - python3-pip
+          - python3-dev
+          - python3-setuptools
+          - python3-virtualenv
+          - virtualenv
 
     - git:
         repo: "{{ git_repo }}"
         dest: ./code
         version: "{{ git_version }}"
 
-    - name: "Install Python Dependencies via Pipenv"
-      shell: "pipenv install --three --dev --pre --skip-lock"
-      args:
+    - pip:
         chdir: ./code
+        name: '.'
+        editable: true
+        virtualenv: '/home/ubuntu/venv'
+        virtualenv_python: python3.6
+        virtualenv_site_packages: true
       environment:
         LC_ALL: en_US.UTF-8
         LANG: en_US.UTF-8
 
-    - name: "Generate Ursula passphrase"
+    - name: "Check if 'ursula.config' Exists"
+      stat:
+        path: "~/.local/share/nucypher/ursula.config"
+      register: stat_result
+
+    - name: "Generate Ursula Password"
       shell: head -c 32 /dev/urandom | sha256sum | awk '{print $1}'
       register: ursula_password
+      when: stat_result.stat.exists == False
 
     - name: "Configure Ursula"
-      shell: "pipenv run nucypher configure install --rest-host {{inventory_hostname}}"
+      shell: "/home/ubuntu/venv/bin/nucypher ursula init --federated-only --rest-host {{ inventory_hostname }}"
       args:
         chdir: ./code
-      vars:
-        ansible_python_interpreter: /usr/bin/python3
       environment:
         NUCYPHER_KEYRING_PASSPHRASE: "{{ ursula_password.stdout }}"
         LC_ALL: en_US.UTF-8
         LANG: en_US.UTF-8
       ignore_errors: yes
       register: configure_ursula_output
+      when: stat_result.stat.exists == False
 
     - name: "Get Ursula Seed Node Config (and more)"
       slurp:
@@ -77,39 +74,36 @@
       set_fact:
         seed_node_metadata: "{{ ursula_seed_node_config['content'] | b64decode }}"
 
-    - name: "Get Ursula env dir"
-      shell: "pipenv --venv"
-      args:
-        chdir: ./code
-      environment:
-        LC_ALL: en_US.UTF-8
-        LANG: en_US.UTF-8
-      register: env_dir
-
-    - name: "Open Ursula node port"
+   - name: "Open Ursula node port"
       become: yes
       become_flags: "-H -S"
       shell: 'iptables -A INPUT -p tcp -m conntrack --dport {{ seed_node_metadata.rest_port }} --ctstate NEW,ESTABLISHED -j ACCEPT'
 
-    - name: "Register Firstula Service"
+    - name: "Render Lonely Node Service"
       become: yes
       become_flags: "-H -S"
       template:
-        src: ../services/firstula_node.j2
+        src: ../../services/firstula_node.j2
         dest: /etc/systemd/system/ursula_node.service
         mode: 0755
-      when: '"existing" not in configure_ursula_output.stdout'
+      vars:
+        virtualenv_path: '/home/ubuntu/venv'
+        nucypher_network_domain: "{{ lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
       run_once: true
+      when: stat_result.stat.exists == False
 
-    - name: "Register Subsequent Ursulas"
+    - name: "Render Subsequent Ursula Node Services"
       become: yes
       become_flags: "-H -S"
       template:
-        src: ../services/ursula_node.j2
+        src: ../../services/ursula_node.j2
         dest: /etc/systemd/system/ursula_node.service
         mode: 0755
+      vars:
+        virtualenv_path: '/home/ubuntu/venv'
+        nucypher_network_domain: "{{ lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
       when:
-        - '"existing" not in configure_ursula_output.stdout'
+        - stat_result.stat.exists == False
         - inventory_hostname != seed_node_metadata.rest_host
 
     - name: "Enable and Start Ursula Service"

@@ -3,11 +3,12 @@
   gather_facts: false
   user: ubuntu
   pre_tasks:
-    - include_vars: "{{ lookup('env', 'ANSIBLE_SEEDNODE_VARIABLES') }}"
+    - include_vars: "{{ lookup('env', 'ANSIBLE_VARIABLES') }}"
   vars:
     nucypher_network_name: "{{ lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
+    inventory_group: "{{ nucypher_network_name }}-{{ nucypher_role }}"
   tasks:
-    - name: "Provision {{ ec2_count }} instances on the {{ ec2_region }} region"
+    - name: "Provision {{ ec2_count }} instances on the {{ ec2_region }} region ({{ inventory_group }})"
       local_action:
         module: ec2
         key_name: "{{ ec2_keypair }}"
@@ -16,12 +17,12 @@
         image: "{{ ec2_image }}"
         vpc_subnet_id: "{{ ec2_subnet_id }}"
         region: "{{ ec2_region }}"
-        instance_tags: '{"Type":"{{ec2_instance_type}}", "Role":"{{nucypher_network_name}}"}'
+        instance_tags: '{"Type":"{{ec2_instance_type}}", "Role":"{{inventory_group}}"}'
         assign_public_ip: yes
         wait: true
         exact_count: "{{ ec2_count }}"
         count_tag:
-          Role: "{{ nucypher_network_name }}"
+          Role: "{{ inventory_group }}"
         volumes:
           - device_name: /dev/xvda
             volume_type: gp2
@@ -32,14 +33,13 @@
     - name: "Add Provisioned Servers as Hosts"
       add_host:
         name: "{{ item.public_ip }}"
-        groups: "{{ nucypher_network_name }}"
+        groups: "{{ inventory_group }}"
         ec2_region: "{{ ec2_region }}"
         ec2_tag_Type: "{{ ec2_tag_Type}}"
-        ec2_tag_Role: "{{ nucypher_network_name }}"
+        ec2_tag_Role: "{{ inventory_group }}"
         ec2_ip_address: "{{ item.public_ip }}"
       with_items: "{{ nucypher_fleet.instances }}"
 
     - name: Wait for the instances to boot by checking the ssh port
       wait_for: host={{item.public_ip}} port=22 delay=15 timeout=300 state=started
       with_items: "{{ nucypher_fleet.instances }}"
-

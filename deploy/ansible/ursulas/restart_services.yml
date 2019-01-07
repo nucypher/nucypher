@@ -1,5 +1,5 @@
 - name: "Restart Ursulas"
-  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
+  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') + '_ursulas' }}"
   user: ubuntu
   gather_facts: false
   tasks:
