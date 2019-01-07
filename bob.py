@@ -28,8 +28,8 @@ layout = html.Div([
                 html.Div([
                     html.H2('DR. BOB'),
                     html.P(
-                        "Dr. Bob is Alicia's doctor and will be granted access by Alicia to access the encrypted heart "
-                        "rate measurements database (which was populated by the Heart Monitor) and requests "
+                        "Dr. Bob is Alicia's doctor and will be granted access by Alicia to access the encrypted "
+                        "heart rate measurements database (which was populated by the Heart Monitor) and requests "
                         "a re-encrypted ciphertext for each measurement, which can then be decrypted "
                         "using the doctor's private key."),
                 ], className="row")

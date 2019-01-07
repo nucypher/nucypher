@@ -21,7 +21,7 @@ layout = html.Div([
                 html.Div([
                     html.H2('ALICIA'),
                     html.P('Alicia has a Heart Monitor device (Enrico) that measures her heart '
-                           'rate and outputs this data in encrypted form. She thinks that at some'
+                           'rate and outputs this data in encrypted form. She thinks that at some '
                            'point in the future she may want to share this data with her doctor.')
                 ], className="row")
             ], className='five columns'),
