@@ -16,8 +16,21 @@ layout = html.Div([
         html.Img(src='./assets/nucypher_logo.png'),
     ], className='banner'),
     html.Div([
-        html.H2('ENRICO'),
-        html.P("<blurb about Enrico>")
+        html.Div([
+            html.Div([
+                html.Img(src='./assets/enrico.png'),
+            ], className='two columns'),
+            html.Div([
+                html.Div([
+                    html.H2('ENRICO'),
+                    html.P("Enrico is the Heart Monitor that uses a data policy key to encrypt Alicia's "
+                           "heart rate measurements readings into a database or some storage service "
+                           "(e.g., IPFS, S3, whatever). Data Sources like the Heart Monitor remain "
+                           "completely unaware of the recipients. In their mind, they are producing data "
+                           "for Alicia. "),
+                ], className="row")
+            ], className='five columns'),
+        ], className='row'),
     ], className='app_name'),
     html.Hr(),
     html.H3('Data Policy'),

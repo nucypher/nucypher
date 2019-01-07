@@ -13,8 +13,19 @@ layout = html.Div([
         html.Img(src='./assets/nucypher_logo.png'),
     ], className='banner'),
     html.Div([
-        html.H2('ALICIA'),
-        html.P('<blurb about Alicia>')
+        html.Div([
+            html.Div([
+                html.Img(src='./assets/alicia.png'),
+            ], className='two columns'),
+            html.Div([
+                html.Div([
+                    html.H2('ALICIA'),
+                    html.P('Alicia has a Heart Monitor device (Enrico) that measures her heart '
+                           'rate and outputs this data in encrypted form. She thinks that at some'
+                           'point in the future she may want to share this data with her doctor.')
+                ], className="row")
+            ], className='five columns'),
+        ], className='row'),
     ], className='app_name'),
     html.Hr(),
     html.Div([

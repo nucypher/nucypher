@@ -13,10 +13,20 @@ body{
     border-radius: 2px;
 }
 
-.app_name H2 {
+.app_name H2{
     color: rgb(30,101,243);
     padding-top: 10px;
     display: inline-block;
+}
+
+.app_name P {
+    font-style: italic;
+}
+
+.app_name Img{
+    float: left;
+    height: 220px;
+    align: top;
 }
 
 .banner h2{

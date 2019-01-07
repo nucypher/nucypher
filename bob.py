@@ -20,9 +20,23 @@ layout = html.Div([
         html.Img(src='./assets/nucypher_logo.png'),
     ], className='banner'),
     html.Div([
-        html.H2('DR. BOB'),
-        html.P('<blurb about Dr. Bob>')
+        html.Div([
+            html.Div([
+                html.Img(src='./assets/bob.png'),
+            ], className='two columns'),
+            html.Div([
+                html.Div([
+                    html.H2('DR. BOB'),
+                    html.P(
+                        "Dr. Bob is Alicia's doctor and will be granted access by Alicia to access the encrypted heart "
+                        "rate measurements database (which was populated by the Heart Monitor) and requests "
+                        "a re-encrypted ciphertext for each measurement, which can then be decrypted "
+                        "using the doctor's private key."),
+                ], className="row")
+            ], className='five columns'),
+        ], className='row'),
     ], className='app_name'),
+    html.Hr(),
     html.Button('Generate Key Pair',
                 id='gen-key-button',
                 type='submit',
@@ -33,11 +47,11 @@ layout = html.Div([
     ], className='row'),
     html.Hr(),
     html.Div([
-        html.Button('Read Heartbeats', id='read-button', type='submit',
-                    className='button button-primary', n_clicks_timestamp='0'),
-    ], className='row'),
-    html.Div([
         html.H3('Heartbeats from Encrypted DB'),
+        html.Div([
+            html.Button('Read Heartbeats', id='read-button', type='submit',
+                        className='button button-primary', n_clicks_timestamp='0'),
+        ], className='row'),
         html.Div([
             dcc.Graph(id='heartbeats'),
         ]),
