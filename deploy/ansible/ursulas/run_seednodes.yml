@@ -74,7 +74,7 @@
       set_fact:
         seed_node_metadata: "{{ ursula_seed_node_config['content'] | b64decode }}"
 
-   - name: "Open Ursula node port"
+    - name: "Open Ursula node port"
       become: yes
       become_flags: "-H -S"
       shell: 'iptables -A INPUT -p tcp -m conntrack --dport {{ seed_node_metadata.rest_port }} --ctstate NEW,ESTABLISHED -j ACCEPT'
