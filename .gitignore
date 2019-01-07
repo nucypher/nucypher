@@ -1,0 +1,8 @@
+# ignore json files
+*.json
+
+# ignore kfrags files
+*.kfrags
+
+# ignore db data
+data

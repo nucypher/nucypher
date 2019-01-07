@@ -7,10 +7,16 @@ body{
 }
 
 .banner {
-    height: 75px;
+    height: 150px;
     margin: 0px -10px 10px;
     background-color: rgb(255, 255, 255);
     border-radius: 2px;
+}
+
+.app_name H2 {
+    color: rgb(30,101,243);
+    padding-top: 10px;
+    display: inline-block;
 }
 
 .banner h2{
@@ -21,35 +27,12 @@ body{
 }
 
 .banner Img{
-    position: relative;
-    float: right;
-    right: 10px;
-    height: 75px;
+    float: left;
+    right: 20px;
+    height: 150px;
 }
 
-.heartbeat-row .Title{
-  border-bottom: 1px solid rgb(216, 216, 216);
-}
-
-.heartbeat-row .Title h3{
-    font-size: 1.75rem;
-    color: rgb(30, 101, 243);
-    border-bottom: rgb(216, 216, 216);
-    margin-top: 3px;
-    margin-left: 10px;
-    margin-bottom: 3px;
-}
-
-.heartbeat-row {
-    border-radius: 5px;
-    border-width: 1px 1px 0px;
-    border-top-style: solid;
-    border-right-style: solid;
-    border-bottom-style: initial;
-    border-left-style: solid;
-    border-top-color: rgb(216, 216, 216);
-    border-right-color: rgb(216, 216, 216);
-    border-bottom-color: initial;
-    border-left-color: rgb(216, 216, 216);
-    border-image: initial;
+.overview Img{
+    float: left;
+    height: 500px;
 }
