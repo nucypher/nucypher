@@ -71,7 +71,7 @@ def update_cached_decrypted_heartbeats_list(read_time, json_hb_values):
         last_timestamp = list(cached_hb_values.keys())[-1]
 
     db_conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query('SELECT Timestamp, HR, Capsule '
+    df = pd.read_sql_query('SELECT Timestamp, HB, Capsule '
                            'FROM HeartRates '
                            'WHERE Timestamp > "{}" '
                            'ORDER BY Timestamp;'
@@ -85,7 +85,7 @@ def update_cached_decrypted_heartbeats_list(read_time, json_hb_values):
             continue
 
         capsule = pre.Capsule.from_bytes(bytes.fromhex(row['Capsule']), params=config.default_params())
-        hb_ciphertext = bytes.fromhex(row['HR'])
+        hb_ciphertext = bytes.fromhex(row['HB'])
 
         alicia_pubkeys = demo_keys.get_alicia_pubkeys()
         bob_pubkeys = demo_keys.get_doctor_pubkeys()
@@ -128,10 +128,10 @@ def update_graph(json_hb_values):
     if len(cached_hb_values) == 0:
         return Figure(data=[])
 
-    df = pd.DataFrame({'HR': list(cached_hb_values.values())})
+    df = pd.DataFrame({'HB': list(cached_hb_values.values())})
 
     trace = Scatter(
-        y=df['HR'],
+        y=df['HB'],
         line=Line(
             color='#1E65F3'
         ),

@@ -24,14 +24,18 @@ layout = html.Div([
     html.Div([
         html.Div('Policy Key (hex): ', className='two columns'),
         dcc.Input(id='policy-pub-key', type='text', className='seven columns'),
-        html.Button('Generate Encrypted Heartbeats', id='generate-button', type='submit',
+        html.Button('Start Monitoring', id='generate-button', type='submit',
                     className="button button-primary", n_clicks_timestamp='0'),
-        html.Div(id='cached-last-heartbeat', style={'display': 'none'}),
         dcc.Interval(id='gen-heartbeat-update', interval=1000, n_intervals=0),
     ], className='row'),
     html.Hr(),
     html.Div([
         html.H3('Encrypted Heartbeat Data in Database ❤'),
+        html.Div([
+            html.Div('Latest Heartbeat (❤ bpm): ', className='two columns'),
+            html.Div(id='cached-last-heartbeat', className='one column'),
+        ], className='row'),
+        html.Br(),
         html.Div(id='db-table-content'),
     ], className='row'),
 ])
@@ -65,11 +69,11 @@ def generate_heartbeat_data(gen_time, policy_pubkey_hex, last_heart_rate):
     timestamp = time.time()
     df = pd.DataFrame.from_dict({
         'Timestamp': [timestamp],
-        'HR': [ciphertext.hex()],
+        'HB': [ciphertext.hex()],
         'Capsule': [capsule.to_bytes().hex()]
     })
 
-    # generate new heartbeat data
+    # add new heartbeat data
     db_conn = sqlite3.connect(DB_FILE)
     df.to_sql(name='HeartRates', con=db_conn, index=False, if_exists='append')
     print("Added heart rate️ measurement to db:", timestamp, "-> ❤", heart_rate)
@@ -89,7 +93,7 @@ def display_heartbeat_data(cached_last_heartbeat):
     now = time.time()
     duration = 30  # last 30s of readings
     db_conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query('SELECT Timestamp, HR, Capsule '
+    df = pd.read_sql_query('SELECT Timestamp, HB, Capsule '
                            'FROM HeartRates '
                            'WHERE Timestamp > "{}" AND Timestamp <= "{}" '
                            'ORDER BY Timestamp DESC;'
