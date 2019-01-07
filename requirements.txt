@@ -7,8 +7,8 @@ attrdict==2.0.0
 attrs==18.2.0
 autobahn==18.12.1
 automat==0.7.0
-boto3==1.9.73
-botocore==1.12.73
+boto3==1.9.74
+botocore==1.12.74
 bytestring-splitter==1.0.0a4
 certifi==2018.11.29
 cffi==1.11.5
