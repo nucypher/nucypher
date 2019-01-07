@@ -35,7 +35,7 @@ boto3 = "*"
 
 [dev-packages]
 # Pytest
-pytest = "*"
+pytest = "==4.0.2"
 pytest-xdist = "*"
 pytest-mypy = "*"
 pytest-twisted = "*"
