@@ -15,6 +15,8 @@ You should have received a copy of the GNU General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from typing import Any
+from eth_keys import KeyAPI as EthKeyAPI
+from umbral.keys import UmbralPublicKey
 
 from nucypher.crypto.api import keccak_digest
 
@@ -25,3 +27,10 @@ def fingerprint_from_key(public_key: Any):
     :return: Hexdigest fingerprint of key (keccak-256) in bytes
     """
     return keccak_digest(bytes(public_key)).hex().encode()
+
+
+def canonical_address_from_umbral_key(public_key: UmbralPublicKey) -> bytes:
+    pubkey_raw_bytes = public_key.to_bytes(is_compressed=False)[1:]
+    eth_pubkey = EthKeyAPI.PublicKey(pubkey_raw_bytes)
+    canonical_address = eth_pubkey.to_canonical_address()
+    return canonical_address
