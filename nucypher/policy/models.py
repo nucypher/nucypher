@@ -651,7 +651,7 @@ class Revocation:
         return True
 
 
-class UnquestionableEvidence:
+class IndisputableEvidence:
 
     def __init__(self, capsule: Capsule, cfrag: CapsuleFrag, ursula) -> None:
         self.capsule = capsule
