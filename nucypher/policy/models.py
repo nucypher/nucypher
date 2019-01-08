@@ -23,6 +23,8 @@ import msgpack
 import uuid
 from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NOT_SIGNED
+from cryptography.hazmat.backends.openssl import backend
+from cryptography.hazmat.primitives import hashes
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import Generator, List, Set, Optional
 
@@ -41,6 +43,7 @@ from nucypher.crypto.kits import UmbralMessageKit, RevocationKit
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.crypto.signing import Signature, InvalidSignature
 from nucypher.crypto.splitters import key_splitter
+from nucypher.crypto.utils import canonical_address_from_umbral_key
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware, NotFound
 
@@ -811,11 +814,12 @@ class IndisputableEvidence:
         uz = z * u
 
         def raw_bytes_from_point(point: Point, only_y_coord=False) -> bytes:
+            uncompressed_point_bytes = point.to_bytes(is_compressed=False)
             if only_y_coord:
                 y_coord_start = (1 + Point.expected_bytes_length(is_compressed=False)) // 2
-                return point.to_bytes(is_compressed=False)[y_coord_start:]
+                return uncompressed_point_bytes[y_coord_start:]
             else:
-                return point.to_bytes(is_compressed=False)[1:]
+                return uncompressed_point_bytes[1:]
 
         # E points
         e_y = raw_bytes_from_point(e, only_y_coord=True)
@@ -835,9 +839,28 @@ class IndisputableEvidence:
         u1h_xy = raw_bytes_from_point(u1h)
         u2_y = raw_bytes_from_point(u2, only_y_coord=True)
 
+        # Get hashed KFrag validity message
+        hash_function = hashes.Hash(hashes.SHA256(), backend=backend)
+
+        kfrag_id = self.cfrag.kfrag_id
+        precursor = self.cfrag.point_precursor
+        delegating_pubkey = self.delegating_pubkey
+        receiving_pubkey = self.receiving_pubkey
+
+        validity_input = (kfrag_id, delegating_pubkey, receiving_pubkey, u1, precursor)
+        kfrag_validity_message = bytes().join(bytes(item) for item in validity_input)
+        hash_function.update(kfrag_validity_message)
+        hashed_kfrag_validity_message = hash_function.finalize()
+
+        # Get Alice's verifying pubkey as ETH address
+        alice_address = canonical_address_from_umbral_key(self.verifying_pubkey)
+
+        # Bundle everything together
         pieces = (
             e_y, ez_xy, e1_y, e1h_xy, e2_y,
             v_y, vz_xy, v1_y, v1h_xy, v2_y,
             uz_xy, u1_y, u1h_xy, u2_y,
+            hashed_kfrag_validity_message,
+            alice_address,
         )
         return b''.join(pieces)

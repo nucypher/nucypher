@@ -142,7 +142,7 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
 
     evidence_data = evidence.precompute_values()
-    assert len(evidence_data) == 20 * 32
+    assert len(evidence_data) == 20 * 32 + 32 + 20
 
     proof_signature = int(evidence.get_proof_challenge_scalar())
     assert proof_signature == \
@@ -173,6 +173,7 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
             miner_umbral_public_key_bytes,
             signed_miner_umbral_public_key,
             evidence_data)
+
     value = escrow.functions.minerInfo(miner).call()[0]
     tx = adjudicator_contract.functions.evaluateCFrag(*args).transact({'from': investigator})
     testerchain.wait_for_receipt(tx)
