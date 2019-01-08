@@ -446,8 +446,8 @@ class Bob(Character):
         return cleartexts
 
     def collect_evidence(self, capsule, cfrag, ursula):
-        from nucypher.policy.models import UnquestionableEvidence
-        return UnquestionableEvidence(capsule, cfrag, ursula)
+        from nucypher.policy.models import IndisputableEvidence
+        return IndisputableEvidence(capsule, cfrag, ursula)
 
 
 class Ursula(Teacher, Character, Miner):

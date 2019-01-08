@@ -32,7 +32,7 @@ from umbral.keys import UmbralPrivateKey
 from umbral.random_oracles import hash_to_curvebn, ExtendedKeccak
 from umbral.signing import Signature, Signer
 
-from nucypher.policy.models import UnquestionableEvidence
+from nucypher.policy.models import IndisputableEvidence
 
 
 def sign_data(data, umbral_privkey):
@@ -125,7 +125,7 @@ def test_evaluate_cfrag(testerchain, escrow, adjudicator_contract):
     cfrag_bytes = cfrag.to_bytes()
 
     # Bob prepares supporting Evidence
-    evidence = UnquestionableEvidence(capsule, cfrag, ursula=None)
+    evidence = IndisputableEvidence(capsule, cfrag, ursula=None)
 
     some_data = evidence.precompute_values()
     assert len(some_data) == 20 * 32
