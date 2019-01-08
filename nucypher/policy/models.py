@@ -528,13 +528,13 @@ class WorkOrder:
             super().__init__("This doesn't appear to be from Bob.")
 
     def __init__(self,
-                 bob,
+                 bob: Bob,
                  arrangement_id,
-                 capsules,
-                 capsule_signatures,
-                 alice_address,
-                 alice_address_signature,
-                 receipt_bytes,
+                 capsules: List[Capsule],
+                 capsule_signatures: List[Signature],
+                 alice_address: bytes,
+                 alice_address_signature: bytes,
+                 receipt_bytes: bytes,
                  receipt_signature,
                  ursula=None,
                  ) -> None:
@@ -624,7 +624,7 @@ class WorkOrder:
             (self.receipt_bytes,
              msgpack.dumps(capsules_as_bytes),
              msgpack.dumps(capsule_signatures_as_bytes),
-             self.alice_address,  # TODO: if Ursula computes ETH address, we can remove this
+             self.alice_address,
              self.alice_address_signature,
              )
         )
