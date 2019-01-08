@@ -25,7 +25,7 @@ from bytestring_splitter import BytestringSplitter, VariableLengthBytestring
 from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NOT_SIGNED
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import Generator, List, Set, Optional
-from eth_keys import KeyAPI as EthKeyAPI
+
 from umbral.config import default_params
 from umbral.kfrags import KFrag
 from umbral.cfrags import CapsuleFrag
@@ -571,9 +571,7 @@ class WorkOrder:
             capsules_bytes.append(capsule_bytes)
             capsule_signatures.append(bob.stamp(capsule_bytes))
 
-        pubkey_raw_bytes = alice_verifying_key.to_bytes(is_compressed=False)[1:]
-        verifying_key_as_eth_key = EthKeyAPI.PublicKey(pubkey_raw_bytes)
-        alice_address = verifying_key_as_eth_key.to_canonical_address()
+        alice_address = canonical_address_from_umbral_key(alice_verifying_key)
         alice_address_signature = bytes(bob.stamp(alice_address))
 
         receipt_bytes = b"wo:" + ursula.canonical_public_address
