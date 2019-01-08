@@ -56,6 +56,8 @@ library UmbralDeserializer {
         uint256 pointU1HxCoord;
         uint256 pointU1HyCoord;
         uint256 pointU2yCoord;
+        bytes32 hashedKFragValidityMessage;
+        address alicesKeyAsAddress;
     }
 
     uint256 constant BIGNUM_SIZE = 32;
@@ -65,7 +67,7 @@ library UmbralDeserializer {
     uint256 constant CORRECTNESS_PROOF_SIZE = 4 * POINT_SIZE + BIGNUM_SIZE + SIGNATURE_SIZE;
     uint256 constant CAPSULE_FRAG_SIZE = 3 * POINT_SIZE + BIGNUM_SIZE;
     uint256 constant FULL_CAPSULE_FRAG_SIZE = CAPSULE_FRAG_SIZE + CORRECTNESS_PROOF_SIZE;
-    uint256 constant PRECOMPUTED_DATA_SIZE = 20 * BIGNUM_SIZE;
+    uint256 constant PRECOMPUTED_DATA_SIZE = (20 * BIGNUM_SIZE) + 32 + 20;
 
     /**
     * @notice Deserialize to capsule (not activated)
@@ -202,6 +204,14 @@ library UmbralDeserializer {
         pointer += BIGNUM_SIZE;
 
         data.pointU2yCoord = uint256(getBytes32(pointer));
+        pointer += BIGNUM_SIZE;
+
+        data.hashedKFragValidityMessage = getBytes32(pointer);
+        pointer += 32;
+
+        data.alicesKeyAsAddress = address(bytes20(getBytes32(pointer)));
+        pointer += 20;
+
     }
 
     // TODO extract to external library if needed
