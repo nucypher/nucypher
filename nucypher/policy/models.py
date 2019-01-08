@@ -26,12 +26,13 @@ from constant_sorrow.constants import UNKNOWN_KFRAG, NO_DECRYPTION_PERFORMED, NO
 from eth_utils import to_canonical_address, to_checksum_address
 from typing import Generator, List, Set, Optional
 
-from umbral.config import default_params
-from umbral.kfrags import KFrag
 from umbral.cfrags import CapsuleFrag
-from umbral.pre import Capsule
-from umbral.point import Point
+from umbral.config import default_params
 from umbral.curvebn import CurveBN
+from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
+from umbral.point import Point
+from umbral.pre import Capsule
 
 from nucypher.characters.lawful import Alice, Bob, Ursula, Character
 from nucypher.crypto.api import keccak_digest, encrypt_and_sign, secure_random
@@ -736,10 +737,32 @@ class Revocation:
 
 class IndisputableEvidence:
 
-    def __init__(self, capsule: Capsule, cfrag: CapsuleFrag, ursula) -> None:
+    def __init__(self,
+                 capsule: Capsule,
+                 cfrag: CapsuleFrag,
+                 ursula,
+                 delegating_pubkey: UmbralPublicKey = None,
+                 receiving_pubkey: UmbralPublicKey = None,
+                 verifying_pubkey: UmbralPublicKey = None,
+                 ) -> None:
         self.capsule = capsule
         self.cfrag = cfrag
         self.ursula = ursula
+
+        keys = capsule.get_correctness_keys()
+        key_types = ("delegating", "receiving", "verifying")
+        if all(keys[key_type] for key_type in key_types):
+            self.delegating_pubkey = keys["delegating"]
+            self.receiving_pubkey = keys["receiving"]
+            self.verifying_pubkey = keys["verifying"]
+        elif all((delegating_pubkey, receiving_pubkey, verifying_pubkey)):
+            self.delegating_pubkey = delegating_pubkey
+            self.receiving_pubkey = receiving_pubkey
+            self.verifying_pubkey = verifying_pubkey
+        else:
+            raise ValueError("All correctness keys are required to compute evidence.  "
+                             "Either pass them as arguments or in the capsule.")
+
 
     def get_proof_challenge_scalar(self) -> CurveBN:
         umbral_params = default_params()
