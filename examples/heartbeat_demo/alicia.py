@@ -57,14 +57,6 @@ except:  # If anything fails, let's create Alicia from scratch
                                              federated_only=True,
                                              minimum_stake=0)
 
-    # Let's create an Alice from a Configuration.
-    # This requires creating a local storage for her first.
-    node_storage = LocalFileBasedNodeStorage(
-        federated_only=True,
-        character_class=Ursula,  # Alice needs to store some info about Ursula
-        metadata_dir=os.path.join(TEMP_ALICE_DIR, "known_metadata"),
-    )
-
     alice_config = AliceConfiguration(
         config_root=os.path.join(TEMP_ALICE_DIR, "config_root"),
         node_storage=node_storage,
