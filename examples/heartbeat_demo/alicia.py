@@ -65,9 +65,7 @@ except:  # If anything fails, let's create Alicia from scratch
         federated_only=True,
         learn_on_same_thread=True,
     )
-    alicia = alice_config(passphrase=passphrase,
-                          known_certificates_dir=TEMP_URSULA_CERTIFICATE_DIR,
-                          )
+    alicia = alice_config.produce()
 
     # We will save Alicia's config to a file for later use
     alice_config_file = alice_config.to_configuration_file()
