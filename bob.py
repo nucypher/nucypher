@@ -56,7 +56,7 @@ layout = html.Div([
             dcc.Graph(id='heartbeats'),
         ]),
         dcc.Interval(id='heartbeat-update', interval=1000, n_intervals=0),
-    ], className='row heartbeat-row'),
+    ], className='row'),
     # Hidden div inside the app that stores previously decrypted heartbeats
     html.Div(id='latest-decrypted-heartbeats', style={'display': 'none'})
 ])
