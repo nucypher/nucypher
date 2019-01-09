@@ -668,7 +668,7 @@ class Ursula(Teacher, Character, Miner):
         node from bytes; instead it's just enough to connect to and verify a node.
         """
 
-        return cls.from_seed_and_stake_info(checksum_public_address=seednode_metadata.checksum_public_address,
+        return cls.from_seed_and_stake_info(checksum_address=seednode_metadata.checksum_public_address,
                                             seed_uri='{}:{}'.format(seednode_metadata.rest_host, seednode_metadata.rest_port),
                                             *args, **kwargs)
 
@@ -688,7 +688,7 @@ class Ursula(Teacher, Character, Miner):
             try:
                 teacher = cls.from_seed_and_stake_info(seed_uri='{host}:{port}'.format(host=hostname, port=port),
                                                        federated_only=federated_only,
-                                                       checksum_public_address=checksum_address,
+                                                       checksum_address=checksum_address,
                                                        minimum_stake=min_stake)
 
             except (socket.gaierror, requests.exceptions.ConnectionError, ConnectionRefusedError):
@@ -707,7 +707,7 @@ class Ursula(Teacher, Character, Miner):
                                  seed_uri: str,
                                  federated_only: bool,
                                  minimum_stake: int = 0,
-                                 checksum_public_address: str = None,
+                                 checksum_address: str = None,
                                  network_middleware: RestMiddleware = None,
                                  *args,
                                  **kwargs
@@ -739,7 +739,7 @@ class Ursula(Teacher, Character, Miner):
             *args,
             **kwargs)  # TODO: 466
 
-        if checksum_public_address:
+        if checksum_address:
             # Ensure this is the specific node we expected
             if not checksum_public_address == potential_seed_node.checksum_public_address:
                 template = "This seed node has a different wallet address: {} (expected {}).  Are you sure this is a seednode?"
