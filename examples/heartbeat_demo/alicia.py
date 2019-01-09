@@ -59,10 +59,6 @@ except:  # If anything fails, let's create Alicia from scratch
 
     alice_config = AliceConfiguration(
         config_root=os.path.join(TEMP_ALICE_DIR, "config_root"),
-        node_storage=node_storage,
-        auto_initialize=True,
-        auto_generate_keys=True,
-        passphrase=passphrase,
         is_me=True,
         known_nodes={ursula},
         start_learning_now=False,
