@@ -699,10 +699,19 @@ class Learner:
             if GLOBAL_DOMAIN not in self.learning_domains:
                 if not self.learning_domains.intersection(node.serving_domains):
                     continue  # This node is not serving any of our domains.
+
+            # First, determine if this is an outdated representation of an already known node.
+            with suppress(KeyError):
+                already_known_node = self.known_nodes[node.checksum_public_address]
+                if not node.timestamp > already_known_node.timestamp:
+                    self.log.debug("Skipping already known node {}".format(already_known_node))
+                    # This node is already known.  We can safely continue to the next.
+                    continue
+
+            certificate_filepath = self.node_storage.store_node_certificate(checksum_address=node.checksum_public_address, certificate=node.certificate)
+
             try:
                 if eager:
-                    certificate_filepath = self.node_storage.generate_certificate_filepath(
-                        checksum_address=current_teacher.checksum_public_address)
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
                                      certificate_filepath=certificate_filepath)
