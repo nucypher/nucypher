@@ -1,0 +1,4 @@
+#Arguments to solc
+solcArgs: zeppelin=/nucypher/zeppelin contracts=/nucypher/contracts --allow-paths /nucypher/zeppelin,/nucypher/contracts
+#Test Prefix
+prefix: echidna
