@@ -38,7 +38,7 @@ def generate_heart_rate_samples(policy_pubkey,
         }
 
         plaintext = msgpack.dumps(heart_rate_data, use_bin_type=True)
-        message_kit, _signature = data_source.encapsulate_single_message(plaintext)
+        message_kit, _signature = data_source.encrypt_message(plaintext)
 
         kit_bytes = message_kit.to_bytes()
         kits.append(kit_bytes)
