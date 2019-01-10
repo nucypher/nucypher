@@ -213,16 +213,11 @@ class ForgetfulNodeStorage(NodeStorage):
 
     @validate_checksum_address
     def generate_certificate_filepath(self,
-                                      checksum_address: str = None,
-                                      host: str = None) -> str:
+                                      checksum_address: str = None) -> str:
 
-        if not bool(checksum_address) ^ bool(host):
-            message = "Either pass checksum_address or host; Not both. Got ({} {})".format(checksum_address, host)
-            raise ValueError(message)
-
-        prefix = '{}{}-'.format(self.__base_prefix, checksum_address or host)
+        prefix = '{}{}-'.format(self.__base_prefix, checksum_address)
         temp_file = tempfile.NamedTemporaryFile(prefix=prefix, suffix=self.TLS_CERTIFICATE_EXTENSION, delete=False)
-        certificate = self.__certificates[checksum_address or host]
+        certificate = self.__certificates[checksum_address]
         certificate_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
         temp_file.write(certificate_bytes)
 
