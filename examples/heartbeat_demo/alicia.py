@@ -65,6 +65,8 @@ except:  # If anything fails, let's create Alicia from scratch
         federated_only=True,
         learn_on_same_thread=True,
     )
+    alice_config.initialize(password=passphrase)
+    alice_config.keyring.unlock(password=passphrase)
     alicia = alice_config.produce()
 
     # We will save Alicia's config to a file for later use
@@ -103,7 +105,7 @@ from doctor_keys import get_doctor_pubkeys
 doctor_pubkeys = get_doctor_pubkeys()
 
 powers_and_material = {
-    EncryptingPower: doctor_pubkeys['enc'],
+    DecryptingPower: doctor_pubkeys['enc'],
     SigningPower: doctor_pubkeys['sig']
 }
 
