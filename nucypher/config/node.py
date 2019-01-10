@@ -48,6 +48,7 @@ from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFil
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import FleetStateTracker
+from nucypher.network.server import TLSHostingPower
 
 
 class NodeConfiguration(ABC):
