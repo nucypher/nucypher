@@ -232,8 +232,8 @@ def _generate_wallet(password: str) -> Tuple[str, dict]:
     return account.address, encrypted_wallet_data
 
 
-def _generate_tls_keys(host: str, curve: EllipticCurve) -> Tuple[_EllipticCurvePrivateKey, Certificate]:
-    cert, private_key = generate_self_signed_certificate(host, curve)
+def _generate_tls_keys(host: str, checksum_address: str, curve: EllipticCurve) -> Tuple[_EllipticCurvePrivateKey, Certificate]:
+    cert, private_key = generate_self_signed_certificate(host=host, curve=curve, checksum_address=checksum_address)
     return private_key, cert
 
 
