@@ -383,6 +383,7 @@ class Learner:
             raise RuntimeError
 
         if self.save_metadata:
+            node.certificate_filepath = certificate_filepath
             self.node_storage.store_node_metadata(node=node)
 
         self.log.info("Remembering {}, popping {} listeners.".format(node.checksum_public_address, len(listeners)))
