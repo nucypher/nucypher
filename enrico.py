@@ -9,7 +9,7 @@ import time
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 
-from app import app, DB_FILE
+from app import app, DB_FILE, TABLE_NAME
 
 layout = html.Div([
     html.Div([
@@ -88,7 +88,7 @@ def generate_heartbeat_data(gen_time, policy_pubkey_hex, last_heart_rate):
 
     # add new heartbeat data
     db_conn = sqlite3.connect(DB_FILE)
-    df.to_sql(name='HeartRates', con=db_conn, index=False, if_exists='append')
+    df.to_sql(name=TABLE_NAME, con=db_conn, index=False, if_exists='append')
     print("Added heart rate️ measurement to db:", timestamp, "-> ❤", heart_rate)
 
     return heart_rate
@@ -107,10 +107,10 @@ def display_heartbeat_data(cached_last_heartbeat):
     duration = 30  # last 30s of readings
     db_conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query('SELECT Timestamp, HB, Capsule '
-                           'FROM HeartRates '
+                           'FROM {} '
                            'WHERE Timestamp > "{}" AND Timestamp <= "{}" '
                            'ORDER BY Timestamp DESC;'
-                           .format(now - duration, now), db_conn)
+                           .format(TABLE_NAME, now - duration, now), db_conn)
     rows = df.to_dict('rows')
 
     return html.Div([

@@ -13,7 +13,7 @@ import sqlite3
 import time
 from umbral import pre, config
 
-from app import app, DB_FILE
+from app import app, DB_FILE, TABLE_NAME
 
 layout = html.Div([
     html.Div([
@@ -86,10 +86,10 @@ def update_cached_decrypted_heartbeats_list(read_time, json_hb_values):
 
     db_conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query('SELECT Timestamp, HB, Capsule '
-                           'FROM HeartRates '
+                           'FROM {} '
                            'WHERE Timestamp > "{}" '
                            'ORDER BY Timestamp;'
-                           .format(last_timestamp), db_conn)
+                           .format(TABLE_NAME, last_timestamp), db_conn)
 
     for index, row in df.iterrows():
         timestamp = row['Timestamp']

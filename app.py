@@ -13,3 +13,4 @@ shutil.rmtree('./data', ignore_errors=True)
 os.mkdir("./data")
 
 DB_FILE = './data/heartbeats.db'
+TABLE_NAME = 'HeartBeat'

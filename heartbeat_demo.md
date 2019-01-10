@@ -1,10 +1,10 @@
 # NuCypher's Heartbeat Demo
 
-![Heartbeat Demo](https://user-images.githubusercontent.com/2564234/49080419-dda35680-f243-11e8-90d7-6f649d80e03d.png)
+![Heartbeat Demo](./assets/demo_overview.png)
 
-Alicia has a Heart Monitor device that measures her heart rate and outputs this data in encrypted form. Since she thinks that she may want to share this data in the future, she uses NuCypher to create a _policy public key_ for the Heart Monitor to use, so she can read and delegate access to the encrypted data as she sees fit. The Heart Monitor uses this public key to produce a file with some amount of encrypted heart rate measurements; this file is uploaded to some storage service (e.g., IPFS, S3, whatever). 
+Alicia has a Heart Monitor device that measures her heart rate and outputs this data in encrypted form. Since she thinks that she may want to share this data in the future, she uses NuCypher to create a _policy public key_ for the Heart Monitor to use, so she can read and delegate access to the encrypted data as she sees fit. The Heart Monitor uses this public key to produce a database with some amount of encrypted heart rate measurements; this database can be located on some storage service (e.g., IPFS, S3, whatever). 
 
-At some moment, she wants to share this information with other people, such as her Doctor. Once she obtains her Doctor's public keys, she can create a policy in the NuCypher network granting access to him. After this, her Doctor can read the file with encrypted data (which was uploaded by the Heart Monitor) and request a re-encrypted ciphertext for each measurement, which can be opened with the Doctor's private key.
+At some moment, she wants to share this information with other people, such as her Doctor. Once she obtains her Doctor's public keys, she can create a policy in the NuCypher network granting access to him. After this, her Doctor can read the encrypted database (which was populated by the Heart Monitor) and request a re-encrypted ciphertext for each measurement, which can be opened with the Doctor's private key.
 
 This simple use case showcases many interesting and distinctive aspects of NuCypher:
   - Alicia can create policy public keys **before knowing** who can be the potential consumers.
