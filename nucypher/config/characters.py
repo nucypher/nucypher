@@ -23,6 +23,8 @@ from constant_sorrow.constants import (
 )
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.node import NodeConfiguration
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
+from nucypher.config.keyring import NucypherKeyring
 
 
 class UrsulaConfiguration(NodeConfiguration):
@@ -94,6 +96,25 @@ class UrsulaConfiguration(NodeConfiguration):
         ursula_config = cls(dev_mode=False, is_me=True, *args, **kwargs)
         ursula_config.__write(password=password, no_registry=no_registry)
         return ursula_config
+
+    def write_keyring(self,
+                      host: str,
+                      password: str,
+                      checksum_address: str,
+                      encrypting: bool = True,
+                      wallet: bool = False,
+                      rest: bool = True,
+                      tls_curve: EllipticCurve = None,
+                      ) -> NucypherKeyring:
+
+        self.keyring = NucypherKeyring.generate(password=password,
+                                                encrypting=encrypting,
+                                                wallet=wallet,
+                                                rest=rest,
+                                                host=host,
+                                                checksum_address=checksum_address,
+                                                curve=tls_curve,
+                                                keyring_root=self.keyring_dir)
 
 
 class AliceConfiguration(NodeConfiguration):

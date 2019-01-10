@@ -518,8 +518,9 @@ class NucypherKeyring:
                  password: str,
                  encrypting: bool = True,
                  wallet: bool = True,
-                 tls: bool = True,
+                 rest: bool = False,
                  host: str = None,
+                 checksum_address: str = None,
                  curve: EllipticCurve = None,
                  keyring_root: str = None,
                  ) -> 'NucypherKeyring':
@@ -533,7 +534,7 @@ class NucypherKeyring:
         if failures:
             raise cls.AuthenticationFailed(", ".join(failures))  # TODO: Ensure this scope is seperable from the scope containing the password
 
-        if not any((wallet, encrypting, tls)):
+        if not any((wallet, encrypting, rest)):
             raise ValueError('Either "encrypting", "wallet", or "tls" must be True '
                              'to generate new keys, or set "no_keys" to True to skip generation.')
 
@@ -625,10 +626,10 @@ class NucypherKeyring:
                 delegating_key_path=delegating_key_path,
             )
 
-        if tls is True:
-            if not all((host, curve)):
-                raise ValueError("Host and curve are required to make a new keyring TLS certificate. Got {}, {}".format(host, curve))
-            private_key, cert = _generate_tls_keys(host, curve)
+        if rest is True:
+            if not all((host, curve, checksum_address)):
+                raise ValueError("host, checksum_address and curve are required to make a new keyring TLS certificate. Got {}, {}".format(host, curve))
+            private_key, cert = _generate_tls_keys(host=host, checksum_address=checksum_address, curve=curve)
 
             def __serialize_pem(pk):
                 return pk.private_bytes(
