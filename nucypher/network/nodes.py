@@ -900,6 +900,7 @@ class Teacher:
         self.validate_metadata(accept_federated_only)  # This is both the stamp and interface check.
 
         if not certificate_filepath:
+
             if not self.certificate_filepath:
                 raise TypeError("We haven't saved a certificate for this node yet.")
             else:

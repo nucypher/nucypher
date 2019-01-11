@@ -98,21 +98,20 @@ class UrsulaConfiguration(NodeConfiguration):
         return ursula_config
 
     def write_keyring(self,
-                      host: str,
                       password: str,
-                      checksum_address: str,
                       encrypting: bool = True,
-                      wallet: bool = False,
-                      rest: bool = True,
-                      tls_curve: EllipticCurve = None,
+                      wallet: bool = True,
                       ) -> NucypherKeyring:
+
+        host = self.rest_host
+        tls_curve = self.tls_curve
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 encrypting=encrypting,
                                                 wallet=wallet,
-                                                rest=rest,
+                                                rest=True,
                                                 host=host,
-                                                checksum_address=checksum_address,
+                                                # checksum_address=checksum_address,  # TODO: Do we actually want to allow passing this?  Or force the use of the new address that comes from the wallet being created?
                                                 curve=tls_curve,
                                                 keyring_root=self.keyring_dir)
 
