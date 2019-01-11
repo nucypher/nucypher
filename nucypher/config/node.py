@@ -26,6 +26,7 @@ from json import JSONDecodeError
 from tempfile import TemporaryDirectory
 
 import shutil
+from constant_sorrow.constants import GLOBAL_DOMAIN
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
     STRANGER_CONFIGURATION,
@@ -37,7 +38,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 from twisted.logger import Logger
-from typing import List
+from typing import List, Set
 from umbral.signing import Signature
 
 from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherTokenAgent
@@ -48,7 +49,6 @@ from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFil
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import FleetStateTracker
-from nucypher.network.server import TLSHostingPower
 
 
 class NodeConfiguration(ABC):
@@ -64,10 +64,13 @@ class NodeConfiguration(ABC):
 
     # Mode
     DEFAULT_OPERATING_MODE = 'decentralized'
+    DEFAULT_DOMAIN = GLOBAL_DOMAIN
+
+    # Serializers
     NODE_SERIALIZER = binascii.hexlify
     NODE_DESERIALIZER = binascii.unhexlify
 
-    # Configuration
+    # System
     __CONFIG_FILE_EXT = '.config'
     __CONFIG_FILE_DESERIALIZER = json.loads
     TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
@@ -125,6 +128,7 @@ class NodeConfiguration(ABC):
                  certificate: Certificate = None,
 
                  # Network
+                 domains: Set[str] = None,
                  interface_signature: Signature = None,
                  network_middleware: RestMiddleware = None,
 
@@ -197,6 +201,10 @@ class NodeConfiguration(ABC):
             self._cache_runtime_filepaths()
             self.node_storage = node_storage or LocalFileBasedNodeStorage(federated_only=federated_only,
                                                                           config_root=self.config_root)
+
+        # Domains
+        self.domains = domains or {self.DEFAULT_DOMAIN}
+
         #
         # Identity
         #
@@ -353,7 +361,6 @@ class NodeConfiguration(ABC):
         # Read from disk
         payload = cls._read_configuration_file(filepath=filepath)
 
-        # TODO: Move to NodeStorage?
         # Initialize NodeStorage subclass from file (sub-configuration)
         storage_payload = payload['node_storage']
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
@@ -364,10 +371,14 @@ class NodeConfiguration(ABC):
                                                   serializer=cls.NODE_SERIALIZER,
                                                   deserializer=cls.NODE_DESERIALIZER)
 
-        payload.update(dict(node_storage=node_storage))
+        payload.update(dict(node_storage=node_storage, domains=set(payload['domains'])))
+
+        # Filter out Nones from overrides to detect, well, overrides
+        overrides = {k: v for k, v in overrides.items() if v is not None}
 
         # Instantiate from merged params
         node_configuration = cls(**{**payload, **overrides})
+
         return node_configuration
 
     def to_configuration_file(self, filepath: str = None) -> str:
@@ -379,8 +390,11 @@ class NodeConfiguration(ABC):
         payload = self.static_payload
         del payload['is_me']  # TODO
 
+        # Serialize domains
+        domains = list(str(d) for d in self.domains)
+
         # Save node connection data
-        payload.update(dict(node_storage=self.node_storage.payload()))
+        payload.update(dict(node_storage=self.node_storage.payload(), domains=domains))
 
         with open(filepath, 'w') as config_file:
             config_file.write(json.dumps(payload, indent=4))
@@ -417,6 +431,7 @@ class NodeConfiguration(ABC):
             keyring_dir=self.keyring_dir,
 
             # Behavior
+            domains=self.domains,  # From Set
             learn_on_same_thread=self.learn_on_same_thread,
             abort_on_learning_error=self.abort_on_learning_error,
             start_learning_now=self.start_learning_now,
