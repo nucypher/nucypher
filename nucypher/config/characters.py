@@ -101,19 +101,17 @@ class UrsulaConfiguration(NodeConfiguration):
                       password: str,
                       encrypting: bool = True,
                       wallet: bool = True,
+                      **generation_kwargs,
                       ) -> NucypherKeyring:
 
-        host = self.rest_host
-        tls_curve = self.tls_curve
+        generation_kwargs["rest"] = True
+        generation_kwargs["host"] = self.rest_host
+        generation_kwargs["curve"] = self.tls_curve
 
-        self.keyring = NucypherKeyring.generate(password=password,
-                                                encrypting=encrypting,
-                                                wallet=wallet,
-                                                rest=True,
-                                                host=host,
-                                                # checksum_address=checksum_address,  # TODO: Do we actually want to allow passing this?  Or force the use of the new address that comes from the wallet being created?
-                                                curve=tls_curve,
-                                                keyring_root=self.keyring_dir)
+        return super().write_keyring(password=password,
+                                  encrypting=True,
+                                  wallet=True,
+                                  **generation_kwargs)
 
 
 class AliceConfiguration(NodeConfiguration):
