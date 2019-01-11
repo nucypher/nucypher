@@ -17,15 +17,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
-import shutil
 
 import click
+import shutil
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
+from constant_sorrow.constants import TEMPORARY_DOMAIN
 from nacl.exceptions import CryptoError
 from twisted.internet import stdio
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.lawful import Ursula
@@ -47,7 +48,6 @@ from nucypher.utilities.logging import (
     initialize_sentry,
     getJsonFileObserver,
     SimpleObserver)
-
 
 FEDERATED_ONLY = False
 
@@ -146,6 +146,7 @@ def status(click_config, config_file):
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
 @click.option('--rest-host', help="The host IP address to run Ursula network services on", type=click.STRING)
@@ -168,6 +169,7 @@ def ursula(click_config,
            quiet,
            dry_run,
            force,
+           network,
            teacher_uri,
            min_stake,
            rest_host,
@@ -250,6 +252,7 @@ def ursula(click_config,
                                                      rest_host=rest_host,
                                                      rest_port=rest_port,
                                                      db_filepath=db_filepath,
+                                                     domains={network} if network else None,
                                                      federated_only=federated_only,
                                                      checksum_public_address=checksum_address,
                                                      no_registry=federated_only or no_registry,
@@ -281,7 +284,7 @@ def ursula(click_config,
             raise click.BadOptionUsage(option_name='--dev', message=message)
 
         try:
-            ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file)
+            ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file, domains={network})
 
         except FileNotFoundError:
             config_root = config_root or DEFAULT_CONFIG_ROOT
@@ -326,6 +329,7 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
     # Development Configuration
     if dev:
         ursula_config = UrsulaConfiguration(dev_mode=True,
+                                            domains={TEMPORARY_DOMAIN},
                                             poa=poa,
                                             registry_filepath=registry_filepath,
                                             provider_uri=provider_uri,
@@ -338,16 +342,17 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
     else:
 
         # Restore configuration from file
-        ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file
-                                                                    # TODO: CLI Overrides for file-based configurations
-                                                                    # poa = poa,
-                                                                    # registry_filepath = registry_filepath,
-                                                                    # provider_uri = provider_uri,
-                                                                    # checksum_public_address = checksum_public_address,
-                                                                    # federated_only = federated_only,
-                                                                    # rest_host = rest_host,
-                                                                    # rest_port = rest_port,
-                                                                    # db_filepath = db_filepath
+        ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file,
+                                                                    # TODO: Handle Boolean overrides
+                                                                    # poa=poa,
+                                                                    # federated_only=federated_only,
+
+                                                                    domains={network} if network else None,
+                                                                    registry_filepath=registry_filepath,
+                                                                    provider_uri=provider_uri,
+                                                                    rest_host=rest_host,
+                                                                    rest_port=rest_port,
+                                                                    db_filepath= db_filepath
                                                                     )
 
         try:  # Unlock Keyring
@@ -393,6 +398,7 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
             #
             # Run - Step 3
             #
+            click.secho("Connecting to {}".format(','.join(str(d) for d in ursula_config.domains)), fg='blue', bold=True)
             click.secho("Running Ursula {} on {}".format(ursula, ursula.rest_interface), fg='green', bold=True)
             if not debug:
                 stdio.StandardIO(UrsulaCommandProtocol(ursula=ursula))

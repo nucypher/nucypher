@@ -21,10 +21,10 @@ import os
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION
 )
+
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.config.node import NodeConfiguration
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from nucypher.config.keyring import NucypherKeyring
+from nucypher.config.node import NodeConfiguration
 
 
 class UrsulaConfiguration(NodeConfiguration):
@@ -109,10 +109,9 @@ class UrsulaConfiguration(NodeConfiguration):
         generation_kwargs["curve"] = self.tls_curve
 
         return super().write_keyring(password=password,
-                                  encrypting=True,
-                                  wallet=True,
-                                  **generation_kwargs)
-
+                                     encrypting=True,
+                                     wallet=True,
+                                     **generation_kwargs)
 
 class AliceConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Alice
