@@ -520,13 +520,7 @@ class NodeConfiguration(ABC):
             # Keyring
             if not self.dev_mode:
                 os.mkdir(self.keyring_dir, mode=0o700)  # keyring TODO: Keyring backend entry point
-
-                # TODO: How will we canonically determine the initial keyring contents?  Using this private attr is clearly not the way.
-                if TLSHostingPower in self._CHARACTER_CLASS._default_crypto_powerups:
-                    # TODO: Thread checksum_address through this needle somehow.
-                    self.write_keyring(password=password, host=self.rest_host, tls_curve=self.tls_curve)
-                else:
-                    self.write_keyring(password=password)
+                self.write_keyring(password=password)
 
             # Registry
             if import_registry and not self.federated_only:

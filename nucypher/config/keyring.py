@@ -520,7 +520,6 @@ class NucypherKeyring:
                  wallet: bool = True,
                  rest: bool = False,
                  host: str = None,
-                 checksum_address: str = None,
                  curve: EllipticCurve = None,
                  keyring_root: str = None,
                  ) -> 'NucypherKeyring':
@@ -627,9 +626,9 @@ class NucypherKeyring:
             )
 
         if rest is True:
-            if not all((host, curve, checksum_address)):
+            if not all((host, curve, new_address)):  # TODO: Do we want to allow showing up with an old wallet and generating a new cert?  Probably.
                 raise ValueError("host, checksum_address and curve are required to make a new keyring TLS certificate. Got {}, {}".format(host, curve))
-            private_key, cert = _generate_tls_keys(host=host, checksum_address=checksum_address, curve=curve)
+            private_key, cert = _generate_tls_keys(host=host, checksum_address=new_address, curve=curve)
 
             def __serialize_pem(pk):
                 return pk.private_bytes(
