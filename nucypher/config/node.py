@@ -559,12 +559,14 @@ class NodeConfiguration(ABC):
                       password: str,
                       encrypting: bool = True,
                       wallet: bool = False,
+                      **generation_kwargs,
                       ) -> NucypherKeyring:
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 encrypting=encrypting,
                                                 wallet=wallet,
-                                                keyring_root=self.keyring_dir)
+                                                keyring_root=self.keyring_dir,
+                                                **generation_kwargs)
 
         # TODO: Operating mode switch #466
         if self.federated_only or not wallet:
