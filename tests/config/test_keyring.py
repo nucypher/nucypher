@@ -26,7 +26,6 @@ def test_generate_alice_keyring(tmpdir):
         password=password,
         encrypting=True,
         wallet=False,
-        tls=False,
         keyring_root=tmpdir
     )
 
