@@ -49,8 +49,6 @@ from nucypher.utilities.logging import (
     getJsonFileObserver,
     SimpleObserver)
 
-FEDERATED_ONLY = False
-
 
 #
 # Click CLI Config
@@ -154,7 +152,7 @@ def status(click_config, config_file):
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=FEDERATED_ONLY)
+@click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)

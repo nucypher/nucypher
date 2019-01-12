@@ -516,9 +516,9 @@ class NucypherKeyring:
     @classmethod
     def generate(cls,
                  password: str,
-                 encrypting: bool = True,
-                 wallet: bool = True,
-                 rest: bool = False,
+                 encrypting: bool,
+                 wallet: bool,
+                 rest: bool,
                  host: str = None,
                  curve: EllipticCurve = None,
                  keyring_root: str = None,
@@ -560,7 +560,6 @@ class NucypherKeyring:
             with open(new_wallet_path, 'w') as wallet:  # TODO: is this pub or private?
                 wallet.write(json.dumps(new_wallet))
             keyring_args.update(wallet_path=new_wallet_path)
-            account = new_address
 
         if encrypting is True:
             signing_private_key, signing_public_key = _generate_signing_keys()
@@ -568,9 +567,9 @@ class NucypherKeyring:
                 uncompressed_bytes = signing_public_key.to_bytes(is_compressed=False)
                 without_prefix = uncompressed_bytes[1:]
                 verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
-                account = verifying_key_as_eth_key.to_checksum_address()
+                new_address = verifying_key_as_eth_key.to_checksum_address()
 
-        __key_filepaths = cls._generate_key_filepaths(account=account,
+        __key_filepaths = cls._generate_key_filepaths(account=new_address,
                                                       private_key_dir=_private_key_dir,
                                                       public_key_dir=_public_key_dir)
         if encrypting is True:
@@ -641,7 +640,7 @@ class NucypherKeyring:
             certificate_filepath = _write_tls_certificate(full_filepath=__key_filepaths['tls_certificate'], certificate=cert)
             keyring_args.update(tls_certificate_path=certificate_filepath, tls_key_path=tls_key_path)
 
-        keyring_instance = cls(account=account, **keyring_args)
+        keyring_instance = cls(account=new_address, **keyring_args)
         return keyring_instance
 
     @staticmethod
