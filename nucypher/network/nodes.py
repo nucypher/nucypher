@@ -752,10 +752,7 @@ class Learner:
         if new_nodes:
             self.known_nodes.record_fleet_state()
             for node in new_nodes:
-                self.node_storage.store_node_certificate(checksum_address=node.checksum_public_address,
-                                                         certificate=node.certificate,
-                                                         host=node.rest_information()[0].host,
-                                                         force=True)
+                self.node_storage.store_node_certificate(certificate=node.certificate)
         return new_nodes
 
 
