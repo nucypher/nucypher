@@ -362,14 +362,12 @@ class Learner:
                 return False
 
         # Store node's certificate - It has been seen.
-        certificate_filepath = self.node_storage.store_node_certificate(checksum_address=node.checksum_public_address,
-                                                                        certificate=node.certificate,
-                                                                        host=node.rest_information()[0].host)
+        certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
 
         try:
             node.verify_node(force=force_verification_check,
                              network_middleware=self.network_middleware,
-                             accept_federated_only=self.federated_only,  # TODO: 466
+                             accept_federated_only=self.federated_only,  # TODO: 466 - move federated-only up to Learner?
                              certificate_filepath=certificate_filepath)
         except SSLError:
             return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
@@ -721,7 +719,7 @@ class Learner:
                     # This node is already known.  We can safely continue to the next.
                     continue
 
-            certificate_filepath = self.node_storage.store_node_certificate(checksum_address=node.checksum_public_address, certificate=node.certificate)
+            certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
 
             try:
                 if eager:

@@ -215,15 +215,14 @@ class ProxyRESTRoutes:
 
             @crosstown_traffic()
             def learn_about_announced_nodes():
-                try:
 
-                    temp_certificate_filepath = self.__forgetful_node_storage.store_node_certificate(
-                        checksum_address=node.checksum_public_address,
-                        certificate=node.certificate)
+                try:
+                    certificate_filepath = self.__forgetful_node_storage.store_node_certificate(certificate=node.certificate,
+                                                                                                checksum_address=node.checksum_public_address)
 
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
-                                     certificate_filepath=temp_certificate_filepath)
+                                     certificate_filepath=certificate_filepath)
 
                 # Suspicion
                 except node.SuspiciousActivity:

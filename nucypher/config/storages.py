@@ -89,12 +89,7 @@ class NodeStorage(ABC):
         return common_name_from_cert
 
     @abstractmethod
-    def store_node_certificate(self,
-                               host: str,
-                               checksum_address: str,
-                               certificate: Certificate,
-                               force: bool = False
-                               ) -> str:
+    def store_node_certificate(self, certificate: Certificate) -> str:
         raise NotImplementedError
 
     @abstractmethod
@@ -145,14 +140,19 @@ class NodeStorage(ABC):
 class ForgetfulNodeStorage(NodeStorage):
 
     _name = ':memory:'
-    __base_prefix = 'nucypher-temp-cert-'
+    __base_prefix = "nucypher-tmp-certs-"
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.__metadata = dict()
-        self.__certificates = dict()
 
-        self.__rollover_certificates = list()
+        # Certificates
+        self.__certificates = dict()
+        self.__temporary_certificates = list()
+        self.__temp_certificates_dir = tempfile.mkdtemp(prefix='nucypher-temp-certs-')
+
+    def __del__(self):
+        shutil.rmtree(self.__temp_certificates_dir, ignore_errors=True)
 
     def all(self, federated_only: bool, certificates_only: bool = False) -> set:
         return set(self.__metadata.values() if not certificates_only else self.__certificates.values())
@@ -179,33 +179,28 @@ class ForgetfulNodeStorage(NodeStorage):
             except KeyError:
                 raise self.UnknownNode
 
-    def forget(self, everything: bool = True) -> bool:
-        for temp_certificate in self.__rollover_certificates:
+    def forget(self) -> bool:
+        for temp_certificate in self.__temporary_certificates:
             os.remove(temp_certificate)
+        return len(self.__temporary_certificates) == 0
 
-        if everything is True:
-            pattern = '/tmp/{}*'.format(self.__base_prefix)
-            for temp_certificate in glob.glob(pattern):
-                os.remove(temp_certificate)
-                return len(glob.glob(pattern)) == 0
-
-        return len(self.__rollover_certificates) == 0
-
-    def store_host_certificate(self, certificate: Certificate):
+    def store_node_certificate(self, certificate: Certificate):
         pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
         checksum_address = pseudonym.value
-        self.__certificates[checksum_address] = certificate
-        return self.generate_certificate_filepath(checksum_address=checksum_address)
 
-    @validate_checksum_address
-    def store_node_certificate(self,
-                               certificate: Certificate,
-                               checksum_address: str,
-                               host: str = None,
-                               force: bool = False
-                               ) -> str:
+        if not is_checksum_address:
+            raise RuntimeError("Invalid certificate checksum_address encountered")  # TODO: More
 
         self.__certificates[checksum_address] = certificate
+
+        certificate_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
+
+        filename = '{}.pem'.format(checksum_address)
+        filepath = os.path.join(self.__temp_certificates_dir, filename)
+
+        with open(filepath, 'wb') as f:
+            f.write(certificate_bytes)
+
         return self.generate_certificate_filepath(checksum_address=checksum_address)
 
     def store_node_metadata(self, node):
@@ -213,17 +208,10 @@ class ForgetfulNodeStorage(NodeStorage):
         return self.__metadata[node.checksum_public_address]
 
     @validate_checksum_address
-    def generate_certificate_filepath(self,
-                                      checksum_address: str = None) -> str:
-
-        prefix = '{}{}-'.format(self.__base_prefix, checksum_address)
-        temp_file = tempfile.NamedTemporaryFile(prefix=prefix, suffix=self.TLS_CERTIFICATE_EXTENSION, delete=False)
-        certificate = self.__certificates[checksum_address]
-        certificate_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
-        temp_file.write(certificate_bytes)
-
-        self.__rollover_certificates.append(temp_file.name)
-        return temp_file.name
+    def generate_certificate_filepath(self, checksum_address: str) -> str:
+        filename = '{}.pem'.format(checksum_address)
+        filepath = os.path.join(self.__temp_certificates_dir, filename)
+        return filepath
 
     @validate_checksum_address
     def remove(self,
