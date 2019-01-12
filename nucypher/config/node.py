@@ -570,21 +570,13 @@ class NodeConfiguration(ABC):
                                        account=checksum_address or self.checksum_public_address,  # type: str
                                        *args, **kwargs)
 
-    def write_keyring(self,
-                      password: str,
-                      encrypting: bool = True,
-                      wallet: bool = False,
-                      **generation_kwargs,
-                      ) -> NucypherKeyring:
+    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
         self.keyring = NucypherKeyring.generate(password=password,
-                                                encrypting=encrypting,
-                                                wallet=wallet,
                                                 keyring_root=self.keyring_dir,
                                                 **generation_kwargs)
-
-        # TODO: Operating mode switch #466
-        if self.federated_only or not wallet:
+        # Operating mode switch TODO: #466
+        if self.federated_only:
             self.checksum_public_address = self.keyring.federated_address
         else:
             self.checksum_public_address = self.keyring.checksum_address

@@ -92,26 +92,21 @@ class UrsulaConfiguration(NodeConfiguration):
 
     @classmethod
     def generate(cls, password: str, no_registry: bool, *args, **kwargs) -> 'UrsulaConfiguration':
-        """Hook-up a new initial installation and write configuration file to the disk"""
+        """Shortcut: Hook-up a new initial installation and write configuration file to the disk"""
         ursula_config = cls(dev_mode=False, is_me=True, *args, **kwargs)
         ursula_config.__write(password=password, no_registry=no_registry)
         return ursula_config
 
-    def write_keyring(self,
-                      password: str,
-                      encrypting: bool = True,
-                      wallet: bool = True,
-                      **generation_kwargs,
-                      ) -> NucypherKeyring:
-
-        generation_kwargs["rest"] = True
-        generation_kwargs["host"] = self.rest_host
-        generation_kwargs["curve"] = self.tls_curve
+    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
 
         return super().write_keyring(password=password,
                                      encrypting=True,
-                                     wallet=True,
+                                     rest=True,
+                                     wallet=not self.federated_only,
+                                     host=self.rest_host,
+                                     curve=self.tls_curve,
                                      **generation_kwargs)
+
 
 class AliceConfiguration(NodeConfiguration):
     from nucypher.characters.lawful import Alice
@@ -121,6 +116,13 @@ class AliceConfiguration(NodeConfiguration):
 
     CONFIG_FILENAME = '{}.config'.format(_NAME)
     DEFAULT_CONFIG_FILE_LOCATION = os.path.join(DEFAULT_CONFIG_ROOT, CONFIG_FILENAME)
+
+    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
+
+        return super().write_keyring(password=password,
+                                     encrypting=True,
+                                     wallet=not self.federated_only,
+                                     rest=False)
 
 
 class BobConfiguration(NodeConfiguration):
