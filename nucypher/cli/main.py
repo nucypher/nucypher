@@ -345,20 +345,19 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
 
         # Restore configuration from file
         ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file,
-                                                                    # TODO: Handle Boolean overrides
-                                                                    # poa=poa,
-                                                                    # federated_only=federated_only,
-
                                                                     domains={network} if network else None,
                                                                     registry_filepath=registry_filepath,
                                                                     provider_uri=provider_uri,
                                                                     rest_host=rest_host,
                                                                     rest_port=rest_port,
-                                                                    db_filepath= db_filepath
+                                                                    db_filepath=db_filepath,
+
+                                                                    # TODO: Handle Boolean overrides
+                                                                    # poa=poa,
+                                                                    # federated_only=federated_only,
                                                                     )
 
         try:  # Unlock Keyring
-            # ursula_config.attach_keyring()
             if not quiet:
                 click.secho('Decrypting keyring...', fg='blue')
             ursula_config.keyring.unlock(password=click_config.get_password())  # Takes ~3 seconds, ~1GB Ram
