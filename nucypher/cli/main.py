@@ -146,6 +146,7 @@ def status(click_config, config_file):
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
@@ -169,6 +170,7 @@ def ursula(click_config,
            quiet,
            dry_run,
            force,
+           lonely,
            network,
            teacher_uri,
            min_stake,
@@ -368,7 +370,8 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
             ursula_config.connect_to_blockchain(recompile_contracts=False)
             ursula_config.connect_to_contracts()
         except EthereumContractRegistry.NoRegistry:
-            message = "Cannot configure blockchain character: No contract registry found;  Did you mean to pass --federated-only?"
+            message = "Cannot configure blockchain character: No contract registry found; " \
+                      "Did you mean to pass --federated-only?"
             raise EthereumContractRegistry.NoRegistry(message)
 
     click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
@@ -390,7 +393,7 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
         #
         # Produce - Step 2
         #
-        ursula = ursula_config(known_nodes=teacher_nodes)
+        ursula = ursula_config(known_nodes=teacher_nodes, lonely=lonely)
 
         # GO!
         try:

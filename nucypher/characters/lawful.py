@@ -727,7 +727,7 @@ class Ursula(Teacher, Character, Miner):
         certificate = network_middleware.get_certificate(host=host, port=port)
         real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
         temp_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
-        certificate_filepath = temp_node_storage.store_host_certificate(certificate=certificate)
+        certificate_filepath = temp_node_storage.store_node_certificate(certificate=certificate)
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
             host=real_host,
@@ -740,11 +740,11 @@ class Ursula(Teacher, Character, Miner):
 
         if checksum_address:
             # Ensure this is the specific node we expected
-            if not checksum_public_address == potential_seed_node.checksum_public_address:
+            if not checksum_address == potential_seed_node.checksum_public_address:
                 template = "This seed node has a different wallet address: {} (expected {}).  Are you sure this is a seednode?"
                 raise potential_seed_node.SuspiciousActivity(
                     template.format(potential_seed_node.checksum_public_address,
-                                    checksum_public_address))
+                                    checksum_address))
 
         # Check the node's stake (optional)
         if minimum_stake > 0:
