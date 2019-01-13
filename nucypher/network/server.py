@@ -217,8 +217,7 @@ class ProxyRESTRoutes:
             def learn_about_announced_nodes():
 
                 try:
-                    certificate_filepath = self.__forgetful_node_storage.store_node_certificate(certificate=node.certificate,
-                                                                                                checksum_address=node.checksum_public_address)
+                    certificate_filepath = self.__forgetful_node_storage.store_node_certificate(certificate=node.certificate)
 
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
@@ -246,7 +245,7 @@ class ProxyRESTRoutes:
 
                 # Cleanup
                 finally:
-                    self.__forgetful_node_storage.forget(everything=True)
+                    self.__forgetful_node_storage.forget()
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
         return self.all_known_nodes(request)

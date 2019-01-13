@@ -188,7 +188,7 @@ class ForgetfulNodeStorage(NodeStorage):
         pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
         checksum_address = pseudonym.value
 
-        if not is_checksum_address:
+        if not is_checksum_address(checksum_address):
             raise RuntimeError("Invalid certificate checksum_address encountered")  # TODO: More
 
         self.__certificates[checksum_address] = certificate
@@ -317,12 +317,10 @@ class LocalFileBasedNodeStorage(NodeStorage):
         certificate_filepath = self.__get_certificate_filepath(certificate_filename=certificate_filename)
         return certificate_filepath
 
-    @validate_checksum_address
     def __write_tls_certificate(self,
-                                checksum_address: str,
                                 certificate: Certificate,
                                 host: str = None,
-                                force: bool = False) -> str:
+                                force: bool = True) -> str:
 
         # Read
         x509 = OpenSSL.crypto.X509.from_cryptography(certificate)
@@ -331,6 +329,12 @@ class LocalFileBasedNodeStorage(NodeStorage):
         common_name_on_certificate = common_name_as_bytes.decode()
         if not host:
             host = common_name_on_certificate
+
+        pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
+        checksum_address = pseudonym.value
+
+        if not is_checksum_address(checksum_address):  # TODO: more?
+            raise RuntimeError("Invalid certificate checksum address encountered: {}".format(checksum_address))
 
         # Validate
         # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
@@ -425,19 +429,8 @@ class LocalFileBasedNodeStorage(NodeStorage):
         node = self.__read_metadata(filepath=metadata_path, federated_only=federated_only)   # TODO: 466
         return node
 
-    @validate_checksum_address
-    def store_node_certificate(self,
-                               checksum_address: str,
-                               certificate: Certificate,
-                               host: str = None,
-                               force: bool = True
-                               ) -> str:
-
-        certificate_filepath = self.__write_tls_certificate(certificate=certificate,
-                                                            checksum_address=checksum_address,
-                                                            host=host,
-                                                            force=force)
-
+    def store_node_certificate(self, certificate: Certificate):
+        certificate_filepath = self.__write_tls_certificate(certificate=certificate)
         return certificate_filepath
 
     def store_node_metadata(self, node) -> str:
@@ -446,9 +439,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return filepath
 
     def save_node(self, node, force) -> Tuple[str, str]:
-        certificate_filepath = self.store_node_certificate(checksum_address=node.checksum_public_address,
-                                                           certificate=node.certificate,
-                                                           force=force)
+        certificate_filepath = self.store_node_certificate(certificate=node.certificate)
         metadata_filepath = self.store_node_metadata(node=node)
         return metadata_filepath, certificate_filepath
 
