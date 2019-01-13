@@ -362,7 +362,13 @@ class Learner:
                 return False
 
         # Store node's certificate - It has been seen.
-        certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
+        if isinstance(self.node_storage, ForgetfulNodeStorage):
+            certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
+        else:
+            certificate_filepath = self.node_storage.store_node_certificate(
+                certificate=node.certificate,
+                checksum_address=node.checksum_public_address
+            )
 
         try:
             node.verify_node(force=force_verification_check,
