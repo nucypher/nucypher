@@ -23,12 +23,10 @@ POLICY_FILENAME = "policy-metadata.json"
 # # Twisted Logger
 globalLogPublisher.addObserver(SimpleObserver())
 #
-# # Temporary file storage
-TEMP_ALICE_DIR = "{}/alicia-files".format(os.path.dirname(os.path.abspath(__file__)))
-TEMP_URSULA_CERTIFICATE_DIR = "{}/ursula-certs".format(TEMP_ALICE_DIR)
+TEMP_ALICE_DIR = "alicia-files".format(os.path.dirname(os.path.abspath(__file__)))
 
 # We expect the url of the seednode as the first argument.
-SEEDNODE_URL = sys.argv[1]
+SEEDNODE_URL = 'localhost:11500'
 
 
 #######################################
@@ -37,9 +35,11 @@ SEEDNODE_URL = sys.argv[1]
 
 
 # We get a persistent Alice.
+# If we had an existing Alicia in disk, let's get it from there
+
 passphrase = "TEST_ALICIA_INSECURE_DEVELOPMENT_PASSWORD"
-try:  # If we had an existing Alicia in disk, let's get it from there
-    alice_config_file = os.path.join(TEMP_ALICE_DIR, "config_root", "alice.config")
+try:
+    alice_config_file = os.path.join(TEMP_ALICE_DIR, "alice.config")
     new_alice_config = AliceConfiguration.from_configuration_file(
             filepath=alice_config_file,
             network_middleware=RestMiddleware(),
@@ -47,25 +47,29 @@ try:  # If we had an existing Alicia in disk, let's get it from there
             save_metadata=False,
         )
     alicia = new_alice_config(passphrase=passphrase)
-except:  # If anything fails, let's create Alicia from scratch
+
+except:
+
+    # If anything fails, let's create Alicia from scratch
     # Remove previous demo files and create new ones
+
     shutil.rmtree(TEMP_ALICE_DIR, ignore_errors=True)
-    os.mkdir(TEMP_ALICE_DIR)
-    os.mkdir(TEMP_URSULA_CERTIFICATE_DIR)
 
     ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
                                              federated_only=True,
                                              minimum_stake=0)
 
     alice_config = AliceConfiguration(
-        config_root=os.path.join(TEMP_ALICE_DIR, "config_root"),
+        config_root=os.path.join(TEMP_ALICE_DIR),
         is_me=True,
         known_nodes={ursula},
         start_learning_now=False,
         federated_only=True,
         learn_on_same_thread=True,
     )
+
     alice_config.initialize(password=passphrase)
+
     alice_config.keyring.unlock(password=passphrase)
     alicia = alice_config.produce()
 
