@@ -9,9 +9,9 @@ from timeit import default_timer as timer
 
 from nucypher.characters.lawful import Bob, Ursula
 from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import EncryptingPower, SigningPower
+from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.data_sources import DataSource
-from nucypher.keystore.keypairs import EncryptingKeypair, SigningKeypair
+from nucypher.keystore.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.network.middleware import RestMiddleware
 
 from umbral.keys import UmbralPublicKey
@@ -35,8 +35,7 @@ os.mkdir(TEMP_DOCTOR_DIR)
 os.mkdir(TEMP_URSULA_CERTIFICATE_DIR)
 os.mkdir(TEMP_DOCTOR_CERTIFICATE_DIR)
 
-ursula = Ursula.from_seed_and_stake_info(host=SEEDNODE_URL,
-                                         certificates_directory=TEMP_URSULA_CERTIFICATE_DIR,
+ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
                                          federated_only=True,
                                          minimum_stake=0)
 
@@ -44,9 +43,9 @@ ursula = Ursula.from_seed_and_stake_info(host=SEEDNODE_URL,
 from doctor_keys import get_doctor_privkeys
 doctor_keys = get_doctor_privkeys()
 
-bob_enc_keypair = EncryptingKeypair(private_key=doctor_keys["enc"])
+bob_enc_keypair = DecryptingKeypair(private_key=doctor_keys["enc"])
 bob_sig_keypair = SigningKeypair(private_key=doctor_keys["sig"])
-enc_power = EncryptingPower(keypair=bob_enc_keypair)
+enc_power = DecryptingPower(keypair=bob_enc_keypair)
 sig_power = SigningPower(keypair=bob_sig_keypair)
 power_ups = [enc_power, sig_power]
 
@@ -57,7 +56,6 @@ doctor = Bob(
     federated_only=True,
     crypto_power_ups=power_ups,
     start_learning_now=True,
-    known_certificates_dir=TEMP_DOCTOR_CERTIFICATE_DIR,
     abort_on_learning_error=True,
     known_nodes=[ursula],
     save_metadata=False,
