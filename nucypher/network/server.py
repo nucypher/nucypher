@@ -148,6 +148,11 @@ class ProxyRESTRoutes:
 
         # See: https://docs.sqlalchemy.org/en/rel_0_9/dialects/sqlite.html#connect-strings
         db_filepath = (self.db_filepath or '')  # Capture None
+        if db_filepath == ":memory:":
+            import tempfile
+            tmp_dir = tempfile.gettempdir()
+            db_filepath = "{}/foo.db".format(tmp_dir)
+
         engine = create_engine('sqlite:///{}'.format(db_filepath))
 
         Base.metadata.create_all(engine)
