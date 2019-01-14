@@ -42,7 +42,6 @@ def test_run_lone_federated_default_development_ursula(click_runner):
 
     time.sleep(Learner._SHORT_LEARNING_DELAY)
     assert result.exit_code == 0
-    assert ":memory:" in result.output
     assert "Running Ursula on 127.0.0.1:{}".format(MOCK_URSULA_STARTING_PORT)
 
     reserved_ports = (NodeConfiguration.DEFAULT_REST_PORT, NodeConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)

@@ -302,9 +302,7 @@ class Learner:
 
     def load_seednodes(self,
                        read_storages: bool = True,
-                       retry_attempts: int = 3,
-                       retry_rate: int = 2,
-                       timeout=3):
+                       retry_attempts: int = 3):  # TODO: why are these unused?
         """
         Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
         """

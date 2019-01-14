@@ -147,8 +147,12 @@ class ProxyRESTRoutes:
         self.log.info("Starting datastore {}".format(self.db_filepath))
 
         # See: https://docs.sqlalchemy.org/en/rel_0_9/dialects/sqlite.html#connect-strings
-        db_filepath = (self.db_filepath or '')  # Capture None
-        engine = create_engine('sqlite:///{}'.format(db_filepath))
+        if self.db_filepath:
+            db_uri = f'sqlite:///{self.db_filepath}'
+        else:
+            db_uri = 'sqlite://'   # TODO: Is this a sane default? See #667
+
+        engine = create_engine(db_uri)
 
         Base.metadata.create_all(engine)
         self.datastore = keystore.KeyStore(engine)

@@ -707,7 +707,7 @@ class Ursula(Teacher, Character, Miner):
                                  seed_uri: str,
                                  federated_only: bool,
                                  minimum_stake: int = 0,
-                                 checksum_address: str = None,
+                                 checksum_address: str = None,   # TODO: Why is this unused?
                                  network_middleware: RestMiddleware = None,
                                  *args,
                                  **kwargs

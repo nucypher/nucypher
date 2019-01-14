@@ -41,8 +41,6 @@ class UrsulaConfiguration(NodeConfiguration):
                  dev_mode: bool = False,
                  db_filepath: str = None,
                  *args, **kwargs) -> None:
-        if dev_mode is True:
-            db_filepath = ':memory:'  # sqlite in-memory db
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
 
