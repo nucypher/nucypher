@@ -304,7 +304,7 @@ class Learner:
                        read_storages: bool = True,
                        retry_attempts: int = 3,
                        retry_rate: int = 2,
-                       timeout=3):  # TODO: why are these unused?
+                       timeout=3):
         """
         Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
         """
@@ -312,8 +312,9 @@ class Learner:
             self.log.debug("Already done seeding; won't try again.")
             return
 
-        def __attempt_seednode_learning(seednode_metadata, current_attempt=1):
-            from nucypher.characters.lawful import Ursula
+        from nucypher.characters.lawful import Ursula
+        for seednode_metadata in self._seed_nodes:
+
             self.log.debug(
                 "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_public_address,
                                                 seednode_metadata.rest_host,
@@ -328,17 +329,15 @@ class Learner:
                 self.unresponsive_seed_nodes.discard(seednode_metadata)
                 self.remember_node(seed_node)
 
-        for seednode_metadata in self._seed_nodes:
-            __attempt_seednode_learning(seednode_metadata=seednode_metadata)
-
-        if not self.unresponsive_seed_nodes and not self.lonely:
+        if not self.unresponsive_seed_nodes:
             self.log.info("Finished learning about all seednodes.")
+
         self.done_seeding = True
 
         if read_storages is True:
             self.read_nodes_from_storage()
 
-        if not self.known_nodes and not self.lonely:
+        if not self.known_nodes:
             self.log.warn("No seednodes were available after {} attempts".format(retry_attempts))
             # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)
 
@@ -401,8 +400,14 @@ class Learner:
             return False
         elif now:
             self.log.info("Starting Learning Loop NOW.")
-            if not self.lonely:
+
+            if self.lonely:
+                self.done_seeding = True
+                self.read_nodes_from_storage()
+
+            else:
                 self.load_seednodes()
+
             self.learn_from_teacher_node()
             self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
             self.learning_deferred.addErrback(self.handle_learning_errors)
@@ -458,7 +463,7 @@ class Learner:
         self.teacher_nodes.extend(nodes_we_know_about)
 
     def cycle_teacher_node(self):
-        # To ensure that all the best teachers are availalble, first let's make sure
+        # To ensure that all the best teachers are available, first let's make sure
         # that we have connected to all the seed nodes.
         if self.unresponsive_seed_nodes and not self.lonely:
             self.log.info("Still have unresponsive seed nodes; trying again to connect.")
@@ -666,7 +671,8 @@ class Learner:
             # In this case, this node knows about no other nodes.  Hopefully we've taught it something.
             if response.content == b"":
                 return NO_KNOWN_NODES
-            # In the other case - where the status code is 204 but the repsonse isn't blank - we'll keep parsing.  It's possible that our fleet states match, and we'll check for that later.
+            # In the other case - where the status code is 204 but the repsonse isn't blank - we'll keep parsing.
+            # It's possible that our fleet states match, and we'll check for that later.
 
         elif response.status_code != 200:
             self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
