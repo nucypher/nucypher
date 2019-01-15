@@ -1,8 +1,18 @@
 # ignore json files
+keys
 *.json
 
 # ignore kfrags files
+kfrags
 *.kfrags
 
 # ignore db data
 data
+
+# ignore pyCharm files
+.idea
+
+# cache files
+__pycache__
+
+.DS_Store
