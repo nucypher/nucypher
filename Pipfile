@@ -9,7 +9,7 @@ python_version = "3"
 [packages]
 # NuCypher
 umbral = "==0.1.3a0"
-constant-sorrow = ">=0.1.0a7"
+constant-sorrow = ">=0.1.0a8"
 bytestring-splitter = ">=1.0.0a4"
 hendrix = ">=3.1.0"
 # Third-Party
@@ -21,7 +21,7 @@ sqlalchemy = "*"
 maya = "*"
 apistar = "<0.6.0"
 # Third-Party Ethereum
-py-evm = "==0.2.0a37"
+py-evm = "*"
 eth-tester = "*"
 py-solc = "*"
 web3 = "*"
@@ -34,7 +34,7 @@ boto3 = "*"
 
 [dev-packages]
 # Pytest
-pytest = "*"
+pytest = "==4.0.2"
 pytest-xdist = "*"
 pytest-mypy = "*"
 pytest-twisted = "*"
