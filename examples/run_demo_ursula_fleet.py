@@ -31,7 +31,9 @@ from twisted.logger import globalLogPublisher
 from nucypher.utilities.logging import SimpleObserver
 
 
-FLEET_POPULATION = 2
+FLEET_POPULATION = 5
+DEMO_NODE_STARTING_PORT = 11501
+TEACHER_URI = f'127.0.0.1:11500'
 
 
 def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
@@ -40,18 +42,16 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
     globalLogPublisher.addObserver(SimpleObserver())
 
     # Ports
-    starting_port = 11501
-    ports = map(str, range(starting_port, starting_port + quantity))
+    starting_port = DEMO_NODE_STARTING_PORT
+    ports = list(map(str, range(starting_port, starting_port + quantity)))
 
     ursula_processes = list()
     for index, port in enumerate(ports):
 
-        teacher_uri = '127.0.0.1:{}'.format(int(port) - 1)
-
         args = ['nucypher',
                 'ursula', 'run',
                 '--rest-port', port,
-                '--teacher-uri', teacher_uri,
+                '--teacher-uri', TEACHER_URI,
                 '--federated-only',
                 '--dev',
                 '--debug',
@@ -77,7 +77,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
         p = reactor.spawnProcess(processProtocol, 'nucypher', args, env=env, childFDs=childFDs)
         ursula_processes.append(p)
 
-        reactor.run()  # GO!
+    reactor.run()  # GO!
 
 
 if __name__ == "__main__":
