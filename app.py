@@ -1,6 +1,8 @@
 import dash
 import os
 import shutil
+from demo_keys import KEYS_FOLDER
+from nucypher_helper import KFRAGS_FOLDER
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
@@ -8,9 +10,17 @@ app = dash.Dash("NuCypher Heartbeat Data Sharing Application", external_styleshe
 server = app.server
 app.config.suppress_callback_exceptions = True
 
+# remove old kfrag files and re-create folder
+shutil.rmtree(KFRAGS_FOLDER, ignore_errors=True)
+os.mkdir(KFRAGS_FOLDER)
+
+# remove old key files and re-create folder
+shutil.rmtree(KEYS_FOLDER, ignore_errors=True)
+os.mkdir(KEYS_FOLDER)
+
 # remove old data files and re-create data folder
 shutil.rmtree('./data', ignore_errors=True)
 os.mkdir("./data")
 
 DB_FILE = './data/heartbeats.db'
-TABLE_NAME = 'HeartBeat'
+DB_NAME = 'HeartBeat'

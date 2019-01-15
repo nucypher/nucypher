@@ -8,7 +8,7 @@ At some moment, she wants to share this information with other people, such as h
 
 This simple use case showcases many interesting and distinctive aspects of NuCypher:
   - Alicia can create policy public keys **before knowing** who can be the potential consumers.
-  - Alicia, or anyone knowing the policy public key (e.g., the Heart Monitor), can produce encrypted data that belongs to the policy. Again, this can happen before granting access to any consumer.
+  - Alicia, or any one knowing the policy public key (e.g., the Heart Monitor), can produce encrypted data that belongs to the policy. Again, this can happen before granting access to any consumer.
   - As a consequence of the previous point, Data Sources, like the Heart Monitor, are completely unaware of the recipients. In their mind, they are producing data **for Alicia**.
   - Alicia never interacts with the Doctor: she only needs the Doctor's public key.
   - Alicia only interacts with the NuCypher network for granting access to the Doctor. After this, she can even disappear from the face of the Earth.
@@ -17,7 +17,7 @@ This simple use case showcases many interesting and distinctive aspects of NuCyp
 ### How to run the demo
 Install dependencies (only for the first time):
 ```sh
-$ pipenv install
+$ pipenv install --pre --skip-lock --dev
 ```
 
 Run the demo:

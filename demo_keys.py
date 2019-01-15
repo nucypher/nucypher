@@ -2,38 +2,40 @@ import json
 import os
 from umbral.keys import UmbralPrivateKey, UmbralPublicKey
 
-ALICIA_PUBLIC_JSON = 'alicia.public.json'
-ALICIA_PRIVATE_JSON = 'alicia.private.json'
+KEYS_FOLDER = './keys'
 
-DOCTOR_PUBLIC_JSON = 'doctor.public.json'
-DOCTOR_PRIVATE_JSON = 'doctor.private.json'
+ALICIA_PUBLIC_JSON = KEYS_FOLDER + '/alicia.public.json'
+ALICIA_PRIVATE_JSON = KEYS_FOLDER + '/alicia.private.json'
+
+RECIPIENT_PUBLIC_JSON = KEYS_FOLDER + '/recipient.{}.public.json'
+RECIPIENT_PRIVATE_JSON = KEYS_FOLDER + '/recipient.{}.private.json'
 
 
 def get_alicia_pubkeys():
     return _get_keys(ALICIA_PUBLIC_JSON, UmbralPublicKey)
 
 
-def get_doctor_pubkeys():
-    return _get_keys(DOCTOR_PUBLIC_JSON, UmbralPublicKey)
+def get_recipient_pubkeys(recipient_id: str = None):
+    return _get_keys(RECIPIENT_PUBLIC_JSON.format(recipient_id), UmbralPublicKey, recipient_id)
 
 
 def get_alicia_privkeys():
     return _get_keys(ALICIA_PRIVATE_JSON, UmbralPrivateKey)
 
 
-def get_doctor_privkeys():
-    return _get_keys(DOCTOR_PRIVATE_JSON, UmbralPrivateKey)
+def get_recipient_privkeys(recipient_id: str = None):
+    return _get_keys(RECIPIENT_PRIVATE_JSON.format(recipient_id), UmbralPrivateKey, recipient_id)
 
 
 def _generate_alicia_keys():
     _generate_keys(ALICIA_PRIVATE_JSON, ALICIA_PUBLIC_JSON)
 
 
-def _generate_doctor_keys():
-    _generate_keys(DOCTOR_PRIVATE_JSON, DOCTOR_PUBLIC_JSON)
+def _generate_recipient_keys(recipient_id):
+    _generate_keys(RECIPIENT_PRIVATE_JSON.format(recipient_id), RECIPIENT_PUBLIC_JSON.format(recipient_id))
 
 
-def _generate_keys(private_json: str, public_json: str):
+def _generate_keys(private_json_file: str, public_json_file: str):
     enc_privkey = UmbralPrivateKey.gen_key()
     sig_privkey = UmbralPrivateKey.gen_key()
 
@@ -42,7 +44,7 @@ def _generate_keys(private_json: str, public_json: str):
         'sig': sig_privkey.to_bytes().hex(),
     }
 
-    with open(private_json, 'w') as f:
+    with open(private_json_file, 'w') as f:
         json.dump(privkeys, f)
 
     enc_pubkey = enc_privkey.get_pubkey()
@@ -51,16 +53,16 @@ def _generate_keys(private_json: str, public_json: str):
         'enc': enc_pubkey.to_bytes().hex(),
         'sig': sig_pubkey.to_bytes().hex()
     }
-    with open(public_json, 'w') as f:
+    with open(public_json_file, 'w') as f:
         json.dump(pubkeys, f)
 
 
-def _get_keys(file, key_class):
+def _get_keys(file, key_class, recipient_id: str = None):
     if not os.path.isfile(file):
-        if file in (DOCTOR_PUBLIC_JSON, DOCTOR_PRIVATE_JSON):
-            _generate_doctor_keys()
-        else:
+        if file in (ALICIA_PUBLIC_JSON, ALICIA_PRIVATE_JSON):
             _generate_alicia_keys()
+        else:
+            _generate_recipient_keys(recipient_id)
 
     with open(file) as f:
         stored_keys = json.load(f)

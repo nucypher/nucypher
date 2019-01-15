@@ -39,7 +39,7 @@ def display_page(pathname):
     elif pathname == '/enrico':
         return enrico.layout
     elif pathname == '/bob':
-        return bob.layout
+        return bob.get_layout()
     else:
         return index_page
 

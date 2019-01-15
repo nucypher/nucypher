@@ -2,6 +2,7 @@ import dash_core_components as dcc
 from dash.dependencies import Output, Input, State, Event
 import dash_html_components as html
 import demo_keys
+import nucypher_helper as nh
 import os
 from umbral import config, signing
 from umbral.keys import UmbralPublicKey
@@ -60,6 +61,10 @@ layout = html.Div([
         ], className='row'),
         html.Br(),
         html.Div([
+            html.Div('Revoke Recipient Public Key: ', className='two columns'),
+            dcc.Input(id='recipient-pub-key-revoke', type='text', className='seven columns'),
+        ], className='row'),
+        html.Div([
             html.Button('Revoke Access', id='revoke-button', type='submit',
                         className='button button-primary', n_clicks_timestamp='0'),
             html.Div(id='revoke-response', style={'color': 'red'}),
@@ -111,12 +116,11 @@ def grant_access(revoke_time, grant_time, days, m, n, recipient_pubkey_hex):
     # create Umbral key for recipient
     recipient_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(recipient_pubkey_hex))
 
-    import nucypher_helper
-    nucypher_helper.grant_access_policy(alicia_priv_keys['enc'],
-                                        alicia_signer,
-                                        recipient_pubkey,
-                                        int(m),
-                                        int(n))
+    nh.grant_access_policy(alicia_priv_keys['enc'],
+                           alicia_signer,
+                           recipient_pubkey,
+                           int(m),
+                           int(n))
 
     return 'Access granted to recipient with public key: {}!'.format(recipient_pubkey_hex)
 
@@ -124,14 +128,16 @@ def grant_access(revoke_time, grant_time, days, m, n, recipient_pubkey_hex):
 @app.callback(
     Output('revoke-response', 'children'),
     [Input('grant-button', 'n_clicks_timestamp')],
-    [State('revoke-button', 'n_clicks_timestamp')],
+    [State('revoke-button', 'n_clicks_timestamp'),
+     State('recipient-pub-key-revoke', 'value')],
     [Event('revoke-button', 'click'),
      Event('grant-button', 'click')]
 )
-def revoke_access(grant_time, revoke_time):
+def revoke_access(grant_time, revoke_time, recipient_pubkey_hex):
     if int(grant_time) >= int(revoke_time):
         # either triggered at start or because grant was executed
         return ''
 
-    # TODO: implement revocation
-    return 'Access revoked to recipient! - Not implemented as yet'
+    nh.revoke_access(recipient_pubkey_hex)  # fake revocation
+
+    return 'Access revoked to recipient with public key {}!'.format(recipient_pubkey_hex)
