@@ -42,7 +42,7 @@ def escrow_contract(testerchain, token, request):
             'MinersEscrow', token.address, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, max_allowed_locked_tokens)
 
         if request.param:
-            secret_hash = testerchain.interface.w3.sha3(secret)
+            secret_hash = testerchain.interface.w3.keccak(secret)
             dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
             contract = testerchain.interface.w3.eth.contract(
                 abi=contract.abi,

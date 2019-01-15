@@ -70,7 +70,7 @@ def escrow(testerchain, token):
         100,
         2000)
 
-    secret_hash = testerchain.interface.w3.sha3(escrow_secret)
+    secret_hash = testerchain.interface.w3.keccak(escrow_secret)
     dispatcher, _ = testerchain.interface.deploy_contract('Dispatcher', contract.address, secret_hash)
 
     # Wrap dispatcher contract
@@ -86,7 +86,7 @@ def policy_manager(testerchain, escrow):
     escrow, _ = escrow
     creator = testerchain.interface.w3.eth.accounts[0]
 
-    secret_hash = testerchain.interface.w3.sha3(policy_manager_secret)
+    secret_hash = testerchain.interface.w3.keccak(policy_manager_secret)
 
     # Creator deploys the policy manager
     contract, _ = testerchain.interface.deploy_contract('PolicyManager', escrow.address)
@@ -108,7 +108,7 @@ def policy_manager(testerchain, escrow):
 def user_escrow_proxy(testerchain, token, escrow, policy_manager):
     escrow, _ = escrow
     policy_manager, _ = policy_manager
-    secret_hash = testerchain.interface.w3.sha3(user_escrow_secret)
+    secret_hash = testerchain.interface.w3.keccak(user_escrow_secret)
     # Creator deploys the user escrow proxy
     user_escrow_proxy, _ = testerchain.interface.deploy_contract(
         'UserEscrowProxy', token.address, escrow.address, policy_manager.address)
@@ -436,8 +436,8 @@ def test_all(testerchain, token, escrow, policy_manager, user_escrow_proxy):
     # Upgrade main contracts
     escrow_secret2 = os.urandom(SECRET_LENGTH)
     policy_manager_secret2 = os.urandom(SECRET_LENGTH)
-    escrow_secret2_hash = testerchain.interface.w3.sha3(escrow_secret2)
-    policy_manager_secret2_hash = testerchain.interface.w3.sha3(policy_manager_secret2)
+    escrow_secret2_hash = testerchain.interface.w3.keccak(escrow_secret2)
+    policy_manager_secret2_hash = testerchain.interface.w3.keccak(policy_manager_secret2)
     escrow_v1 = escrow.functions.target().call()
     policy_manager_v1 = policy_manager.functions.target().call()
     # Creator deploys the contracts as the second versions
@@ -486,8 +486,8 @@ def test_all(testerchain, token, escrow, policy_manager, user_escrow_proxy):
     # Ursula and Alice can't rollback contracts, only owner can
     escrow_secret3 = os.urandom(SECRET_LENGTH)
     policy_manager_secret3 = os.urandom(SECRET_LENGTH)
-    escrow_secret3_hash = testerchain.interface.w3.sha3(escrow_secret3)
-    policy_manager_secret3_hash = testerchain.interface.w3.sha3(policy_manager_secret3)
+    escrow_secret3_hash = testerchain.interface.w3.keccak(escrow_secret3)
+    policy_manager_secret3_hash = testerchain.interface.w3.keccak(policy_manager_secret3)
     with pytest.raises((TransactionFailed, ValueError)):
         tx = escrow_dispatcher.functions.rollback(escrow_secret2, escrow_secret3_hash).transact({'from': alice1})
         testerchain.wait_for_receipt(tx)
@@ -518,7 +518,7 @@ def test_all(testerchain, token, escrow, policy_manager, user_escrow_proxy):
     user_escrow_proxy_v2, _ = testerchain.interface.deploy_contract(
         'UserEscrowProxy', token.address, escrow.address, policy_manager.address)
     user_escrow_secret2 = os.urandom(SECRET_LENGTH)
-    user_escrow_secret2_hash = testerchain.interface.w3.sha3(user_escrow_secret2)
+    user_escrow_secret2_hash = testerchain.interface.w3.keccak(user_escrow_secret2)
     # Ursula and Alice can't upgrade library, only owner can
     with pytest.raises((TransactionFailed, ValueError)):
         tx = user_escrow_linker.functions\

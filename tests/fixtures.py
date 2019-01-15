@@ -383,7 +383,7 @@ def three_agents(testerchain):
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
         deployer_address=origin,
-        secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
+        secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
 
     miner_escrow_deployer.deploy()
 
@@ -392,7 +392,7 @@ def three_agents(testerchain):
     policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     policy_manager_deployer = PolicyManagerDeployer(
         deployer_address=origin,
-        secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
+        secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
 
     policy_manager_deployer.deploy()
 

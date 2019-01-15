@@ -57,7 +57,7 @@ def proxy(testerchain, token, escrow, policy_manager):
 
 @pytest.fixture()
 def linker(testerchain, proxy):
-    secret_hash = testerchain.interface.w3.sha3(secret)
+    secret_hash = testerchain.interface.w3.keccak(secret)
     linker, _ = testerchain.interface.deploy_contract('UserEscrowLibraryLinker', proxy.address, secret_hash)
     return linker
 

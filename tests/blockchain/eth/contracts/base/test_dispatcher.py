@@ -29,11 +29,11 @@ def test_dispatcher(testerchain):
     account = testerchain.interface.w3.eth.accounts[1]
 
     secret = os.urandom(SECRET_LENGTH)
-    secret_hash = testerchain.interface.w3.sha3(secret)
+    secret_hash = testerchain.interface.w3.keccak(secret)
     secret2 = os.urandom(SECRET_LENGTH)
-    secret2_hash = testerchain.interface.w3.sha3(secret2)
+    secret2_hash = testerchain.interface.w3.keccak(secret2)
     secret3 = os.urandom(SECRET_LENGTH)
-    secret3_hash = testerchain.interface.w3.sha3(secret3)
+    secret3_hash = testerchain.interface.w3.keccak(secret3)
 
     # Load contract interface
     contract_interface = testerchain.interface.get_contract_factory('ContractInterface')
