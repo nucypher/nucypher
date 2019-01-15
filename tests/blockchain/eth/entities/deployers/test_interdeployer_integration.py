@@ -61,7 +61,7 @@ def test_deploy_ethereum_contracts(testerchain):
     miner_escrow_deployer = MinerEscrowDeployer(
         blockchain=testerchain,
         deployer_address=origin,
-        secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
+        secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
     assert miner_escrow_deployer.deployer_address == origin
 
     with pytest.raises(ContractDeployer.ContractDeploymentError):
@@ -88,7 +88,7 @@ def test_deploy_ethereum_contracts(testerchain):
     policy_manager_deployer = PolicyManagerDeployer(
         blockchain=testerchain,
         deployer_address=origin,
-        secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
+        secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
     assert policy_manager_deployer.deployer_address == origin
 
     with pytest.raises(ContractDeployer.ContractDeploymentError):

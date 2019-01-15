@@ -34,8 +34,8 @@ def test_upgrading(testerchain, token):
     creator = testerchain.interface.w3.eth.accounts[0]
     miner = testerchain.interface.w3.eth.accounts[1]
 
-    secret_hash = testerchain.interface.w3.sha3(secret)
-    secret2_hash = testerchain.interface.w3.sha3(secret2)
+    secret_hash = testerchain.interface.w3.keccak(secret)
+    secret2_hash = testerchain.interface.w3.keccak(secret2)
 
     # Deploy contract
     contract_library_v1, _ = testerchain.interface.deploy_contract(

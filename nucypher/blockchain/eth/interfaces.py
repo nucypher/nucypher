@@ -61,7 +61,7 @@ class BlockchainInterface:
 
     def __init__(self,
                  provider_uri: str = None,
-                 providers: list = None,
+                 provider = None,
                  auto_connect: bool = True,
                  timeout: int = None,
                  registry: EthereumContractRegistry = None,
@@ -138,19 +138,18 @@ class BlockchainInterface:
         #
 
         self.w3 = NO_BLOCKCHAIN_CONNECTION
-        self.__providers = providers or NO_BLOCKCHAIN_CONNECTION
+        self.__provider = provider or NO_BLOCKCHAIN_CONNECTION
         self.provider_uri = NO_BLOCKCHAIN_CONNECTION
         self.timeout = timeout if timeout is not None else self.__default_timeout
 
-        if provider_uri and providers:
+        if provider_uri and provider:
             raise self.InterfaceError("Pass a provider URI string, or a list of provider instances.")
         elif provider_uri:
             self.provider_uri = provider_uri
             self.add_provider(provider_uri=provider_uri)
-        elif providers:
+        elif provider:
             self.provider_uri = MANUAL_PROVIDERS_SET
-            for provider in providers:
-                self.add_provider(provider)
+            self.add_provider(provider)
         else:
             self.log.warn("No provider supplied for new blockchain interface; Using defaults")
 
@@ -185,16 +184,16 @@ class BlockchainInterface:
     def connect(self):
         self.log.info("Connecting to {}".format(self.provider_uri))
 
-        if self.__providers is NO_BLOCKCHAIN_CONNECTION:
+        if self.__provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")
 
         # Connect
-        web3_instance = Web3(providers=self.__providers)  # Instantiate Web3 object with provider
+        web3_instance = Web3(provider=self.__provider)  # Instantiate Web3 object with provider
         self.w3 = web3_instance
 
         # Check connection
         if not self.is_connected:
-            raise self.ConnectionFailed('Failed to connect to providers: {}'.format(self.__providers))
+            raise self.ConnectionFailed('Failed to connect to provider: {}'.format(self.__provider))
 
         if self.is_connected:
             self.log.info('Successfully Connected to {}'.format(self.provider_uri))
@@ -203,13 +202,13 @@ class BlockchainInterface:
             raise self.ConnectionFailed("Failed to connect to {}.".format(self.provider_uri))
 
     @property
-    def providers(self) -> Tuple[Union[IPCProvider, WebsocketProvider, HTTPProvider], ...]:
-        return tuple(self.__providers)
+    def provider(self) -> Union[IPCProvider, WebsocketProvider, HTTPProvider]:
+        return self.__provider
 
     @property
     def is_connected(self) -> bool:
         """
-        https://web3py.readthedocs.io/en/stable/__providers.html#examples-using-automated-detection
+        https://web3py.readthedocs.io/en/stable/__provider.html#examples-using-automated-detection
         """
         return self.w3.isConnected()
 
@@ -260,10 +259,7 @@ class BlockchainInterface:
             else:
                 raise self.InterfaceError("'{}' is not a blockchain provider protocol".format(uri_breakdown.scheme))
 
-            # lazy
-            if self.__providers is NO_BLOCKCHAIN_CONNECTION:
-                self.__providers = list()
-            self.__providers.append(provider)
+            self.__provider = provider
 
     def get_contract_factory(self, contract_name: str) -> Contract:
         """Retrieve compiled interface data from the cache and return web3 contract"""
@@ -373,7 +369,7 @@ class BlockchainInterface:
         backend. If the backend is based on eth-tester, then it uses the
         eth-tester signing interface to do so.
         """
-        provider = self.providers[0]  # TODO: Handle multiple providers
+        provider = self.provider
         if isinstance(provider, EthereumTesterProvider):
             address = to_canonical_address(account)
             sig_key = provider.ethereum_tester.backend._key_lookup[address]

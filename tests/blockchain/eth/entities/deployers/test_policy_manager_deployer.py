@@ -33,7 +33,7 @@ def test_policy_manager_deployer(testerchain):
     miners_escrow_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     miner_escrow_deployer = MinerEscrowDeployer(
         deployer_address=origin,
-        secret_hash=testerchain.interface.w3.sha3(miners_escrow_secret))
+        secret_hash=testerchain.interface.w3.keccak(miners_escrow_secret))
 
     miner_escrow_deployer.deploy()
 
@@ -42,7 +42,7 @@ def test_policy_manager_deployer(testerchain):
     policy_manager_secret = os.urandom(DISPATCHER_SECRET_LENGTH)
     deployer = PolicyManagerDeployer(
         deployer_address=origin,
-        secret_hash=testerchain.interface.w3.sha3(policy_manager_secret))
+        secret_hash=testerchain.interface.w3.keccak(policy_manager_secret))
 
     deployment_txhashes = deployer.deploy()
     assert len(deployment_txhashes) == 3

@@ -370,8 +370,8 @@ def test_upgrading(testerchain, token):
     testerchain.wait_for_receipt(tx)
 
     secret2 = os.urandom(32)
-    secret_hash = testerchain.interface.w3.sha3(secret)
-    secret2_hash = testerchain.interface.w3.sha3(secret2)
+    secret_hash = testerchain.interface.w3.keccak(secret)
+    secret2_hash = testerchain.interface.w3.keccak(secret2)
 
     library_v1, _ = testerchain.interface.deploy_contract('UserEscrowLibraryMockV1')
     library_v2, _ = testerchain.interface.deploy_contract('UserEscrowLibraryMockV2')
