@@ -131,6 +131,7 @@ def ecdsa_verify(message: bytes,
 
 
 def generate_self_signed_certificate(host: str,
+                                     checksum_address: str,
                                      curve: EllipticCurve,
                                      private_key: _EllipticCurvePrivateKey = None,
                                      days_valid: int = 365
@@ -143,6 +144,7 @@ def generate_self_signed_certificate(host: str,
     now = datetime.datetime.utcnow()
     subject = issuer = x509.Name([
         x509.NameAttribute(NameOID.COMMON_NAME, host),
+        x509.NameAttribute(NameOID.PSEUDONYM, checksum_address)
     ])
     cert = x509.CertificateBuilder().subject_name(subject)
     cert = cert.issuer_name(issuer)

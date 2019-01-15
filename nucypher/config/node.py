@@ -48,6 +48,7 @@ from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFil
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import FleetStateTracker
+from nucypher.network.server import TLSHostingPower
 
 
 class NodeConfiguration(ABC):
@@ -519,7 +520,7 @@ class NodeConfiguration(ABC):
             # Keyring
             if not self.dev_mode:
                 os.mkdir(self.keyring_dir, mode=0o700)  # keyring TODO: Keyring backend entry point
-                self.write_keyring(password=password, host=self.rest_host, tls_curve=self.tls_curve)
+                self.write_keyring(password=password)
 
             # Registry
             if import_registry and not self.federated_only:
@@ -555,21 +556,17 @@ class NodeConfiguration(ABC):
                                        *args, **kwargs)
 
     def write_keyring(self,
-                      host: str,
                       password: str,
                       encrypting: bool = True,
                       wallet: bool = False,
-                      tls: bool = True,
-                      tls_curve: EllipticCurve = None,
+                      **generation_kwargs,
                       ) -> NucypherKeyring:
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 encrypting=encrypting,
                                                 wallet=wallet,
-                                                tls=tls,
-                                                host=host,
-                                                curve=tls_curve,
-                                                keyring_root=self.keyring_dir)
+                                                keyring_root=self.keyring_dir,
+                                                **generation_kwargs)
 
         # TODO: Operating mode switch #466
         if self.federated_only or not wallet:

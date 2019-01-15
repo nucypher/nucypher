@@ -539,7 +539,7 @@ class Ursula(Teacher, Character, Miner):
                 #
                 # TLSHostingPower (Ephemeral Self-Ursula)
                 #
-                tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host)
+                tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host, checksum_public_address=self.checksum_public_address)
                 tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
                 self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port,
                                                    routes=rest_routes, hosting_power=tls_hosting_power)
@@ -591,7 +591,7 @@ class Ursula(Teacher, Character, Miner):
         #
         if is_me:
             self.known_nodes.record_fleet_state(additional_nodes_to_track=[self])
-            message = "Initialized Self {} | {}".format(self.__class__.__name__, self.checksum_public_address)
+            message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
             self.log.info(message)
         else:
             message = "Initialized Stranger {} | {}".format(self.__class__.__name__, self)
@@ -668,7 +668,7 @@ class Ursula(Teacher, Character, Miner):
         node from bytes; instead it's just enough to connect to and verify a node.
         """
 
-        return cls.from_seed_and_stake_info(checksum_public_address=seednode_metadata.checksum_public_address,
+        return cls.from_seed_and_stake_info(checksum_address=seednode_metadata.checksum_public_address,
                                             seed_uri='{}:{}'.format(seednode_metadata.rest_host, seednode_metadata.rest_port),
                                             *args, **kwargs)
 
@@ -688,7 +688,7 @@ class Ursula(Teacher, Character, Miner):
             try:
                 teacher = cls.from_seed_and_stake_info(seed_uri='{host}:{port}'.format(host=hostname, port=port),
                                                        federated_only=federated_only,
-                                                       checksum_public_address=checksum_address,
+                                                       checksum_address=checksum_address,
                                                        minimum_stake=min_stake)
 
             except (socket.gaierror, requests.exceptions.ConnectionError, ConnectionRefusedError):
@@ -707,7 +707,7 @@ class Ursula(Teacher, Character, Miner):
                                  seed_uri: str,
                                  federated_only: bool,
                                  minimum_stake: int = 0,
-                                 checksum_public_address: str = None,
+                                 checksum_address: str = None,
                                  network_middleware: RestMiddleware = None,
                                  *args,
                                  **kwargs
@@ -727,8 +727,7 @@ class Ursula(Teacher, Character, Miner):
         certificate = network_middleware.get_certificate(host=host, port=port)
         real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
         temp_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
-        certificate_filepath = temp_node_storage.store_host_certificate(host=real_host,
-                                                                        certificate=certificate)
+        certificate_filepath = temp_node_storage.store_host_certificate(certificate=certificate)
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
             host=real_host,
@@ -739,7 +738,7 @@ class Ursula(Teacher, Character, Miner):
             *args,
             **kwargs)  # TODO: 466
 
-        if checksum_public_address:
+        if checksum_address:
             # Ensure this is the specific node we expected
             if not checksum_public_address == potential_seed_node.checksum_public_address:
                 template = "This seed node has a different wallet address: {} (expected {}).  Are you sure this is a seednode?"

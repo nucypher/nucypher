@@ -232,8 +232,8 @@ def _generate_wallet(password: str) -> Tuple[str, dict]:
     return account.address, encrypted_wallet_data
 
 
-def _generate_tls_keys(host: str, curve: EllipticCurve) -> Tuple[_EllipticCurvePrivateKey, Certificate]:
-    cert, private_key = generate_self_signed_certificate(host, curve)
+def _generate_tls_keys(host: str, checksum_address: str, curve: EllipticCurve) -> Tuple[_EllipticCurvePrivateKey, Certificate]:
+    cert, private_key = generate_self_signed_certificate(host=host, curve=curve, checksum_address=checksum_address)
     return private_key, cert
 
 
@@ -518,7 +518,7 @@ class NucypherKeyring:
                  password: str,
                  encrypting: bool = True,
                  wallet: bool = True,
-                 tls: bool = True,
+                 rest: bool = False,
                  host: str = None,
                  curve: EllipticCurve = None,
                  keyring_root: str = None,
@@ -533,7 +533,7 @@ class NucypherKeyring:
         if failures:
             raise cls.AuthenticationFailed(", ".join(failures))  # TODO: Ensure this scope is seperable from the scope containing the password
 
-        if not any((wallet, encrypting, tls)):
+        if not any((wallet, encrypting, rest)):
             raise ValueError('Either "encrypting", "wallet", or "tls" must be True '
                              'to generate new keys, or set "no_keys" to True to skip generation.')
 
@@ -625,10 +625,10 @@ class NucypherKeyring:
                 delegating_key_path=delegating_key_path,
             )
 
-        if tls is True:
-            if not all((host, curve)):
-                raise ValueError("Host and curve are required to make a new keyring TLS certificate. Got {}, {}".format(host, curve))
-            private_key, cert = _generate_tls_keys(host, curve)
+        if rest is True:
+            if not all((host, curve, new_address)):  # TODO: Do we want to allow showing up with an old wallet and generating a new cert?  Probably.
+                raise ValueError("host, checksum_address and curve are required to make a new keyring TLS certificate. Got {}, {}".format(host, curve))
+            private_key, cert = _generate_tls_keys(host=host, checksum_address=new_address, curve=curve)
 
             def __serialize_pem(pk):
                 return pk.private_bytes(

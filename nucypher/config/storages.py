@@ -29,7 +29,7 @@ from botocore.errorfactory import ClientError
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509 import Certificate
+from cryptography.x509 import Certificate, NameOID
 from twisted.logger import Logger
 from typing import Callable, Tuple, Union, Set, Any
 
@@ -190,9 +190,11 @@ class ForgetfulNodeStorage(NodeStorage):
 
         return len(self.__rollover_certificates) == 0
 
-    def store_host_certificate(self, host: str, certificate: Certificate):
-        self.__certificates[host] = certificate
-        return self.generate_certificate_filepath(host=host)
+    def store_host_certificate(self, certificate: Certificate):
+        pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
+        checksum_address = pseudonym.value
+        self.__certificates[checksum_address] = certificate
+        return self.generate_certificate_filepath(checksum_address=checksum_address)
 
     @validate_checksum_address
     def store_node_certificate(self,
@@ -211,16 +213,11 @@ class ForgetfulNodeStorage(NodeStorage):
 
     @validate_checksum_address
     def generate_certificate_filepath(self,
-                                      checksum_address: str = None,
-                                      host: str = None) -> str:
+                                      checksum_address: str = None) -> str:
 
-        if not bool(checksum_address) ^ bool(host):
-            message = "Either pass checksum_address or host; Not both. Got ({} {})".format(checksum_address, host)
-            raise ValueError(message)
-
-        prefix = '{}{}-'.format(self.__base_prefix, checksum_address or host)
+        prefix = '{}{}-'.format(self.__base_prefix, checksum_address)
         temp_file = tempfile.NamedTemporaryFile(prefix=prefix, suffix=self.TLS_CERTIFICATE_EXTENSION, delete=False)
-        certificate = self.__certificates[checksum_address or host]
+        certificate = self.__certificates[checksum_address]
         certificate_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
         temp_file.write(certificate_bytes)
 

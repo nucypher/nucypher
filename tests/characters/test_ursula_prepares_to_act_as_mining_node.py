@@ -127,4 +127,4 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas)
 
     # However, the actual handshake proves him wrong.
     with pytest.raises(vladimir.InvalidNode):
-        vladimir.verify_node(blockchain_alice.network_middleware)
+        vladimir.verify_node(blockchain_alice.network_middleware, certificate_filepath="doesn't matter")

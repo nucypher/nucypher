@@ -57,29 +57,17 @@ except:  # If anything fails, let's create Alicia from scratch
                                              federated_only=True,
                                              minimum_stake=0)
 
-    # Let's create an Alice from a Configuration.
-    # This requires creating a local storage for her first.
-    node_storage = LocalFileBasedNodeStorage(
-        federated_only=True,
-        character_class=Ursula,  # Alice needs to store some info about Ursula
-        metadata_dir=os.path.join(TEMP_ALICE_DIR, "known_metadata"),
-    )
-
     alice_config = AliceConfiguration(
         config_root=os.path.join(TEMP_ALICE_DIR, "config_root"),
-        node_storage=node_storage,
-        auto_initialize=True,
-        auto_generate_keys=True,
-        passphrase=passphrase,
         is_me=True,
         known_nodes={ursula},
         start_learning_now=False,
         federated_only=True,
         learn_on_same_thread=True,
     )
-    alicia = alice_config(passphrase=passphrase,
-                          known_certificates_dir=TEMP_URSULA_CERTIFICATE_DIR,
-                          )
+    alice_config.initialize(password=passphrase)
+    alice_config.keyring.unlock(password=passphrase)
+    alicia = alice_config.produce()
 
     # We will save Alicia's config to a file for later use
     alice_config_file = alice_config.to_configuration_file()
@@ -117,7 +105,7 @@ from doctor_keys import get_doctor_pubkeys
 doctor_pubkeys = get_doctor_pubkeys()
 
 powers_and_material = {
-    EncryptingPower: doctor_pubkeys['enc'],
+    DecryptingPower: doctor_pubkeys['enc'],
     SigningPower: doctor_pubkeys['sig']
 }
 
