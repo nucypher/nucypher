@@ -1,16 +1,18 @@
-# ignore json files
+# ignore keys folder
 keys
-*.json
 
-# ignore kfrags files
-kfrags
-*.kfrags
+# ignore shared folder
+shared
 
-# ignore db data
+# ignore db folder
 data
 
 # ignore pyCharm files
 .idea
+
+# character folders
+alicia-files
+bob-files
 
 # cache files
 __pycache__

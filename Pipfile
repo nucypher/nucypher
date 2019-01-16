@@ -13,8 +13,8 @@ dash-core-components = "==0.41.0"
 dash-table = "==3.1.11"
 pandas = "==0.23.4"
 plotly = "==3.5.0"
-dash-table-experiments = "==0.6.0"
 umbral = "==0.1.3a0"
+nucypher = {git = "https://github.com/cygnusv/nucypher.git",ref = "fix-demo"}
 
 [requires]
 python_version = "3.7"

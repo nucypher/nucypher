@@ -15,6 +15,22 @@ This simple use case showcases many interesting and distinctive aspects of NuCyp
   - The Doctor never interacts with Alicia or the Heart Monitor: he only needs the encrypted data and some policy metadata.
 
 ### How to run the demo
+#### Run a local node
+The code for the NuCypher node can be obtained from [fix-demo](https://github.com/cygnusv/nucypher/tree/fix-demo)
+
+Install dependencies (only for the first time):
+```sh
+$ pipenv install --pre --skip-lock --dev
+```
+
+Run the node
+```sh
+$ pipenv shell
+
+(nucypher)$ nucypher ursula run --dev --debug --federated-only
+```
+
+#### Run the demo
 Install dependencies (only for the first time):
 ```sh
 $ pipenv install --pre --skip-lock --dev
@@ -24,7 +40,7 @@ Run the demo:
 ```sh
 $ pipenv shell
 
-(nucypher)$ python streaming_heartbeat.py
+(heartbeat_demo)$ python streaming_heartbeat.py
 ```
 
 * The characters can be viewed at [http://127.0.0.1:8050/](http://127.0.0.1:8050/)

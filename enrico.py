@@ -1,15 +1,22 @@
 from dash.dependencies import Output, Input, State, Event
-from dash_table_experiments import DataTable
+import dash_table
 import dash_core_components as dcc
 import dash_html_components as html
+import msgpack
+import os
 import pandas as pd
 import random
 import sqlite3
 import time
-from umbral import pre
+
+from nucypher.data_sources import DataSource
 from umbral.keys import UmbralPublicKey
 
-from app import app, DB_FILE, DB_NAME
+from app import app, DB_FILE, DB_NAME, SHARED_FOLDER
+
+DATA_SOURCE_INFO_FILE = os.path.join(SHARED_FOLDER, 'heart_data.msgpack')
+
+cached_data_source = list()
 
 layout = html.Div([
     html.Div([
@@ -49,6 +56,7 @@ layout = html.Div([
             html.Div(id='cached-last-heartbeat', className='one column'),
         ], className='row'),
         html.Br(),
+        html.H5('Last 30s of Data: '),
         html.Div(id='db-table-content'),
     ], className='row'),
 ])
@@ -67,29 +75,52 @@ def generate_heartbeat_data(gen_time, policy_pubkey_hex, last_heart_rate):
     if int(gen_time) == 0:
         # button has not been clicked as yet or interval triggered before click
         # return base heart rate
+        print('in here instead')
         return None
 
-    last_heart_rate = 80
+    print("in generate heartbeat data")
+
+    label = 'heart-data'
+
+    policy_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_pubkey_hex))
+    if not cached_data_source:
+        data_source = DataSource(policy_pubkey_enc=policy_pubkey, label=label)
+        data_source_public_key = bytes(data_source.stamp)
+
+        data = {
+            'data_source_pub_key': data_source_public_key,
+        }
+        with open(DATA_SOURCE_INFO_FILE, "wb") as file:
+            msgpack.dump(data, file, use_bin_type=True)
+        cached_data_source.append(data_source)
+    else:
+        data_source = cached_data_source[0]
+
     if last_heart_rate is not None:
         last_heart_rate = int(last_heart_rate)
+    else:
+        last_heart_rate = 80
 
     heart_rate = random.randint(max(60, last_heart_rate - 5),
                                 min(100, last_heart_rate + 5))
 
-    policy_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_pubkey_hex))
-    ciphertext, capsule = pre.encrypt(policy_pubkey, int.to_bytes(heart_rate, length=1, byteorder='big'))
+    plaintext = msgpack.dumps(heart_rate, use_bin_type=True)
+    message_kit, _signature = data_source.encrypt_message(plaintext)
+    kit_bytes = message_kit.to_bytes()
 
     timestamp = time.time()
     df = pd.DataFrame.from_dict({
         'Timestamp': [timestamp],
-        'HB': [ciphertext.hex()],
-        'Capsule': [capsule.to_bytes().hex()]
+        'EncryptedData': [kit_bytes.hex()],
     })
 
     # add new heartbeat data
     db_conn = sqlite3.connect(DB_FILE)
-    df.to_sql(name=DB_NAME, con=db_conn, index=False, if_exists='append')
-    print("Added heart rate️ measurement to db:", timestamp, "-> ❤", heart_rate)
+    try:
+        df.to_sql(name=DB_NAME, con=db_conn, index=False, if_exists='append')
+        print("Added heart rate️ measurement to db:", timestamp, "-> ❤", heart_rate)
+    finally:
+        db_conn.close()
 
     return heart_rate
 
@@ -106,17 +137,36 @@ def display_heartbeat_data(cached_last_heartbeat):
     now = time.time()
     duration = 30  # last 30s of readings
     db_conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query('SELECT Timestamp, HB, Capsule '
-                           'FROM {} '
-                           'WHERE Timestamp > "{}" AND Timestamp <= "{}" '
-                           'ORDER BY Timestamp DESC;'
-                           .format(DB_NAME, now - duration, now), db_conn)
-    rows = df.to_dict('rows')
+    try:
+        df = pd.read_sql_query('SELECT Timestamp, EncryptedData '
+                               'FROM {} '
+                               'WHERE Timestamp > "{}" AND Timestamp <= "{}" '
+                               'ORDER BY Timestamp DESC;'
+                               .format(DB_NAME, now - duration, now), db_conn)
+        rows = df.to_dict('rows')
+    finally:
+        db_conn.close()
 
     return html.Div([
-        html.Div(id='datatable-output'),
-        DataTable(
-            id='datatable',
-            rows=rows,
-        )
-    ])
+                dash_table.DataTable(
+                    id='db-table',
+                    columns=[{"name": i, "id": i} for i in df.columns],
+                    data=rows,
+                    style_table={
+                        'maxHeight': '300',
+                        'overflowY': 'scroll'
+                    },
+                    style_cell={
+                        'textAlign': 'left',
+                        'minWidth': '0px',
+                        'maxWidth': '200px',
+                        'whiteSpace': 'no-wrap',
+                        'overflow': 'hidden',
+                        'textOverflow': 'ellipsis',
+                    },
+                    css=[{
+                        'selector': '.dash-cell div.dash-cell-value',
+                        'rule': 'display: inline; white-space: inherit; overflow: inherit; text-overflow: inherit;'
+                    }],
+                )
+           ], className='row')
