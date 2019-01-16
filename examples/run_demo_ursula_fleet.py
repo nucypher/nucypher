@@ -29,25 +29,34 @@ from twisted.internet import reactor
 from twisted.logger import globalLogPublisher
 
 from nucypher.utilities.logging import SimpleObserver
-from nucypher.utilities.sandbox.constants import MOCK_URSULA_STARTING_PORT, select_test_port
 
 
-def spin_up_federated_ursulas(quantity: int = 2):
+FLEET_POPULATION = 5
+DEMO_NODE_STARTING_PORT = 11501
+TEACHER_URI = f'127.0.0.1:11500'
 
+
+def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
+
+    # Logger
     globalLogPublisher.addObserver(SimpleObserver())
 
-    starting_port = select_test_port()
-    ports = map(str, range(starting_port, starting_port + quantity))
-    ursulas, ursula_processes = set(), list()
+    # Ports
+    starting_port = DEMO_NODE_STARTING_PORT
+    ports = list(map(str, range(starting_port, starting_port + quantity)))
+
+    ursula_processes = list()
     for index, port in enumerate(ports):
 
-        executable = 'nucypher'
-        args = ['nucypher', 'ursula', 'run',
-                '--federated-only', '--rest-port', port,
-                '--dev', '--debug']
-
-        if index != 0:    # Skip first iteration
-            args.extend(['--teacher-uri', 'https://127.0.0.1:{}'.format(int(port)-1)])
+        args = ['nucypher',
+                'ursula', 'run',
+                '--rest-port', port,
+                '--teacher-uri', TEACHER_URI,
+                '--federated-only',
+                '--dev',
+                '--debug',
+                '--config-root', 'demo-ursula-{}'.format(port)
+                ]
 
         env = {'PATH': os.environ['PATH'],
                'NUCYPHER_SENTRY_LOGS': '0',
@@ -55,7 +64,9 @@ def spin_up_federated_ursulas(quantity: int = 2):
                'LC_ALL': 'C.UTF-8',
                'LANG': 'C.UTF-8'}
 
-        childFDs = {0: 0, 1: 1, 2: 2}
+        childFDs = {0: 0,
+                    1: 1,
+                    2: 2}
 
         class UrsulaProcessProtocol(protocol.Protocol):
 
@@ -63,10 +74,10 @@ def spin_up_federated_ursulas(quantity: int = 2):
                 self.command = command
 
         processProtocol = UrsulaProcessProtocol(command=args)
-        p = reactor.spawnProcess(processProtocol, executable, args, env=env, childFDs=childFDs)
+        p = reactor.spawnProcess(processProtocol, 'nucypher', args, env=env, childFDs=childFDs)
         ursula_processes.append(p)
 
-    reactor.run()
+    reactor.run()  # GO!
 
 
 if __name__ == "__main__":

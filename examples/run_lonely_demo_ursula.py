@@ -23,21 +23,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from click.testing import CliRunner
-
 from nucypher.cli.main import nucypher_cli
-from nucypher.utilities.sandbox.constants import select_test_port
+
 
 click_runner = CliRunner()
 
-DEMO_NODE_PORT = select_test_port()
-DEMO_FLEET_STARTING_PORT = 11501
-
 args = ['ursula', 'run',
-        '--federated-only',
-        '--teacher-uri', f'https://127.0.0.1:{DEMO_FLEET_STARTING_PORT}',
-        '--rest-port', DEMO_NODE_PORT,
-        '--dev',
-        '--debug',
-        ]
+        '--rest-port', 11500,  # REST Server
+        '--federated-only',    # Operating Mode
+        '--dev',               # In-Memory
+        '--debug',             # Non-Interactive + Verbose
+        '--lonely']            # Disable Seednode Learning
 
 nucypher_cli.main(args=args, prog_name="nucypher-cli")

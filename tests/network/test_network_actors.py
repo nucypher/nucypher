@@ -200,9 +200,7 @@ def test_alice_refuses_to_make_arrangement_unless_ursula_is_valid(blockchain_ali
         federated = False
         ursula = target
 
-    vladimir.node_storage.store_node_certificate(host=target.rest_information()[0].host,
-                                                 certificate=target.certificate,
-                                                 checksum_address=target.checksum_public_address)
+    vladimir.node_storage.store_node_certificate(certificate=target.certificate)
 
     with pytest.raises(vladimir.InvalidNode):
         idle_blockchain_policy.consider_arrangement(network_middleware=blockchain_alice.network_middleware,

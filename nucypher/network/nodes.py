@@ -246,7 +246,8 @@ class Learner:
                  seed_nodes: Tuple[tuple] = None,
                  node_storage=None,
                  save_metadata: bool = False,
-                 abort_on_learning_error: bool = False
+                 abort_on_learning_error: bool = False,
+                 lonely: bool = False,
                  ) -> None:
 
         self.log = Logger("learning-loop")  # type: Logger
@@ -263,6 +264,7 @@ class Learner:
 
         self.__known_nodes = FleetStateTracker()
 
+        self.lonely = lonely
         self.done_seeding = False
 
         # Read
@@ -329,14 +331,14 @@ class Learner:
         for seednode_metadata in self._seed_nodes:
             __attempt_seednode_learning(seednode_metadata=seednode_metadata)
 
-        if not self.unresponsive_seed_nodes:
+        if not self.unresponsive_seed_nodes and not self.lonely:
             self.log.info("Finished learning about all seednodes.")
         self.done_seeding = True
 
         if read_storages is True:
             self.read_nodes_from_storage()
 
-        if not self.known_nodes:
+        if not self.known_nodes and not self.lonely:
             self.log.warn("No seednodes were available after {} attempts".format(retry_attempts))
             # TODO: Need some actual logic here for situation with no seed nodes (ie, maybe try again much later)
 
@@ -359,14 +361,12 @@ class Learner:
                 return False
 
         # Store node's certificate - It has been seen.
-        certificate_filepath = self.node_storage.store_node_certificate(checksum_address=node.checksum_public_address,
-                                                                        certificate=node.certificate,
-                                                                        host=node.rest_information()[0].host)
+        certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
 
         try:
             node.verify_node(force=force_verification_check,
                              network_middleware=self.network_middleware,
-                             accept_federated_only=self.federated_only,  # TODO: 466
+                             accept_federated_only=self.federated_only,  # TODO: 466 - move federated-only up to Learner?
                              certificate_filepath=certificate_filepath)
         except SSLError:
             return False  # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?
@@ -401,18 +401,26 @@ class Learner:
             return False
         elif now:
             self.log.info("Starting Learning Loop NOW.")
-            self.load_seednodes()
+            if not self.lonely:
+                self.load_seednodes()
             self.learn_from_teacher_node()
             self.learning_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY)
             self.learning_deferred.addErrback(self.handle_learning_errors)
             return self.learning_deferred
         else:
             self.log.info("Starting Learning Loop.")
-            seeder_deferred = deferToThread(self.load_seednodes)
+
+            learning_deferreds = list()
+            if not self.lonely:
+                seeder_deferred = deferToThread(self.load_seednodes)
+                seeder_deferred.addErrback(self.handle_learning_errors)
+                learning_deferreds.append(seeder_deferred)
+
             learner_deferred = self._learning_task.start(interval=self._SHORT_LEARNING_DELAY, now=now)
-            seeder_deferred.addErrback(self.handle_learning_errors)
             learner_deferred.addErrback(self.handle_learning_errors)
-            self.learning_deferred = defer.DeferredList([seeder_deferred, learner_deferred])
+            learning_deferreds.append(learner_deferred)
+
+            self.learning_deferred = defer.DeferredList(learning_deferreds)
             return self.learning_deferred
 
     def stop_learning_loop(self, reason=None):
@@ -452,7 +460,7 @@ class Learner:
     def cycle_teacher_node(self):
         # To ensure that all the best teachers are availalble, first let's make sure
         # that we have connected to all the seed nodes.
-        if self.unresponsive_seed_nodes:
+        if self.unresponsive_seed_nodes and not self.lonely:
             self.log.info("Still have unresponsive seed nodes; trying again to connect.")
             self.load_seednodes()  # Ideally, this is async and singular.
 
@@ -708,7 +716,7 @@ class Learner:
                     # This node is already known.  We can safely continue to the next.
                     continue
 
-            certificate_filepath = self.node_storage.store_node_certificate(checksum_address=node.checksum_public_address, certificate=node.certificate)
+            certificate_filepath = self.node_storage.store_node_certificate(certificate=node.certificate)
 
             try:
                 if eager:
@@ -741,10 +749,7 @@ class Learner:
         if new_nodes:
             self.known_nodes.record_fleet_state()
             for node in new_nodes:
-                self.node_storage.store_node_certificate(checksum_address=node.checksum_public_address,
-                                                         certificate=node.certificate,
-                                                         host=node.rest_information()[0].host,
-                                                         force=True)
+                self.node_storage.store_node_certificate(certificate=node.certificate)
         return new_nodes
 
 

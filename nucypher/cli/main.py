@@ -49,8 +49,6 @@ from nucypher.utilities.logging import (
     getJsonFileObserver,
     SimpleObserver)
 
-FEDERATED_ONLY = False
-
 
 #
 # Click CLI Config
@@ -146,6 +144,7 @@ def status(click_config, config_file):
 @click.option('--quiet', '-Q', help="Disable logging", is_flag=True)
 @click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 @click.option('--force', help="Don't ask for confirmation", is_flag=True)
+@click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
 @click.option('--network', help="Network Domain Name", type=click.STRING)
 @click.option('--teacher-uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 @click.option('--min-stake', help="The minimum stake the teacher must have to be a teacher", type=click.INT, default=0)
@@ -153,7 +152,7 @@ def status(click_config, config_file):
 @click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT)
 @click.option('--db-filepath', help="The database filepath to connect to", type=click.STRING)
 @click.option('--checksum-address', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True, default=FEDERATED_ONLY)
+@click.option('--federated-only', '-F', help="Connect only to federated nodes", is_flag=True)
 @click.option('--poa', help="Inject POA middleware", is_flag=True)
 @click.option('--config-root', help="Custom configuration directory", type=click.Path())
 @click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
@@ -169,6 +168,7 @@ def ursula(click_config,
            quiet,
            dry_run,
            force,
+           lonely,
            network,
            teacher_uri,
            min_stake,
@@ -343,20 +343,19 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
 
         # Restore configuration from file
         ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file,
-                                                                    # TODO: Handle Boolean overrides
-                                                                    # poa=poa,
-                                                                    # federated_only=federated_only,
-
                                                                     domains={network} if network else None,
                                                                     registry_filepath=registry_filepath,
                                                                     provider_uri=provider_uri,
                                                                     rest_host=rest_host,
                                                                     rest_port=rest_port,
-                                                                    db_filepath= db_filepath
+                                                                    db_filepath=db_filepath,
+
+                                                                    # TODO: Handle Boolean overrides
+                                                                    # poa=poa,
+                                                                    # federated_only=federated_only,
                                                                     )
 
         try:  # Unlock Keyring
-            # ursula_config.attach_keyring()
             if not quiet:
                 click.secho('Decrypting keyring...', fg='blue')
             ursula_config.keyring.unlock(password=click_config.get_password())  # Takes ~3 seconds, ~1GB Ram
@@ -368,7 +367,8 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
             ursula_config.connect_to_blockchain(recompile_contracts=False)
             ursula_config.connect_to_contracts()
         except EthereumContractRegistry.NoRegistry:
-            message = "Cannot configure blockchain character: No contract registry found;  Did you mean to pass --federated-only?"
+            message = "Cannot configure blockchain character: No contract registry found; " \
+                      "Did you mean to pass --federated-only?"
             raise EthereumContractRegistry.NoRegistry(message)
 
     click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
@@ -390,7 +390,7 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
         #
         # Produce - Step 2
         #
-        ursula = ursula_config(known_nodes=teacher_nodes)
+        ursula = ursula_config(known_nodes=teacher_nodes, lonely=lonely)
 
         # GO!
         try:

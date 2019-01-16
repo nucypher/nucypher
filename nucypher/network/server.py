@@ -215,15 +215,13 @@ class ProxyRESTRoutes:
 
             @crosstown_traffic()
             def learn_about_announced_nodes():
-                try:
 
-                    temp_certificate_filepath = self.__forgetful_node_storage.store_node_certificate(
-                        checksum_address=node.checksum_public_address,
-                        certificate=node.certificate)
+                try:
+                    certificate_filepath = self.__forgetful_node_storage.store_node_certificate(certificate=node.certificate)
 
                     node.verify_node(self.network_middleware,
                                      accept_federated_only=self.federated_only,  # TODO: 466
-                                     certificate_filepath=temp_certificate_filepath)
+                                     certificate_filepath=certificate_filepath)
 
                 # Suspicion
                 except node.SuspiciousActivity:
@@ -247,7 +245,7 @@ class ProxyRESTRoutes:
 
                 # Cleanup
                 finally:
-                    self.__forgetful_node_storage.forget(everything=True)
+                    self.__forgetful_node_storage.forget()
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node?
         return self.all_known_nodes(request)
