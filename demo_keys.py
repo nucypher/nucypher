@@ -15,7 +15,7 @@ def get_alicia_pubkeys():
     return _get_keys(ALICIA_PUBLIC_JSON, UmbralPublicKey)
 
 
-def get_recipient_pubkeys(recipient_id: str = None):
+def get_recipient_pubkeys(recipient_id: str):
     return _get_keys(RECIPIENT_PUBLIC_JSON.format(recipient_id), UmbralPublicKey, recipient_id)
 
 
@@ -23,7 +23,7 @@ def get_alicia_privkeys():
     return _get_keys(ALICIA_PRIVATE_JSON, UmbralPrivateKey)
 
 
-def get_recipient_privkeys(recipient_id: str = None):
+def get_recipient_privkeys(recipient_id: str):
     return _get_keys(RECIPIENT_PRIVATE_JSON.format(recipient_id), UmbralPrivateKey, recipient_id)
 
 

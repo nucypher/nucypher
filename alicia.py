@@ -121,8 +121,8 @@ layout = html.Div([
             dcc.Input(id='n-value', value='1', type='number', className='two columns'),
         ], className='row'),
         html.Div([
-            html.Div('Recipient Public Key: ', className='two columns'),
-            dcc.Input(id='recipient-pub-key', type='text', className='seven columns'),
+            html.Div('Grant Recipient Public Key: ', className='two columns'),
+            dcc.Input(id='recipient-pub-key-grant', type='text', className='seven columns'),
         ], className='row'),
         html.Div([
             html.Button('Grant Access', id='grant-button', type='submit',
@@ -164,7 +164,7 @@ def create_policy():
      State('days', 'value'),
      State('m-value', 'value'),
      State('n-value', 'value'),
-     State('recipient-pub-key', 'value')],
+     State('recipient-pub-key-grant', 'value')],
     [Event('grant-button', 'click'),
      Event('revoke-button', 'click')]
 )

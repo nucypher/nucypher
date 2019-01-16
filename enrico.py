@@ -74,11 +74,7 @@ layout = html.Div([
 def generate_heartbeat_data(gen_time, policy_pubkey_hex, last_heart_rate):
     if int(gen_time) == 0:
         # button has not been clicked as yet or interval triggered before click
-        # return base heart rate
-        print('in here instead')
         return None
-
-    print("in generate heartbeat data")
 
     label = 'heart-data'
 

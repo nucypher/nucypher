@@ -169,14 +169,14 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
 
     policy_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['policy_pubkey']))
     alices_sig_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['alice_sig_pubkey']))
-    label = policy_data["label"].encode()
+    label = policy_data['label'].encode()
 
     if not joined:
         print("The Doctor joins policy for label '{}' "
               "and pubkey {}".format(policy_data['label'], policy_data['policy_pubkey']))
 
         bob.join_policy(label, alices_sig_pubkey)
-        joined.append(1)
+        joined.append(label)
 
     with open(DATA_SOURCE_INFO_FILE, "rb") as file:
         data_source_metadata = msgpack.load(file, raw=False)
@@ -190,7 +190,7 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
         # use last timestamp
         last_timestamp = list(cached_hb_values.keys())[-1]
 
-    # The bob also needs to create a view of the Data Source from its public keys
+    # Bob also needs to create a view of the Data Source from its public keys
     data_source = DataSource.from_public_keys(
         policy_public_key=policy_pubkey,
         datasource_public_key=data_source_metadata['data_source_pub_key'],
@@ -202,8 +202,8 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
         df = pd.read_sql_query('SELECT Timestamp, EncryptedData '
                                'FROM {} '
                                'WHERE Timestamp > "{}" '
-                               'ORDER BY Timestamp;'
-                               .format(DB_NAME, last_timestamp), db_conn)
+                               'ORDER BY Timestamp;'.format(DB_NAME, last_timestamp),
+                               db_conn)
 
         for index, row in df.iterrows():
             kit_bytes = bytes.fromhex(row['EncryptedData'])
