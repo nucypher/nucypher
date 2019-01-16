@@ -1,0 +1,22 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+dash = "==0.34.0"
+dash-html-components = "==0.13.4"
+dash-core-components = "==0.41.0"
+dash-table = "==3.1.11"
+pandas = "==0.23.4"
+plotly = "==3.5.0"
+umbral = "==0.1.3a0"
+nucypher = {git = 'https://github.com/cygnusv/nucypher.git',ref = 'fix-demo',editable = true}
+
+[requires]
+python_version = "3.7"
+
+[pipenv]
+allow_prereleases = true
