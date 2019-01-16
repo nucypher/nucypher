@@ -522,7 +522,7 @@ class NucypherKeyring:
                  keyring_root: str = None,
                  ) -> 'NucypherKeyring':
         """
-        Generates new encrypting, signing, and wallet keys encrypted with the password,
+        Generates new signing, encrypting, and wallet keys encrypted with the password,
         respectively saving keyfiles on the local filesystem from *default* paths,
         returning the corresponding Keyring instance.
         """
@@ -552,47 +552,62 @@ class NucypherKeyring:
 
         keyring_args = dict()
 
-        if wallet is True:
+        signing_private_key, signing_public_key = _generate_signing_keys()
+
+        if wallet:
             new_address, new_wallet = _generate_wallet(password)
             new_wallet_path = os.path.join(_private_key_dir, 'wallet-{}.json'.format(new_address))
             with open(new_wallet_path, 'w') as wallet:  # TODO: is this pub or private?
                 wallet.write(json.dumps(new_wallet))
             keyring_args.update(wallet_path=new_wallet_path)
-
-        if encrypting is True:
-            signing_private_key, signing_public_key = _generate_signing_keys()
-            if not wallet:
-                uncompressed_bytes = signing_public_key.to_bytes(is_compressed=False)
-                without_prefix = uncompressed_bytes[1:]
-                verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
-                new_address = verifying_key_as_eth_key.to_checksum_address()
+        else:
+            uncompressed_bytes = signing_public_key.to_bytes(is_compressed=False)
+            without_prefix = uncompressed_bytes[1:]
+            verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
+            new_address = verifying_key_as_eth_key.to_checksum_address()
 
         __key_filepaths = cls._generate_key_filepaths(account=new_address,
                                                       private_key_dir=_private_key_dir,
                                                       public_key_dir=_public_key_dir)
-        if encrypting is True:
+
+        password_salt, signing_salt = os.urandom(32), os.urandom(32)
+        derived_key_material = derive_key_from_password(salt=password_salt, password=password.encode())
+        signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt,
+                                                                    key_material=derived_key_material)
+        signing_key_data = signing_private_key.to_bytes(wrapping_key=signature_wrap_key)
+        signing_key_metadata = _assemble_key_data(key_data=signing_key_data,
+                                                  master_salt=password_salt,
+                                                  wrap_salt=signing_salt)
+        sigkey_path = _write_private_keyfile(keypath=__key_filepaths['signing'],
+                                             key_data=signing_key_metadata,
+                                             serializer=cls._private_key_serializer)
+        signing_keypath = _write_public_keyfile(__key_filepaths['signing_pub'], signing_public_key.to_bytes())
+
+        keyring_args.update(
+            keyring_root=keyring_root or cls.__default_keyring_root,
+            signing_key_path=sigkey_path,
+            pub_signing_key_path=signing_keypath,
+        )
+
+        if encrypting:
             encrypting_private_key, encrypting_public_key = _generate_encryption_keys()
             delegating_keying_material = UmbralKeyingMaterial().to_bytes()
 
             # Derive Wrapping Keys
-            password_salt, encrypting_salt, signing_salt, delegating_salt = (os.urandom(32) for _ in range(4))
+            encrypting_salt, delegating_salt = os.urandom(32), os.urandom(32)
             derived_key_material = derive_key_from_password(salt=password_salt, password=password.encode())
             encrypting_wrap_key = _derive_wrapping_key_from_key_material(salt=encrypting_salt, key_material=derived_key_material)
-            signature_wrap_key = _derive_wrapping_key_from_key_material(salt=signing_salt, key_material=derived_key_material)
+
             delegating_wrap_key = _derive_wrapping_key_from_key_material(salt=delegating_salt, key_material=derived_key_material)
 
             # Encapsulate Private Keys
             encrypting_key_data = encrypting_private_key.to_bytes(wrapping_key=encrypting_wrap_key)
-            signing_key_data = signing_private_key.to_bytes(wrapping_key=signature_wrap_key)
             delegating_key_data = bytes(SecretBox(delegating_wrap_key).encrypt(delegating_keying_material))
 
             # Assemble Private Keys
             encrypting_key_metadata = _assemble_key_data(key_data=encrypting_key_data,
                                                          master_salt=password_salt,
                                                          wrap_salt=encrypting_salt)
-            signing_key_metadata = _assemble_key_data(key_data=signing_key_data,
-                                                      master_salt=password_salt,
-                                                      wrap_salt=signing_salt)
             delegating_key_metadata = _assemble_key_data(key_data=delegating_key_data,
                                                          master_salt=password_salt,
                                                          wrap_salt=delegating_salt)
@@ -601,30 +616,25 @@ class NucypherKeyring:
             rootkey_path = _write_private_keyfile(keypath=__key_filepaths['root'],
                                                   key_data=encrypting_key_metadata,
                                                   serializer=cls._private_key_serializer)
-            sigkey_path = _write_private_keyfile(keypath=__key_filepaths['signing'],
-                                                 key_data=signing_key_metadata,
-                                                 serializer=cls._private_key_serializer)
             delegating_key_path = _write_private_keyfile(keypath=__key_filepaths['delegating'],
                                                          key_data=delegating_key_metadata,
                                                          serializer=cls._private_key_serializer)
 
             # Write Public Keys
             root_keypath = _write_public_keyfile(__key_filepaths['root_pub'], encrypting_public_key.to_bytes())
-            signing_keypath = _write_public_keyfile(__key_filepaths['signing_pub'], signing_public_key.to_bytes())
+
 
             # Commit
             keyring_args.update(
-                keyring_root=keyring_root or cls.__default_keyring_root,
                 root_key_path=rootkey_path,
                 pub_root_key_path=root_keypath,
-                signing_key_path=sigkey_path,
-                pub_signing_key_path=signing_keypath,
                 delegating_key_path=delegating_key_path,
             )
 
         if rest is True:
             if not all((host, curve, new_address)):  # TODO: Do we want to allow showing up with an old wallet and generating a new cert?  Probably.
-                raise ValueError("host, checksum_address and curve are required to make a new keyring TLS certificate. Got {}, {}".format(host, curve))
+                raise ValueError("host, checksum_address and curve are required to make a new keyring TLS certificate. "
+                                 "Got {}, {}".format(host, curve))
             private_key, cert = _generate_tls_keys(host=host, checksum_address=new_address, curve=curve)
 
             def __serialize_pem(pk):
@@ -634,9 +644,13 @@ class NucypherKeyring:
                     encryption_algorithm=serialization.BestAvailableEncryption(password=derived_key_material)
                 )
 
-            tls_key_path = _write_private_keyfile(keypath=__key_filepaths['tls'], key_data=__serialize_pem(pk=private_key), serializer=None)
-            certificate_filepath = _write_tls_certificate(full_filepath=__key_filepaths['tls_certificate'], certificate=cert)
-            keyring_args.update(tls_certificate_path=certificate_filepath, tls_key_path=tls_key_path)
+            tls_key_path = _write_private_keyfile(keypath=__key_filepaths['tls'],
+                                                  key_data=__serialize_pem(pk=private_key),
+                                                  serializer=None)
+            certificate_filepath = _write_tls_certificate(full_filepath=__key_filepaths['tls_certificate'],
+                                                          certificate=cert)
+            keyring_args.update(tls_certificate_path=certificate_filepath,
+                                tls_key_path=tls_key_path)
 
         keyring_instance = cls(account=new_address, **keyring_args)
         return keyring_instance
