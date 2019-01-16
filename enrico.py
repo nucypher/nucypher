@@ -14,7 +14,7 @@ from umbral.keys import UmbralPublicKey
 
 from app import app, DB_FILE, DB_NAME, SHARED_FOLDER
 
-DATA_SOURCE_INFO_FILE = os.path.join(SHARED_FOLDER, 'heart_data.msgpack')
+DATA_SOURCE_INFO_FILE = os.path.join(SHARED_FOLDER, 'data_source.msgpack')
 
 cached_data_source = list()
 
