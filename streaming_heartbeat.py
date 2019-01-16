@@ -26,7 +26,7 @@ index_page = html.Div([
     html.Hr(),
     html.H2('Overview'),
     html.Div([
-        html.Img(src='./assets/demo_overview.png'),
+        html.Img(src='./assets/heartbeat_demo_overview.png'),
     ], className='overview')
 ])
 

@@ -1,6 +1,6 @@
 # NuCypher's Heartbeat Demo
 
-![Heartbeat Demo](./assets/demo_overview.png)
+![Heartbeat Demo](assets/heartbeat_demo_overview.png)
 
 Alicia has a Heart Monitor device that measures her heart rate and outputs this data in encrypted form. Since she thinks that she may want to share this data in the future, she uses NuCypher to create a _policy public key_ for the Heart Monitor to use, so she can read and delegate access to the encrypted data as she sees fit. The Heart Monitor uses this public key to produce a database with some amount of encrypted heart rate measurements; this database can be located on some storage service (e.g., IPFS, S3, whatever). 
 
