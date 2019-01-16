@@ -88,6 +88,46 @@ class NodeStorage(ABC):
         common_name_from_cert = common_name_as_bytes.decode()
         return common_name_from_cert
 
+    def _write_tls_certificate(self,
+                               certificate: Certificate,
+                               host: str = None,
+                               force: bool = True) -> str:
+
+        # Read
+        x509 = OpenSSL.crypto.X509.from_cryptography(certificate)
+        subject_components = x509.get_subject().get_components()
+        common_name_as_bytes = subject_components[0][1]
+        common_name_on_certificate = common_name_as_bytes.decode()
+        if not host:
+            host = common_name_on_certificate
+
+        pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
+        checksum_address = pseudonym.value
+
+        if not is_checksum_address(checksum_address):  # TODO: more?
+            raise RuntimeError("Invalid certificate checksum address encountered: {}".format(checksum_address))
+
+        # Validate
+        # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
+        if host and (host != common_name_on_certificate):
+            raise ValueError('You passed a hostname ("{}") that does not match the certificat\'s common name.'.format(host))
+
+        certificate_filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
+        certificate_already_exists = os.path.isfile(certificate_filepath)
+        if force is False and certificate_already_exists:
+            raise FileExistsError('A TLS certificate already exists at {}.'.format(certificate_filepath))
+
+        # Write
+        with open(certificate_filepath, 'wb') as certificate_file:
+            public_pem_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
+            certificate_file.write(public_pem_bytes)
+
+        self.certificate_filepath = certificate_filepath
+        self.log.info("Saved TLS certificate for {}: {}".format(self, certificate_filepath))
+
+        return certificate_filepath
+
+
     @abstractmethod
     def store_node_certificate(self, certificate: Certificate) -> str:
         raise NotImplementedError
@@ -187,20 +227,10 @@ class ForgetfulNodeStorage(NodeStorage):
     def store_node_certificate(self, certificate: Certificate):
         pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
         checksum_address = pseudonym.value
-
         if not is_checksum_address(checksum_address):
             raise RuntimeError("Invalid certificate checksum_address encountered")  # TODO: More
-
         self.__certificates[checksum_address] = certificate
-
-        certificate_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
-
-        filename = '{}.pem'.format(checksum_address)
-        filepath = os.path.join(self.__temp_certificates_dir, filename)
-
-        with open(filepath, 'wb') as f:
-            f.write(certificate_bytes)
-
+        self._write_tls_certificate(certificate=certificate)
         return self.generate_certificate_filepath(checksum_address=checksum_address)
 
     def store_node_metadata(self, node):
@@ -317,45 +347,6 @@ class LocalFileBasedNodeStorage(NodeStorage):
         certificate_filepath = self.__get_certificate_filepath(certificate_filename=certificate_filename)
         return certificate_filepath
 
-    def __write_tls_certificate(self,
-                                certificate: Certificate,
-                                host: str = None,
-                                force: bool = True) -> str:
-
-        # Read
-        x509 = OpenSSL.crypto.X509.from_cryptography(certificate)
-        subject_components = x509.get_subject().get_components()
-        common_name_as_bytes = subject_components[0][1]
-        common_name_on_certificate = common_name_as_bytes.decode()
-        if not host:
-            host = common_name_on_certificate
-
-        pseudonym = certificate.subject.get_attributes_for_oid(NameOID.PSEUDONYM)[0]
-        checksum_address = pseudonym.value
-
-        if not is_checksum_address(checksum_address):  # TODO: more?
-            raise RuntimeError("Invalid certificate checksum address encountered: {}".format(checksum_address))
-
-        # Validate
-        # TODO: It's better for us to have checked this a while ago so that this situation is impossible.  #443
-        if host and (host != common_name_on_certificate):
-            raise ValueError('You passed a hostname ("{}") that does not match the certificat\'s common name.'.format(host))
-
-        certificate_filepath = self.generate_certificate_filepath(checksum_address=checksum_address)
-        certificate_already_exists = os.path.isfile(certificate_filepath)
-        if force is False and certificate_already_exists:
-            raise FileExistsError('A TLS certificate already exists at {}.'.format(certificate_filepath))
-
-        # Write
-        with open(certificate_filepath, 'wb') as certificate_file:
-            public_pem_bytes = certificate.public_bytes(self.TLS_CERTIFICATE_ENCODING)
-            certificate_file.write(public_pem_bytes)
-
-        self.certificate_filepath = certificate_filepath
-        self.log.info("Saved TLS certificate for {}: {}".format(self, certificate_filepath))
-
-        return certificate_filepath
-
     @validate_checksum_address
     def __read_tls_public_certificate(self, filepath: str = None, checksum_address: str=None) -> Certificate:
         """Deserialize an X509 certificate from a filepath"""
@@ -430,7 +421,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
         return node
 
     def store_node_certificate(self, certificate: Certificate):
-        certificate_filepath = self.__write_tls_certificate(certificate=certificate)
+        certificate_filepath = self._write_tls_certificate(certificate=certificate)
         return certificate_filepath
 
     def store_node_metadata(self, node) -> str:
