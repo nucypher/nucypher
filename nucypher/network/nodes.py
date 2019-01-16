@@ -331,9 +331,8 @@ class Learner:
         for seednode_metadata in self._seed_nodes:
             __attempt_seednode_learning(seednode_metadata=seednode_metadata)
 
-        if not self.unresponsive_seed_nodes:
-            if not self.lonely:
-                self.log.info("Finished learning about all seednodes.")
+        if not self.unresponsive_seed_nodes and not self.lonely:
+            self.log.info("Finished learning about all seednodes.")
         self.done_seeding = True
 
         if read_storages is True:
@@ -461,11 +460,9 @@ class Learner:
     def cycle_teacher_node(self):
         # To ensure that all the best teachers are availalble, first let's make sure
         # that we have connected to all the seed nodes.
-        if self.unresponsive_seed_nodes:
+        if self.unresponsive_seed_nodes and not self.lonely:
             self.log.info("Still have unresponsive seed nodes; trying again to connect.")
-
-            if not self.lonely:
-                self.load_seednodes()  # Ideally, this is async and singular.
+            self.load_seednodes()  # Ideally, this is async and singular.
 
         if not self.teacher_nodes:
             self.select_teacher_nodes()
