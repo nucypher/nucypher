@@ -24,3 +24,8 @@ DB_NAME = 'HeartBeat'
 SHARED_FOLDER = './shared'
 shutil.rmtree(SHARED_FOLDER, ignore_errors=True)
 os.mkdir(SHARED_FOLDER)
+
+# remove old bob-files
+BOB_FILES = './bob-files'
+shutil.rmtree(BOB_FILES, ignore_errors=True)
+os.mkdir(BOB_FILES)

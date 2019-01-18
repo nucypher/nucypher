@@ -38,51 +38,22 @@ ACCESS_REVOKED = "Access Disallowed"
 
 SEEDNODE_URL = "127.0.0.1:10151"
 
-# TODO: path joins?
-TEMP_DOCTOR_DIR = "{}/bob-files".format(os.path.dirname(os.path.abspath(__file__)))
+bob_instances = dict()  # Map: bob_id -> bob instance
 
-TEMP_URSULA_CERTIFICATE_DIR = "{}/ursula-certs".format(TEMP_DOCTOR_DIR)
-TEMP_DOCTOR_CERTIFICATE_DIR = "{}/bob-certs".format(TEMP_DOCTOR_DIR)
 
-# Remove previous demo files and create new ones
-shutil.rmtree(TEMP_DOCTOR_DIR, ignore_errors=True)
-os.mkdir(TEMP_DOCTOR_DIR)
-os.mkdir(TEMP_URSULA_CERTIFICATE_DIR)
-os.mkdir(TEMP_DOCTOR_CERTIFICATE_DIR)
-
-ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
-                                         federated_only=True,
-                                         minimum_stake=0)
-
-bob_privkeys = demo_keys.get_recipient_privkeys("bob")
-
-bob_enc_keypair = DecryptingKeypair(private_key=bob_privkeys["enc"])
-bob_sig_keypair = SigningKeypair(private_key=bob_privkeys["sig"])
-enc_power = DecryptingPower(keypair=bob_enc_keypair)
-sig_power = SigningPower(keypair=bob_sig_keypair)
-power_ups = [enc_power, sig_power]
-
-print("Creating Bob ...")
-
-bob = Bob(
-    is_me=True,
-    federated_only=True,
-    crypto_power_ups=power_ups,
-    start_learning_now=True,
-    abort_on_learning_error=True,
-    known_nodes=[ursula],
-    save_metadata=False,
-    network_middleware=RestMiddleware(),
-)
-
-print("Bob = ", bob)
-
-joined = list()
-
+#############
+# UI Layout #
+#############
 
 def get_layout():
-    unique_id = 'bob'
+    unique_id = os.urandom(4).hex()
 
+    # create bob instance
+    bob = _create_bob(unique_id)
+    bob_instances[unique_id] = bob  # add bob instance to dict
+    print('Bob (id:{}) = {}'.format(unique_id, bob))
+
+    # generate ui layout
     layout = html.Div([
         html.Div([
             html.Img(src='./assets/nucypher_logo.png'),
@@ -112,14 +83,11 @@ def get_layout():
                 html.Div(id='bob-unique-id', children='{}'.format(unique_id), className='one column'),
             ], className='row'),
             html.Br(),
-            html.Button('Generate Key Pair',
-                        id='gen-key-button',
+            html.Button('Get Public Keys',
+                        id='get-keys-button',
                         type='submit',
                         className='button button-primary'),
-            html.Div([
-                html.Div('Public Key:', className='two columns'),
-                html.Div(id='pub-key', className='seven columns'),
-            ], className='row'),
+            html.Div(id='pub-keys', className='row'),
         ]),
         html.Hr(),
         html.Div([
@@ -138,15 +106,72 @@ def get_layout():
     return layout
 
 
+def _create_bob(unique_id: str) -> Bob:
+    # TODO: path joins?
+    temp_bob_dir = "{}/bob-files/bob-{}-files".format(os.path.dirname(os.path.abspath(__file__)), unique_id)
+
+    temp_ursula_certificate_dir = "{}/ursula-certs".format(temp_bob_dir)
+    temp_bob_certificate_dir = "{}/bob-certs".format(temp_bob_dir)
+
+    # Ensure previous demo files removed, then create new ones
+    shutil.rmtree(temp_bob_dir, ignore_errors=True)
+    os.mkdir(temp_bob_dir)
+    os.mkdir(temp_ursula_certificate_dir)
+    os.mkdir(temp_bob_certificate_dir)
+
+    ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URL,
+                                             federated_only=True,
+                                             minimum_stake=0)
+
+    bob_privkeys = demo_keys.get_recipient_privkeys(unique_id)
+
+    bob_enc_keypair = DecryptingKeypair(private_key=bob_privkeys["enc"])
+    bob_sig_keypair = SigningKeypair(private_key=bob_privkeys["sig"])
+    enc_power = DecryptingPower(keypair=bob_enc_keypair)
+    sig_power = SigningPower(keypair=bob_sig_keypair)
+    power_ups = [enc_power, sig_power]
+
+    print("Creating Bob ...")
+
+    bob = Bob(
+        is_me=True,
+        federated_only=True,
+        crypto_power_ups=power_ups,
+        start_learning_now=True,
+        abort_on_learning_error=True,
+        known_nodes=[ursula],
+        save_metadata=False,
+        network_middleware=RestMiddleware(),
+    )
+
+    return bob
+
+
+#################
+# Bob's Actions #
+#################
+
+policy_joined = dict()  # Map: bob_id -> policy_label
+
+
 @app.callback(
-    Output('pub-key', 'children'),
+    Output('pub-keys', 'children'),
     [],
     [State('bob-unique-id', 'children')],
-    [Event('gen-key-button', 'click')]
+    [Event('get-keys-button', 'click')]
 )
-def gen_doctor_pubkey(bob_id):
+def get_doctor_pubkeys(bob_id):
     bob_pubkeys = demo_keys.get_recipient_pubkeys(bob_id)
-    return bob_pubkeys['enc'].to_bytes().hex()
+    return html.Div([
+        html.Div([
+            html.Div('Encryption Public Key (hex):', className='two columns'),
+            html.Div('{}'.format(bob_pubkeys['enc'].to_bytes().hex()), className='seven columns'),
+        ], className='row'),
+        html.Div([
+            html.Div('Signing Public Key (hex):', className='two columns'),
+            html.Div('{}'.format(bob_pubkeys['sig'].to_bytes().hex()), className='seven columns')
+        ], className='row')
+    ])
 
 
 @app.callback(
@@ -163,20 +188,28 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
         # button never clicked but triggered by interval
         return None
 
+    # get bob instance
+    bob = bob_instances[bob_id]
+
+    bob_enc_pubkey = demo_keys.get_recipient_pubkeys(bob_id)['enc']
+
     # Let's join the policy generated by Alicia. We just need some info about it.
-    with open(POLICY_INFO_FILE, 'r') as f:
-        policy_data = json.load(f)
+    try:
+        with open(POLICY_INFO_FILE.format(bob_enc_pubkey.to_bytes().hex()), 'r') as f:
+            policy_data = json.load(f)
+    except FileNotFoundError:
+        print("No policy file available")
+        return None
 
     policy_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['policy_pubkey']))
     alices_sig_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data['alice_sig_pubkey']))
-    label = policy_data['label'].encode()
+    label = policy_data['label']
 
-    if not joined:
-        print("The Doctor joins policy for label '{}' "
-              "and pubkey {}".format(policy_data['label'], policy_data['policy_pubkey']))
-
-        bob.join_policy(label, alices_sig_pubkey)
-        joined.append(label)
+    if bob_id not in policy_joined:
+        bob.join_policy(label.encode(), alices_sig_pubkey)
+        print("Bob (id:{}) joined policy with label '{}' "
+              "and public key {}".format(bob_id, label, policy_data['policy_pubkey']))
+        policy_joined[bob_id] = label
 
     with open(DATA_SOURCE_INFO_FILE, "rb") as file:
         data_source_metadata = msgpack.load(file, raw=False)
@@ -194,7 +227,7 @@ def update_cached_decrypted_heartbeats_list(read_time, json_latest_values, bob_i
     data_source = DataSource.from_public_keys(
         policy_public_key=policy_pubkey,
         datasource_public_key=data_source_metadata['data_source_pub_key'],
-        label=label
+        label=label.encode()
     )
 
     db_conn = sqlite3.connect(DB_FILE)

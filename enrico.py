@@ -42,8 +42,14 @@ layout = html.Div([
     html.Hr(),
     html.H3('Data Policy'),
     html.Div([
-        html.Div('Policy Key (hex): ', className='two columns'),
-        dcc.Input(id='policy-pub-key', type='text', className='seven columns'),
+        html.Div([
+            html.Div('Policy Label:', className='two columns'),
+            dcc.Input(id='policy-label', type='text', className='seven columns'),
+        ], className='row'),
+        html.Div([
+            html.Div('Policy Public Key (hex): ', className='two columns'),
+            dcc.Input(id='policy-pub-key', type='text', className='seven columns'),
+        ], className='row'),
         html.Button('Start Monitoring', id='generate-button', type='submit',
                     className="button button-primary", n_clicks_timestamp='0'),
         dcc.Interval(id='gen-heartbeat-update', interval=1000, n_intervals=0),
@@ -66,21 +72,20 @@ layout = html.Div([
     Output('cached-last-heartbeat', 'children'),
     [],
     [State('generate-button', 'n_clicks_timestamp'),
+     State('policy-label', 'value'),
      State('policy-pub-key', 'value'),
      State('cached-last-heartbeat', 'children')],
     [Event('gen-heartbeat-update', 'interval'),
      Event('generate-button', 'click')]
 )
-def generate_heartbeat_data(gen_time, policy_pubkey_hex, last_heart_rate):
+def generate_heartbeat_data(gen_time, policy_label, policy_pubkey_hex, last_heart_rate):
     if int(gen_time) == 0:
         # button has not been clicked as yet or interval triggered before click
         return None
 
-    label = 'heart-data'
-
     policy_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_pubkey_hex))
     if not cached_data_source:
-        data_source = DataSource(policy_pubkey_enc=policy_pubkey, label=label)
+        data_source = DataSource(policy_pubkey_enc=policy_pubkey, label=policy_label)
         data_source_public_key = bytes(data_source.stamp)
 
         data = {

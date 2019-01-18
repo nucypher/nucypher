@@ -1,7 +1,6 @@
 import dash_core_components as dcc
 from dash.dependencies import Output, Input, State, Event
 import dash_html_components as html
-import demo_keys
 import os
 
 from app import app, SHARED_FOLDER
@@ -11,6 +10,7 @@ from nucypher.config.characters import AliceConfiguration
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import SimpleObserver
+from umbral.keys import UmbralPublicKey
 
 import datetime
 import shutil
@@ -18,7 +18,7 @@ import maya
 import json
 from twisted.logger import globalLogPublisher
 
-POLICY_INFO_FILE = os.path.join(SHARED_FOLDER, "policy_metadata.json")
+POLICY_INFO_FILE = os.path.join(SHARED_FOLDER, "policy_metadata.{}.json")
 
 ######################
 # Boring setup stuff #
@@ -102,8 +102,17 @@ layout = html.Div([
     html.Div([
         html.H3('Policy Key'),
         html.Button('Create Policy Key', id='create-policy-button', type='submit',
-                    className='button button-primary'),
-        html.Div(id='policy-key-response')
+                    className='button button-primary', n_clicks_timestamp='0'),
+        html.Div([
+            html.Div([
+                html.Div('Policy Label:', className='two columns'),
+                html.Div(id='policy-label', className='two columns'),
+            ], className='row'),
+            html.Div([
+                html.Div('Policy Public Key (hex):', className='two columns'),
+                html.Div(id='policy-pub-key', className='seven columns')
+            ], className='row')
+        ]),
     ], className='row'),
     html.Hr(),
     html.Div([
@@ -121,8 +130,12 @@ layout = html.Div([
             dcc.Input(id='n-value', value='1', type='number', className='two columns'),
         ], className='row'),
         html.Div([
-            html.Div('Grant Recipient Public Key: ', className='two columns'),
-            dcc.Input(id='recipient-pub-key-grant', type='text', className='seven columns'),
+            html.Div('Recipient Encryption Public Key (hex): ', className='two columns'),
+            dcc.Input(id='recipient-pub-enc-key-grant', type='text', className='seven columns'),
+        ], className='row'),
+        html.Div([
+            html.Div('Recipient Signing Public Key (hex): ', className='two columns'),
+            dcc.Input(id='recipient-pub-sig-key-grant', type='text', className='seven columns')
         ], className='row'),
         html.Div([
             html.Button('Grant Access', id='grant-button', type='submit',
@@ -144,45 +157,57 @@ layout = html.Div([
 
 
 @app.callback(
-    Output('policy-key-response', 'children'),
+    Output('policy-label', 'children'),
     events=[Event('create-policy-button', 'click')]
 )
-def create_policy():
-    label = 'heart-data'
-    label = label.encode()
+def create_policy_label():
+    label = 'heart-data-' + os.urandom(4).hex()
+    return label
 
-    policy_pubkey = alicia.get_policy_pubkey_from_label(label)
 
-    return "The policy public key for " \
-           "label '{}' is {}".format(label.decode('utf-8'), policy_pubkey.to_bytes().hex())
+@app.callback(
+    Output('policy-pub-key', 'children'),
+    [Input('policy-label', 'children')],
+)
+def create_policy_key(policy_label):
+    if policy_label is not None:
+        policy_pubkey = alicia.get_policy_pubkey_from_label(policy_label.encode())
+        return policy_pubkey.to_bytes().hex()
+
+    return ''
 
 
 @app.callback(
     Output('grant-response', 'children'),
-    [Input('revoke-button', 'n_clicks_timestamp')],
-    [State('grant-button', 'n_clicks_timestamp'),
+    [],
+    [State('revoke-button', 'n_clicks_timestamp'),
+     State('grant-button', 'n_clicks_timestamp'),
+     State('policy-label', 'children'),
      State('days', 'value'),
      State('m-value', 'value'),
      State('n-value', 'value'),
-     State('recipient-pub-key-grant', 'value')],
+     State('recipient-pub-enc-key-grant', 'value'),
+     State('recipient-pub-sig-key-grant', 'value')],
     [Event('grant-button', 'click'),
      Event('revoke-button', 'click')]
 )
-def grant_access(revoke_time, grant_time, days, m, n, recipient_pubkey_hex):
+def grant_access(revoke_time, grant_time, policy_label,
+                 days, m, n, recipient_enc_pubkey_hex, recipient_sig_pubkey_hex):
+    if policy_label is None:
+        # policy not yet created so can't grant access
+        return ''
     if int(revoke_time) >= int(grant_time):
         # either triggered at start or because revoke was executed
         return ''
 
-    label = b'heart-data'
-
     # Alicia now wants to share data associated with this label.
     # To do so, she needs the public key of the recipient.
-    # In this example, we generate it on the fly (for demonstration purposes)
-    bob_pubkeys = demo_keys.get_recipient_pubkeys("bob")
+    enc_key = UmbralPublicKey.from_bytes(bytes.fromhex(recipient_enc_pubkey_hex))
+    sig_key = UmbralPublicKey.from_bytes(bytes.fromhex(recipient_sig_pubkey_hex))
 
     powers_and_material = {
-        DecryptingPower: bob_pubkeys['enc'],
-        SigningPower: bob_pubkeys['sig']
+        DecryptingPower: enc_key,
+        SigningPower: sig_key
     }
 
     # We create a view of the Bob who's going to be granted access.
@@ -199,9 +224,10 @@ def grant_access(revoke_time, grant_time, days, m, n, recipient_pubkey_hex):
 
     # With this information, Alicia creates a policy granting access to Bob.
     # The policy is sent to the NuCypher network.
-    print("Creating access policy for the Doctor...")
+    print('Creating access to policy {} for the Bob with public key {}...'
+          .format(policy_label, recipient_enc_pubkey_hex))
     policy = alicia.grant(bob=bob,
-                          label=label,
+                          label=policy_label.encode(),
                           m=int(m),
                           n=int(n),
                           expiration=policy_end_datetime)
@@ -212,13 +238,15 @@ def grant_access(revoke_time, grant_time, days, m, n, recipient_pubkey_hex):
     policy_info = {
         "policy_pubkey": policy.public_key.to_bytes().hex(),
         "alice_sig_pubkey": bytes(alicia.stamp).hex(),
-        "label": label.decode("utf-8"),
+        "label": policy_label,
     }
 
-    with open(POLICY_INFO_FILE, 'w') as f:
+    print("policy file", POLICY_INFO_FILE.format(recipient_enc_pubkey_hex))
+    with open(POLICY_INFO_FILE.format(recipient_enc_pubkey_hex), 'w') as f:
         json.dump(policy_info, f)
 
-    return 'Access granted to recipient with public key: {}!'.format(recipient_pubkey_hex)
+    return 'Access to policy {} granted to recipient with encryption public key: {}!'\
+        .format(policy_label, recipient_enc_pubkey_hex)
 
 
 @app.callback(
