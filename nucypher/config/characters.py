@@ -21,7 +21,6 @@ import os
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION
 )
-
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
