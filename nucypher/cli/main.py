@@ -17,16 +17,17 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
+import shutil
 
 import click
-import shutil
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
-from constant_sorrow.constants import TEMPORARY_DOMAIN
 from nacl.exceptions import CryptoError
 from twisted.internet import stdio
 from twisted.logger import Logger
 from twisted.logger import globalLogPublisher
 
+from constant_sorrow import constants
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_PASSWORD
+from constant_sorrow.constants import TEMPORARY_DOMAIN
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MAX_MINTING_PERIODS
 from nucypher.blockchain.eth.registry import EthereumContractRegistry
 from nucypher.characters.lawful import Ursula
@@ -341,9 +342,15 @@ Delete {}?'''.format(ursula_config.config_root), abort=True)
     # Authenticated Configurations
     else:
 
-        # Restore configuration from file
+        # Deserialize network domain name if override passed
+        if network:
+            domain_constant = getattr(constants, network.upper())
+            domains = {domain_constant}
+        else:
+            domains = None
+
         ursula_config = UrsulaConfiguration.from_configuration_file(filepath=config_file,
-                                                                    domains={network} if network else None,
+                                                                    domains=domains,
                                                                     registry_filepath=registry_filepath,
                                                                     provider_uri=provider_uri,
                                                                     rest_host=rest_host,

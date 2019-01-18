@@ -21,7 +21,6 @@ import os
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION
 )
-
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.node import NodeConfiguration
@@ -41,8 +40,6 @@ class UrsulaConfiguration(NodeConfiguration):
                  dev_mode: bool = False,
                  db_filepath: str = None,
                  *args, **kwargs) -> None:
-        if dev_mode is True:
-            db_filepath = ':memory:'  # sqlite in-memory db
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
 

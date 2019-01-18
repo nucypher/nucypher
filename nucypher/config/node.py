@@ -20,12 +20,20 @@ import binascii
 import json
 import os
 import secrets
+import shutil
 import string
 from abc import ABC
 from json import JSONDecodeError
 from tempfile import TemporaryDirectory
+from typing import List, Set
 
-import shutil
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
+from cryptography.x509 import Certificate
+from twisted.logger import Logger
+from umbral.signing import Signature
+
+from constant_sorrow import constants
 from constant_sorrow.constants import GLOBAL_DOMAIN
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
@@ -34,13 +42,6 @@ from constant_sorrow.constants import (
     LIVE_CONFIGURATION,
     NO_KEYRING_ATTACHED
 )
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
-from cryptography.x509 import Certificate
-from twisted.logger import Logger
-from typing import List, Set
-from umbral.signing import Signature
-
 from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, USER_LOG_DIR
@@ -64,6 +65,8 @@ class NodeConfiguration(ABC):
 
     # Mode
     DEFAULT_OPERATING_MODE = 'decentralized'
+
+    # Domains
     DEFAULT_DOMAIN = GLOBAL_DOMAIN
 
     # Serializers
@@ -76,7 +79,7 @@ class NodeConfiguration(ABC):
     TEMP_CONFIGURATION_DIR_PREFIX = "nucypher-tmp-"
 
     # Blockchain
-    DEFAULT_PROVIDER_URI = 'tester://pyevm'  # FIXME: Needs to be updated in tandem with manual providers for interface.connect
+    DEFAULT_PROVIDER_URI = 'tester://pyevm'
 
     # Registry
     __REGISTRY_NAME = 'contract_registry.json'
@@ -371,7 +374,10 @@ class NodeConfiguration(ABC):
                                                   serializer=cls.NODE_SERIALIZER,
                                                   deserializer=cls.NODE_DESERIALIZER)
 
-        payload.update(dict(node_storage=node_storage, domains=set(payload['domains'])))
+        # Deserialize domains to Constants vis Constant Sorrow
+        domains = set(getattr(constants, domain.upper()) for domain in payload['domains'])
+
+        payload.update(dict(node_storage=node_storage, domains=domains))
 
         # Filter out Nones from overrides to detect, well, overrides
         overrides = {k: v for k, v in overrides.items() if v is not None}
@@ -391,7 +397,7 @@ class NodeConfiguration(ABC):
         del payload['is_me']  # TODO
 
         # Serialize domains
-        domains = list(str(d) for d in self.domains)
+        domains = list(str(domain) for domain in self.domains)
 
         # Save node connection data
         payload.update(dict(node_storage=self.node_storage.payload(), domains=domains))
