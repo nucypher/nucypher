@@ -3,7 +3,7 @@
   user: ubuntu
   gather_facts: false
   pre_tasks:
-    - include_vars: "{{ lookup('env', 'ANSIBLE_SEEDNODE_VARIABLES') }}"
+    - include_vars: "{{ lookup('env', 'ANSIBLE_VARIABLES') }}"
   tasks:
 
     - git:

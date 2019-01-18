@@ -27,12 +27,6 @@ from json import JSONDecodeError
 from tempfile import TemporaryDirectory
 from typing import List, Set
 
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
-from cryptography.x509 import Certificate
-from twisted.logger import Logger
-from umbral.signing import Signature
-
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
     STRANGER_CONFIGURATION,
@@ -40,6 +34,12 @@ from constant_sorrow.constants import (
     LIVE_CONFIGURATION,
     NO_KEYRING_ATTACHED
 )
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
+from cryptography.x509 import Certificate
+from twisted.logger import Logger
+from umbral.signing import Signature
+
 from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, USER_LOG_DIR, GLOBAL_DOMAIN
@@ -374,7 +374,6 @@ class NodeConfiguration(ABC):
 
         # Deserialize domains to UTF-8 bytestrings
         domains = list(domain.encode() for domain in payload['domains'])
-
         payload.update(dict(node_storage=node_storage, domains=domains))
 
         # Filter out Nones from overrides to detect, well, overrides
