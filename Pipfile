@@ -21,7 +21,7 @@ sqlalchemy = "*"
 maya = "*"
 apistar = "<0.6.0"
 # Third-Party Ethereum
-py-evm = "*"
+py-evm = "==0.2.0a39"
 eth-tester = "*"
 py-solc = "*"
 web3 = "*"
@@ -45,7 +45,7 @@ mypy = "*"
 coverage = "*"
 python-coveralls = "*"
 ansible = "*"
-nucypher = {editable = true, path = "."}
+nucypher = {editable = true,path = "."}
 
 [scripts]
 install-solc = "scripts/install_solc.sh"
