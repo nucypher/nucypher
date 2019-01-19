@@ -34,6 +34,7 @@ def test_run_lone_federated_default_development_ursula(click_runner):
             '--rest-port', MOCK_URSULA_STARTING_PORT,   # Network Port
             '--dev',                                    # Run in development mode (ephemeral node)
             '--dry-run'                                 # Disable twisted reactor in subprocess
+            '--lonely'                                  # Do not load seednodes
             )
 
     result = yield threads.deferToThread(click_runner.invoke,
