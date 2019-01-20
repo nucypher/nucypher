@@ -80,11 +80,13 @@ class TesterBlockchain(Blockchain):
             w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
         # Generate additional ethereum accounts for testing
-        enough_accounts = len(self.interface.w3.eth.accounts) >= NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+        population = test_accounts if test_accounts is not None else NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+
+        enough_accounts = len(self.interface.w3.eth.accounts) >= population
         if test_accounts is not None and not enough_accounts:
 
-            accounts_to_make = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - len(self.interface.w3.eth.accounts)
-            test_accounts = test_accounts if test_accounts is not None else NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+            accounts_to_make = population - len(self.interface.w3.eth.accounts)
+            test_accounts = test_accounts if test_accounts is not None else population
 
             self.__generate_insecure_unlocked_accounts(quantity=accounts_to_make)
 
