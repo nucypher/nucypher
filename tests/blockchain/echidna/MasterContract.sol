@@ -6,10 +6,10 @@ import "contracts/MinersEscrow.sol";
 import "contracts/PolicyManager.sol";
 import "contracts/UserEscrow.sol";
 import "contracts/UserEscrowProxy.sol";
-import "./Constants.sol";
+import "./Fixtures.sol";
 
 
-contract MasterContract is Constants {
+contract MasterContract {
 
     NuCypherToken token;
     MinersEscrow escrow;
@@ -18,11 +18,11 @@ contract MasterContract is Constants {
 //    UserEscrowLibraryLinker userEscrowLinker;
     UserEscrow userEscrow;
 
-    constructor(address _token, address _escrow, address _policyManager) public {
-        token = _token != 0x0 ? NuCypherToken(_token) : new NuCypherToken(1000000);
-        escrow = _escrow != 0x0 ? MinersEscrow(_escrow) :
-            new MinersEscrow(token, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, 1500);
-        policyManager = _policyManager != 0x0 ? PolicyManager(_policyManager) : new PolicyManager(escrow);
+    function build(address _token, address _escrow, address _policyManager) internal {
+        token = _token != 0x0 ? NuCypherToken(_token) : Fixtures.createDefaultToken();
+        escrow = _escrow != 0x0 ? MinersEscrow(_escrow) : Fixtures.createDefaultMinersEscrow(token);
+        policyManager = _policyManager != 0x0 ? PolicyManager(_policyManager) :
+            Fixtures.createDefaultPolicyManager(escrow);
         if (address(escrow.policyManager()) == 0x0) {
             escrow.setPolicyManager(PolicyManagerInterface(address(policyManager)));
         }
@@ -32,12 +32,6 @@ contract MasterContract is Constants {
 
 
 contract NuCypherTokenABI is MasterContract {
-
-    constructor(address _token, address _escrow, address _policyManager)
-        public
-        MasterContract(_token, _escrow, _policyManager)
-    {
-    }
 
     function transfer(address to, uint256 value) public returns (bool) {
         return token.transfer(to, value);
@@ -80,7 +74,7 @@ contract MinersEscrowABI is MasterContract {
     function confirmActivity() external {
         escrow.confirmActivity();
     }
-    function mint() external {
+    function mint() public {
         escrow.mint();
     }
     //function setPolicyManager(PolicyManagerInterface _policyManager) external; // TODO ???

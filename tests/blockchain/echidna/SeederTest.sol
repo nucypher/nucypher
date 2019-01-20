@@ -2,15 +2,15 @@ pragma solidity ^0.4.25;
 
 
 import "contracts/Seeder.sol";
-import "./Constants.sol";
+import "./Fixtures.sol";
 
 
-contract SeederTest is Seeder, Constants {
+contract SeederTest is Seeder {
 
     constructor() public Seeder(2) {
-        seeds[Constants.ADDRESS_1] = SeedInfo("host1", 1);
-        seedArray[0] = Constants.ADDRESS_1;
-        owner = Constants.ECHIDNA_CALLER;
+        seeds[Fixtures.addressList(1)] = SeedInfo("host1", 1);
+        seedArray[0] = Fixtures.addressList(1);
+        owner = Fixtures.echidnaCaller();
     }
 
     function echidnaArrayTest() public view returns (bool) {
@@ -18,9 +18,7 @@ contract SeederTest is Seeder, Constants {
     }
 
     function echidnaSeedTest() public view returns (bool) {
-        return seeds[Constants.ADDRESS_1].port == 1 &&
-            keccak256(abi.encodePacked(bytes(seeds[Constants.ADDRESS_1].ip))) == keccak256("host1") &&
-            seedArray[0] == Constants.ADDRESS_1;
+        return seedArray[0] == Fixtures.addressList(1);
     }
 
 }
