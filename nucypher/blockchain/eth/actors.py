@@ -494,6 +494,9 @@ class Miner(NucypherTokenActor):
         approve_txhash, initial_deposit_txhash = self.deposit(amount=amount, lock_periods=lock_periods)
         self._transaction_cache.append((datetime.utcnow(), initial_deposit_txhash))
 
+        staking_transactions['approve'] = approve_txhash
+        staking_transactions['deposit'] = initial_deposit_txhash
+
         self.log.info("{} Initialized new stake: {} tokens for {} periods".format(self.checksum_public_address, amount, lock_periods))
         return staking_transactions
 
