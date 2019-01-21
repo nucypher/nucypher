@@ -22,7 +22,6 @@ from collections import defaultdict, OrderedDict
 from collections import deque
 from collections import namedtuple
 from contextlib import suppress
-from logging import Logger
 
 import maya
 import requests
