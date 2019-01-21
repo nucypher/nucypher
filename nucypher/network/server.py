@@ -63,14 +63,14 @@ class ProxyRESTServer:
                  rest_host: str,
                  rest_port: int,
                  hosting_power=None,
-                 routes: 'ProxyRESTRoutes' = None,
+                 rest_app=None,
+                 datastore=None,
                  ) -> None:
 
-        self.routes = routes
         self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
-        if routes:  # if is me
-            self.rest_app = routes.rest_app
-            self.db_filepath = routes.db_filepath
+        if rest_app:  # if is me
+            self.rest_app = rest_app
+            self.datastore = datastore
         else:
             self.rest_app = constants.PUBLIC_ONLY
 
