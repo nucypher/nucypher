@@ -692,7 +692,7 @@ class Learner:
 
         # TODO: This doesn't make sense - a decentralized node can still learn about a federated-only node.
         from nucypher.characters.lawful import Ursula
-        if response.status_code == 204:
+        if constant_or_bytes(node_payload) is FLEET_STATES_MATCH:
             return FLEET_STATES_MATCH
 
         node_list = Ursula.batch_from_bytes(node_payload, federated_only=self.federated_only)  # TODO: 466
