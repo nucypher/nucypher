@@ -55,7 +55,7 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nicknames import nickname_from_seed
 from nucypher.network.nodes import Teacher
 from nucypher.network.protocols import InterfaceInfo, parse_node_uri
-from nucypher.network.server import ProxyRESTServer, TLSHostingPower, ProxyRESTRoutes
+from nucypher.network.server import ProxyRESTServer, TLSHostingPower, make_rest_app
 from nucypher.utilities.decorators import validate_checksum_address
 
 
