@@ -568,7 +568,6 @@ class Learner:
                     raise self.NotEnoughTeachers(
                         "After {} seconds and {} rounds, didn't find these {} nodes: {}".format(
                             timeout, rounds_undertaken, len(still_unknown), still_unknown))
-
             else:
                 time.sleep(.1)
 
@@ -907,14 +906,11 @@ class Teacher:
                 certificate_filepath = self.certificate_filepath
 
         # The node's metadata is valid; let's be sure the interface is in order.
-        response = network_middleware.node_information(host=self.rest_information()[0].host,
+        response_data = network_middleware.node_information(host=self.rest_information()[0].host,
                                                        port=self.rest_information()[0].port,
                                                        certificate_filepath=certificate_filepath)
 
-        if not response.status_code == 200:
-            raise RuntimeError("Or something.")  # TODO: Raise an error here?  Or return False?  Or something?
-
-        version, node_bytes = self.version_splitter(response.content, return_remainder=True)
+        version, node_bytes = self.version_splitter(response_data, return_remainder=True)
 
         node_details = self.internal_splitter(node_bytes)
         # TODO check timestamp here.  589
