@@ -868,7 +868,7 @@ class Ursula(Teacher, Character, Miner):
     @property
     def datastore(self):
         try:
-            return self.rest_server.routes.datastore
+            return self.rest_server.datastore
         except AttributeError:
             raise AttributeError("No rest server attached")
 
