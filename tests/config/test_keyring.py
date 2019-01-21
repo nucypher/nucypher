@@ -25,7 +25,6 @@ def test_generate_alice_keyring(tmpdir):
     keyring = NucypherKeyring.generate(
         password=password,
         encrypting=True,
-        wallet=False,
         rest=False,
         keyring_root=tmpdir
     )

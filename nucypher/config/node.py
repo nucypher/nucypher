@@ -588,12 +588,13 @@ class NodeConfiguration(ABC):
 
         self.keyring = NucypherKeyring.generate(password=password,
                                                 keyring_root=self.keyring_dir,
+                                                checksum_address=self.checksum_public_address,
                                                 **generation_kwargs)
         # Operating mode switch TODO: #466
         if self.federated_only:
             self.checksum_public_address = self.keyring.federated_address
         else:
-            self.checksum_public_address = self.keyring.checksum_address
+            self.checksum_public_address = self.keyring.account
 
         return self.keyring
 
