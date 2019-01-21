@@ -650,11 +650,9 @@ class Ursula(Teacher, Character, Miner):
                       federated_only: bool = False,
                       *args, **kwargs
                       ):
-        response = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
-        if not response.status_code == 200:
-            raise RuntimeError("Got a bad response: {}".format(response))
+        response_data = network_middleware.node_information(host, port, certificate_filepath=certificate_filepath)
 
-        stranger_ursula_from_public_keys = cls.from_bytes(response.content, federated_only=federated_only, *args,
+        stranger_ursula_from_public_keys = cls.from_bytes(response_data, federated_only=federated_only, *args,
                                                           **kwargs)
 
         return stranger_ursula_from_public_keys
