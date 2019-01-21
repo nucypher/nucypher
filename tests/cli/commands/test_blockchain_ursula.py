@@ -1,7 +1,10 @@
 import json
 import os
 
+import pytest
+
 from nucypher.blockchain.eth.actors import Miner
+from nucypher.blockchain.eth.agents import NucypherTokenAgent
 from nucypher.blockchain.eth.constants import MIN_LOCKED_PERIODS, MIN_ALLOWED_LOCKED
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
@@ -162,3 +165,41 @@ def test_ursula_divide_stakes(click_runner, deployed_blockchain):
 
     miner = Miner(checksum_address=deployer_address, blockchain=blockchain, is_me=True)
     assert len(miner.stakes) == 2
+
+
+@pytest.mark.slow
+@pytest.mark.skipif('pytest' in TEST_PROVIDER_URI, reason='Time travel is unavailable with non-pyevm providers')
+def test_ursula_collect_staking_rewards(click_runner, deployed_blockchain):
+    blockchain, _deployer_address = deployed_blockchain
+    deployer_address, staking_participant, *everyone_else = blockchain.interface.w3.eth.accounts
+
+    # Mock the passage of time and staking confirmations
+    miner = Miner(checksum_address=deployer_address, blockchain=blockchain, is_me=True)
+    original_token_balance = miner.token_balance
+    original_eth_balance = miner.eth_balance
+
+    for period in range(MIN_LOCKED_PERIODS):
+        blockchain.time_travel(periods=1)
+        miner.confirm_activity()
+
+    collection_args = ('ursula', 'collect-reward',
+                       '--checksum-address', deployer_address,
+                       '--dev',
+                       '--poa',
+                       '--force',
+                       '--index', 0,
+                       '--value', MIN_ALLOWED_LOCKED,
+                       '--duration', 10,
+                       '--provider-uri', TEST_PROVIDER_URI)
+
+    result = click_runner.invoke(nucypher_cli,
+                                 collection_args,
+                                 catch_exceptions=False,
+                                 env=dict(NUCYPHER_KEYRING_PASSWORD=INSECURE_DEVELOPMENT_PASSWORD))
+    assert result.exit_code == 0
+
+    new_token_balance = miner.token_balance
+    new_eth_balance = miner.eth_balance
+
+    assert new_token_balance > original_token_balance
+    assert new_eth_balance >= new_eth_balance

@@ -480,7 +480,6 @@ def ursula(click_config,
             click.confirm(f"Send {miner.calculate_reward()} to {ursula_config.checksum_public_address}?")
 
         miner.collect_staking_reward()
-        miner.collect_policy_reward()
 
     else:
         raise click.BadArgumentUsage("No such argument {}".format(action))

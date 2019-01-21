@@ -507,50 +507,34 @@ class Miner(NucypherTokenActor):
     @only_me
     def confirm_activity(self) -> str:
         """Miner rewarded for every confirmed period"""
-
         txhash = self.miner_agent.confirm_activity(node_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), txhash))
-
         return txhash
 
     @only_me
     def mint(self) -> Tuple[str, str]:
         """Computes and transfers tokens to the miner's account"""
-
         mint_txhash = self.miner_agent.mint(node_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), mint_txhash))
-
         return mint_txhash
 
-    def calculate_reward(self, staking=True, policy=True) -> int:
-        entitlement = 0
-
-        if staking:
-            staking_reward = self.miner_agent.calculate_staking_reward()
-            entitlement += staking_reward
-
-        if policy:
-            policy_reward = self.miner_agent.calculate_staking_reward()
-            entitlement += policy_reward
-
-        return entitlement
+    def calculate_reward(self) -> int:
+        staking_reward = self.miner_agent.calculate_staking_reward(checksum_address=self.checksum_public_address)
+        return staking_reward
 
     @only_me
-    def collect_policy_reward(self, policy_manager):
+    def collect_policy_reward(self, policy_agent: PolicyAgent = None):
         """Collect rewarded ETH"""
-
-        policy_reward_txhash = policy_manager.collect_policy_reward(collector_address=self.checksum_public_address)
+        policy_agent = policy_agent if policy_agent is not None else PolicyAgent(blockchain=self.blockchain)
+        policy_reward_txhash = policy_agent.collect_policy_reward(collector_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), policy_reward_txhash))
-
         return policy_reward_txhash
 
     @only_me
-    def collect_staking_reward(self, collector_address: str) -> str:
+    def collect_staking_reward(self) -> str:
         """Withdraw tokens rewarded for staking."""
-
-        collection_txhash = self.miner_agent.collect_staking_reward(collector_address=collector_address)
+        collection_txhash = self.miner_agent.collect_staking_reward(checksum_address=self.checksum_public_address)
         self._transaction_cache.append((datetime.utcnow(), collection_txhash))
-
         return collection_txhash
 
 

@@ -25,6 +25,7 @@ from web3.contract import Contract
 from nucypher.blockchain.eth import constants
 from nucypher.blockchain.eth.chains import Blockchain
 from nucypher.blockchain.eth.registry import AllocationRegistry
+from nucypher.utilities.decorators import validate_checksum_address
 
 
 class EthereumContractAgent(ABC):
@@ -185,20 +186,19 @@ class MinerAgent(EthereumContractAgent):
         self.blockchain.wait_for_receipt(mint_txhash)
         return mint_txhash
 
-    def calculate_staking_reward(self):
-        checksum_address = self.checksum_public_address
+    @validate_checksum_address
+    def calculate_staking_reward(self, checksum_address: str) -> int:
         token_amount = self.contract.functions.minerInfo(checksum_address).call()[0]
         staked_amount = max(self.contract.functions.getLockedTokens(checksum_address).call(),
                             self.contract.functions.getLockedTokens(checksum_address, 1).call())
         reward_amount = token_amount - staked_amount
         return reward_amount
 
-    def collect_staking_reward(self, collector_address: str = None) -> str:
+    @validate_checksum_address
+    def collect_staking_reward(self, checksum_address: str) -> str:
         """Withdraw tokens rewarded for staking."""
-        if collector_address is None:
-            collector_address = self.checksum_public_address
-        reward_amount = self.calculate_staking_reward()
-        collection_txhash = self.contract.functions.withdraw(reward_amount).transact({'from': collector_address})
+        reward_amount = self.calculate_staking_reward(checksum_address=checksum_address)
+        collection_txhash = self.contract.functions.withdraw(reward_amount).transact({'from': checksum_address})
         self.blockchain.wait_for_receipt(collection_txhash)
         return collection_txhash
 
