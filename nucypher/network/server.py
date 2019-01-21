@@ -158,7 +158,7 @@ def make_rest_app(
             log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))
             headers = {'Content-Type': 'application/octet-stream'}
             payload = node_tracker.snapshot() + bytes(FLEET_STATES_MATCH)
-            signature = _stamp(payload)
+            signature = stamp(payload)
             return Response(bytes(signature) + payload, headers=headers)
 
         nodes = _node_class.batch_from_bytes(request.data, federated_only=federated_only)  # TODO: 466
@@ -171,7 +171,7 @@ def make_rest_app(
                     continue  # This node is not serving any of our domains.
 
             if node in node_tracker:
-                if node.timestamp <= _node_tracker[node.checksum_public_address].timestamp:
+                if node.timestamp <= node_tracker[node.checksum_public_address].timestamp:
                     continue
 
             @crosstown_traffic()
@@ -202,7 +202,7 @@ def make_rest_app(
                 # Believable
                 else:
                     log.info("Learned about previously unknown node: {}".format(node))
-                    _node_recorder(node)
+                    node_recorder(node)
                     # TODO: Record new fleet state
 
                 # Cleanup
@@ -319,16 +319,16 @@ def make_rest_app(
             # This is the capsule signed by Bob
             capsule_signature = bytes(capsule_signature)
             # Ursula signs on top of it. Now both are committed to the same capsule.
-            capsule_signed_by_both = bytes(_stamp(capsule_signature))
+            capsule_signed_by_both = bytes(stamp(capsule_signature))
 
             capsule.set_correctness_keys(verifying=alices_verifying_key)
             cfrag = pre.reencrypt(kfrag, capsule, metadata=capsule_signed_by_both)
             log.info("Re-encrypting for {}, made {}.".format(capsule, cfrag))
-            signature = _stamp(bytes(cfrag) + bytes(capsule))
+            signature = stamp(bytes(cfrag) + bytes(capsule))
             cfrag_byte_stream += VariableLengthBytestring(cfrag) + signature
 
         # TODO: Put this in Ursula's datastore
-        _work_order_tracker.append(work_order)
+        work_order_tracker.append(work_order)
 
         headers = {'Content-Type': 'application/octet-stream'}
 
