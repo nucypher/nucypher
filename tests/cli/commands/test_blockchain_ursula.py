@@ -13,6 +13,9 @@ from nucypher.utilities.sandbox.constants import (
     MOCK_REGISTRY_FILEPATH, TESTER_DOMAIN)
 
 
+STAKE_VALUE = MIN_ALLOWED_LOCKED * 2
+
+
 def test_initialize_custom_blockchain_configuration(deployed_blockchain, custom_filepath, click_runner):
     blockchain, deployer_address = deployed_blockchain
 
@@ -92,7 +95,7 @@ def test_init_ursula_stake(click_runner, deployed_blockchain):
     blockchain, deployer_address = deployed_blockchain
 
     stake_args = ('ursula', 'stake',
-                  '--value', MIN_ALLOWED_LOCKED,
+                  '--value', STAKE_VALUE,
                   '--duration', MIN_LOCKED_PERIODS,
                   '--dev',
                   '--poa',
@@ -110,7 +113,7 @@ def test_init_ursula_stake(click_runner, deployed_blockchain):
     stake = miner.stakes[0]
     start, end, value = stake
     assert (abs(end-start)+1) == MIN_LOCKED_PERIODS
-    assert value == MIN_ALLOWED_LOCKED
+    assert value == STAKE_VALUE
 
 
 def test_list_ursula_stakes(click_runner, deployed_blockchain):
@@ -125,4 +128,37 @@ def test_list_ursula_stakes(click_runner, deployed_blockchain):
 
     result = click_runner.invoke(nucypher_cli, stake_args, catch_exceptions=False)
     assert result.exit_code == 0
-    assert str(MIN_ALLOWED_LOCKED) in result.output
+    assert str(STAKE_VALUE) in result.output
+
+
+def test_ursula_divide_stakes(click_runner, deployed_blockchain):
+    blockchain, _deployer_address = deployed_blockchain
+    deployer_address, staking_participant, *everyone_else = blockchain.interface.w3.eth.accounts
+
+    divide_args = ('ursula', 'divide-stake',
+                   '--checksum-address', deployer_address,
+                   '--dev',
+                   '--poa',
+                   '--force',
+                   '--index', 0,
+                   '--value', MIN_ALLOWED_LOCKED,
+                   '--duration', 10,
+                   '--provider-uri', TEST_PROVIDER_URI)
+
+    result = click_runner.invoke(nucypher_cli,
+                                 divide_args,
+                                 catch_exceptions=False,
+                                 env=dict(NUCYPHER_KEYRING_PASSWORD=INSECURE_DEVELOPMENT_PASSWORD))
+    assert result.exit_code == 0
+
+    stake_args = ('ursula', 'stake', '--list',
+                  '--checksum-address', deployer_address,
+                  '--dev',
+                  '--poa',
+                  '--provider-uri', TEST_PROVIDER_URI)
+
+    result = click_runner.invoke(nucypher_cli, stake_args, catch_exceptions=False)
+    assert result.exit_code == 0
+
+    miner = Miner(checksum_address=deployer_address, blockchain=blockchain, is_me=True)
+    assert len(miner.stakes) == 2

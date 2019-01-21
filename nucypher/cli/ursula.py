@@ -37,9 +37,7 @@ from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     NETWORK_PORT,
     EXISTING_READABLE_FILE,
-    EXISTING_WRITABLE_DIRECTORY,
-    STAKE_VALUE,
-    STAKE_DURATION
+    EXISTING_WRITABLE_DIRECTORY
 )
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.utilities.logging import (
@@ -90,8 +88,8 @@ the Untrusted Re-Encryption Proxy.
 @click.option('--no-registry', help="Skip importing the default contract registry", is_flag=True)
 @click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 @click.option('--checksum-address', type=EIP55_CHECKSUM_ADDRESS)
-@click.option('--value', help="Token value of stake", type=STAKE_VALUE)
-@click.option('--duration', help="Period duration of stake", type=STAKE_DURATION)
+@click.option('--value', help="Token value of stake", type=click.INT)
+@click.option('--duration', help="Period duration of stake", type=click.INT)
 @click.option('--index', help="A specific stake index to resume", type=click.INT)
 @click.option('--list', '-l', 'list_', help="List all blockchain stakes", is_flag=True)
 @nucypher_click_config
@@ -452,40 +450,61 @@ def ursula(click_config,
     elif action == 'divide-stake':
         """Divide an existing stake by specifying the new target value and end period"""
 
-        stakes = ursula_config.miner_agent.get_all_stakes(miner_address=checksum_address)
+        stakes = list(ursula_config.miner_agent.get_all_stakes(miner_address=checksum_address))
         if len(stakes) == 0:
             raise RuntimeError("There are no active stakes for {}".format(checksum_address))
 
-        if not index:
+        if index is None:
             for selection_index, stake_info in enumerate(stakes):
                 click.echo("{} ....... {}".format(selection_index, stake_info))
             index = click.prompt("Select a stake to divide", type=click.INT)
 
-        target_value = click.prompt("Enter new target value", type=click.INT)
-        extension = click.prompt("Enter number of periods to extend", type=click.INT)
+        if not value:
+            target_value = click.prompt("Enter new target value", type=click.INT)
+        else:
+            target_value = value
 
-        click.echo("""
-        Current Stake: {}
+        if not duration:
+            extension = click.prompt("Enter number of periods to extend", type=click.INT)
+        else:
+            extension = duration
 
-        New target value {}
-        New end period: {}
+        if not force:
+            click.echo("""
+            Current Stake: {}
 
-        """.format(stakes[index],
-                   target_value,
-                   target_value + extension))
+            New target value {}
+            New end period: {}
 
-        click.confirm("Is this correct?", abort=True)
-        ursula_config.miner_agent.divide_stake(miner_address=checksum_address,
-                                               stake_index=index,
-                                               value=value,
-                                               periods=extension)
+            """.format(stakes[index],
+                       target_value,
+                       target_value + extension))
+
+            click.confirm("Is this correct?", abort=True)
+
+        miner = Miner(is_me=True,
+                      checksum_address=ursula_config.checksum_public_address,
+                      blockchain=ursula_config.blockchain)
+
+        txhash_bytes = miner.divide_stake(stake_index=index,
+                                          target_value=value,
+                                          additional_periods=duration)
+
+        if not quiet:
+            click.secho('Successfully divided stake', fg='green')
+            click.secho(f'Transaction Hash ........... {txhash_bytes.hex()}')
+
         return
 
-    elif action == 'collect-reward':  # TODO: Implement
+    elif action == 'collect-reward':
         """Withdraw staking reward to the specified wallet address"""
-        # click.confirm("Send {} to {}?".format)
-        # ursula_config.miner_agent.collect_staking_reward(collector_address=address)
-        raise NotImplementedError
+        miner = Miner(checksum_address=checksum_address, blockchain=ursula_config.blockchain, is_me=True)
+
+        if not force:
+            click.confirm(f"Send {miner.calculate_reward()} to {ursula_config.checksum_public_address}?")
+
+        miner.collect_staking_reward()
+        miner.collect_policy_reward()
 
     else:
         raise click.BadArgumentUsage("No such argument {}".format(action))
