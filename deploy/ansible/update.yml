@@ -18,8 +18,8 @@
       args:
         chdir: ./code
       environment:
-        LC_ALL: C.UTF-8
-        LANG: C.UTF-8
+        LC_ALL: en_US.UTF-8
+        LANG: en_US.UTF-8
 
     - name: "Restart Ursula Service"
       become: yes

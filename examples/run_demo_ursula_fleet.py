@@ -61,8 +61,8 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
         env = {'PATH': os.environ['PATH'],
                'NUCYPHER_SENTRY_LOGS': '0',
                'NUCYPHER_FILE_LOGS': '0',
-               'LC_ALL': 'C.UTF-8',
-               'LANG': 'C.UTF-8'}
+               'LC_ALL': 'en_US.UTF-8',
+               'LANG': 'en_US.UTF-8'}
 
         childFDs = {0: 0,
                     1: 1,
