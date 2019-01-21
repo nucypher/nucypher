@@ -1,5 +1,4 @@
 -i https://pypi.python.org/simple
-apistar==0.5.42
 appdirs==1.4.3
 argh==0.26.2
 asn1crypto==0.24.0
@@ -31,6 +30,7 @@ eth-rlp==0.1.2
 eth-tester==0.1.0b36
 eth-typing==2.0.0
 eth-utils==1.4.1
+Flask==1.0.2
 hendrix==3.1.0
 hexbytes==0.1.0
 humanize==0.5.1

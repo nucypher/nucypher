@@ -19,7 +19,7 @@ pysha3="*"
 requests = "*"
 sqlalchemy = "*"
 maya = "*"
-apistar = "<0.6.0"
+flask = "*"
 # Third-Party Ethereum
 py-evm = "==0.2.0a39"
 eth-tester = "*"
