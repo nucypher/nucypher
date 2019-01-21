@@ -522,6 +522,19 @@ class Miner(NucypherTokenActor):
 
         return mint_txhash
 
+    def calculate_reward(self, staking=True, policy=True) -> int:
+        entitlement = 0
+
+        if staking:
+            staking_reward = self.miner_agent.calculate_staking_reward()
+            entitlement += staking_reward
+
+        if policy:
+            policy_reward = self.miner_agent.calculate_staking_reward()
+            entitlement += policy_reward
+
+        return entitlement
+
     @only_me
     def collect_policy_reward(self, policy_manager):
         """Collect rewarded ETH"""

@@ -185,17 +185,21 @@ class MinerAgent(EthereumContractAgent):
         self.blockchain.wait_for_receipt(mint_txhash)
         return mint_txhash
 
-    def collect_staking_reward(self, collector_address) -> str:
+    def calculate_staking_reward(self):
+        checksum_address = self.checksum_public_address
+        token_amount = self.contract.functions.minerInfo(checksum_address).call()[0]
+        staked_amount = max(self.contract.functions.getLockedTokens(checksum_address).call(),
+                            self.contract.functions.getLockedTokens(checksum_address, 1).call())
+        reward_amount = token_amount - staked_amount
+        return reward_amount
+
+    def collect_staking_reward(self, collector_address: str = None) -> str:
         """Withdraw tokens rewarded for staking."""
-
-        token_amount = self.contract.functions.minerInfo(collector_address).call()[0]
-        staked_amount = max(self.contract.functions.getLockedTokens(collector_address).call(),
-                            self.contract.functions.getLockedTokens(collector_address, 1).call())
-
-        collection_txhash = self.contract.functions.withdraw(token_amount - staked_amount).transact({'from': collector_address})
-
+        if collector_address is None:
+            collector_address = self.checksum_public_address
+        reward_amount = self.calculate_staking_reward()
+        collection_txhash = self.contract.functions.withdraw(reward_amount).transact({'from': collector_address})
         self.blockchain.wait_for_receipt(collection_txhash)
-
         return collection_txhash
 
     #
