@@ -196,7 +196,7 @@ def test_collect_staking_reward(three_agents):
 
     old_balance = token_agent.get_balance(address=someone)
 
-    txhash = agent.collect_staking_reward(collector_address=someone)
+    txhash = agent.collect_staking_reward(checksum_address=someone)
     receipt = testerchain.wait_for_receipt(txhash)
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][-1]['address'] == agent.contract_address
