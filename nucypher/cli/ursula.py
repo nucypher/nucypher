@@ -20,7 +20,6 @@ import os
 
 import click
 from constant_sorrow import constants
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from constant_sorrow.constants import TEMPORARY_DOMAIN
 from nacl.exceptions import CryptoError
 from twisted.internet import stdio
@@ -268,10 +267,7 @@ def ursula(click_config,
                                                                     rest_host=rest_host,
                                                                     rest_port=rest_port,
                                                                     db_filepath=db_filepath,
-
-                                                                    # TODO: Handle Boolean overrides
-                                                                    # poa=poa,
-                                                                    # federated_only=federated_only,
+                                                                    poa=poa
                                                                     )
 
         try:  # Unlock Keyring
@@ -281,38 +277,18 @@ def ursula(click_config,
         except CryptoError:
             raise ursula_config.keyring.AuthenticationFailed
 
-        #
-        # Initialize
-        #
-        if not ursula_config.federated_only:
-
-            if not checksum_address:
-
-                if click_config.accounts == NO_BLOCKCHAIN_CONNECTION:
-                    click.echo('No account found.')
-                    raise click.Abort()
-
-                for index, address in enumerate(click_config.accounts):
-                    if index == 0:
-                        row = 'etherbase (0) | {}'.format(address)
-                    else:
-                        row = '{} .......... | {}'.format(index, address)
-                    click.echo(row)
-
-                click.echo("Select ethereum address")
-                account_selection = click.prompt("Enter 0-{}".format(len(click_config.accounts)), type=click.INT)
-                checksum_address = click_config.accounts[account_selection]
-
+    #
+    # Connect to Blockchain
+    #
     if not ursula_config.federated_only:
         try:
             ursula_config.connect_to_blockchain(recompile_contracts=False)
             ursula_config.connect_to_contracts()
-        except EthereumContractRegistry.NoRegistry:
-            message = "Cannot configure blockchain character: No contract registry found; " \
-                      "Did you mean to pass --federated-only?"
-            raise EthereumContractRegistry.NoRegistry(message)
 
-    click_config.ursula_config = ursula_config  # Pass Ursula's config onto staking sub-command
+        except EthereumContractRegistry.NoRegistry:
+            message = "Cannot configure blockchain character: No contract registry found; \n" \
+                      "Did you mean to pass --federated-only?"
+            raise click.Abort(message)
 
     #
     # Launch Warnings
