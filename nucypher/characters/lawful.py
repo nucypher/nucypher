@@ -45,6 +45,7 @@ from constant_sorrow.constants import INCLUDED_IN_BYTESTRING, PUBLIC_ONLY
 from nucypher.blockchain.eth.actors import PolicyAuthor, Miner
 from nucypher.blockchain.eth.agents import MinerAgent
 from nucypher.characters.base import Character, Learner
+from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.constants import PUBLIC_KEY_LENGTH, PUBLIC_ADDRESS_LENGTH
@@ -449,7 +450,7 @@ class Ursula(Teacher, Character, Miner):
                  # Ursula
                  rest_host: str,
                  rest_port: int,
-                 domains: Set = (constants.GLOBAL_DOMAIN,),  # For now, serving and learning domains will be the same.
+                 domains: Set = (GLOBAL_DOMAIN,),  # For now, serving and learning domains will be the same.
                  certificate: Certificate = None,
                  certificate_filepath: str = None,
                  db_filepath: str = None,

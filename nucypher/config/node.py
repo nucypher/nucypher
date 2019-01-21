@@ -33,8 +33,6 @@ from cryptography.x509 import Certificate
 from twisted.logger import Logger
 from umbral.signing import Signature
 
-from constant_sorrow import constants
-from constant_sorrow.constants import GLOBAL_DOMAIN
 from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
     STRANGER_CONFIGURATION,
@@ -44,7 +42,7 @@ from constant_sorrow.constants import (
 )
 from nucypher.blockchain.eth.agents import PolicyAgent, MinerAgent, NucypherTokenAgent
 from nucypher.blockchain.eth.chains import Blockchain
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, USER_LOG_DIR
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, BASE_DIR, USER_LOG_DIR, GLOBAL_DOMAIN
 from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import NodeStorage, ForgetfulNodeStorage, LocalFileBasedNodeStorage
 from nucypher.crypto.powers import CryptoPowerUp, CryptoPower
@@ -374,8 +372,8 @@ class NodeConfiguration(ABC):
                                                   serializer=cls.NODE_SERIALIZER,
                                                   deserializer=cls.NODE_DESERIALIZER)
 
-        # Deserialize domains to Constants vis Constant Sorrow
-        domains = set(getattr(constants, domain.upper()) for domain in payload['domains'])
+        # Deserialize domains to UTF-8 bytestrings
+        domains = list(domain.encode() for domain in payload['domains'])
 
         payload.update(dict(node_storage=node_storage, domains=domains))
 
@@ -397,7 +395,7 @@ class NodeConfiguration(ABC):
         del payload['is_me']  # TODO
 
         # Serialize domains
-        domains = list(str(domain) for domain in self.domains)
+        domains = list(domain.decode() for domain in self.domains)
 
         # Save node connection data
         payload.update(dict(node_storage=self.node_storage.payload(), domains=domains))

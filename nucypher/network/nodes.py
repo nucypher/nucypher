@@ -30,7 +30,7 @@ import time
 from bytestring_splitter import BytestringSplitter
 from bytestring_splitter import VariableLengthBytestring, BytestringSplittingError
 from constant_sorrow import constant_or_bytes
-from constant_sorrow.constants import GLOBAL_DOMAIN, NO_KNOWN_NODES, NOT_SIGNED, NEVER_SEEN, NO_STORAGE_AVAILIBLE, FLEET_STATES_MATCH
+from constant_sorrow.constants import NO_KNOWN_NODES, NOT_SIGNED, NEVER_SEEN, NO_STORAGE_AVAILIBLE, FLEET_STATES_MATCH
 from cryptography.x509 import Certificate
 from eth_keys.datatypes import Signature as EthSignature
 from requests.exceptions import SSLError
@@ -40,7 +40,7 @@ from twisted.internet.threads import deferToThread
 from twisted.logger import Logger
 from typing import Set, Tuple
 
-from nucypher.config.constants import SeednodeMetadata
+from nucypher.config.constants import SeednodeMetadata, GLOBAL_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.powers import BlockchainPower, SigningPower, DecryptingPower, NoSigningPower

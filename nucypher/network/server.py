@@ -29,8 +29,9 @@ from umbral.keys import UmbralPublicKey
 
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import GLOBAL_DOMAIN, NO_KNOWN_NODES
+from constant_sorrow.constants import NO_KNOWN_NODES
 from hendrix.experience import crosstown_traffic
+from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.kits import UmbralMessageKit
