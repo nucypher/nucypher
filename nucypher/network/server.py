@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import binascii
 import os
-from typing import Callable
+from typing import Callable, Tuple
 
 from flask import Flask, Response
 from flask import request
@@ -26,11 +26,11 @@ from twisted.logger import Logger
 from umbral import pre
 from umbral.keys import UmbralPublicKey
 from umbral.kfrags import KFrag
-from constant_sorrow.constants import FLEET_STATES_MATCH
 
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
-from constant_sorrow.constants import NO_KNOWN_NODES
+from constant_sorrow.constants import FLEET_STATES_MATCH
+from constant_sorrow.constants import GLOBAL_DOMAIN, NO_KNOWN_NODES
 from hendrix.experience import crosstown_traffic
 from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -46,9 +46,12 @@ from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import InterfaceInfo
 
-
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
+
+with open(os.path.join(TEMPLATES_DIR, "basic_status.j2"), "r") as f:
+    _status_template_content = f.read()
+status_template = Template(_status_template_content)
 
 
 class ProxyRESTServer:
@@ -302,7 +305,7 @@ def make_rest_app(
         log.info("Work Order from {}, signed {}".format(work_order.bob, work_order.receipt_signature))
         with ThreadedSession(db_engine) as session:
             policy_arrangement = datastore.get_policy_arrangement(arrangement_id=id_as_hex.encode(),
-                                                                       session=session)
+                                                                  session=session)
 
         kfrag_bytes = policy_arrangement.kfrag  # Careful!  :-)
         verifying_key_bytes = policy_arrangement.alice_pubkey_sig.key_data
@@ -339,7 +342,7 @@ def make_rest_app(
             treasure_map = treasure_map_tracker[keccak_digest(binascii.unhexlify(treasure_map_id))]
             response = Response(bytes(treasure_map), headers=headers)
             log.info("{} providing TreasureMap {}".format(node_bytes_caster(),
-                                                               treasure_map_id))
+                                                          treasure_map_id))
         except KeyError:
             log.info("{} doesn't have requested TreasureMap {}".format(self, treasure_map_id))
             response = Response("No Treasure Map with ID {}".format(treasure_map_id),
@@ -389,8 +392,8 @@ def make_rest_app(
 
         try:
             content = status_template.render(this_node=this_node,
-                                                   known_nodes=node_tracker,
-                                                   previous_states=previous_states)
+                                             known_nodes=node_tracker,
+                                             previous_states=previous_states)
         except Exception as e:
             log.debug("Template Rendering Exception: ".format(str(e)))
             raise TemplateError(str(e)) from e
