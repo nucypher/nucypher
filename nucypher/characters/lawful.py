@@ -522,7 +522,7 @@ class Ursula(Teacher, Character, Miner):
                 #
                 # REST Server (Ephemeral Self-Ursula)
                 #
-                rest_routes = ProxyRESTRoutes(
+                rest_app, datastore = make_rest_app(
                     db_filepath=db_filepath,
                     network_middleware=self.network_middleware,
                     federated_only=self.federated_only,  # TODO: 466
@@ -543,7 +543,8 @@ class Ursula(Teacher, Character, Miner):
                 tls_hosting_keypair = HostingKeypair(curve=tls_curve, host=rest_host, checksum_public_address=self.checksum_public_address)
                 tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=rest_host)
                 self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port,
-                                                   routes=rest_routes, hosting_power=tls_hosting_power)
+                                                   rest_app=rest_app, datastore=datastore,
+                                                   hosting_power=tls_hosting_power)
 
             #
             # Stranger-Ursula
