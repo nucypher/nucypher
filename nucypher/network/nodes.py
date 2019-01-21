@@ -52,14 +52,6 @@ from nucypher.network.protocols import SuspiciousActivity
 from nucypher.network.server import TLSHostingPower
 
 
-GLOBAL_DOMAIN.set_constant_documentation(
-    """
-    If this domain is among those being learned or served, then domain checking is skipped.
-    A Learner learning about the GLOBAL_DOMAIN will learn about all nodes.
-    A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
-    """)
-
-
 def icon_from_checksum(checksum,
                        nickname_metadata,
                        number_of_nodes="Unknown number of "):

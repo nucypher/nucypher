@@ -25,16 +25,26 @@ from appdirs import AppDirs
 import nucypher
 from nucypher.blockchain.eth import sol
 
+
 # Base Filepaths
 BASE_DIR = abspath(dirname(dirname(nucypher.__file__)))
 PROJECT_ROOT = abspath(dirname(nucypher.__file__))
 CONTRACT_ROOT = os.path.join(abspath(dirname(sol.__file__)), 'source', 'contracts')
+
 
 # User Application Filepaths
 APP_DIR = AppDirs(nucypher.__title__, nucypher.__author__)
 DEFAULT_CONFIG_ROOT = APP_DIR.user_data_dir
 USER_LOG_DIR = APP_DIR.user_log_dir
 
+
 # Static Seednodes
 SeednodeMetadata = namedtuple('seednode', ['checksum_public_address', 'rest_host', 'rest_port'])
 SEEDNODES = tuple()
+
+
+# Domains
+#If this domain is among those being learned or served, then domain checking is skipped.
+#A Learner learning about the GLOBAL_DOMAIN will learn about all nodes.
+#A Teacher serving the GLOBAL_DOMAIN will teach about all nodes.
+GLOBAL_DOMAIN = b'GLOBAL_DOMAIN'
