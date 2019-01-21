@@ -19,13 +19,14 @@ import binascii
 import os
 from typing import Callable
 
-from apistar import Route, App
-from apistar.http import Response, Request, QueryParams
+from flask import Flask, Response
+from flask import request
 from jinja2 import Template, TemplateError
 from twisted.logger import Logger
 from umbral import pre
-from umbral.kfrags import KFrag
 from umbral.keys import UmbralPublicKey
+from umbral.kfrags import KFrag
+from constant_sorrow.constants import FLEET_STATES_MATCH
 
 from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow import constants
@@ -44,6 +45,7 @@ from nucypher.keystore.threading import ThreadedSession
 from nucypher.network import LEARNING_LOOP_VERSION
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import InterfaceInfo
+
 
 HERE = BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 TEMPLATES_DIR = os.path.join(HERE, "templates")
@@ -108,37 +110,6 @@ class ProxyRESTRoutes:
         self._suspicious_activity_tracker = suspicious_activity_tracker
         self.serving_domains = serving_domains
 
-        routes = [
-            Route('/kFrag/{id_as_hex}',
-                  'POST',
-                  self.set_policy),
-            Route('/kFrag/{id_as_hex}/reencrypt',
-                  'POST',
-                  self.reencrypt_via_rest),
-            Route('/kFrag/{id_as_hex}',
-                  'DELETE',
-                  self.revoke_arrangement),
-            Route('/public_information', 'GET',
-                  self.public_information),
-            Route('/node_metadata', 'GET',
-                  self.all_known_nodes),
-            Route('/node_metadata', 'POST',
-                  self.node_metadata_exchange),
-            Route('/consider_arrangement',
-                  'POST',
-                  self.consider_arrangement),
-            Route('/treasure_map/{treasure_map_id}',
-                  'GET',
-                  self.provide_treasure_map),
-            Route('/status',
-                  'GET',
-                  self.status),
-            Route('/treasure_map/{treasure_map_id}',
-                  'POST',
-                  self.receive_treasure_map),
-        ]
-
-        self.rest_app = App(routes=routes)
         self.db_filepath = db_filepath
 
         from nucypher.keystore import keystore
