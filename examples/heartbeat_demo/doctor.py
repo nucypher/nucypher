@@ -1,8 +1,8 @@
 import json
 import os
-import sys
 import shutil
 import msgpack
+import urllib3
 import maya
 import traceback
 from timeit import default_timer as timer
@@ -16,6 +16,9 @@ from nucypher.network.middleware import RestMiddleware
 
 from umbral.keys import UmbralPublicKey
 
+
+# Disable InsecureRequestWarnings to clean demo output
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 ######################
 # Boring setup stuff #
