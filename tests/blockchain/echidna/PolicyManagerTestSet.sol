@@ -6,6 +6,7 @@ import "contracts/MinersEscrow.sol";
 import "contracts/PolicyManager.sol";
 import "./Fixtures.sol";
 import "./MasterContract.sol";
+import "./MinersEscrowTestSet.sol";
 
 
 contract PolicyManagerTest1 is PolicyManager {
@@ -18,30 +19,6 @@ contract PolicyManagerTest1 is PolicyManager {
         // TODO this test should fail after withdraw reward
         // but need to transfer ETH somehow to PolicyManager contract
         return nodes[Fixtures.echidnaCaller()].reward == 1000;
-    }
-
-}
-
-
-contract MinersEscrow2 is MinersEscrow {
-
-    constructor(NuCypherToken _token, address _miner)
-        public
-        MinersEscrow(_token, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, 1500)
-    {
-        miners.push(_miner);
-        MinerInfo storage info = minerInfo[_miner];
-        info.value = 1000;
-        info.confirmedPeriod1 = getCurrentPeriod() - 1;
-        info.confirmedPeriod2 = getCurrentPeriod();
-        info.stakes.push(StakeInfo(getCurrentPeriod() - 1, 0, 100, info.value));
-
-        lockedPerPeriod[info.confirmedPeriod1] = info.value;
-        lockedPerPeriod[info.confirmedPeriod2] = info.value;
-    }
-
-    function getCurrentPeriod() public view returns (uint16) {
-        return 10;
     }
 
 }
@@ -79,22 +56,15 @@ contract PolicyManagerTest2 is MinersEscrowABI, PolicyManagerABI {
 
     constructor() public {
         NuCypherToken token = Fixtures.createDefaultToken();
-        MinersEscrow escrow = new MinersEscrow2(token, miner);
+        MinersEscrow escrow = new MinersEscrow1(token, miner);
         PolicyManager policyManager = new PolicyManager2(escrow, miner);
         build(token, escrow, policyManager);
-        token.transfer(address(escrow), 100000);
-        escrow.initialize();
         token.transfer(address(escrow), 1000);
     }
 
     function echidnaPolicyRewardTest() public view returns (bool) {
         (uint256 reward,,,) = policyManager.nodes(miner);
         return reward <= 1100;
-    }
-
-    function echidnaMiningRewardTest() public view returns (bool) {
-        (uint256 value,,,) = escrow.minerInfo(miner);
-        return value >= 1000 && value <= 1001;
     }
 
 }

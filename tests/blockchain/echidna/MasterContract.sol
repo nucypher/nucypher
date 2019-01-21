@@ -26,6 +26,9 @@ contract MasterContract {
         if (address(escrow.policyManager()) == 0x0) {
             escrow.setPolicyManager(PolicyManagerInterface(address(policyManager)));
         }
+
+        token.transfer(address(escrow), 100000);
+        escrow.initialize();
     }
 
 }

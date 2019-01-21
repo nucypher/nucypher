@@ -40,12 +40,12 @@ library Fixtures {
         return new NuCypherToken(1000000);
     }
 
-    function createDefaultMinersEscrow() internal returns (MinersEscrow) {
-        return new MinersEscrow(createDefaultToken(), 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, 1500);
+    function createDefaultMinersEscrow(NuCypherToken _token) internal returns (MinersEscrow) {
+        return new DefaultMinersEscrow(_token);
     }
 
-    function createDefaultMinersEscrow(NuCypherToken _token) internal returns (MinersEscrow) {
-        return new MinersEscrow(_token, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, 1500);
+    function createDefaultMinersEscrow() internal returns (MinersEscrow) {
+        return createDefaultMinersEscrow(createDefaultToken());
     }
 
     function createDefaultPolicyManager(MinersEscrow _escrow) internal returns (PolicyManager) {
@@ -54,6 +54,18 @@ library Fixtures {
 
     function createDefaultPolicyManager() internal returns (PolicyManager) {
         return new PolicyManager(createDefaultMinersEscrow());
+    }
+
+}
+
+
+contract DefaultMinersEscrow is MinersEscrow {
+
+    constructor(NuCypherToken _token) public MinersEscrow(_token, 1, 4 * 2 * 10 ** 7, 4, 4, 2, 100, 1500) {
+    }
+
+    function getCurrentPeriod() public view returns (uint16) {
+        return 10;
     }
 
 }
