@@ -1,4 +1,6 @@
-# Ursula exchange example over live network
+# Finnegan's Wake Demo
+
+## Overview
 
 This is an illustration of NuCypher Decentralized Key Management System (KMS) allowing Alice to share a
 data with Bob using proxy re-encryption paradigm. This enables the private sharing of data between
@@ -12,7 +14,7 @@ participants in public consensus networks, without revealing data keys to interm
 5. Bob receives and reconstructs the DataSource from Policy public key and DataSource public key
 6. Bob retrieves the original message form DataSource and MessageKit
 
-### Install Nucypher
+## Install Nucypher
 ```
 git clone https://github.com/nucypher/nucypher.git  # clone NuCypher repository
 cd nucypher
@@ -21,9 +23,9 @@ pipenv install --dev --three --skip-lock --pre
 pipenv shell
 ```
 
-### Download the Book!
+## Download the Book Text
 `./download_finnegans_wake.sh`
 
 
-### Run
+## Run the Demo
 `python3 finnegans-wake-concise-demo.py`
