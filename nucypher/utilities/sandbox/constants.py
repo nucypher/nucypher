@@ -78,7 +78,7 @@ MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(ti
 
 TEMPORARY_DOMAIN = 'TEMPORARY_DOMAIN'
 
-MOCK_REGISTRY_FILEPATH = '/tmp/nucypher-tmp-mock-registry.json'
+MOCK_REGISTRY_FILEPATH = '/tmp/nucypher-tmp-mock-registry-{}.json'.format(time.time())
 
 GETH_DEV_URI = "ipc:///tmp/geth.ipc"
 
