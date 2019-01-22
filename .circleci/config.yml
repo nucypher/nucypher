@@ -158,6 +158,15 @@ workflows:
           requires:
             - cli
             - ursula_command
+      - build_docker:
+          filters:
+            tags:
+              only: /v[0-9]+.*/
+            branches:
+              ignore: /.*/
+          requires:
+            - cli
+            - ursula_command
       - test_deploy:
           context: "NuCypher PyPI"
           requires:
@@ -171,6 +180,7 @@ workflows:
           type: approval
           requires:
             - test_deploy
+            - build_docker
           filters:
             tags:
               only: /v[0-9]+.*/
@@ -198,13 +208,13 @@ workflows:
 
 python_36_base: &python_36_base
   parallelism: 1
-  working_directory: ~/nucypher-depends
+  working_directory: ~/nucypher
   docker:
     - image: circleci/python:3.6
 
 python_37_base: &python_37_base
   parallelism: 1
-  working_directory: ~/nucypher-depends
+  working_directory: ~/nucypher
   docker:
     - image: circleci/python:3.7
 
@@ -509,6 +519,37 @@ jobs:
           command: pip3 install --user ./dist/nucypher-0.1.0a0-py3-none-any.whl[test]
       - check_nucypher_entrypoints
 
+  build_docker:
+    <<: *python_36_base
+    docker:
+      - image: docker:18.06.1-ce
+    steps:
+      - checkout
+      - setup_remote_docker
+      - restore_cache:
+          keys:
+            - v1-{{ .Branch }}
+          paths:
+            - ~/docker/nucypher.tar
+      - run:
+          name: Load Docker Image Layer Cache
+          command: |
+            set +o pipefail
+            docker load -i ~/docker/nucypher.tar | true
+      - run:
+          name: Build Docker Image
+          command: |
+            docker build -f deploy/docker/Dockerfile --cache-from=nucypher -t nucypher .
+      - run:
+          name: Save Docker Image Layer Cache
+          command: |
+            mkdir -p ~/docker
+            docker save -o ~/docker/nucypher.tar nucypher
+      - save_cache:
+          key: v1-{{ .Branch }}-{{ epoch }}
+          paths:
+            - ~/docker/nucypher.tar
+
   test_deploy:
     <<: *python_36_base
     steps:
@@ -583,38 +624,18 @@ jobs:
       - image: docker:18.09.0-ce-git
     steps:
       - checkout
-      - setup_remote_docker
-      - run:
-          name: Install Build Dependencies
-          command: docker-compose==1.23.2
       - restore_cache:
           keys:
             - v1-{{ .Branch }}
           paths:
-            - /caches/nucypher.tar
+            - ~/docker/nucypher.tar
       - run:
           name: Load Docker Image Layer Cache
           command: |
             set +o pipefail
-            docker load -i /caches/nucypher.tar | true
-      - run:
-          name: Build Docker Image
-          command: |
-            docker build --cache-from=nucypher -t nucypher .
-      - run:
-          name: Save Docker Image Layer Cache
-          command: |
-            mkdir -p /caches
-            docker save -o /caches/nucypher.tar nucypher
-      - save_cache:
-          key: v1-{{ .Branch }}-{{ epoch }}
-          paths:
-            - /caches/nucypher.tar
-      - run:
-          name: Run Tests via Docker
-          command: docker-compose -f ./deploy/docker/docker-compose.yml up
+            docker load -i ~/docker/nucypher.tar | true
       - deploy:
-          name: Push application Docker image
+          name: Push NuCypher Docker Image
           command: |
             if [ "${CIRCLE_BRANCH}" == "master" ]; then
               docker tag nucypher "nucypher/nucypher:${CIRCLE_TAG}"
