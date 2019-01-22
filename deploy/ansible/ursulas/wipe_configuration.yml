@@ -1,0 +1,17 @@
+- name: "Start Ursulas"
+  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') + '_ursulas' }}"
+  user: ubuntu
+  gather_facts: false
+
+  tasks:
+    - name: "Delete NuCypher Configuration Files and Directories (Root)"
+      file:
+        state: absent
+        path: "~/.local/share/nucypher/"
+      become: yes
+      become_flags: "-H -S"
+
+    - name: "Delete NuCypher Configuration Files and Directories (User)"
+      file:
+        state: absent
+        path: "~/.local/share/nucypher/"

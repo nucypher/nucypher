@@ -1,5 +1,5 @@
 - name: "Update Application Code on Seednodes"
-  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') }}"
+  hosts: "{{ 'tag_Role_' + lookup('env', 'NUCYPHER_NETWORK_NAME') + '_ursulas' }}"
   user: ubuntu
   gather_facts: false
   pre_tasks:
@@ -13,13 +13,16 @@
         clone: no
         update: yes
 
-    - name: "Install Python Dependencies via Pipenv"
-      shell: "pipenv install --dev --skip-lock --pre"
-      args:
+    - pip:
         chdir: ./code
+        name: '.'
+        editable: true
+        executable: pip3
       environment:
         LC_ALL: en_US.UTF-8
         LANG: en_US.UTF-8
+      become: yes
+      become_flags: "-H -S"
 
     - name: "Restart Ursula Service"
       become: yes
