@@ -76,7 +76,7 @@ MOCK_CUSTOM_INSTALLATION_PATH = '/tmp/nucypher-tmp-test-custom-{}'.format(time.t
 
 MOCK_CUSTOM_INSTALLATION_PATH_2 = '/tmp/nucypher-tmp-test-custom-2-{}'.format(time.time())
 
-MOCK_REGISTRY_FILEPATH = '/tmp/nucypher-tmp-mock-registry.json'
+MOCK_REGISTRY_FILEPATH = '/tmp/nucypher-tmp-mock-registry-{}.json'.format(time.time())
 
 TESTER_DOMAIN = 'tester'
 
