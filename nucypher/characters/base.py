@@ -39,6 +39,7 @@ from constant_sorrow.constants import (
     SIGNATURE_IS_ON_CIPHERTEXT
 )
 from nucypher.blockchain.eth.chains import Blockchain
+from nucypher.config.constants import GLOBAL_DOMAIN
 from nucypher.crypto.api import encrypt_and_sign
 from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import (
@@ -68,7 +69,7 @@ class Character(Learner):
     from nucypher.crypto.signing import InvalidSignature
 
     def __init__(self,
-                 domains: Set = (constants.GLOBAL_DOMAIN,),
+                 domains: Set = (GLOBAL_DOMAIN,),
                  is_me: bool = True,
                  federated_only: bool = False,
                  blockchain: Blockchain = None,
