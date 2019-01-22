@@ -21,9 +21,7 @@ If you encounter issues, we’d love to hear your feedback in our #staking chann
 - Stage C (Interactive Method) - Run the Node
 - Stage C (System Service Method) - Run the Node
 
-### Updating Nucypher Application Code
-
-#### Stage A | Install The Nucypher Environment
+### Stage A | Install The Nucypher Environment
 
 1) Install Python and Git
 
@@ -69,7 +67,7 @@ $ source nucypher/bin/activate
 ```
 
 
-#### Stage B | Configure Ursula
+### Stage B | Configure Ursula
 
 1. Verify that the installation was successful
 
@@ -107,7 +105,7 @@ Save your password as you will need it to relaunch the node, and please note:
 - Security audits are ongoing on this codebase; for now, treat it as un-audited.
 
 
-#### Stage C | Run the Node (Interactive Method)
+### Stage C | Run the Node (Interactive Method)
 
 1. Connect to Testnet
 
@@ -154,7 +152,7 @@ Alternately you can run your node as a system service.
 See the *“System Service Method”* section below.
 
 
-#### Stage C | Run the Node (System Service Method)
+### Stage C | Run the Node (System Service Method)
 *NOTE - This is an alternative to the “Interactive Method”.*
 
 1. Create Ursula System Service
